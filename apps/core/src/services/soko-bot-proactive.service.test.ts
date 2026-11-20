@@ -28,6 +28,10 @@ const {
   turnCountMock: vi.fn(),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBot: { findUniqueOrThrow: botFindUniqueOrThrowMock },
@@ -72,6 +76,7 @@ import {
   ensureSystemSchedules,
   findAttentionItems,
   followUpsBlock,
+  localDayStart,
   proactiveGate,
 } from "./soko-bot-proactive.service";
 
@@ -202,7 +207,7 @@ beforeEach(() => {
 
 describe("proactiveGate", () => {
   it("counts what the bot decided to do, not what a person asked", async () => {
-    await proactiveGate("bot-1", new Date("2026-08-29T12:00:00.000Z"));
+    await proactiveGate("bot-1");
 
     const where = turnCountMock.mock.calls[0]?.[0]?.where;
     expect(where.OR).toEqual([
@@ -236,6 +241,12 @@ describe("proactiveGate", () => {
       reason: "paused",
     });
   });
+});
+
+it("uses the midnight offset on a day when the local clocks change", () => {
+  expect(
+    localDayStart(new Date("2026-10-25T12:03:45.678Z"), "Europe/Vienna"),
+  ).toEqual(new Date("2026-10-24T22:00:00.000Z"));
 });
 
 describe("buildSystemBeatMessage private Task visibility", () => {
@@ -314,7 +325,19 @@ describe("buildSystemBeatMessage stand-up board", () => {
               id: "mine-1",
               name: "My launch",
               status: "READY",
+              assigneeSokoBotId: null,
               assignee: null,
+              assigneeUser: null,
+              assigneeSokoBot: null,
+            },
+            {
+              id: "mine-2",
+              name: "Polar checkout",
+              status: "RUNNING",
+              assigneeSokoBotId: null,
+              assignee: { name: "CodePat" },
+              assigneeUser: null,
+              assigneeSokoBot: null,
             },
           ];
         }
@@ -372,7 +395,13 @@ describe("buildSystemBeatMessage stand-up board", () => {
       }),
     );
     expect(beat.message).toContain("## Your open Tasks");
-    expect(beat.message).toContain("My launch");
+    // An unassigned Task is the owner's own work, not the bot's to hand out.
+    expect(beat.message).toContain(
+      '- READY · "My launch" (id mine-1) · unassigned: your owner\'s own work, not yours to hand out',
+    );
+    expect(beat.message).toContain(
+      '- RUNNING · "Polar checkout" (id mine-2) · with CodePat',
+    );
     expect(beat.message).toContain("## Team activity (last 24h)");
     expect(beat.message).toContain(
       'Albina · RUNNING · "Pricing research" · with Hannah',

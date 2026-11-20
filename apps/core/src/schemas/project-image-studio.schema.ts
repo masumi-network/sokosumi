@@ -1,5 +1,10 @@
 import { z } from "@hono/zod-openapi";
-import { MAX_STUDIO_HEADLINE_LENGTH } from "@sokosumi/utils";
+import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
+import {
+  MAX_STUDIO_HEADLINE_LENGTH,
+  TALKING_VIDEO_SCRIPT_MAX_LENGTH,
+  TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+} from "@sokosumi/utils";
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
@@ -12,6 +17,7 @@ import {
   IMAGE_RESOLUTIONS,
 } from "@/lib/image-studio/image-model";
 import { IMAGE_PROMPT_MAX_LENGTH } from "@/lib/image-studio/request-validation";
+import { DEFAULT_TALKING_VIDEO_VOICE } from "@/lib/image-studio/talking-video";
 import { getVideoCatalog } from "@/lib/image-studio/video-catalog";
 import {
   VIDEO_ASPECT_RATIOS,
@@ -60,6 +66,7 @@ export const studioAdPlacementRatioSchema = z
 export const imageStudioAssetContentQuerySchema = z.object({
   logo: studioLogoPositionSchema.optional(),
   placement: studioAdPlacementRatioSchema.optional(),
+  download: z.enum(["true"]).optional(),
 });
 
 export type StudioAdPlacementRatio = z.infer<
@@ -104,6 +111,21 @@ export const imageStudioVideoSettingsSchema = z
   })
   .openapi("ProjectVideoSettings");
 
+/** Who speaks a talking video. A null presenter is the requester's own photo. */
+export const imageStudioTalkingVideoSchema = z
+  .object({
+    voice: z.string(),
+    presenterId: z.string().nullable(),
+    languageCode: z.string(),
+    /** The middle of the video shows the Project's website. */
+    siteShots: z.boolean(),
+    /** A generated clip plays in the hook. */
+    broll: z.boolean(),
+    /** Generated music plays under the voice. */
+    music: z.boolean(),
+  })
+  .openapi("ProjectTalkingVideo");
+
 export const IMAGE_STUDIO_MEDIA_TYPES = ["IMAGE", "VIDEO"] as const;
 
 export const studioHeadlineTextSchema = z
@@ -122,6 +144,41 @@ export const studioAdHeadlineSchema = saveStudioAdHeadlineSchema
 
 export type StudioAdHeadline = z.infer<typeof studioAdHeadlineSchema>;
 
+export const studioFeedbackReasonSchema = z.enum([
+  "off-brand",
+  "bad text",
+  "wrong product",
+  "ugly",
+  "great",
+]);
+
+export type StudioFeedbackReason = z.infer<typeof studioFeedbackReasonSchema>;
+
+export const setStudioAssetFeedbackSchema = z
+  .object({
+    thumb: z.union([z.literal(1), z.literal(-1), z.null()]),
+    reasons: z.array(studioFeedbackReasonSchema).max(5).optional(),
+    comment: z.string().trim().max(500).nullable().optional(),
+  })
+  .openapi("SetStudioAssetFeedback");
+
+export const studioAssetRatingSchema = z
+  .object({
+    myThumb: z.union([z.literal(1), z.literal(-1), z.null()]),
+    myReasons: z.array(studioFeedbackReasonSchema),
+    myComment: z.string().nullable(),
+    thumbsUp: z.number().int().nonnegative(),
+    thumbsDown: z.number().int().nonnegative(),
+    score: z.number(),
+  })
+  .openapi("StudioAssetRating");
+
+export type StudioAssetRating = z.infer<typeof studioAssetRatingSchema>;
+
+export const recordStudioAssetEventSchema = z
+  .object({ type: z.literal("viewed_lightbox") })
+  .openapi("RecordStudioAssetEvent");
+
 export const imageStudioAssetSchema = z
   .object({
     id: z.string().uuid(),
@@ -131,6 +188,7 @@ export const imageStudioAssetSchema = z
     product: studioProductIdentitySchema.optional(),
     batchId: z.uuid().optional(),
     headline: studioAdHeadlineSchema.optional(),
+    lettering: z.enum(["overlay", "ideogram"]).default("overlay"),
     rootId: z.string().uuid(),
     parentId: z.string().uuid().nullable(),
     version: z.number().int().min(1),
@@ -144,6 +202,8 @@ export const imageStudioAssetSchema = z
     mediaType: z.enum(IMAGE_STUDIO_MEDIA_TYPES),
     /** How the video was made. Null for an image. */
     video: z.union([imageStudioVideoSettingsSchema, z.null()]),
+    /** Shows a lifelike generated person, so publishing it carries an AI label. */
+    aiGenerated: z.boolean().optional(),
     createdAt: dateTimeSchema,
     jobId: z.string().uuid(),
     /**
@@ -158,6 +218,7 @@ export const imageStudioAssetSchema = z
      */
     contentPath: z.string(),
   })
+  .extend(studioAssetRatingSchema.shape)
   .openapi("ProjectImageAsset");
 
 export const imageStudioJobSchema = z
@@ -165,9 +226,18 @@ export const imageStudioJobSchema = z
     id: z.string().uuid(),
     projectId: z.string().uuid(),
     status: z.enum(IMAGE_JOB_STATUSES),
-    kind: z.enum(["GENERATE", "EDIT", "TEXT_TO_VIDEO", "IMAGE_TO_VIDEO"]),
+    kind: z.enum([
+      "GENERATE",
+      "EDIT",
+      "TEXT_TO_VIDEO",
+      "IMAGE_TO_VIDEO",
+      "TALKING_VIDEO",
+    ]),
     model: z.string(),
     prompt: z.string(),
+    templateId: z.string().optional(),
+    creativeDirection: z.string().optional(),
+    variationIndex: z.number().int().nonnegative().max(2147483647).optional(),
     /**
      * What this job asked the provider for, so a retry can ask the same. For a
      * video only `aspectRatio` is meaningful; read `video` instead.
@@ -175,10 +245,14 @@ export const imageStudioJobSchema = z
     settings: imageStudioSettingsSchema,
     /** A video job's own settings. Null for an image job. */
     video: z.union([imageStudioVideoSettingsSchema, z.null()]),
+    /** Who speaks a talking video, and how. Its script is `prompt`. */
+    talkingVideo: imageStudioTalkingVideoSchema.optional(),
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
     referenceFileIds: z.array(z.string().uuid()).optional(),
+    exportHeadline: studioHeadlineTextSchema.optional(),
     useProductCutout: z.boolean().optional(),
+    lettering: z.enum(["overlay", "ideogram"]).default("overlay"),
     product: studioProductIdentitySchema.optional(),
     /**
      * One sentence a person can read, written by the studio. Never the
@@ -267,10 +341,15 @@ export const createImageJobRequestSchema = z
         { message: "Unknown image model. Choose one from the studio catalog." },
       ),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
+    templateId: z.string().trim().min(1).max(100).optional(),
+    creativeDirection: z.string().trim().min(1).max(100).optional(),
+    /** Zero-based index of the ad variation guidance included in the prompt. */
+    variationIndex: z.number().int().nonnegative().max(2147483647).optional(),
     product: studioProductIdentitySchema.optional(),
     batchId: z.uuid().optional(),
     exportHeadline: studioHeadlineTextSchema.optional(),
     useProductCutout: z.boolean().optional(),
+    lettering: z.enum(["overlay", "ideogram"]).optional(),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     referenceFileIds: z
@@ -330,7 +409,57 @@ export const createVideoJobRequestSchema = z
   })
   .openapi("CreateProjectVideoJobRequest");
 
+export const createTalkingVideoJobRequestSchema = z
+  .object({
+    /** A talking video catalog model id. Omitted, the lower-priced default. */
+    modelId: z.string().trim().min(1).max(200).optional(),
+    /** The words the presenter speaks. Its length sets the video's length. */
+    script: z
+      .string()
+      .trim()
+      .min(TALKING_VIDEO_SCRIPT_MIN_LENGTH)
+      .max(TALKING_VIDEO_SCRIPT_MAX_LENGTH),
+    voice: z
+      .enum(SOKO_BOT_VOICEOVER_VOICES)
+      .default(DEFAULT_TALKING_VIDEO_VOICE),
+    /** ISO 639-1 language of the script. */
+    languageCode: z
+      .string()
+      .trim()
+      .regex(/^[a-z]{2}$/)
+      .default("en"),
+    /**
+     * A stock presenter from the catalog, or the caller's own photo in Files.
+     * A photo of a person needs their say-so: `consent` records that the
+     * caller confirmed they may use it.
+     */
+    presenter: z.discriminatedUnion("kind", [
+      z.object({
+        kind: z.literal("stock"),
+        id: z.string().trim().min(1).max(100),
+      }),
+      z.object({
+        kind: z.literal("file"),
+        fileId: z.string().uuid(),
+        consent: z.literal(true),
+      }),
+    ]),
+    /**
+     * Show the Project's website behind the presenter in the middle of the
+     * video. Omitted, it is shown when the Project has a website; it never is
+     * when the Project has none.
+     */
+    siteShots: z.boolean().optional(),
+    /** Open on a generated B-roll clip under the first sentence. Off by default. */
+    broll: z.boolean().default(false),
+    /** Lay generated instrumental music under the voice. Off by default. */
+    music: z.boolean().default(false),
+    idempotencyKey: z.string().trim().min(8).max(200),
+  })
+  .openapi("CreateProjectTalkingVideoJobRequest");
+
 export const imageStudioStateQuerySchema = z.object({
+  sort: z.enum(["newest", "best"]).default("newest"),
   /**
    * A version the caller is looking at. It is returned whatever its age, so a
    * selection older than the newest page does not vanish from the client.
@@ -344,6 +473,40 @@ export const imageStudioStateQuerySchema = z.object({
    */
   beforeId: z.string().uuid().optional(),
 });
+
+/** A Project's talking videos: its jobs, newest first, and their videos. */
+export const imageStudioTalkingVideosSchema = z
+  .object({
+    jobs: z.array(imageStudioJobSchema),
+    assets: z.array(imageStudioAssetSchema),
+  })
+  .openapi("ProjectTalkingVideos");
+
+export const writeTalkingVideoScriptsRequestSchema = z
+  .object({
+    /** What the videos should be about. Omitted, the brand picks. */
+    topic: z.string().trim().min(1).max(500).optional(),
+    /** ISO 639-1 language to write in. */
+    languageCode: z
+      .string()
+      .trim()
+      .regex(/^[a-z]{2}$/)
+      .default("en"),
+  })
+  .openapi("WriteProjectTalkingVideoScriptsRequest");
+
+export const talkingVideoScriptsSchema = z
+  .object({
+    scripts: z.array(
+      z.object({
+        /** The first sentence, which has to stop the scroll. */
+        hook: z.string(),
+        /** The whole script, hook included, as it is spoken. */
+        script: z.string(),
+      }),
+    ),
+  })
+  .openapi("ProjectTalkingVideoScripts");
 
 /**
  * One catalog row, and the whole contract a client has about a model.
@@ -437,6 +600,59 @@ export const imageStudioVideoCatalogModelSchema = z
   })
   .openapi("ProjectImageStudioVideoCatalogModel");
 
+const talkingVideoPriceSchema = z.object({
+  /** USD per started second of video. */
+  perSecondUsd: z.number(),
+  /** USD per 1,000 characters of script, for the voice. */
+  voicePer1000CharactersUsd: z.number(),
+  /** USD per minute of video, for the captions. */
+  captionsPerMinuteUsd: z.number(),
+  /** USD per second of video, for cutting the presenter out over the site. */
+  cutoutPerSecondUsd: z.number(),
+  /** USD for the optional B-roll clip in the hook. */
+  brollUsd: z.number(),
+  /** USD for the optional music bed. */
+  musicUsd: z.number(),
+  basis: z.string(),
+  sourceUrl: z.string(),
+  verifiedAt: z.string(),
+});
+
+/**
+ * What a talking video can be made with. A client computes credits with
+ * `creditsPerTalkingVideoCents` from `@sokosumi/utils`, the same function
+ * Core quotes with.
+ */
+export const imageStudioTalkingVideoCatalogSchema = z
+  .object({
+    defaultModelId: z.string(),
+    models: z.array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        description: z.string(),
+        endpoint: z.string(),
+        price: talkingVideoPriceSchema,
+      }),
+    ),
+    /** Generated portraits. No presenter is a real person. */
+    presenters: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string(),
+        imageUrl: z.string(),
+        /** The stock voice that sounds like this presenter. */
+        voice: z.string(),
+      }),
+    ),
+    defaultVoice: z.string(),
+    voices: z.array(z.string()),
+    scriptMinLength: z.number().int(),
+    scriptMaxLength: z.number().int(),
+  })
+  .openapi("ProjectImageStudioTalkingVideoCatalog");
+
 export const imageStudioCatalogSchema = z
   .object({
     defaultModelId: z.string(),
@@ -446,6 +662,7 @@ export const imageStudioCatalogSchema = z
     /** The image-to-video default, for "animate this image". */
     defaultAnimateModelId: z.string(),
     videoModels: z.array(imageStudioVideoCatalogModelSchema),
+    talkingVideo: imageStudioTalkingVideoCatalogSchema,
     /** When the committed cold-start snapshot behind this catalog was captured. */
     snapshotDate: z.string(),
     /** When this instance last refreshed from fal. Null on a cold start. */

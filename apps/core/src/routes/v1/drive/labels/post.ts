@@ -5,6 +5,10 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import {
+  toWorkspaceLabel,
+  workspaceLabelSelect,
+} from "@/helpers/workspace-label";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -87,29 +91,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         kind: body.kind,
         displayName: check.displayName,
         normalizedName: check.normalizedName,
+        ...(body.color !== undefined && { color: body.color }),
+        ...(body.customColor !== undefined && {
+          customColor: body.customColor,
+        }),
         description: body.description ?? null,
         createdByUserId: context.actor.userId,
       },
-      select: {
-        id: true,
-        kind: true,
-        displayName: true,
-        description: true,
-        archivedAt: true,
-        vocabularyVersion: true,
-      },
+      select: workspaceLabelSelect,
     });
 
-    return created(
-      c,
-      workspaceLabelSchema.parse({
-        id: label.id,
-        kind: label.kind,
-        displayName: label.displayName,
-        description: label.description,
-        archived: false,
-        vocabularyVersion: label.vocabularyVersion,
-      }),
-    );
+    return created(c, toWorkspaceLabel(label));
   });
 }

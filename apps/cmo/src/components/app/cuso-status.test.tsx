@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
-import { CusoStatus } from "./cuso-status";
+import { CusoStatus, cusoMood } from "./cuso-status";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
 const approved = cmoStrategyVersion(new Date("2026-11-01T09:00:00Z"));
@@ -12,6 +12,7 @@ const channel = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 const report = (at: string) => ({
   id: "u1",
@@ -20,6 +21,8 @@ const report = (at: string) => ({
   at: new Date(at),
   revertible: false,
   revertedAt: null,
+  posts: [],
+  media: [],
 });
 const production = (
   patch: Partial<ReturnType<typeof cmoOverview>["production"]>,
@@ -32,14 +35,21 @@ const production = (
   needPictures: 0,
   finishedAt: null,
   pillars: null,
+  level: "all_in" as const,
+  beyondPlan: [],
   ...patch,
 });
 
 const cases = [
   {
     name: "researching reads",
-    patch: { learning: "running" as const },
+    patch: {
+      ...approved,
+      channels: [channel],
+      learning: "running" as const,
+    },
     pose: "reading",
+    art: "searching",
     line: "Learning",
   },
   {
@@ -50,13 +60,15 @@ const cases = [
       production: production({ state: "running", ready: 8 }),
     },
     pose: "thinking",
+    art: "thinking",
     line: "8 of 11 made",
   },
   {
     name: "a plan waiting for approval needs the owner",
     patch: {},
     pose: "needs-you",
-    line: "Waiting for approval",
+    art: "pointing",
+    line: "need you",
   },
   {
     name: "a fresh report shows reporting",
@@ -67,7 +79,8 @@ const cases = [
       updates: [report("2026-11-05T09:00:00Z")],
     },
     pose: "reporting",
-    line: "Running",
+    art: "walking",
+    line: null,
   },
   {
     name: "idle is done",
@@ -78,27 +91,37 @@ const cases = [
       updates: [report("2026-11-01T09:00:00Z")],
     },
     pose: "done",
-    line: "Running",
+    art: "thumbs-up",
+    line: null,
   },
 ];
 
-it.each(cases)("Cuso's status card: $name", ({ patch, pose, line }) => {
+it.each(cases)("Cuso's status: $name", ({ patch, pose, art, line }) => {
   const html = renderToStaticMarkup(
     <CusoStatus overview={cmoOverview(patch)} now={NOW} />,
   );
-  expect(html).toContain(`src="/cuso/${pose}.png"`);
-  expect(html).toContain("Cuso");
-  expect(html).toContain(line);
-  // Needs you is the one pose whose state line sits on Iris.
-  expect(html.includes("cuso-status-iris")).toBe(pose === "needs-you");
+  expect(html).toContain(`src="/cuso/${art}.png"`);
+  expect(html).toContain(`data-pose="${pose}"`);
+  // His bubble always says the state in words; the drawing is decoration.
+  expect(html).toContain("cuso-says-line");
+  expect(html).toMatch(/class="cuso-stage" aria-hidden="true"/);
+  if (line) expect(html).toContain(line);
+  // Working runs the bar under his line.
+  expect(html.includes("ob-scene-bar")).toBe(
+    pose === "reading" || pose === "thinking",
+  );
 });
 
-it("is a focused button that opens the chat only while Cuso needs the owner", () => {
+it("points at the owner whenever something needs them, and his bubble opens Today", () => {
+  const overview = cmoOverview();
+  expect(cusoMood(overview, NOW)).toMatchObject({ art: "pointing" });
   const needs = renderToStaticMarkup(
-    <CusoStatus overview={cmoOverview()} now={NOW} onOpen={() => {}} />,
+    <CusoStatus overview={overview} now={NOW} onOpen={() => {}} />,
   );
-  expect(needs).toContain("<button");
-  expect(needs).toContain("card-focus");
+  expect(needs).toContain(
+    '<button type="button" class="cuso-says cuso-says-call"',
+  );
+  expect(needs).toMatch(/(One thing needs you|\d+ things need you)/);
   const calm = renderToStaticMarkup(
     <CusoStatus
       overview={cmoOverview({
@@ -111,5 +134,5 @@ it("is a focused button that opens the chat only while Cuso needs the owner", ()
     />,
   );
   expect(calm).not.toContain("<button");
-  expect(calm).not.toContain("card-focus");
+  expect(calm).toContain("On schedule");
 });

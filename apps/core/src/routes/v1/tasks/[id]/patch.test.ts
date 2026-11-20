@@ -20,6 +20,9 @@ import { taskEventApiInclude } from "@/types/task";
 
 import mountPatchTask, { patchTaskRequestSchema } from "./patch";
 
+vi.mock("@/helpers/task-tag-rollout", () => ({
+  TASK_WORKSPACE_JEV_ENABLED: true,
+}));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -30,9 +33,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   deliverCalendarInvalidationsNowMock,
+  dueDateChangeCreateMock,
   mapTaskMock,
   markTaskAssignedReadMock,
   notifyTaskHumanAssigneeMock,
+  notifyTaskStatusEventMock,
   prismaTransactionMock,
   projectFindFirstMock,
   requireTaskAssignableCoworkerMock,
@@ -44,9 +49,11 @@ const {
   taskUpdateMock,
 } = vi.hoisted(() => ({
   deliverCalendarInvalidationsNowMock: vi.fn(),
+  dueDateChangeCreateMock: vi.fn(),
   mapTaskMock: vi.fn(),
   markTaskAssignedReadMock: vi.fn(),
   notifyTaskHumanAssigneeMock: vi.fn(),
+  notifyTaskStatusEventMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
@@ -92,6 +99,7 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/helpers/task-notifications", () => ({
   markTaskAssignedRead: markTaskAssignedReadMock,
   notifyTaskHumanAssignee: notifyTaskHumanAssigneeMock,
+  notifyTaskStatusEvent: notifyTaskStatusEventMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -186,7 +194,11 @@ function createTaskApi(projectId: string | null = null) {
     archivedAt: null,
     runAt: null,
     dueOn: null,
+    parentTaskId: null,
+    position: null,
+    subtaskProgress: { completed: 0, total: 0 },
     scheduleId: null,
+    followers: [],
     selectableStatuses: [],
     participants: [],
   };
@@ -370,7 +382,10 @@ describe("PATCH /tasks/{id}", () => {
         },
         task: {
           update: taskUpdateMock,
+          // No sub-tasks follow the Task to another Project.
+          findMany: async () => [],
         },
+        taskDueDateChange: { create: dueDateChangeCreateMock },
       });
     });
   });
@@ -545,6 +560,71 @@ describe("PATCH /tasks/{id}", () => {
     );
   });
 
+  it("refuses a project change when a sub-task that would follow is parked", async () => {
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      projectId: OTHER_PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback({
+        projectSeoAnalysis: {
+          findUnique: async () => null,
+          findFirst: async () => null,
+        },
+        project: { findFirst: projectFindFirstMock },
+        task: {
+          update: taskUpdateMock,
+          // One level of sub-tasks below the Task, then none.
+          findMany: async ({
+            where,
+          }: {
+            where: { parentTaskId?: { in: string[] } };
+          }) =>
+            where.parentTaskId
+              ? where.parentTaskId.in.includes("tsk_123")
+                ? [{ id: "tsk_child" }]
+                : []
+              : [{ status: TaskStatus.GRANT_PENDING }],
+        },
+      }),
+    );
+    const app = createApp();
+    app.onError(errorHandler);
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: PROJECT_ID }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ kind: "task_parked" });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("retries a Project change that Postgres broke off to end a deadlock", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(
+      Object.assign(
+        new Error(
+          "Invalid `prisma.$queryRaw()` invocation:\n\n\nRaw query failed. Code: `40P01`. Message: `deadlock detected`",
+        ),
+        { name: "PrismaClientKnownRequestError", code: "P2010" },
+      ),
+    );
+
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: PROJECT_ID }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
+  });
+
   it("updates priority alone", async () => {
     const response = await createApp().request("http://localhost/tsk_123", {
       method: "PATCH",
@@ -553,11 +633,9 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(taskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ priority: TaskPriority.URGENT }),
-      }),
-    );
+    expect(taskUpdateMock.mock.lastCall?.[0].data).toStrictEqual({
+      priority: TaskPriority.URGENT,
+    });
   });
 
   it("stores dueOn as the calendar day it names", async () => {
@@ -575,6 +653,38 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("records a due date moved later, and nothing for an earlier one", async () => {
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.RUNNING,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+      dueOn: new Date("2026-11-10T00:00:00.000Z"),
+    });
+    const patchDueOn = (dueOn: string) =>
+      createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueOn }),
+      });
+
+    expect((await patchDueOn("2026-11-05")).status).toBe(200);
+    expect(dueDateChangeCreateMock).not.toHaveBeenCalled();
+
+    expect((await patchDueOn("2026-11-20")).status).toBe(200);
+    expect(dueDateChangeCreateMock).toHaveBeenCalledWith({
+      data: {
+        taskId: "tsk_123",
+        fromDueOn: new Date("2026-11-10T00:00:00.000Z"),
+        toDueOn: new Date("2026-11-20T00:00:00.000Z"),
+        actorUserId: "user_123",
+      },
+    });
   });
 
   it("clears dueOn on a running Task, outside the editable statuses", async () => {
@@ -741,6 +851,193 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  describe("assigning an agent to a silently reopened Task (SOKD-279)", () => {
+    const taskEventFindFirstMock = vi.fn();
+    const taskEventCountMock = vi.fn();
+    const taskEventCreateMock = vi.fn();
+
+    beforeEach(() => {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.READY,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        ownerId: "user_123",
+        visibility: TaskVisibility.PUBLIC,
+      });
+      requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
+      taskUpdateMock.mockResolvedValue({
+        ...createTaskApi(),
+        assignee: { name: "Writer" },
+      });
+      taskEventFindFirstMock.mockResolvedValue({
+        createdAt: new Date("2026-11-01T00:00:00.000Z"),
+      });
+      taskEventCreateMock.mockResolvedValue({ id: "event_parked" });
+      notifyTaskStatusEventMock.mockResolvedValue(undefined);
+      prismaTransactionMock.mockImplementation(async (callback) =>
+        callback({
+          projectSeoAnalysis: { findUnique: async () => null },
+          task: { update: taskUpdateMock },
+          taskEvent: {
+            findFirst: taskEventFindFirstMock,
+            count: taskEventCountMock,
+            create: taskEventCreateMock,
+          },
+        }),
+      );
+    });
+
+    function assignCoworker() {
+      return createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId: "cow_123" }),
+      });
+    }
+
+    it("parks it in Input required with a Core comment and tells the Owner", async () => {
+      taskEventCountMock.mockResolvedValue(0);
+
+      expect((await assignCoworker()).status).toBe(200);
+      expect(taskUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            assigneeId: "cow_123",
+            status: TaskStatus.INPUT_REQUIRED,
+          }),
+        }),
+      );
+      const event = taskEventCreateMock.mock.calls[0]?.[0].data;
+      expect(event).toMatchObject({
+        status: TaskStatus.INPUT_REQUIRED,
+        comment: "Reopened without instructions. Tell Writer what to do.",
+      });
+      expect(event.userId).toBeUndefined();
+      expect(notifyTaskStatusEventMock).toHaveBeenCalledWith(
+        "tsk_123",
+        "event_parked",
+        TaskStatus.INPUT_REQUIRED,
+        null,
+      );
+    });
+
+    it("parks a queued one too and drops its Run at", async () => {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.QUEUED,
+        runAt: new Date(Date.now() + 86_400_000),
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        ownerId: "user_123",
+        visibility: TaskVisibility.PUBLIC,
+      });
+      taskEventCountMock.mockResolvedValue(0);
+
+      expect((await assignCoworker()).status).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data).toMatchObject({
+        status: TaskStatus.INPUT_REQUIRED,
+        runAt: null,
+      });
+    });
+
+    it("parks its own Coworker's Draft that a Run at queues again", async () => {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: "cow_123",
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        ownerId: "user_123",
+        visibility: TaskVisibility.PUBLIC,
+      });
+      taskEventCountMock.mockResolvedValue(0);
+
+      const response = await createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          runAt: new Date(Date.now() + 86_400_000).toISOString(),
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data).toMatchObject({
+        status: TaskStatus.INPUT_REQUIRED,
+        runAt: null,
+      });
+    });
+
+    function assignWithDescription(
+      description: string,
+      stored = "Use the February figures",
+    ) {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.READY,
+        description: stored,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        ownerId: "user_123",
+        visibility: TaskVisibility.PUBLIC,
+      });
+      taskEventCountMock.mockResolvedValue(0);
+      return createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId: "cow_123", description }),
+      });
+    }
+
+    it("parks it when the edit form resends the stored description", async () => {
+      expect(
+        (await assignWithDescription("Use the February figures")).status,
+      ).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
+        TaskStatus.INPUT_REQUIRED,
+      );
+    });
+
+    it("parks it when the stored description also holds Context links", async () => {
+      const stored =
+        "[BRIEFING.md](https://example.test/briefing.md)\n\nUse the February figures";
+      expect(
+        (await assignWithDescription("Use the February figures", stored))
+          .status,
+      ).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
+        TaskStatus.INPUT_REQUIRED,
+      );
+    });
+
+    it("keeps it Ready when the same save changes the description", async () => {
+      expect(
+        (await assignWithDescription("Use the March figures")).status,
+      ).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+    });
+
+    it("keeps it Ready when a person commented after the reopen", async () => {
+      taskEventCountMock.mockResolvedValue(1);
+
+      expect((await assignCoworker()).status).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+      expect(taskEventCreateMock).not.toHaveBeenCalled();
+      expect(notifyTaskStatusEventMock).not.toHaveBeenCalled();
+    });
   });
 
   it("rejects assigning someone else's personal assistant with 403", async () => {
@@ -1257,7 +1554,8 @@ describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
       return await callback({
         projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
-        task: { update: taskUpdateMock },
+        // No sub-tasks follow the Task to another Project.
+        task: { update: taskUpdateMock, findMany: async () => [] },
         taskEvent: { create: taskEventCreateMock },
       });
     });
@@ -1306,7 +1604,13 @@ describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
   });
 });
 
-describe("PATCH /tasks/{id} Run at", () => {
+describe("PATCH /tasks/{id} Run at and workspace tags", () => {
+  const clearTags = vi.fn();
+  const removedAssignments = vi.fn();
+  const allowedLabels = vi.fn();
+  const saveDecisions = vi.fn();
+  const clearDecisions = vi.fn();
+  const saveAssignments = vi.fn();
   const RUN_AT = "2099-01-05T09:00:00.000Z";
   const LATER_RUN_AT = "2099-01-12T09:00:00.000Z";
   const taskEventCreateMock = vi.fn();
@@ -1363,6 +1667,7 @@ describe("PATCH /tasks/{id} Run at", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    removedAssignments.mockResolvedValue([]);
     taskUpdateMock.mockResolvedValue(createTaskApi(null));
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -1370,10 +1675,120 @@ describe("PATCH /tasks/{id} Run at", () => {
         projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
-        taskEvent: { create: taskEventCreateMock },
+        // Never finished, so never reopened.
+        taskEvent: {
+          create: taskEventCreateMock,
+          findFirst: async () => null,
+        },
+        $queryRaw: allowedLabels,
+        taskWorkspaceTagDecision: {
+          createMany: saveDecisions,
+          deleteMany: clearDecisions,
+        },
+        taskWorkspaceTag: {
+          findMany: removedAssignments,
+          createMany: saveAssignments,
+          deleteMany: clearTags,
+        },
       });
     });
     mockTask();
+  });
+
+  it("dismisses automatic and legacy manual topics on a completed Task", async () => {
+    mockTask({
+      status: TaskStatus.COMPLETED,
+      automaticTags: ["research", "social"],
+      manualTags: ["design", "writing", "legacy-future"],
+      rejectedTags: ["monitoring", "legacy-future"],
+    });
+    const response = await patch({
+      dismissedTopicIds: ["research", "design", "design", "monitoring"],
+    });
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          manualTags: ["writing", "legacy-future"],
+          rejectedTags: ["monitoring", "legacy-future", "research", "design"],
+        }),
+      }),
+    );
+    expect(clearTags).not.toHaveBeenCalled();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses unknown topic dismissals with other valid changes", async () => {
+    const response = await patch({
+      name: "New title",
+      dismissedTopicIds: ["whatever"],
+    });
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("clears workspace tags on a completed Task without a status change", async () => {
+    mockTask({ status: TaskStatus.COMPLETED });
+    const response = await patch({ workspaceTagIds: [] });
+    expect(response.status).toBe(200);
+    expect(clearTags).toHaveBeenCalledWith({
+      where: { taskId: "tsk_123", labelId: { notIn: [] } },
+    });
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      taskId: "tsk_123",
+      eventType: "task_event",
+    });
+  });
+
+  it("accepts one suggestion, remembers removed tags and explicitly dismisses others", async () => {
+    const [retained, accepted, removed, dismissed] = [
+      "00000000-1111-4111-8111-111111111111",
+      "00000000-2222-4222-8222-222222222222",
+      "00000000-3333-4333-8333-333333333333",
+      "00000000-4444-4444-8444-444444444444",
+    ] as const;
+    mockTask({ status: TaskStatus.COMPLETED });
+    allowedLabels.mockResolvedValueOnce(
+      [retained, accepted, dismissed].map((id) => ({ id })),
+    );
+    removedAssignments.mockResolvedValueOnce([{ labelId: removed }]);
+    const response = await patch({
+      workspaceTagIds: [retained, accepted],
+      dismissedWorkspaceTagIds: [dismissed, accepted],
+    });
+    expect(response.status).toBe(200);
+    expect(clearDecisions).toHaveBeenCalledExactlyOnceWith({
+      where: {
+        taskId: "tsk_123",
+        labelId: { in: [retained, accepted, dismissed, removed] },
+      },
+    });
+    expect(saveDecisions).toHaveBeenCalledExactlyOnceWith({
+      data: [dismissed, removed].map((labelId) => ({
+        taskId: "tsk_123",
+        labelId,
+        state: "JEV_DISMISSED",
+      })),
+    });
+    expect(saveAssignments).toHaveBeenCalledExactlyOnceWith({
+      data: [retained, accepted].map((labelId) => ({
+        taskId: "tsk_123",
+        labelId,
+      })),
+      skipDuplicates: true,
+    });
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to change labels on a Task outside the active workspace", async () => {
+    mockTask({ workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" });
+    const response = await patch({ workspaceTagIds: [] });
+    expect(response.status).toBe(404);
+    expect(clearTags).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("queues a Draft Task at its Run at", async () => {

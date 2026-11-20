@@ -8,9 +8,11 @@ import { ImageIcon, Play } from "lucide-react";
 import { channelInfo, channelKey, formatHasVideo } from "../lib/channels";
 import { BusinessMark, businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
+import { plainText } from "./draft-text";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
+type Media = CmoOverview["media"][number];
 
 /** Every piece of the plan, earliest first, skipped ones left out. */
 export function planPieces(calendar: Entry[]): Entry[] {
@@ -32,6 +34,8 @@ type Screen = {
   /** A proposed channel: shown as what the month could add, per month. */
   optional?: boolean;
   perMonth?: number;
+  /** The ads platform the month's ads run on; they need its account. */
+  ads?: "google_ads" | "meta_ads";
 };
 
 const SCREENS: Omit<Screen, "entries">[] = [
@@ -76,8 +80,8 @@ const SCREENS: Omit<Screen, "entries">[] = [
     key: "seo",
     name: "Google",
     icon: "seo",
-    one: "website piece",
-    many: "website pieces",
+    one: "website page",
+    many: "website pages",
   },
 ];
 
@@ -92,8 +96,8 @@ function adsName(channel: string): string {
 }
 
 /**
- * The busiest places first, up to four phones. Ads cost the owner money, so
- * they are always optional, like a proposed channel.
+ * The busiest places first, up to four phones. Ads in the month are planned
+ * like every other piece; the caption says when their account is missing.
  */
 export function feedScreens(calendar: Entry[]): Screen[] {
   const pieces = planPieces(calendar);
@@ -111,8 +115,7 @@ export function feedScreens(calendar: Entry[]): Screen[] {
         ...screen,
         name: adsName(channel),
         icon: channelKey(channel) ?? channel,
-        optional: true,
-        perMonth: screen.entries.length,
+        ads: channelKey(channel) === "google_ads" ? "google_ads" : "meta_ads",
       };
     });
 }
@@ -154,7 +157,8 @@ export function proposalScreens(strategy: Strategy): Screen[] {
 
 /**
  * The month on the founder's phones: each feed scrolls through what Cuso
- * makes there, as placeholders in that network's shape.
+ * makes there. A piece he has made shows its real words and picture; one
+ * still to come is a placeholder in that network's shape.
  */
 export function PhoneFeeds({
   overview,
@@ -198,7 +202,14 @@ export function PhoneFeeds({
                       className="pf-post"
                       aria-hidden={copy === 1}
                     >
-                      <Mockup entry={entry} overview={overview} seed={at} />
+                      <Mockup
+                        entry={entry}
+                        overview={overview}
+                        seed={at}
+                        media={overview.media.find(
+                          (item) => item.entryId === entry.id,
+                        )}
+                      />
                     </div>
                   )),
                 )}
@@ -215,6 +226,11 @@ export function PhoneFeeds({
               <>
                 <b className="num">{screen.entries.length}</b>{" "}
                 {screen.entries.length === 1 ? screen.one : screen.many}
+                {screen.ads && !overview.adProviders.includes(screen.ads) ? (
+                  <small>
+                    Planned. Connect {screen.name} in Channels to launch them.
+                  </small>
+                ) : null}
               </>
             )}
           </figcaption>
@@ -251,11 +267,46 @@ function Lines({
   );
 }
 
+/** The piece's own words once it is written, else grey bars. */
+function Words({
+  entry,
+  count,
+  seed,
+  big = false,
+}: {
+  entry: Entry;
+  count: number;
+  seed: number;
+  big?: boolean;
+}) {
+  const text = entry.draft ? plainText(entry.draft) : "";
+  return text ? (
+    <span
+      className={big ? "mw-text big" : "mw-text"}
+      style={{ maxHeight: `${(count + 2) * 1.35}em` }}
+    >
+      {text}
+    </span>
+  ) : (
+    <Lines count={count} seed={seed} big={big} />
+  );
+}
+
 function Placeholder({
   shape = "wide",
+  media,
 }: {
   shape?: "wide" | "square" | "tall";
+  /** The picture Cuso made for the piece, once he has. */
+  media?: Media;
 }) {
+  const picture =
+    media?.slides?.[0] ?? (media?.kind === "image" ? media.url : null);
+  if (picture) {
+    return (
+      <img className={`mw-img ${shape}`} src={picture} alt="" loading="lazy" />
+    );
+  }
   return (
     <span className={`mw-img ${shape}`} aria-hidden="true">
       <ImageIcon size={20} strokeWidth={1.5} />
@@ -295,10 +346,12 @@ function Mockup({
   entry,
   overview,
   seed,
+  media,
 }: {
   entry: Entry;
   overview: CmoOverview;
   seed: number;
+  media?: Media;
 }) {
   const channel = channelKey(entry.channel) ?? entry.channel;
   const format = entry.format;
@@ -310,7 +363,7 @@ function Mockup({
         <span className="mw-img tall mw-video" aria-hidden="true">
           <Play size={22} strokeWidth={1.5} />
         </span>
-        <Lines count={1} seed={seed} />
+        <Words entry={entry} count={1} seed={seed} />
       </div>
     );
   }
@@ -412,10 +465,10 @@ function Mockup({
             <Lines count={3} seed={seed} big />
           </span>
         ) : (
-          <Placeholder shape="tall" />
+          <Placeholder shape="tall" media={media} />
         )}
         <Actions />
-        <Lines count={2} seed={seed + 1} />
+        <Words entry={entry} count={2} seed={seed + 1} />
       </div>
     );
   }
@@ -423,8 +476,10 @@ function Mockup({
   return (
     <div className="mw-body">
       <Author overview={overview} />
-      <Lines count={format === "post" ? 4 : 2} seed={seed} />
-      {format === "images" ? (
+      <Words entry={entry} count={format === "post" ? 4 : 2} seed={seed} />
+      {media && format !== "images" && format !== "link" ? (
+        <Placeholder media={media} />
+      ) : format === "images" ? (
         <span className="mw-grid">
           <Placeholder shape="square" />
           <Placeholder shape="square" />

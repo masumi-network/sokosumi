@@ -2,28 +2,44 @@
 
 import {
   type AvailableAdAccount,
+  addCmoCompetitorForProject,
+  addCmoCompetitorMoveToStrategyForProject,
   answerCmoBrandBrainQuestionForProject,
   answerCmoMarketingStrategyQuestionForProject,
   applyCmoPlanAnswersForProject,
+  approveCmoDraftForProject,
   approveCmoMarketingStrategyForProject,
   type CmoAdCampaigns,
   type CmoAdsFinalized,
+  type CmoCompetitors,
   type CmoCusoList,
+  type CmoKeywordSearch,
   type CmoMeasurement,
   type CmoOverview,
+  type CmoSeo,
   type CmoSubscriptionPlan,
+  type CmoTikTokCreator,
   changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
+  clearCmoPresenterForProject,
   completeSokoBotIntegrationAuth,
   confirmCmoBrandBrainForProject,
   connectCmoAdsForProject,
   connectCmoMeasurementForProject,
+  declineCmoDraftForProject,
+  editCmoDraftForProject,
   finalizeCmoAdsForProject,
   finalizeCmoMeasurementForProject,
   finalizeCmoSocialConnectionForProject,
+  fixCmoBrandSectionForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
+  getCmoChatWorkForProject,
+  getCmoChatWorkTableForProject,
+  getCmoChatWorkTextForProject,
+  getCmoCompetitorsForProject,
   getCmoOverviewForProject,
+  getCmoSeoForProject,
   getContactLists,
   initiateCmoSocialConnectionForProject,
   launchCmoSearchAdForProject,
@@ -31,23 +47,36 @@ import {
   listCmoAdChoicesForProject,
   listCmoCusos,
   listCmoPlans,
+  markCmoLandingPageLiveForProject,
   openCmoCustomerPortalForProject,
+  type ProjectCompetitorCreate,
   pauseCmoCalendarEntryForProject,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
+  readCmoTikTokCreatorForDraft,
+  removeCmoCompetitorForProject,
+  requestCmoArticleDraftForProject,
+  requestCmoArticleIdeasForProject,
   requestCmoStrategyForProject,
   retryCmoOnboardingForProject,
   revertCmoUpdateForProject,
+  type SocialAccountChoice,
+  searchCmoKeywordsForProject,
   setCmoAdBudgetForProject,
   setCmoAdCampaignStatusForProject,
+  setCmoPresenterForProject,
+  setCmoSeoSuggestionStatusForProject,
+  setCmoTimeZoneForProject,
   skipCmoSubscriptionForProject,
   startCmoOnboarding,
   startCmoOverForProject,
   startCmoPlanCheckoutForProject,
   startCmoTopUpForProject,
+  type TikTokPostSettings,
   updateCmoBrandBrainForProject,
+  updateCmoCompetitorForProject,
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
@@ -57,8 +86,15 @@ import {
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { DraftResult } from "../components/app/draft-post";
 import { AGENT_NAME } from "../lib/agent";
+import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
+import type { ChatTable, ChatWork } from "../lib/chat-work";
+import {
+  CONNECT_SIGN_IN_COOKIE,
+  type ConnectFailure,
+} from "../lib/connect-return";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
 import { lastCusoCookie } from "../lib/last-cuso";
@@ -191,12 +227,14 @@ export async function onboard(
 ): Promise<OnboardFormState> {
   const typed = String(formData.get("websiteUrl") ?? "").trim();
   const organizationId = String(formData.get("organizationId") ?? "");
+  const testCopyOf = String(formData.get("testCopyOf") ?? "");
   const result = {
     attempt: previous.attempt + 1,
     websiteUrl: typed,
     organizationId,
   };
 
+  const timeZone = knownTimeZone(formData.get("timeZone"));
   const websiteUrl = normalizeWebsiteUrl(typed);
   if (!websiteUrl) {
     return {
@@ -208,7 +246,12 @@ export async function onboard(
   const core = await requireCore();
   const { data, error } = await startCmoOnboarding({
     ...core,
-    body: organizationId ? { websiteUrl, organizationId } : { websiteUrl },
+    body: {
+      websiteUrl,
+      ...(organizationId ? { organizationId } : {}),
+      ...(testCopyOf ? { testCopyOfProjectId: testCopyOf } : {}),
+      ...(timeZone ? { timeZone } : {}),
+    },
   });
   if (!data) {
     const kind =
@@ -297,6 +340,24 @@ export async function answerBrandQuestion(
   return requireOverview(projectId);
 }
 
+/**
+ * The owner corrects one Brand Brain section. Core keeps the fix on it, and
+ * Cuso rewrites the section (and fits the plan to it) now, or once the turn
+ * he is in ends. Core's refusal, or null.
+ */
+export async function fixBrandSection(
+  projectId: string,
+  section: BrandSectionKey,
+  note: string,
+): Promise<string | null> {
+  const { error } = await fixCmoBrandSectionForProject({
+    ...(await requireCore()),
+    path: { projectId },
+    body: { section, note },
+  });
+  return error ? errorText(error, "Could not send that fix") : null;
+}
+
 /** One answer to one of the newest plan's yes/no questions. */
 export async function answerPlanQuestion(
   projectId: string,
@@ -329,7 +390,7 @@ export async function applyPlanAnswers(projectId: string): Promise<{
   });
   return {
     overview: await loadOverview(projectId),
-    error: error ? errorText(error, "Could not update the plan") : null,
+    error: error ? errorText(error, "Could not update the strategy") : null,
   };
 }
 
@@ -377,6 +438,85 @@ export async function retryLearning(projectId: string): Promise<{
     overview,
     error: error ? errorText(error, "Could not start") : null,
   };
+}
+
+async function draftResult(
+  result: { data?: { data: CmoOverview }; error?: unknown },
+  fallback: string,
+): Promise<DraftResult> {
+  return result.data
+    ? { overview: await withSkipped(result.data.data), error: null }
+    : { overview: null, error: errorText(result.error, fallback) };
+}
+
+/**
+ * Approves a post that waits for the owner; it then goes out. A TikTok video
+ * goes out at once, with the owner's choices and confirmation.
+ */
+export async function approveDraft(
+  projectId: string,
+  postId: string,
+  revision: number,
+  tikTokSettings?: TikTokPostSettings,
+): Promise<DraftResult> {
+  return draftResult(
+    await approveCmoDraftForProject({
+      ...(await requireCore()),
+      path: { projectId, postId },
+      body: { revision, ...(tikTokSettings ? { tikTokSettings } : {}) },
+    }),
+    "Could not approve this post",
+  );
+}
+
+/** What TikTok allows on the account a waiting video goes to, read now. */
+export async function readTikTokCreator(
+  projectId: string,
+  postId: string,
+): Promise<{ creator: CmoTikTokCreator | null; error: string | null }> {
+  const { data, error } = await readCmoTikTokCreatorForDraft({
+    ...(await requireCore()),
+    path: { projectId, postId },
+  });
+  return data
+    ? { creator: data.data, error: null }
+    : {
+        creator: null,
+        error: errorText(error, "TikTok could not be read. Try again."),
+      };
+}
+
+/** Declines a post Cuso made, or stops an approved one before it goes out. */
+export async function declineDraft(
+  projectId: string,
+  postId: string,
+  revision: number,
+): Promise<DraftResult> {
+  return draftResult(
+    await declineCmoDraftForProject({
+      ...(await requireCore()),
+      path: { projectId, postId },
+      body: { revision },
+    }),
+    "Could not decline this post",
+  );
+}
+
+/** Saves the owner's own words on a post Cuso made. */
+export async function editDraft(
+  projectId: string,
+  postId: string,
+  revision: number,
+  text: string,
+): Promise<DraftResult> {
+  return draftResult(
+    await editCmoDraftForProject({
+      ...(await requireCore()),
+      path: { projectId, postId },
+      body: { revision, text },
+    }),
+    "Could not save this post",
+  );
 }
 
 export async function revertUpdate(
@@ -432,6 +572,45 @@ export async function loadPieceText(
     path: { projectId, id: entryId },
   });
   return data?.data.text ?? null;
+}
+
+/**
+ * The pictures, videos and voice-overs Cuso started in chat, each as it
+ * stands now. Empty when Core cannot say, so the chat still shows.
+ */
+export async function loadChatWork(projectId: string): Promise<ChatWork[]> {
+  const core = await requireCore();
+  const { data } = await getCmoChatWorkForProject({
+    ...core,
+    path: { projectId },
+  });
+  return data?.data.items ?? [];
+}
+
+/** The full words of a file Cuso wrote, or of work he handed on. */
+export async function loadChatWorkText(
+  projectId: string,
+  id: string,
+): Promise<string | null> {
+  const core = await requireCore();
+  const { data } = await getCmoChatWorkTextForProject({
+    ...core,
+    path: { projectId, id },
+  });
+  return data?.data.text ?? null;
+}
+
+/** All the rows of a table Cuso made or filled in chat. */
+export async function loadChatWorkTable(
+  projectId: string,
+  id: string,
+): Promise<ChatTable | null> {
+  const core = await requireCore();
+  const { data } = await getCmoChatWorkTableForProject({
+    ...core,
+    path: { projectId, id },
+  });
+  return data?.data.table ?? null;
 }
 
 /** Overview and messages in one go, for the app's polling. */
@@ -490,7 +669,7 @@ export async function requestStrategy(
   });
   return {
     overview: await loadOverview(projectId),
-    error: error ? errorText(error, "Could not start planning") : null,
+    error: error ? errorText(error, "Could not start the strategy") : null,
   };
 }
 
@@ -555,6 +734,33 @@ export async function startOver(projectId: string): Promise<string | null> {
   // A person who may not hire goes to the Cusos left, or the invite-only page.
   const list = await loadCusos().catch(() => undefined);
   redirect(list?.mayHire === false ? "/?cusos=1" : "/?hire=1");
+}
+
+/** Moves this Cuso's routines to the owner's time zone; a refusal comes back as text. */
+export async function setTimeZone(
+  projectId: string,
+  timeZone: string,
+): Promise<string | null> {
+  const { error } = await setCmoTimeZoneForProject({
+    ...(await requireCore()),
+    path: { projectId },
+    body: { timeZone },
+  });
+  if (error) return errorText(error, "Could not change the time zone");
+  revalidatePath("/");
+  return null;
+}
+
+/** A browser's time zone when this server knows it, else nothing. */
+function knownTimeZone(value: FormDataEntryValue | null): string | undefined {
+  const timeZone = String(value ?? "").trim();
+  if (!timeZone) return undefined;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return timeZone;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The CMO plans, for the checkout step; none when Core cannot read them from Polar. */
@@ -647,7 +853,13 @@ async function inCusoWorkspace(
 }
 
 /** Starts connecting a network; the browser goes to the returned URL. */
-type SocialProvider = "x" | "linkedin" | "instagram" | "facebook" | "youtube";
+type SocialProvider =
+  | "x"
+  | "linkedin"
+  | "instagram"
+  | "facebook"
+  | "youtube"
+  | "tiktok";
 
 /** Connects a network from the app's Channels page. */
 export async function connectChannel(
@@ -665,17 +877,29 @@ export async function connectSetupChannel(
   return startChannel(projectId, provider, "onboarding");
 }
 
+/**
+ * Signs in again to put another account in a connection's place, such as a
+ * company Page instead of a profile. Its waiting posts move to the new one.
+ */
+export async function changeChannel(
+  projectId: string,
+  socialConnectionId: string,
+): Promise<{ url: string | null; error: string | null }> {
+  return startChannel(projectId, { socialConnectionId }, "app");
+}
+
 async function startChannel(
   projectId: string,
-  provider: SocialProvider,
+  target: SocialProvider | { socialConnectionId: string },
   from: "onboarding" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
   const { data, error } = await initiateCmoSocialConnectionForProject({
     ...(await requireCore()),
     path: { projectId },
     body: {
-      action: "connect",
-      provider,
+      ...(typeof target === "string"
+        ? { action: "connect" as const, provider: target }
+        : { action: "replace" as const, ...target }),
       callbackUrl: await callbackUrl("/connect/callback", {
         from,
         project: projectId,
@@ -705,19 +929,126 @@ async function redeemCallback(
   });
 }
 
-/** Finishes a connection after the provider sent the founder back. */
+/** What a provider's return address carries about one sign-in. */
+export interface ChannelSignIn {
+  connectionId: string;
+  sessionUri?: string | null;
+  /** TikTok and LinkedIn come back with a one-use proof instead of a session. */
+  callbackProof?: string | null;
+  /** LinkedIn only: names the Pages the sign-in reaches, and lets Core finish it. */
+  pendingDataToken?: string | null;
+  connectToken?: string | null;
+}
+
+export type ChannelFinalized =
+  | { state: "connected" }
+  /** The sign-in reaches several accounts: the owner picks one. */
+  | { state: "choose"; choices: SocialAccountChoice[] }
+  | { state: "failed"; reason: ConnectFailure };
+
+const CONNECT_FAILURES: Partial<Record<CoreApiErrorKind, ConnectFailure>> = {
+  [CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED]: "no_page",
+  [CORE_API_ERROR_KINDS.SOCIAL_YOUTUBE_CHANNEL_REQUIRED]: "no_channel",
+};
+
+/**
+ * Finishes a connection after the provider sent the founder back, as the
+ * account they picked when the sign-in reaches several.
+ */
 export async function finalizeChannel(
   projectId: string,
-  connectionId: string,
-  sessionUri: string | null = null,
-): Promise<boolean> {
-  await redeemCallback(projectId, connectionId, sessionUri);
-  const { error } = await finalizeCmoSocialConnectionForProject({
+  signIn: ChannelSignIn,
+  accountChoiceId?: string,
+): Promise<ChannelFinalized> {
+  await redeemCallback(
+    projectId,
+    signIn.connectionId,
+    signIn.sessionUri ?? null,
+  );
+  const { data, error } = await finalizeCmoSocialConnectionForProject({
     ...(await requireCore()),
     path: { projectId },
-    body: { connectionId },
+    body: {
+      connectionId: signIn.connectionId,
+      ...(signIn.callbackProof ? { callbackProof: signIn.callbackProof } : {}),
+      ...(signIn.pendingDataToken
+        ? { pendingDataToken: signIn.pendingDataToken }
+        : {}),
+      ...(signIn.connectToken ? { connectToken: signIn.connectToken } : {}),
+      ...(accountChoiceId ? { accountChoiceId } : {}),
+    },
   });
-  return !error;
+  if (!data) {
+    const kind =
+      error && typeof error === "object" && "kind" in error
+        ? (String(error.kind) as CoreApiErrorKind)
+        : null;
+    return {
+      state: "failed",
+      reason: (kind && CONNECT_FAILURES[kind]) ?? "failed",
+    };
+  }
+  return data.data.state === "choose"
+    ? { state: "choose", choices: data.data.choices }
+    : { state: "connected" };
+}
+
+/** A sign-in that waits for the owner's pick, and where it started. */
+export interface WaitingChannelSignIn {
+  project: string;
+  from: string | null;
+  signIn: ChannelSignIn;
+}
+
+/**
+ * Keeps a sign-in for the account picker in a cookie this server alone reads,
+ * so its tokens stay out of the picker's address. The provider's own limit on
+ * the sign-in is fifteen minutes.
+ */
+export async function keepChannelSignIn(
+  waiting: WaitingChannelSignIn,
+): Promise<void> {
+  (await cookies()).set(CONNECT_SIGN_IN_COOKIE, JSON.stringify(waiting), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/connect",
+    maxAge: 15 * 60,
+  });
+}
+
+/** The sign-in waiting for a pick, or null once it was used or ran out. */
+export async function waitingChannelSignIn(): Promise<WaitingChannelSignIn | null> {
+  const raw = (await cookies()).get(CONNECT_SIGN_IN_COOKIE)?.value;
+  if (!raw) return null;
+  try {
+    const waiting = JSON.parse(raw) as Partial<WaitingChannelSignIn>;
+    return typeof waiting.project === "string" &&
+      typeof waiting.signIn?.connectionId === "string"
+      ? {
+          project: waiting.project,
+          from: typeof waiting.from === "string" ? waiting.from : null,
+          signIn: waiting.signIn,
+        }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Connects the account the owner picked and ends the waiting sign-in. */
+export async function chooseChannelAccount(
+  accountChoiceId: string,
+): Promise<ChannelFinalized> {
+  const waiting = await waitingChannelSignIn();
+  if (!waiting) return { state: "failed", reason: "failed" };
+  const result = await finalizeChannel(
+    waiting.project,
+    waiting.signIn,
+    accountChoiceId,
+  ).catch((): ChannelFinalized => ({ state: "failed", reason: "failed" }));
+  (await cookies()).delete({ name: CONNECT_SIGN_IN_COOKIE, path: "/connect" });
+  return result;
 }
 
 /** Starts connecting Google Ads or Meta Ads; the browser goes to the returned URL. */
@@ -844,7 +1175,7 @@ export async function setAdCampaignStatus(
 export async function connectMeasurement(
   projectId: string,
   provider: CmoMeasurement["provider"],
-  from: "onboarding" | "app",
+  from: "onboarding" | "launch" | "app" | "seo",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoMeasurementForProject({
@@ -1013,4 +1344,209 @@ export async function finalizeMeasurement(
     path: { projectId, provider },
   });
   return !error;
+}
+
+/**
+ * The owner's photo for Cuso's talking videos, sent with their consent. The
+ * browser scales it down first; a refusal comes back as text.
+ */
+export async function setPresenter(
+  projectId: string,
+  photo: string,
+): Promise<{ error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await setCmoPresenterForProject({
+    ...core,
+    path: { projectId },
+    body: { photo, consent: true },
+  });
+  return { error: data ? null : errorText(error, "Could not save the photo") };
+}
+
+/** Stop using the owner's photo in talking videos. */
+export async function clearPresenter(
+  projectId: string,
+): Promise<{ error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await clearCmoPresenterForProject({
+    ...core,
+    path: { projectId },
+  });
+  return {
+    error: data ? null : errorText(error, "Could not remove the photo"),
+  };
+}
+
+/** The SEO tab: the weekly audit, Search Console, suggestions and keyword searches. */
+export async function loadSeo(projectId: string): Promise<CmoSeo | null> {
+  const core = await requireCore();
+  const { data } = await getCmoSeoForProject({ ...core, path: { projectId } });
+  return data?.data ?? null;
+}
+
+/** Keyword ideas for a topic; a refusal (none left today, research down) comes back as text. */
+export async function searchKeywords(
+  projectId: string,
+  topic: string,
+): Promise<{ search: CmoKeywordSearch | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await searchCmoKeywordsForProject({
+    ...core,
+    path: { projectId },
+    body: { topic },
+  });
+  return data
+    ? { search: data.data, error: null }
+    : { search: null, error: errorText(error, "Could not search keywords") };
+}
+
+/** Marks a page change or article done, dismisses it, or opens it again. */
+export async function setSeoSuggestionStatus(
+  projectId: string,
+  id: string,
+  status: "open" | "done" | "dismissed",
+): Promise<string | null> {
+  const core = await requireCore();
+  const { error } = await setCmoSeoSuggestionStatusForProject({
+    ...core,
+    path: { projectId, id },
+    body: { status },
+  });
+  return error ? errorText(error, "Could not save that") : null;
+}
+
+/**
+ * Records where the owner published a landing page. The note says what
+ * happened to the search ads on its search.
+ */
+export async function markLandingPageLive(
+  projectId: string,
+  id: string,
+  url: string,
+): Promise<{ note: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await markCmoLandingPageLiveForProject({
+    ...core,
+    path: { projectId, id },
+    body: { url },
+  });
+  if (!data)
+    return { note: null, error: errorText(error, "Could not save that") };
+  const { adsUpdated, adsLaunched } = data.data;
+  const ads = (count: number) =>
+    count === 1 ? "1 search ad" : `${count} search ads`;
+  return {
+    error: null,
+    note: [
+      adsUpdated > 0
+        ? `${ads(adsUpdated)} for this search now ${adsUpdated === 1 ? "sends" : "send"} people to the page.`
+        : null,
+      adsLaunched > 0
+        ? `${ads(adsLaunched)} already launched ${adsLaunched === 1 ? "keeps its" : "keep their"} address: pause it and ask ${AGENT_NAME} to write it again for the page.`
+        : null,
+      adsUpdated + adsLaunched === 0
+        ? `Saved. There is no search ad for this search yet; ask ${AGENT_NAME} for one and it will send people here.`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
+/** "More article ideas" (no id) or "Write the article" (its id): Cuso starts, his answer lands in the chat. */
+export async function askCusoForArticles(
+  projectId: string,
+  articleId?: string,
+): Promise<string | null> {
+  const core = await requireCore();
+  const { error } = articleId
+    ? await requestCmoArticleDraftForProject({
+        ...core,
+        path: { projectId, id: articleId },
+      })
+    : await requestCmoArticleIdeasForProject({ ...core, path: { projectId } });
+  return error ? errorText(error, `${AGENT_NAME} could not start`) : null;
+}
+
+/** The Competitors page of this Cuso; null when it cannot be read. */
+export async function loadCompetitors(
+  projectId: string,
+): Promise<CmoCompetitors | null> {
+  const core = await requireCore();
+  const { data } = await getCmoCompetitorsForProject({
+    ...core,
+    path: { projectId },
+  });
+  return data?.data ?? null;
+}
+
+export interface CompetitorResult {
+  competitors: CmoCompetitors | null;
+  error: string | null;
+}
+
+function competitorResult(
+  response: { data?: { data: CmoCompetitors }; error?: unknown },
+  fallback: string,
+): CompetitorResult {
+  return response.data
+    ? { competitors: response.data.data, error: null }
+    : { competitors: null, error: errorText(response.error, fallback) };
+}
+
+/** Adds a competitor to watch; a refusal (the limit, a name taken) comes back as text. */
+export async function addCompetitor(
+  projectId: string,
+  body: ProjectCompetitorCreate,
+): Promise<CompetitorResult> {
+  const core = await requireCore();
+  return competitorResult(
+    await addCmoCompetitorForProject({ ...core, path: { projectId }, body }),
+    "Could not add this competitor",
+  );
+}
+
+export async function updateCompetitor(
+  projectId: string,
+  competitorId: string,
+  body: ProjectCompetitorCreate,
+): Promise<CompetitorResult> {
+  const core = await requireCore();
+  return competitorResult(
+    await updateCmoCompetitorForProject({
+      ...core,
+      path: { projectId, competitorId },
+      body,
+    }),
+    "Could not save this competitor",
+  );
+}
+
+export async function removeCompetitor(
+  projectId: string,
+  competitorId: string,
+): Promise<CompetitorResult> {
+  const core = await requireCore();
+  return competitorResult(
+    await removeCmoCompetitorForProject({
+      ...core,
+      path: { projectId, competitorId },
+    }),
+    "Could not remove this competitor",
+  );
+}
+
+/** Sends one move from This week to the strategy: Cuso patches it. */
+export async function addCompetitorMoveToStrategy(
+  projectId: string,
+  itemId: string,
+): Promise<CompetitorResult> {
+  const core = await requireCore();
+  return competitorResult(
+    await addCmoCompetitorMoveToStrategyForProject({
+      ...core,
+      path: { projectId, itemId },
+    }),
+    "Could not add this to the strategy",
+  );
 }

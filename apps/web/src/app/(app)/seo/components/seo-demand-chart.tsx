@@ -1,6 +1,10 @@
 "use client";
 
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { seoMarketName } from "./seo-shared";
 import { seoDemandAxis, type seoKeywordDemand } from "./seo-summary-model";
@@ -22,12 +26,14 @@ const PLOT_CLASS = "relative mr-14";
  */
 export function SeoDemandChart({
   demand,
+  onOpenKeyword,
 }: {
   demand: ReturnType<typeof seoKeywordDemand>;
+  /** Opens the keyword where its results are listed. */
+  onOpenKeyword: (keyword: string) => void;
 }) {
-  const t = useTranslations("App.Seo");
-  const format = useFormatter();
-  const locale = useLocale();
+  const t = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
   const axis = seoDemandAxis(demand.max);
   const percent = (value: number) => (value / axis.top) * 100;
   // The scale lines of one row. Rows touch, so the lines read as one grid.
@@ -47,7 +53,9 @@ export function SeoDemandChart({
   );
   return (
     <figure
-      className="bg-background space-y-3 rounded-lg border p-3"
+      lang="en"
+      // The card around it belongs to the Agent tab's pictures.
+      className="space-y-3"
       data-testid="seo-demand-chart"
     >
       <figcaption className="space-y-0.5">
@@ -87,20 +95,27 @@ export function SeoDemandChart({
                   .join(" · ")}
               >
                 <p className="flex items-baseline justify-between gap-x-2 max-sm:pt-1.5">
-                  <span className="min-w-0 truncate">
-                    <bdi>{row.keyword}</bdi>
+                  <span className="flex min-w-0 items-baseline gap-1">
+                    {/* The name truncates in its own box, so a ring around it would be cut: focus shows as a
+                        thick underline. The market stays beside the name. */}
+                    <button
+                      type="button"
+                      className="min-w-0 cursor-pointer truncate text-left underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:decoration-2"
+                      onClick={() => onOpenKeyword(row.keyword)}
+                    >
+                      <bdi lang={row.languageCode ?? ""}>{row.keyword}</bdi>
+                    </button>
                     {demand.manyMarkets ? (
-                      <span className="text-muted-foreground text-xs">
-                        {" "}
+                      <span className="text-muted-foreground shrink-0 text-xs">
                         {seoMarketName(
-                          locale,
+                          SEO_RESULT_LOCALE,
                           row.countryCode,
                           row.languageCode,
                         )}
                       </span>
                     ) : null}
                   </span>
-                  {/* The position shows only where the check found the page: the tile above counts the rest. */}
+                  {/* The position shows only where the check found the page: the figure under the verdict counts the rest. */}
                   {position ? (
                     <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                       {position}

@@ -58,6 +58,7 @@ export async function prepareSocialPostMedia(
       size: original.size,
       mimeType: original.mimeType.trim().toLowerCase(),
       kind: original.kind,
+      ...(original.aiGenerated && { aiGenerated: true }),
     };
     if (socialPostMediaKindForMime(source.mimeType) !== source.kind)
       throw badRequest(

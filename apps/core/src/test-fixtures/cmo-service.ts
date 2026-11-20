@@ -26,11 +26,16 @@ export const projectFindUnique = vi.fn();
 export const projectFindFirst = vi.fn();
 export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
+/** The turn a save runs in; null unless a test gives its message. */
+export const turnFindUnique = vi.fn();
 export const toolCallFindMany = vi.fn();
+export const toolCallFindFirst = vi.fn();
 export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
 export const postFindFirst = vi.fn();
 export const postFindMany = vi.fn();
+/** Reference library rows a save's style ids are looked up in. */
+export const referenceFindMany = vi.fn();
 export const postUpdate = vi.fn();
 export const postCreateMany = vi.fn();
 export const postUpdateMany = vi.fn();
@@ -76,6 +81,7 @@ type CusoFixture = {
   brandBrain?: unknown;
   brandBrainUpdatedAt?: Date | null;
   brandBrainConfirmedAt?: Date | null;
+  pendingAdBudget?: unknown;
 };
 
 /**
@@ -93,6 +99,7 @@ export function asCusoBot(cuso: unknown) {
       id: fixture.projectId ?? "project-1",
       workspaceId: fixture.workspaceId ?? "ws-1",
       websiteUrl: fixture.websiteUrl ?? "https://acme.io",
+      cmoPendingAdBudget: fixture.pendingAdBudget ?? null,
       workspace: { organizationId: "org-1" },
       brandBrain: fixture.brandBrain
         ? {
@@ -260,8 +267,8 @@ const client = {
     update: subscriptionUpdate,
   },
   workspace: { findUnique: workspaceFindUnique },
-  sokoBotTurn: { findFirst: turnFindFirst },
-  sokoBotToolCall: { findMany: toolCallFindMany },
+  sokoBotTurn: { findFirst: turnFindFirst, findUnique: turnFindUnique },
+  sokoBotToolCall: { findMany: toolCallFindMany, findFirst: toolCallFindFirst },
   projectSocialConnection: { findMany: connectionFindMany },
   socialPost: {
     findFirst: postFindFirst,
@@ -270,6 +277,7 @@ const client = {
     createMany: postCreateMany,
     updateMany: postUpdateMany,
   },
+  referenceImage: { findMany: referenceFindMany },
   // No piece of the approved version is written to Files unless a test says so.
   marketingStrategyFile: { findMany: async () => [] },
   // Calendar times read in UTC unless a test gives Cuso's rhythms a zone.
@@ -386,6 +394,7 @@ export function resetCmoServiceMocks(): void {
   creditBucketFindMany.mockResolvedValue([]);
   projectFindFirst.mockResolvedValue(null);
   toolCallFindMany.mockResolvedValue([]);
+  toolCallFindFirst.mockResolvedValue(null);
   // A report message comes back as it was written.
   messageUpsert.mockImplementation(async (args) => ({
     id: args.create.id,
@@ -413,6 +422,7 @@ export function resetCmoServiceMocks(): void {
   fileLinkFindMany.mockResolvedValue([]);
   // No Social posts or connections unless a test seeds them.
   postFindMany.mockResolvedValue([]);
+  referenceFindMany.mockResolvedValue([]);
   connectionFindMany.mockResolvedValue([]);
   // The Cuso a member works with is the one `cusoFind` stands for here, in
   // the business's organization.

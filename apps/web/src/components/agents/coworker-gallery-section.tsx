@@ -1,22 +1,21 @@
 "use client";
 
 import type { Coworker } from "@sokosumi/core-client";
-import {
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Search,
-} from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { StartChatButton } from "@/app/chat/components/landing/start-chat-button.client";
 import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
 import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
+import {
+  groupCoworkerSearchResults,
+  type OfferItem,
+} from "@/components/agents/coworker-gallery-results";
+import { CoworkerGallerySearch } from "@/components/agents/coworker-gallery-search";
 import {
   GALLERY_DIVIDER_CLASS,
   GALLERY_HERO_BAND_CLASS,
@@ -37,17 +36,11 @@ import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
-import type { CoworkerOffer } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
 
 interface CoworkerGallerySectionProps {
   coworkers: Coworker[];
-}
-
-interface OfferItem {
-  offer: CoworkerOffer;
-  coworker: Coworker;
 }
 
 const FOCUS_RING =
@@ -474,28 +467,6 @@ function CoworkerGallerySectionInner({
     return out;
   }, [sortedCoworkers]);
 
-  // Rotating placeholder — cycles the base hint + real example searches so the
-  // search feels alive and hints at what you can look for. Pauses on focus/typing
-  // and honors reduced-motion.
-  const rotatingHints = useMemo(() => {
-    const out = [t("searchPlaceholder")];
-    for (const suggestion of suggestions) {
-      if (!out.includes(suggestion)) out.push(suggestion);
-    }
-    return out;
-  }, [suggestions, t]);
-  const [hintIdx, setHintIdx] = useState(0);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  useEffect(() => {
-    if (rotatingHints.length <= 1) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = window.setInterval(
-      () => setHintIdx((index) => (index + 1) % rotatingHints.length),
-      3000,
-    );
-    return () => window.clearInterval(id);
-  }, [rotatingHints.length]);
-
   // Social proof: a cluster of real coworker faces.
   const socialAvatars = useMemo(
     () => sortedCoworkers.filter((c) => c.image).slice(0, 5),
@@ -509,48 +480,10 @@ function CoworkerGallerySectionInner({
   // matches, OR any of their offers match. Surface all their offers when the
   // coworker matched directly, otherwise just the matching offers. Then group by
   // company (priority-sorted, so Serviceplan/Elena lead).
-  const vendorGroups = useMemo(() => {
-    const map = new Map<
-      string,
-      { vendor: Coworker["vendor"]; coworkers: Coworker[]; offers: OfferItem[] }
-    >();
-    for (const coworker of sortedCoworkers) {
-      const allOffers: OfferItem[] = (coworker.metadata?.offers ?? []).map(
-        (offer) => ({ offer, coworker }),
-      );
-      let offers = allOffers;
-      if (q) {
-        const profile = coworker.metadata?.profile;
-        const coworkerText = [
-          coworker.name,
-          coworker.vendor.name,
-          coworker.caption ?? "",
-          coworker.description ?? "",
-          ...(profile?.capabilities ?? []),
-          ...(profile?.examples ?? []),
-        ]
-          .join(" ")
-          .toLowerCase();
-        const coworkerMatches = coworkerText.includes(q);
-        const matchingOffers = allOffers.filter((item) =>
-          `${item.offer.title} ${item.offer.description ?? ""} ${item.offer.category ?? ""} ${item.offer.deliverable ?? ""}`
-            .toLowerCase()
-            .includes(q),
-        );
-        if (!coworkerMatches && matchingOffers.length === 0) continue;
-        offers = coworkerMatches ? allOffers : matchingOffers;
-      }
-      const key = coworker.vendor.id;
-      let group = map.get(key);
-      if (!group) {
-        group = { vendor: coworker.vendor, coworkers: [], offers: [] };
-        map.set(key, group);
-      }
-      group.coworkers.push(coworker);
-      group.offers.push(...offers);
-    }
-    return Array.from(map.values());
-  }, [sortedCoworkers, q]);
+  const vendorGroups = useMemo(
+    () => groupCoworkerSearchResults(sortedCoworkers, q),
+    [sortedCoworkers, q],
+  );
 
   if (!coworkers.length) {
     return null;
@@ -587,38 +520,11 @@ function CoworkerGallerySectionInner({
             </div>
           ) : null}
           <h2 className={GALLERY_HERO_HEADLINE_CLASS}>{t("heroHeadline")}</h2>
-          {/* Brand gradient ring; intensifies on focus. */}
-          <div className="from-quaternary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 relative w-full max-w-xl rounded-full bg-gradient-to-r p-0.5 transition-[--tw-gradient-from,--tw-gradient-to] duration-300">
-            <div className="relative rounded-full">
-              <Search
-                aria-hidden
-                className="text-background-muted pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 transition-colors"
-              />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                placeholder=""
-                aria-label={t("searchHint")}
-                className="bg-foreground text-background h-14 w-full rounded-full pr-5 pl-13 text-base outline-none md:text-lg"
-              />
-              {/* Animated rotating placeholder (hidden while typing/focused) */}
-              {query === "" && !isSearchFocused ? (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute top-1/2 right-5 left-13 -translate-y-1/2 overflow-hidden text-left"
-                >
-                  <span
-                    key={hintIdx}
-                    className="text-background-muted animate-in fade-in slide-in-from-bottom-1.5 block truncate text-base duration-500 md:text-lg"
-                  >
-                    {rotatingHints[hintIdx % rotatingHints.length]}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <CoworkerGallerySearch
+            query={query}
+            setQuery={setQuery}
+            suggestions={suggestions}
+          />
           {suggestions.length > 0 ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
               {suggestions.map((suggestion) => (

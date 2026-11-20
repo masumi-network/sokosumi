@@ -7,7 +7,8 @@ import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isProductionEnvironment } from "@/config/env";
+import { getEnv, isProductionEnvironment } from "@/config/env";
+import { expectCoreLog } from "@/test/core-log";
 import { emailCodeSignIn } from "./auth-email-code-sign-in";
 import { afterNewSession } from "./auth-new-session";
 import {
@@ -16,7 +17,9 @@ import {
   isRefreshTokenRotating,
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
+  signsInToCmo,
 } from "./auth-oauth-provider";
+import { betterAuthLogger } from "./evlog-library-logs";
 
 type MemoryDb = Record<string, Record<string, unknown>[]>;
 
@@ -531,6 +534,7 @@ describe("jwtKeyStoreOptions", () => {
 
   function createSigner(db: MemoryDb, secret: string, isProduction: boolean) {
     return betterAuth({
+      logger: betterAuthLogger,
       baseURL: "https://auth.example.com",
       basePath: "/auth",
       secret,
@@ -557,6 +561,11 @@ describe("jwtKeyStoreOptions", () => {
   }
 
   it("signs with a key of its own when the stored key is another secret's", async () => {
+    expectCoreLog(
+      "warn",
+      "Skipped 1 JWKS signing key(s) encrypted with another secret",
+      3,
+    );
     const db = await forkedDb();
     const preview = createSigner(db, PREVIEW_SECRET, false);
 
@@ -569,6 +578,11 @@ describe("jwtKeyStoreOptions", () => {
   });
 
   it("publishes only the keys it can sign with", async () => {
+    expectCoreLog(
+      "warn",
+      "Skipped 1 JWKS signing key(s) encrypted with another secret",
+      3,
+    );
     const db = await forkedDb();
     const preview = createSigner(db, PREVIEW_SECRET, false);
     await sign(preview);
@@ -615,6 +629,7 @@ describe("answerCreatePromptWithNewSession", () => {
     const db = createDb();
     db.oauthClient[0].skipConsent = true;
     const codes = new Map<string, string>();
+    const askedFromCmo = new Map<string, boolean>();
     const auth = betterAuth({
       baseURL: "https://auth.example.com",
       basePath: "/auth",
@@ -633,6 +648,7 @@ describe("answerCreatePromptWithNewSession", () => {
           emailOTP({
             sendVerificationOTP: async ({ email, otp }) => {
               codes.set(email, otp);
+              askedFromCmo.set(email, await signsInToCmo());
             },
           }),
         ),
@@ -697,7 +713,7 @@ describe("answerCreatePromptWithNewSession", () => {
       });
     }
 
-    return { authorize, post, signInWithCode };
+    return { askedFromCmo, authorize, post, signInWithCode };
   }
 
   function sessionCookie(response: Response) {
@@ -743,6 +759,33 @@ describe("answerCreatePromptWithNewSession", () => {
       expectCmoCallback(result.url);
     },
   );
+
+  it("knows a code asked for inside CMO's request from one asked for on Sokosumi", async () => {
+    const env = getEnv();
+    const cmoClientId = env.CMO_OAUTH_CLIENT_ID;
+    env.CMO_OAUTH_CLIENT_ID = CLIENT_ID;
+    try {
+      const { askedFromCmo, authorize, post } = createSignUpAuth();
+      const signup = await authorize("create");
+
+      await post("/email-otp/send-verification-otp", {
+        email: EMAIL,
+        type: "sign-in",
+        oauth_query: signup.searchParams.toString(),
+      });
+      await post("/email-otp/send-verification-otp", {
+        email: "user@example.com",
+        type: "sign-in",
+      });
+
+      expect(Object.fromEntries(askedFromCmo)).toEqual({
+        [EMAIL]: true,
+        "user@example.com": false,
+      });
+    } finally {
+      env.CMO_OAUTH_CLIENT_ID = cmoClientId;
+    }
+  });
 
   it("still asks a person already signed in which account to use, though their session renews", async () => {
     const { authorize, signInWithCode } = createSignUpAuth();

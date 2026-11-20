@@ -57,6 +57,28 @@ const contact = (overrides: Partial<Contact>): Contact => ({
 });
 
 describe("ContactsList", () => {
+  it("offers Restore per archived row, apart from opening the person", () => {
+    const onOpen = vi.fn();
+    const onRestore = vi.fn();
+    const archived = contact({ archivedAt: new Date("2026-11-01T00:00:00Z") });
+    render(
+      <ContactsList
+        contacts={[archived]}
+        onOpen={onOpen}
+        onRestore={onRestore}
+        hasMore={false}
+        loadingMore={false}
+        onLoadMore={() => {}}
+        footer="1 of 1"
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "panel.restoreName:Marc Dubois" }),
+    );
+    expect(onRestore).toHaveBeenCalledExactlyOnceWith(archived);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("shows the email and how long a reply has been missing, and opens the person", () => {
     const onOpen = vi.fn();
     render(
@@ -94,8 +116,6 @@ describe("ContactsFilterBar", () => {
     const onFilter = vi.fn();
     render(
       <ContactsFilterBar
-        search=""
-        onSearch={vi.fn()}
         filters={{
           stage: null,
           replyState: "NO_REPLY",

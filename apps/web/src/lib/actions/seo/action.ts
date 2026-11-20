@@ -9,8 +9,11 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { SeoCommand } from "@/lib/actions/seo/types";
-import { toCoreApiActionError } from "@/lib/clients/core.client";
+import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import type { SeoOwner } from "@/lib/seo/owner";
 import { seoServiceNoRedirect } from "@/lib/services/seo.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
@@ -34,6 +37,8 @@ const monitorCommandSchema = z.discriminatedUnion("kind", [
       kind: z.literal("monitor_run_now"),
       monitorId: z.uuid(),
       expectedRevision: scheduleRevision,
+      allowLimitedAudit: z.literal(true).optional(),
+      searchConsolePropertyId: z.string().min(1).max(500).optional(),
     })
     .strict(),
   z
@@ -48,9 +53,17 @@ const monitorCommandSchema = z.discriminatedUnion("kind", [
 ]);
 
 export const mutateSeo = withSession<
-  AuthenticatedRequest & { owner: SeoOwner; command: SeoCommand },
+  AuthenticatedRequest & {
+    owner: SeoOwner;
+    command: SeoCommand;
+    briefViewer?: {
+      userId: string;
+      organizationId: string | null;
+      sessionId?: string;
+    };
+  },
   ActionResultDto<null, ActionError>
->(async ({ owner, command }) => {
+>(async ({ owner, command, briefViewer, session }) => {
   if (
     !z
       .object({ kind: z.enum(["audit", "project"]), id: z.uuid() })
@@ -61,6 +74,25 @@ export const mutateSeo = withSession<
       !monitorCommandSchema.safeParse(command).success)
   ) {
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+  }
+  const reviewIdentity = seoReviewIdentity(command);
+  if (
+    reviewIdentity &&
+    (!briefViewer ||
+      briefViewer.userId !== session.user.id ||
+      (reviewIdentity === "session" && !briefViewer.sessionId) ||
+      (briefViewer.sessionId !== undefined &&
+        briefViewer.sessionId !== session.session.id) ||
+      briefViewer.organizationId !==
+        (session.session.activeOrganizationId ?? null))
+  ) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        status: 409,
+        kind: "seo_viewer_changed",
+      }),
+    );
   }
   try {
     switch (command.kind) {
@@ -99,6 +131,10 @@ export const mutateSeo = withSession<
       case "monitor_run_now":
         await taskScheduleService.runNow(command.monitorId, {
           expectedRevision: command.expectedRevision,
+          ...(command.allowLimitedAudit && { allowLimitedAudit: true }),
+          ...(command.searchConsolePropertyId && {
+            searchConsolePropertyId: command.searchConsolePropertyId,
+          }),
         });
         break;
       case "monitor_update":
@@ -115,6 +151,9 @@ export const mutateSeo = withSession<
         break;
       case "save_competitor":
         await seoServiceNoRedirect.saveCompetitor(owner, command.body);
+        break;
+      case "acknowledge_review":
+        await seoServiceNoRedirect.acknowledgeReview(owner, command.body);
         break;
       case "create_action_task":
         await seoServiceNoRedirect.createActionTask(owner, command.body);
@@ -135,6 +174,19 @@ export const mutateSeo = withSession<
     if (command.kind.includes("monitor")) revalidatePath("/schedules");
     return toActionResult(ok(null));
   } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
+    const refusal = toCoreApiActionError(error);
+    if (
+      command.kind === "request_analysis" ||
+      command.kind === "create_monitor" ||
+      command.kind === "monitor_run_now"
+    )
+      return toActionResult(
+        err({
+          code: refusal.code,
+          kind: refusal.kind,
+          ...(error instanceof CoreApiRequestError && { status: error.status }),
+        }),
+      );
+    return toActionResult(err(refusal));
   }
 });

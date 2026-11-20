@@ -1,12 +1,30 @@
 "use client";
 
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
-import { useFormatter, useTranslations } from "next-intl";
+import {
+  BadgeCheck,
+  CircleCheck,
+  type LucideIcon,
+  PenLine,
+  ScanSearch,
+} from "lucide-react";
+import { useFormatter } from "next-intl";
 import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
-import { SeoFoldSummary } from "./seo-shared";
-import { seoChartEvents, seoTrendModel } from "./seo-trend-model";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
+import { cn } from "@/lib/utils";
+import {
+  SEO_MARKER_KINDS,
+  type SeoChartMarker,
+  type SeoMarkerKind,
+  seoChartEvents,
+  seoTrendModel,
+} from "./seo-trend-model";
 
 interface SeoTrendChartProps {
+  report?: boolean;
   points: ProjectSeoMetric["points"];
   unit: ProjectSeoMetric["unit"];
   /** What the chart shows: "Search clicks". */
@@ -14,8 +32,8 @@ interface SeoTrendChartProps {
   formatValue: (value: number) => string;
   /** Text for a day without a measurement. */
   unavailable: string;
-  /** Recorded page changes, drawn as dashed lines on their day. */
-  markers?: { date: string; label: string }[];
+  /** Events on the site, drawn as a dashed line and an icon on their day. */
+  markers?: SeoChartMarker[];
   /** The points are single reads: a line joins neighbouring reads (seoTrendModel `joinReads`). */
   joinReads?: boolean;
   /** Replaces the note under a position axis, which speaks of days without impressions. */
@@ -26,6 +44,16 @@ interface SeoTrendChartProps {
 
 /** Share of a day band a bar fills; the rest is the gap between bars. */
 const BAR_FILL = 0.7;
+
+/** Width of a marker icon, `size-3.5`, in rem so it follows the reader's font size. */
+const MARKER_ICON_REM = 0.875;
+
+const MARKER_ICONS: Record<SeoMarkerKind, LucideIcon> = {
+  audit: ScanSearch,
+  change: PenLine,
+  task: CircleCheck,
+  verified: BadgeCheck,
+};
 
 /**
  * One daily metric on one axis: bars for counts, a line for rates and positions,
@@ -43,9 +71,12 @@ export function SeoTrendChart({
   joinReads,
   positionNote,
   series,
+  report = false,
 }: SeoTrendChartProps) {
-  const t = useTranslations("App.Seo.overview");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.overview", report);
+  const local = useFormatter();
+  const english = useSeoResultFormatter();
+  const format = report ? english : local;
   const hintId = useId();
   const [active, setActive] = useState<number | null>(null);
   const [announced, setAnnounced] = useState<number | null>(null);
@@ -71,12 +102,20 @@ export function SeoTrendChart({
       dateStyle: "medium",
       timeZone: "UTC",
     });
-  // A day carries the recorded changes and the Google updates that run on it.
+  // A range that crosses years needs both years; same-year dates stay compact.
+  const updateDay = (date: string, other: string) =>
+    date.slice(0, 4) === other.slice(0, 4) ? day(date) : fullDay(date);
+  const kindName = (kind: SeoMarkerKind) => t("markerKind", { kind });
+  const eventsOn = (date: string) =>
+    (model.changes.find((change) => change.date === date)?.events ?? []).map(
+      (event) =>
+        event.label
+          ? t("markerEvent", { kind: kindName(event.kind), label: event.label })
+          : kindName(event.kind),
+    );
+  // A day carries the events on the site and the Google updates that run on it.
   const changeOn = (date: string) => {
-    const labels = [
-      ...(model.changes.find((change) => change.date === date)?.labels ?? []),
-      ...model.updatesOn(date),
-    ];
+    const labels = [...eventsOn(date), ...model.updatesOn(date)];
     return labels.length ? labels : undefined;
   };
   const readout = (index: number | null) => {
@@ -116,8 +155,15 @@ export function SeoTrendChart({
   const focus = active === null ? null : model.points[active];
   const labelled = [...new Set([0, Math.floor(last / 2), last])];
   const barWidth = model.band * BAR_FILL;
+  const plottedChanges = model.changes.filter(
+    (change): change is typeof change & { x: number } => change.x !== null,
+  );
+  // The key names only the icons drawn; a weaker event of a marked day is in the readout.
+  const markedKinds = SEO_MARKER_KINDS.filter((kind) =>
+    plottedChanges.some((change) => change.kind === kind),
+  );
   return (
-    <figure className="min-w-0 space-y-3">
+    <figure lang={report ? "en" : undefined} className="min-w-0 space-y-3">
       <div
         role="group"
         aria-label={label}
@@ -260,7 +306,7 @@ export function SeoTrendChart({
                   <line
                     key={`change:${change.date}`}
                     data-testid="seo-trend-change"
-                    className="stroke-foreground"
+                    className="stroke-muted-foreground"
                     vectorEffect="non-scaling-stroke"
                     strokeDasharray="3 3"
                     x1={change.x}
@@ -295,6 +341,33 @@ export function SeoTrendChart({
               ) : null,
             )}
           </div>
+          {plottedChanges.length ? (
+            <>
+              <span />
+              {/* One icon per marked day, under its dashed line: the strongest event of that day. */}
+              <div aria-hidden className="relative h-4">
+                {plottedChanges.map((change) => {
+                  const Icon = MARKER_ICONS[change.kind];
+                  return (
+                    <Icon
+                      key={change.date}
+                      data-testid="seo-trend-marker"
+                      className={cn(
+                        "absolute size-3.5",
+                        change.kind === "verified"
+                          ? "text-foreground"
+                          : "text-muted-foreground",
+                      )}
+                      // Centred on its day, held inside the plot at either edge.
+                      style={{
+                        left: `clamp(0px, calc(${change.x}% - ${MARKER_ICON_REM / 2}rem), calc(100% - ${MARKER_ICON_REM}rem))`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </>
+          ) : null}
           <span />
           <div
             aria-hidden
@@ -321,90 +394,95 @@ export function SeoTrendChart({
           </div>
         </div>
       </div>
-      {/* The marked days in words, so the lines need no pointer to read. */}
-      {model.changes.length ? (
-        <ul className="text-muted-foreground space-y-0.5 text-xs">
-          {model.changes.map((change) => (
-            <li key={change.date} className="flex gap-2">
-              <span
-                aria-hidden
-                className="border-foreground mt-1.5 h-0 w-3 shrink-0 border-t border-dashed"
-              />
-              <span>
-                {t("changeMarker", {
-                  day: day(change.date),
-                  changes: format.list(change.labels),
-                })}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {model.updatesAsOf ? (
-        <ul className="text-muted-foreground space-y-0.5 text-xs">
+      {/* One short key for the marks; the readout names each day's events. */}
+      {markedKinds.length || model.updatesAsOf ? (
+        <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          {markedKinds.map((kind) => {
+            const Icon = MARKER_ICONS[kind];
+            return (
+              <li key={kind} className="flex items-center gap-1.5">
+                <Icon aria-hidden className="size-3.5 shrink-0" />
+                {kindName(kind)}
+              </li>
+            );
+          })}
           {model.updates.map((update) => (
-            <li key={update.name} className="flex gap-2">
+            <li key={update.name} className="flex items-center gap-1.5">
               <span
                 aria-hidden
-                className="bg-quinary border-border mt-0.5 size-3 shrink-0 rounded-xs border"
+                className="bg-quinary border-border size-3 shrink-0 rounded-xs border"
               />
-              <span>
-                {update.open && update.last
-                  ? t("googleUpdateOpen", {
+              {update.open
+                ? t("googleUpdateOpen", {
+                    name: update.name,
+                    from: day(update.first),
+                  })
+                : update.last && update.last !== update.first
+                  ? t("googleUpdate", {
                       name: update.name,
-                      from: fullDay(update.first),
-                      to: fullDay(update.last),
+                      from: updateDay(update.first, update.last),
+                      to: updateDay(update.last, update.first),
                     })
-                  : update.last && update.last !== update.first
-                    ? t("googleUpdate", {
-                        name: update.name,
-                        from: fullDay(update.first),
-                        to: fullDay(update.last),
-                      })
-                    : t("googleUpdateDay", {
-                        name: update.name,
-                        day: fullDay(update.first),
-                      })}
-              </span>
+                  : t("googleUpdateDay", {
+                      name: update.name,
+                      day: day(update.first),
+                    })}
             </li>
           ))}
-          <li>{t("googleUpdatesAsOf", { day: fullDay(model.updatesAsOf) })}</li>
+          {/* Past the last known update the chart can miss one, so the date shows; otherwise only a screen reader hears it. */}
+          {model.updatesAsOf &&
+          (points.at(-1)?.date ?? "") > model.updatesAsOf ? (
+            <li>
+              {t("googleUpdatesAsOf", { day: fullDay(model.updatesAsOf) })}
+            </li>
+          ) : (
+            model.updatesAsOf && (
+              <li className="sr-only">
+                {t("googleUpdatesAsOf", { day: fullDay(model.updatesAsOf) })}
+              </li>
+            )
+          )}
         </ul>
       ) : null}
+      {/* Events after the newest reported day have no place on the plot yet, so they stay in words. */}
+      {model.changes.some((change) => change.x === null) ? (
+        <ul className="text-muted-foreground space-y-0.5 text-xs">
+          {model.changes
+            .filter((change) => change.x === null)
+            .map((change) => (
+              <li key={change.date}>
+                {t("markerLater", {
+                  day: day(change.date),
+                  events: format.list(eventsOn(change.date)),
+                })}
+              </li>
+            ))}
+        </ul>
+      ) : null}
+      {/* Every day in words for a screen reader, which cannot steer the readout in browse mode. */}
+      <table className="sr-only">
+        <thead>
+          <tr>
+            <th scope="col">{t("day")}</th>
+            <th scope="col">{label}</th>
+            <th scope="col">{t("markerEvents")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {model.points.map((point) => (
+            <tr key={point.date}>
+              <td>{day(point.date)}</td>
+              <td>{value(point)}</td>
+              <td>{format.list(changeOn(point.date) ?? [])}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {model.inverted ? (
         <figcaption className="text-muted-foreground text-xs">
           {positionNote ?? t("positionAxis")}
         </figcaption>
       ) : null}
-      <details className="text-sm">
-        <SeoFoldSummary className="text-muted-foreground py-3 text-xs">
-          {t("dailyValues")}
-        </SeoFoldSummary>
-        <div className="max-h-64 overflow-y-auto pt-2">
-          <table className="w-full text-xs">
-            <thead className="text-muted-foreground text-left">
-              <tr>
-                <th scope="col" className="py-1 font-normal">
-                  {t("day")}
-                </th>
-                <th scope="col" className="py-1 text-right font-normal">
-                  {label}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {model.points.map((point) => (
-                <tr key={point.date} className="border-t">
-                  <td className="py-1">{day(point.date)}</td>
-                  <td className="py-1 text-right tabular-nums">
-                    {value(point)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
     </figure>
   );
 }

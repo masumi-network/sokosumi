@@ -88,6 +88,7 @@ import {
   enqueueClassicOutboundJob,
 } from "@/app/chat/utils/classic-outbound-queue";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
+import { coworkerFirstPrompts } from "@/app/chat/utils/coworker-first-prompts";
 import {
   isCurrentUserMentionerOfFailedShell,
   isFailedMentionThoughtShell,
@@ -125,7 +126,6 @@ import {
   type PendingReactionKey,
   pendingReactionKey,
 } from "@/app/chat/utils/pending-reactions";
-import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { endsWithAttachmentRow } from "@/app/chat/utils/room-message-segments";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
@@ -192,6 +192,7 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
+import { CoworkerFirstPrompts } from "./coworker-first-prompts";
 import {
   openDirectWithParticipant,
   participantDirectKey,
@@ -201,7 +202,6 @@ import {
   useReadOnlyDirectNotice,
 } from "./read-only-direct-notice";
 import { useRoomCache, useRoomSelection } from "./room-cache-provider";
-import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import { RoomHeaderChrome } from "./room-header-chrome";
 import {
@@ -209,6 +209,7 @@ import {
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
   isMessageContinuation,
+  liveSokoBotFaces,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
@@ -218,7 +219,6 @@ import {
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
   shouldAllowRoomSkills,
-  shouldConsumePendingCoworkerStream,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
@@ -236,6 +236,7 @@ import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 import {
   RoomSessionComposer,
+  type RoomSessionComposerHandle,
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
@@ -968,7 +969,7 @@ function RoomView({
     setThreadOlderLoadStatus("idle");
   }
 
-  const roomComposerRef = useRef<RoomComposerHandle | null>(null);
+  const roomComposerRef = useRef<RoomSessionComposerHandle | null>(null);
   // State, not a ref: the viewport needs the element as a prop, and the
   // shell attaches its ref after a same-commit child has already rendered.
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
@@ -1237,6 +1238,11 @@ function RoomView({
   const isCoworkerStreamRoom = selectedRoom
     ? shouldUseCoworkerRoomStream(selectedRoom)
     : false;
+  const firstPromptCoworker = isCoworkerStreamRoom
+    ? coworkers.find(
+        (coworker) => coworker.id === selectedRoom?.coworkerMembers[0]?.id,
+      )
+    : undefined;
 
   const refreshRoomMessagesAfterStream = useCallback(
     async (roomId: string): Promise<boolean> => {
@@ -1288,7 +1294,6 @@ function RoomView({
     isStreaming: isCoworkerStreaming,
     activeStreamParentMessageId,
     sendStreamMessage,
-    consumePendingStreamMessage,
     retryFailedStreamMessage,
   } = useCoworkerDirectRoomStream({
     room: selectedRoom,
@@ -1655,28 +1660,6 @@ function RoomView({
         : null,
     [pendingReactions, reactionViewer, threadParentMessage],
   );
-
-  // Draft coworker DM stashes text then navigates — auto-stream once room opens.
-  // Keep sessionStorage until stream actually starts so Strict Mode remount
-  // cannot lose the draft before send begins.
-  useEffect(() => {
-    if (!selectedRoomId) {
-      return;
-    }
-    const pending = peekPendingRoomMessage(selectedRoomId);
-    if (pending == null) {
-      return;
-    }
-    if (
-      !shouldConsumePendingCoworkerStream({
-        isCoworkerStreamRoom,
-        hasPendingMessage: true,
-      })
-    ) {
-      return;
-    }
-    consumePendingStreamMessage(pending);
-  }, [consumePendingStreamMessage, isCoworkerStreamRoom, selectedRoomId]);
 
   // Re-open thread panel when a thread stream is active/resumed so overlays
   // stay visible after remount or if the panel was closed mid-stream.
@@ -3057,6 +3040,8 @@ function RoomView({
       (messagesPending && displayMessages.length === 0) || openingAtUnread;
     // Seen by rides the newest message only; scrollback stays quiet.
     const newestMessageId = displayMessages.at(-1)?.id ?? null;
+    // One live face per bot, on the header of its newest message group.
+    const liveFaces = liveSokoBotFaces(transcriptRows, localCalendarReady);
     // Narrowed once here: the row renderer is a nested function, which
     // TypeScript does not narrow through.
     const room = selectedRoom;
@@ -3216,6 +3201,8 @@ function RoomView({
               isSaving={savingMessageIds.has(message.id)}
               showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
+              liveFace={liveFaces.has(message.id)}
+              liveFaceStreaming={liveFaces.get(message.id) ?? false}
               isContinuation={
                 localCalendarReady &&
                 !showDaySeparator &&
@@ -3275,6 +3262,13 @@ function RoomView({
                   ? t("Empty.noDirectMessagesDescription")
                   : t("Empty.noMessagesDescription")}
             </p>
+            {firstPromptCoworker && !readOnlyNotice ? (
+              <CoworkerFirstPrompts
+                coworkerName={firstPromptCoworker.name}
+                prompts={coworkerFirstPrompts(firstPromptCoworker.metadata)}
+                onPick={(text) => roomComposerRef.current?.addText(text)}
+              />
+            ) : null}
           </div>
         ) : null}
         {showListSkeleton ? null : (
@@ -3399,13 +3393,15 @@ function RoomView({
                   channels={channelOptions}
                   channelLinks={channelLinks}
                   placeholder={
-                    isDirectRoom
-                      ? t("directComposerPlaceholder", {
-                          member: selectedRoomDisplayName,
-                        })
-                      : t("composerPlaceholderWithChannel", {
-                          channel: selectedRoomDisplayName,
-                        })
+                    selectedRoom.isSelfDirect
+                      ? t("SelfDirect.composerPlaceholder")
+                      : isDirectRoom
+                        ? t("directComposerPlaceholder", {
+                            member: selectedRoomDisplayName,
+                          })
+                        : t("composerPlaceholderWithChannel", {
+                            channel: selectedRoomDisplayName,
+                          })
                   }
                   isSending={isCoworkerStreaming}
                   showMentionShortcut={shouldShowRoomMentionShortcut(
@@ -3622,7 +3618,7 @@ function RoomView({
         chatMobileHeightShellClass(pathname, isApple, searchParams),
       )}
     >
-      <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
+      <div className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex flex-1 items-center justify-center p-6">
             <div className="border-border bg-card-background max-w-md rounded-md border border-dashed px-6 py-10 text-center">
@@ -3636,7 +3632,7 @@ function RoomView({
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

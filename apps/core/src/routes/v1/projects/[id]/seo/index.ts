@@ -22,6 +22,7 @@ import {
   seoWorkspaceQuerySchema,
   updateSeoScopeSchema,
 } from "@/schemas/project-seo.schema";
+import { acknowledgeSeoReviewSchema } from "@/schemas/seo-review-request.schema";
 import {
   addProjectSeoPage,
   createProjectSeoScope,
@@ -36,7 +37,10 @@ import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "@/services/project-seo-operations.service";
+import { acknowledgeSeoReview } from "@/services/seo-action-reviews";
+import { latestSeoSearchConsoleProperty } from "@/services/seo-connections.service";
 import { createSeoBrandTermsRouter } from "./brand-terms";
+import { createSeoBriefRouter } from "./brief";
 import { createSeoPageChangesRouter } from "./page-changes";
 import { createSeoStatisticsRouter } from "./statistics";
 
@@ -80,7 +84,18 @@ export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
         kind: ownerKind,
         id: c.req.valid("param").id,
       });
-      return ok(c, await getProjectSeoWorkspace(actor, c.req.valid("query")));
+      const workspace = await getProjectSeoWorkspace(
+        actor,
+        c.req.valid("query"),
+        { includePrivateReviews: true },
+      );
+      // A shared statistics snapshot can belong to another member. Only this user's selected property guides setup.
+      return ok(c, {
+        ...workspace,
+        searchConsolePropertyId: workspace.scope.pageIds.length
+          ? await latestSeoSearchConsoleProperty(actor, workspace.scope.pageIds)
+          : null,
+      });
     },
   );
 
@@ -343,9 +358,48 @@ export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
     },
   );
 
+  app.openapi(
+    withOrganizationSlugHeaderParameter(
+      createRoute({
+        method: "post",
+        path: "/actions/reviews",
+        operationId: operation(
+          "acknowledgeProjectSeoReview",
+          "acknowledgeSeoAuditReview",
+        ),
+        tags,
+        request: {
+          params: seoProjectParamsSchema,
+          body: {
+            required: true,
+            content: {
+              "application/json": { schema: acknowledgeSeoReviewSchema },
+            },
+          },
+        },
+        responses: {
+          204: { description: "Recommendation review recorded" },
+          400: responses[400],
+          401: responses[401],
+          403: responses[403],
+          404: responses[404],
+          409: responses[409],
+        },
+      }),
+    ),
+    async (c) => {
+      const actor = requireSeoRouteActor(c.var, {
+        kind: ownerKind,
+        id: c.req.valid("param").id,
+      });
+      await acknowledgeSeoReview(actor, c.req.valid("json"));
+      return c.body(null, 204);
+    },
+  );
   app.route("/statistics", createSeoStatisticsRouter(ownerKind));
   app.route("/", createSeoPageChangesRouter(ownerKind));
   app.route("/", createSeoBrandTermsRouter(ownerKind));
+  app.route("/", createSeoBriefRouter(ownerKind));
   return app;
 }
 export default createSeoWorkspaceRouter("project");

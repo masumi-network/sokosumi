@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, screen } from "@testing-library/react";
 import { Component, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -76,9 +77,7 @@ describe("LazyAblyProvider", () => {
       "@/contexts/lazy-ably-provider"
     );
 
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const reactErrors = expectConsole("error", "");
 
     render(
       <TestErrorBoundary>
@@ -91,9 +90,12 @@ describe("LazyAblyProvider", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Failed to load Ably provider",
     );
+    expect(reactErrors[0]?.[1]).toBeInstanceOf(Error);
+    expect(reactErrors[0]?.[1]).toHaveProperty(
+      "message",
+      "Failed to load Ably provider",
+    );
     expect(screen.queryByText("realtime-child")).not.toBeInTheDocument();
-
-    consoleError.mockRestore();
   });
 
   it("ignores a settled AblyProvider import after unmount", async () => {

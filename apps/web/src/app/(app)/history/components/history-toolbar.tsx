@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import type {
   HistoryFilters,
   HistoryType,
   ProjectFilterOption,
 } from "@/app/history/utils/history-filters";
+import { PageSearchActions } from "@/components/page-search-actions";
 
 import { HistoryExportMenu } from "./history-export-menu";
 import { HistorySearch } from "./history-search";
-import { HistoryViewFilters } from "./history-view-filters";
+import {
+  HistoryActiveFilters,
+  HistoryViewFilters,
+} from "./history-view-filters";
 
 interface HistoryToolbarProps {
   activeOrganizationId: string | null;
@@ -42,29 +47,45 @@ export function HistoryToolbar({
   resultsCountLabel,
   labels,
 }: HistoryToolbarProps) {
+  // Removing the Search chip or Clear all remounts the search box, which drops
+  // its pending debounced write so typing cannot bring the search back.
+  const [searchResets, setSearchResets] = useState(0);
+
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
-      <div className="hidden min-w-0 flex-1 md:block">
-        <HistorySearch
-          activeOrganizationId={activeOrganizationId}
-          projectOptions={projectOptions}
-          labels={labels.search}
-        />
+    <div data-history-toolbar className="flex flex-col gap-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center gap-2 sm:gap-3">
+        <p
+          className="text-muted-foreground shrink-0 text-sm md:hidden"
+          aria-live="polite"
+        >
+          {resultsCountLabel}
+        </p>
+        <PageSearchActions>
+          <HistorySearch
+            key={searchResets}
+            activeOrganizationId={activeOrganizationId}
+            projectOptions={projectOptions}
+            labels={labels.search}
+          />
+          <div
+            data-history-filters
+            className="flex shrink-0 items-center gap-2"
+          >
+            <HistoryExportMenu filters={filters} />
+            <HistoryViewFilters
+              activeOrganizationId={activeOrganizationId}
+              projectOptions={projectOptions}
+              labels={labels.filters}
+            />
+          </div>
+        </PageSearchActions>
       </div>
-      <p
-        className="text-muted-foreground min-w-0 flex-1 truncate text-sm md:hidden"
-        aria-live="polite"
-      >
-        {resultsCountLabel}
-      </p>
-      <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
-        <HistoryExportMenu filters={filters} />
-        <HistoryViewFilters
-          activeOrganizationId={activeOrganizationId}
-          projectOptions={projectOptions}
-          labels={labels.filters}
-        />
-      </div>
+      <HistoryActiveFilters
+        onSearchReset={() => setSearchResets((count) => count + 1)}
+        activeOrganizationId={activeOrganizationId}
+        projectOptions={projectOptions}
+        labels={labels.filters}
+      />
     </div>
   );
 }

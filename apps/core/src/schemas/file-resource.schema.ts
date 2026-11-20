@@ -5,6 +5,8 @@ import {
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { taskTagIdSchema } from "@/helpers/task-tags";
+import { workspaceTagColorFields } from "@/schemas/tag-color.schema";
 
 /**
  * DTOs for the intelligent Files surface.
@@ -241,6 +243,8 @@ export const fileRelatedResponseSchema = z
 
 export const workspaceLabelSchema = z
   .object({
+    taskTopicId: taskTagIdSchema.optional(),
+    ...workspaceTagColorFields,
     id: z.string(),
     kind: fileLabelKindSchema,
     displayName: z.string(),
@@ -251,6 +255,7 @@ export const workspaceLabelSchema = z
   .openapi("WorkspaceLabel");
 
 export const createWorkspaceLabelRequestSchema = z.object({
+  ...workspaceTagColorFields,
   kind: fileLabelKindSchema,
   displayName: z
     .string()
@@ -260,6 +265,7 @@ export const createWorkspaceLabelRequestSchema = z.object({
 });
 
 export const updateWorkspaceLabelRequestSchema = z.object({
+  ...workspaceTagColorFields,
   displayName: z
     .string()
     .min(1)

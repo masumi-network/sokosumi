@@ -140,6 +140,11 @@ export interface UpdateSokoBotScheduleInput {
   capabilityNames?: readonly string[];
   /** Skip, move or restore one run, shown to the caller at `expectedAt`. */
   run?: ScheduleRunChangeInput;
+  /**
+   * The caller is a bot that may not change its own built-in rhythms: only
+   * a person changes or pauses those.
+   */
+  keepBuiltInRhythms?: boolean;
 }
 
 /**
@@ -354,8 +359,10 @@ async function findScheduleForUser(
     userId === null
       ? null
       : {
-          workspaceId: ref.workspaceId,
-          sokoBotId: ref.sokoBotId,
+          ...(ref.workspaceId !== undefined
+            ? { workspaceId: ref.workspaceId }
+            : {}),
+          ...(ref.sokoBotId !== undefined ? { sokoBotId: ref.sokoBotId } : {}),
           sokoBot: { userId },
         };
   const matching = {
@@ -404,6 +411,10 @@ export async function updateSokoBotSchedule(
   const db = transaction ?? prisma;
   const schedule = await findScheduleForUser(input.userId, input, transaction);
   await requireSharedBotScheduleSeat(input.userId, schedule.sokoBotId, db);
+  if (input.keepBuiltInRhythms && schedule.systemKey)
+    throw new SokoBotScheduleValidationError(
+      `"${schedule.name}" is one of your built-in rhythms and stays as it is. For something the owner wants on a schedule, such as a reminder, create a separate schedule with create_schedule.`,
+    );
   if (input.run) return changeScheduleRun(schedule, input.run, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
@@ -436,22 +447,26 @@ export async function updateSokoBotSchedule(
         )
       : nextRunAt;
   const data = {
-    name: input.name?.trim(),
-    enabled: input.enabled,
-    consecutiveFailures:
-      input.enabled === true && !schedule.enabled ? 0 : undefined,
-    timezone: input.timezone,
-    cronExpression: input.cronExpression,
+    ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+    ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+    ...(input.enabled === true && !schedule.enabled
+      ? { consecutiveFailures: 0 }
+      : {}),
+    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    ...(input.cronExpression !== undefined
+      ? { cronExpression: input.cronExpression }
+      : {}),
     // A new cron makes a one-time schedule recurring.
-    runOnce: input.cronExpression ? false : undefined,
-    prompt: input.prompt?.trim(),
-    capabilityNames: input.capabilityNames
-      ? [...input.capabilityNames]
-      : undefined,
-    nextRunAt:
-      timingChanged || reactivated ? (restartAt ?? nextRunAt) : undefined,
+    ...(input.cronExpression ? { runOnce: false } : {}),
+    ...(input.prompt !== undefined ? { prompt: input.prompt.trim() } : {}),
+    ...(input.capabilityNames
+      ? { capabilityNames: [...input.capabilityNames] }
+      : {}),
+    ...(timingChanged || reactivated
+      ? { nextRunAt: restartAt ?? nextRunAt }
+      : {}),
     // New timing: moved or skipped runs of the old one no longer apply.
-    runChanges: timingChanged ? { deleteMany: {} } : undefined,
+    ...(timingChanged ? { runChanges: { deleteMany: {} } } : {}),
   };
   if (input.enabled === true && !schedule.enabled) {
     const mutate = async (tx: Prisma.TransactionClient) => {

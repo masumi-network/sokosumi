@@ -24,6 +24,10 @@ const { db, startTurnMock } = vi.hoisted(() => ({
   startTurnMock: vi.fn(),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 vi.mock("@/services/soko-bot-control-plane.service", () => {
@@ -41,6 +45,7 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
 }));
 
 import {
+  followUpCapabilities,
   followUpConnectedApp,
   followUpMessage,
   registerWatch,
@@ -148,6 +153,31 @@ describe("watchOutcome", () => {
       "- Hannah: Yes, about 200 credits.",
     );
   });
+
+  it("waits while a Coworker's reply is still being written", async () => {
+    const chat = { ...studio, kind: "chat_reply", targetId: "room-1" };
+    const reply = {
+      content: "Yes, abo",
+      senderUser: null,
+      senderCoworker: { name: "Hannah" },
+      senderSokoBot: null,
+    };
+    db.chatRoomMessage.findMany.mockResolvedValueOnce([
+      { ...reply, metadata: { streaming: true } },
+    ]);
+    expect(await watchOutcome(chat)).toBeNull();
+    // An empty placeholder is never read at all.
+    expect(db.chatRoomMessage.findMany.mock.calls[0][0].where).toMatchObject({
+      content: { not: "" },
+    });
+
+    db.chatRoomMessage.findMany.mockResolvedValueOnce([
+      { ...reply, content: "Yes, about 200 credits.", metadata: {} },
+    ]);
+    expect(await watchOutcome(chat)).toContain(
+      "- Hannah: Yes, about 200 credits.",
+    );
+  });
 });
 
 describe("followUpMessage", () => {
@@ -161,6 +191,52 @@ describe("followUpMessage", () => {
     expect(text).toContain("Your plan: post it in #Sokosumi");
     expect(text).toContain("do not ask again");
     expect(text).toContain("DONE:");
+  });
+
+  it("asks the follow-up of an SEO check for the answer itself, not a note that it is covered", () => {
+    const text = followUpMessage({
+      then: "Tell the owner where the site ranks.",
+      outcome: '- "nft minting platform" (mobile, US): not in the top 19.',
+      timedOut: false,
+      kind: "seo_check",
+    });
+    expect(text).toContain("not in the top 19");
+    expect(text).toContain("Write the answer itself");
+    expect(text).toContain("you post nothing yourself");
+    expect(text).toContain("in the language they asked in");
+    expect(text).toContain("start no new check now");
+    expect(text).not.toContain("say in one or two sentences what you did");
+  });
+});
+
+describe("followUpCapabilities", () => {
+  const asked = [
+    "read_seo",
+    "save_seo_suggestions",
+    "post_chat",
+    "list_chats",
+    "read_chat",
+    "check_search_rankings",
+    "start_background_run",
+    "not_a_tool",
+  ];
+
+  it("gives an SEO check's follow-up no chat tools and no new check", () => {
+    expect(followUpCapabilities("seo_check", asked)).toEqual([
+      "read_seo",
+      "save_seo_suggestions",
+    ]);
+  });
+
+  it("keeps the asking turn's tools for every other follow-up, without run management", () => {
+    expect(followUpCapabilities("studio_job", asked)).toEqual([
+      "read_seo",
+      "save_seo_suggestions",
+      "post_chat",
+      "list_chats",
+      "read_chat",
+      "check_search_rankings",
+    ]);
   });
 });
 

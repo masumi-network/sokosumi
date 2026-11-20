@@ -1,6 +1,7 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  taskNotificationHref,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
@@ -62,7 +63,7 @@ export function notificationEmailLink(
 
   switch (input.kind) {
     case "TASK":
-      return `${base}/tasks/${reference}`;
+      return `${base}${taskNotificationHref(input)}`;
 
     case "PROJECT":
       return `${base}/projects/${reference}`;

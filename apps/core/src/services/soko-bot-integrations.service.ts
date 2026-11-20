@@ -12,7 +12,17 @@ import {
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
 import { socialProviderForToolkit } from "@/config/social-providers";
+import {
+  list as asList,
+  field as pick,
+  text as str,
+} from "@/lib/contacts/capture-provider";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, logCoreWarning, recordCoreError } from "@/lib/evlog";
+import {
+  invitationAddresses,
+  mailboxAddresses,
+} from "@/lib/soko-bot/integration-addresses";
 import {
   executeIntegrationTool as execute,
   SokoBotIntegrationError,
@@ -78,6 +88,7 @@ async function loadCatalog(): Promise<SokoBotIntegrationCatalogEntry[] | null> {
       .filter(
         (toolkit) =>
           toolkit.slug.toLowerCase() !== "composio" &&
+          toolkit.slug.toLowerCase() !== "tiktok" &&
           !adProviderForToolkit(toolkit.slug) &&
           connectable(toolkit),
       )
@@ -108,15 +119,18 @@ export async function searchSokoBotIntegrationCatalog(
     catalogCache = { at: Date.now(), entries };
   }
   const needle = query.trim().toLowerCase();
-  const entries = needle
-    ? catalogCache.entries.filter(
-        (entry) =>
-          entry.provider.includes(needle) ||
-          entry.name.toLowerCase().includes(needle) ||
-          (entry.description?.toLowerCase().includes(needle) ?? false),
-      )
-    : catalogCache.entries;
-  return entries.slice(0, limit);
+  const { entries } = catalogCache;
+  if (!needle) return entries.slice(0, limit);
+  const names: SokoBotIntegrationCatalogEntry[] = [];
+  const descriptions: SokoBotIntegrationCatalogEntry[] = [];
+  for (const entry of entries) {
+    const name = entry.name.toLowerCase();
+    if (name.includes(needle) || entry.provider.includes(needle))
+      names.push(entry);
+    else if (entry.description?.toLowerCase().includes(needle))
+      descriptions.push(entry);
+  }
+  return names.concat(descriptions).slice(0, limit);
 }
 
 function curatedCatalog(
@@ -140,7 +154,11 @@ function curatedCatalog(
     }));
 }
 
-/** Revoke the account snapshot captured atomically during bot deletion. */
+/**
+ * Revoke the account snapshot captured atomically during bot deletion.
+ * Failures go on the live request event (bot deletion, member removal), or
+ * on their own event in the leaver sweep's cron.
+ */
 export async function revokeSokoBotIntegrationAccounts(
   sokoBotId: string,
   rows: {
@@ -154,6 +172,16 @@ export async function revokeSokoBotIntegrationAccounts(
   if (!composio) return { revoked: 0, failed: rows.map((r) => r.provider) };
 
   const failed = new Set<string>();
+  // One request can revoke for several bots on one event: each record
+  // names its bot, since evlog concatenates arrays and overwrites scalars.
+  const failures: {
+    sokoBotId: string;
+    provider: string;
+    accountId: string;
+    /** Composio's error, as redacted detail. */
+    cause: unknown;
+  }[] = [];
+  let firstError: unknown;
   for (const row of rows) {
     for (const accountId of new Set([
       row.composioAccountId,
@@ -164,13 +192,28 @@ export async function revokeSokoBotIntegrationAccounts(
         await composio.connectedAccounts.delete(accountId);
       } catch (error) {
         failed.add(row.provider);
-        console.error("Soko Bot integration revoke failed", {
+        firstError ??= error;
+        failures.push({
           sokoBotId,
           provider: row.provider,
-          error: error instanceof Error ? error.message : "unknown",
+          accountId,
+          cause: error,
         });
       }
     }
+  }
+  if (failures.length > 0) {
+    recordCoreError(
+      { operation: "soko_bot_integration_revoke" },
+      {
+        message:
+          "Could not revoke a Soko Bot's integration accounts at Composio",
+        why: "Composio refused the delete",
+        fix: "The integrations are gone from Sokosumi, but the accounts may still be live at Composio. Delete the account ids under integrationRevoke.failures in the Composio dashboard.",
+        cause: firstError,
+      },
+      { integrationRevoke: { failures } },
+    );
   }
   return { revoked: rows.length - failed.size, failed: [...failed] };
 }
@@ -220,43 +263,6 @@ export async function activeIntegrationsForBot(
   });
 }
 
-function str(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  return "";
-}
-
-function pick(obj: unknown, ...keys: string[]): unknown {
-  if (!obj || typeof obj !== "object") return undefined;
-  for (const key of keys) {
-    const value = (obj as Record<string, unknown>)[key];
-    if (value !== undefined && value !== null) return value;
-  }
-  return undefined;
-}
-
-function asList(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function addressList(value: unknown): string[] {
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((part) => part.trim())
-      .filter(Boolean);
-  }
-  return asList(value).map((entry) => {
-    const email = pick(entry, "emailAddress", "email", "address");
-    if (email && typeof email === "object") {
-      const name = str(pick(email, "name"));
-      const address = str(pick(email, "address", "email"));
-      return name ? `${name} <${address}>` : address;
-    }
-    return str(email ?? entry);
-  });
-}
-
 function isoOrEmpty(value: unknown): string {
   if (typeof value === "number") return new Date(value).toISOString();
   const text = str(value);
@@ -272,7 +278,7 @@ function normaliseMessage(
   const from = pick(raw, "sender", "from");
   const fromText =
     from && typeof from === "object"
-      ? (addressList([from])[0] ?? "")
+      ? (mailboxAddresses([from])[0] ?? "")
       : str(from);
   const labels = asList(pick(raw, "labelIds", "categories")).map(str);
   const isRead = pick(raw, "isRead");
@@ -281,7 +287,7 @@ function normaliseMessage(
     id: str(pick(raw, "messageId", "id")),
     threadId: str(pick(raw, "threadId", "conversationId")) || null,
     from: fromText,
-    to: addressList(pick(raw, "to", "toRecipients")),
+    to: mailboxAddresses(pick(raw, "to", "toRecipients")),
     subject: str(pick(raw, "subject")),
     snippet: (
       str(pick(pick(raw, "preview"), "body")) ||
@@ -299,6 +305,8 @@ function normaliseMessage(
   };
 }
 
+const MAX_CALENDAR_ATTENDEES = 20;
+
 function normaliseEvent(
   providerId: string,
   raw: unknown,
@@ -308,6 +316,7 @@ function normaliseEvent(
   const startDate = str(pick(start, "dateTime", "date")) || str(start);
   const endDate = str(pick(end, "dateTime", "date")) || str(end);
   const allDay = Boolean(pick(start, "date")) || Boolean(pick(raw, "isAllDay"));
+  const { attendees, organizer } = invitationAddresses(raw);
   return {
     provider: providerId,
     id: str(pick(raw, "id")),
@@ -319,8 +328,12 @@ function normaliseEvent(
       str(pick(raw, "location")) ||
       str(pick(pick(raw, "location"), "displayName")) ||
       null,
-    attendees: addressList(pick(raw, "attendees")).slice(0, 20),
-    organizer: addressList([pick(raw, "organizer")])[0] || null,
+    attendees: attendees.slice(0, MAX_CALENDAR_ATTENDEES),
+    ...((pick(raw, "attendeesOmitted") === true ||
+      attendees.length > MAX_CALENDAR_ATTENDEES) && {
+      attendeesIncomplete: true,
+    }),
+    organizer,
     description:
       str(pick(raw, "description", "bodyPreview")).slice(0, 500) || null,
     link: str(pick(raw, "htmlLink", "webLink")) || null,
@@ -650,9 +663,22 @@ export async function fetchInboxAttachment(
     const bytes = inline ? base64Bytes(inline) : null;
     if (bytes) return bytes;
   }
-  console.warn("[soko-bot-mail] unreadable attachment result", {
-    keys: data && typeof data === "object" ? Object.keys(data) : typeof data,
+  // Read from a Soko Bot turn's tool call, in the background: its own event.
+  // Only the operation: the result's keys and values can quote the mail.
+  const log = createCoreLogger({
+    operation: "soko_bot_mail_attachment",
+    integration: {
+      id: integration.id,
+      provider: integration.provider.id,
+      operation: slug,
+    },
   });
+  logCoreWarning(log, {
+    message: "A mailbox returned an attachment Sokosumi cannot read",
+    why: "Composio's result held no file link and no base64 data",
+    fix: "Run the attachment tool for a test mailbox in the Composio playground and teach fetchInboxAttachment the shape it returns.",
+  });
+  log.emit();
   throw new SokoBotIntegrationError(
     "The mailbox returned the attachment in a form Sokosumi cannot read",
   );

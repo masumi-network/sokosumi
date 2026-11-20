@@ -4,12 +4,12 @@ import { ArrowUpRight, Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
-
 import {
   ProjectSelectionMessage,
   readProjectSelectionReply,
 } from "@/components/chat/project-selection-message";
 import { ResultPreviews } from "@/components/chat/result-previews";
+import { ContactMentionScope } from "@/components/contact-mention-card";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatDelegation, ChatTurn } from "@/lib/soko-bot/chat-state";
@@ -227,6 +227,7 @@ export function TurnRows({
   onDecisionResolved: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Chat");
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
   const active = isActiveTurn(turn);
   const kind = turnKind(turn);
   const startedAt = turn.startedAt ?? turn.createdAt;
@@ -282,12 +283,16 @@ export function TurnRows({
           />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             {turn.finalAnswer ? (
-              <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
-                {turn.finalAnswer}
-              </Markdown>
+              <ContactMentionScope>
+                <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
+                  {turn.finalAnswer}
+                </Markdown>
+              </ContactMentionScope>
             ) : turn.status === "FAILED" ? (
               <p className="text-semantic-destructive pt-1 pr-10 text-sm">
-                {turn.errorDetail ?? t("failed")}
+                {turn.errorKind === "ai_budget_exceeded"
+                  ? tFailure("aiBudgetExceeded")
+                  : tFailure("generic")}
               </p>
             ) : turn.status === "CANCELLED" ? (
               <p className="text-muted-foreground pt-1 pr-10 text-sm italic">

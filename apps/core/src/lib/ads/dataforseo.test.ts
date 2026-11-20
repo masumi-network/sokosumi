@@ -16,6 +16,9 @@ vi.mock("@/clients/composio.client", async (importOriginal) => ({
 
 import {
   competitorAds,
+  fetchComparisonSearches,
+  fetchKeywordIdeas,
+  fetchKeywordOverview,
   fetchMarketKeywords,
   getTaskResult,
   mergeMarketAds,
@@ -246,6 +249,204 @@ describe("fetchMarketKeywords", () => {
     await expect(fetchMarketKeywords(query)).rejects.toThrow(
       "invalid response",
     );
+  });
+});
+
+describe("CMO keyword suggestions receipts", () => {
+  it("posts only the first ranked phrases to Labs overview and drops unrequested or foreign rows", async () => {
+    m.composioFetch.mockReset();
+    m.getEnv.mockReturnValue({
+      COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
+    });
+    const q = { topic: "rangement", locationCode: 2250, languageCode: "fr" };
+    const keywords = ["portes murales", "meubles bas"];
+    const data = { keywords, location_code: 2250, language_code: "fr" };
+    const items = [
+      { keyword: keywords[0], keyword_info: { search_volume: 120 } },
+      { keyword: keywords[1], location_code: 2840 },
+      { keyword: "sans rapport" },
+    ];
+    const native = {
+      status_code: 20000,
+      tasks: [
+        {
+          id: "native-id",
+          cost: 0.015,
+          status_code: 20000,
+          data,
+          result: [{ items }],
+        },
+      ],
+    };
+    const observed = vi.fn(async () => {});
+    m.composioFetch.mockResolvedValueOnce(proxied(native));
+    const rows = await fetchKeywordOverview(q, keywords, observed);
+    expect(rows.map((i) => i.keyword)).toEqual([keywords[0]]);
+    expect(requests()).toContainEqual(
+      expect.objectContaining({
+        endpoint: API + "/dataforseo_labs/google/keyword_overview/live",
+        body: [data],
+      }),
+    );
+    expect(observed).toHaveBeenCalledWith({
+      costUsd: 0.015,
+      taskId: "native-id",
+      exactKeywords: [keywords[0]],
+    });
+    m.composioFetch.mockResolvedValueOnce(
+      proxied({
+        ...native,
+        tasks: [
+          { ...native.tasks[0], data: { ...data, keywords: ["other market"] } },
+        ],
+      }),
+    );
+    expect(await fetchKeywordOverview(q, keywords, observed)).toEqual([]);
+  });
+
+  it("keeps a billed refusal and binds measured terms to one native suggestions request", async () => {
+    m.composioFetch.mockReset();
+    m.getEnv.mockReturnValue({
+      COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
+    });
+    const query = { topic: "lampe", locationCode: 2250, languageCode: "fr" };
+    const observe = vi.fn(async () => {});
+    const result = {
+      keyword: "lampe",
+      location_code: 2250,
+      language_code: "fr",
+      items: [
+        {
+          keyword: "lampe de chevet",
+          keyword_info: { search_volume: 90 },
+          keyword_properties: { keyword_difficulty: 18 },
+        },
+      ],
+    };
+    const ok = {
+      id: "suggestions-id",
+      status_code: 20000,
+      cost: 0.012,
+      result: [result],
+    };
+    m.composioFetch.mockResolvedValueOnce(
+      proxied({ status_code: 20000, tasks: [ok] }),
+    );
+    const ideas = await fetchKeywordIdeas(query, observe);
+    expect(ideas[0]).toMatchObject({
+      keyword: "lampe de chevet",
+      searchVolume: 90,
+      difficulty: 18,
+    });
+    expect(observe).toHaveBeenLastCalledWith({
+      costUsd: 0.012,
+      taskId: "suggestions-id",
+      exactKeywords: ["lampe de chevet"],
+    });
+    m.composioFetch.mockResolvedValueOnce(
+      proxied({
+        status_code: 20000,
+        tasks: [{ ...ok, status_code: 50000, cost: 0.032 }],
+      }),
+    );
+    await expect(fetchKeywordIdeas(query, observe)).rejects.toThrow();
+    expect(observe).toHaveBeenLastCalledWith({
+      costUsd: 0.032,
+      taskId: "suggestions-id",
+      exactKeywords: [],
+    });
+    expect(requests().map((r) => r.endpoint)).toEqual(
+      Array(2).fill(API + "/dataforseo_labs/google/keyword_suggestions/live"),
+    );
+  });
+});
+
+describe("fetchComparisonSearches", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    m.getEnv.mockReturnValue({
+      COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
+    });
+  });
+
+  it("reads the searches that name the product beside a comparison word", async () => {
+    m.composioFetch.mockImplementation(async () =>
+      proxied(
+        task([
+          {
+            items: [
+              {
+                keyword: "calendly alternative",
+                keyword_info: {
+                  search_volume: 260,
+                  cpc: 12.18,
+                  competition_level: "MEDIUM",
+                  low_top_of_page_bid: 2.21,
+                  high_top_of_page_bid: 19.66,
+                },
+              },
+              { keyword: "calendly vs zcal", keyword_info: null },
+            ],
+          },
+        ]),
+      ),
+    );
+    const rows = await fetchComparisonSearches({
+      product: "calendly",
+      locationCode: 2840,
+      languageCode: "en",
+    });
+    const [request] = requests();
+    expect(request?.endpoint).toBe(
+      `${API}/dataforseo_labs/google/keyword_suggestions/live`,
+    );
+    expect(request?.body).toEqual([
+      {
+        keyword: "calendly",
+        location_code: 2840,
+        language_code: "en",
+        limit: 100,
+        filters: [
+          [
+            "keyword",
+            "regex",
+            "(alternative|competitor|\\bvs\\b|versus|compared|pricing|\\bprice|\\bcost)",
+          ],
+        ],
+        order_by: ["keyword_info.search_volume,desc"],
+      },
+    ]);
+    expect(rows).toEqual([
+      {
+        keyword: "calendly alternative",
+        searchVolume: 260,
+        cpc: 12.18,
+        lowTopOfPageBid: 2.21,
+        highTopOfPageBid: 19.66,
+        competition: "MEDIUM",
+      },
+      {
+        keyword: "calendly vs zcal",
+        searchVolume: null,
+        cpc: null,
+        lowTopOfPageBid: null,
+        highTopOfPageBid: null,
+        competition: null,
+      },
+    ]);
+  });
+
+  it("raises a refusal from DataForSEO", async () => {
+    m.composioFetch.mockImplementation(async () =>
+      proxied(task(null, 40501, "No Search Results.")),
+    );
+    await expect(
+      fetchComparisonSearches({
+        product: "nobody",
+        locationCode: 2840,
+        languageCode: "en",
+      }),
+    ).rejects.toBeInstanceOf(ComposioToolError);
   });
 });
 

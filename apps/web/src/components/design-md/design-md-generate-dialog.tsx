@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, WandSparkles } from "lucide-react";
+import { Palette, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactElement, useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -112,7 +112,7 @@ export function DesignMdGenerateDialog({
         <DialogTrigger asChild disabled={disabled || !websiteUrl}>
           {trigger ?? (
             <Button type="button">
-              <WandSparkles className="size-4" />
+              <Palette className="size-4" />
               {hasExistingDesignMd
                 ? t("regenerateButton")
                 : t("generateButton")}

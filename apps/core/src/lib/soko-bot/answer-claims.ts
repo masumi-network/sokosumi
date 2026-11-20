@@ -1,3 +1,5 @@
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { askJev } from "./jev";
 
 /** A long report (a weekly wrap, a stand-up) takes Jev several seconds. */
@@ -33,9 +35,16 @@ export async function claimsAction(
       ? null
       : probability >= MAX_CLAIM_PROBABILITY;
   } catch (error) {
-    console.warn("Soko Bot claim check failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    // Only safe fields: a model error can quote the text it was sent.
+    recordCoreWarning(
+      { operation: "soko_bot_claim_check" },
+      {
+        message: "Could not check a Soko Bot reply for unconfirmed claims",
+        why: "Jev, the judging model, failed or timed out",
+        fix: "Nothing: the reply is held back and the owner is told why.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return null;
   }
 }

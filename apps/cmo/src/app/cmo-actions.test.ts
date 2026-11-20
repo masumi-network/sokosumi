@@ -33,6 +33,7 @@ const forProject = Object.fromEntries(
     "finalizeCmoAdsForProject",
     "finalizeCmoMeasurementForProject",
     "finalizeCmoSocialConnectionForProject",
+    "fixCmoBrandSectionForProject",
     "getCmoCalendarEntryTextForProject",
     "initiateCmoSocialConnectionForProject",
     "launchCmoSearchAdForProject",
@@ -123,6 +124,7 @@ const {
   connectSetupChannel,
   finalizeChannel,
   finishAccounts,
+  fixBrandSection,
   loadCusos,
   loadOverview,
   onboard,
@@ -164,6 +166,21 @@ describe("onboard", () => {
     expect(startCmoOnboarding).toHaveBeenCalledWith(
       expect.objectContaining({
         body: { websiteUrl: "https://acme.io/" },
+      }),
+    );
+  });
+
+  it("hires a test copy of the Cuso the hire form names", async () => {
+    const data = form("acme.io");
+    data.set("testCopyOf", "project-source");
+    await expect(onboard(EMPTY, data)).rejects.toThrow("redirect");
+
+    expect(startCmoOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          websiteUrl: "https://acme.io/",
+          testCopyOfProjectId: "project-source",
+        },
       }),
     );
   });
@@ -330,10 +347,12 @@ describe("social accounts", () => {
 
   it("finishes the connection on Cuso's Project", async () => {
     forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
-      data: {},
+      data: { data: { state: "connected", choices: [] } },
     });
 
-    expect(await finalizeChannel("project-1", "ca_1")).toBe(true);
+    expect(
+      await finalizeChannel("project-1", { connectionId: "ca_1" }),
+    ).toEqual({ state: "connected" });
     expect(
       forProject.finalizeCmoSocialConnectionForProject,
     ).toHaveBeenCalledWith(
@@ -342,6 +361,53 @@ describe("social accounts", () => {
         body: { connectionId: "ca_1" },
       }),
     );
+  });
+
+  it("hands back the accounts to pick from, then sends the pick with the sign-in", async () => {
+    const choices = [
+      {
+        id: "choice-page",
+        name: "Acme",
+        handle: "acme",
+        kind: "page",
+      },
+    ];
+    forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
+      data: { data: { state: "choose", choices } },
+    });
+    const signIn = {
+      connectionId: "zernio:profile",
+      callbackProof: "proof",
+      pendingDataToken: "pending",
+      connectToken: "connect",
+    };
+    expect(await finalizeChannel("project-1", signIn)).toEqual({
+      state: "choose",
+      choices,
+    });
+    await finalizeChannel("project-1", signIn, "choice-page");
+    expect(
+      forProject.finalizeCmoSocialConnectionForProject,
+    ).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: { ...signIn, accountChoiceId: "choice-page" },
+      }),
+    );
+  });
+
+  it("names why a connection kept no account", async () => {
+    forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
+      error: { kind: "social_facebook_page_required", message: "No Page" },
+    });
+    expect(
+      await finalizeChannel("project-1", { connectionId: "ca_1" }),
+    ).toEqual({ state: "failed", reason: "no_page" });
+    forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
+      error: { message: "Nope" },
+    });
+    expect(
+      await finalizeChannel("project-1", { connectionId: "ca_1" }),
+    ).toEqual({ state: "failed", reason: "failed" });
   });
 });
 
@@ -413,6 +479,30 @@ describe("addMailingList", () => {
   });
 });
 
+describe("brand fixes", () => {
+  it("sends a fix to its section", async () => {
+    forProject.fixCmoBrandSectionForProject?.mockResolvedValue({
+      error: undefined,
+    });
+    expect(await fixBrandSection("project-2", "offer", "From $19")).toBeNull();
+    expect(forProject.fixCmoBrandSectionForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { projectId: "project-2" },
+        body: { section: "offer", note: "From $19" },
+      }),
+    );
+  });
+
+  it("passes Core's refusal on", async () => {
+    forProject.fixCmoBrandSectionForProject?.mockResolvedValue({
+      error: { message: "You're out of credits." },
+    });
+    expect(await fixBrandSection("project-2", "offer", "From $19")).toBe(
+      "You're out of credits.",
+    );
+  });
+});
+
 describe("skipped hiring steps", () => {
   beforeEach(() => {
     const overview = {
@@ -434,8 +524,8 @@ describe("skipped hiring steps", () => {
 
   it("resumes past the steps CMO's cookie skipped for this Cuso", async () => {
     cookieJar.set("cmo-skipped-project-1", "accounts");
-    // Past the accounts the checkout is owed (ADR 0068).
-    expect((await loadOverview("project-1"))?.onboardingStep).toBe("checkout");
+    // Core reaches the accounts only after the checkout (ADR 0068): done.
+    expect((await loadOverview("project-1"))?.onboardingStep).toBe("done");
     // Another Cuso's choices do not count.
     cookieJar.clear();
     cookieJar.set("cmo-skipped-project-2", "accounts");
@@ -727,10 +817,15 @@ describe("the Cuso on screen", () => {
       data: { data: { redirectUrl: "https://connect.example/x" } },
     });
     forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
-      data: {},
+      data: { data: { state: "connected", choices: [] } },
     });
     await connectChannel("project-2", "x");
-    expect(await finalizeChannel("project-2", "ca_1", "s_1")).toBe(true);
+    expect(
+      await finalizeChannel("project-2", {
+        connectionId: "ca_1",
+        sessionUri: "s_1",
+      }),
+    ).toEqual({ state: "connected" });
     expect(
       forProject.initiateCmoSocialConnectionForProject,
     ).toHaveBeenCalledWith(

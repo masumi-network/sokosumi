@@ -2,23 +2,25 @@
 
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { MouseEvent } from "react";
 
-import {
-  CHAT_CHATS_LIST_PATH,
-  classifyChatChromeSurface,
-} from "@/app/chat/utils/chat-route-base";
+import { useChromePathname } from "@/app/chat/components/room-cache-provider";
+import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
 import {
   getAgentJobsPathAgentId,
+  type MobileAppBackLabelKey,
   resolveMobileAppBackTarget,
   shouldShowMobileBrandLeading,
 } from "@/app/components/mobile-app-chrome";
 import { useIsAgentUnavailable } from "@/app/components/unavailable-agent.client";
 import { getStoredTasksReturnPath } from "@/app/tasks/components/task-navigation";
 import { useTasksReturnPath } from "@/app/tasks/components/use-tasks-return-path";
+import { BackLink } from "@/components/back-link";
 import { SokosumiIcon } from "@/components/masumi-logos";
+import { navigateBack } from "@/lib/navigation/navigate-back";
+import { cn } from "@/lib/utils";
 
 /**
  * Mobile header leading slot (`md:hidden` size-10):
@@ -27,15 +29,18 @@ import { SokosumiIcon } from "@/components/masumi-logos";
  * - nested tasks → back to stored list URL (view/filters) when present; a
  *   task opened from the Calendar → back to that Calendar view
  * - other nested list pages → back to list root
+ * - Developer sections → back to the You → Developer menu; their detail
+ *   pages → back to the section list
+ * - You rows (lists opened from You) and submenus → back to You, with "You"
+ *   shown beside the chevron
  * - non-tab hub roots → back to chats
  * - otherwise → back to chats
  */
 export function HeaderLeadingControl(): React.ReactElement {
-  const pathname = usePathname();
+  const pathname = useChromePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("App.Channels.MobileNav");
-  const surface = classifyChatChromeSurface(pathname, searchParams);
   const appBack = resolveMobileAppBackTarget(pathname, searchParams);
   // Only a task's own page goes back to the Calendar it was opened from.
   const allowCalendar = isTaskDetailPathname(pathname);
@@ -56,22 +61,10 @@ export function HeaderLeadingControl(): React.ReactElement {
     );
   }
 
-  if (surface === "room") {
-    return (
-      <Link
-        href={CHAT_CHATS_LIST_PATH}
-        aria-label={t("backToChats")}
-        className="text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md"
-      >
-        <ChevronLeft className="size-5" aria-hidden />
-      </Link>
-    );
-  }
-
   if (appBack) {
     const isTasksBack = appBack.href === "/tasks";
     const href = isTasksBack
-      ? tasksReturnPath
+      ? (tasksReturnPath ?? appBack.href)
       : agentUnavailable
         ? "/agents"
         : appBack.href;
@@ -80,7 +73,8 @@ export function HeaderLeadingControl(): React.ReactElement {
       // Read storage at click time: header stays mounted across list→detail,
       // so href state can lag behind TaskDetailLink writing the return path.
       event.preventDefault();
-      router.push(
+      navigateBack(
+        router,
         getStoredTasksReturnPath({
           taskPath: allowCalendar ? pathname : undefined,
         }),
@@ -88,25 +82,51 @@ export function HeaderLeadingControl(): React.ReactElement {
     }
 
     return (
-      <Link
+      <AppBackLink
         href={href}
-        aria-label={t(appBack.labelKey)}
-        className="text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md"
+        labelKey={appBack.labelKey}
         onClick={isTasksBack ? handleTasksBackClick : undefined}
-      >
-        <ChevronLeft className="size-5" aria-hidden />
-      </Link>
+        prefetchOnMount={!isTasksBack || tasksReturnPath !== null}
+      />
     );
   }
 
+  // A chat room, and any page without a list of its own, goes back to Chats.
   return (
-    <Link
+    <BackLink
       href={CHAT_CHATS_LIST_PATH}
       aria-label={t("backToChats")}
       className="text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md"
     >
       <ChevronLeft className="size-5" aria-hidden />
-    </Link>
+    </BackLink>
+  );
+}
+
+/** Chevron back; back to You also shows "You" beside it. */
+function AppBackLink({
+  labelKey,
+  ...props
+}: {
+  href: string;
+  labelKey: MobileAppBackLabelKey;
+  onClick: ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined;
+  prefetchOnMount: boolean;
+}) {
+  const t = useTranslations("App.Channels.MobileNav");
+  const namesYou = labelKey === "backToYou";
+  return (
+    <BackLink
+      {...props}
+      aria-label={t(labelKey)}
+      className={cn(
+        "text-foreground press hover:bg-accent inline-flex h-10 shrink-0 items-center justify-center rounded-md",
+        namesYou ? "gap-0.5 ps-1 pe-2.5 text-sm font-medium" : "size-10",
+      )}
+    >
+      <ChevronLeft className="size-5" aria-hidden />
+      {namesYou ? t("you") : null}
+    </BackLink>
   );
 }
 

@@ -18,6 +18,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
@@ -87,7 +88,7 @@ interface LiveRun {
 
 async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
   const response = await fetch(
-    `/api/personal-assistant/turns/${encodeURIComponent(turnId)}`,
+    `/api/admin/soko-bots/turns/${encodeURIComponent(turnId)}`,
     { credentials: "same-origin", cache: "no-store" },
   );
   if (!response.ok) return null;
@@ -105,9 +106,11 @@ const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
 async function watchTurn(
   turnId: string,
   onProgress: (turn: ChatTurnDetail) => void,
+  isMounted: () => boolean,
 ): Promise<ChatTurnDetail | null> {
   const deadline = Date.now() + TIMEOUT_MS;
-  while (Date.now() < deadline) {
+  // A lab closed mid-run stops polling instead of until the deadline.
+  while (Date.now() < deadline && isMounted()) {
     const turn = await fetchTurn(turnId);
     if (turn) {
       onProgress(turn);
@@ -313,6 +316,13 @@ export function ScenarioLab({
   // One at a time: turns share the bot's session lock, so this is the run the
   // whole page is waiting on rather than one of several.
   const [live, setLive] = useState<LiveRun | null>(null);
+  const mountedRef = useRef(false);
+  useMountEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  });
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;
@@ -330,6 +340,8 @@ export function ScenarioLab({
   }, [loadHistory]);
 
   async function run(scenario: SokoBotScenario) {
+    // A closed lab starts nothing: each start is a real server action.
+    if (!mountedRef.current) return;
     setRunning((current) => new Set(current).add(scenario.id));
     setFailures(({ [scenario.id]: _dropped, ...rest }) => rest);
     setLive({
@@ -404,19 +416,24 @@ export function ScenarioLab({
           ? { ...current, phase: "queued", turnId }
           : current,
       );
-      const turn = await watchTurn(turnId, (progress) => {
-        setLive((current) =>
-          current?.scenarioId === scenario.id
-            ? {
-                ...current,
-                phase: FINAL_STATUSES.has(progress.status)
-                  ? "judging"
-                  : "running",
-                turn: progress,
-              }
-            : current,
-        );
-      });
+      const turn = await watchTurn(
+        turnId,
+        (progress) => {
+          setLive((current) =>
+            current?.scenarioId === scenario.id
+              ? {
+                  ...current,
+                  phase: FINAL_STATUSES.has(progress.status)
+                    ? "judging"
+                    : "running",
+                  turn: progress,
+                }
+              : current,
+          );
+        },
+        () => mountedRef.current,
+      );
+      if (!mountedRef.current) return;
       if (!turn) {
         setFailures((current) => ({
           ...current,
@@ -459,6 +476,7 @@ export function ScenarioLab({
     });
     try {
       for (const scenario of SOKO_BOT_SCENARIOS) {
+        if (!mountedRef.current) return;
         await run(scenario);
         setBatch((current) =>
           current ? { ...current, done: current.done + 1 } : current,
@@ -477,8 +495,10 @@ export function ScenarioLab({
     });
     try {
       for (const version of versions) {
+        if (!mountedRef.current) return;
         await chooseVersion(version.id);
         for (const scenario of SOKO_BOT_SCENARIOS) {
+          if (!mountedRef.current) return;
           await run(scenario);
           setBatch((current) =>
             current ? { ...current, done: current.done + 1 } : current,

@@ -163,7 +163,7 @@ export function PasswordForm({ email }: PasswordFormProps) {
           {/* Outside the fieldset: its `disabled` would also disable the
               loading submit button, fading it and dropping focus. */}
           <CardFooter>
-            <Button type="submit" loading={isSubmitting} className="w-full">
+            <Button type="submit" loading={isSubmitting} className="ms-auto">
               {t("submit")}
             </Button>
           </CardFooter>

@@ -102,6 +102,7 @@ vi.mock("@/lib/ably/publish", () => ({
 vi.mock("@/lib/db/prisma", () => ({ default: prismaMock }));
 
 import { projectCloseSyncService } from "@/services/project-close-sync.service";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const PROJECT_ID = "22222222-2222-7222-8222-222222222222";
@@ -267,6 +268,9 @@ describe("project close sync", () => {
   });
 
   it("backs off transient failures and names the failed schedule after exhaustion", async () => {
+    const errors = expectCoreLogWhys("error", "A project close batch failed", [
+      "Scheduled work could not be closed",
+    ]);
     taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
     taskScheduleFindUniqueOrThrowMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -297,9 +301,46 @@ describe("project close sync", () => {
     expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
       "project_event_123",
     );
+    expect(errors[0]?.fix).toContain("stopped after 3 failed batches");
+    expect(errors[0]?.event).toMatchObject({
+      operation: "project_close_sync",
+      projectClose: { attempts: 3, failed: true },
+      failure: { errorName: "ProjectCloseScheduleError" },
+    });
+    expect(errors[0]?.cause).toBeUndefined();
+  });
+
+  it("logs a failed batch without the task text its error can quote", async () => {
+    const errors = expectCoreLog("error", "A project close batch failed");
+    taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
+    // Releasing a schedule writes its task; a write error can quote it.
+    taskScheduleFindUniqueOrThrowMock.mockRejectedValue(
+      Object.assign(
+        new Error(
+          'Invalid `task.create()`: name "Private launch plan for Acme" sk_live_abc123',
+        ),
+        { name: "PrismaClientKnownRequestError", code: "P2028" },
+      ),
+    );
+    projectCloseOperationFindFirstMock.mockResolvedValue({
+      attempts: 0,
+      projectId: PROJECT_ID,
+    });
+
+    await projectCloseSyncService.syncProjectCloses(options());
+
+    // The wrapper's Prisma code survives; its text does not.
+    expect(errors[0]?.event).toMatchObject({
+      failure: { errorName: "ProjectCloseScheduleError", code: "P2028" },
+    });
+    expect(errors[0]?.fix).toContain("failure.code");
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Private launch plan");
+    expect(drained).not.toContain("sk_live");
   });
 
   it("retries a failed batch later without notifying", async () => {
+    expectCoreLog("error", "A project close batch failed");
     taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
     taskScheduleFindUniqueOrThrowMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -323,6 +364,7 @@ describe("project close sync", () => {
   });
 
   it("names no schedule when the failure is outside one", async () => {
+    expectCoreLog("error", "A project close batch failed");
     projectUpdateMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
       attempts: 2,
@@ -400,6 +442,7 @@ describe("project close sync", () => {
   });
 
   it("keeps a failed ad revocation retryable without closing the project", async () => {
+    expectCoreLog("error", "A project close batch failed");
     const pending = { adConnectionId: "ad_1", connectedAccountId: "ca_ads" };
     taskScheduleFindFirstMock.mockResolvedValue(null);
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -418,6 +461,7 @@ describe("project close sync", () => {
   });
 
   it("keeps a failed social revocation retryable without closing the project", async () => {
+    expectCoreLog("error", "A project close batch failed");
     const pending = { connectedAccountId: "ca_project" };
     taskScheduleFindFirstMock.mockResolvedValue(null);
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -774,6 +818,7 @@ describe("project close sync", () => {
     });
 
     it("fails the batch, naming the schedule, when it changed under the close", async () => {
+      expectCoreLog("error", "A project close batch failed");
       taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
       taskScheduleUpdateManyMock.mockResolvedValue({ count: 0 });
       projectCloseOperationFindFirstMock.mockResolvedValue({

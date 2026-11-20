@@ -4,6 +4,11 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  type SearchConsoleWarning,
+  seoSearchConsoleWarning,
+} from "@/lib/seo/search-console-warning";
+import { briefForReview, selectedBriefPages } from "./seo-brief-model";
+import {
   allowedSeoAnalysisKinds,
   analysisSeoBody,
   formLines,
@@ -65,10 +70,30 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     );
   }
   const kind = kinds.find((value) => value === chosenKind) ?? "page_check";
+  const choice =
+    !monitor && (kind === "audit_full" || kind === "page_check")
+      ? model.reviewGoal
+      : null;
+  const brief = model.brief?.data;
+  const staleGoal = Boolean(
+    choice &&
+      choice.revision !== brief?.revision &&
+      (choice.changed || (kind === "audit_full" && choice.share)),
+  );
+  const reviewGoal =
+    choice && choice.revision === brief?.revision ? choice : null;
+  const reviewBrief = briefForReview(brief, reviewGoal);
   const serviceAvailable = monitor
     ? model.data.availableActions.canCreateMonitor === true
     : model.data.availableActions.canRequestAnalysis;
-  async function submit(form: FormData) {
+  const [warning, setWarning] = useState<{
+    operationId: string;
+    reason: SearchConsoleWarning;
+  } | null>(null);
+  const selectingProperty =
+    kind === "audit_full" && model.statisticsSync?.selectingSearchProperty;
+  async function submit(form: FormData, allowLimited = false) {
+    if (staleGoal || (selectingProperty && !allowLimited)) return;
     if (!serviceAvailable) {
       toast.error(
         t(monitor ? "monitor.unavailable" : "analysis.serviceUnavailable"),
@@ -85,43 +110,70 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         ...workspace,
         availableActions: model.data.availableActions,
       });
+      const sharedBrief =
+        !monitor && kind === "audit_full"
+          ? selectedBriefPages(form, reviewBrief, workspace.scope.pageIds)
+          : undefined;
+      const request = {
+        ...body,
+        ...(reviewGoal?.changed && {
+          setupGoal: {
+            pageId: reviewGoal.pageId,
+            expectedRevision: reviewGoal.revision,
+            action: reviewGoal.action,
+          },
+        }),
+        ...(sharedBrief && { sharedBrief }),
+      };
+      const scope = model.setupScopeKey;
+      const analysisKey = model.operationKey(
+        JSON.stringify([
+          monitor ? "monitor-analysis" : "analysis",
+          scope,
+          request,
+        ]),
+      );
+      const operationId = monitor
+        ? model.operationKey(JSON.stringify(["monitor", rule, analysisKey]))
+        : analysisKey;
+      const handleRefusal = (kind: string | undefined) => {
+        const reason = seoSearchConsoleWarning(kind);
+        if (!reason) return false;
+        setWarning({ operationId, reason });
+        return true;
+      };
+      const property = model.statisticsSync?.searchConsolePropertyId;
+      const analysis = {
+        ...request,
+        idempotencyKey: analysisKey,
+        ...(kind === "audit_full" &&
+          property && { searchConsolePropertyId: property }),
+        ...(kind === "audit_full" &&
+          allowLimited &&
+          warning?.operationId === operationId && {
+            allowLimitedAudit: true as const,
+          }),
+      };
+      setWarning(null);
       if (monitor) {
         if (!rule) throw new Error("Invalid SEO monitor rule");
-        const request: Omit<CreateProjectSeoMonitorRequest, "operationId"> = {
+        const body: CreateProjectSeoMonitorRequest = {
           rule,
-          analysis: {
-            ...body,
-            idempotencyKey: model.operationKey(
-              `monitor-analysis:${JSON.stringify(body)}`,
-            ),
-          },
+          analysis,
+          operationId,
         };
         await model.execute(
-          {
-            kind: "create_monitor",
-            body: {
-              ...request,
-              operationId: model.operationKey(
-                `monitor:${JSON.stringify(request)}`,
-              ),
-            },
-          },
+          { kind: "create_monitor", body },
           t("monitor.created"),
+          handleRefusal,
         );
-        return;
+      } else {
+        await model.execute(
+          { kind: "request_analysis", body: analysis },
+          t("analysis.queued"),
+          handleRefusal,
+        );
       }
-      await model.execute(
-        {
-          kind: "request_analysis",
-          body: {
-            ...body,
-            idempotencyKey: model.operationKey(
-              `analysis:${JSON.stringify(body)}`,
-            ),
-          },
-        },
-        t("analysis.queued"),
-      );
     } catch (error) {
       // The refused value is in a field: show the fields with the message.
       setOptionsOpen(true);
@@ -137,8 +189,13 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   const requirements = seoAnalysisRequirements(kind, modules);
   return {
     kind,
+    reviewBrief,
+    reviewGoal,
+    staleGoal,
+    warning: warning?.reason,
     kinds,
     serviceAvailable,
+    selectingProperty,
     canUsePaidSearchData,
     setKind,
     submit,

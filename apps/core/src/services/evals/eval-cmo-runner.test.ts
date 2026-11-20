@@ -12,7 +12,12 @@ const prisma = vi.hoisted(() => {
         .fn()
         .mockResolvedValue({ status: "COMPLETED", finalAnswer: "Ready" }),
     },
-    brandBrain: { deleteMany: ok(), create: ok() },
+    brandBrain: { deleteMany: ok(), create: ok(), findUnique: vi.fn() },
+    chatRoomMessage: { deleteMany: ok() },
+    dataTable: { deleteMany: ok() },
+    contactList: { deleteMany: ok() },
+    sokoBotSchedule: { deleteMany: ok() },
+    fileProjectLink: { deleteMany: ok() },
     socialComment: {
       deleteMany: ok(),
       create: vi.fn().mockResolvedValue({ id: "comment-1" }),
@@ -20,6 +25,10 @@ const prisma = vi.hoisted(() => {
     socialPost: { create: vi.fn().mockResolvedValue({ id: "post-1" }) },
   };
 });
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({ default: prisma }));
 vi.mock("@/services/cmo-cuso.service", () => ({
   findCusoForBot: vi.fn().mockResolvedValue({ id: "cuso-1" }),
@@ -41,12 +50,18 @@ vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
   newestMarketingStrategy: vi.fn(),
 }));
 
+import {
+  cmoPlanProblems,
+  cmoPlanRuleProblems,
+} from "@/services/cmo-plan-review.service";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import { newestMarketingStrategy } from "@/services/marketing-strategy.service";
 import { CMO_EVAL_CASES } from "./eval-cmo-cases";
 import {
+  changeRequestPlan,
   commentChecks,
   monthPlanFromTomorrow,
+  newsletterIssueCheck,
   pollCmoCase,
   prepareCmoChatCase,
   startCmoCase,
@@ -67,6 +82,16 @@ describe("strategy eval cases", () => {
   const evalCase = CMO_EVAL_CASES.find(
     (item) => item.id === "cmo-strategy-mailchimp",
   )!;
+
+  it("drops the last brand's page screenshots when a lane gets a new brand", async () => {
+    await prepareCmoChatCase(lane as never, "cmo-brand");
+    expect(prisma.fileProjectLink.deleteMany).toHaveBeenCalledWith({
+      where: {
+        projectId: lane.cusoProjectId,
+        resource: { sourceId: { contains: "/Brand research/" } },
+      },
+    });
+  });
 
   it("passes the frozen site language into fresh strategy generation", async () => {
     await startCmoCase(evalCase, lane, context);
@@ -112,6 +137,61 @@ describe("strategy eval cases", () => {
       outcome: { status: "ERROR" },
     });
     expect(expireTurn).toHaveBeenCalledWith("turn-9");
+  });
+
+  it.each([
+    [
+      "GatewayInternalServerError",
+      "API key budget exceeded. Current spend: $400.12, limit: $400.00.",
+      "provider_budget_exhausted",
+    ],
+    ["runner_exited", "The runner ended with exit code 1", "runner_exited"],
+  ])(
+    "records %s as an execution error before reading generated content",
+    async (errorKind, errorDetail, code) => {
+      prisma.sokoBotTurn.findUniqueOrThrow.mockResolvedValueOnce({
+        status: "FAILED",
+        errorKind,
+        errorDetail,
+        finalAnswer: null,
+      });
+      const result = await pollCmoCase(
+        evalCase,
+        lane,
+        { turnId: "turn-failed", state: {} },
+        context,
+      );
+      expect(result).toMatchObject({
+        kind: "done",
+        outcome: {
+          status: "ERROR",
+          checks: [],
+          turnIds: ["turn-failed"],
+          output: { infrastructure: { code, detail: errorDetail } },
+        },
+      });
+    },
+  );
+
+  it.each([
+    { kind: "cmo-research", output: { offers: null } },
+    { kind: "cmo-strategy", output: { pillars: null, calendar: null } },
+  ])("reports missing content for $kind", async ({ kind, output }) => {
+    const scenario = CMO_EVAL_CASES.find((item) => item.kind === kind);
+    if (!scenario) throw new Error(`Missing eval case: ${kind}`);
+    if (kind === "cmo-research")
+      prisma.brandBrain.findUnique.mockResolvedValueOnce(null);
+    else vi.mocked(newestMarketingStrategy).mockResolvedValueOnce(null);
+    const result = await pollCmoCase(
+      scenario,
+      lane,
+      { turnId: "turn-1", state: {} },
+      context,
+    );
+    expect(result).toMatchObject({
+      kind: "done",
+      outcome: { status: "FAILED", output },
+    });
   });
 
   it.each(["Email and SMS marketing plans", null])(
@@ -201,6 +281,11 @@ describe("a Cuso chat case's lane", () => {
     };
     expect(data.plan.calendar.length).toBeGreaterThan(0);
     expect(data.approvedAt).toBeUndefined();
+    // Yesterday's "LinkedIn is now once a week" is not today's plan: a
+    // change request once read it and changed nothing.
+    expect(prisma.chatRoomMessage.deleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ senderSokoBotId: "cuso-bot-1" }),
+    });
   });
 
   it("holds nothing for a client Cuso has not learned", async () => {
@@ -314,5 +399,59 @@ describe("monthPlanFromTomorrow", () => {
       },
     ]);
     expect(moved.summary).toBe("Plan");
+  });
+});
+
+describe("changeRequestPlan", () => {
+  it("gives the change request a month with LinkedIn three times a week that keeps every hard rule", () => {
+    const plan = changeRequestPlan(new Date("2026-11-09T04:00:00Z"));
+    const linkedin = plan.calendar.filter(
+      (entry) => entry.channel === "linkedin",
+    );
+    expect(linkedin).toHaveLength(12);
+    // Cutting LinkedIn to one a week still leaves the 16 pieces a save needs,
+    // and the review finds nothing the case did not ask about.
+    expect(plan.calendar.length - 8).toBeGreaterThanOrEqual(16);
+    expect(
+      new Set(plan.calendar.map((e) => `${e.channel}/${e.format}`)).size,
+    ).toBeGreaterThanOrEqual(6);
+    expect(cmoPlanProblems(plan)).toEqual([]);
+    expect(plan.channels.find((c) => c.channel === "linkedin")?.cadence).toBe(
+      "3 posts a week",
+    );
+    expect(plan.calendar[0]?.date).toBe("2026-11-10");
+    expect(plan.calendar.at(-1)?.date).toBe("2026-12-07");
+    expect(cmoPlanRuleProblems(plan)).toEqual([]);
+  });
+});
+
+describe("the newsletter month", () => {
+  const plan = (
+    CMO_EVAL_CASES as readonly { id: string; plan?: unknown }[]
+  ).find((evalCase) => evalCase.id === "cmo-month-newsletter")?.plan as
+    | MarketingStrategyPlan
+    | undefined;
+
+  it("plans a newsletter issue on a newsletter channel", () => {
+    expect(plan?.calendar.map((entry) => entry.channel)).toContain(
+      "newsletter",
+    );
+    expect(plan?.channels.map((channel) => channel.channel)).toContain(
+      "newsletter",
+    );
+  });
+
+  it("passes a filed issue with its subject line, and nothing else", () => {
+    const issue = "cal-newsletter-issue (newsletter/issue)";
+    const check = (file: string | null) =>
+      newsletterIssueCheck(plan ?? null, [file]).pass;
+    expect(
+      check(`${issue}: Subject: Book the right rep\n\nHi, one tip this month.`),
+    ).toBe(true);
+    expect(check(`${issue}: Hi, one tip this month.`)).toBe(false);
+    expect(check(`${issue}: Subject: Long\n\n${"word ".repeat(500)}`)).toBe(
+      false,
+    );
+    expect(check(null)).toBe(false);
   });
 });

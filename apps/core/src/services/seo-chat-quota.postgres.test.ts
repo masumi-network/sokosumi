@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { convertCreditsToCents } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { createSeoAudit } from "./seo-audit.service";
+import { setSeoAuditArchived } from "./seo-audit-archive";
 import { sendSeoChat } from "./seo-chat.service";
 
 const enabled =
@@ -101,6 +102,42 @@ describe.skipIf(!enabled)("Atomic native SEO chat daily allowance", () => {
     });
     await prisma.user.deleteMany({ where: { id: { in: createdUsers } } });
     await prisma.$disconnect();
+  });
+
+  it("lets a live reply finish and keeps its daily usage after the creator archives the audit", async () => {
+    const { actors } = await createFixture();
+    const owner = actors[0];
+    getEnv().SEO_CHAT_DAILY_TURN_LIMIT = 1;
+    const started = Promise.withResolvers<void>();
+    const finish = Promise.withResolvers<void>();
+    const pending = sendSeoChat(owner, input(), {
+      generate: async () => {
+        started.resolve();
+        await finish.promise;
+        return modelReply;
+      },
+    });
+    await started.promise;
+    try {
+      await expect(
+        setSeoAuditArchived(owner, owner.owner.id, true),
+      ).rejects.toMatchObject({
+        status: 409,
+        cause: { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_ACTIVE_CHAT },
+      });
+    } finally {
+      finish.resolve();
+    }
+    expect((await pending).status).toBe("completed");
+    await setSeoAuditArchived(owner, owner.owner.id, true);
+    await expect(
+      sendSeoChat(actors[1], input(), { generate: async () => modelReply }),
+    ).rejects.toMatchObject({ status: 429 });
+    expect(
+      await prisma.seoAuditChatTurn.findFirst({
+        where: { auditId: owner.owner.id },
+      }),
+    ).toMatchObject({ transactionId: expect.any(String) });
   });
 
   it("admits one concurrent request across different Audits at the final daily slot", async () => {

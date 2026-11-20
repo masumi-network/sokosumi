@@ -3,15 +3,17 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
+import { expectCoreLog } from "@/test/core-log";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import { pendingEmailChange } from "./auth-pending-email-change.js";
+import { betterAuthLogger } from "./evlog-library-logs.js";
 
 function createTestAuth(
   { secretKey }: { secretKey?: string } = { secretKey: "test-secret" },
 ) {
   const sendEmail = vi.fn();
   const auth = betterAuth({
+    logger: betterAuthLogger,
     baseURL: "https://auth.example.com",
     basePath: "/auth",
     secret: "test-secret-that-is-long-enough-for-better-auth",
@@ -124,6 +126,7 @@ describe("auth email abuse protection", () => {
   it.each(["invalid-input-response", "timeout-or-duplicate"])(
     "rejects %s tokens",
     async (code) => {
+      expectCoreLog("warn", "Cloudflare Turnstile verification failed");
       vi.stubGlobal(
         "fetch",
         vi
@@ -195,6 +198,7 @@ describe("auth email abuse protection", () => {
   });
 
   it("rejects a real secret when siteverify omits action", async () => {
+    expectCoreLog("warn", "Cloudflare Turnstile verification failed");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(Response.json({ success: true })),
@@ -207,6 +211,7 @@ describe("auth email abuse protection", () => {
   });
 
   it("rejects a valid token from a different action", async () => {
+    expectCoreLog("warn", "Cloudflare Turnstile verification failed");
     vi.stubGlobal(
       "fetch",
       vi
@@ -223,6 +228,7 @@ describe("auth email abuse protection", () => {
   });
 
   it("does not send mail when Cloudflare is unavailable", async () => {
+    expectCoreLog("error", "CAPTCHA service unavailable");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(new Response("Unavailable", { status: 503 })),

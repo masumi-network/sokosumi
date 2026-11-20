@@ -50,16 +50,19 @@ export type {
 } from "./better-auth-types.js";
 export {
   BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
 } from "./billing-notification-message-keys.js";
 export {
   brandColors,
-  brandFontName,
   brandFonts,
   type DesignMdBrandLook,
+  type DesignMdLogo,
   designMdBrandLook,
+  designMdLogo,
+  designMdPalette,
   distinctColors,
   isNeutral,
   normalizeHex,
@@ -159,10 +162,28 @@ export {
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
 export {
   CMO_CHANNELS,
+  CMO_OWNER_CONFIRMED_CHANNELS,
   type CmoChannelKey,
   isCmoChannelFormat,
+  isCmoOwnerConfirmedChannel,
+  isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
+export {
+  CMO_COMPETITOR_WEEK_KEY,
+  type CmoCompetitorWeek,
+  type CmoCompetitorWeekMove,
+  cmoCompetitorWeekText,
+  readCmoCompetitorWeek,
+} from "./cmo-competitor-week.js";
+export { withoutSokosumiLinks } from "./cmo-links.js";
+export {
+  CMO_VOLUME_LEVELS,
+  type CmoMonthVolume,
+  type CmoVolumeLevel,
+  cmoMonthAtLevel,
+  cmoVolumeLevelForTier,
+} from "./cmo-plan-volume.js";
 export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
@@ -182,9 +203,9 @@ export {
   companyListMembersSchema,
   companyListUpdateSchema,
   contactChannelInputSchema,
+  contactDetailHref,
   contactFieldsSchema,
   contactFilterSchema,
-  contactImportMappingSchema,
   contactImportSchema,
   contactInteractionInputSchema,
   contactListInputSchema,
@@ -340,6 +361,7 @@ export {
   extractFileLikeLinks,
   extractHttpLinks,
 } from "./markdown-links-extract.js";
+export { escapeMarkdownLinkLabel } from "./markdown-prose-scan.js";
 export {
   collectMarkdownUrlExcludedRanges,
   findBareHttpUrlHits,
@@ -462,9 +484,7 @@ export {
 } from "./project-logo-path.js";
 export {
   SEO_CAPABILITIES,
-  SEO_CAPABILITIES_AS_OF,
   SEO_CAPABILITY_GROUPS,
-  SEO_CAPABILITY_UNLOCKS,
   type SeoCapability,
   type SeoCapabilityGroup,
   type SeoCapabilityId,
@@ -472,16 +492,17 @@ export {
   type SeoCapabilityUnlock,
 } from "./seo-capabilities.js";
 export {
+  PAID_DATA_MARKUP_PERCENT,
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
   SEO_FULL_AUDIT_MAX_PROVIDER_USD,
   SEO_FULL_AUDIT_MAX_SECONDS,
-  SEO_MARKUP_PERCENT,
-  SEO_MAX_CALL_CENTS,
   SEO_MIN_AUDIT_USD,
   SEO_PAGE_CEILING_CENTS,
   type SeoCreditCeilingInput,
   seoCreditsForCents,
+  seoFullAuditPrice,
   seoMaxCredits,
 } from "./seo-credits.js";
 export {
@@ -490,7 +511,19 @@ export {
   type GoogleEvent,
   type GoogleEventKind,
 } from "./seo-google-events.js";
+export {
+  newerSeoAuditVerdict,
+  seoIndexReviewState,
+  seoInspectionCrawlTime,
+  seoInspectionEvidence,
+} from "./seo-index-verdict.js";
 export { normalizeSeoQuery } from "./seo-query.js";
+export { seoReportFileFormat } from "./seo-report-file.js";
+export {
+  hasSeasonalDemandRise,
+  seasonalUpdateHasPassed,
+  seoSeasonalTiming,
+} from "./seo-seasonal-timing.js";
 export {
   readSeoStatisticsNote,
   SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
@@ -501,7 +534,6 @@ export {
   SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
   SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_FIXED_NOTES,
   SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,
@@ -516,7 +548,17 @@ export {
   seoStatisticsLostData,
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
-export { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic.js";
+export {
+  removeSeoTaskRequest,
+  type SeoTaskMarker,
+  seoTaskDescription,
+  seoTaskRequestPacket,
+} from "./seo-task-request.js";
+export {
+  SEO_SEARCH_TYPES,
+  SEO_TRAFFIC_CHANNELS,
+  seoSearchUrlPrefixCovers,
+} from "./seo-traffic.js";
 export {
   buildSocialAccountAvatarPathname,
   isOwnedSocialAccountAvatarUrl,
@@ -527,7 +569,6 @@ export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
   isSocialProviderEnabled,
   isXLongPostSubscription,
-  SOCIAL_POST_FIRST_COMMENT_LIMITS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
@@ -557,7 +598,6 @@ export {
   socialProviderUnavailableMessage,
   splitYouTubePostText,
   validateSocialPostMedia,
-  X_LONG_POST_SUBSCRIPTION_TYPES,
   X_PREMIUM_TEXT_LIMIT,
   type XLongPostSubscriptionType,
 } from "./social-post.js";
@@ -567,6 +607,11 @@ export {
 } from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export {
+  studioAdBrief,
+  studioAdCopyPrompts,
+  studioAdVariationIndex,
+} from "./studio-ad-prompts.js";
 export {
   MAX_STUDIO_BATCH_IMAGES,
   MAX_STUDIO_HEADLINE_LENGTH,
@@ -578,6 +623,18 @@ export {
 export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
+export {
+  creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PLANNED_CREDITS,
+  TALKING_VIDEO_PLANNED_SCRIPT,
+  TALKING_VIDEO_PRICE,
+  TALKING_VIDEO_PRICE_VERIFIED_AT,
+  TALKING_VIDEO_SCRIPT_MAX_LENGTH,
+  TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  type TalkingVideoExtras,
+  type TalkingVideoPriceFigures,
+  talkingVideoQuotedSeconds,
+} from "./talking-video-credits.js";
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
@@ -620,12 +677,17 @@ export {
   formatTaskIdentifier,
   parseTaskRef,
 } from "./task-identifier.js";
+export {
+  isSeoTaskCompletion,
+  taskNotificationHref,
+} from "./task-notification-link.js";
 export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
+export { TASK_TAG_PRESETS } from "./task-tag-presets.js";
 export { isValidTimezone } from "./timezone.js";
 export {
   selectUnfurlCandidateUrls,

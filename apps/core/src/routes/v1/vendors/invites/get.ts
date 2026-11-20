@@ -73,7 +73,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const userAuth = requireUserAuthContext(c.var.authContext);
     if (cursor !== undefined && !z.string().uuid().safeParse(cursor).success) {
       throw badRequest("Invalid pagination cursor");
@@ -118,8 +118,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.vendorMemberInvite.findMany({
         where,
         take: takePlusOne,
-        skip: cursorInvite ? 1 : skip,
-        cursor: cursorInvite ? { id: cursorInvite.id } : undefined,
+        ...(cursorInvite ? { cursor: { id: cursorInvite.id }, skip: 1 } : {}),
         include: { vendor: true },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),

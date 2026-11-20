@@ -16,6 +16,8 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { writeCmoMonthPieces } from "./cmo-month-writer";
+import { dispatchCompetitorTools } from "./competitors";
 import { EXA_SEARCHES_PER_TURN } from "./execution-limits";
 import { type RuntimeOperations } from "./operations";
 
@@ -89,6 +91,9 @@ export async function dispatchOtherTools(
     case "report_update":
       return runtime.saveCmoRecord(authorized, input);
 
+    case "write_month_pieces":
+      return writeCmoMonthPieces(runtime, input, authorized);
+
     case "evaluate_with_jev": {
       const parsed = sokoBotEvaluateWithJevInputSchema.parse(input.input);
       let evaluation: Awaited<ReturnType<typeof evaluateWithJevForBot>>;
@@ -110,6 +115,10 @@ export async function dispatchOtherTools(
       });
       return evaluation.result;
     }
+
+    case "check_competitors":
+    case "save_competitor_feed":
+      return dispatchCompetitorTools(input, authorized);
 
     case "search_exa": {
       const parsed = sokoBotSearchExaInputSchema.parse(input.input);

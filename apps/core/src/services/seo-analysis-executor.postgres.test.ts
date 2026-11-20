@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, seoFullAuditPrice } from "@sokosumi/utils";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { getEnv } from "@/config/env";
@@ -652,7 +652,8 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
       {
         ...request(),
         kind: "audit_full" as const,
-        fullAuditCredits: 750 as const,
+        fullAuditPrice: seoFullAuditPrice(),
+        allowLimitedAudit: true as const,
         devices: ["mobile" as const, "desktop" as const],
       },
     ];

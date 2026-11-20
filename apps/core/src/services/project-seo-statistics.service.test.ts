@@ -20,6 +20,7 @@ const state = vi.hoisted(() => {
     closing: false,
     integrationActive: true,
     accountRevision: 0,
+    briefGoal: null as string | null,
     locks: new Map<
       string,
       {
@@ -30,6 +31,7 @@ const state = vi.hoisted(() => {
       }
     >(),
     pageUrl: "https://example.test/a",
+    extraPages: [] as Array<{ id: string; url: string }>,
     observations: [] as Array<Record<string, unknown>>,
     keywords: [] as Array<Record<string, unknown>>,
     reads: [] as Array<{ slug: string; args: Record<string, unknown> }>,
@@ -84,7 +86,12 @@ vi.mock("@/lib/db/prisma", () => {
             ]
           : [],
     },
-    projectSeoPage: { findMany: async () => [{ ...page, url: state.pageUrl }] },
+    projectSeoPage: {
+      findMany: async () => [
+        { ...page, url: state.pageUrl },
+        ...state.extraPages.map((extra) => ({ ...page, ...extra })),
+      ],
+    },
     projectSeoScope: {
       findFirst: async () => scope,
       findMany: async () => [scope],
@@ -95,13 +102,21 @@ vi.mock("@/lib/db/prisma", () => {
         where,
         take,
       }: {
-        where: { ownerId?: unknown; payload?: { equals: string } };
+        where: {
+          kind?: string | object;
+          ownerId?: unknown;
+          payload?: { equals: string };
+        };
         take?: number;
       }) =>
         state.observations
           .filter(
             (row) =>
               (where.ownerId === null ? !row.ownerId : Boolean(row.ownerId)) &&
+              (!where.kind ||
+                (typeof where.kind === "string"
+                  ? row.kind === where.kind
+                  : row.kind !== "landing_outcomes")) &&
               (!where.payload ||
                 nativeSeoMetricsSchema.parse(row.payload)
                   .collectionFingerprint === where.payload.equals),
@@ -112,8 +127,61 @@ vi.mock("@/lib/db/prisma", () => {
               new Date(String(a.observedAt)).getTime(),
           )
           .slice(0, take),
-      // No brand terms saved.
-      findFirst: async () => null,
+      findFirst: async ({
+        where,
+      }: {
+        where: {
+          kind?: string;
+          pageIds?: { hasSome: string[] };
+          AND?: [
+            { payload: { equals: string } },
+            { payload: { array_contains: string[] } },
+          ];
+        };
+      }) => {
+        if (where.kind === "audit_brief" && state.briefGoal)
+          return {
+            createdAt: state.at,
+            scopeVersion: 1,
+            payload: {
+              objective: "sales",
+              audience: null,
+              outcome: null,
+              constraints: null,
+              pages: [
+                {
+                  pageId: state.pageId,
+                  role: "product",
+                  job: null,
+                  action: state.briefGoal,
+                  indexIntent: "index",
+                },
+              ],
+            },
+          };
+        if (where.kind === "landing_outcomes")
+          return (
+            state.observations.find(
+              (row) =>
+                row.kind === where.kind &&
+                where.pageIds?.hasSome.some((id) =>
+                  (row.pageIds as string[]).includes(id),
+                ),
+            ) ?? null
+          );
+        if (!where.AND) return null; // No brand terms saved.
+        const key = where.AND[0].payload.equals;
+        const [url] = where.AND[1].payload.array_contains;
+        return (
+          state.observations.toReversed().find((row) => {
+            const parsed = nativeSeoMetricsSchema.safeParse(row.payload);
+            const cache = parsed.success
+              ? parsed.data.inspectionCache
+              : undefined;
+            return cache?.key === key && cache.readUrls.includes(url);
+          }) ?? null
+        );
+      },
       upsert: async ({ create }: { create: Record<string, unknown> }) => {
         const saved = {
           id: "44444444-4444-4444-8444-444444444444",
@@ -257,6 +325,7 @@ import { runSeoTool } from "@/lib/soko-bot/seo-tools";
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 import { getProjectSeoWorkspace } from "./project-seo.service";
 import { syncProjectSeoStatistics } from "./project-seo-statistics.service";
+import { getSeoBrief } from "./seo-audit-brief.service";
 
 const actor = {
   owner: { kind: "project" as const, id: state.projectId },
@@ -340,7 +409,9 @@ beforeEach(() => {
   state.pageUrl = "https://example.test/a";
   state.integrationActive = true;
   state.accountRevision = 0;
+  state.briefGoal = null;
   state.locks.clear();
+  state.extraPages.length = 0;
   state.observations.length = 0;
   state.keywords.length = 0;
   state.reads.length = 0;
@@ -404,6 +475,8 @@ describe("native statistics collection boundary", () => {
     expect(activated.collectedAt).toBe(first.collectedAt);
     expect(activated.observedAt).toBe("2026-01-20T14:00:00.000Z");
     expect(workspace.metrics[0].channel).toBe("all");
+    expect(workspace.metrics[0].observedAt).toBe(first.observedAt);
+    expect(workspace.metrics[0].selectedAt).toBe(activated.observedAt);
     vi.setSystemTime(new Date("2026-01-21T12:00:01Z"));
     await syncProjectSeoStatistics(actor, { ...input, automatic: true });
     expect(state.reads.length).toBeGreaterThan(reads);
@@ -593,6 +666,118 @@ describe("native statistics collection boundary", () => {
       previous: { from: "2025-12-30", to: "2025-12-31", value: 6 },
     });
   });
+  it("excludes ambiguous paths from the landing request when other pages can be measured", async () => {
+    const alias = {
+      id: "66666666-6666-4666-8666-666666666666",
+      url: "http://example.test/a",
+    };
+    const distinct = {
+      id: "77777777-7777-4777-8777-777777777777",
+      url: "https://example.test/b",
+    };
+    state.extraPages.push(alias, distinct);
+    state.answer = (slug, args) =>
+      JSON.stringify(args.dimensions ?? []).includes(
+        "landingPagePlusQueryString",
+      )
+        ? { successful: true, data: landing("/b") }
+        : answer(slug, args);
+    await syncProjectSeoStatistics(actor, {
+      ...input,
+      pageIds: [state.pageId, alias.id, distinct.id],
+    });
+    const requested = state.reads.find(({ args }) =>
+      JSON.stringify(args.dimensions ?? []).includes(
+        "landingPagePlusQueryString",
+      ),
+    );
+    expect(requested?.args.dimensionFilter).toMatchObject({
+      andGroup: {
+        expressions: expect.arrayContaining([
+          {
+            filter: {
+              fieldName: "landingPagePlusQueryString",
+              inListFilter: { values: ["/b"], caseSensitive: true },
+            },
+          },
+        ]),
+      },
+    });
+    const saved = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    expect(saved.landingPages).toMatchObject({
+      rows: [{ pageUrl: distinct.url, sessions: 5 }],
+      skippedUrls: [state.pageUrl, alias.url],
+    });
+  });
+
+  it("compares observed landing rates on the first sync and checks the preceding window's host independently", async () => {
+    const priorHost = { value: "example.test" };
+    state.answer = (slug, args) => {
+      const dimensions = (args.dimensions ?? []) as Array<{ name: string }>;
+      const prior = JSON.stringify(args.dateRanges ?? []).includes(
+        "2025-12-30",
+      );
+      if (dimensions[0]?.name === "hostName" && prior)
+        return {
+          successful: true,
+          data: {
+            dimensionHeaders: [{ name: "hostName" }],
+            metricHeaders: [{ name: "sessions" }],
+            rows: [
+              {
+                dimensionValues: [{ value: priorHost.value }],
+                metricValues: [{ value: "5" }],
+              },
+            ],
+            rowCount: 1,
+          },
+        };
+      if (dimensions[0]?.name === "landingPagePlusQueryString")
+        return {
+          successful: true,
+          data: {
+            dimensionHeaders: dimensions,
+            metricHeaders: args.metrics,
+            rows: [
+              {
+                dimensionValues: [{ value: "/a" }],
+                metricValues: (prior ? [5, 2, 50, 15] : [10, 3, 140, 60]).map(
+                  (value) => ({ value }),
+                ),
+              },
+            ],
+            metadata: { timeZone: "Europe/Oslo" },
+            rowCount: 1,
+          },
+        };
+      return answer(slug, args);
+    };
+    const workspace = await syncProjectSeoStatistics(actor, input);
+    expect(workspace.landingEngagementChange).toMatchObject({
+      before: { from: "2025-12-30", to: "2025-12-31", sessions: 5 },
+      after: { from: "2026-01-01", to: "2026-01-02", sessions: 10 },
+      engagementSecondsPerSession: {
+        before: 10,
+        after: 14,
+        withinPageChange: 4,
+        mixChange: 0,
+      },
+      viewsPerSession: {
+        before: 3,
+        after: 6,
+        withinPageChange: 3,
+        mixChange: 0,
+      },
+    });
+    expect(workspace.landingEngagementChange?.before.observationId).toBe(
+      workspace.landingEngagementChange?.after.observationId,
+    );
+    priorHost.value = "another.test";
+    vi.setSystemTime(new Date("2026-01-21T12:00:00Z"));
+    const refreshed = await syncProjectSeoStatistics(actor, input);
+    expect(refreshed.landingEngagementChange).toBeUndefined();
+    expect(refreshed.landingPages?.rows[0].sessions).toBe(10);
+  });
   it("stores organic key events per landing page and hands them to the workspace", async () => {
     const workspace = await syncProjectSeoStatistics(actor, input);
     const read = state.reads.find((item) =>
@@ -614,6 +799,58 @@ describe("native statistics collection boundary", () => {
     ]);
   });
 
+  it("keeps verified named organic event counts owner-private while public and workspace responses omit them", async () => {
+    state.answer = (slug, args) =>
+      JSON.stringify(args.dimensions ?? []).includes('"eventName"')
+        ? {
+            successful: true,
+            data: JSON.stringify({
+              dimensionHeaders: [
+                { name: "landingPagePlusQueryString" },
+                { name: "eventName" },
+              ],
+              metricHeaders: [{ name: "eventCount" }],
+              rows: [
+                {
+                  dimensionValues: [{ value: "/a" }, { value: "purchase" }],
+                  metricValues: [{ value: "12" }],
+                },
+              ],
+              rowCount: 1,
+              metadata: { timeZone: "Europe/Oslo" },
+            }),
+          }
+        : answer(slug, args);
+    state.briefGoal = "buy";
+    const owner = { ...actor, sokoBotId: undefined };
+    const workspace = await syncProjectSeoStatistics(owner, input);
+    expect(
+      (await getSeoBrief(owner)).followUps[0]?.latestClosedGoal,
+    ).toMatchObject({ event: "purchase", count: 12, timeZone: "Europe/Oslo" });
+    const evidence = state.observations.find(
+      (r) => r.kind === "landing_outcomes",
+    );
+    expect(evidence).toMatchObject({
+      ownerId: "owner",
+      visibility: "PRIVATE",
+      payload: {
+        rows: [{ pageUrl: state.pageUrl, event: "purchase", count: 12 }],
+      },
+    });
+    expect(JSON.stringify(workspace)).not.toContain('"purchase"');
+    expect(
+      JSON.stringify(
+        state.observations.find((r) => r.kind === "metrics")?.payload,
+      ),
+    ).not.toContain('"purchase"');
+    const request = state.reads.find((r) =>
+      JSON.stringify(r.args.dimensions ?? []).includes('"eventName"'),
+    );
+    expect(request?.args.metrics).toEqual([{ name: "eventCount" }]);
+    expect(JSON.stringify(request?.args.dimensionFilter)).toContain(
+      "Organic Search",
+    );
+  });
   it("keeps the totals and says so when the landing page read fails", async () => {
     state.answer = (slug, args) =>
       JSON.stringify(args.dimensions ?? []).includes("landingPage")
@@ -756,6 +993,119 @@ describe("Search Console query rows", () => {
       };
     };
   }
+
+  it("retries only a missing inspection after one hour and reuses it across search types", async () => {
+    const healthy = gsc({ rows: [] });
+    state.answer = (slug, args) => {
+      if (slug.endsWith("INSPECT_URL"))
+        throw new Error("Temporary inspection failure");
+      return healthy(slug, args);
+    };
+    const request = { ...gscInput, automatic: true };
+    const first = await syncProjectSeoStatistics(actor, request);
+    expect(first.indexStatus).toBeNull();
+    state.answer = healthy;
+    const inspections = () =>
+      state.reads.filter((read) => read.slug.endsWith("INSPECT_URL")).length;
+    const reports = () =>
+      state.reads.filter((read) => read.slug.includes("SEARCH_ANALYTICS_QUERY"))
+        .length;
+    vi.setSystemTime(new Date("2026-01-20T12:30:00Z"));
+    await syncProjectSeoStatistics(actor, { ...request, searchType: "image" });
+    expect(inspections()).toBe(1);
+    const reportsBefore = reports();
+    expect(reportsBefore).toBeGreaterThan(0);
+    vi.setSystemTime(new Date("2026-01-20T13:00:01Z"));
+    state.answer = (slug, args) => {
+      if (slug.endsWith("INSPECT_URL"))
+        vi.setSystemTime(new Date("2026-01-20T13:00:03Z"));
+      return healthy(slug, args);
+    };
+    const recovered = await syncProjectSeoStatistics(actor, request);
+    expect(recovered.indexStatus?.pages[0]).toMatchObject({
+      verdict: "PASS",
+      checkedAt: "2026-01-20T13:00:01.000Z",
+    });
+    expect(inspections()).toBe(2);
+    expect(reports()).toBe(reportsBefore);
+    expect(recovered.metrics[0].observedAt).toBe(first.metrics[0].observedAt);
+    expect(recovered.metrics[0].selectedAt).toBe("2026-01-20T13:00:03.000Z");
+    state.answer = healthy;
+    vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
+    const video = await syncProjectSeoStatistics(actor, {
+      ...request,
+      searchType: "video",
+    });
+    expect(inspections()).toBe(2);
+    expect(video.indexStatus).toEqual(recovered.indexStatus);
+    state.accountRevision++;
+    await syncProjectSeoStatistics(actor, request);
+    expect(inspections()).toBe(3);
+  });
+
+  it("retains fresh pages in the exact legacy report when another page needs an inspection retry", async () => {
+    const other = {
+      id: "77777777-7777-4777-8777-777777777777",
+      url: "https://example.test/b",
+    };
+    state.extraPages.push(other);
+    const healthy = gsc({ rows: [] });
+    state.answer = (slug, args) => {
+      if (slug.endsWith("INSPECT_URL") && args.inspection_url === other.url)
+        throw new Error("Temporary inspection failure");
+      return healthy(slug, args);
+    };
+    const request = { ...gscInput, automatic: true };
+    await syncProjectSeoStatistics(actor, request);
+    const legacy = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    delete legacy.inspectionCache;
+    state.observations[0].payload = legacy;
+    const firstReads = state.reads.length;
+    vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
+    state.answer = healthy;
+    await syncProjectSeoStatistics(actor, request);
+    const inspected = state.reads
+      .slice(firstReads)
+      .filter(({ slug }) => slug.endsWith("INSPECT_URL"));
+    expect(inspected.map(({ args }) => args.inspection_url)).toEqual([
+      other.url,
+    ]);
+    const saved = nativeSeoMetricsSchema.parse(
+      state.observations.at(-1)?.payload,
+    );
+    expect(saved.inspectionCache?.readUrls).toEqual([other.url]);
+    expect(saved.inspectionCache?.checkedAt[state.pageUrl]).toEqual(
+      legacy.observedAt,
+    );
+  });
+
+  it("does not reactivate an older report while a new collection holds its lease", async () => {
+    const healthy = gsc({ rows: [] });
+    state.answer = healthy;
+    const web = { ...gscInput, automatic: true };
+    await syncProjectSeoStatistics(actor, web);
+    vi.setSystemTime(new Date("2026-01-20T12:05:00Z"));
+    await syncProjectSeoStatistics(actor, { ...web, searchType: "image" });
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    state.answer = async (slug, args) => {
+      if (slug.endsWith("SEARCH_ANALYTICS_QUERY")) {
+        entered.resolve();
+        await release.promise;
+      }
+      return healthy(slug, args);
+    };
+    const fresh = syncProjectSeoStatistics(actor, gscInput);
+    try {
+      await Promise.race([entered.promise, fresh]);
+      await expect(syncProjectSeoStatistics(actor, web)).rejects.toMatchObject({
+        status: 409,
+      });
+    } finally {
+      release.resolve();
+      await fresh;
+    }
+  });
 
   it("keeps partial Search Console data fresh for a day when query rows were collected", async () => {
     state.answer = gsc({ rows: [] });
@@ -950,7 +1300,19 @@ describe("Search Console query rows", () => {
   });
 
   it("stores Google's index verdict for each page and hands it to the workspace", async () => {
-    state.answer = gsc({ rows: [] });
+    const answer = gsc({ rows: [] });
+    state.answer = (slug, args) =>
+      slug.endsWith("INSPECT_URL")
+        ? {
+            inspectionResult: {
+              indexStatusResult: {
+                verdict: "NEUTRAL",
+                coverageState: "Excluded by 'noindex' tag",
+                indexingState: "BLOCKED_BY_META_TAG",
+              },
+            },
+          }
+        : answer(slug, args);
     const workspace = await syncProjectSeoStatistics(actor, gscInput);
     const inspection = state.reads.find((read) =>
       read.slug.endsWith("INSPECT_URL"),
@@ -963,8 +1325,9 @@ describe("Search Console query rows", () => {
       {
         checkedAt: expect.any(String),
         pageUrl: state.pageUrl,
-        verdict: "PASS",
-        coverageState: "Submitted and indexed",
+        verdict: "NEUTRAL",
+        coverageState: "Excluded by 'noindex' tag",
+        indexingState: "BLOCKED_BY_META_TAG",
         robotsTxtState: null,
         lastCrawlTime: null,
         googleCanonical: null,
@@ -989,7 +1352,10 @@ describe("Search Console query rows", () => {
       indexedPages?: unknown;
       metrics: Array<{ value: number | null }>;
     };
-    expect(payload.indexedPages).toBeUndefined();
+    expect(
+      state.reads.filter((read) => read.slug.endsWith("INSPECT_URL")),
+    ).toHaveLength(1);
+    expect(payload).not.toHaveProperty("indexedPages");
     expect(workspace.indexStatus).toBeNull();
     expect(payload.metrics[0].value).toBe(1);
     expect(payload.notes).toContain(
@@ -1273,4 +1639,199 @@ describe("Search Console query rows", () => {
     ).rejects.toThrow();
     expect(state.reads).toHaveLength(0);
   });
+});
+
+it("uses two channel-control reads for an owner purchase goal, keeps them private and skips an unrelated goal", async () => {
+  state.briefGoal = "buy";
+  const period = { ...input, from: "2025-10-10", to: "2026-01-07" }; // The Traffic screen requests 90 days.
+  let sampled = false;
+  let allowPropertyB = false;
+  let namedZone: string | null = null;
+  state.answer = (slug, args) => {
+    if (allowPropertyB && slug.endsWith("SUMMARIES"))
+      return {
+        successful: true,
+        data: {
+          accountSummaries: [
+            {
+              propertySummaries: [
+                { property: "properties/123" },
+                { property: "properties/456" },
+              ],
+            },
+          ],
+        },
+      };
+    const dimensions = args.dimensions as { name: string }[] | undefined;
+    if (dimensions?.[0]?.name !== "landingPagePlusQueryString")
+      return answer(slug, args);
+    const prior = !JSON.stringify(args.dateRanges).includes(period.to);
+    const control = dimensions[1]?.name === "sessionDefaultChannelGroup";
+    if (dimensions[1]?.name === "eventName")
+      return namedZone
+        ? {
+            successful: true,
+            data: {
+              dimensionHeaders: dimensions,
+              metricHeaders: args.metrics,
+              rowCount: 1,
+              metadata: { timeZone: namedZone },
+              rows: [
+                {
+                  dimensionValues: [{ value: "/a" }, { value: "purchase" }],
+                  metricValues: [{ value: 3 }],
+                },
+              ],
+            },
+          }
+        : { successful: false };
+    const rows = control
+      ? ["Direct", "Organic Search"].map((channel) => ({
+          dimensionValues: [{ value: "/a" }, { value: channel }],
+          metricValues: [{ value: 100 }, { value: prior ? 0.2 : 0.1 }],
+        }))
+      : [
+          {
+            dimensionValues: [{ value: "/a" }],
+            metricValues: [100, prior ? 30 : 12, 500, 160].map((value) => ({
+              value,
+            })),
+          },
+        ];
+    return {
+      successful: true,
+      data: {
+        dimensionHeaders: dimensions,
+        metricHeaders: args.metrics,
+        metadata: {
+          timeZone: "Europe/Oslo",
+          ...(control && sampled && { samplingMetadatas: [{}] }),
+        },
+        rowCount: rows.length,
+        rows,
+      },
+    };
+  };
+  namedZone = "Europe/Oslo";
+  const user = { ...actor, sokoBotId: undefined };
+  const workspace = await syncProjectSeoStatistics(user, {
+    ...period,
+    automatic: true,
+  });
+  const controls = () =>
+    state.reads.filter((r) =>
+      JSON.stringify(r.args.metrics ?? []).includes(
+        "sessionKeyEventRate:purchase",
+      ),
+    );
+  expect(controls()).toHaveLength(2);
+  const args = controls().map((c) => c.args);
+  expect(args.map((a) => a.dateRanges)).toEqual([
+    [{ startDate: "2025-07-12", endDate: "2025-10-09" }],
+    [{ startDate: "2025-10-10", endDate: "2026-01-07" }],
+  ]);
+  expect(
+    state.observations.find((r) => r.kind === "landing_outcomes"),
+  ).toMatchObject({
+    ownerId: "owner",
+    visibility: "PRIVATE",
+    payload: {
+      rows: [{ event: "purchase", count: 3 }],
+      goalInvestigation: {
+        event: "purchase",
+        pageUrl: state.pageUrl,
+        assessment: "both_declined",
+        weekdayMix: "uneven",
+        before: { organic: { sessions: 100, rate: 0.2 } },
+        after: { direct: { sessions: 100, rate: 0.1 } },
+      },
+    },
+  });
+  expect(JSON.stringify(workspace)).not.toContain("goalInvestigation");
+  expect(
+    JSON.stringify(state.observations.find((r) => r.kind === "metrics")),
+  ).not.toContain("goalInvestigation");
+  expect(
+    (await getSeoBrief(user)).followUps[0]?.goalInvestigation?.assessment,
+  ).toBe("both_declined");
+  // The owner's Actions priority names the measured decline and its next step.
+  expect((await getSeoBrief(user)).priorities[0]).toMatchObject({
+    pageId: state.pageId,
+    nextStep: expect.stringContaining("Check the completion step"),
+    why: expect.arrayContaining([
+      expect.stringContaining("GA4 purchase rate: organic search 20.0%"),
+    ]),
+  });
+  await expect(getSeoBrief(actor)).rejects.toMatchObject({ status: 403 });
+  expect((await getSeoBrief(user)).followUps[0]?.latestClosedGoal?.count).toBe(
+    3,
+  );
+  // A later selection can succeed at the property level even when its landing rows cannot be used.
+  namedZone = null;
+  allowPropertyB = true;
+  sampled = true;
+  vi.setSystemTime(new Date("2026-01-20T13:00:00Z"));
+  await syncProjectSeoStatistics(user, {
+    ...period,
+    propertyId: "properties/456",
+  });
+  const other = (await getSeoBrief(user)).followUps[0];
+  expect(other?.goalInvestigation).toBeUndefined();
+  // Another property's selection retires the older decision from the priority too.
+  expect(JSON.stringify((await getSeoBrief(user)).priorities)).not.toMatch(
+    /GA4 purchase rate|completion step/,
+  );
+  expect(other?.latestClosedGoal).toBeUndefined();
+  expect(other?.outcomes).toEqual([]);
+  expect(controls()).toHaveLength(4);
+  // Return to A with the same goal, then switch the connected account on that same property.
+  vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
+  sampled = false;
+  namedZone = "Europe/Oslo";
+  const callsBeforeReactivation = state.reads.length;
+  await syncProjectSeoStatistics(user, { ...period, automatic: true });
+  expect(state.reads).toHaveLength(callsBeforeReactivation);
+
+  expect((await getSeoBrief(user)).followUps[0]?.latestClosedGoal?.count).toBe(
+    3,
+  );
+  state.accountRevision++;
+  sampled = true;
+  namedZone = null;
+  vi.setSystemTime(new Date("2026-01-20T15:00:00Z"));
+  await syncProjectSeoStatistics(user, period);
+  expect(
+    (await getSeoBrief(user)).followUps[0]?.latestClosedGoal,
+  ).toBeUndefined();
+  expect(
+    (await getSeoBrief(user)).followUps[0]?.goalInvestigation,
+  ).toBeUndefined();
+  state.reads.length = 0;
+  sampled = true;
+  state.observations.length = 0;
+  await syncProjectSeoStatistics(user, period);
+  expect(controls()).toHaveLength(2);
+  expect(
+    state.observations.some((row) => row.kind === "landing_outcomes"),
+  ).toBe(false);
+  expect(state.observations.some((row) => row.kind === "metrics")).toBe(true);
+  namedZone = "America/Chicago";
+  sampled = false;
+  await syncProjectSeoStatistics(user, period);
+  const mismatch = state.observations.find(
+    (row) => row.kind === "landing_outcomes",
+  )?.payload;
+  expect(mismatch).toMatchObject({
+    timeZone: namedZone,
+    rows: [{ event: "purchase", count: 3 }],
+  });
+  expect(mismatch).not.toHaveProperty("goalInvestigation");
+  expect(controls()).toHaveLength(2);
+  state.briefGoal = "contact sales";
+  await syncProjectSeoStatistics(user, period);
+  expect(controls()).toHaveLength(2);
+  state.briefGoal = "buy";
+  namedZone = "Europe/Oslo";
+  await syncProjectSeoStatistics(user, { ...period, from: "2025-12-31" });
+  expect(controls()).toHaveLength(2);
 });

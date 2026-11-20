@@ -1,5 +1,7 @@
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 
 const {
   captureExceptionMock,
@@ -136,26 +138,23 @@ describe("stripeWebhookService.handleEvent", () => {
   });
 
   it("ignores unhandled event types", async () => {
-    const consoleInfoSpy = vi
-      .spyOn(console, "info")
-      .mockImplementation(() => undefined);
+    const service = await getStripeWebhookService();
 
-    try {
-      const service = await getStripeWebhookService();
-
-      await service.handleEvent({
+    await inRequest(() =>
+      service.handleEvent({
         id: "evt_456",
         type: "charge.succeeded",
         data: { object: {} },
-      } as Stripe.Event);
+      } as Stripe.Event),
+    );
 
-      expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
-      expect(handleCustomerCreatedEventMock).not.toHaveBeenCalled();
-      expect(consoleInfoSpy).toHaveBeenCalledWith(
-        "[webhooks/stripe] Unhandled Stripe event type: charge.succeeded",
-      );
-    } finally {
-      consoleInfoSpy.mockRestore();
-    }
+    expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
+    expect(handleCustomerCreatedEventMock).not.toHaveBeenCalled();
+    // Routine, so a field on the webhook's request event.
+    expect(coreLogEvents()).toEqual([
+      expect.objectContaining({
+        stripeWebhook: { unhandledEventType: "charge.succeeded" },
+      }),
+    ]);
   });
 });

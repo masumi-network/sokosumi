@@ -51,6 +51,9 @@ function buildTask(
     visibility: TaskVisibility.PUBLIC,
     runAt: null,
     dueOn: null,
+    parentTaskId: null,
+    position: null,
+    subtaskProgress: { completed: 0, total: 0 },
     scheduleId: null,
     commentsCount: 0,
     jobsCount: 0,
@@ -119,6 +122,19 @@ describe("mapTaskToTaskWithCoworker", () => {
       ],
     } as unknown as Task;
     expect(map(detail).statusSince).toBe("2026-01-03T00:00:00.000Z");
+  });
+
+  it("sends the full description only for a Task page, not for a list item", () => {
+    const listItem = buildTask(TaskStatus.READY, {
+      description: "Write the **copy**",
+    });
+    const mapped = map(listItem);
+    expect(mapped.description).toBeNull();
+    expect(mapped.descriptionPlain).toBe("Write the copy");
+
+    const { statusSince: _statusSince, ...rest } = listItem;
+    const detail = { ...rest, events: [] } as unknown as Task;
+    expect(map(detail).description).toBe("Write the **copy**");
   });
 
   it("maps queued tasks to backlog column", () => {
@@ -218,6 +234,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       events: [],
       jobs: [],
       files: [],
+      followers: [],
       share: {
         id: "share-1",
         taskId: "task-1",
@@ -373,5 +390,14 @@ describe("mapTaskToTaskWithCoworker", () => {
     });
 
     expect(map(task).descriptionPlain).toBeNull();
+  });
+
+  it("previews an SEO Task's summary without its machine request line", () => {
+    const task = buildTask(TaskStatus.DRAFT, {
+      description:
+        'Full SEO audit of 1 page:\n\nseo_audit: {"version":1,"pageUrls":["https://example.com/"]}',
+    });
+
+    expect(map(task).descriptionPlain).toBe("Full SEO audit of 1 page:");
   });
 });

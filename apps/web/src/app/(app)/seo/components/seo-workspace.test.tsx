@@ -17,7 +17,11 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as publicEnv from "@/config/env.public";
 import { createFormats } from "@/i18n/time-format";
+import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
+import { setSeoAuditArchivedAction } from "@/lib/actions/seo/set-audit-archived";
+import german from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
 import { SeoAutomation } from "./seo-monitors";
 import {
@@ -34,9 +38,10 @@ import {
 import { SeoWorkspace } from "./seo-workspace";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
-const { mutate, viewer, ensureRoom, push } = vi.hoisted(() => ({
+const { mutate, saveGoal, viewer, ensureRoom, push } = vi.hoisted(() => ({
   mutate: vi.fn(),
-  viewer: { userId: "owner" as string | null },
+  saveGoal: vi.fn(),
+  viewer: { userId: "owner" as string | null, sessionId: "first-session" },
   ensureRoom: vi.fn(),
   push: vi.fn(),
 }));
@@ -50,12 +55,18 @@ vi.mock("next/navigation", async () => ({
   useRouter: () => ({ push }),
 }));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
+vi.mock("@/lib/actions/seo/set-audit-archived", () => ({
+  setSeoAuditArchivedAction: vi.fn(),
+}));
+vi.mock("@/lib/actions/seo/save-brief", () => ({
+  saveSeoBriefAction: saveGoal,
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     // A null viewer is a session the client has not read yet.
     data: viewer.userId
       ? {
-          session: { activeOrganizationId: "org" },
+          session: { id: viewer.sessionId, activeOrganizationId: "org" },
           user: { id: viewer.userId },
         }
       : null,
@@ -63,6 +74,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const clients: QueryClient[] = [];
+const goalCopy = messages.App.Seo.setup.goal;
 // Unrelated run/schedule cases use an already connected account. Connection cases keep their own fixtures.
 function connectedSeoResponse(workspace: ProjectSeoWorkspace, url: string) {
   return Response.json(
@@ -127,6 +139,17 @@ function nativeChatNetwork(
 function SeoMonitorPanel({ workspace }: { workspace: ProjectSeoWorkspace }) {
   return <SeoAutomation model={useSeoWorkspace(workspace)} />;
 }
+/** The runs Core sends with its checks: the runs row has a stop for each day with one. */
+function runsOf(workspace: ProjectSeoWorkspace): ProjectSeoWorkspace["runs"] {
+  return workspace.observations.map((observation) => ({
+    observationId: observation.id,
+    kind: observation.kind,
+    observedAt: observation.observedAt,
+    issues: observation.issues,
+    seconds: null,
+  }));
+}
+
 function renderWorkspace(
   workspace: ProjectSeoWorkspace,
   searchParams = "",
@@ -176,6 +199,8 @@ function renderWorkspace(
 beforeEach(() => {
   vi.clearAllMocks();
   viewer.userId = "owner";
+  viewer.sessionId = "first-session";
+  saveGoal.mockReset();
 });
 afterEach(() => {
   sessionStorage.clear();
@@ -184,7 +209,169 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("SEO report archiving", () => {
+  function renderReport({
+    auditId = SEO_TEST_AUDIT,
+    projectId = SEO_TEST_PROJECT,
+    sharing = "organization",
+    canEdit = true,
+  }: {
+    auditId?: string | null;
+    projectId?: string | null;
+    sharing?: ProjectSeoWorkspace["sharing"];
+    canEdit?: boolean;
+  }) {
+    const base = seoTestWorkspace();
+    const workspace = {
+      ...base,
+      auditId,
+      projectId,
+      sharing,
+      auditName: auditId ? "Battery audit" : null,
+      availableActions: { ...base.availableActions, canEdit },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    const { refreshViewer } = renderWorkspace(workspace);
+    const menu = screen.getByRole("button", { name: messages.App.Seo.manage });
+    return { menu, refreshViewer };
+  }
+
+  it("lets a teammate open and cancel archiving a shared audit by keyboard in a closed project", async () => {
+    const user = userEvent.setup();
+    viewer.userId = "teammate";
+    const { menu } = renderReport({ canEdit: false });
+    menu.focus();
+    await user.keyboard("{ArrowDown}");
+    const item = await screen.findByRole("menuitem", {
+      name: "Archive report",
+    });
+    expect(screen.queryByRole("menuitem", { name: /delete/i })).toBeNull();
+    await user.keyboard("{End}");
+    await waitFor(() => expect(item).toHaveFocus());
+    await user.keyboard("{Enter}");
+    const dialog = await screen.findByRole("alertdialog", {
+      name: /Battery audit/,
+    });
+    expect(dialog).toHaveAccessibleDescription(
+      messages.App.Seo.audits.archiveDescription,
+    );
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", { name: "Cancel" }),
+      ).toHaveFocus(),
+    );
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(menu).toHaveFocus());
+    expect(setSeoAuditArchivedAction).not.toHaveBeenCalled();
+  });
+
+  it("omits archiving in the project's own workspace", async () => {
+    const user = userEvent.setup();
+    await user.click(renderReport({ auditId: null }).menu);
+    const menu = within(await screen.findByRole("menu"));
+    expect(menu.queryByRole("menuitem", { name: "Archive report" })).toBeNull();
+  });
+
+  it("clears the open confirmation when another member views the same report", async () => {
+    const user = userEvent.setup();
+    const { menu, refreshViewer } = renderReport({});
+    await user.click(menu);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Archive report" }),
+    );
+    expect(await screen.findByRole("alertdialog")).toBeVisible();
+    for (const reader of ["teammate", "owner"]) {
+      viewer.userId = reader;
+      refreshViewer();
+      expect(
+        await screen.findByRole("button", { name: messages.App.Seo.manage }),
+      ).toBeVisible();
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    }
+    expect(setSeoAuditArchivedAction).not.toHaveBeenCalled();
+  });
+
+  it("submits once, allows retry after a conflict, and stops when access is lost", async () => {
+    const user = userEvent.setup();
+    const pending =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof setSeoAuditArchivedAction>>
+      >();
+    vi.mocked(setSeoAuditArchivedAction)
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "FORBIDDEN", status: 403 },
+      });
+    await user.click(
+      renderReport({ projectId: null, sharing: "personal" }).menu,
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Archive report" }),
+    );
+    const dialog = within(await screen.findByRole("alertdialog"));
+    const confirm = dialog.getByRole("button", { name: "Archive report" });
+    await user.dblClick(confirm);
+    expect(setSeoAuditArchivedAction).toHaveBeenCalledExactlyOnceWith({
+      auditId: SEO_TEST_AUDIT,
+      projectId: null,
+      archived: true,
+    });
+    await user.keyboard("{Escape}");
+    expect(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
+
+    await act(async () =>
+      pending.resolve({
+        ok: false,
+        error: {
+          code: "CONFLICT",
+          status: 409,
+          kind: "seo_audit_resumable_monitor",
+        },
+      }),
+    );
+    expect(await dialog.findByRole("alert")).toHaveTextContent(
+      messages.App.Seo.audits.archiveScheduled,
+    );
+    await user.click(confirm);
+    await waitFor(() => expect(confirm).toBeDisabled());
+    expect(dialog.getByRole("alert")).toHaveTextContent(
+      messages.App.Seo.audits.archiveUnavailable,
+    );
+    expect(setSeoAuditArchivedAction).toHaveBeenCalledTimes(2);
+    await user.click(dialog.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+});
+
 describe("SEO workspace integration", () => {
+  it("offers report files for earlier imported runs without an analysis in the current window", async () => {
+    const workspace = seoTestWorkspace();
+    const history = seoTestObservation(workspace);
+    workspace.observations = [
+      { ...history, sourceTaskId: "historic-task" },
+      {
+        ...history,
+        id: "recent",
+        sourceTaskId: "recent-task",
+        observedAt: new Date("2026-11-05T12:00:00Z"),
+      },
+    ];
+    workspace.runs = runsOf(workspace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace, "to=2026-01-03");
+    await userEvent.click(screen.getByRole("button", { name: "Report files" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/Page check · Jan 3, 2026/)).toBeVisible();
+    expect(dialog.queryByText(/Nov 5, 2026/)).toBeNull();
+  });
+
   it("shows the audit timeline after a single completed audit", () => {
     const workspace = seoTestWorkspace();
     workspace.runs = [
@@ -345,7 +532,7 @@ describe("SEO workspace integration", () => {
     },
   );
 
-  it("keeps passing measurements behind closed check details and offers statistics after limited checks", async () => {
+  it("opens the page details beside a short Actions list and offers statistics after limited checks", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.observations.push({
@@ -389,9 +576,10 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace, "?tab=health");
+    // No action rows: the tab would look empty, so the measurements start open.
     const measurement = screen.getByText("Title length measured:");
-    expect(measurement).not.toBeVisible();
-    expect(measurement.closest("details")).not.toHaveAttribute("open");
+    expect(measurement).toBeVisible();
+    expect(measurement.closest("details")).toHaveAttribute("open");
     expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
@@ -401,10 +589,127 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
     );
-    // No account yet: the dialog is the connect step.
     expect(
-      await screen.findByRole("dialog", { name: "Set up statistics" }),
+      await screen.findByRole("dialog", { name: "Google connections" }),
     ).toBeVisible();
+  });
+
+  it.each([
+    [3, true],
+    [4, false],
+  ])("with %i action rows, opens the page details: %s", (rows, open) => {
+    const workspace = seoTestWorkspace();
+    workspace.observations.push({
+      id: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 2, skipped: 0, failed: 0 },
+    });
+    workspace.findings.push({
+      id: "measured-title",
+      observationId: workspace.observations[0].id,
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Title length measured",
+      severity: "measure",
+      evidence: ["The title has 42 characters."],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    // 3 rows leave room for open details; one more row keeps them closed.
+    for (let n = 1; n <= rows; n++)
+      workspace.actions.push({
+        id: `suggestion-${n}`,
+        observationId: workspace.observations[0].id,
+        pageUrl: workspace.pages[0].url,
+        findingIds: [],
+        title: `Suggestion ${n}`,
+        why: "A search shows the page.",
+        effort: "low",
+        expectedEffect: "More people see the page.",
+        edit: null,
+        taskId: null,
+        status: "recommended",
+        kind: "opportunity",
+        evidence: [],
+      });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    expect(screen.getAllByText(/^Suggestion \d$/)).toHaveLength(rows);
+    const measurement = screen.getByText("Title length measured:");
+    expect(measurement.closest("details")?.hasAttribute("open")).toBe(open);
+  });
+
+  it("lets the first check decide whether the page details open", async () => {
+    const empty = seoTestWorkspace();
+    const checked = seoTestWorkspace();
+    checked.observations.push({
+      id: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: checked.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 2, skipped: 0, failed: 0 },
+    });
+    checked.findings.push({
+      id: "measured-title",
+      observationId: checked.observations[0].id,
+      pageUrl: checked.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Title length measured",
+      severity: "measure",
+      evidence: ["The title has 42 characters."],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    for (let n = 1; n <= 4; n++)
+      checked.actions.push({
+        id: `suggestion-${n}`,
+        observationId: checked.observations[0].id,
+        pageUrl: checked.pages[0].url,
+        findingIds: [],
+        title: `Suggestion ${n}`,
+        why: "A search shows the page.",
+        effort: "low",
+        expectedEffect: "More people see the page.",
+        edit: null,
+        taskId: null,
+        status: "recommended",
+        kind: "opportunity",
+        evidence: [],
+      });
+    // The tab opens before any check; the first check then brings a long list.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(checked)),
+    );
+    renderWorkspace(empty, "?tab=actions");
+    const measurement = await screen.findByText("Title length measured:");
+    expect(screen.getAllByText(/^Suggestion \d$/)).toHaveLength(4);
+    expect(measurement.closest("details")).not.toHaveAttribute("open");
   });
 
   it("keeps raw issue evidence out of the default findings cards", async () => {
@@ -430,7 +735,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=health");
     expect(
       screen.getByRole("heading", {
-        name: "Not passed: The page has no description",
+        name: "Issue: The page has no description",
       }),
     ).toBeVisible();
     // No action fixes this issue, so no link promises a fix.
@@ -444,13 +749,63 @@ describe("SEO workspace integration", () => {
     // The row is the switch: it opens the evidence of its issue.
     await user.click(
       screen.getByRole("heading", {
-        name: "Not passed: The page has no description",
+        name: "Issue: The page has no description",
       }),
     );
     expect(evidence).toBeVisible();
   });
 
-  it("shows an issue with a fix once, as the card of its fix, on the tab an old Health link opens", async () => {
+  it("keeps the issue verdict and its severity list in English on a German workspace", () => {
+    const workspace = seoTestCheckedAudit();
+    const observed = workspace.observations[0];
+    observed.issues = 2;
+    for (const severity of ["major", "minor"] as const) {
+      workspace.findings.push({
+        id: severity,
+        observationId: observed.id,
+        pageUrl: workspace.pages[0].url,
+        device: "mobile",
+        rowId: severity,
+        title: "Review the page",
+        severity,
+        evidence: [],
+        sourceRef: "html:head",
+        observedAt: observed.observedAt,
+      });
+    }
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider
+          locale="de"
+          messages={german}
+          timeZone="UTC"
+          formats={createFormats()}
+        >
+          <SeoResultMessagesProvider messages={messages.App.Seo}>
+            <NuqsTestingAdapter hasMemory>
+              <SeoWorkspace workspace={workspace} />
+            </NuqsTestingAdapter>
+          </SeoResultMessagesProvider>
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    const verdict = screen.getByTestId("seo-agent-verdict");
+    expect(verdict).toHaveAttribute("lang", "en");
+    expect(verdict).toHaveTextContent(
+      "2 issues to fix: 1 high impact and 1 low impact",
+    );
+  });
+
+  it("shows an issue with a fix once, as the row of its fix, on the tab an old Health link opens", async () => {
+    const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
     workspace.findings.push({
@@ -490,37 +845,139 @@ describe("SEO workspace integration", () => {
       "aria-selected",
       "true",
     );
-    // The fix card names the check: an issue row over it would say the same thing twice.
+    // The fix row names the check: an issue row over it would say the same thing twice.
     expect(
       screen.queryByRole("heading", {
-        name: "Not passed: Markup matches the visible page",
+        name: "Issue: Markup matches the visible page",
       }),
     ).toBeNull();
-    const card = screen
-      .getByRole("heading", { name: /^Make the markup price match the page/ })
-      .closest("article");
-    // An open card holds its labels twice, and the style sheet shows one: in the head on a wide screen,
-    // under the page link on a phone (the order of a closed row: title, page, labels). No style sheet here.
-    const [headLabel, bodyLabel] = within(card!).getAllByText("High impact");
-    expect(headLabel.parentElement).toHaveClass("max-sm:hidden");
-    expect(bodyLabel.parentElement).toHaveClass("sm:hidden");
-    expect(within(card!).getAllByText("High impact")).toHaveLength(2);
-    // What the check found is in view; the reasons and the effect of the fix stay closed.
-    // The line alone can be a bare count, so the name of its check goes with it.
+    const row = screen.getByRole("button", {
+      name: /^Make the markup price match the page/,
+    });
+    expect(within(row).getByText("High impact")).toBeVisible();
+    // The row names the page and what the check found in one line; the reasons wait in the dialog.
+    expect(row).toHaveTextContent(
+      "Home · Issue: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
+    );
+    expect(screen.queryByText("The two prices differ.")).toBeNull();
+    await user.click(row);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Make the markup price match the page",
+    });
+    // The line alone can be a bare count, so the name of its check goes with it, and the rule's footnote.
     expect(
-      within(card!).getByText(
-        "Not passed: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
+      within(dialog).getByText(
+        "Issue: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99. (prices in USD)",
       ),
     ).toBeVisible();
-    // The rule's footnote is on the card too; the open card shows it.
-    expect(within(card!).getByText("(prices in USD)")).toBeInTheDocument();
-    expect(
-      within(card!).getByText("Expected effect: One price."),
-    ).not.toBeVisible();
-    expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
+    expect(within(dialog).getByText("The two prices differ.")).toBeVisible();
+    expect(within(dialog).getByText("One price.")).toBeVisible();
   });
 
-  it("puts the numbers before the steps, offers the agent only with an Audit, and names a page of the site by its path", async () => {
+  it("filters the Actions worklist by impact, with suggestions apart", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
+    const pageUrl = workspace.pages[0].url;
+    const action: Omit<
+      (typeof workspace.actions)[number],
+      "id" | "title" | "findingIds"
+    > = {
+      observationId,
+      pageUrl,
+      why: "Why",
+      effort: "low",
+      expectedEffect: "Effect",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    for (const [id, severity] of [
+      ["one", "critical"],
+      ["two", "major"],
+      ["three", "minor"],
+    ] as const) {
+      workspace.findings.push({
+        id,
+        observationId,
+        pageUrl,
+        device: "mobile",
+        rowId: `R-${id}`,
+        title: `Check ${id}`,
+        severity,
+        evidence: ["found"],
+        sourceRef: "html:head",
+        observedAt: new Date("2026-01-03T12:00:00Z"),
+      });
+      workspace.actions.push({
+        ...action,
+        id: `fix-${id}`,
+        findingIds: [id],
+        title: `Fix ${id}`,
+      });
+    }
+    workspace.actions.push({
+      ...action,
+      id: "idea",
+      findingIds: [],
+      kind: "opportunity",
+      title: "Write about chargers",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    const filters = screen.getByRole("group", { name: "Filter actions" });
+    const titles = () =>
+      within(screen.getByRole("list", { name: "Actions" }))
+        .getAllByRole("button")
+        .map(
+          (row) =>
+            row.textContent?.match(
+              /^(Fix (one|two|three)|Write about chargers)/,
+            )?.[0],
+        );
+    // Critical and high issues are one level, as their orange mark is.
+    expect(
+      within(filters)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["All4", "High impact2", "Low impact1", "Suggestions1"]);
+    expect(
+      within(filters).getByRole("button", { name: "All 4" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText(/They are not errors/)).toBeNull();
+    // In the mixed list a suggestion says what it is in its dialog.
+    await user.click(
+      screen.getByRole("button", { name: "Write about chargers" }),
+    );
+    expect(
+      within(await screen.findByRole("dialog")).getByText(
+        /They are not errors/,
+      ),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await user.click(
+      within(filters).getByRole("button", { name: "High impact 2" }),
+    );
+    expect(titles()).toEqual(["Fix one", "Fix two"]);
+    await user.click(
+      within(filters).getByRole("button", { name: "Low impact 1" }),
+    );
+    expect(titles()).toEqual(["Fix three"]);
+    // Suggestions alone keep the line that says they are no errors.
+    await user.click(
+      within(filters).getByRole("button", { name: "Suggestions 1" }),
+    );
+    expect(titles()).toEqual(["Write about chargers"]);
+    expect(screen.getByText(/They are not errors/)).toBeVisible();
+  });
+
+  it("puts the first step before the numbers, offers the agent only with an Audit, and names a page of the site by its path", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
@@ -615,17 +1072,31 @@ describe("SEO workspace integration", () => {
     expect(
       screen.queryByRole("button", { name: "Ask the SEO agent" }),
     ).toBeNull();
-    // The numbers are a block of their own, between the result and the steps.
+    // The first step is part of the verdict card: the headline says what is wrong, its figures how the
+    // keywords do, the step what to do first. The pictures are a card of their own before it.
     const verdict = screen.getByTestId("seo-agent-verdict");
-    const tiles = screen.getByTestId("seo-summary-tiles");
+    const figures = screen.getByTestId("seo-agent-figures");
+    const tiles = screen.getByTestId("seo-agent-graphics");
+    const firstStep = screen.getByText("Make the markup price match the page");
+    expect(verdict.parentElement).toContainElement(figures);
     expect(verdict.parentElement).not.toContainElement(tiles);
+    expect(verdict.parentElement).toContainElement(firstStep);
     expect(
-      verdict.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING,
+      figures.compareDocumentPosition(firstStep) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    const leadList = screen.getByRole("list", { name: "The agent proposes" });
     expect(
-      tiles.compareDocumentPosition(
-        screen.getByText("Make the markup price match the page"),
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      within(leadList).getByText("Make the markup price match the page"),
+    ).toBeVisible();
+    // The row is part of the verdict card: it has no frame of its own.
+    expect(
+      within(leadList).getByRole("button", {
+        name: /^Make the markup price match the page/,
+      }),
+    ).not.toHaveClass("border");
+    expect(
+      tiles.compareDocumentPosition(verdict) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     cleanup();
     // With an Audit one floating button leads to the agent. The page itself has no question field.
@@ -637,12 +1108,16 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByLabelText("Your question")).toBeNull();
     // The page of the fix is a page of the site: its path, with the address as the link's name.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
-    const card = screen
-      .getByRole("heading", { name: /^Make the markup price match the page/ })
-      .closest("article");
-    expect(within(card!).getByRole("link", { name: guide })).toHaveTextContent(
-      /^\/guides\/a$/,
+    await user.click(
+      screen.getByRole("button", {
+        name: /^Make the markup price match the page/,
+      }),
     );
+    expect(
+      within(await screen.findByRole("dialog")).getByRole("link", {
+        name: guide,
+      }),
+    ).toHaveTextContent(/^\/guides\/a$/);
     // Without its fix the issue has a row of its own under the cards.
     cleanup();
     served = { ...served, actions: [] };
@@ -655,6 +1130,278 @@ describe("SEO workspace integration", () => {
           element.textContent === "Mobile · /guides/a",
       ),
     ).toBeVisible();
+  });
+
+  it("shortens the position measure to its result and keeps every line in a fold", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const lines = [
+      '"macbook charge limit", Market US, en (location_code 2840), mobile, DataForSEO SERP of 2026-11-16 23:50:46 +00:00: 16 organic results read',
+      "the page is not in the top 16 organic results",
+      "an AI Overview shows and does not cite the page",
+      "position rule: rank_group counts the items of one type (organic, featured_snippet), rank_absolute counts every result item (DataForSEO, N2-508)",
+      '"mac battery health checker" (goal): the page is not in the top 18 organic results',
+      '"macbook battery health" (goal): the page is not in the top 16 organic results',
+    ];
+    workspace.findings.push({
+      id: "organic-position",
+      observationId: "check-position",
+      pageUrl: workspace.pages[0].url,
+      device: "mobile",
+      rowId: "query.serp.position",
+      title: "Organic position per device",
+      severity: "measure",
+      evidence: lines,
+      sourceRef: "serp:mobile",
+      observedAt: new Date("2026-11-16T23:51:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    const row = screen.getByText("Google ranking").closest("li");
+    if (!row) throw new Error("no position row");
+    // The result leads; the other keywords are one line; the rule and the raw head wait in the fold.
+    expect(row).toHaveTextContent(
+      "Not in Google's top 15 for “macbook charge limit”",
+    );
+    // The Market reads as a country and a language, not as codes.
+    expect(row).toHaveTextContent("Google · United States · English");
+    // An AI Overview that leaves the page out shows only in the fold.
+    expect(
+      within(row).queryByText(
+        "Google's AI Overview cites this page as a source",
+      ),
+    ).toBeNull();
+    expect(
+      within(row).getByText(/AI Overview shows and does not cite/),
+    ).not.toBeVisible();
+    expect(row).toHaveTextContent(
+      "Also not in the top 15 for 2 other keywords",
+    );
+    const rule = within(row).getByText(/^position rule:/);
+    expect(rule).not.toBeVisible();
+    await user.click(within(row).getByText("All details"));
+    expect(rule).toBeVisible();
+    // The keywords themselves are on the Rankings tab.
+    await user.click(within(row).getByRole("button", { name: "See rankings" }));
+    expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("says when Google's AI Overview cites the page", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "organic-position-cited",
+      observationId: "check-position",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "query.serp.position",
+      title: "Organic position per device",
+      severity: "measure",
+      evidence: [
+        '"häfen auf rügen", Market DE, de (location_code 2276), desktop, DataForSEO SERP of 2026-11-19 09:00:00 +00:00: 18 organic results read',
+        "the page is not in the top 18 organic results",
+        "the AI Overview cites the page",
+      ],
+      sourceRef: "serp:desktop",
+      observedAt: new Date("2026-11-19T09:01:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    expect(
+      screen.getByText("Google's AI Overview cites this page as a source"),
+    ).toBeVisible();
+  });
+
+  it("says in plain words what a camera file name note found and lists the files by name", async () => {
+    const workspace = seoTestWorkspace();
+    const file =
+      "https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1";
+    workspace.findings.push({
+      id: "camera-names",
+      observationId: "check-images",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-21",
+      title: "Image file names",
+      severity: "note",
+      evidence: [
+        "2 of 23 image file names",
+        `camera file name: ${file}`,
+        "camera file name: javascript:alert(1)",
+      ],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    workspace.findings.push({
+      id: "alt-missing",
+      observationId: "check-images",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-18",
+      title: "Image alt text",
+      severity: "note",
+      evidence: [
+        "1 of 23 images",
+        "img without alt: https://example.com/a.png",
+        "+2 more",
+      ],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    const heading = screen.getByRole("heading", {
+      name: "2 of 23 images have a camera file name",
+    });
+    const row = heading.closest("li");
+    if (!row) throw new Error("no note row");
+    // The rule's own name is an internal label: the row does not show it.
+    expect(row).not.toHaveTextContent("Image file names");
+    expect(row).toHaveTextContent("for example harbor-at-sunset.jpg");
+    // Each file shows by its name and opens the full address; a non-web value is text, not a link.
+    expect(
+      within(row).getByRole("link", { name: "img_2696-1.jpg" }),
+    ).toHaveAttribute("href", file);
+    expect(within(row).getByText("alert(1)")).not.toHaveAttribute("href");
+    expect(row).not.toHaveTextContent("Found:");
+    expect(row).not.toHaveTextContent("camera file name:");
+    // Another rule's list says in words what its items are, counting the ones the bot left out.
+    expect(screen.getByText("3 images without alt text")).toBeVisible();
+    expect(screen.getByText("2 more the check did not list")).toBeVisible();
+  });
+
+  it("lists a broken links note's links by path with the site's answer", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const site = new URL(workspace.pages[0].url).origin;
+    workspace.findings.push({
+      id: "broken-links",
+      observationId: "check-links",
+      pageUrl: workspace.pages[0].url,
+      device: "mobile",
+      rowId: "IL-04",
+      title: "Links reach live pages",
+      severity: "note",
+      evidence: [
+        "13 of 43 link targets answer 400 or more (12 on the page's host)",
+        `${site}/segeln-mit-kindern/ → 429`,
+        "https://other.example/gone → 404",
+        `${site}/rund-ruegen-segeln/haefen/ → 429`,
+        `${site}/rund-ruegen-segeln/segeltoern/ → 429`,
+        `${site}/buecher-ruegen-ostsee/ → 429`,
+        "+8 more",
+      ],
+      sourceRef: "links",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    const row = screen
+      .getByRole("heading", { name: "13 of 43 links lead to an error" })
+      .closest("li");
+    if (!row) throw new Error("no note row");
+    expect(row).toHaveTextContent("404 means the page does not exist");
+    expect(row).toHaveTextContent("check that link again before you change it");
+    // A link on the page's own site shows its path; another site's shows its host too.
+    expect(
+      within(row).getByRole("link", { name: "/segeln-mit-kindern/" }),
+    ).toHaveAttribute("href", `${site}/segeln-mit-kindern/`);
+    expect(
+      within(row).getByRole("link", { name: "other.example/gone" }),
+    ).toBeVisible();
+    expect(row).toHaveTextContent("/segeln-mit-kindern/ → 429");
+    // A 404 is an error and gets the solid badge; a 429 only turned the check away, so its badge stays quiet.
+    expect(within(row).getByText("404")).toHaveClass(
+      "bg-semantic-destructive-solid",
+    );
+    for (const quiet of within(row).getAllByText("429"))
+      expect(quiet).not.toHaveClass("bg-semantic-destructive-solid");
+    // The first three links always show; the rest of the list opens on request.
+    expect(row).toHaveTextContent("/rund-ruegen-segeln/haefen/ → 429");
+    expect(row).not.toHaveTextContent("segeltoern");
+    expect(row).not.toHaveTextContent("did not list");
+    const toggle = within(row).getByRole("button", { name: "Show 2 more" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(
+      within(row).getByRole("link", { name: "/buecher-ruegen-ostsee/" }),
+    ).toBeVisible();
+    // Links the check counted but did not send cannot open; the list says so at its end.
+    expect(row).toHaveTextContent("8 more the check did not list");
+    expect(row).not.toHaveTextContent("+8 more");
+    await user.click(within(row).getByRole("button", { name: "Show less" }));
+    expect(row).not.toHaveTextContent("segeltoern");
+    expect(row).not.toHaveTextContent("Links reach live pages");
+  });
+
+  it("keeps the found line of a camera file name note without a share line", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "camera-names-old",
+      observationId: "check-images-old",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-21",
+      title: "Image file names",
+      severity: "note",
+      evidence: ["camera file name: https://example.com/IMG_0001.jpg"],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    // No count to put in plain words: the rule's title leads, and the check's lines wait in a fold.
+    const heading = screen.getByRole("heading", {
+      name: "Images with a camera file name",
+    });
+    const row = heading.closest("li");
+    if (!row) throw new Error("no note row");
+    expect(row).toHaveTextContent("Names like IMG_1234.jpg");
+    const line = within(row).getByText(
+      "camera file name: https://example.com/IMG_0001.jpg",
+    );
+    expect(line).not.toBeVisible();
+    await user.click(within(row).getByText("What the check found"));
+    expect(line).toBeVisible();
   });
 
   it("splits page details into measurements and notes and folds their references", async () => {
@@ -693,7 +1440,7 @@ describe("SEO workspace integration", () => {
       sourceRef: "html:head",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
-    // The same rule on a second page: its guidance shows once.
+    // The same rule on a second page, outside the range: the first listed title row carries the guidance.
     workspace.findings.push({
       id: "measured-title-old",
       observationId: "check-title-old",
@@ -720,19 +1467,19 @@ describe("SEO workspace integration", () => {
       title: "Raw HTML: AI search bots may fetch the page",
       severity: "test",
       evidence: [
-        "robots.txt blocks GPTBot",
+        "https://example.com/robots.txt disallows OAI-SearchBot for this page",
         "Source: raw HTML; the rendered DOM was not requested.",
       ],
       sourceRef: "robots",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
-    // An older check measured a title outside the range; the newest check is in range,
-    // so that row is no suggestion and offers no fix.
+    // An older check measured the mobile title outside the range. Only the newest check of a
+    // page's title counts as a suggestion, so this row is no suggestion and offers no fix.
     workspace.findings.push({
       id: "measured-title-older",
       observationId: "check-title-older",
       pageUrl: workspace.pages[0].url,
-      device: "desktop",
+      device: "mobile",
       rowId: "title-length",
       title: "Raw HTML: Title length",
       severity: "measure",
@@ -769,25 +1516,35 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=health");
     // The folded section says whether opening it pays off.
     expect(screen.getByText("2 notes")).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("heading", {
-        name: "Title, description and other page details",
+    const detailsHeading = screen.getByRole("heading", {
+      name: "Page details",
+    });
+    // The fold closes the Actions list: it sits in that section, under its rows.
+    const actionsSection = detailsHeading.closest("section");
+    expect(actionsSection).not.toBeNull();
+    expect(
+      within(actionsSection as HTMLElement).getByRole("heading", {
+        level: 2,
+        name: "Recommended actions",
       }),
-    );
+    ).toBeInTheDocument();
+    expect(detailsHeading.closest("details")).toHaveAttribute("open");
     // A measurement is one line; its value drops the words its name says.
     expect(screen.getAllByText("Title length:")[0]).toBeVisible();
-    expect(screen.getByText("56 characters")).toBeVisible();
+    expect(screen.getByText("80 characters")).toBeVisible();
+    // A value inside every tool range asks nothing, so it is left out.
+    expect(screen.queryByText("56 characters")).toBeNull();
     // Notes sit under their own heading, so a rule name does not read as a claim about the page.
     expect(
       screen.getByRole("heading", {
-        name: "Notes (2) · not counted as issues",
+        name: "Notes (2)",
       }),
     ).toBeVisible();
     // A note leads with what the check found; the rule name follows, so it does not read as a claim.
     expect(
-      screen.getByRole("heading", { name: "Found: meta keywords in head" }),
+      screen.getByRole("heading", { name: "meta keywords in head" }),
     ).toBeVisible();
-    expect(screen.getByText("Rule: “No meta keywords”")).toBeVisible();
+    expect(screen.queryByText(/No meta keywords/)).toBeNull();
     expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
     // A 1-page Audit does not repeat its URL on every row.
     const details = screen.getAllByText("Title length:")[0].closest("details");
@@ -807,23 +1564,21 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // The fold counts suggestions apart from notes, as the Agent tab does.
     expect(details.querySelector("summary")).toHaveTextContent(
-      /1 suggestion\s*·\s*2 notes$/,
+      /^Page details1 suggestion,\s*2 notesWhat we found on your pages\./,
     );
     // Rows from different checks keep their own date.
-    expect(within(details).queryByText(/From the check on/)).toBeNull();
-    expect(details.querySelectorAll("time")).toHaveLength(5);
+    expect(within(details).queryByText(/Checked on/)).toBeNull();
+    expect(details.querySelectorAll("time")).toHaveLength(4);
     expect(
       screen.getByRole("heading", {
-        name: "Found: robots.txt blocks GPTBot",
+        name: "robots.txt blocks AI search bots",
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
-    // Rule IDs leave the shown line and fold with the sources.
+    // Rule IDs leave the shown line.
     expect(
       screen.getByText("Ranges SEO tools use: Ahrefs under 70"),
     ).toBeVisible();
-    // Each page's value says where it sits against the tools' ranges.
-    expect(screen.getByText(/within the tool range/)).toBeVisible();
     // Only the newest check's value outside a range is a suggestion; the older one is history.
     expect(
       screen.getAllByText(/outside the tool range \(Ahrefs\)/),
@@ -846,7 +1601,7 @@ describe("SEO workspace integration", () => {
     );
     // Each note offers a question to the agent; a measurement offers a fix only when a tool range leaves it out.
     expect(
-      screen.getAllByRole("button", { name: "Ask the agent" }),
+      screen.getAllByRole("button", { name: "Ask about this note" }),
     ).toHaveLength(2);
     expect(
       screen.getAllByRole("button", { name: "Ask the agent for a fix" }),
@@ -857,19 +1612,19 @@ describe("SEO workspace integration", () => {
     );
     expect(reference).not.toBeVisible();
     expect(screen.queryByText("Check details")).toBeNull();
-    await user.click(screen.getByText("Sources and rule IDs"));
+    await user.click(screen.getByText("1 source"));
     expect(reference).toBeVisible();
-    expect(screen.getByText("Rule IDs: N1-246")).toBeVisible();
+    expect(screen.queryByText(/N1-246/)).toBeNull();
     // A note on a page removed since names that page in the question; nothing is sent.
     await user.click(
       screen.getByRole("button", {
-        name: "Ask the agent",
-        description: "Found: robots.txt blocks GPTBot https://example.com/old",
+        name: "Ask about this note",
+        description: "robots.txt blocks AI search bots https://example.com/old",
       }),
     );
     const sheet = await screen.findByRole("dialog");
     expect(within(sheet).getByLabelText("Your question")).toHaveValue(
-      "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?",
+      "What does “AI search bots may fetch the page” mean for https://example.com/old? Should I change anything?",
     );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -884,10 +1639,36 @@ describe("SEO workspace integration", () => {
       "Your question",
     ) as HTMLTextAreaElement;
     expect(question.value).toBe(
-      "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?\n\nThe check measured “Title length” on https://example.com/old as 80 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.",
+      "What does “AI search bots may fetch the page” mean for https://example.com/old? Should I change anything?\n\nThe check measured “Title length” on https://example.com/old as 80 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.",
     );
     // Nothing is sent until the owner sends it.
     expect(asked).toEqual([]);
+  });
+
+  it("shows no page details when every value is inside every tool range", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "measured-title",
+      observationId: "check-title",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Raw HTML: Title length",
+      severity: "measure",
+      evidence: [
+        "title 56 characters",
+        "vendor tools: Ahrefs under 70 (N1-246)",
+      ],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    expect(await screen.findByRole("tab", { name: "Actions" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Page details" })).toBeNull();
   });
 
   it("offers one fix per suggestion and drafts it in the chat", async () => {
@@ -1035,12 +1816,12 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
+    workspace.runs = runsOf(workspace);
     renderWorkspace(workspace, "?tab=health");
-    await user.click(
-      screen.getByRole("heading", {
-        name: "Title, description and other page details",
-      }),
-    );
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
     const details = screen.getByText("Title length:").closest("details");
     if (!details) throw new Error("Page details missing");
     expect(
@@ -1049,7 +1830,7 @@ describe("SEO workspace integration", () => {
         .some((link) => link.getAttribute("href") === workspace.pages[0].url),
     ).toBe(true);
     // One check behind every row: its time and record show once, above the rows.
-    expect(within(details).getByText(/From the check on/)).toBeInTheDocument();
+    expect(within(details).getByText(/Checked on/)).toBeInTheDocument();
     const times = details.querySelectorAll("time");
     expect(times).toHaveLength(1);
     expect(times[0].getAttribute("datetime")).toBe("2026-01-03T12:00:00.000Z");
@@ -1060,7 +1841,7 @@ describe("SEO workspace integration", () => {
     // A long line without a label is the value under its rule, not a heading.
     expect(
       within(details).getByRole("heading", {
-        name: "Rule not met: “Descriptive link text”",
+        name: /^The check flagged this on the page\s*: Descriptive link text$/,
       }),
     ).toBeVisible();
     // A long note the clamp does not cut needs no toggle.
@@ -1068,8 +1849,10 @@ describe("SEO workspace integration", () => {
     expect(
       within(details).queryByRole("button", { name: "Show all" }),
     ).toBeNull();
+    // The details of the day in view link the check's results.
+    await user.click(screen.getByRole("button", { name: /^Details of / }));
     expect(
-      within(screen.getByRole("list", { name: "SEO activity, newest first" }))
+      within(await screen.findByRole("dialog"))
         .getAllByRole("link", { name: /View results$/ })
         .map((link) => link.getAttribute("href")),
     ).toContain("/tasks/one-check-task");
@@ -1190,7 +1973,7 @@ describe("SEO workspace integration", () => {
     expect(screen.getByRole("group", { name: "Quick periods" })).toBeVisible();
   });
 
-  it("puts the runs on a timeline, newest on the right, with the date filter beside its title", async () => {
+  it("puts the runs on a timeline, newest on the right, with the date filter below the checks", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.metrics = [seoTestMetric()];
@@ -1217,10 +2000,10 @@ describe("SEO workspace integration", () => {
         .getAllByRole("button", { pressed: undefined })
         .map((button) => button.textContent),
     ).toEqual([
-      "Other dates",
       "Oct 287 issues",
       "Nov 106 issues",
       "Nov 125 issues",
+      "Other dates",
     ]);
     // The timeline holds the one date filter: the header and the filter block have none.
     expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
@@ -1501,6 +2284,36 @@ describe("SEO workspace integration", () => {
       ).toBeVisible();
     },
   );
+
+  it("links the home page from a title that is its host, with no address line under it", async () => {
+    const pageLinks = async (auditName: string) => {
+      const workspace = { ...seoTestWorkspace(), auditName };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace);
+      const title = await screen.findByRole("heading", {
+        level: 2,
+        name: auditName,
+      });
+      const found = {
+        title,
+        address: screen.queryAllByRole("link", { name: "https://example.com/" })
+          .length,
+      };
+      return found;
+    };
+    // A typed name keeps its address line under it.
+    const typed = await pageLinks("Launch pages");
+    expect(within(typed.title).queryByRole("link")).toBeNull();
+    cleanup();
+    const home = await pageLinks("example.com");
+    expect(
+      within(home.title).getByRole("link", { name: "example.com" }),
+    ).toHaveAttribute("href", "https://example.com/");
+    expect(home.address).toBe(typed.address - 1);
+  });
 
   it("keeps the page in view while another day loads, without a jump back to the first read", async () => {
     const user = userEvent.setup();
@@ -1784,6 +2597,157 @@ describe("SEO workspace integration", () => {
     ).toBeInTheDocument();
   });
 
+  it("opens what happened at a stop of the runs row: counts on hover, every event in its details", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.findings = [];
+    const check = (id: string, day: number, issues: number) => ({
+      id,
+      kind: "page_check" as const,
+      source: "seo_coworker" as const,
+      observedAt: new Date(Date.UTC(2026, 0, day, 12)),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: `${id}-task`,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "html-v1",
+      artifactHash: id,
+      issues,
+      coverage: { checked: 2, skipped: 0, failed: 0 },
+    });
+    workspace.observations = [check("newest", 5, 2), check("oldest", 3, 1)];
+    workspace.timeline = [
+      ...workspace.observations.map((observation) => ({
+        id: `${observation.id}-event`,
+        kind: "check" as const,
+        title: "SEO check results imported",
+        status: "completed",
+        detail: "",
+        at: observation.observedAt,
+        pageIds: observation.pageIds,
+        taskId: observation.sourceTaskId,
+        observationId: observation.id,
+      })),
+      // Between the two checks: the stop of the newer check holds it.
+      {
+        id: "page-change",
+        kind: "page_change" as const,
+        title: "Title changed",
+        status: "recorded",
+        detail: "",
+        at: new Date(Date.UTC(2026, 0, 4, 12)),
+        pageIds: workspace.scope.pageIds,
+        taskId: null,
+        observationId: null,
+      },
+      // After the newest check: its stop has no end.
+      {
+        id: "later-change",
+        kind: "page_change" as const,
+        title: "Description changed",
+        status: "recorded",
+        detail: "",
+        at: new Date(Date.UTC(2026, 0, 6, 12)),
+        pageIds: workspace.scope.pageIds,
+        taskId: null,
+        observationId: null,
+      },
+    ];
+    workspace.runs = runsOf(workspace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    await user.hover(await screen.findByRole("button", { name: /^Jan 5/ }));
+    expect(await screen.findByText("1 check, 2 page changes")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText("What happened after Jan 3."),
+    ).toBeVisible();
+    expect(within(dialog).getByText("Title changed")).toBeVisible();
+    expect(within(dialog).getByText("Description changed")).toBeVisible();
+    // The older check is its own stop's.
+    expect(
+      within(dialog)
+        .getAllByRole("link", { name: /View results$/ })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual(["/tasks/newest-task"]);
+    // The dialog has no trigger: focus goes back to the stop the card came from.
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^Jan 5/ })).toHaveFocus(),
+    );
+    // Focus opens no card: the card is out of the keyboard's reach, and a tap on a phone focuses the stop.
+    act(() => screen.getByRole("button", { name: /^Jan 3/ }).focus());
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(
+      screen.queryByText("Show the check from Jan 3", { ignore: "[hidden]" }),
+    ).toBeNull();
+    // The way for the keyboard: the footer opens the details of the day in view, and focus comes back to it.
+    const footerDetails = screen.getByRole("button", {
+      name: "Details of Jan 5",
+    });
+    expect(footerDetails.closest("footer")).toContainElement(
+      screen.getByRole("button", { name: "Other dates" }),
+    );
+    await user.click(footerDetails);
+    expect(await screen.findByRole("dialog")).toBeVisible();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(footerDetails).toHaveFocus());
+    // A stop not in view says what a press does: to the keyboard as its description, and in its card.
+    expect(
+      screen.getByRole("button", { name: /^Jan 3/ }),
+    ).toHaveAccessibleDescription("Show the check from Jan 3");
+    await user.hover(screen.getByRole("button", { name: /^Jan 3/ }));
+    expect(
+      await screen.findByText("Show the check from Jan 3", {
+        ignore: "[hidden]",
+      }),
+    ).toBeVisible();
+  });
+
+  it("opens every event of a range set in the calendar from the footer", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.findings = [];
+    workspace.observations = [
+      {
+        ...seoTestObservation(workspace),
+        observedAt: new Date(Date.UTC(2026, 0, 5, 12)),
+      },
+    ];
+    workspace.timeline = [
+      {
+        id: "page-change",
+        kind: "page_change",
+        title: "Title changed",
+        status: "recorded",
+        detail: "",
+        at: new Date(Date.UTC(2026, 0, 4, 12)),
+        pageIds: workspace.scope.pageIds,
+        taskId: null,
+        observationId: null,
+      },
+    ];
+    workspace.runs = runsOf(workspace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health&from=2026-01-01");
+    await user.click(await screen.findByRole("button", { name: "Details" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: "Details" }),
+    ).toBeVisible();
+    expect(within(dialog).getByText("Title changed")).toBeVisible();
+    expect(within(dialog).getByText(/^Showing Jan 1/)).toBeVisible();
+  });
+
   it.each([true, false])(
     "lists a check under Check details only when it has no Timeline row: %s",
     (onTimeline) => {
@@ -1826,13 +2790,16 @@ describe("SEO workspace integration", () => {
         "fetch",
         vi.fn(async () => Response.json(workspace)),
       );
+      workspace.runs = runsOf(workspace);
       renderWorkspace(workspace, "?tab=health");
-      // The Timeline row carries the coverage; a second list would repeat it.
+      // The day's details carry the coverage of a check with a Timeline row; a second list would repeat it.
       expect(
         screen.queryByRole("heading", {
-          name: "Title, description and other page details",
+          name: "Page details",
         }) !== null,
       ).toBe(!onTimeline);
+      if (onTimeline)
+        fireEvent.click(screen.getByRole("button", { name: /^Details of / }));
       expect(
         screen.getByText(
           onTimeline
@@ -1845,116 +2812,6 @@ describe("SEO workspace integration", () => {
             : "Tests: 2 with a result, 1 without a result, 0 unavailable",
         ),
       ).toBeInTheDocument();
-    },
-  );
-
-  it.each([
-    // [case, pages, issues of each check (oldest first), tests that failed, optional parts lost, Timeline rows]
-    ["one page: no page card gives the last check", 1, [1], 0, 0, 1],
-    ["several pages and one check: the page cards give it", 2, [1], 0, 0, 0],
-    [
-      "two checks with issues: the tiles give the last one, a row the one before",
-      2,
-      [1, 2],
-      0,
-      0,
-      1,
-    ],
-    [
-      "two clean checks: one row that folds the earlier one",
-      2,
-      [0, 0],
-      0,
-      0,
-      1,
-    ],
-    ["a check with failed tests: the row says so", 2, [0], 1, 0, 1],
-    ["a check that lost an optional part: the row says so", 2, [1], 0, 1, 1],
-  ] as const)(
-    "shows the Health History only when it adds to the tiles and page cards, %s",
-    (_case, pages, issues, failed, lost, rows) => {
-      const workspace = seoTestWorkspace();
-      workspace.findings = [];
-      if (pages > 1)
-        workspace.pages.push({
-          ...workspace.pages[0],
-          id: crypto.randomUUID(),
-          url: "https://example.com/blog",
-          label: "Blog",
-        });
-      const pageIds = workspace.pages.map((page) => page.id);
-      workspace.scope.pageIds = pageIds;
-      const checks = issues.map((count, index) => ({
-        id: `check-${index}`,
-        kind: "page_check" as const,
-        source: "seo_coworker" as const,
-        observedAt: new Date(Date.UTC(2026, 0, 3 + index, 12)),
-        pageIds,
-        scopeVersion: 2,
-        sourceTaskId: `check-task-${index}`,
-        countryCode: "US",
-        languageCode: "en",
-        devices: ["desktop" as const],
-        rulebookVersion: "html-v1",
-        artifactHash: `hash-${index}`,
-        issues: count,
-        coverage: {
-          checked: 2,
-          skipped: 0,
-          failed,
-          modules: { notRequested: 0, failed: lost },
-        },
-      }));
-      // The workspace gives its checks newest first.
-      workspace.observations = checks.toReversed();
-      workspace.timeline = workspace.observations.map((observation) => ({
-        id: `event-${observation.id}`,
-        kind: "check" as const,
-        title: "SEO check results imported",
-        status: "completed" as const,
-        detail: "",
-        at: observation.observedAt,
-        pageIds,
-        taskId: observation.sourceTaskId,
-        observationId: observation.id,
-      }));
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => Response.json(workspace)),
-      );
-      renderWorkspace(workspace, "?tab=health");
-      expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
-      const history = screen.queryByRole("heading", { name: "History" });
-      expect(history !== null).toBe(rows > 0);
-      // Where the tiles give the last check, what came before it is one closed line.
-      const fold = history?.closest("details");
-      expect(Boolean(fold)).toBe(_case.startsWith("two checks with issues"));
-      expect(fold?.open ?? false).toBe(false);
-      // The date of the tests tile opens the results of the last check, with or without a Timeline.
-      expect(
-        within(screen.getByTestId("seo-summary-tests")).getByRole("link", {
-          name: /, View results$/,
-        }),
-      ).toHaveAttribute("href", `/tasks/check-task-${issues.length - 1}`);
-      const list = screen.queryByRole("list", {
-        name: "SEO activity, newest first",
-      });
-      if (!list) {
-        expect(rows).toBe(0);
-        return;
-      }
-      expect(within(list).getAllByRole("listitem")).toHaveLength(rows);
-      // A Timeline row links the results of its check: the first link is of the newest check of the row.
-      // With several pages the tiles give the last check, so the row is the check before it.
-      expect(
-        within(list)
-          .getAllByRole("link", { name: /View results$/, hidden: true })[0]
-          .getAttribute("href"),
-      ).toBe(
-        `/tasks/check-task-${
-          _case.startsWith("two checks with issues") ? 0 : issues.length - 1
-        }`,
-      );
     },
   );
 
@@ -2530,7 +3387,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText(/week before: 3\.8, (better|worse)$/)).toBeNull();
   });
 
-  it("marks a recorded page change on the traffic chart and names it", () => {
+  it("marks a page change and a confirmed fix on the traffic chart and keys them", () => {
     const workspace = seoTestWorkspace();
     const days = Array.from({ length: 14 }, (_, day) =>
       new Date(Date.UTC(2026, 9, day + 1)).toISOString().slice(0, 10),
@@ -2567,15 +3424,423 @@ describe("SEO workspace integration", () => {
         detail: "",
       },
     ];
+    workspace.actions = [
+      {
+        id: "fix-title",
+        observationId: "check-1",
+        pageUrl: workspace.pages[0].url,
+        findingIds: [],
+        title: "Shorten the title",
+        why: "",
+        effort: "low",
+        expectedEffect: "",
+        edit: null,
+        taskId: "task-1",
+        status: "verified",
+        completedAt: new Date("2026-10-07T09:00:00Z"),
+        verifiedAt: new Date("2026-10-09T09:00:00Z"),
+        kind: "fix",
+        evidence: [],
+      },
+    ];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=traffic");
-    expect(screen.getAllByTestId("seo-trend-change")).toHaveLength(1);
+    // The change, the Task's completion and the confirming check each mark their own day.
+    expect(screen.getAllByTestId("seo-trend-change")).toHaveLength(3);
+    expect(screen.getAllByTestId("seo-trend-marker")).toHaveLength(3);
+    for (const kind of ["Page change", "Task done", "Fix confirmed"])
+      expect(screen.getByText(kind)).toBeVisible();
+    expect(screen.queryByText("Daily values")).toBeNull();
+  });
+
+  it("titles the daily clicks picture on the Agent tab", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metricsStatus = "available";
+    workspace.metrics = [
+      {
+        id: "sync:clicks",
+        key: "clicks",
+        label: "",
+        unit: "count",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        value: 3,
+        from: "2026-10-01",
+        to: "2026-10-02",
+        timeZone: "UTC",
+        observedAt: new Date(),
+        coverage: "complete",
+        notes: [],
+        points: [
+          { date: "2026-10-01", value: 1 },
+          { date: "2026-10-02", value: 2 },
+        ],
+      },
+    ];
+    // A saved check: the result card leads, not the setup card.
+    workspace.observations.push({
+      id: "11111111-1111-4111-8111-111111111111",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-10-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=agent");
+    // The picture says what it shows, as the keyword picture beside it does.
     expect(
-      screen.getByText("Recorded change on Oct 5: New title"),
+      within(screen.getByTestId("seo-agent-graphics")).getByText(
+        "Search clicks",
+        { selector: "p" },
+      ),
     ).toBeVisible();
+  });
+
+  it("shows the clicks and the keyword searches in one card that opens on the picture with data", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const observationId = "11111111-1111-4111-8111-111111111111";
+    const clicks = (values: number[]): ProjectSeoWorkspace["metrics"] => [
+      {
+        id: "sync:clicks",
+        key: "clicks",
+        label: "",
+        unit: "count",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        value: values.reduce((sum, value) => sum + value, 0),
+        from: "2026-10-01",
+        to: "2026-10-02",
+        timeZone: "UTC",
+        observedAt: new Date(),
+        coverage: "complete",
+        notes: [],
+        points: values.map((value, day) => ({
+          date: `2026-10-0${day + 1}`,
+          value,
+        })),
+      },
+    ];
+    workspace.metricsStatus = "available";
+    workspace.observations.push({
+      id: observationId,
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-10-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    const read = {
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      device: "mobile",
+      checkedResults: 18,
+      observedAt: new Date("2026-10-03T12:00:00Z"),
+      observationId,
+      position: null,
+      positionStatus: "not_in_range",
+      intent: null,
+      difficulty: null,
+      clicks: null,
+      conversion: null,
+      feature: null,
+    } as const;
+    workspace.keywords.push(
+      { ...read, id: "small", keyword: "charge timer", volume: 90 },
+      { ...read, id: "large", keyword: "battery app", volume: 720 },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    // A site with clicks opens on the clicks; the switch leads to the keyword searches.
+    workspace.metrics = clicks([1, 2]);
+    renderWorkspace(workspace, "?tab=agent");
+    const card = within(screen.getByTestId("seo-agent-graphics"));
+    const switcher = card.getByRole("radiogroup", { name: "Picture to show" });
+    // The keyword searches lead the switch.
+    expect(
+      within(switcher)
+        .getAllByRole("radio")
+        .map((radio) => radio.textContent),
+    ).toEqual(["Keyword searches", "Search clicks"]);
+    expect(
+      within(switcher).getByRole("radio", { name: "Search clicks" }),
+    ).toBeChecked();
+    expect(card.queryByTestId("seo-demand-chart")).toBeNull();
+    await user.click(
+      within(switcher).getByRole("radio", { name: "Keyword searches" }),
+    );
+    expect(card.getByTestId("seo-demand-chart")).toBeVisible();
+    expect(card.queryByTestId("seo-trend-bar")).toBeNull();
+    cleanup();
+    // No clicks yet: the card opens on the keyword searches.
+    workspace.metrics = clicks([0, 0]);
+    renderWorkspace(workspace, "?tab=agent");
+    expect(
+      within(screen.getByTestId("seo-agent-graphics")).getByRole("radio", {
+        name: "Keyword searches",
+      }),
+    ).toBeChecked();
+    expect(screen.getByTestId("seo-demand-chart")).toBeVisible();
+    // Google Analytics has a slim line of its own at the top: its step is in no list of steps.
+    expect(screen.getByTestId("seo-agent-statistics")).toHaveTextContent(
+      /^Google statistics/,
+    );
+    expect(
+      screen.queryByText(
+        /Connect Google Analytics|Google Analytics is connected/,
+      ),
+    ).toBeNull();
+    // A keyword of the picture opens the Rankings tab on that keyword.
+    await user.click(
+      within(screen.getByTestId("seo-demand-chart")).getByRole("button", {
+        name: "battery app",
+      }),
+    );
+    expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByDisplayValue("battery app")).toBeVisible();
+    // A figure of the verdict counts every keyword, so it opens Rankings without that search.
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
+    await user.click(
+      within(screen.getByTestId("seo-agent-figures")).getByRole("button", {
+        name: /keywords? found/,
+      }),
+    );
+    expect(screen.queryByDisplayValue("battery app")).toBeNull();
+  });
+
+  it("names why the Google statistics line has no Analytics data, with the fix where one exists", async () => {
+    const workspace = seoTestCheckedAudit();
+    workspace.metrics = [seoTestMetric()];
+    // Nothing else to propose: no competitor step, fresh search data. The tab must not be blank.
+    workspace.metrics = workspace.metrics.map((metric) => ({
+      ...metric,
+      observedAt: new Date(),
+    }));
+    workspace.availableActions.canRequestAnalysis = false;
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.searchQueries = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      timeZone: "UTC",
+      observedAt: new Date(),
+      rowLimit: 250,
+      truncated: false,
+      rows: [],
+    };
+    const unrelated = [
+      { id: "properties/1", name: "galaxy-balls" },
+      { id: "properties/2", name: "roxtool" },
+    ];
+    // An expired connection reads as none. A connected account names its properties: none, none for the
+    // site, one for the site whose sync runs or found nothing, a single other one that is read all the same, a
+    // list that could not be read, or a connection that could not be read.
+    for (const [status, properties, text, button] of [
+      [
+        "not_connected",
+        unrelated,
+        "Google statistics: Analytics not connected",
+        /connect/i,
+      ],
+      [
+        "needs_reconnect",
+        unrelated,
+        "Google statistics: Analytics not connected",
+        /connect/i,
+      ],
+      // A connection whose approval did not finish keeps its button to start again.
+      [
+        "pending",
+        unrelated,
+        "Google statistics: Analytics not connected",
+        "Start a new Google Analytics connection",
+      ],
+      // A connection that could not be read is a failed read: the upkeep line says it, with its Try again.
+      [
+        "unread",
+        unrelated,
+        "Google statistics could not load. Try again.",
+        "Try again",
+      ],
+      [
+        "connected",
+        [],
+        "Google statistics: this Google account has no Analytics property",
+        "Google connections",
+      ],
+      [
+        "connected",
+        unrelated,
+        "Google statistics: no Analytics property is picked for example.com. Choose one of your 2 properties.",
+        "Choose property",
+      ],
+      [
+        "connected",
+        [...unrelated, { id: "properties/3", name: "example.com" }],
+        "Google statistics: the Analytics property example.com has no visits for these pages yet",
+        "Change property",
+      ],
+      // A sync that runs or failed is said once, by the upkeep line of the verdict card: the line steps aside.
+      [
+        "connected",
+        [{ id: "properties/3", name: "example.com" }],
+        "Loading Google statistics.",
+        null,
+      ],
+      [
+        "connected",
+        [unrelated[0]],
+        "Google statistics: the Analytics property galaxy-balls has no visits for these pages yet",
+        "Google connections",
+      ],
+      [
+        "connected",
+        null,
+        "Google statistics could not load. Try again.",
+        "Try again",
+      ],
+    ] as const) {
+      // The loading row's collection never finishes: "no visits" is what a finished collection found.
+      const running = text === "Loading Google statistics.";
+      const upkeep =
+        running || text === "Google statistics could not load. Try again.";
+      const fetch = vi.fn(async (url: string) =>
+        url.endsWith("/connections/ga4")
+          ? status === "unread"
+            ? new Response(null, { status: 500 })
+            : Response.json({
+                provider: "ga4",
+                name: "Google",
+                status,
+                source: "native",
+              })
+          : url.includes("/statistics/properties?provider=ga4")
+            ? properties
+              ? Response.json({
+                  provider: "ga4",
+                  properties,
+                  status: "available",
+                  reason: null,
+                })
+              : new Response(null, { status: 500 })
+            : url.endsWith("/statistics")
+              ? running
+                ? new Promise<Response>(() => {})
+                : Response.json({})
+              : Response.json(workspace),
+      );
+      vi.stubGlobal("fetch", fetch);
+      renderWorkspace(workspace, "?tab=agent");
+      // The line can wait for a cause and come back: each read finds it again.
+      const line = () => screen.getByTestId("seo-agent-statistics");
+      if (upkeep) {
+        const said = await screen.findByText(text);
+        await waitFor(() =>
+          expect(screen.queryByTestId("seo-agent-statistics")).toBeNull(),
+        );
+        // The upkeep line still waits on something: the tab does not say that nothing is waiting.
+        expect(screen.queryByText(/^Nothing is waiting/)).toBeNull();
+        if (button)
+          expect(
+            within(said.parentElement as HTMLElement).getByRole("button", {
+              name: button,
+            }),
+          ).toBeVisible();
+        cleanup();
+        continue;
+      }
+      await waitFor(() => expect(line()).toHaveTextContent(text));
+      if (button)
+        expect(
+          await within(line()).findByRole("button", { name: button }),
+        ).toBeVisible();
+      else expect(within(line()).queryByRole("button")).toBeNull();
+      cleanup();
+    }
+    // A connected account with no cause to name has no bare line: here the property list says the connection
+    // is gone while the connection still reads as connected.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/connections/ga4")
+          ? Response.json({
+              provider: "ga4",
+              name: "Google",
+              status: "connected",
+              source: "native",
+            })
+          : url.includes("/statistics/properties?provider=ga4")
+            ? Response.json({
+                provider: "ga4",
+                properties: [],
+                status: "not_connected",
+                reason: null,
+              })
+            : Response.json(workspace),
+      ),
+    );
+    renderWorkspace(workspace, "?tab=agent");
+    await waitFor(() =>
+      expect(screen.queryByTestId("seo-agent-statistics")).toBeNull(),
+    );
+    // A hidden line with no upkeep message leaves the tab to say so: it is not blank.
+    expect(
+      await screen.findByText(
+        "Nothing is waiting. Google statistics load automatically for the selected pages and refresh when needed.",
+      ),
+    ).toBeVisible();
+    cleanup();
+    // A connection not read yet: the line shows its connect button, so something is waiting.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/connections/ga4")
+          ? new Promise<Response>(() => {})
+          : Response.json(workspace),
+      ),
+    );
+    renderWorkspace(workspace, "?tab=agent");
+    expect(
+      await screen.findByTestId("seo-agent-statistics"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Nothing is waiting/)).toBeNull();
   });
 
   it("says whether Google indexes the page in view and names another canonical", () => {
@@ -2628,7 +3893,7 @@ describe("SEO workspace integration", () => {
     expect(within(section).queryByText("Indexed")).toBeNull();
     expect(
       within(section).getByText(
-        "Google says: “Alternate page with proper canonical tag”",
+        "Google: Alternate page with proper canonical tag",
       ),
     ).toBeVisible();
     expect(
@@ -2637,6 +3902,100 @@ describe("SEO workspace integration", () => {
     expect(
       within(section).getByText(/No index status yet for 1 page in view\./),
     ).toBeVisible();
+  });
+
+  it("includes Search Console indexing issues and their suggested fixes in the audit findings", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const pageUrl = workspace.pages[0].url;
+    const relatedPageUrl = `${pageUrl}related`;
+    const checkedAt = new Date("2026-11-16T08:00:00Z");
+    const reason =
+      "Google could not fetch this page, and the audit found a server error.";
+    const suggestedFix =
+      "Repair the server error, then check the page again before requesting a recrawl.";
+    workspace.findings = [
+      {
+        id: "gsc-indexing-issue",
+        relatedPageUrl,
+        observationId: workspace.observations[0].id,
+        pageUrl,
+        device: null,
+        rowId: "AC-20",
+        title: "Google Search Console indexing",
+        severity: "major",
+        evidence: [reason, "Google says: Server error (5xx)."],
+        suggestedFix,
+        visibility: "PRIVATE",
+        sourceRef: "seo-indexing:receipt",
+        observedAt: checkedAt,
+      },
+      {
+        id: "public-page-issue",
+        observationId: workspace.observations[0].id,
+        pageUrl,
+        device: "mobile",
+        rowId: "O-01",
+        title: "Public page issue",
+        severity: "minor",
+        evidence: ["The public page is missing a description."],
+        sourceRef: "public-page:receipt",
+        observedAt: checkedAt,
+      },
+    ];
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt,
+          pageUrl,
+          status: "issue",
+          report: true,
+          reason,
+          suggestedFix,
+          evidence: ["Google says: Server error (5xx)."],
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    const findings = screen
+      .getByRole("heading", { name: "Audit findings" })
+      .closest("section");
+    if (!findings) throw new Error("Audit findings section missing");
+    const summary = within(findings)
+      .getByText("Google Search Console indexing")
+      .closest("summary");
+    if (!summary) throw new Error("Indexing finding summary missing");
+    expect(within(summary).getByText("/related")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Google index" })).toBeNull();
+    await user.click(summary);
+    expect(within(findings).getByText(reason)).toBeVisible();
+    expect(
+      within(findings).getByRole("link", { name: relatedPageUrl }),
+    ).toHaveAttribute("href", relatedPageUrl);
+    expect(workspace.pages).toHaveLength(1);
+    expect(
+      within(findings).getByText("Google says: Server error (5xx)."),
+    ).toBeVisible();
+    expect(within(findings).getByText("Suggested fix")).toBeVisible();
+    expect(within(findings).getByText(suggestedFix)).toBeVisible();
+    expect(
+      within(findings).getByText("Only you can see this finding."),
+    ).toBeVisible();
+    const publicDetails = within(findings)
+      .getByText("Public page issue")
+      .closest("details");
+    if (!publicDetails) throw new Error("Public finding details missing");
+    expect(
+      within(publicDetails).queryByText("Only you can see this finding."),
+    ).toBeNull();
+    expect(
+      within(findings).queryByRole("button", { name: /create task/i }),
+    ).toBeNull();
   });
 
   it("lists search totals by country and device, folding countries past ten", () => {
@@ -2898,10 +4257,13 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       "Your page passes the last check, but Google rarely shows it yet",
     );
-    expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      // The link is its own item after the period, with no separator of its own.
-      /^Google search on this page: 2 clicks, 35 impressions · Jan 1\W+2, 2026\s*Open traffic$/,
-    );
+    // The figure names the numbers; its period is part of its name.
+    expect(
+      screen.getByRole("button", {
+        // The period is in the name only; a name joins its parts with a space.
+        name: /^2 clicks · 35 impressions ?, Jan 1\W+2, 2026$/,
+      }),
+    ).toHaveAttribute("data-testid", "seo-agent-traffic");
     unmount();
     // Without clicks the line would read as zero clicks; it stays away.
     workspace.metrics = [impressions];
@@ -3145,6 +4507,13 @@ describe("SEO workspace integration", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string) => {
+        if (String(input).includes("/api/seo/connections/search_console"))
+          return Response.json({
+            provider: "search_console",
+            name: "Search Console",
+            status: "connected",
+            source: "native",
+          });
         if (String(input).includes("statistics/properties"))
           return Response.json({
             provider: "search_console",
@@ -3162,17 +4531,16 @@ describe("SEO workspace integration", () => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await openStatisticsSetup(user);
       const dialog = screen.getByRole("dialog");
+      const search = within(dialog).getByRole("region", {
+        name: "Search Console",
+      });
+      expect(await within(search).findByText("Example website")).toBeVisible();
       expect(
-        within(dialog).getByRole("combobox", { name: "Source" }),
-      ).toHaveTextContent("Search Console");
-      await waitFor(() =>
-        expect(
-          within(dialog).getByRole("combobox", { name: "Property" }),
-        ).toHaveTextContent("Example website"),
-      );
+        within(search).queryByRole("combobox", { name: "Property" }),
+      ).toBeNull();
       // The saved period is not offered again: every sync reads the same rolling days.
       expect(
-        within(dialog).getByTestId("seo-statistics-reads"),
+        within(search).getByTestId("seo-statistics-reads-search_console"),
       ).toHaveTextContent("Reads the last 90 days of Google search data.");
       await user.click(
         within(dialog).getAllByRole("button", { name: "Close" })[0],
@@ -3290,7 +4658,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=health");
     expect(
       screen.getByRole("heading", {
-        name: "Not passed: Previous page finding",
+        name: "Issue: Previous page finding",
       }),
     ).toBeVisible();
     await user.click(screen.getByRole("combobox", { name: "Pages" }));
@@ -3298,7 +4666,7 @@ describe("SEO workspace integration", () => {
     await waitFor(() =>
       expect(
         screen.queryByRole("heading", {
-          name: "Not passed: Previous page finding",
+          name: "Issue: Previous page finding",
         }),
       ).not.toBeInTheDocument(),
     );
@@ -3390,6 +4758,514 @@ describe("SEO workspace integration", () => {
         },
       },
     });
+  });
+
+  it("opens the first full audit automatically while the private brief is unavailable", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const read = vi.fn(async (url: string) =>
+      url.includes("/brief")
+        ? new Promise<Response>(() => {})
+        : connectedSeoResponse(workspace, url),
+    );
+    vi.stubGlobal("fetch", read);
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    await readConnectedGoogle();
+    expect(
+      await setup.findByRole("button", { name: "Advanced" }),
+    ).toBeVisible();
+    expect(
+      setup.queryByRole("combobox", {
+        name: goalCopy.question,
+      }),
+    ).toBeNull();
+    expect(read.mock.calls.some(([url]) => url.includes("/brief"))).toBe(false);
+
+    await user.click(setup.getByRole("button", { name: "Run full audit" }));
+    const review = within(await screen.findByRole("dialog"));
+    expect(review.getByRole("button", { name: "Start check" })).toBeEnabled();
+    expect(saveGoal).not.toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
+
+    await user.click(review.getByRole("button", { name: "Start check" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
+    expect(mutate.mock.calls[0][0].command.body).not.toHaveProperty(
+      "sharedBrief",
+    );
+    expect(mutate.mock.calls[0][0].command.body).not.toHaveProperty(
+      "setupGoal",
+    );
+    expect(
+      read.mock.calls.some(([url]) => url.includes("/brief/suggestion")),
+    ).toBe(false);
+    expect(saveGoal).not.toHaveBeenCalled();
+  });
+
+  it("discards consent to an old revision while its full-audit review is open", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const page = workspace.pages[0];
+    let brief = {
+      revision: 2,
+      pages: [{ pageId: page.id, action: "buy" }],
+      followUps: [],
+      priorities: [],
+    };
+    vi.stubGlobal("fetch", async (url: string) =>
+      url.endsWith("/brief")
+        ? Response.json(brief)
+        : connectedSeoResponse(workspace, url),
+    );
+    const { client } = renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    await user.click(
+      await setup.findByRole("combobox", { name: goalCopy.question }),
+    );
+    await user.click(await screen.findByRole("option", { name: "Read" }));
+    await user.click(setup.getByRole("checkbox", { name: goalCopy.include }));
+    await user.click(setup.getByRole("button", { name: "Run full audit" }));
+    const review = within(await screen.findByRole("dialog"));
+    expect(review.getByRole("checkbox", { name: /Read/ })).toBeChecked();
+    await act(async () => {
+      brief = {
+        ...brief,
+        revision: 3,
+        pages: [{ pageId: page.id, action: "subscribe" }],
+      };
+      client.setQueryData(
+        ["seo-brief", "owner", "org", "project", workspace.projectId],
+        brief,
+      );
+    });
+    expect(
+      await review.findByRole("checkbox", { name: /Subscribe/ }),
+    ).not.toBeChecked();
+    await user.click(review.getByRole("button", { name: "Start check" }));
+    expect(mutate).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    await user.click(setup.getByRole("button", { name: "Run full audit" }));
+    expect(
+      within(await screen.findByRole("dialog")).getByRole("checkbox", {
+        name: /Subscribe/,
+      }),
+    ).not.toBeChecked();
+    expect(saveGoal).not.toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it.each(["viewer", "session", "scope"] as const)(
+    "discards the draft and consent when the %s changes during review",
+    async (change) => {
+      const user = userEvent.setup();
+      const workspace = seoTestWorkspace();
+      const first = workspace.pages[0];
+      const other = {
+        ...first,
+        id: crypto.randomUUID(),
+        url: new URL("/plans", first.url).href,
+      };
+      workspace.pages = [first, other];
+      workspace.scope.pageIds = [first.id, other.id];
+      const brief = { revision: 0, pages: [], followUps: [], priorities: [] };
+      let current = workspace;
+      vi.stubGlobal("fetch", async (url: string) =>
+        url.endsWith("/brief")
+          ? Response.json(brief)
+          : connectedSeoResponse(current, url),
+      );
+      mutate.mockResolvedValue({ ok: true, value: null });
+      const { client, refreshViewer } = renderWorkspace(workspace);
+      const setup = within(screen.getByTestId("seo-setup"));
+      await user.click(await setup.findByRole("button", { name: "Advanced" }));
+      await user.click(
+        await setup.findByRole("combobox", { name: goalCopy.question }),
+      );
+      await user.click(await screen.findByRole("option", { name: "Buy" }));
+      await user.click(setup.getByRole("checkbox", { name: goalCopy.include }));
+      await user.click(setup.getByRole("button", { name: "Run full audit" }));
+      expect(
+        within(await screen.findByRole("dialog")).getByRole("checkbox", {
+          name: /Buy/,
+        }),
+      ).toBeChecked();
+      if (change === "viewer") {
+        viewer.userId = "another-owner";
+        refreshViewer();
+      } else if (change === "session") {
+        viewer.sessionId = "second-session";
+        refreshViewer();
+      } else {
+        current = {
+          ...workspace,
+          scope: {
+            ...workspace.scope,
+            version: workspace.scope.version + 1,
+            pageIds: [other.id, first.id],
+          },
+        };
+        await act(async () => {
+          client.setQueryData(
+            [
+              "seo-workspace",
+              "org",
+              "owner",
+              "project",
+              workspace.projectId,
+              "",
+            ],
+            current,
+          );
+        });
+      }
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      const currentSetup = within(await screen.findByTestId("seo-setup"));
+      const advanced = await currentSetup.findByRole("button", {
+        name: "Advanced",
+      });
+      expect(advanced).toHaveAttribute("aria-expanded", "false");
+      await user.click(
+        currentSetup.getByRole("button", { name: "Run full audit" }),
+      );
+      const review = within(await screen.findByRole("dialog"));
+      expect(review.queryByRole("checkbox", { name: /Buy/ })).toBeNull();
+      await user.click(review.getByRole("button", { name: "Start check" }));
+      await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+      const body = mutate.mock.calls[0][0].command.body;
+      expect(body).not.toHaveProperty("setupGoal");
+      expect(body).not.toHaveProperty("sharedBrief");
+      expect(saveGoal).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps a suggested goal local through cancel and sends one restartable request on final confirmation", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const pageId = workspace.scope.pageIds[0];
+    const brief = {
+      revision: 0,
+      pages: [],
+      constraints: "Keep the checkout",
+      followUps: [],
+      priorities: [],
+    };
+    vi.stubGlobal("fetch", async (url: string) => {
+      if (url.includes("/brief/suggestion?"))
+        return Response.json({ action: "buy" });
+      if (url.endsWith("/brief")) return Response.json(brief);
+      return connectedSeoResponse(workspace, url);
+    });
+    // The old two-step operation can complete here, so an early write is observed immediately.
+    saveGoal.mockImplementation(async ({ body }) => ({
+      ok: true,
+      value: { ...brief, revision: 1, pages: body.pages },
+    }));
+    mutate
+      .mockRejectedValueOnce(new Error("Response lost"))
+      .mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    const advanced = await setup.findByRole("button", { name: "Advanced" });
+    await user.click(advanced);
+    const suggested = await setup.findByRole("button", {
+      name: /Use suggested goal .*Buy/,
+    });
+    expect(setup.getByLabelText(goalCopy.question)).toHaveTextContent(
+      goalCopy.autoOption,
+    );
+    await user.click(suggested);
+    expect(setup.getByLabelText(goalCopy.question)).toHaveFocus();
+    const share = setup.getByRole("checkbox", { name: goalCopy.include });
+    expect(share).not.toBeChecked();
+    await user.click(share);
+    await user.click(advanced);
+    expect(advanced).toHaveAttribute("aria-expanded", "false");
+    expect(setup.getByText("This audit will use “Buy”.")).toBeVisible();
+    const run = setup.getByRole("button", { name: "Run full audit" });
+    await user.click(run);
+    expect(saveGoal).not.toHaveBeenCalled();
+    const review = within(await screen.findByRole("dialog"));
+    expect(review.getByRole("checkbox", { name: /Buy/ })).toBeChecked();
+    expect(mutate).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    expect(saveGoal).not.toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
+
+    // Include the goal in this new review explicitly.
+    await user.click(advanced);
+    const selector = await setup.findByRole("combobox", {
+      name: goalCopy.question,
+    });
+    expect(selector).toHaveTextContent("Buy");
+    const include = setup.getByRole("checkbox", { name: goalCopy.include });
+    expect(include).not.toBeChecked();
+    await user.click(include);
+    await user.click(run);
+    const confirm = within(await screen.findByRole("dialog")).getByRole(
+      "button",
+      { name: "Start check" },
+    );
+    await user.click(confirm);
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
+    const first = mutate.mock.calls[0][0].command;
+    expect(first.kind).toBe("request_analysis");
+    expect(first.body.setupGoal).toEqual({
+      pageId,
+      expectedRevision: 0,
+      action: "buy",
+    });
+    expect(first.body.sharedBrief).toEqual({ pageIds: [pageId], revision: 0 });
+    expect(JSON.stringify(first.body)).not.toContain(brief.constraints);
+    await user.click(confirm);
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(2));
+    expect(mutate.mock.calls[1][0].command).toEqual(first);
+    expect(saveGoal).not.toHaveBeenCalled();
+  });
+
+  it("clears the saved action only when the owner confirms a switch to Automatic", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const page = {
+      pageId: workspace.pages[0].id,
+      role: null,
+      action: "buy",
+      job: "Compare plans",
+      indexIntent: "unknown",
+    };
+    const brief = { revision: 2, pages: [page], priorities: [], followUps: [] };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/brief")
+          ? Response.json(brief)
+          : connectedSeoResponse(workspace, url),
+      ),
+    );
+    saveGoal.mockImplementation(async ({ body }) => ({
+      ok: true,
+      value: { ...brief, revision: 3, pages: body.pages },
+    }));
+    renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    const action = await setup.findByRole("combobox", {
+      name: goalCopy.question,
+    });
+    expect(action).toHaveTextContent("Buy");
+    await user.click(action);
+    await user.click(
+      await screen.findByRole("option", { name: goalCopy.autoOption }),
+    );
+    await user.click(setup.getByRole("button", { name: "Run full audit" }));
+    const review = within(await screen.findByRole("dialog"));
+    expect(review.queryByRole("checkbox", { name: /Buy/ })).toBeNull();
+    expect(saveGoal).not.toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
+    mutate.mockResolvedValue({ ok: true, value: null });
+    await user.click(review.getByRole("button", { name: "Start check" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
+    const body = mutate.mock.calls[0][0].command.body;
+    expect(body.setupGoal).toEqual({
+      pageId: page.pageId,
+      expectedRevision: 2,
+      action: null,
+    });
+    expect(body).not.toHaveProperty("sharedBrief");
+  });
+
+  it.each([false, true])(
+    "revokes public sharing for a changed goal while saving it in a full audit (share another page: %s)",
+    async (shareOtherPage) => {
+      const user = userEvent.setup();
+      const workspace = seoTestWorkspace();
+      const other = workspace.pages[0];
+      const first = {
+        ...other,
+        id: "2e23a937-7bf7-47d7-bea9-4e055e339fc8",
+        url: new URL("/plans", other.url).href,
+      };
+      // The workspace list is not the approved order of this scope.
+      workspace.pages = [other, first];
+      workspace.scope.pageIds = [first.id, other.id];
+      const brief = {
+        revision: 7,
+        pages: [
+          { pageId: other.id, action: "read" },
+          { pageId: first.id, action: "buy" },
+        ],
+        followUps: [],
+        priorities: [],
+      };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) =>
+          url.endsWith("/brief")
+            ? Response.json(brief)
+            : connectedSeoResponse(workspace, url),
+        ),
+      );
+      mutate.mockResolvedValue({ ok: true, value: null });
+      renderWorkspace(workspace);
+      const setup = within(screen.getByTestId("seo-setup"));
+      await user.click(await setup.findByRole("button", { name: "Advanced" }));
+      expect(await setup.findByText(first.url)).toBeVisible();
+      expect(setup.getByLabelText(goalCopy.question)).toHaveTextContent("Buy");
+      await user.click(setup.getByLabelText(goalCopy.question));
+      await user.click(
+        await screen.findByRole("option", { name: "Subscribe" }),
+      );
+      await user.click(setup.getByRole("checkbox", { name: goalCopy.include }));
+      await user.click(setup.getByRole("button", { name: "Run full audit" }));
+      const dialog = within(await screen.findByRole("dialog"));
+      expect(dialog.getByRole("checkbox", { name: /Read/ })).not.toBeChecked();
+      const proposed = dialog.getByRole("checkbox", { name: /Subscribe/ });
+      expect(proposed).toBeChecked();
+      await user.click(proposed);
+      if (shareOtherPage)
+        await user.click(dialog.getByRole("checkbox", { name: /Read/ }));
+      await user.click(dialog.getByRole("button", { name: "Start check" }));
+      await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
+      const body = mutate.mock.calls[0][0].command.body;
+      if (shareOtherPage) {
+        expect(body.sharedBrief).toEqual({ pageIds: [other.id], revision: 7 });
+      } else {
+        expect(body).not.toHaveProperty("sharedBrief");
+      }
+      expect(body.setupGoal).toEqual({
+        pageId: first.id,
+        expectedRevision: 7,
+        action: "subscribe",
+      });
+      expect(saveGoal).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the first review available when other pages already fill every private goal slot", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const brief = {
+      revision: 4,
+      pages: Array.from({ length: 10 }, () => ({
+        pageId: crypto.randomUUID(),
+        action: "buy",
+      })),
+      followUps: [],
+      priorities: [],
+    };
+    const read = vi.fn(async (url: string) =>
+      url.endsWith("/brief")
+        ? Response.json(brief)
+        : connectedSeoResponse(workspace, url),
+    );
+    vi.stubGlobal("fetch", read);
+    const { client } = renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    await waitFor(() =>
+      expect(
+        client.getQueryData([
+          "seo-brief",
+          "owner",
+          "org",
+          "project",
+          workspace.projectId,
+        ]),
+      ).toEqual(brief),
+    );
+    expect(setup.getByText(/Clear another page to add this one/)).toBeVisible();
+    expect(setup.queryByLabelText(goalCopy.question)).toBeNull();
+    expect(
+      read.mock.calls.some(([url]) => url.includes("/brief/suggestion")),
+    ).toBe(false);
+    await user.click(
+      setup.getByRole("button", { name: messages.App.Seo.brief.edit }),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: messages.App.Seo.brief.title }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+    await user.click(setup.getByRole("button", { name: "Run full audit" }));
+    expect(await screen.findByRole("dialog")).toBeVisible();
+    expect(saveGoal).not.toHaveBeenCalled();
+  });
+
+  it("saves a manual first-page goal without Google or a suggestion and sends a free check without private context", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canUsePaidSearchData = false;
+    const brief = {
+      revision: 0,
+      pages: [],
+      updatedAt: null,
+      audience: null,
+      constraints: null,
+      objective: null,
+      outcome: null,
+      followUps: [],
+      priorities: [],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/brief/suggestion?"))
+          return new Response(null, { status: 503 });
+        if (url.endsWith("/brief")) return Response.json(brief);
+        if (url.startsWith("/api/seo/connections/"))
+          return Response.json({
+            provider: "search_console",
+            name: "Google",
+            status: "disconnected",
+            source: "native",
+          });
+        return Response.json(workspace);
+      }),
+    );
+    saveGoal.mockImplementation(async ({ body }) => ({
+      ok: true,
+      value: { ...brief, revision: 1, pages: body.pages },
+    }));
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    await user.click(
+      await screen.findByRole("button", { name: "Continue without Google" }),
+    );
+    const setup = within(screen.getByTestId("seo-setup"));
+    expect(
+      setup.queryByText("The audit detects the page goal from its content."),
+    ).toBeNull();
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    expect(
+      setup.queryByText("The audit detects the page goal from its content."),
+    ).toBeNull();
+    await user.click(
+      await setup.findByRole("combobox", {
+        name: goalCopy.question,
+      }),
+    );
+    await user.click(await screen.findByRole("option", { name: "Read" }));
+    expect(
+      setup.queryByRole("checkbox", { name: goalCopy.include }),
+    ).toBeNull();
+    await user.click(setup.getByRole("button", { name: "Run page check" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(saveGoal).not.toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
+    expect(
+      dialog.queryByText("Share page goals in this public task"),
+    ).toBeNull();
+    await user.click(dialog.getByRole("button", { name: "Start check" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
+    expect(mutate.mock.calls[0][0].command.body.kind).toBe("page_check");
+    expect(mutate.mock.calls[0][0].command.body.setupGoal).toEqual({
+      pageId: workspace.scope.pageIds[0],
+      expectedRevision: 0,
+      action: "read",
+    });
+    expect(mutate.mock.calls[0][0].command.body).not.toHaveProperty(
+      "sharedBrief",
+    );
   });
 
   it("starts a native HTML check without a prior import or caller-selected executor", async () => {
@@ -3516,21 +5392,144 @@ describe("SEO workspace integration", () => {
     expect(within(dialog).queryByRole("spinbutton")).toBeNull();
   });
 
-  it("keeps unavailable first-use recovery inside SEO without promising a hidden check", async () => {
+  it("keeps an Advanced choice as a local draft while the workspace has no SEO worker", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(publicEnv, "getEnvPublicConfig").mockReturnValue({
+      ...publicEnv.getEnvPublicConfig(),
+      NEXT_PUBLIC_VERCEL_ENV: "production",
+    });
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canRequestAnalysis = false;
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.availableActions.canCreateMonitor = false;
+    const brief = {
+      revision: 1,
+      pages: [],
+      constraints: "Leave the cart as it is",
+      audience: null,
+      objective: null,
+      outcome: null,
+      followUps: [],
+      priorities: [],
+    };
+    const read = vi.fn(async (url: string) => {
+      if (url.endsWith("/brief")) return Response.json(brief);
+      if (url.includes("/brief/suggestion"))
+        return Response.json({ action: null });
+      return connectedSeoResponse(workspace, url);
+    });
+    vi.stubGlobal("fetch", read);
+    renderWorkspace(workspace);
+    await readConnectedGoogle();
+    const setup = within(screen.getByTestId("seo-setup"));
+    expect(read.mock.calls.some(([url]) => url.includes("/brief"))).toBe(false);
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    const action = await setup.findByRole("combobox", {
+      name: goalCopy.question,
+    });
+    expect(setup.queryByRole("button", { name: "Save page goal" })).toBeNull();
+    expect(action).toHaveTextContent(goalCopy.autoOption);
+    expect(
+      setup.getByRole("button", { name: "Start audit" }),
+    ).toHaveAccessibleDescription(
+      "This workspace has no available SEO worker to run a check. Google statistics still work.",
+    );
+    await user.click(action);
+    await user.click(await screen.findByRole("option", { name: "Buy" }));
+    expect(setup.getByText(goalCopy.pausedDraft)).toBeVisible();
+    expect(
+      setup.queryByRole("checkbox", { name: goalCopy.include }),
+    ).toBeNull();
+    expect(saveGoal).not.toHaveBeenCalled();
+    expect(setup.queryByRole("button", { name: "Save page goal" })).toBeNull();
+    const advanced = setup.getByRole("button", { name: "Advanced" });
+    await user.click(advanced);
+    await user.click(advanced);
+    expect(
+      setup.getByRole("combobox", { name: goalCopy.question }),
+    ).toHaveTextContent("Buy");
+    expect(setup.getByRole("button", { name: "Start audit" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed private goal read inside paused setup", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
+    const briefRead = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ revision: 0, pages: [] }));
+    vi.stubGlobal("fetch", async (url: string) => {
+      if (url.endsWith("/brief")) return briefRead();
+      if (url.includes("/brief/suggestion"))
+        return Response.json({ action: null });
+      return connectedSeoResponse(workspace, url);
+    });
+    renderWorkspace(workspace);
+    await readConnectedGoogle();
+    const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    expect(
+      await setup.findByText(messages.App.Seo.brief.readFailed),
+    ).toBeVisible();
+    await user.click(
+      setup.getByRole("button", { name: messages.App.Seo.brief.retry }),
+    );
+    expect(
+      await setup.findByRole("combobox", {
+        name: goalCopy.question,
+      }),
+    ).toHaveTextContent(goalCopy.autoOption);
+    expect(briefRead).toHaveBeenCalledTimes(2);
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it("explains the disabled first check on hover and keeps recovery inside SEO", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(publicEnv, "getEnvPublicConfig").mockReturnValue({
+      ...publicEnv.getEnvPublicConfig(),
+      NEXT_PUBLIC_VERCEL_ENV: "preview",
+    });
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canRequestAnalysis = false;
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.availableActions.canCreateMonitor = false;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     renderWorkspace(workspace);
     await readConnectedGoogle();
-    // No check can run: no card promises one, the header's button is off, and the notice says why.
-    // Correction: Google setup stays available, while the final check step explains that dispatch is off.
-    expect(screen.getByTestId("seo-setup")).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
-    expect(screen.getByText(messages.App.Seo.dispatchPaused)).toBeVisible();
+    const setup = within(screen.getByTestId("seo-setup"));
+    const run = setup.getByRole("button", { name: "Start audit" });
+    const reason =
+      "This preview has no SEO worker available for this workspace. Google statistics still work.";
+    expect(run).toBeVisible();
+    expect(run).toHaveAttribute("aria-disabled", "true");
+    expect(run).toHaveAccessibleDescription(reason);
+    expect(setup.getByText(reason)).toBeVisible();
+    act(() => {
+      setup.getByRole("button", { name: "Advanced" }).focus();
+    });
+    await user.tab();
+    expect(run).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(reason);
+    await user.keyboard("{Enter}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.tab();
+    await user.hover(run);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(reason);
+    await user.unhover(run);
+    await user.click(run);
+    expect(run).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mutate).not.toHaveBeenCalled();
     // "All audits" goes back to the Audit's Project scope.
     expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
       "href",
@@ -3909,6 +5908,63 @@ describe("SEO workspace integration", () => {
     });
   });
 
+  it("refreshes the visible private page priority after an automatic Search Console collection", async () => {
+    const workspace = seoTestWorkspace();
+    let collected = false;
+    const gate = Promise.withResolvers<void>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input, "https://web.test");
+        if (url.pathname.endsWith("/brief")) {
+          return Response.json({
+            revision: 2,
+            pages: [],
+            followUps: [],
+            priorities: [
+              {
+                pageId: workspace.pages[0].id,
+                why: [],
+                nextStep: collected
+                  ? "Review the new crawl."
+                  : "Awaiting crawl evidence.",
+              },
+            ],
+          });
+        }
+        if (url.pathname.includes("/connections/")) {
+          const provider = url.pathname.split("/").at(-1);
+          return Response.json({
+            provider,
+            name: provider,
+            source: "native",
+            status:
+              provider === "search_console" ? "connected" : "not_connected",
+          });
+        }
+        if (url.pathname.endsWith("statistics/properties"))
+          return Response.json({
+            provider: "search_console",
+            status: "available",
+            reason: null,
+            properties: [
+              { id: "sc-domain:example.com", name: "Website property" },
+            ],
+          });
+        if (init?.method === "POST" && url.pathname.endsWith("/statistics")) {
+          await gate.promise;
+          collected = true;
+          return Response.json(null);
+        }
+        return Response.json(workspace);
+      }),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    expect(await screen.findByText("Awaiting crawl evidence.")).toBeVisible();
+    gate.resolve();
+    expect(await screen.findByText("Review the new crawl.")).toBeVisible();
+  });
+
   it("shows newly synced Search Console metrics under the organic filter", async () => {
     const workspace = seoTestWorkspace();
     const measured = {
@@ -4000,7 +6056,8 @@ describe("SEO workspace integration", () => {
             ? {
                 provider: "ga4",
                 name: "Google Analytics",
-                status: "connected",
+                // Only Google Analytics has an account, so only its section reads properties.
+                status: url.endsWith("/ga4") ? "connected" : "not_connected",
                 source: "native",
               }
             : url.includes("/statistics/properties")
@@ -4019,13 +6076,19 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
     expect(await screen.findByText("Current Google account")).toBeVisible();
-    // The account is one line; its two actions are in the line's menu.
+    // The accounts are one card; its one menu holds the rare account actions per source.
     await userEvent.click(
-      await screen.findByRole("button", { name: "Google Analytics connected" }),
+      await screen.findByRole("button", { name: "Google account options" }),
     );
+    // Only the connected source has actions.
+    expect(
+      screen.queryByRole("menuitem", { name: "Disconnect Search Console" }),
+    ).toBeNull();
     // The question opens above the statistics dialog; Escape closes the question only.
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "Disconnect" }),
+      await screen.findByRole("menuitem", {
+        name: "Disconnect Google Analytics",
+      }),
     );
     expect(await screen.findByRole("alertdialog")).toBeVisible();
     await userEvent.keyboard("{Escape}");
@@ -4088,7 +6151,7 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace);
-    expect(await screen.findByTestId("seo-summary-keywords")).toHaveTextContent(
+    expect(await screen.findByTestId("seo-agent-figures")).toHaveTextContent(
       /^0 of /,
     );
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
@@ -4343,12 +6406,22 @@ describe("SEO workspace integration", () => {
     );
     await openCheckOptions(user);
     expect(checkType()).toHaveTextContent("Full audit");
+    expect(
+      screen.getByText(
+        "Also checks indexing for relevant pages from this site, up to 10 pages total. Full audits cover selected pages only.",
+      ),
+    ).toBeVisible();
     // A full audit takes one keyword, so the form does not open on a list it would refuse.
     const keywords = () => screen.getByLabelText("Keywords, one per line");
     expect(keywords()).toHaveValue("stablecoins");
     // Another check type takes the whole saved list again.
     await user.click(checkType());
     await user.click(screen.getByRole("option", { name: "Keyword positions" }));
+    expect(
+      screen.queryByText(
+        "Also checks indexing for relevant pages from this site, up to 10 pages total. Full audits cover selected pages only.",
+      ),
+    ).toBeNull();
     expect(keywords()).toHaveValue("stablecoins\nstablecoin wallet");
     await user.click(checkType());
     await user.click(screen.getByRole("option", { name: "Full audit" }));
@@ -4631,6 +6704,12 @@ describe("SEO workspace integration", () => {
     // "No recommended actions" above these cards would say two things at once.
     expect(screen.queryByRole("heading", { name: "Actions" })).toBeNull();
     expect(screen.queryByText("No recommended actions")).toBeNull();
+    // Without an Actions list the page details stand in a card of their own, a section of the tab.
+    const details = screen.getByRole("heading", {
+      level: 2,
+      name: "Page details",
+    });
+    expect(details.closest("section")).not.toBeNull();
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -4719,7 +6798,7 @@ describe("SEO workspace integration", () => {
     expect(asked).toEqual([]);
   });
 
-  it("names the fixes on the Actions tab when the strategy actions follow them", async () => {
+  it("names the fixes on the Actions tab, with or without the strategy actions", async () => {
     const workspace = seoTestWorkspace();
     workspace.actions.push({
       id: "action-row",
@@ -4741,13 +6820,23 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     const first = renderWorkspace(workspace, "?tab=actions");
-    // Alone on the tab, the fixes need no title.
+    // Alone on the tab, the fixes keep their title and its line: the export menu stands beside them.
     expect(
-      await screen.findByRole("button", { name: /Create draft task/ }),
+      await screen.findByRole("button", { name: /^Fix the page title/ }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("heading", { name: "Fixes for the issues" }),
+      screen
+        .getByRole("heading", { name: "Recommended actions" })
+        .closest(".sr-only"),
     ).toBeNull();
+    expect(screen.getByText("Changes our agent recommends.")).toBeVisible();
+    // The export menu stands on the title line, inside the header of the section.
+    expect(
+      screen
+        .getByRole("button", { name: "Export: Actions" })
+        .closest("section")
+        ?.querySelector("h2")?.parentElement,
+    ).toContainElement(screen.getByRole("button", { name: "Export: Actions" }));
     first.unmount();
     const strategy = seoTestStrategy();
     strategy.actions = Array.from({ length: 5 }, (_, index) => ({
@@ -4757,10 +6846,10 @@ describe("SEO workspace integration", () => {
     workspace.strategy = strategy;
     const second = renderWorkspace(workspace, "?tab=actions");
     expect(
-      await screen.findByRole("heading", {
-        name: "Fixes for the issues",
-      }),
-    ).toBeVisible();
+      (
+        await screen.findByRole("heading", { name: "Recommended actions" })
+      ).closest(".sr-only"),
+    ).toBeNull();
     expect(
       screen.getByRole("heading", {
         name: "Actions from the keyword strategy",
@@ -5058,17 +7147,15 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
-    // No account yet: the dialog asks for the account. The sync fields and the sync button follow the approval.
+    // No account yet: each source asks for its account. The property fields follow the approval.
     const dialog = await screen.findByRole("dialog", {
-      name: "Set up statistics",
+      name: "Google connections",
     });
-    expect(
-      within(dialog).getByText(
-        // No account at all: Search Console is the first one to connect.
-        "Connect Search Console. Statistics for the last 90 days will load automatically.",
-      ),
-    ).toBeVisible();
-    expect(within(dialog).queryByTestId("seo-statistics-reads")).toBeNull();
+    for (const name of ["Connect Search Console", "Connect Google Analytics"])
+      expect(await within(dialog).findByRole("button", { name })).toBeVisible();
+    expect(within(dialog).queryAllByTestId(/^seo-statistics-reads-/)).toEqual(
+      [],
+    );
     expect(
       within(dialog).queryByRole("button", { name: "Sync statistics" }),
     ).toBeNull();
@@ -5308,7 +7395,11 @@ describe("SEO workspace integration", () => {
       why: "The title is missing",
       effort: "low",
       expectedEffect: "A descriptive search result",
-      edit: null,
+      edit: {
+        target: "title",
+        before: null,
+        after: "<title>Battery Sensei</title>",
+      },
       taskId: null,
       status: "recommended",
       kind: "fix",
@@ -5355,28 +7446,83 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    const create = await screen.findByRole("button", {
-      name: "Create draft task",
+    // The lead step opens its action; the Task is drafted in the dialog, next to its reasons.
+    const openAction = await screen.findByRole("button", {
+      name: "Open action",
     });
-    // The step wears the brand fill (owner, after pass 59); the run is raised in the secondary look.
-    expect(create).toHaveClass("bg-quinary");
+    expect(openAction).toHaveClass("bg-quinary");
+    expect(
+      screen.queryByRole("button", { name: "Create draft task" }),
+    ).toBeNull();
     const run = screen.getByRole("button", { name: "Run full audit" });
     expect(run).toHaveClass("bg-quaternary");
     expect(run).not.toHaveClass("bg-primary");
     expect(run).not.toHaveAttribute("aria-disabled");
-    // The position result leads the Agent tab.
-    expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
-      /^1 of 21 on the first pageResults read per keyword: 20$/,
-    );
-    expect(screen.getByText("The title is missing")).not.toBeVisible();
-    await user.click(screen.getByText("Reason and evidence"));
-    expect(screen.getByText("The title is missing")).toBeVisible();
-    expect(screen.getByText("A descriptive search result")).toBeVisible();
-    // The Actions tab is the full list of the same cards: the reasons stay closed, and the run keeps the fill.
-    await user.click(screen.getByRole("tab", { name: "Actions" }));
-    expect(await screen.findByText("The title is missing")).not.toBeVisible();
+    // The position result leads the Agent tab, as a figure under the verdict.
     expect(
-      screen.getByRole("button", { name: "Create draft task" }),
+      screen.getByRole("button", {
+        name: "1 of 2 keywords found · 20 results read per keyword",
+      }),
+    ).toBeVisible();
+    // The lead row is short: its reasons are in the dialog it opens.
+    expect(screen.queryByText("The title is missing")).toBeNull();
+    // The button leads to the Actions tab, where the action opens among the others.
+    await user.click(openAction);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Fix the page title",
+    });
+    expect(
+      within(dialog).getByRole("button", { name: "Create draft task" }),
+    ).toHaveClass("bg-quinary");
+    // The dialog shows the reasons at once, and the fix and the whole action can be copied.
+    expect(within(dialog).getByText("The title is missing")).toBeVisible();
+    expect(
+      within(dialog).getByText("A descriptive search result"),
+    ).toBeVisible();
+    const write = vi.spyOn(navigator.clipboard, "writeText");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Copy change" }),
+    );
+    expect(write).toHaveBeenLastCalledWith("<title>Battery Sensei</title>");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Copy agent instructions" }),
+    );
+    expect(write).toHaveBeenLastCalledWith(
+      [
+        "Make this SEO change on the website. Change only what it names, then check the page again.",
+        "Fix the page title",
+        "Page: https://example.com/",
+        "A descriptive search result",
+        "The title is missing",
+        "Suggested change:\n<title>Battery Sensei</title>",
+      ].join("\n\n"),
+    );
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // Focus goes to the action's row in the list of the Actions tab, not to the page.
+    const listed = within(
+      screen.getByRole("list", { name: "Actions" }),
+    ).getByRole("button", { name: /^Fix the page title/ });
+    await waitFor(() => expect(listed).toHaveFocus());
+    expect(screen.queryByText("The title is missing")).toBeNull();
+    // The dialog does not open again by itself: the Agent tab and back open the list alone.
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(
+      within(screen.getByRole("list", { name: "Actions" })).getByRole(
+        "button",
+        { name: /^Fix the page title/ },
+      ),
+    );
+    expect(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Create draft task",
+      }),
     ).toHaveClass("bg-quinary");
   });
 
@@ -5423,15 +7569,19 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    // The run cannot start: the draft button stays tinted, with no brand fill on the tab (owner, 2026-11-13).
+    // The run cannot start: the lead button stays tinted, with no brand fill on the tab (owner, 2026-11-13).
     expect(
-      await screen.findByRole("button", { name: "Create draft task" }),
+      await screen.findByRole("button", { name: "Open action" }),
     ).toHaveClass("bg-quinary");
     expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Actions" }));
-    await screen.findByText("The title is missing");
+    await user.click(
+      await screen.findByRole("button", { name: /^Fix the page title/ }),
+    );
     expect(
-      screen.getByRole("button", { name: "Create draft task" }),
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Create draft task",
+      }),
     ).toHaveClass("bg-quinary");
   });
 
@@ -5537,7 +7687,7 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
   });
 
-  it("shows one fix as a card on the Agent tab and each later fix as a row that opens it on the Actions tab", async () => {
+  it("shows one fix as a card on the Agent tab and each later fix as a row that opens it in a dialog", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
@@ -5581,57 +7731,91 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    // Only the top fix is a full card with its own button.
+    // Only the top fix has its own button, which opens it; its reasons and its Task button wait in the dialog.
     expect(
-      await screen.findAllByRole("button", { name: "Create draft task" }),
+      await screen.findAllByRole("button", { name: "Open action" }),
     ).toHaveLength(1);
-    expect(screen.getAllByText("Reason and evidence")).toHaveLength(1);
-    // The one proposal of the Agent tab stays open: its title is no button that could close it.
     expect(
-      screen.queryByRole("button", { name: /^Fix the page title/ }),
+      screen.queryByRole("button", { name: "Create draft task" }),
     ).toBeNull();
+    const leadList = screen.getByRole("list", { name: "The agent proposes" });
+    const leadRow = within(leadList).getByRole("button", {
+      name: /^Fix the page title/,
+    });
+    expect(leadRow).toBeVisible();
+    // The finding describes the row; the name stays short.
+    expect(leadRow).toHaveAccessibleDescription(fix.expectedEffect);
+    expect(leadRow.textContent).toContain(fix.expectedEffect);
+    expect(leadRow).not.toHaveAccessibleName(
+      expect.stringContaining(fix.expectedEffect),
+    );
+    expect(
+      within(leadList).getByRole("button", { name: "Open action" }),
+    ).toBeVisible();
+    // Every fix is a row of the same list, right after the first: no press hides them.
+    expect(screen.queryByRole("button", { name: /more steps?$/ })).toBeNull();
+    expect(screen.getByText("Describe the images")).toBeVisible();
     const row = screen.getByText("Write a description").closest("li");
     expect(row).not.toBeNull();
+    expect(leadList).toContainElement(row);
+    expect(
+      within(leadList)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent?.slice(0, 18)),
+    ).toEqual([
+      expect.stringMatching(/^Fix the page title/),
+      "Write a descriptio",
+      "Add a main heading",
+      "Describe the image",
+      "No competitor has ",
+    ]);
     // One page: the row needs no page.
     expect(within(row!).queryByRole("link")).toBeNull();
-    // The Agent tab shows three of the four fixes, and a row counts the rest.
-    expect(screen.queryByText("Describe the images")).toBeNull();
-    expect(screen.getByText("1 more fix")).toBeVisible();
     // The whole row is the control: no second button repeats it.
     expect(within(row!).getAllByRole("button")).toHaveLength(1);
-    await user.click(
-      within(row!).getByRole("button", { name: /^Write a description/ }),
-    );
-    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    // The Actions tab lists each fix as a closed row. Two cards are open: the first one that waits, and the
-    // card of the opened row, which takes the focus.
+    const rowButton = within(row!).getByRole("button", {
+      name: /^Write a description/,
+    });
+    // A press opens the fix in a dialog on the same tab, with its own button.
+    await user.click(rowButton);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Write a description",
+    });
     expect(
-      await screen.findAllByRole("button", { name: "Create draft task" }),
-    ).toHaveLength(2);
-    expect(screen.getAllByRole("article")).toHaveLength(4);
-    const card = screen
-      .getByRole("heading", { name: /^Write a description/ })
-      .closest("article");
-    await waitFor(() => expect(card).toHaveFocus());
-    expect(
-      within(card!).getByRole("button", { name: "Create draft task" }),
+      within(dialog).getByRole("button", { name: "Create draft task" }),
     ).toBeVisible();
-    // A press on the title row closes the card again: the row is the one control of a closed card.
-    await user.click(
-      within(card!).getByRole("button", { name: /^Write a description/ }),
-    );
-    expect(within(card!).getAllByRole("button")).toHaveLength(1);
-    expect(within(card!).queryByRole("link")).toBeNull();
-    // The row that counts the rest leads to the same list.
-    await user.click(screen.getByRole("tab", { name: "Agent" }));
-    await user.click(screen.getByRole("button", { name: "1 more fix" }));
-    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+    // The reasons show at once, under a heading of their own.
+    expect(
+      within(dialog).getByRole("heading", { name: "Why this matters" }),
+    ).toBeVisible();
+    expect(within(dialog).getByText(fix.why)).toBeVisible();
+    // Closing it returns the focus to the row, still on the Agent tab.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(rowButton).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Agent" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
+    // The Actions tab lists each fix as a row too, and a press opens the same dialog there.
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    const list = await screen.findByRole("list", { name: "Actions" });
+    expect(within(list).getAllByRole("button")).toHaveLength(4);
+    // One level of impact splits nothing: no filter over the rows. Fixes with no rated issue are no suggestions.
+    expect(screen.queryByRole("group", { name: "Filter actions" })).toBeNull();
+    expect(screen.queryByText(/They are not errors/)).toBeNull();
+    const listed = within(list).getByRole("button", {
+      name: /^Write a description/,
+    });
+    await user.click(listed);
+    expect(
+      within(
+        await screen.findByRole("dialog", { name: "Write a description" }),
+      ).getByRole("button", { name: "Create draft task" }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(listed).toHaveFocus();
     cleanup();
     // With several pages two fixes can have one title: the row names its page.
     const pricing = "https://example.com/pricing";
@@ -5648,35 +7832,36 @@ describe("SEO workspace integration", () => {
       pageIds: [...workspace.scope.pageIds, second],
     };
     workspace.actions[1] = { ...workspace.actions[1], pageUrl: pricing };
-    // A suggestion is no fix: the row that counts the rest then says "actions".
     workspace.actions[3] = {
       ...workspace.actions[3],
       kind: "opportunity",
       title: "Write a guide",
     };
     renderWorkspace(workspace, "?tab=agent");
-    const paged = (await screen.findByText("Write a description")).closest(
-      "li",
-    );
+    const paged = screen.getByText("Write a description").closest("li");
     expect(within(paged!).getByText("/pricing")).toBeVisible();
-    expect(screen.getByRole("button", { name: "1 more action" })).toBeVisible();
-    cleanup();
-    // Every action shows: no row counts a rest. The row of a suggestion does not call it a fix.
-    workspace.actions = [workspace.actions[0], workspace.actions[3]];
-    renderWorkspace(workspace, "?tab=agent");
-    const suggestion = (await screen.findByText("Write a guide")).closest("li");
+    // The row of a suggestion does not call it a fix.
+    const suggestion = screen.getByText("Write a guide").closest("li");
     expect(within(suggestion!).getAllByRole("button")).toHaveLength(1);
     expect(
       within(suggestion!).getByRole("button", { name: /^Write a guide/ }),
     ).toBeVisible();
-    expect(screen.queryByText(/more (fix|action)/)).toBeNull();
     cleanup();
-    // Without an action the steps are one list: no label splits them.
+    // Without an action the one step sits in the verdict card: no list follows the pictures.
     workspace.actions = [];
     renderWorkspace(workspace, "?tab=agent");
+    const firstStep = await screen.findByRole("list", {
+      name: "The agent proposes",
+    });
+    expect(firstStep).toBeVisible();
     expect(
-      await screen.findByRole("heading", { name: "The agent proposes" }),
-    ).toBeVisible();
+      screen.getByTestId("seo-agent-verdict").parentElement,
+    ).toContainElement(firstStep);
+    // Inside the card the step has no frame of its own.
+    expect(within(firstStep).getByRole("listitem")).not.toHaveClass("border");
+    expect(
+      screen.queryByRole("heading", { name: "The agent proposes" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(
         "Nothing is waiting. The agent syncs Search Console when you open this audit and the data is older than a day.",
@@ -5726,12 +7911,15 @@ describe("SEO workspace integration", () => {
       }),
     );
     renderWorkspace(workspace, "?tab=actions");
-    expect(
-      screen.getByRole("button", { name: "Create draft task" }),
-    ).toHaveClass("bg-quinary");
-    await user.dblClick(
-      screen.getByRole("button", { name: "Create draft task" }),
+    await user.click(
+      screen.getByRole("button", { name: /^Fix the page title/ }),
     );
+    const create = within(await screen.findByRole("dialog")).getByRole(
+      "button",
+      { name: "Create draft task" },
+    );
+    expect(create).toHaveClass("bg-quinary");
+    await user.dblClick(create);
     expect(mutate).toHaveBeenCalledTimes(1);
     expect(mutate).toHaveBeenCalledWith({
       owner: { kind: "project", id: workspace.projectId },
@@ -5749,7 +7937,7 @@ describe("SEO workspace integration", () => {
     });
   });
 
-  it("opens the next waiting action once a Task exists for the one before", async () => {
+  it("keeps the dialog on its action once a Task exists for it, and marks its row", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const waiting: Omit<(typeof workspace.actions)[number], "id" | "title"> = {
@@ -5776,20 +7964,12 @@ describe("SEO workspace integration", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace, "?tab=actions");
-    // One card is open: the first action that waits. The second is a closed row.
-    expect(
-      screen.getAllByRole("button", { name: "Create draft task" }),
-    ).toHaveLength(1);
-    // A card that a press opens has the same button: the button does the same thing on each card.
-    const second = screen
-      .getByRole("heading", { name: /^Write a description/ })
-      .closest("article");
-    await user.click(within(second!).getByRole("button", { expanded: false }));
-    const creates = screen.getAllByRole("button", {
-      name: "Create draft task",
+    const row = screen.getByRole("button", { name: /^Fix the page title/ });
+    expect(row).toHaveTextContent("Effort: Low");
+    await user.click(row);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Fix the page title",
     });
-    expect(creates).toHaveLength(2);
-    for (const create of creates) expect(create).toHaveClass("bg-quinary");
     served = {
       ...workspace,
       actions: [
@@ -5801,16 +7981,178 @@ describe("SEO workspace integration", () => {
         workspace.actions[1],
       ],
     };
-    await user.click(creates[0]);
-    // The Task exists: the next action leads, and its card opens to show its button.
-    const next = screen
-      .getByRole("heading", { name: /^Write a description/ })
-      .closest("article");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create draft task" }),
+    );
+    // The dialog stays on its action and shows the Task; the row says a Task exists in the place of the effort.
+    expect(
+      await within(dialog).findByRole("link", { name: "Open task" }),
+    ).toHaveAttribute("href", "/tasks/3c34c8d3-5c56-47ef-8ddc-a17898de494e");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      screen.getByRole("button", { name: /^Fix the page title/ }),
+    ).toHaveTextContent("Draft task created");
+  });
+
+  it("puts the next waiting action in the verdict card once a Task exists for the first", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const [check] = workspace.observations;
+    const waiting: Omit<(typeof workspace.actions)[number], "id" | "title"> = {
+      observationId: check.id,
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      why: "The check found it",
+      effort: "low",
+      expectedEffect: "A better search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    workspace.actions.push(
+      { ...waiting, id: "title", title: "Fix the page title" },
+      { ...waiting, id: "description", title: "Write a description" },
+      { ...waiting, id: "alt", title: "Describe the images" },
+    );
+    let served = workspace;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(served)),
+    );
+    renderWorkspace(workspace, "?tab=agent");
+    const first = await screen.findByRole("list", {
+      name: "The agent proposes",
+    });
+    expect(within(first).getByText(/^Fix the page title/)).toBeVisible();
+    served = {
+      ...workspace,
+      actions: [
+        {
+          ...workspace.actions[0],
+          taskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+          status: "task_created",
+        },
+        workspace.actions[1],
+        workspace.actions[2],
+      ],
+    };
+    // A Task made elsewhere reaches the tab on its next load, while the focus is on the lead's button.
+    act(() =>
+      within(first).getByRole("button", { name: "Open action" }).focus(),
+    );
+    await act(() => clients.at(-1)!.invalidateQueries());
+    // The next action leads in the card. Focus left with the button, so it goes to the verdict.
     await waitFor(() =>
       expect(
-        within(next!).getByRole("button", { name: "Create draft task" }),
+        within(
+          screen.getByRole("list", { name: "The agent proposes" }),
+        ).getByText(/^Write a description/),
       ).toBeVisible(),
     );
+    const verdict = screen.getByTestId("seo-agent-verdict");
+    expect(verdict).toHaveFocus();
+    // Focus that left the list by a click on the page moves no focus when the lead changes.
+    act(() =>
+      within(screen.getByRole("list", { name: "The agent proposes" }))
+        .getByRole("button", { name: "Open action" })
+        .focus(),
+    );
+    expect(
+      screen.getByRole("list", { name: "The agent proposes" }),
+    ).toContainElement(document.activeElement as HTMLElement);
+    await user.click(document.body);
+    expect(document.activeElement).toBe(document.body);
+    served = {
+      ...served,
+      actions: served.actions.map((action) =>
+        action.id === "description"
+          ? {
+              ...action,
+              taskId: "9f0c2d6e-1a4b-4c3d-8e5f-6a7b8c9d0e1f",
+              status: "task_created",
+            }
+          : action,
+      ),
+    };
+    await act(() => clients.at(-1)!.invalidateQueries());
+    await waitFor(() =>
+      expect(
+        within(
+          screen.getByRole("list", { name: "The agent proposes" }),
+        ).getByText(/^Describe the images/),
+      ).toBeVisible(),
+    );
+    expect(verdict).not.toHaveFocus();
+  });
+
+  it("keeps an action's dialog open to show the Task its button created", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const [check] = workspace.observations;
+    const waiting: Omit<(typeof workspace.actions)[number], "id" | "title"> = {
+      observationId: check.id,
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      why: "The check found it",
+      effort: "low",
+      expectedEffect: "A better search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    workspace.actions.push(
+      { ...waiting, id: "title", title: "Fix the page title" },
+      { ...waiting, id: "description", title: "Write a description" },
+    );
+    let served = workspace;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(served)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace, "?tab=agent");
+    await user.click(
+      screen.getByRole("button", { name: /^Write a description/ }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Write a description",
+    });
+    served = {
+      ...workspace,
+      actions: [
+        workspace.actions[0],
+        {
+          ...workspace.actions[1],
+          taskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+          status: "task_created",
+        },
+      ],
+    };
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create draft task" }),
+    );
+    // The row leaves the steps with its Task; the dialog stays and shows the Task.
+    await waitFor(() =>
+      expect(
+        // The open dialog hides the page from roles: the query looks past that, or it is empty at once.
+        screen.queryByRole("button", {
+          name: /^Write a description/,
+          hidden: true,
+        }),
+      ).toBeNull(),
+    );
+    expect(
+      within(screen.getByRole("dialog")).getAllByText("Draft task created")[0],
+    ).toBeVisible();
+    // Its row is gone, so closing gives the focus to the verdict.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveFocus();
   });
 
   it("says what a keyword result of zero means, with the depth the check read", async () => {
@@ -5869,10 +8211,12 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    // "0 of 2" is no "not in Google": the tile names the results the check read.
-    expect(await screen.findByTestId("seo-summary-keywords")).toHaveTextContent(
-      /^0 of 2Results read per keyword: 20 to 100$/,
-    );
+    // "0 of 2" is no "not in Google": the figure names the results the check read.
+    expect(
+      await screen.findByRole("button", {
+        name: "0 of 2 keywords found · 20 to 100 results read per keyword",
+      }),
+    ).toBeVisible();
     // The line that dates the check shows the day: two reads of one check differ by minutes.
     expect(screen.getAllByText("Jan 3, 2026").length).toBeGreaterThan(0);
   });
@@ -5934,9 +8278,11 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    expect(await screen.findByTestId("seo-summary-keywords")).toHaveTextContent(
-      /^0 of 1$/,
-    );
+    expect(
+      await screen.findByRole("button", {
+        name: "0 of 1 keyword found",
+      }),
+    ).toBeVisible();
     // The tests tile splits the tests without a result the way the Timeline row of the check does.
     await userEvent.click(screen.getByRole("tab", { name: "Actions" }));
     const tests = screen.getByTestId("seo-summary-tests");
@@ -6069,18 +8415,27 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     // The Agent tab says the issue count once, in its headline, and shows the keyword numbers.
-    expect(await screen.findByTestId("seo-agent-verdict")).toHaveTextContent(
-      "2 issues to fix: 1 high impact and 1 low impact",
-    );
+    expect(
+      await screen.findByRole("heading", {
+        name: "2 issues to fix: 1 high impact and 1 low impact",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getAllByText("2 issues to fix: 1 high impact and 1 low impact"),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole("heading", { name: "The agent proposes" }),
+    ).toBeNull();
     expect(screen.queryByTestId("seo-summary-issues")).toBeNull();
     expect(screen.queryByTestId("seo-summary-tests")).toBeNull();
-    expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
-      "1 of 2",
-    );
-    const searches = screen.getByTestId("seo-summary-searches");
-    expect(searches).toHaveTextContent("810 a month");
-    // Every checked keyword has a number: the tile beside this one already says how many they are.
-    expect(within(searches).queryByText(/checked keywords?$/)).toBeNull();
+    const figures = screen.getByTestId("seo-agent-figures");
+    expect(
+      within(figures).getByRole("button", { name: /^1 of 2 keywords found/ }),
+    ).toBeVisible();
+    // Every checked keyword has a number: the figure names no share of them.
+    expect(
+      within(figures).getByRole("button", { name: "810 searches a month" }),
+    ).toBeVisible();
     // The Actions tab leads with the numbers of the page check, and not with the keyword numbers.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     const issues = screen.getByTestId("seo-summary-issues");
@@ -6099,10 +8454,14 @@ describe("SEO workspace integration", () => {
     );
     // The issues can come from older checks: the tile dates its check.
     expect(tests).toHaveTextContent("Last check Jan 3, 2026");
-    expect(screen.queryByTestId("seo-summary-keywords")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /keywords? found/ }),
+    ).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Agent" }));
-    // The keyword tile is the way to the Rankings tab: one button covers the tile.
-    await user.click(screen.getByRole("button", { name: "Open rankings" }));
+    // The keyword figure is the way to the Rankings tab.
+    await user.click(
+      screen.getByRole("button", { name: /^1 of 2 keywords found/ }),
+    );
     expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
       "aria-selected",
       "true",

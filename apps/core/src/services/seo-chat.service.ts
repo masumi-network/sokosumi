@@ -4,7 +4,6 @@ import type {
 } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { generateText } from "ai";
-
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
@@ -13,6 +12,7 @@ import {
   serviceUnavailable,
   tooManyRequests,
 } from "@/helpers/error";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
@@ -91,7 +91,7 @@ const defaultDeps: SeoChatDeps = {
       maxOutputTokens: SEO_CHAT_MAX_OUTPUT_TOKENS,
       maxRetries: 0,
       abortSignal: AbortSignal.timeout(SEO_CHAT_TIMEOUT_MS),
-    });
+    }).catch(rethrowAiGatewayFailure);
     const usage = seoChatUsage(result);
     return {
       text: result.text,
@@ -185,7 +185,9 @@ export async function sendSeoChat(
   const auditId = auditIdFor(actor);
   await requireSeoOwner(actor);
   const requestHash = sha256(JSON.stringify(input));
-  const workspace = await getProjectSeoWorkspace(actor, input.scope ?? {});
+  const workspace = await getProjectSeoWorkspace(actor, input.scope ?? {}, {
+    includePrivateIndexing: actor.organizationId === null,
+  });
   const scopeSnapshot = {
     name: workspace.scope.name,
     pageIds: workspace.scope.pageIds,
@@ -293,7 +295,7 @@ export async function sendSeoChat(
     const result = await deps.generate(
       SEO_CHAT_SYSTEM,
       JSON.stringify({
-        auditEvidence: seoChatContext(workspace),
+        auditEvidence: seoChatContext(workspace, seoSharingFor(actor)),
         history: historyPrompt(previous),
         question: input.question,
       }),
@@ -304,7 +306,7 @@ export async function sendSeoChat(
     const reply = parseSeoChatReply(
       result.text,
       workspace.availableActions.canRequestAnalysis,
-      seoChatTaskActions(workspace),
+      seoChatTaskActions(workspace, seoSharingFor(actor)),
     );
     return await serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor);

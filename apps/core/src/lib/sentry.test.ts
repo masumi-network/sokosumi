@@ -3,11 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   httpIntegrationMock,
   initMock,
+  nativeNodeFetchIntegrationMock,
   nodeProfilingIntegrationMock,
   requestDataIntegrationMock,
 } = vi.hoisted(() => ({
   httpIntegrationMock: vi.fn(() => ({ name: "Http" })),
   initMock: vi.fn(),
+  nativeNodeFetchIntegrationMock: vi.fn<
+    (options: { ignoreOutgoingRequests: (url: string) => boolean }) => {
+      name: string;
+    }
+  >(() => ({ name: "NodeFetch" })),
   nodeProfilingIntegrationMock: vi.fn(() => ({ name: "ProfilingNode" })),
   requestDataIntegrationMock: vi.fn(() => ({ name: "RequestData" })),
 }));
@@ -15,6 +21,7 @@ const {
 vi.mock("@sentry/node", () => ({
   httpIntegration: httpIntegrationMock,
   init: initMock,
+  nativeNodeFetchIntegration: nativeNodeFetchIntegrationMock,
   requestDataIntegration: requestDataIntegrationMock,
 }));
 
@@ -26,6 +33,7 @@ vi.mock("../config/env.js", () => ({
   getEnv: () => ({
     SENTRY_DSN: "https://public@o0.ingest.sentry.io/123",
     SENTRY_ENVIRONMENT: "test",
+    COMPOSIO_API_BASE_URL: "https://composio.example.test",
   }),
 }));
 
@@ -118,6 +126,28 @@ describe("initSentry", () => {
     expect(names).not.toContain("Dedupe");
   });
 
+  it("hides the connected account's ID from outgoing Sentry spans and breadcrumbs", () => {
+    resolveIntegrations();
+    const filter =
+      nativeNodeFetchIntegrationMock.mock.calls[0]?.[0].ignoreOutgoingRequests;
+    expect.assert(filter);
+    expect(
+      filter(
+        "https://composio.example.test/api/v3.1/connected_accounts/ca-private",
+      ),
+    ).toBe(true);
+    expect(
+      filter(
+        "https://composio.example.test/api/v3/tools/execute/GOOGLE_SEARCH_CONSOLE_LIST_SITES",
+      ),
+    ).toBe(false);
+    expect(
+      filter(
+        "https://elsewhere.example.test/api/v3.1/connected_accounts/ordinary",
+      ),
+    ).toBe(false);
+  });
+
   it("keeps sentryMiddleware as the incoming-span owner by dropping 11.2 Hono auto-instrumentation", () => {
     const names = resolveIntegrations([{ name: "Console" }]).map(
       (integration) => integration.name,
@@ -129,5 +159,28 @@ describe("initSentry", () => {
     expect(names).toContain("ProfilingNode");
     expect(names).not.toContain("Hono");
     expect(names).not.toContain("Dedupe");
+  });
+});
+
+describe("initSentry beforeSend", () => {
+  it("masks env secrets in nested fields and error causes at any depth", () => {
+    vi.clearAllMocks();
+    const secret = process.env.OPENROUTER_CHAT_API_KEY ?? "";
+    expect(secret.length).toBeGreaterThanOrEqual(16);
+    initSentry();
+    const beforeSend = initMock.mock.calls[0]?.[0].beforeSend as (
+      event: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    let nested: Record<string, unknown> = { body: `echo ${secret}` };
+    for (let level = 0; level < 20; level += 1) nested = { cause: nested };
+
+    const sent = beforeSend({
+      message: "upstream failed",
+      exception: { values: [{ value: `key ${secret}` }] },
+      extra: { response: nested },
+    });
+
+    expect(JSON.stringify(sent)).not.toContain(secret);
+    expect(sent.message).toBe("upstream failed");
   });
 });

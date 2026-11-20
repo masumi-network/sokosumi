@@ -77,12 +77,14 @@ vi.mock("@/services/image-studio-assets.service", async (importOriginal) => ({
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
+import mountTalkingVideos from "@/routes/v1/projects/[id]/image-studio/talking-videos-get";
 import {
   reconcileJob,
   reconcileProjectJobs,
   reconcileStaleJobs,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+import { pngBytes } from "@/test/image-bytes";
 
 let userId: string;
 let workspaceId: string;
@@ -140,13 +142,91 @@ beforeEach(() => {
   vi.clearAllMocks();
   accessMock.mockResolvedValue({ projectId, workspaceId, userId });
   downloadMediaMock.mockResolvedValue({
-    bytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3]),
+    bytes: pngBytes(1024, 1024),
     contentType: "image/png",
   });
   putMock.mockResolvedValue({ pathname: `projects/${projectId}/x` });
   fetchQueueResultMock.mockResolvedValue({
     kind: "media",
     media: [{ url: "https://v3b.fal.media/files/a.png" }],
+  });
+});
+
+describe.skipIf(!enabled)("Talking video history", () => {
+  it("reads older project videos across a timestamp tie without repeating a page", async () => {
+    const createdAt = new Date("2026-10-01T12:00:00.000Z");
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Talking video history" },
+    });
+    try {
+      const video = {
+        projectId: project.id,
+        workspaceId,
+        requestedByUserId: userId,
+        kind: "TALKING_VIDEO" as const,
+        model: "talking-video",
+        status: "SUCCEEDED" as const,
+        prompt: "Video",
+        settings: {},
+        createdAt,
+      };
+      const ids = Array.from({ length: 31 }, () => randomUUID())
+        .sort()
+        .reverse();
+      await prisma.projectImageJob.createMany({
+        data: [
+          ...ids.map((id) => ({ ...video, id, idempotencyKey: id })),
+          { ...video, kind: "GENERATE", idempotencyKey: randomUUID() },
+          { ...video, projectId, idempotencyKey: randomUUID() },
+        ],
+      });
+      const app = new OpenAPIHono<EnvVariables>();
+      app.use("*", async (c, next) => {
+        c.set("requestId", "talking-video-history");
+        c.set("authContext", {
+          actor: "user",
+          authenticationMethod: "session",
+          userId,
+          organizationId: null,
+          role: "user",
+        });
+        c.set("workspaceContext", {
+          userId,
+          workspaceId,
+          organizationId: null,
+        });
+        await next();
+      });
+      mountTalkingVideos(app);
+      const path = `/${project.id}/image-studio/talking-videos`;
+      const first = await app.request(path);
+      expect(first.status).toBe(200);
+      const { data } = (await first.json()) as {
+        data: { jobs: { id: string }[]; hasMore: boolean };
+      };
+      expect(data.jobs).toHaveLength(30);
+      const params = new URLSearchParams({
+        before: createdAt.toISOString(),
+        beforeId: ids[29]!,
+      });
+      const second = await app.request(`${path}?${params}`);
+      expect(second.status).toBe(200);
+      expect(await second.json()).toMatchObject({
+        data: { jobs: [{ id: ids[30] }], hasMore: false },
+      });
+      expect(data.jobs.map((job) => job.id)).toEqual(ids.slice(0, 30));
+      expect(data.hasMore).toBe(true);
+      expect((await app.request(`${path}?beforeId=${ids[29]}`)).status).toBe(
+        400,
+      );
+      await prisma.projectImageJob.delete({ where: { id: ids[30]! } });
+      const fullLastPage = await app.request(path);
+      expect(await fullLastPage.json()).toMatchObject({
+        data: { hasMore: false },
+      });
+    } finally {
+      await prisma.project.delete({ where: { id: project.id } });
+    }
   });
 });
 

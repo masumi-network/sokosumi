@@ -37,6 +37,9 @@ model DataRoom {
   title              String?
   /// The note on the room's Welcome page; no note when null.
   welcomeNote        String?
+  /// The company's details (legal name, registration, representatives…) on
+  /// the room's Company page; no page when null. Shape: Core's DataRoomCompany.
+  company            Json?
   /// A Drive file id of an image in the room's Drive, shown beside the title.
   logoFileId         String?   @db.Uuid
   /// Anyone whose address is at one of these domains may let themselves in.
@@ -177,6 +180,9 @@ model DataRoomQuestion {
   answer           String?
   answeredByUserId String?
   answeredAt       DateTime?
+  /// When the owner showed the answer to everyone in the room who may open
+  /// the document, without who asked. Null keeps it between asker and owner.
+  sharedAt         DateTime?
 
   @@index([roomId, createdAt])
   @@map("data_room_question")

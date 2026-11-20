@@ -99,6 +99,9 @@ describe("newsletter subscribers page", () => {
         {await SubscribersPage(PROPS)}
       </NextIntlClientProvider>,
     );
+    expect(
+      screen.getByRole("searchbox", { name: messages.App.PageSearch.find }),
+    ).toBeInTheDocument();
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Select project" }),

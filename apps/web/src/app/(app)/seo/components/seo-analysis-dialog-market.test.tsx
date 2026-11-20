@@ -5,6 +5,7 @@ import type {
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -143,8 +144,6 @@ describe("SEO check defaults", () => {
     expect(summary).toHaveTextContent(
       "Full audit · All pages · Germany · German · Akku Zustand",
     );
-    // A one-page full audit shows the 50-credit ceiling Core checks before it starts.
-    expect(within(dialog).getByText("750 credits")).toBeVisible();
     // No field asks for a choice until the reader wants one.
     expect(
       within(dialog).getByRole("button", { name: "Change options" }),
@@ -202,6 +201,144 @@ describe("SEO check defaults", () => {
   });
 });
 
+describe("Search Console audit launch", () => {
+  it.each([false, true])(
+    "requires explicit limited consent after Core refuses the launch (monitor %s)",
+    async (monitor) => {
+      mutate.mockResolvedValueOnce({
+        ok: false,
+        error: {
+          kind: "seo_gsc_not_connected",
+          status: 409,
+          message: "private account diagnostic",
+        },
+      });
+      const user = userEvent.setup();
+      const dialog = showDialog(workspace(), monitor);
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: monitor
+            ? messages.App.Seo.monitor.create
+            : messages.App.Seo.analysis.submit,
+        }),
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Connect Search Console",
+      );
+      expect(
+        screen.getByRole("dialog", { name: "Search Console coverage" }),
+      ).toHaveAccessibleDescription(
+        monitor
+          ? /At least 750 credits per successful run/
+          : /Approximately 750 credits/,
+      );
+      expect(screen.queryByText(/private account diagnostic/)).toBeNull();
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
+      expect(mutate).toHaveBeenCalledTimes(1);
+      await user.dblClick(
+        screen.getByRole("button", {
+          name: monitor ? "Schedule limited audits" : "Start limited audit",
+        }),
+      );
+      await waitFor(() => expect(mutate).toHaveBeenCalledTimes(2));
+      const [initial, limited] = mutate.mock.calls.map(
+        ([{ command }]) => command.body,
+      );
+      const first = monitor ? initial.analysis : initial;
+      const next = monitor ? limited.analysis : limited;
+      expect(first.allowLimitedAudit).toBeUndefined();
+      expect(next).toMatchObject({
+        idempotencyKey: first.idempotencyKey,
+        allowLimitedAudit: true,
+      });
+      if (monitor) expect(limited.operationId).toBe(initial.operationId);
+    },
+  );
+});
+
+describe("uncertain audit launches", () => {
+  it("resolves the original request without authorizing an edited audit", async () => {
+    let finish!: () => void;
+    mutate.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      throw new Error("Response lost");
+    });
+    mutate.mockResolvedValueOnce({
+      ok: false,
+      error: { kind: "seo_gsc_property", status: 409 },
+    });
+    const user = userEvent.setup();
+    const dialog = showDialog(workspace());
+    const start = within(dialog).getByRole("button", { name: "Start check" });
+    await user.click(start);
+    await act(async () => finish());
+    await openCheckOptions(user);
+    await selectCountry(user, "US");
+    await user.click(start);
+    expect(mutate).toHaveBeenCalledTimes(1);
+    const retry = toastError.mock.lastCall?.[1]?.action;
+    expect(retry?.label).toBe(messages.App.Seo.analysis.retryPrevious);
+    await act(async () => retry.onClick());
+    expect(mutate).toHaveBeenCalledTimes(2);
+    expect(mutate.mock.calls[1][0]).toEqual(mutate.mock.calls[0][0]);
+    expect(
+      screen.queryByRole("button", { name: "Start limited audit" }),
+    ).toBeNull();
+    expect(toastError).toHaveBeenCalledWith(
+      messages.App.Seo.analysis.coverage.property,
+    );
+    await act(async () => retry.onClick());
+    expect(mutate).toHaveBeenCalledTimes(2);
+    await user.click(start);
+    expect(mutate.mock.calls[2][0].command.body.countryCode).toBe("US");
+    expect(
+      mutate.mock.calls[2][0].command.body.allowLimitedAudit,
+    ).toBeUndefined();
+  });
+
+  it.each([false, true])(
+    "replays the exact limited request after an uncertain acknowledgement (monitor %s)",
+    async (monitor) => {
+      mutate.mockResolvedValueOnce({
+        ok: false,
+        error: { kind: "seo_gsc_not_connected", status: 409 },
+      });
+      let finish!: () => void;
+      mutate.mockImplementationOnce(async () => {
+        await new Promise<void>((resolve) => {
+          finish = resolve;
+        });
+        if (!monitor) throw new Error("Response lost after commit");
+        return {
+          ok: false,
+          error: { code: "INTERNAL_SERVER_ERROR", status: 503 },
+        };
+      });
+      const user = userEvent.setup();
+      const dialog = showDialog(workspace(), monitor);
+      const start = within(dialog).getByRole("button", {
+        name: monitor
+          ? messages.App.Seo.monitor.create
+          : messages.App.Seo.analysis.submit,
+      });
+      await user.click(start);
+      await user.click(
+        await screen.findByRole("button", {
+          name: monitor ? "Schedule limited audits" : "Start limited audit",
+        }),
+      );
+      expect(mutate).toHaveBeenCalledTimes(2);
+      finish();
+      await waitFor(() => expect(start).not.toHaveAttribute("aria-busy"));
+      await user.click(start);
+      await waitFor(() => expect(mutate).toHaveBeenCalledTimes(3));
+      expect(mutate.mock.calls[2][0]).toEqual(mutate.mock.calls[1][0]);
+    },
+  );
+});
+
 describe("SEO check credits", () => {
   it("says the balance is too low when Core refuses the check for credits", async () => {
     mutate.mockResolvedValueOnce({
@@ -221,6 +358,56 @@ describe("SEO check credits", () => {
         messages.App.Seo.notEnoughCredits,
       ),
     );
+  });
+});
+
+describe("full-audit price terms", () => {
+  const price = {
+    kind: "cost_plus",
+    version: 1,
+    minimumCredits: 750,
+    markupPercent: 50,
+  };
+  it("shows one price estimate and submits the full-audit price terms", async () => {
+    const user = userEvent.setup(),
+      dialog = showDialog(workspace());
+    expect(within(dialog).getByText("Approximately 750 credits")).toBeVisible();
+    expect(dialog).not.toHaveTextContent(
+      /api costs|there is no maximum|for example, usd/i,
+    );
+    // A full audit has a minimum and no maximum: the line never says "up to".
+    expect(within(dialog).queryByText(/Up to/)).toBeNull();
+    expect(within(dialog).queryByRole("spinbutton")).toBeNull();
+    expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const body = mutate.mock.calls[0][0].command.body;
+    expect(body.fullAuditPrice).toEqual(price);
+    expect(body).not.toHaveProperty("fullAuditCredits");
+  });
+
+  it("approves the same terms per run for a schedule of full audits", async () => {
+    const user = userEvent.setup(),
+      dialog = showDialog(workspace(), true);
+    // The terms show with the fields closed: the one submit is the consent, so no extra checkbox.
+    expect(dialog).toHaveTextContent(
+      "After each successful run, you pay its model and data API costs plus 50%. This includes Vercel AI Gateway. The minimum per run is 750 credits. There is no maximum.",
+    );
+    expect(
+      within(dialog).getByText("At least 750 credits per successful run"),
+    ).toBeVisible();
+    expect(within(dialog).queryByText(/Up to/)).toBeNull();
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: messages.App.Seo.monitor.create,
+      }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const body = mutate.mock.calls[0][0].command.body;
+    expect(body.analysis.fullAuditPrice).toEqual(price);
+    expect(body.analysis).not.toHaveProperty("fullAuditCredits");
   });
 });
 
@@ -244,6 +431,8 @@ describe("SEO monitor credits", () => {
     // The price once, per run, by the button: no label and no fine print.
     expect(within(dialog).getByText("Up to 15 credits per run")).toBeVisible();
     expect(within(dialog).queryByText(/costs nothing/)).toBeNull();
+    // A focused check keeps its own ceiling and shows no full-audit terms.
+    expect(within(dialog).queryByText(/Vercel AI Gateway/)).toBeNull();
   });
 });
 

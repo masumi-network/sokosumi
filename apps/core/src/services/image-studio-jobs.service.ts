@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
-
 import {
-  type Prisma,
+  Prisma,
   ProjectImageJobKind,
   ProjectImageJobStatus,
   ProjectImageMediaType,
@@ -12,12 +11,11 @@ import {
   convertCentsToCredits,
   convertCreditsToCents,
   readImageDimensionsFromBytes,
+  talkingVideoQuotedSeconds,
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
-
 import { HTTPException } from "hono/http-exception";
-
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import { DriveFileDownloadError } from "@/helpers/drive-file-download";
@@ -26,6 +24,7 @@ import {
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import {
   createTaskEventTransaction,
   isInsufficientBalanceError,
@@ -33,6 +32,12 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
+import {
+  emitCoreWarning,
+  recordCoreError,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
   type ProjectAccess,
@@ -53,11 +58,13 @@ import {
   cancelQueued,
   downloadMedia,
   falModelForKind,
+  falModelForLettering,
   fetchQueueResult,
   fetchQueueStatus,
   submitToQueue,
   uploadReference,
 } from "@/lib/image-studio/fal-client";
+import { renderHeadlineMask } from "@/lib/image-studio/headline-mask";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
   composeStudioProductCutout,
@@ -66,10 +73,46 @@ import {
 import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import {
   applyStudioBrandPrompt,
+  buildStudioLetteringPrompt,
   isApprovedStudioHeadline,
   loadStudioBrand,
+  readStudioBrandKit,
   requireApprovedStudioHeadline,
+  STUDIO_PROMPT_ASSEMBLY_VERSION,
+  studioBrandPromptBlock,
 } from "@/lib/image-studio/studio-brand";
+import {
+  buildTalkingVideoBrollInput,
+  buildTalkingVideoCaptionInput,
+  buildTalkingVideoCutoutInput,
+  buildTalkingVideoInput,
+  buildTalkingVideoMusicInput,
+  creditsPerTalkingVideo,
+  findTalkingVideoPresenter,
+  frameTalkingVideoPresenter,
+  posesAsCustomerTestimonial,
+  readTalkingVideoSettings,
+  TALKING_VIDEO_ASPECT_RATIO,
+  TALKING_VIDEO_BROLL_ENDPOINT,
+  TALKING_VIDEO_CAPTION_ENDPOINT,
+  TALKING_VIDEO_CUTOUT_ENDPOINT,
+  TALKING_VIDEO_MUSIC_ENDPOINT,
+  TALKING_VIDEO_RESOLUTION,
+  TALKING_VIDEO_TESTIMONIAL_MESSAGE,
+  type TalkingVideoModel,
+  type TalkingVideoSettings,
+  talkingVideoModel,
+  talkingVideoModelForEndpoint,
+} from "@/lib/image-studio/talking-video";
+import {
+  captureTalkingVideoSitePage,
+  loadTalkingVideoEndCard,
+} from "@/lib/image-studio/talking-video-brand";
+import {
+  editTalkingVideo,
+  hookTakesBroll,
+} from "@/lib/image-studio/talking-video-edit";
+import { timeSpokenWords } from "@/lib/image-studio/talking-video-words";
 import {
   findVideoModelForEndpoint,
   videoModel,
@@ -82,9 +125,18 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { speakVoiceover } from "@/lib/soko-bot/voiceover";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
+import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
+import { recordStudioAdEvent } from "@/services/image-studio-events.service";
+import { readReferenceImage } from "@/services/reference-library.service";
+import {
+  writeTalkingVideoBrollPrompt,
+  writeTalkingVideoHookLine,
+} from "@/services/talking-video-scripts.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -133,6 +185,12 @@ export const DEFAULT_SETTINGS: ImageJobSettings = {
 
 export interface CreateImageJobInput {
   modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -140,9 +198,13 @@ export interface CreateImageJobInput {
   prompt: string;
   product?: StudioProductIdentity;
   batchId?: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   /** Continue the same campaign ad when the request edits one source image. */
   reuseParentBatchSlot?: boolean;
   exportHeadline?: string;
+  lettering?: "overlay" | "ideogram";
   useProductCutout?: boolean;
   /** Refine a source backdrop and reapply its original product photo. */
   reuseParentCutout?: boolean;
@@ -156,6 +218,11 @@ export interface CreateImageJobInput {
   referenceFileIds?: string[];
   /** The REST caller, whose file access must be checked for new requests. */
   referenceFileActor?: FileActor;
+  /**
+   * Reference library images sent first, as the style to borrow. Core only:
+   * Cuso's media maker sets them, no route does.
+   */
+  referenceLibraryIds?: string[];
   /** Keep the source ad's product photo when an assistant edit can use it. */
   reuseParentPhotoIfAvailable?: boolean;
   /** Keep a source ad's currently approved headline on a visual refinement. */
@@ -206,6 +273,10 @@ interface ReserveImageJobInput
   organizationId: string | null;
   /** Credits (= cents) to debit for this one image. */
   chargedCredits: number;
+  letteringQuoteCents?: bigint;
+  letteringSettings?: ImageJobSettings;
+  letteringModel?: string;
+  presenterConsentAt?: Date;
 }
 
 /**
@@ -216,8 +287,7 @@ interface ReserveImageJobInput
  * all read the same count, all pass the limit, and each then buys an image — the
  * cap would bound a serial loop and not a burst. And a debit outside the insert
  * is a charge with no job to point at, or a job nobody paid for, depending on
- * which half failed. This is the same reasoning, and the same helper, that
- * `soko-bot-avatar.service.ts` uses for its generation cap.
+ * which half failed.
  */
 async function reserveJob(input: ReserveImageJobInput) {
   try {
@@ -277,9 +347,11 @@ async function requireBalanceForQuote(options: {
       requestedByUserId: options.userId,
       status: { in: ACTIVE_STATUSES },
     },
-    _sum: { chargedCents: true },
+    _sum: { chargedCents: true, letteringQuoteCents: true },
   });
-  const inFlight = committed._sum.chargedCents ?? 0n;
+  const inFlight =
+    (committed._sum.chargedCents ?? 0n) +
+    (committed._sum.letteringQuoteCents ?? 0n);
   const balance = await creditBucketRepository.getBalance(
     options.userId,
     options.organizationId,
@@ -393,7 +465,8 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     }
 
     let referenceFileIds = input.referenceFileIds ?? [];
-    const inheritsCutout = sameProduct && source?.job.useProductCutout;
+    const inheritsCutout =
+      input.reuseParentCutout && sameProduct && source?.job.useProductCutout;
     if (inheritsCutout) {
       if (
         !source?.backdropBlobPathname ||
@@ -443,19 +516,24 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     const inFlight = await tx.projectImageJob.count({
       where: { projectId: input.projectId, status: { in: ACTIVE_STATUSES } },
     });
-    if (inFlight >= LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT) {
+    const atOnce = input.forCmoMonth
+      ? LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT
+      : LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT;
+    if (inFlight >= atOnce) {
       throw tooManyRequests(
-        `This project already has ${LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT} images being generated. Wait for one to finish.`,
+        `This project already has ${atOnce} images being generated. Wait for one to finish.`,
         { kind: "image_studio_project_busy" },
       );
     }
 
-    const recent = await tx.projectImageJob.count({
-      where: {
-        requestedByUserId: input.userId,
-        createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
-      },
-    });
+    const recent = input.forCmoMonth
+      ? 0
+      : await tx.projectImageJob.count({
+          where: {
+            requestedByUserId: input.userId,
+            createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
+          },
+        });
     if (recent >= LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR) {
       throw tooManyRequests(
         `You can start at most ${LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR} image generations per hour.`,
@@ -471,13 +549,19 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       userId: input.userId,
       organizationId: input.organizationId,
       projectId: input.projectId,
-      chargedCents,
+      chargedCents: chargedCents + (input.letteringQuoteCents ?? 0n),
       tx,
     });
 
     // A unique violation here aborts this transaction. It is caught by the
     // caller, on a fresh connection, because the aborted one cannot answer
     // another query.
+    const productId = input.product?.id ?? source?.job.productId;
+    const productName = input.product?.name ?? source?.job.productName;
+    const useProductCutout = inheritsCutout || input.useProductCutout;
+    const productCutoutChecksum = inheritsCutout
+      ? source?.job.productCutoutChecksum
+      : undefined;
     const job = await tx.projectImageJob.create({
       data: {
         projectId: input.projectId,
@@ -487,18 +571,45 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         kind: input.kind,
         model: input.model,
         prompt: input.prompt,
-        productId: input.product?.id ?? source?.job.productId,
-        productName: input.product?.name ?? source?.job.productName,
-        batchId: input.batchId,
-        batchSlotId,
-        exportHeadline,
-        useProductCutout: inheritsCutout || input.useProductCutout,
-        productCutoutChecksum: inheritsCutout
-          ? source?.job.productCutoutChecksum
-          : undefined,
-        settings: { ...input.settings },
+        ...(productId !== undefined ? { productId } : {}),
+        ...(productName !== undefined ? { productName } : {}),
+        ...(input.batchId !== undefined ? { batchId: input.batchId } : {}),
+        ...(input.templateId !== undefined
+          ? { templateId: input.templateId }
+          : {}),
+        ...(input.creativeDirection !== undefined
+          ? { creativeDirection: input.creativeDirection }
+          : {}),
+        ...(input.variationIndex !== undefined
+          ? { variationIndex: input.variationIndex }
+          : {}),
+        ...(batchSlotId !== undefined ? { batchSlotId } : {}),
+        ...(exportHeadline !== undefined ? { exportHeadline } : {}),
+        lettering: input.lettering ?? (exportHeadline ? "ideogram" : "overlay"),
+        ...(input.letteringQuoteCents !== undefined
+          ? { letteringQuoteCents: input.letteringQuoteCents }
+          : {}),
+        ...(input.presenterConsentAt !== undefined
+          ? { presenterConsentAt: input.presenterConsentAt }
+          : {}),
+        ...(useProductCutout !== undefined ? { useProductCutout } : {}),
+        ...(productCutoutChecksum !== undefined
+          ? { productCutoutChecksum }
+          : {}),
+        settings: jsonInput({
+          ...input.settings,
+          ...(input.letteringSettings
+            ? {
+                letteringSettings: { ...input.letteringSettings },
+                ...(input.letteringModel !== undefined
+                  ? { letteringModel: input.letteringModel }
+                  : {}),
+              }
+            : {}),
+        }),
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
+        referenceLibraryIds: input.referenceLibraryIds ?? [],
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
@@ -580,12 +691,17 @@ function recoverableSelection() {
  * A settler that dies leaves the lease behind; the deadline is what lets the
  * next one through.
  */
-async function claimForSettlement(jobId: string): Promise<string | null> {
+async function claimForSettlement(
+  jobId: string,
+  /** Claim only while the job still waits on this provider request. */
+  falRequestId?: string,
+): Promise<string | null> {
   const owner = crypto.randomUUID();
   const deadline = new Date(Date.now() - SETTLE_LEASE_MS);
   const claimed = await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
+      ...(falRequestId !== undefined ? { falRequestId } : {}),
       status: { in: [...LIVE_STATUSES] },
       OR: [{ settleLeaseAt: null }, { settleLeaseAt: { lt: deadline } }],
     },
@@ -629,12 +745,15 @@ async function buildReferenceUrls(
     idempotencyKey: string;
     referenceAssetIds: string[];
     referenceFileIds: string[];
+    referenceLibraryIds?: string[];
     useProductCutout?: boolean;
   },
   organizationId: string | null,
 ): Promise<string[]> {
   const providerFileIds = job.useProductCutout ? [] : job.referenceFileIds;
-  const count = job.referenceAssetIds.length + providerFileIds.length;
+  const libraryIds = job.referenceLibraryIds ?? [];
+  const count =
+    libraryIds.length + job.referenceAssetIds.length + providerFileIds.length;
   if (count === 0) return [];
   if (count > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB) {
     throw unprocessableEntity(
@@ -664,6 +783,18 @@ async function buildReferenceUrls(
   }
 
   const urls: string[] = [];
+  // The style reference goes first: the prompt names it as the first image.
+  for (const id of libraryIds) {
+    const reference = await readReferenceImage(id);
+    if (!reference) throw notFound("A style reference was not found.");
+    urls.push(
+      await uploadReference({
+        bytes: reference.bytes,
+        contentType: reference.contentType,
+        fileName: `style-${id}.${reference.contentType.split("/")[1] ?? "jpg"}`,
+      }),
+    );
+  }
   // Order matters to the model, so follow the caller's order rather than the
   // order the database happened to return.
   for (const assetId of job.referenceAssetIds) {
@@ -695,18 +826,11 @@ async function buildReferenceUrls(
     );
   }
   for (const fileId of providerFileIds) {
-    // These durable prefixes identify automated requests even during recovery.
-    // A bot must never inherit the human requester's data-room access.
-    const kind =
-      job.idempotencyKey.startsWith("soko-bot:") ||
-      job.idempotencyKey.startsWith("cmo-media:")
-        ? "soko_bot"
-        : "interactive";
     urls.push(
       await uploadFileReference(job.workspaceId, fileId, {
         userId: job.requestedByUserId,
         organizationId,
-        kind,
+        kind: automatedRequestKind(job.idempotencyKey),
       }),
     );
   }
@@ -731,7 +855,7 @@ async function uploadFileReference(
   });
 }
 
-async function downloadStudioFileReference(
+export async function downloadStudioFileReference(
   workspaceId: string,
   fileId: string,
   actor: FileActor,
@@ -849,12 +973,29 @@ export async function createImageJob(input: CreateImageJobInput) {
       "Choose one transparent PNG product photo to create a new ad with the original product.",
     );
   }
+  const lettering =
+    input.lettering ?? (input.exportHeadline ? "ideogram" : "overlay");
+  if (lettering === "ideogram" && !input.exportHeadline) {
+    throw unprocessableEntity(
+      "Choose an approved headline for Ideogram lettering.",
+    );
+  }
+  const startsLettering =
+    lettering === "ideogram" && input.modelId !== "ideogram-v3";
+  const requestedModelId = startsLettering ? "gemini-pro" : input.modelId;
+  // A library style is a reference too: without it the job takes the model's
+  // generate endpoint, which refuses the reference it is then sent.
   const references =
     input.referenceAssetIds.length +
+    (input.referenceLibraryIds?.length ?? 0) +
     (input.useProductCutout ? 0 : (input.referenceFileIds?.length ?? 0));
   let settings: ImageJobSettings;
   try {
-    settings = resolveImageSettings(input.modelId, input.settings, references);
+    settings = resolveImageSettings(
+      requestedModelId,
+      input.settings,
+      references,
+    );
   } catch (error) {
     throw unprocessableEntity(
       error instanceof Error ? error.message : "Invalid image settings",
@@ -865,9 +1006,26 @@ export async function createImageJob(input: CreateImageJobInput) {
   // and therefore the same number the composer's pre-flight estimate showed.
   let chargedCredits: number;
   let maxReferences: number;
+  let letteringSettings: ImageJobSettings | undefined;
+  let letteringModel: string | undefined;
+  let letteringQuoteCents: bigint | undefined;
   try {
-    const model = imageModel(input.modelId);
+    const model = imageModel(requestedModelId);
     chargedCredits = creditsPerImage(model, settings);
+    if (startsLettering) {
+      letteringSettings = resolveImageSettings("ideogram-v3", settings, 1);
+      letteringQuoteCents = convertCreditsToCents(
+        creditsPerImage(imageModel("ideogram-v3"), letteringSettings),
+      );
+      letteringModel = falModelForLettering("ideogram-v3");
+    } else if (
+      lettering === "ideogram" &&
+      (references !== 1 || input.useProductCutout)
+    ) {
+      throw new Error(
+        "Ideogram lettering needs one delivered image reference.",
+      );
+    }
     maxReferences = Math.min(
       model.maxReferences,
       LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB,
@@ -881,7 +1039,7 @@ export async function createImageJob(input: CreateImageJobInput) {
 
   const kind =
     references > 0 ? ProjectImageJobKind.EDIT : ProjectImageJobKind.GENERATE;
-  const { modelId, ...request } = input;
+  const { modelId: _modelId, ...request } = input;
   const refinesParent =
     input.parentAssetId !== null &&
     input.referenceAssetIds.includes(input.parentAssetId);
@@ -890,6 +1048,7 @@ export async function createImageJob(input: CreateImageJobInput) {
   return await reserveAndSend({
     ...request,
     reuseParentPhotoIfAvailable:
+      (lettering !== "ideogram" || startsLettering) &&
       input.reuseParentPhotoIfAvailable &&
       !input.product &&
       !input.referenceFileIds?.length &&
@@ -900,12 +1059,17 @@ export async function createImageJob(input: CreateImageJobInput) {
     reuseParentBatchSlot:
       input.reuseParentBatchSlot && !input.batchId && refinesSingleSource,
     reuseParentCutout:
+      (lettering !== "ideogram" || startsLettering) &&
       input.reuseParentCutout &&
       input.referenceFileActor?.kind === "interactive" &&
       !input.referenceFileIds?.length &&
       refinesSingleSource,
     kind,
-    model: falModelForKind(kind, modelId),
+    model: falModelForKind(kind, requestedModelId),
+    lettering,
+    letteringSettings,
+    letteringModel,
+    letteringQuoteCents,
     settings,
     organizationId: access.organizationId,
     chargedCredits,
@@ -914,6 +1078,12 @@ export async function createImageJob(input: CreateImageJobInput) {
 
 export interface CreateVideoJobInput {
   modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -988,6 +1158,7 @@ export async function createVideoJob(input: CreateVideoJobInput) {
     prompt: input.prompt,
     product,
     idempotencyKey: input.idempotencyKey,
+    forCmoMonth: input.forCmoMonth,
     kind: hasSource
       ? ProjectImageJobKind.IMAGE_TO_VIDEO
       : ProjectImageJobKind.TEXT_TO_VIDEO,
@@ -1000,11 +1171,425 @@ export async function createVideoJob(input: CreateVideoJobInput) {
   });
 }
 
+export interface CreateTalkingVideoJobInput {
+  modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  /** The words the presenter speaks. */
+  script: string;
+  voice: string;
+  /** ISO 639-1 language of the script. */
+  languageCode: string;
+  /** A stock presenter, or the requester's own photo in Files. */
+  presenter:
+    | { kind: "stock"; id: string }
+    | { kind: "file"; fileId: string; actor: FileActor; consentAt: Date };
+  /** Show the Project's website; omitted, it is shown when there is one. */
+  siteShots?: boolean;
+  /** Open on a generated B-roll clip. */
+  broll?: boolean;
+  /** Lay generated music under the voice. */
+  music?: boolean;
+  idempotencyKey: string;
+}
+
+/**
+ * Whether a talking video shows the Project's website: unless it was turned
+ * off, whenever the Project has one. Decided before the quote, which it is
+ * part of.
+ */
+export async function talkingVideoShowsSite(
+  projectId: string,
+  requested?: boolean,
+): Promise<boolean> {
+  if (requested === false) return false;
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { websiteUrl: true },
+  });
+  return Boolean(project?.websiteUrl);
+}
+
+/**
+ * Create (or replay) a talking video job and, when this caller owns the lease,
+ * send it. The same row, lease, quote and settlement as every studio job.
+ *
+ * The quote comes from the script, because the video is as long as the voice
+ * and the voice is not made until the job is sent.
+ */
+export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
+  const access = await requireProjectAccess({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+  });
+  requireStudioBlobToken();
+
+  let model: TalkingVideoModel;
+  try {
+    model = talkingVideoModel(input.modelId);
+  } catch (error) {
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "Invalid talking video model",
+      { kind: "invalid_video_settings" },
+    );
+  }
+  if (posesAsCustomerTestimonial(input.script))
+    throw unprocessableEntity(TALKING_VIDEO_TESTIMONIAL_MESSAGE, {
+      kind: "talking_video_testimonial",
+    });
+  if (
+    input.presenter.kind === "stock" &&
+    !findTalkingVideoPresenter(input.presenter.id)
+  )
+    throw unprocessableEntity("Choose a presenter from the list.", {
+      kind: "invalid_video_settings",
+    });
+
+  const settings: TalkingVideoSettings = {
+    aspectRatio: TALKING_VIDEO_ASPECT_RATIO,
+    durationSeconds: talkingVideoQuotedSeconds(input.script),
+    resolution: TALKING_VIDEO_RESOLUTION,
+    voice: input.voice,
+    presenterId: input.presenter.kind === "stock" ? input.presenter.id : null,
+    languageCode: input.languageCode,
+    words: [],
+    hookLine: null,
+    siteShots: await talkingVideoShowsSite(input.projectId, input.siteShots),
+    sitePagePathname: null,
+    broll: input.broll === true,
+    brollRequestId: null,
+    music: input.music === true,
+    musicRequestId: null,
+  };
+  const ownPhoto = input.presenter.kind === "file" ? input.presenter : null;
+  return await reserveAndSend({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    sessionId: null,
+    prompt: input.script,
+    idempotencyKey: input.idempotencyKey,
+    forCmoMonth: input.forCmoMonth,
+    kind: ProjectImageJobKind.TALKING_VIDEO,
+    model: model.endpoint,
+    settings,
+    referenceAssetIds: [],
+    referenceFileIds: ownPhoto ? [ownPhoto.fileId] : [],
+    referenceFileActor: ownPhoto?.actor,
+    presenterConsentAt: ownPhoto?.consentAt,
+    parentAssetId: null,
+    organizationId: access.organizationId,
+    chargedCredits: creditsPerTalkingVideo(model, input.script, settings),
+  });
+}
+
 function isVideoKind(kind: ProjectImageJobKind): boolean {
   return (
     kind === ProjectImageJobKind.TEXT_TO_VIDEO ||
-    kind === ProjectImageJobKind.IMAGE_TO_VIDEO
+    kind === ProjectImageJobKind.IMAGE_TO_VIDEO ||
+    kind === ProjectImageJobKind.TALKING_VIDEO
   );
+}
+
+/**
+ * A talking video's second provider request, made once its presenter clip is
+ * back: the presenter's cut-out when the video shows the brand's site, or
+ * captions when the voice's words could not be timed for Core's own edit.
+ * Null when the clip needs neither.
+ */
+function talkingVideoSecondStep(
+  settings: TalkingVideoSettings,
+  videoUrl: string,
+): { endpoint: string; input: Record<string, unknown> } | null {
+  if (settings.words.length === 0)
+    return {
+      endpoint: TALKING_VIDEO_CAPTION_ENDPOINT,
+      input: buildTalkingVideoCaptionInput({
+        videoUrl,
+        languageCode: settings.languageCode,
+      }),
+    };
+  if (settings.sitePagePathname)
+    return {
+      endpoint: TALKING_VIDEO_CUTOUT_ENDPOINT,
+      input: buildTalkingVideoCutoutInput({ videoUrl }),
+    };
+  return null;
+}
+
+/**
+ * The endpoint a job's provider request was sent to. A talking video's second
+ * request is on another endpoint than the model the row names.
+ */
+function queueModel(job: {
+  model: string;
+  pendingMediaUrl: string | null;
+  settings: Prisma.JsonValue;
+}): string {
+  if (!job.pendingMediaUrl) return job.model;
+  return (
+    talkingVideoSecondStep(
+      readTalkingVideoSettings(job.settings),
+      job.pendingMediaUrl,
+    )?.endpoint ?? job.model
+  );
+}
+
+/**
+ * The voice is a constant 128 kbps mp3, so its size gives its length when the
+ * voice service sends no word timings.
+ */
+const MP3_BYTES_PER_SECOND = 16_000;
+
+/** How much longer than its quote a voice may run before the job is refused. */
+const VOICE_OVERRUN_LIMIT = 2;
+
+/**
+ * Speak a talking video's script and name the presenter photo, as the input
+ * its model takes. The voice is kept in the studio's store and on the row.
+ */
+async function prepareTalkingVideo(
+  job: {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    idempotencyKey: string;
+    prompt: string;
+    model: string;
+    settings: Prisma.JsonValue;
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+  step: (reason: ImageJobFailureReason) => void,
+): Promise<Record<string, unknown>> {
+  const settings = readTalkingVideoSettings(job.settings);
+  // Started first: the page loads while the voice is made.
+  const sitePage = settings.siteShots
+    ? storeTalkingVideoSitePage(job)
+    : Promise.resolve(null);
+  step("reference_not_sendable");
+  const stock = settings.presenterId
+    ? findTalkingVideoPresenter(settings.presenterId)
+    : null;
+  let imageUrl = stock?.imageUrl;
+  if (!imageUrl) {
+    const fileId = job.referenceFileIds[0];
+    if (!fileId) throw new Error("The talking video has no presenter photo.");
+    const { bytes } = await downloadStudioFileReference(
+      job.workspaceId,
+      fileId,
+      {
+        userId: job.requestedByUserId,
+        organizationId,
+        kind: automatedRequestKind(job.idempotencyKey),
+      },
+    );
+    imageUrl = await uploadReference({
+      bytes: await frameTalkingVideoPresenter(bytes),
+      contentType: "image/jpeg",
+      fileName: `${fileId}.jpg`,
+    });
+  }
+
+  step("voice_unavailable");
+  const voice = await speakVoiceover({
+    text: job.prompt,
+    voice: settings.voice,
+    languageCode: settings.languageCode,
+  });
+  const quotedSeconds = settings.durationSeconds;
+  const spokenSeconds = Math.ceil(
+    voice.durationSeconds ?? voice.bytes.byteLength / MP3_BYTES_PER_SECOND,
+  );
+  if (spokenSeconds > quotedSeconds * VOICE_OVERRUN_LIMIT)
+    throw new Error("The voice ran far longer than the script was quoted at.");
+  const stored = await put(
+    `projects/${job.projectId}/image-studio/${job.id}-voice.mp3`,
+    voice.bytes as unknown as Buffer,
+    {
+      access: "private",
+      token: requireStudioBlobToken(),
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: "audio/mpeg",
+      abortSignal: AbortSignal.timeout(60_000),
+    },
+  );
+  const audioUrl = await uploadReference({
+    bytes: voice.bytes,
+    contentType: "audio/mpeg",
+    fileName: `${job.id}.mp3`,
+  });
+  const [words, hookLine] = await Promise.all([
+    timeSpokenWords({
+      audioUrl,
+      script: job.prompt,
+      languageCode: settings.languageCode,
+    }),
+    writeTalkingVideoHookLine({
+      script: job.prompt,
+      languageCode: settings.languageCode,
+    }),
+  ]);
+  // The paid extras last, once nothing before them can fail.
+  const [sitePagePathname, brollRequestId, musicRequestId] = await Promise.all([
+    sitePage,
+    settings.broll && hookTakesBroll(words, spokenSeconds)
+      ? writeTalkingVideoBrollPrompt(job.prompt).then((prompt) =>
+          prompt
+            ? startTalkingVideoExtra(
+                TALKING_VIDEO_BROLL_ENDPOINT,
+                buildTalkingVideoBrollInput({ prompt }),
+              )
+            : null,
+        )
+      : null,
+    settings.music
+      ? startTalkingVideoExtra(
+          TALKING_VIDEO_MUSIC_ENDPOINT,
+          buildTalkingVideoMusicInput(),
+        )
+      : null,
+  ]);
+  const made: TalkingVideoSettings = {
+    ...settings,
+    durationSeconds: spokenSeconds,
+    words,
+    hookLine,
+    siteShots: sitePagePathname !== null,
+    sitePagePathname,
+    broll: brollRequestId !== null,
+    brollRequestId,
+    music: musicRequestId !== null,
+    musicRequestId,
+  };
+  await prisma.projectImageJob.update({
+    where: { id: job.id },
+    data: {
+      voiceBlobPathname: stored.pathname,
+      settings: jsonInput(made),
+      // What could not be started is not charged for.
+      ...((settings.siteShots && !made.siteShots) ||
+      (settings.broll && !made.broll) ||
+      (settings.music && !made.music)
+        ? {
+            chargedCents: convertCreditsToCents(
+              creditsPerTalkingVideo(
+                talkingVideoModelForEndpoint(job.model),
+                job.prompt,
+                made,
+              ),
+            ),
+          }
+        : {}),
+    },
+    select: { id: true },
+  });
+  step("request_not_supported");
+  return buildTalkingVideoInput({ imageUrl, audioUrl });
+}
+
+/**
+ * Start one of a talking video's extras (its B-roll clip, its music) beside
+ * the presenter. No webhook: the edit reads the result when it needs it. Null
+ * when fal did not take the request, and the video is made without it.
+ */
+async function startTalkingVideoExtra(
+  model: string,
+  input: Record<string, unknown>,
+): Promise<string | null> {
+  const outcome = await submitToQueue({ model, input, webhookUrl: null });
+  return outcome.kind === "queued" ? outcome.requestId : null;
+}
+
+/** How long the edit waits for an extra that is still being made. */
+const EXTRA_WAIT_MS = 30_000;
+const EXTRA_POLL_MS = 5_000;
+
+/**
+ * An extra's file, once fal has made it. Null when it failed or is not ready
+ * within the wait: the video is edited without it.
+ */
+async function readTalkingVideoExtra(
+  model: string,
+  requestId: string | null,
+  fallbackContentType: string,
+): Promise<Uint8Array | null> {
+  if (!requestId) return null;
+  try {
+    const deadline = Date.now() + EXTRA_WAIT_MS;
+    for (;;) {
+      const result = await fetchQueueResult({ model, requestId });
+      if (result.kind === "media") {
+        const { bytes } = await downloadMedia(
+          result.media[0]!.url,
+          LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES,
+          fallbackContentType,
+        );
+        return bytes;
+      }
+      if (result.kind === "error" || Date.now() >= deadline) return null;
+      await new Promise((resolve) => setTimeout(resolve, EXTRA_POLL_MS));
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Screenshot the Project's website for a talking video and keep it in the
+ * studio's store. Null when the Project has no website or it did not load.
+ */
+async function storeTalkingVideoSitePage(job: {
+  id: string;
+  projectId: string;
+}): Promise<string | null> {
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: job.projectId },
+      select: { websiteUrl: true },
+    });
+    if (!project?.websiteUrl) return null;
+    const page = await captureTalkingVideoSitePage(project.websiteUrl);
+    if (!page) return null;
+    const stored = await put(
+      `projects/${job.projectId}/image-studio/${job.id}-site.jpg`,
+      page as unknown as Buffer,
+      {
+        access: "private",
+        token: requireStudioBlobToken(),
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: "image/jpeg",
+        abortSignal: AbortSignal.timeout(60_000),
+      },
+    );
+    return stored.pathname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * These durable prefixes identify automated requests even during recovery.
+ * A bot must never inherit the human requester's data-room access.
+ */
+function automatedRequestKind(
+  idempotencyKey: string,
+): "soko_bot" | "interactive" {
+  return idempotencyKey.startsWith("soko-bot:") ||
+    idempotencyKey.startsWith("cmo-media:")
+    ? "soko_bot"
+    : "interactive";
 }
 
 function readVideoSettings(value: Prisma.JsonValue): VideoSettings {
@@ -1024,6 +1609,16 @@ function readVideoSettings(value: Prisma.JsonValue): VideoSettings {
 async function reserveAndSend(input: ReserveImageJobInput) {
   const { job, created } = await reserveJob(input);
   if (!created) return job;
+
+  if (job.parentAssetId) {
+    await recordStudioAdEvent({
+      workspaceId: input.workspaceId,
+      assetId: job.parentAssetId,
+      userId: input.userId,
+      type: "refined",
+      meta: { jobId: job.id },
+    });
+  }
 
   if (!(await claimForSubmission(job.id))) {
     // Someone else is already sending this row. Never a second call.
@@ -1053,7 +1648,26 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
   // and the row was left SUBMITTING with the charge taken. The sweeper then
   // called that SUBMISSION_UNCERTAIN, which is deliberately never refunded
   // automatically — so the person paid for a request that was never sent.
+  if (job.kind === ProjectImageJobKind.TALKING_VIDEO) {
+    // No assembled prompt and no snapshot: the script is spoken as written.
+    let reason: ImageJobFailureReason = "reference_not_sendable";
+    let request: Record<string, unknown>;
+    try {
+      // The voice is bought here, before the video: a few cents the studio
+      // carries when a later step fails, since only a delivery is charged.
+      request = await prepareTalkingVideo(job, organizationId, (step) => {
+        reason = step;
+      });
+    } catch (error) {
+      return await failBeforeSend(job.id, reason, error);
+    }
+    return await submitPreparedJob(job, request);
+  }
+
+  const letteringEdit =
+    job.lettering === "ideogram" && job.letteringQuoteCents == null;
   let input: Record<string, unknown>;
+  let snapshot: Prisma.ProjectImagePromptSnapshotUncheckedCreateInput;
   // Which half failed, so the person is told the right thing. Set before each
   // step rather than guessed from the message afterwards.
   let preflightReason: ImageJobFailureReason = job.useProductCutout
@@ -1083,16 +1697,25 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     const backdropInstruction = imageUrls.length
       ? "Edit the supplied advertising backdrop according to the brief."
       : "Create an empty advertising backdrop according to the brief.";
-    const prompt = applyStudioBrandPrompt(
-      job.useProductCutout
-        ? backdropInstruction +
-            " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
-            job.prompt
-        : job.prompt,
+    const promptBrand =
       job.exportHeadline || job.useProductCutout
         ? { ...brand, approvedLines: undefined }
-        : brand,
-    );
+        : brand;
+    const prompt =
+      letteringEdit && job.exportHeadline
+        ? buildStudioLetteringPrompt(
+            job.exportHeadline,
+            await readStudioBrandKit(job.projectId),
+          )
+        : applyStudioBrandPrompt(
+            job.useProductCutout
+              ? backdropInstruction +
+                  " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
+                  job.prompt
+              : job.prompt,
+            promptBrand,
+          );
+    let finalPrompt = prompt;
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
       if (!model) throw new Error("Unsupported video model endpoint.");
@@ -1107,40 +1730,131 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       const productPhotoGuidance = photoCount
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";
-      const headlineGuidance = job.exportHeadline
-        ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
-        : "";
+      const headlineGuidance =
+        job.exportHeadline && !letteringEdit
+          ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
+          : "";
+      let maskUrl: string | undefined;
+      if (letteringEdit) {
+        preflightReason = "reference_not_sendable";
+        if (!imageUrls[0]) {
+          throw new Error(
+            "Ideogram lettering needs the delivered backdrop as a reference.",
+          );
+        }
+        const backdrop = await downloadMedia(
+          imageUrls[0],
+          LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES,
+        );
+        const mask = await renderHeadlineMask(backdrop.bytes);
+        maskUrl = await uploadReference({
+          bytes: mask.bytes,
+          contentType: "image/png",
+          fileName: "headline-mask.png",
+        });
+        preflightReason = "request_not_supported";
+      }
+      finalPrompt += productPhotoGuidance + headlineGuidance;
       input = buildFalInput(
         {
-          prompt: prompt + productPhotoGuidance + headlineGuidance,
+          prompt: finalPrompt,
           aspectRatio: settings.aspectRatio,
           resolution: settings.resolution,
           outputFormat: settings.outputFormat,
           seed: settings.seed,
           imageUrls,
+          maskUrl,
         },
         job.model,
       );
     }
-  } catch (error) {
-    console.warn("[image-studio] a generation could not be prepared", {
+    snapshot = {
       jobId: job.id,
-      reason: preflightReason,
-      detail: error instanceof Error ? error.message : "unknown",
-    });
-    // Nothing to give back: the charge happens on delivery, and there was none.
-    return await prisma.projectImageJob.update({
-      where: { id: job.id },
-      data: {
-        status: ProjectImageJobStatus.FAILED,
-        error: imageJobFailureMessage(preflightReason),
-        failureReason: preflightReason,
-        settledAt: new Date(),
-        submitLeaseAt: null,
-      },
-    });
+      finalPrompt,
+      brandContextHash: crypto
+        .createHash("sha256")
+        .update(studioBrandPromptBlock(promptBrand))
+        .digest("hex"),
+      brandLook: brand.look ? jsonInput(brand.look) : Prisma.DbNull,
+      assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
+      templateId: job.templateId ?? null,
+      creativeDirection: job.creativeDirection ?? null,
+      variationIndex: job.variationIndex ?? null,
+    };
+  } catch (error) {
+    return await failBeforeSend(job.id, preflightReason, error);
   }
 
+  // Track the write through response completion without holding up the paid call.
+  waitUntil(
+    runAsBackgroundWork(async () => {
+      const { jobId: snapshotJobId, ...data } = snapshot;
+      await prisma.projectImagePromptSnapshot.upsert({
+        where: { jobId: snapshotJobId },
+        create: snapshot,
+        update: data,
+      });
+    }).catch((error: unknown) => {
+      // The write carries the prompt, which a database error can quote.
+      emitCoreWarning(
+        {
+          operation: "image_prompt_snapshot",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not save the prompt snapshot of an image generation",
+          why: "The database write of the snapshot failed",
+          fix: "The generation goes on without it; only the record of the prompt sent is missing.",
+        },
+      );
+    }),
+  );
+
+  return await submitPreparedJob(job, input);
+}
+
+/** Settle a job whose request could not be prepared. Nothing was sent. */
+async function failBeforeSend(
+  jobId: string,
+  reason: ImageJobFailureReason,
+  error: unknown,
+) {
+  // The error can quote the prompt it was building, so no cause.
+  recordCoreWarning(
+    {
+      operation: "image_job_submit",
+      imageJobs: [
+        {
+          id: jobId,
+          failureReason: reason,
+          failure: messageSafeErrorFields(error),
+        },
+      ],
+    },
+    {
+      message: "An image generation failed before it was sent",
+      why: "Preparing the request for the image provider threw",
+      fix: "Nothing was sent or charged and the job is marked failed. If this repeats, look up failureReason and the error name under failure.",
+    },
+  );
+  // Nothing to give back: the charge happens on delivery, and there was none.
+  return await prisma.projectImageJob.update({
+    where: { id: jobId },
+    data: {
+      status: ProjectImageJobStatus.FAILED,
+      error: imageJobFailureMessage(reason),
+      failureReason: reason,
+      settledAt: new Date(),
+      submitLeaseAt: null,
+    },
+  });
+}
+
+/** The paid call: send a prepared request and record what the provider said. */
+async function submitPreparedJob(
+  job: { id: string; model: string },
+  input: Record<string, unknown>,
+) {
   const outcome = await submitToQueue({
     model: job.model,
     input,
@@ -1160,11 +1874,20 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       });
     case "rejected": {
       // fal answered and refused, so it enqueued nothing and charged nothing.
-      console.warn("[image-studio] provider refused a submission", {
-        jobId: job.id,
-        status: outcome.status,
-        providerDetail: outcome.message.slice(0, 500),
-      });
+      // The provider's message can quote the prompt, so only its status.
+      recordCoreWarning(
+        {
+          operation: "image_job_submit",
+          imageJobs: [
+            { id: job.id, provider: { name: "fal", status: outcome.status } },
+          ],
+        },
+        {
+          message: "The image provider refused a generation",
+          why: "fal answered the submission with a rejection",
+          fix: "Nothing was queued or charged and the job is marked failed. Look up the status under provider.",
+        },
+      );
       return await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
@@ -1177,10 +1900,15 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       });
     }
     case "uncertain":
-      console.warn("[image-studio] submission outcome unknown", {
-        jobId: job.id,
-        providerDetail: outcome.message.slice(0, 500),
-      });
+      recordCoreWarning(
+        { operation: "image_job_submit", imageJobs: [{ id: job.id }] },
+        {
+          message:
+            "Could not tell whether the image provider received a generation",
+          why: "The submission to fal ended without a clear answer",
+          fix: "The job is marked uncertain and is never refunded on its own; reconciling it asks fal for the outcome.",
+        },
+      );
       return await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
@@ -1239,7 +1967,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   }
 
   const status = await fetchQueueStatus({
-    model: job.model,
+    model: queueModel(job),
     requestId: job.falRequestId,
   });
 
@@ -1291,6 +2019,9 @@ export async function reconcileJob(jobId: string): Promise<void> {
       // it to stop, "gone" means the cancellation took, and calling that a
       // failure misreports what happened.
       if (job.cancelRequestedAt) {
+        // A cancelled caption step leaves the presenter's video, which fal
+        // has already made and billed: keep it, as a finished image is kept.
+        if (await deliverUncaptionedTalkingVideo(job.id)) return;
         await prisma.projectImageJob.updateMany({
           where: {
             id: job.id,
@@ -1315,7 +2046,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   }
 
   const result = await fetchQueueResult({
-    model: job.model,
+    model: queueModel(job),
     requestId: job.falRequestId,
   });
   if (result.kind === "pending") return;
@@ -1338,10 +2069,12 @@ export async function reconcileJob(jobId: string): Promise<void> {
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
   const produced = result.media[0]!;
-  await settleWithMedia(job.id, produced.url, {
-    width: produced.width,
-    height: produced.height,
-  });
+  await settleWithMedia(
+    job.id,
+    produced.url,
+    { width: produced.width, height: produced.height },
+    job.falRequestId,
+  );
 }
 
 /**
@@ -1527,15 +2260,23 @@ export async function failImageJob(
   /** The provider's own words. Logged, never shown. */
   providerDetail?: string,
 ): Promise<void> {
+  if (await deliverUncaptionedTalkingVideo(jobId)) return;
   if (providerDetail) {
     // Where a raw transport string belongs. "Unexpected status code: 422" is
     // useful to whoever is debugging the job and useless to whoever was waiting
     // for the image.
-    console.warn("[image-studio] provider failed a generation", {
-      jobId,
-      reason,
-      providerDetail: providerDetail.slice(0, 500),
-    });
+    // Its text can quote the prompt, so only that it came with one.
+    recordCoreWarning(
+      {
+        operation: "image_job_settle",
+        imageJobs: [{ id: jobId, failureReason: reason }],
+      },
+      {
+        message: "The image provider failed a generation",
+        why: "fal reported the generation as failed",
+        fix: "The job is marked failed and nothing is charged. Look up failureReason; the provider's own text is not logged because it can quote the prompt.",
+      },
+    );
   }
   await prisma.projectImageJob.updateMany({
     where: {
@@ -1559,7 +2300,7 @@ export async function failImageJob(
  */
 function nudgeCmoMonth(jobId: string): void {
   waitUntil(
-    (async () => {
+    runAsBackgroundWork(async () => {
       const job = await prisma.projectImageJob.findUnique({
         where: { id: jobId },
         select: { projectId: true, idempotencyKey: true },
@@ -1569,11 +2310,19 @@ function nudgeCmoMonth(jobId: string): void {
         "@/services/cmo-cuso.service"
       );
       await startCmoProductionForProject(job.projectId);
-    })().catch((error: unknown) => {
-      console.warn("[image-studio] could not move a CMO month on", {
-        jobId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+    }).catch((error: unknown) => {
+      // CMO production writes generated text, which its errors can quote.
+      emitCoreWarning(
+        {
+          operation: "image_job_cmo_nudge",
+          imageJobs: [{ id: jobId, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not move a CMO month on after an image settled",
+          why: "Starting CMO production for the project threw",
+          fix: "Nothing is lost: the CMO production sync moves the month on within ten minutes.",
+        },
+      );
     }),
   );
 }
@@ -1588,9 +2337,160 @@ export async function settleWithMedia(
   jobId: string,
   sourceUrl: string,
   providerSize?: { width: number | null; height: number | null },
+  /** The provider request this media answers. */
+  requestId?: string,
 ): Promise<void> {
+  if (await startTalkingVideoSecondStep(jobId, sourceUrl, requestId)) return;
   await storeMedia(jobId, sourceUrl, providerSize);
   nudgeCmoMonth(jobId);
+}
+
+/**
+ * A talking video came back from its presenter model and needs a second
+ * step (`talkingVideoSecondStep`): send it on instead of storing it. True
+ * when this media is not the one to store.
+ *
+ * The same row carries both requests, so the answer to the first can arrive
+ * again after the second was sent: a webhook retry, or a poll that read the
+ * old request id. `requestId` tells those apart, and the lease is taken on it,
+ * so the second request is sent once.
+ */
+async function startTalkingVideoSecondStep(
+  jobId: string,
+  sourceUrl: string,
+  requestId: string | undefined,
+): Promise<boolean> {
+  const job = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: {
+      kind: true,
+      falRequestId: true,
+      pendingMediaUrl: true,
+      settings: true,
+    },
+  });
+  if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO) return false;
+  if (requestId && job.falRequestId !== requestId) return true;
+  if (job.pendingMediaUrl) return false;
+  const next = talkingVideoSecondStep(
+    readTalkingVideoSettings(job.settings),
+    sourceUrl,
+  );
+  if (!next) return false;
+
+  const lease = await claimForSettlement(jobId, requestId);
+  if (!lease) return true;
+  const outcome = await submitToQueue({
+    model: next.endpoint,
+    input: next.input,
+    webhookUrl: webhookUrl(),
+  });
+  if (outcome.kind !== "queued") {
+    await releaseSettlementLease(jobId, lease);
+    recordCoreWarning(
+      {
+        operation: "image_job_settle",
+        imageJobs: [{ id: jobId, secondStep: { outcome: outcome.kind } }],
+      },
+      {
+        message: "Delivered a talking video without its second step",
+        why: "fal did not accept the cut-out or caption request",
+        fix: "The video was made from its presenter clip alone: no site shots, or no captions. If this repeats, check that endpoint and its input.",
+      },
+    );
+    return false;
+  }
+  await prisma.projectImageJob.updateMany({
+    where: { id: jobId, settleLeaseOwner: lease },
+    data: {
+      falRequestId: outcome.requestId,
+      pendingMediaUrl: sourceUrl,
+      status: ProjectImageJobStatus.RUNNING,
+      settleLeaseAt: null,
+      settleLeaseOwner: null,
+    },
+  });
+  return true;
+}
+
+/**
+ * A talking video whose caption step failed is still a video the studio paid
+ * for: deliver it as its presenter model made it. True when it was handled.
+ */
+async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
+  const job = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: { kind: true, pendingMediaUrl: true },
+  });
+  if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO || !job.pendingMediaUrl)
+    return false;
+  recordCoreWarning(
+    { operation: "image_job_settle", imageJobs: [{ id: jobId }] },
+    {
+      message: "Delivered a talking video without captions",
+      why: "fal reported the caption step as failed",
+      fix: "The video was kept as its presenter model made it. If this repeats, check the caption endpoint and its input.",
+    },
+  );
+  await storeMedia(jobId, job.pendingMediaUrl);
+  nudgeCmoMonth(jobId);
+  return true;
+}
+
+/**
+ * What the site shots of a talking video are made from: the clip's matte,
+ * from the cut-out the job last asked for, and the site's stored screenshot.
+ * Null when either cannot be read: the video is then edited without them.
+ */
+async function readTalkingVideoSite(
+  job: { falRequestId: string | null },
+  settings: TalkingVideoSettings,
+): Promise<{ alpha: Uint8Array; page: Uint8Array } | null> {
+  if (!job.falRequestId || !settings.sitePagePathname) return null;
+  try {
+    const result = await fetchQueueResult({
+      model: TALKING_VIDEO_CUTOUT_ENDPOINT,
+      requestId: job.falRequestId,
+    });
+    if (result.kind !== "media") return null;
+    // Colour first, then alpha; the alpha file is also named for it.
+    const matte =
+      result.media.find((file) => /alpha/i.test(file.url)) ?? result.media[1];
+    if (!matte) return null;
+    const [alpha, page] = await Promise.all([
+      downloadMedia(
+        matte.url,
+        LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES,
+        "video/mp4",
+      ),
+      readAssetBytes(settings.sitePagePathname),
+    ]);
+    return { alpha: alpha.bytes, page };
+  } catch {
+    return null;
+  }
+}
+
+/** Media types a log may name; the rest of a Content-Type is the provider's text. */
+const LOGGABLE_MEDIA_TYPES: ReadonlySet<string> = new Set([
+  "image/avif",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+  "image/jpeg",
+  "image/png",
+  "image/svg+xml",
+  "image/tiff",
+  "image/webp",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+
+/** The provider's Content-Type cut to a known media type, else `unrecognized`. */
+function loggableMediaType(contentType: string | null | undefined): string {
+  const type = contentType?.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+  return LOGGABLE_MEDIA_TYPES.has(type) ? type : "unrecognized";
 }
 
 /**
@@ -1696,9 +2596,13 @@ async function storeMedia(
   // image published by accident is not.
   const studioBlobToken = readStudioBlobToken();
   if (!studioBlobToken) {
-    console.error(
-      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the generated image has nowhere private to go.",
-      { jobId: job.id },
+    recordCoreError(
+      { operation: "image_job_settle", imageJobs: [{ id: job.id }] },
+      {
+        message: "Deferred storing a generated image",
+        why: "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the image has nowhere private to go",
+        fix: "Set IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN for this deployment; the job stays live and settles on the next reconcile.",
+      },
     );
     await releaseSettlementLease(job.id, lease);
     // An outage, not a verdict. `failImageJob` was wrong here: fal has already
@@ -1714,12 +2618,25 @@ async function storeMedia(
     return;
   }
 
+  const talking =
+    job.kind === ProjectImageJobKind.TALKING_VIDEO
+      ? readTalkingVideoSettings(job.settings)
+      : null;
+  // Core edits a clip whose words were timed. After a cut-out, `sourceUrl`
+  // is the cut-out and the clip to edit is the one it was made from.
+  const edits = talking !== null && talking.words.length > 0;
+  const clipUrl =
+    edits && job.pendingMediaUrl ? job.pendingMediaUrl : sourceUrl;
+  const cutOut = edits && clipUrl !== sourceUrl;
+
   let downloaded: Awaited<ReturnType<typeof downloadMedia>>;
   try {
     downloaded = video
       ? await downloadMedia(
-          sourceUrl,
-          LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
+          clipUrl,
+          job.kind === ProjectImageJobKind.TALKING_VIDEO
+            ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
+            : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
           "video/mp4",
         )
       : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
@@ -1739,6 +2656,78 @@ async function storeMedia(
       "result",
     );
     return;
+  }
+
+  let editedSeconds: number | null = null;
+  let chargedCents = job.chargedCents;
+  if (talking && edits) {
+    try {
+      const [site, endCard, broll, music] = await Promise.all([
+        cutOut ? readTalkingVideoSite(job, talking) : null,
+        prisma.project
+          .findUnique({
+            where: { id: project.id },
+            select: { id: true, name: true, logo: true, websiteUrl: true },
+          })
+          .then((brand) => (brand ? loadTalkingVideoEndCard(brand) : null)),
+        readTalkingVideoExtra(
+          TALKING_VIDEO_BROLL_ENDPOINT,
+          talking.brollRequestId,
+          "video/mp4",
+        ),
+        readTalkingVideoExtra(
+          TALKING_VIDEO_MUSIC_ENDPOINT,
+          talking.musicRequestId,
+          "audio/wav",
+        ),
+      ]);
+      if ((talking.broll && !broll) || (talking.music && !music)) {
+        // An extra that did not come is taken off the charge before delivery.
+        chargedCents = convertCreditsToCents(
+          creditsPerTalkingVideo(
+            talkingVideoModelForEndpoint(job.model),
+            job.prompt,
+            {
+              siteShots: talking.siteShots,
+              broll: broll !== null,
+              music: music !== null,
+            },
+          ),
+        );
+        await prisma.projectImageJob.update({
+          where: { id: job.id },
+          data: { chargedCents },
+          select: { id: true },
+        });
+      }
+      const edited = await editTalkingVideo({
+        clip: downloaded.bytes,
+        words: talking.words,
+        clipSeconds: talking.durationSeconds,
+        hookLine: talking.hookLine,
+        ...(site ? { site } : {}),
+        ...(endCard ? { endCard } : {}),
+        ...(broll ? { broll } : {}),
+        ...(music ? { music } : {}),
+      });
+      if (edited) {
+        downloaded = { bytes: edited.bytes, contentType: "video/mp4" };
+        editedSeconds = Math.ceil(edited.durationSeconds);
+      }
+    } catch (error) {
+      // ffmpeg's output can name a caption, which is the script's words.
+      recordCoreWarning(
+        {
+          operation: "image_job_settle",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Delivered a talking video without its edit",
+          why: "Cutting and captioning the presenter clip threw",
+          fix: "The video was kept as its presenter model made it. If this repeats, check that Core can fetch and run its ffmpeg build.",
+        },
+      );
+    }
   }
 
   const backdrop = job.useProductCutout && !video ? downloaded : null;
@@ -1789,11 +2778,25 @@ async function storeMedia(
     // Not a failure: the column holds 0 and the client falls back to the rendered
     // image's intrinsic size. Logged because a format nothing can read is worth
     // knowing about.
-    console.warn("[image-studio] stored an image with no readable dimensions", {
-      jobId: job.id,
-      contentType: downloaded.contentType,
-      bytes: downloaded.bytes.byteLength,
-    });
+    recordCoreWarning(
+      {
+        operation: "image_job_settle",
+        imageJobs: [
+          {
+            id: job.id,
+            media: {
+              contentType: loggableMediaType(downloaded.contentType),
+              bytes: downloaded.bytes.byteLength,
+            },
+          },
+        ],
+      },
+      {
+        message: "Stored a generated image without dimensions",
+        why: "Neither the provider nor the image header gave a width and height",
+        fix: "The image works; clients use its rendered size. If one content type repeats, teach readImageDimensionsFromBytes that format.",
+      },
+    );
   }
 
   // Private, and into the studio's own store — `studioBlobToken`, never
@@ -1865,8 +2868,13 @@ async function storeMedia(
     return;
   }
 
+  let delivered: {
+    assetId: string;
+    version: number | null;
+    letteringJobId: string | null;
+  };
   try {
-    await insertAsset({
+    delivered = await insertAsset({
       job: {
         id: job.id,
         projectId: project.id,
@@ -1874,12 +2882,19 @@ async function storeMedia(
         model: job.model,
         prompt: job.prompt,
         exportHeadline: job.exportHeadline,
+        lettering: job.lettering,
+        letteringQuoteCents: job.letteringQuoteCents,
+        sessionId: job.sessionId,
+        productId: job.productId,
+        productName: job.productName,
+        batchSlotId: job.batchSlotId,
         settings: job.settings,
         parentAssetId: job.parentAssetId,
         requestedByUserId: job.requestedByUserId,
         organizationId: project.organizationId,
-        chargedCents: job.chargedCents,
+        chargedCents,
       },
+      aiGenerated: job.kind === ProjectImageJobKind.TALKING_VIDEO,
       blobPathname: blob.pathname,
       backdropBlobPathname,
       backdropContentType: backdrop?.contentType,
@@ -1888,7 +2903,7 @@ async function storeMedia(
         ? ProjectImageMediaType.VIDEO
         : ProjectImageMediaType.IMAGE,
       durationSeconds: video
-        ? readVideoSettings(job.settings).durationSeconds
+        ? (editedSeconds ?? readVideoSettings(job.settings).durationSeconds)
         : null,
       width: dimensions?.width ?? 0,
       height: dimensions?.height ?? 0,
@@ -1900,8 +2915,45 @@ async function storeMedia(
     await releaseSettlementLease(job.id, lease);
     throw error;
   }
+  // The next paid request is already durable. A crash here leaves a normal
+  // PENDING row for recoverUnclaimedReservations, with the original quote.
+  if (
+    delivered.letteringJobId &&
+    (await claimForSubmission(delivered.letteringJobId))
+  ) {
+    await sendClaimedJob(delivered.letteringJobId, project.organizationId);
+  }
+  if (job.batchSlotId && delivered.version !== null) {
+    const replaced = await prisma.projectImageAsset
+      .findFirst({
+        where: {
+          projectId: project.id,
+          workspaceId: project.workspaceId,
+          mediaType: ProjectImageMediaType.IMAGE,
+          hiddenAt: null,
+          version: { lt: delivered.version },
+          job: {
+            OR: [{ id: job.batchSlotId }, { batchSlotId: job.batchSlotId }],
+          },
+        },
+        orderBy: { version: "desc" },
+        select: { id: true },
+      })
+      .catch(() => null);
+    if (replaced) {
+      await recordStudioAdEvent({
+        workspaceId: project.workspaceId,
+        assetId: replaced.id,
+        userId: job.requestedByUserId,
+        type: "replaced_in_batch",
+        meta: { jobId: job.id, batchSlotId: job.batchSlotId },
+      });
+    }
+  }
   // Only the settler that stored the asset gets here, so this runs once per job.
+  if (delivered.version !== null && !video) enqueueAdEval(job.id);
   await publishStudioAssetToFiles({
+    assetId: delivered.assetId,
     jobId: job.id,
     workspaceId: project.workspaceId,
     organizationId: project.organizationId,
@@ -1937,6 +2989,12 @@ async function insertAsset(input: {
     model: string;
     prompt: string;
     exportHeadline: string | null;
+    lettering?: string;
+    letteringQuoteCents?: bigint | null;
+    sessionId: string | null;
+    productId: string | null;
+    productName: string | null;
+    batchSlotId?: string | null;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
     /** Who pays, and out of which pot. */
@@ -1945,6 +3003,7 @@ async function insertAsset(input: {
     /** The quote written at submit. What gets taken here. */
     chargedCents: bigint | null;
   };
+  aiGenerated: boolean;
   blobPathname: string;
   backdropBlobPathname?: string;
   backdropContentType?: string;
@@ -1955,13 +3014,18 @@ async function insertAsset(input: {
   height: number;
   bytes: number;
   checksum: string;
-}): Promise<void> {
-  await serializableTransaction(async (tx) => {
+}): Promise<{
+  assetId: string;
+  version: number | null;
+  letteringJobId: string | null;
+}> {
+  return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageAsset.findUnique({
       where: { jobId: input.job.id },
       select: { id: true },
     });
-    if (existing) return;
+    if (existing)
+      return { assetId: existing.id, version: null, letteringJobId: null };
 
     let rootId: string | null = null;
     if (input.job.parentAssetId) {
@@ -1984,6 +3048,7 @@ async function insertAsset(input: {
       orderBy: { version: "desc" },
       select: { version: true },
     });
+    const version = (highest?.version ?? 0) + 1;
 
     // The charge. Quoted at submit, taken here, once.
     //
@@ -2013,13 +3078,24 @@ async function insertAsset(input: {
         // serialization failure — is transient, and rethrowing lets the settler
         // retry the whole thing rather than silently giving an image away.
         if (!isInsufficientBalanceError(error)) throw error;
-        console.error(
-          "[image-studio] delivered an image free: the balance no longer covered the quote",
+        recordCoreError(
           {
-            jobId: input.job.id,
-            quotedCents: chargedCents.toString(),
-            userId: input.job.requestedByUserId,
-            organizationId: input.job.organizationId,
+            operation: "image_job_settle",
+            // The requester lives on the job entry: a poll's own user.id is
+            // the reader, and several jobs can settle on one event.
+            imageJobs: [
+              {
+                id: input.job.id,
+                quotedCents: chargedCents.toString(),
+                requestedByUserId: input.job.requestedByUserId,
+                organizationId: input.job.organizationId,
+              },
+            ],
+          },
+          {
+            message: "Delivered a generated image without charging for it",
+            why: "The balance no longer covered the quote when the image was stored",
+            fix: "The image was kept and the charge dropped. If this repeats, check why reservations no longer hold the quoted credits.",
           },
         );
         chargedCents = 0n;
@@ -2035,26 +3111,78 @@ async function insertAsset(input: {
         jobId: input.job.id,
         rootId: family,
         parentId: rootId ? input.job.parentAssetId : null,
-        version: (highest?.version ?? 0) + 1,
+        version,
         model: input.job.model,
         prompt: input.job.prompt,
         settings: input.job.settings ?? {},
         blobPathname: input.blobPathname,
-        backdropBlobPathname: input.backdropBlobPathname,
-        backdropContentType: input.backdropContentType,
+        ...(input.backdropBlobPathname !== undefined
+          ? { backdropBlobPathname: input.backdropBlobPathname }
+          : {}),
+        ...(input.backdropContentType !== undefined
+          ? { backdropContentType: input.backdropContentType }
+          : {}),
         contentType: input.contentType,
         mediaType: input.mediaType,
+        aiGenerated: input.aiGenerated,
         durationSeconds: input.durationSeconds,
         width: input.width,
         height: input.height,
         bytes: input.bytes,
         checksum: input.checksum,
         ...(input.job.exportHeadline &&
+        input.job.letteringQuoteCents == null &&
         input.mediaType === ProjectImageMediaType.IMAGE
           ? { headline: { create: { text: input.job.exportHeadline } } }
           : {}),
       },
     });
+
+    let letteringJobId: string | null = null;
+    if (
+      input.job.lettering === "ideogram" &&
+      input.job.letteringQuoteCents != null &&
+      input.job.exportHeadline
+    ) {
+      const rawSettings = input.job.settings;
+      const secondSettings =
+        rawSettings &&
+        typeof rawSettings === "object" &&
+        !Array.isArray(rawSettings)
+          ? rawSettings.letteringSettings
+          : null;
+      const secondModel =
+        rawSettings &&
+        typeof rawSettings === "object" &&
+        !Array.isArray(rawSettings) &&
+        typeof rawSettings.letteringModel === "string"
+          ? rawSettings.letteringModel
+          : "";
+      const letteringJob = await tx.projectImageJob.create({
+        data: {
+          projectId: input.job.projectId,
+          workspaceId: input.job.workspaceId,
+          sessionId: input.job.sessionId,
+          requestedByUserId: input.job.requestedByUserId,
+          kind: ProjectImageJobKind.EDIT,
+          model: secondModel,
+          prompt: `Add the approved headline: ${input.job.exportHeadline}`,
+          exportHeadline: input.job.exportHeadline,
+          lettering: "ideogram",
+          settings: jsonInput(readSettings(secondSettings ?? {})),
+          productId: input.job.productId,
+          productName: input.job.productName,
+          batchSlotId: input.job.batchSlotId ?? input.job.id,
+          parentAssetId: id,
+          referenceAssetIds: [id],
+          referenceFileIds: [],
+          idempotencyKey: `studio-lettering:${input.job.id}`,
+          status: ProjectImageJobStatus.PENDING,
+          chargedCents: input.job.letteringQuoteCents,
+        },
+      });
+      letteringJobId = letteringJob.id;
+    }
 
     await tx.projectImageJob.updateMany({
       where: { id: input.job.id },
@@ -2075,6 +3203,7 @@ async function insertAsset(input: {
         unreachableSource: null,
       },
     });
+    return { assetId: id, version, letteringJobId };
   }, "Another image finished in this lineage at the same moment. Try again.");
 }
 
@@ -2102,9 +3231,19 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
   // Deployments without a reachable webhook settle here, so this is also where
   // a reservation stranded by a crashed request gets picked back up.
   await recoverUnclaimedReservations({ projectId }).catch((error) => {
-    console.warn("[image-studio] reservation recovery failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Recovery sends prompts to the provider, whose errors can quote them.
+    recordCoreWarning(
+      {
+        operation: "image_job_reconcile",
+        project: { id: projectId },
+        failure: messageSafeErrorFields(error),
+      },
+      {
+        message: "Could not recover stranded image reservations for a project",
+        why: "Recovering unclaimed reservations threw",
+        fix: "Nothing is lost: the next poll or the image-jobs sync tries again.",
+      },
+    );
   });
   const pending = await prisma.projectImageJob.findMany({
     where: { projectId, ...recoverableSelection() },
@@ -2118,10 +3257,20 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
     try {
       await reconcileJob(job.id);
     } catch (error) {
-      console.warn("[image-studio] reconcile failed", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Provider reads and settlement errors can quote the prompt.
+      // An array: evlog appends it, so each failed job keeps its own entry
+      // when one poll fails several on the request's event.
+      recordCoreWarning(
+        {
+          operation: "image_job_reconcile",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not reconcile an image job",
+          why: "Asking the provider for the job's outcome or settling it threw",
+          fix: "The job stays live; the next poll or the image-jobs sync tries again.",
+        },
+      );
     }
   }
 }
@@ -2185,10 +3334,17 @@ export async function reconcileStaleJobs(options: {
       await reconcileJob(job.id);
       reconciled += 1;
     } catch (error) {
-      console.warn("[image-studio] stale reconcile failed", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      recordCoreWarning(
+        {
+          operation: "image_job_reconcile",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not reconcile a stale image job",
+          why: "Asking the provider for the job's outcome or settling it threw",
+          fix: "The job stays live; the next image-jobs sync tries again.",
+        },
+      );
     }
   }
   return {
@@ -2222,7 +3378,7 @@ export async function requestCancel(options: {
     throw unprocessableEntity("This request has not reached the provider yet.");
   }
   const outcome = await cancelQueued({
-    model: job.model,
+    model: queueModel(job),
     requestId: job.falRequestId,
   });
 
@@ -2267,19 +3423,26 @@ async function finaliseCancellations(limit: number): Promise<number> {
     },
     orderBy: { cancelRequestedAt: "asc" },
     take: limit,
-    select: { id: true, model: true, falRequestId: true },
+    select: {
+      id: true,
+      model: true,
+      pendingMediaUrl: true,
+      settings: true,
+      falRequestId: true,
+    },
   });
 
   let finalised = 0;
   for (const job of requested) {
     if (!job.falRequestId) continue;
     const status = await fetchQueueStatus({
-      model: job.model,
+      model: queueModel(job),
       requestId: job.falRequestId,
     });
     // Unreachable says nothing; leave it for the next pass.
     if (status.kind === "unreachable") continue;
     if (status.kind === "not_found") {
+      if (await deliverUncaptionedTalkingVideo(job.id)) continue;
       const settled = await prisma.projectImageJob.updateMany({
         where: {
           id: job.id,
@@ -2376,10 +3539,20 @@ export async function recoverUnclaimedReservations(
       if (!isAccessDenied(error)) {
         // Could not ask. Leave the row alone and try on the next sweep;
         // failing to check is not the same as being refused.
-        console.warn("[image-studio] recovery access check unavailable", {
-          jobId: job.id,
-          error: error instanceof Error ? error.message : "unknown",
-        });
+        // The failure rides on the job's own entry: a cause in warnings[]
+        // could not be matched to its job once a poll logs several.
+        recordCoreWarning(
+          {
+            operation: "image_job_recovery",
+            imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+          },
+          {
+            message:
+              "Could not check access before recovering an image reservation",
+            why: "The project access check failed without an answer",
+            fix: "The reservation is left alone and the next sweep checks again. If it repeats, look up the error name and code on its imageJobs entry.",
+          },
+        );
         continue;
       }
     }
@@ -2407,10 +3580,18 @@ export async function recoverUnclaimedReservations(
       await sendClaimedJob(job.id, access.organizationId);
       submitted += 1;
     } catch (error) {
-      console.warn("[image-studio] recovery submit failed", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Sending builds the prompt, which its errors can quote.
+      recordCoreWarning(
+        {
+          operation: "image_job_recovery",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not send a recovered image reservation",
+          why: "Submitting the claimed job to the provider threw",
+          fix: "The job keeps its claim and the stalled-submission sweep resolves it. If this repeats, look up the error name and code under failure.",
+        },
+      );
     }
   }
   return { submitted, abandoned, denied };

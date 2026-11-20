@@ -1,9 +1,12 @@
-/** The app's pages and their addresses; the chat is home. */
+/** The app's pages and their addresses; Today is home, the chat one tap away. */
 export const VIEW_PATHS = {
-  chat: "/",
+  today: "/",
+  chat: "/chat",
   strategy: "/strategy",
   calendar: "/calendar",
+  seo: "/seo",
   results: "/results",
+  competitors: "/competitors",
   brain: "/brand-brain",
   channels: "/channels",
   settings: "/settings",

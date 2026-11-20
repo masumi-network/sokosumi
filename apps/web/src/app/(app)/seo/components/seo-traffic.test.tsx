@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE } from "@sokosumi/utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -13,7 +14,11 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
-import { seoTestMetric, seoTestWorkspace } from "./seo-test-fixture";
+import {
+  SEO_TEST_PROJECT,
+  seoTestMetric,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
@@ -93,6 +98,120 @@ afterEach(() => {
 });
 
 describe("SEO Traffic search type", () => {
+  it("shows a scoped Search Console investigation only for complete matched weeks from the personal workspace", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.sharing = "personal";
+    workspace.metrics = (["clicks", "impressions", "position"] as const).map(
+      (key) => ({
+        ...seoTestMetric(),
+        id: "verified-read:" + key,
+        coverage: "partial",
+        notes: [SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE],
+        key,
+        unit: key === "position" ? "position" : "count",
+        source: "search_console",
+        from: "2026-01-01",
+        to: "2026-01-14",
+        timeZone: "America/Los_Angeles",
+        observedAt: new Date("2026-01-18T12:00:00Z"),
+        propertyId: "sc-domain:example.com",
+        points: Array.from({ length: 14 }, (_, i) => ({
+          date: "2026-01-" + String(i + 1).padStart(2, "0"),
+          value:
+            key === "clicks"
+              ? i < 7
+                ? 10
+                : 6
+              : key === "impressions"
+                ? 100
+                : 5,
+        })),
+      }),
+    );
+    const headline = "Clicks fell while impressions held up";
+    const ui = renderTraffic(workspace);
+    expect(
+      await screen.findByRole("heading", { name: headline }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/1 selected page on sc-domain:example.com/),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/70 clicks, 700 impressions, average position 5/),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/42 clicks, 700 impressions, average position 5/),
+    ).toBeVisible();
+    ui.unmount();
+    workspace.sharing = "organization";
+    const shared = renderTraffic(workspace);
+    expect(
+      screen.queryByRole("heading", { name: headline }),
+    ).not.toBeInTheDocument();
+    shared.unmount();
+    workspace.sharing = "personal";
+    workspace.metrics[2].points[10].value = null;
+    const missing = renderTraffic(workspace);
+    expect(
+      screen.queryByRole("heading", { name: headline }),
+    ).not.toBeInTheDocument();
+    missing.unmount();
+    workspace.metrics[2].points[10].value = 5;
+    workspace.metrics[2].id = "different-read:position";
+    renderTraffic(workspace);
+    expect(
+      screen.queryByRole("heading", { name: headline }),
+    ).not.toBeInTheDocument();
+  });
+  it("explains a shift in organic landing mix without reporting better engagement on individual pages", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.landingEngagementChange = {
+      propertyId: "properties/31",
+      timeZone: "Europe/Madrid",
+      pageCount: 2,
+      before: {
+        from: "2025-05-01",
+        to: "2025-05-28",
+        sessions: 100,
+        observationId: "f1111111-1111-4111-8111-111111111111",
+      },
+      after: {
+        from: "2025-05-29",
+        to: "2025-06-25",
+        sessions: 100,
+        observationId: "f2222222-2222-4222-8222-222222222222",
+      },
+      engagementSecondsPerSession: {
+        before: 72,
+        after: 132,
+        withinPageChange: 0,
+        mixChange: 60,
+      },
+      viewsPerSession: {
+        before: 1.2,
+        after: 2.2,
+        withinPageChange: 0,
+        mixChange: 1,
+      },
+    };
+    renderTraffic(workspace, "&channel=organic");
+    expect(
+      await screen.findByRole("heading", {
+        name: "What changed in organic visits",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        /distribution of visits across landing pages accounted for the change/,
+      ),
+    ).toBeVisible();
+    const row = screen.getByRole("row", {
+      name: /Engagement seconds per session/,
+    });
+    expect(within(row).getByText("72")).toBeVisible();
+    expect(within(row).getByText("132")).toBeVisible();
+    expect(within(row).getByText("+60")).toBeVisible();
+  });
   it.each(["ga4", "search_console"] as const)(
     "labels the full %s aggregate period when the last day had no traffic",
     (source) => {
@@ -136,6 +255,30 @@ describe("SEO Traffic search type", () => {
     analytics.metrics = [{ ...seoTestMetric(), source: "ga4" }];
     renderTraffic(analytics);
     expect(screen.queryByRole("combobox", { name: "Search type" })).toBeNull();
+  });
+
+  it("keeps the channel on Traffic: another tab hides and clears it", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [{ ...seoTestMetric(), source: "ga4", channel: "all" }];
+    renderTraffic(workspace, "&channel=all");
+    expect(screen.getByRole("combobox", { name: "Traffic" })).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    // The workspace read: the only call with a query right after the owner's SEO path.
+    const reads = () =>
+      vi
+        .mocked(fetch)
+        .mock.calls.map(([url]) => String(url))
+        .filter((url) =>
+          url.includes(`/api/projects/${SEO_TEST_PROJECT}/seo?`),
+        );
+    await waitFor(() => expect(reads().at(-1)).not.toContain("channel"));
+    expect(reads().some((url) => url.includes("channel=all"))).toBe(true);
+    expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();
+    await user.click(screen.getByRole("tab", { name: "Traffic" }));
+    expect(
+      await screen.findByRole("combobox", { name: "Traffic" }),
+    ).toHaveTextContent("All measured segments");
   });
 
   it("keeps the search type on Traffic: another tab reads web search and clears it", async () => {

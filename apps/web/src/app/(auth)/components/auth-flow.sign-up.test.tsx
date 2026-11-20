@@ -767,7 +767,6 @@ describe("AuthFlow signUp", () => {
     expect(window.sessionStorage.getItem("auth-email-hint")).toBe(
       "ada@example.com",
     );
-    const errors = vi.spyOn(console, "error");
     const root = hydrateRoot(container, ui);
     try {
       await waitFor(() =>
@@ -776,11 +775,9 @@ describe("AuthFlow signUp", () => {
         ),
       );
       expect(takeAuthEmailHint()).toBeNull();
-      expect(errors).not.toHaveBeenCalled();
     } finally {
       await act(() => root.unmount());
       container.remove();
-      errors.mockRestore();
     }
   });
 
@@ -912,6 +909,15 @@ describe("AuthFlow signUp", () => {
 
     expect(fireGTMEvent.viewRegisterArea).toHaveBeenCalledTimes(1);
     expect(fireGTMEvent.registerFormStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives Log in a target at least 24px tall", () => {
+    render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
+
+    // WCAG 2.5.8: a bare text-sm link is 20px tall on a phone.
+    expect(screen.getByRole("link", { name: "Login.link" })).toHaveClass(
+      "min-h-6",
+    );
   });
 
   it("links to sign-in without a query when there is no OAuth request", () => {

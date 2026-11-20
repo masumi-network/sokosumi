@@ -52,20 +52,33 @@ const press = (label: string) =>
 const currentStep = () =>
   container.querySelector('[aria-current="step"]')?.textContent;
 
-/** Approved, a network connected, nobody paid: Core owes the checkout. */
+/** Approved, nobody paid, nothing connected: Core owes the checkout. */
 const unpaid = (patch: Partial<CmoOverview> = {}) =>
   draft({
     ...cmoStrategyVersion(new Date("2026-11-13T09:00:00Z")),
     onboardingStep: "checkout",
-    channels: [
-      {
-        id: "li",
-        provider: "linkedin",
-        handle: "acme",
-        displayName: "Acme",
-        status: "ACTIVE",
-      },
-    ],
+    channels: [],
+    ...patch,
+  });
+
+const linkedin = {
+  id: "li",
+  provider: "linkedin",
+  handle: "acme",
+  displayName: "Acme",
+  status: "ACTIVE",
+  personalProfile: false,
+};
+
+/** Paid for: Core waits on the accounts. */
+const paid = (patch: Partial<CmoOverview> = {}) =>
+  unpaid({
+    onboardingStep: "accounts",
+    billing: cmoBilling({
+      tier: "growth",
+      interval: "month",
+      status: "active",
+    }),
     ...patch,
   });
 
@@ -76,45 +89,7 @@ function actionsFor(
   return { ...inertOnboardingActions(overview), ...patch };
 }
 
-it("goes from Launch to the checkout instead of the celebration", async () => {
-  const overview = unpaid();
-  const finishAccounts = vi.fn(() => new Promise<never>(() => {}));
-  await act(async () =>
-    root.render(
-      <OnboardingFlow
-        overview={overview}
-        messages={[]}
-        actions={actionsFor(overview, { finishAccounts })}
-      />,
-    ),
-  );
-  expect(currentStep()).toContain("Launch");
-  await press("Launch Cuso");
-  expect(finishAccounts).toHaveBeenCalledTimes(1);
-  expect(text()).not.toContain("is on it.");
-});
-
-it("still celebrates a Cuso with Tester credits, who owes no checkout", async () => {
-  const overview = unpaid({
-    onboardingStep: "done",
-    billing: cmoBilling({ hasTesterCredits: true }),
-  });
-  const finishAccounts = vi.fn(() => new Promise<never>(() => {}));
-  await act(async () =>
-    root.render(
-      <OnboardingFlow
-        overview={overview}
-        messages={[]}
-        actions={actionsFor(overview, { finishAccounts })}
-      />,
-    ),
-  );
-  await press("Launch Cuso");
-  expect(finishAccounts).not.toHaveBeenCalled();
-  expect(text()).toContain("is on it.");
-});
-
-it("shows the plans as the fifth step and starts Polar's checkout", async () => {
+it("shows Subscribe as the fourth step, before Launch, and starts Polar's checkout", async () => {
   const overview = unpaid();
   const startPlanCheckout = vi.fn(async () => ({
     url: "https://polar.sh/checkout/c_1",
@@ -125,21 +100,22 @@ it("shows the plans as the fifth step and starts Polar's checkout", async () => 
       <OnboardingFlow
         overview={overview}
         messages={[]}
-        skipped={["accounts"]}
         plans={cmoPlans}
         actions={actionsFor(overview, { startPlanCheckout })}
       />,
     ),
   );
+  expect(currentStep()).toContain("4");
   expect(currentStep()).toContain("Subscribe");
-  expect(text()).toContain("25,000 credits every month");
+  expect(text()).toContain("25,000 credits a month");
+  expect(text()).not.toContain("Launch Cuso");
   await press("Scale");
-  await press("Continue to payment");
+  await press("Start Scale");
   expect(startPlanCheckout).toHaveBeenCalledWith("month", "scale");
   expect(assign).toHaveBeenCalledWith("https://polar.sh/checkout/c_1");
 });
 
-it("confirms the payment back from Polar and opens the chat once the subscription is active", async () => {
+it("goes on to Launch once the payment is confirmed", async () => {
   const overview = unpaid();
   let polled: CmoOverview = overview;
   const loadState = vi.fn(async () => ({ overview: polled, messages: [] }));
@@ -148,7 +124,6 @@ it("confirms the payment back from Polar and opens the chat once the subscriptio
       <OnboardingFlow
         overview={overview}
         messages={[]}
-        skipped={["accounts"]}
         plans={cmoPlans}
         returnedFromCheckout
         actions={actionsFor(overview, { loadState })}
@@ -156,27 +131,81 @@ it("confirms the payment back from Polar and opens the chat once the subscriptio
     ),
   );
   expect(text()).toContain("Confirming your payment");
-  expect(text()).not.toContain("Continue to payment");
 
   // Polar's confirmation has not arrived yet: it keeps waiting.
   await act(async () => vi.advanceTimersByTimeAsync(2_500));
   expect(loadState).toHaveBeenCalled();
   expect(text()).toContain("Confirming your payment");
-  expect(assign).not.toHaveBeenCalled();
 
-  polled = {
-    ...overview,
-    onboardingStep: "done",
-    billing: cmoBilling({
-      tier: "growth",
-      interval: "month",
-      status: "active",
-    }),
-  };
+  polled = paid();
+  await act(async () => vi.advanceTimersByTimeAsync(2_500));
+  expect(assign).not.toHaveBeenCalled();
+  expect(currentStep()).toContain("Launch");
+  expect(text()).toContain("Connect where I post");
+});
+
+it("opens the chat when the payment lands for a Cuso with an account already connected", async () => {
+  const overview = unpaid({ channels: [linkedin] });
+  let polled: CmoOverview = overview;
+  const loadState = vi.fn(async () => ({ overview: polled, messages: [] }));
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={overview}
+        messages={[]}
+        plans={cmoPlans}
+        returnedFromCheckout
+        actions={actionsFor(overview, { loadState })}
+      />,
+    ),
+  );
+  polled = paid({ onboardingStep: "done", channels: [linkedin] });
   await act(async () => vi.advanceTimersByTimeAsync(2_500));
   expect(assign).toHaveBeenCalledWith("/?project=project-1");
   // No flash of Launch while the app loads.
   expect(text()).toContain("Confirming your payment");
+});
+
+it("celebrates on Launch once paid and connected, and stays there", async () => {
+  const overview = paid({ onboardingStep: "done", channels: [linkedin] });
+  const loadState = vi.fn(async () => ({ overview, messages: [] }));
+  const finishAccounts = vi.fn(() => new Promise<never>(() => {}));
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={paid({ channels: [linkedin] })}
+        messages={[]}
+        actions={actionsFor(overview, { loadState, finishAccounts })}
+      />,
+    ),
+  );
+  expect(currentStep()).toContain("Launch");
+  await press("Launch Cuso");
+  expect(text()).toContain("is on it.");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  // Core is done at the connection; the poll does not jump to the app.
+  await act(async () => vi.advanceTimersByTimeAsync(2_500));
+  expect(assign).not.toHaveBeenCalled();
+  expect(finishAccounts).not.toHaveBeenCalled();
+  await press("Go to Today");
+  expect(finishAccounts).toHaveBeenCalledTimes(1);
+});
+
+it("skips Subscribe for a Cuso with Tester credits", async () => {
+  const overview = unpaid({
+    onboardingStep: "accounts",
+    billing: cmoBilling({ hasTesterCredits: true }),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={overview}
+        messages={[]}
+        actions={actionsFor(overview)}
+      />,
+    ),
+  );
+  expect(currentStep()).toContain("Launch");
 });
 
 it("goes back to the plans for a person who has not paid", async () => {
@@ -186,7 +215,6 @@ it("goes back to the plans for a person who has not paid", async () => {
       <OnboardingFlow
         overview={overview}
         messages={[]}
-        skipped={["accounts"]}
         plans={cmoPlans}
         returnedFromCheckout
         actions={actionsFor(overview)}
@@ -194,5 +222,5 @@ it("goes back to the plans for a person who has not paid", async () => {
     ),
   );
   await press("I haven't paid");
-  expect(text()).toContain("Continue to payment");
+  expect(text()).toContain("Start Starter");
 });

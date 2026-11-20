@@ -59,6 +59,9 @@ vi.mock("next-intl", () => ({
       if (key === "position" && values) {
         return `${values.current} / ${values.total}`;
       }
+      if (key === "aiAgentSender" && values) {
+        return `${values.name} (AI agent)`;
+      }
       if (key === "MentionAll.label") {
         return "Everyone";
       }
@@ -376,42 +379,53 @@ describe("ChatMessageRow", () => {
     expect(markdownRenders.count).toBe(rendersAfterMount);
   });
 
-  it("shows coworker bot badge on avatar, not beside name", () => {
-    renderRow({ message: coworkerMessage() });
+  it.each([
+    ["Jamal", coworkerMessage],
+    ["Joseph", sokoBotMessage],
+  ])("marks %s as an AI agent before the sender name", (name, message) => {
+    renderRow({ message: message() });
 
-    // File mock returns i18n keys (not English copy); label is coworkerBadge
-    const badge = screen.getByRole("img", { name: "coworkerBadge" });
-    expect(badge).toHaveAttribute("data-testid", "coworker-avatar-badge");
-    // Single labeled chip — catches a residual name-row Bot with the same label
-    expect(screen.getAllByRole("img", { name: "coworkerBadge" })).toHaveLength(
-      1,
-    );
-
-    const name = screen.getByText("Jamal");
-    expect(name).toHaveTextContent("Jamal");
-    // Badge is under the avatar trigger, not under the name hover trigger
-    expect(name.parentElement).not.toContainElement(badge);
-
-    // HoverCard merges self-start/shrink-0 onto this trigger; size-8 keeps absolute badge on avatar
-    const avatarWrap = screen.getByTestId("message-sender-avatar");
-    expect(avatarWrap).toHaveClass(
-      "relative",
-      "size-8",
-      "shrink-0",
-      "self-start",
-    );
-    expect(avatarWrap).toContainElement(badge);
-  });
-
-  it("does not show coworker bot badge for human senders", () => {
-    renderRow({ message: userMessage() });
-
+    const sender = screen.getByRole("button", { name: `${name} (AI agent)` });
+    const icon = sender.querySelector("svg");
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon?.nextElementSibling).toHaveTextContent(name);
     expect(
       screen.queryByTestId("coworker-avatar-badge"),
     ).not.toBeInTheDocument();
+  });
+
+  it("draws a Soko Bot's live avatar without a ring", () => {
+    const message = sokoBotMessage();
+    if (message.sender.type !== "sokoBot") throw new Error("fixture");
+    message.sender.sokoBot = {
+      ...message.sender.sokoBot,
+      image: "https://blob/avatar.webp",
+      avatarCode: "v1.robot.scarlet.white.ink.r.M",
+    };
+    render(
+      <ChatMessageRow
+        message={message}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+        liveFace
+      />,
+    );
+
+    const avatar = screen.getByTestId("message-sender-avatar");
+    expect(avatar.querySelector(".ring-1")).toBeNull();
+  });
+
+  it("keeps a human sender's name free of the AI agent mark", () => {
+    renderRow({ message: userMessage() });
+
     expect(
-      screen.queryByRole("img", { name: "coworkerBadge" }),
+      screen.queryByRole("button", { name: /AI agent/ }),
     ).not.toBeInTheDocument();
+    const sender = screen.getByText("Ada").closest('[role="button"]');
+    expect(sender).toHaveAccessibleName("Ada");
+    expect(sender?.querySelector("svg")).not.toBeInTheDocument();
   });
 
   it("keeps sender attribution on continuation rows", () => {
@@ -479,8 +493,10 @@ describe("ChatMessageRow", () => {
     );
 
     expect(screen.getByRole("tooltip")).toHaveTextContent("Ada, Bob");
+    // Named by what it shows, so a screen reader hears the count, and
+    // pressed because tapping it again takes the reader's reaction back.
     expect(
-      screen.getByRole("button", { name: "Reactions.toggle" }),
+      screen.getByRole("button", { name: "👍 2", pressed: true }),
     ).toBeInTheDocument();
   });
 
@@ -724,7 +740,7 @@ describe("ChatMessageRow", () => {
 
     // The existing Reaction still says who reacted, but cannot be toggled.
     expect(
-      screen.getByRole("button", { name: "Reactions.toggle" }),
+      screen.getByRole("button", { name: "👍 1", pressed: false }),
     ).toHaveAttribute("aria-disabled", "true");
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
@@ -3290,6 +3306,107 @@ describe("ChatMessageRow coworker Thought", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("explains that a Soko Bot hit its usage limit", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: { kind: "ai_budget_exceeded" },
+        },
+      }),
+    });
+
+    expect(screen.getByTestId("coworker-mention-failed")).toHaveTextContent(
+      "aiBudgetExceeded",
+    );
+  });
+
+  it("shows the generic failure copy for an unclassified Soko Bot reply", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: {
+            kind: "GatewayInternalServerError",
+            message: "Raw provider diagnostic",
+          },
+        },
+      }),
+    });
+
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).not.toHaveTextContent("Raw provider diagnostic");
+    expect(card).toHaveTextContent("generic");
+  });
+
+  it("uses the translated failure copy for a background run", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "Raw provider diagnostic",
+        metadata: {
+          soko_bot: {
+            turn_id: "turn-1",
+            background_run_title: "Review",
+            background_failure_kind: "unknown",
+          },
+        },
+      }),
+    });
+
+    expect(
+      screen.queryByText("Raw provider diagnostic"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("backgroundFailed generic")).toBeInTheDocument();
+  });
+
+  it("keeps the owner mention on a translated background failure", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "@owner Raw provider diagnostic",
+        metadata: {
+          soko_bot: {
+            turn_id: "turn-1",
+            background_run_title: "Review",
+            background_failure_kind: "unknown",
+          },
+        },
+      }),
+      usersById: new Map([["owner", { id: "owner", name: "Ada Owner" }]]),
+    });
+
+    const mention = screen.getByText(
+      /data-direct-kind="human" data-direct-id="owner">@Ada Owner<\/span>/,
+    );
+    const copy = screen.getByText("backgroundFailed generic");
+    expect(mention.compareDocumentPosition(copy)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(
+      screen.queryByText("Raw provider diagnostic"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the stopped-reply copy when a Soko Bot reply is cancelled", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: { kind: "turn_cancelled" },
+        },
+      }),
+    });
+
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveTextContent("MentionStatus.failedBody");
+    expect(card).not.toHaveTextContent("generic");
+  });
+
   it("shows a Soko Bot's live Thinking with its latest step and elapsed clock", () => {
     renderRow({
       message: sokoBotMessage({
@@ -3325,7 +3442,7 @@ describe("ChatMessageRow coworker Thought", () => {
     const card = screen.getByTestId("coworker-mention-failed");
     expect(card).toHaveAttribute("role", "status");
     expect(card).toHaveTextContent("MentionStatus.failed");
-    expect(card).toHaveTextContent("MentionStatus.failedSaved");
+    expect(card).toHaveTextContent("messageSaved");
   });
 
   it("shows Retry on a failed mention shell for the mentioner", async () => {
@@ -3352,7 +3469,7 @@ describe("ChatMessageRow coworker Thought", () => {
     );
   });
 
-  it("shows the Thought sparkle on empty stream overlay, not the pixel grid", () => {
+  it("shows the Thought header on empty stream overlay, not the pixel grid", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",

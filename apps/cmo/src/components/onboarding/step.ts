@@ -5,9 +5,9 @@ import { strategyApproved } from "../../lib/strategy";
 
 /**
  * The five moments of hiring Cuso. "plan" is the marketing strategy; paying
- * for a CMO plan is "checkout" (ADR 0068).
+ * for a CMO plan is "checkout" (ADR 0068), before the accounts and Launch.
  */
-export type OnboardingStep = "site" | "brand" | "plan" | "launch" | "checkout";
+export type OnboardingStep = "site" | "brand" | "plan" | "checkout" | "launch";
 
 /**
  * What the step shows: Site reads or asks, Plan waits, asks for a plan, or
@@ -23,7 +23,7 @@ type Phase =
   | "writing-needed"
   | "review";
 
-/** The phases of the Site step. */
+/** The phases of the Research step. */
 export type SitePhase = Extract<Phase, "reading" | "asking" | "failed">;
 
 export type PlanPhase = Extract<
@@ -40,11 +40,11 @@ type Position =
   | { step: "plan"; phase: PlanPhase };
 
 export const STEPS: { id: OnboardingStep; label: string }[] = [
-  { id: "site", label: "Site" },
+  { id: "site", label: "Research" },
   { id: "brand", label: "Brand" },
-  { id: "plan", label: "Plan" },
-  { id: "launch", label: "Launch" },
+  { id: "plan", label: "Strategy" },
   { id: "checkout", label: "Subscribe" },
+  { id: "launch", label: "Launch" },
 ];
 
 export function stepIndex(step: OnboardingStep): number {
@@ -95,23 +95,27 @@ export function onboardingStep(
     !skipped.includes("questions") &&
     unansweredBrandQuestions(overview).length > 0;
   const approved = strategyApproved(overview);
-  // Core reads accounts from a connection, and CMO's cookie from the person's
-  // skip, so a reload after Launch resumes in the app.
+  // An approved plan is paid for first (Core owes the checkout until his
+  // Project has a CMO subscription or Tester credits), then launched.
   if (strategy && approved) {
-    // Core owes the checkout from the first connection on; the person gets
-    // there by pressing Launch, which CMO's cookie remembers as "accounts".
     if (overview.onboardingStep === "checkout") {
       // Polar's confirmation arrives after the person does.
-      if (returnedFromCheckout)
-        return { step: "checkout", phase: "confirming" };
-      if (skipped.includes("accounts")) {
-        return { step: "checkout", phase: "choosing" };
-      }
+      return {
+        step: "checkout",
+        phase: returnedFromCheckout ? "confirming" : "choosing",
+      };
     }
     return { step: "launch", phase: "review" };
   }
 
-  if (!strategy && work?.kind === "strategy" && work.status !== "done") {
+  // Cuso starts the first plan himself once the research ends; it is the
+  // Plan step only after the founder confirms the brand.
+  if (
+    !strategy &&
+    work?.kind === "strategy" &&
+    work.status !== "done" &&
+    overview.brandBrainConfirmedAt
+  ) {
     return { step: "plan", phase: "planning" };
   }
   if (!overview.brandBrainConfirmedAt && !approved) {
@@ -135,7 +139,9 @@ export function onboardingStep(
   const firstPlan =
     (strategy.changes ?? []).length === 0 &&
     !(strategy.questions ?? []).some((question) => question.answer);
-  const writing = work?.kind === "strategy" && work.status === "running";
+  // A patch or brand fix changes a few pieces: the plan stays on screen.
+  const writing =
+    work?.kind === "strategy" && work.status === "running" && !work.change;
   if (firstPlan && (writing || strategy.calendar.length === 0)) {
     return { step: "plan", phase: "planning" };
   }

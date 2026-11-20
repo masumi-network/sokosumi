@@ -5,6 +5,7 @@ import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import german from "../../../../messages/de.json";
 import messages from "../../../../messages/en.json";
 import {
   SEO_TEST_AUDIT,
@@ -20,18 +21,23 @@ const m = vi.hoisted(() => ({
   coworkers: vi.fn(),
   createAudit: vi.fn(),
   push: vi.fn(),
+  locale: vi.fn<() => Promise<"en" | "de">>(),
+  connection: vi.fn(async () => {}),
 }));
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
-  connection: async () => {},
+  connection: m.connection,
 }));
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
-  useRouter: () => ({ push: m.push }),
+  useRouter: () => ({ push: m.push, refresh: vi.fn() }),
 }));
+vi.mock("next/headers", () => ({ cookies: async () => new Map() }));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 vi.mock("next-intl/server", () => ({
-  getTranslations: async () =>
-    createTranslator({ locale: "en", messages, namespace: "App.Seo" }),
+  getLocale: m.locale,
+  getTranslations: async (namespace: "App.Seo" | "App.PageSearch") =>
+    createTranslator({ locale: "en", messages, namespace }),
 }));
 vi.mock("@/lib/services/seo.service", () => ({
   seoService: { listAudits: m.listAudits, getWorkspace: m.getWorkspace },
@@ -49,7 +55,11 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const clients: QueryClient[] = [];
-async function show(params: Record<string, string> = {}) {
+async function show(
+  params: Record<string, string> = {},
+  locale: "en" | "de" = "en",
+) {
+  m.locale.mockResolvedValue(locale);
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -58,10 +68,10 @@ async function show(params: Record<string, string> = {}) {
   return render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
-        locale="en"
+        locale={locale}
         timeZone="UTC"
         formats={createFormats()}
-        messages={messages}
+        messages={locale === "en" ? messages : german}
       >
         <NuqsTestingAdapter
           searchParams={new URLSearchParams(params)}
@@ -131,6 +141,67 @@ describe("native SEO audit entry", () => {
     expect(m.coworkers).not.toHaveBeenCalled();
   });
 
+  it("finds archived reports across pages when search starts from a later page", async () => {
+    const audit = (id: string, name: string) => ({
+      id,
+      name,
+      projectId: SEO_TEST_PROJECT,
+      pageCount: 1,
+      createdAt: new Date("2026-01-02T12:00:00Z"),
+    });
+    m.listAudits
+      .mockResolvedValueOnce({
+        audits: [audit("unrelated", "Unrelated report")],
+        pagination: { nextCursor: "second" },
+      })
+      .mockResolvedValueOnce({
+        audits: [audit("matching", "Launch pages")],
+        pagination: { nextCursor: null },
+      });
+    await show({
+      view: "archived",
+      projectId: SEO_TEST_PROJECT,
+      cursor: "previous",
+      q: "Launch",
+    });
+    expect(screen.getByRole("heading", { name: "Launch pages" })).toBeVisible();
+    expect(screen.queryByText("Unrelated report")).toBeNull();
+    expect(
+      m.listAudits.mock.calls.map(([input]) => [
+        input.cursor,
+        input.projectId,
+        input.status,
+      ]),
+    ).toEqual([
+      [undefined, SEO_TEST_PROJECT, "archived"],
+      ["second", SEO_TEST_PROJECT, "archived"],
+    ]);
+  });
+
+  it("reads archived reports in the chosen project and keeps the cursor in the archive", async () => {
+    m.listAudits.mockResolvedValue({
+      audits: [],
+      pagination: { nextCursor: SEO_TEST_AUDIT },
+    });
+    await show({
+      view: "archived",
+      projectId: SEO_TEST_PROJECT,
+      cursor: SEO_TEST_PAGE,
+    });
+    expect(m.listAudits).toHaveBeenCalledWith({
+      projectId: SEO_TEST_PROJECT,
+      cursor: SEO_TEST_PAGE,
+      status: "archived",
+    });
+    expect(
+      screen.getByRole("link", { name: messages.App.Seo.more }),
+    ).toHaveAttribute(
+      "href",
+      `/seo?projectId=${SEO_TEST_PROJECT}&view=archived&cursor=${SEO_TEST_AUDIT}`,
+    );
+    expect(m.getWorkspace).not.toHaveBeenCalled();
+  });
+
   it("opens the form for a new Audit from the workspace switch prompt's link", async () => {
     m.listAudits.mockResolvedValue({
       audits: [
@@ -167,6 +238,45 @@ describe("native SEO audit entry", () => {
     expect(m.push).toHaveBeenCalledWith(`/seo?auditId=${SEO_TEST_AUDIT}`);
   });
 
+  it("loads a German SEO workspace with English audit results and German tabs", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.auditId = SEO_TEST_AUDIT;
+    workspace.seasonalIdeas = [
+      {
+        keyword: "Pièces détachées",
+        audience: "repair shops",
+        country: "FR",
+        language: "fr",
+        url: workspace.pages[0].url,
+        asOf: new Date("2026-11-01"),
+        pageQuote: "Pièces détachées pour vélos",
+        action: "investigate_angle",
+        limitations: [],
+        event: null,
+        comparison: null,
+        windows: [],
+      },
+    ];
+    m.getWorkspace.mockResolvedValue(workspace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    await show(
+      { auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT, tab: "rankings" },
+      "de",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Pièces détachées" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Check this search for repair shops."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: german.App.Seo.keywords.ideas.short }),
+    ).toBeVisible();
+  });
+
   it("opens an existing Audit without consulting a generic Coworker catalog", async () => {
     const workspace = {
       ...seoTestWorkspace(),
@@ -181,6 +291,33 @@ describe("native SEO audit entry", () => {
     await show({ auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT });
     expect(screen.getByRole("heading", { name: "Launch pages" })).toBeVisible();
     expect(m.coworkers).not.toHaveBeenCalled();
+  });
+
+  it("loads a channel only on Traffic and drops a stale one from the URL", async () => {
+    m.getWorkspace.mockResolvedValue({
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+    });
+    const open = { auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT };
+    await expect(
+      SeoPage({ searchParams: Promise.resolve({ ...open, channel: "all" }) }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `/seo?auditId=${SEO_TEST_AUDIT}&projectId=${SEO_TEST_PROJECT};`,
+      ),
+    });
+    expect(m.getWorkspace).not.toHaveBeenCalled();
+    await SeoPage({
+      searchParams: Promise.resolve({
+        ...open,
+        tab: "traffic",
+        channel: "all",
+      }),
+    });
+    expect(m.getWorkspace).toHaveBeenCalledWith(
+      { kind: "audit", id: SEO_TEST_AUDIT },
+      { channel: "all" },
+    );
   });
 
   it("loads a search type only on Traffic and drops a stale one from the URL", async () => {
@@ -358,5 +495,27 @@ describe("native SEO audit entry", () => {
       "https://example.test/launch",
     );
     expect(m.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("SEO link prefetch", () => {
+  // The Audit list read is cached, so a link prefetch carries it.
+  it("reads the Audit list without deferring to the request", async () => {
+    await SeoPage({ searchParams: Promise.resolve({}) });
+    expect(m.connection).not.toHaveBeenCalled();
+  });
+
+  // A workspace read is not cached, so a link prefetch must stop before it.
+  it.each([
+    ["an Audit", { auditId: SEO_TEST_AUDIT }],
+    ["a Project's", { projectId: SEO_TEST_PROJECT, view: "project" }],
+  ])("keeps %s workspace out of the link prefetch", async (_, params) => {
+    m.getWorkspace.mockResolvedValue(seoTestWorkspace());
+    // A prefetch never resolves connection(), so the page must wait on it.
+    m.connection.mockReturnValueOnce(new Promise<void>(() => {}));
+    void SeoPage({ searchParams: Promise.resolve(params) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(m.connection).toHaveBeenCalledOnce();
+    expect(m.getWorkspace).not.toHaveBeenCalled();
   });
 });

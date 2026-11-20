@@ -11,6 +11,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   createSeoAuditSchema,
+  type seoAuditListQuerySchema,
   seoAuditSummarySchema,
   seoAuditWorkspaceMappingSchema,
 } from "@/schemas/seo-audit.schema";
@@ -24,7 +25,7 @@ import { requireScopedProject } from "./project-social-connections.service";
 
 export async function listSeoAudits(
   actor: SeoWorkspaceActor,
-  query: { cursor?: string; limit?: number; projectId?: string },
+  query: Partial<z.infer<typeof seoAuditListQuerySchema>>,
 ) {
   await requireSeoWorkspace(actor);
   if (query.projectId)
@@ -32,8 +33,8 @@ export async function listSeoAudits(
       projectId: query.projectId,
       workspaceId: actor.workspaceId,
     });
-  const { cursor, take, skip } = parseCursorPagination(query);
-  const where = query.projectId
+  const { cursor, take } = parseCursorPagination(query);
+  const scope = query.projectId
     ? { workspaceId: actor.workspaceId, projectId: query.projectId }
     : {
         workspaceId: actor.workspaceId,
@@ -42,30 +43,51 @@ export async function listSeoAudits(
           { project: { workspaceId: actor.workspaceId } },
         ],
       };
-  if (
-    cursor &&
-    !(await prisma.seoAudit.findFirst({
-      where: { ...where, id: cursor },
-      select: { id: true },
-    }))
-  )
-    throw notFound("SEO audit cursor not found");
+  // A removed last row still marks the next page for readers of this workspace.
+  const after = cursor
+    ? await prisma.seoAudit.findFirst({
+        where: { ...scope, id: cursor },
+        select: { id: true, createdAt: true },
+      })
+    : null;
+  if (cursor && !after) throw notFound("SEO audit cursor not found");
+  const where = {
+    ...scope,
+    deletedAt: null,
+    archivedAt: query.status === "archived" ? { not: null } : null,
+  };
   const [rows, total] = await Promise.all([
     prisma.seoAudit.findMany({
-      where,
+      where: {
+        ...where,
+        ...(after && {
+          AND: {
+            OR: [
+              { createdAt: { lt: after.createdAt } },
+              { createdAt: after.createdAt, id: { lt: after.id } },
+            ],
+          },
+        }),
+      },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: take + 1,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
-      include: { _count: { select: { pages: true } } },
+      select: {
+        id: true,
+        name: true,
+        projectId: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { pages: true } },
+      },
     }),
     prisma.seoAudit.count({ where }),
   ]);
-  const audits = rows
-    .slice(0, take)
-    .map((row) =>
-      seoAuditSummarySchema.parse({ ...row, pageCount: row._count.pages }),
-    );
+  const audits = rows.slice(0, take).map((row) =>
+    seoAuditSummarySchema.parse({
+      ...row,
+      pageCount: row._count.pages,
+    }),
+  );
   return {
     audits,
     pagination: createPaginationMeta(
@@ -93,6 +115,8 @@ export async function getSeoAuditWorkspaceMapping(
   const audit = await prisma.seoAudit.findFirst({
     where: {
       id: auditId,
+      deletedAt: null,
+      archivedAt: null,
       workspace: {
         OR: [{ userId }, { organization: { members: { some: { userId } } } }],
       },

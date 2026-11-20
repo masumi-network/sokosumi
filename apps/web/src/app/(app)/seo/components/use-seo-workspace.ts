@@ -24,19 +24,23 @@ import {
   shouldRetrySeoLoad,
 } from "@/app/seo/seo-load-error-model";
 import { type SeoTab, seoTab } from "@/app/seo/seo-query";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { mutateSeo } from "@/lib/actions/seo/action";
-import type { SeoCommand } from "@/lib/actions/seo/types";
+import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
 import { useSession } from "@/lib/auth/auth.client";
 import {
   seoOwnerApiPath,
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
+import { seoSearchConsoleWarning } from "@/lib/seo/search-console-warning";
+import { canSetBriefPage, type SeoSetupGoalChoice } from "./seo-brief-model";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
 import { type SeoStatisticsProvider } from "./seo-statistics-model";
 import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
+import { useSeoBrief, useSeoGoalSuggestion } from "./use-seo-brief";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 
 /** The form of a day in the period filter, as Core reads it. */
@@ -79,6 +83,7 @@ const parseAsSeoTab = createParser<SeoTab>({
 });
 
 export type SeoDialog =
+  | "brief"
   | "page"
   | "scope"
   | "edit_scope"
@@ -108,15 +113,16 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     channel: parseAsStringLiteral(SEO_TRAFFIC_CHANNELS),
     searchType: parseAsStringLiteral(SEO_SEARCH_TYPES),
   });
-  // The search type is a Traffic control: every other tab reads web search, and leaving Traffic clears it.
+  // The search type and the channel are Traffic controls: every other tab reads web search in every
+  // channel, and leaving Traffic clears both. A channel kept there hid organic Search Console data.
   const filters =
     urlFilters.tab === "traffic"
       ? urlFilters
-      : { ...urlFilters, searchType: null };
+      : { ...urlFilters, searchType: null, channel: null };
   const setFilters: typeof setUrlFilters = (values, options) =>
     setUrlFilters(
       typeof values !== "function" && values?.tab && values.tab !== "traffic"
-        ? { ...values, searchType: null }
+        ? { ...values, searchType: null, channel: null }
         : values,
       options,
     );
@@ -277,6 +283,21 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [analysisKind, setAnalysisKind] = useState<SeoAnalysisKind | null>(
     null,
   );
+  const setupScopeKey = JSON.stringify([
+    setupIdentity,
+    session?.session.id,
+    data.scope.id,
+    data.scope.version,
+    data.scope.pageIds,
+  ]);
+  const [reviewGoal, setReviewGoal] = useState<
+    (SeoSetupGoalChoice & { scopeKey: string }) | null
+  >(null);
+  // Returning to an earlier page selection must not restore consent from a closed review.
+  if (reviewGoal && reviewGoal.scopeKey !== setupScopeKey) {
+    setReviewGoal(null);
+    if (dialog === "analysis") setDialogState(null);
+  }
   /**
    * One check at a time. Every way to the check form goes through here, so a press while a check runs opens
    * nothing and says why: the buttons, the steps of the Agent tab and the replies in the chat.
@@ -292,6 +313,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setStatisticsSource(undefined);
     setKeywordDraft(null);
     setAnalysisKind(null);
+    setReviewGoal(null);
     setDialogState(value);
   }
   /** Opens the schedule form on the run button's check: the full audit where these pages allow one. */
@@ -299,8 +321,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setDialog("monitor");
   }
   /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
-  function openAnalysis(kind: SeoAnalysisKind) {
+  function openAnalysis(kind: SeoAnalysisKind, choice?: SeoSetupGoalChoice) {
     if (requireGoogleSetup() || checkInFlight()) return;
+    setReviewGoal(choice ? { ...choice, scopeKey: setupScopeKey } : null);
     setAnalysisKind(kind);
     setDialogState("analysis");
   }
@@ -322,16 +345,110 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     }
     return value;
   }
-  async function execute(command: SeoCommand, success = t("saved")) {
-    if (pendingRef.current) return false;
+  const sessionKey = JSON.stringify([setupIdentity, session?.session.id]);
+  const activeSessionKey = useRef<string | null>(sessionKey);
+  const unconfirmed = useRef<{
+    toastId: string;
+    key: string;
+    command: SeoCommand;
+    success: string;
+  } | null>(null);
+  useEffect(() => {
+    activeSessionKey.current = sessionKey;
+    return () => {
+      activeSessionKey.current = null;
+      if (unconfirmed.current) toast.dismiss?.(unconfirmed.current.toastId);
+      unconfirmed.current = null;
+    };
+  }, [sessionKey]);
+  async function execute(
+    command: SeoCommand,
+    success = t("saved"),
+    handleRefusal?: (kind: string | undefined) => boolean,
+  ) {
+    if (pendingRef.current || activeSessionKey.current !== sessionKey)
+      return false;
+    const key = seoLaunchKey(command);
+    const previous = unconfirmed.current;
+    function offerReplay(attempt: NonNullable<typeof unconfirmed.current>) {
+      toast.error(t("analysis.unconfirmed"), {
+        id: attempt.toastId,
+        closeButton: true,
+        duration: Infinity,
+        action: {
+          label: t("analysis.retryPrevious"),
+          onClick: () => {
+            // The toast can outlive the form. Its refusal must never offer consent on another form.
+            if (unconfirmed.current === attempt)
+              void execute(attempt.command, attempt.success);
+          },
+        },
+      });
+    }
+    if (key && previous) {
+      if (previous.key !== key) {
+        offerReplay(previous);
+        return false;
+      }
+      command = previous.command;
+      success = previous.success;
+    }
+    const checkedLaunch =
+      command.kind === "monitor_run_now" ||
+      (command.kind === "request_analysis" &&
+        command.body.kind === "audit_full") ||
+      (command.kind === "create_monitor" &&
+        command.body.analysis.kind === "audit_full");
+    function rememberLaunch() {
+      if (!key || !checkedLaunch) return false;
+      const attempt = {
+        toastId: previous?.toastId ?? crypto.randomUUID(),
+        key,
+        command,
+        success,
+      };
+      unconfirmed.current = attempt;
+      offerReplay(attempt);
+      return true;
+    }
+    let received = false;
     pendingRef.current = true;
     setPending(true);
     try {
       const response = await mutateSeo({
         owner,
         command,
+        ...(seoReviewIdentity(command) && session?.user.id
+          ? {
+              briefViewer: {
+                userId: session.user.id,
+                sessionId: session.session.id,
+                organizationId: session.session.activeOrganizationId ?? null,
+              },
+            }
+          : {}),
       });
+      received = true;
+      if (activeSessionKey.current !== sessionKey) return false;
+      if (
+        !response.ok &&
+        ((response.error.status ?? 0) >= 500 ||
+          (!response.error.status &&
+            response.error.code === CommonErrorCode.INTERNAL_SERVER_ERROR)) &&
+        rememberLaunch()
+      )
+        return false;
+      if (key && unconfirmed.current?.key === key) {
+        toast.dismiss?.(unconfirmed.current.toastId);
+        unconfirmed.current = null;
+      }
       if (!response.ok) {
+        if (handleRefusal?.(response.error.kind)) return false;
+        const reason = seoSearchConsoleWarning(response.error.kind);
+        if (reason) {
+          toast.error(t(`analysis.coverage.${reason}`));
+          return false;
+        }
         toast.error(
           response.error.kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE
             ? t("notEnoughCredits")
@@ -340,7 +457,14 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
               : t("saveFailed"),
         );
         // A conflict means this view is stale: read the current revision so the next try can land.
-        if (response.error.status === 409) await refetchForViewer();
+        if (response.error.status === 409) {
+          if (
+            command.kind === "request_analysis" &&
+            (command.body.sharedBrief || command.body.setupGoal)
+          )
+            await brief.reload();
+          await refetchForViewer();
+        }
         return false;
       }
       if (
@@ -356,11 +480,20 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
           )
             operationKeys.current.delete(key);
       }
+      if (
+        command.kind === "record_page_change" ||
+        command.kind === "sync_statistics" ||
+        command.kind === "import_audit" ||
+        (command.kind === "request_analysis" && command.body.setupGoal)
+      )
+        await brief.invalidate();
       toast.success(success);
       setDialog(null);
       await refetchForViewer();
       return true;
     } catch {
+      if (activeSessionKey.current !== sessionKey) return false;
+      if (!received && rememberLaunch()) return false;
       toast.error(t("saveFailed"));
       return false;
     } finally {
@@ -368,17 +501,17 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       setPending(false);
     }
   }
-  // The action an Agent row leads to. Its card takes the focus once.
-  const [shownAction, setShownAction] = useState<string | null>(null);
-  function showAction(action: { observationId: string; id: string }) {
-    setShownAction(seoActionKey(action));
-    void setFilters({ tab: "actions" });
-  }
   // A row that names the strategy actions (Agent tab, Competitors list) leads to their group. The group opens in
   // full and takes the focus once.
   const [shownStrategy, setShownStrategy] = useState(false);
   function showStrategy() {
     setShownStrategy(true);
+    void setFilters({ tab: "actions" });
+  }
+  // The lead of the Agent tab opens its action on the Actions tab, in the list with the other actions.
+  const [shownAction, setShownAction] = useState<string | null>(null);
+  function showAction(key: string) {
+    setShownAction(key);
     void setFilters({ tab: "actions" });
   }
   function openChat(draft?: string) {
@@ -430,6 +563,28 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       },
     });
   }
+  function acknowledgeReview(action: ProjectSeoAction) {
+    const review = action.followUpReview;
+    const page = data.pages.find((p) => p.url === action.pageUrl);
+    if (!review || !page) return;
+    return execute({
+      kind: "acknowledge_review",
+      body: {
+        pageId: page.id,
+        view: {
+          scopeId: data.scope.id ?? undefined,
+          pageId: !data.scope.id && filters.pageId ? page.id : undefined,
+          from: data.scope.from ?? undefined,
+          to: data.scope.to ?? undefined,
+        },
+        actionId: action.id,
+        kind: review.kind,
+        period: review.period,
+        baselineObservationId: review.baselineObservationId,
+        observationId: review.observationId,
+      },
+    });
+  }
   function createActionTask(action: ProjectSeoAction) {
     return execute({
       kind: "create_action_task",
@@ -442,8 +597,48 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       },
     });
   }
+  const setupGoalPageId =
+    setup?.check === "next" &&
+    !hasPreviousCheck &&
+    !data.analyses.length &&
+    filters.tab === "agent"
+      ? data.scope.pageIds[0]
+      : undefined;
+  const [advancedScope, setAdvancedScope] = useState<string | null>(null);
+  const setupGoalAdvanced =
+    Boolean(setupGoalPageId) && advancedScope === setupScopeKey;
+  if (advancedScope !== null && !setupGoalAdvanced) setAdvancedScope(null);
+  function setSetupGoalAdvanced(open: boolean) {
+    setAdvancedScope(open && setupGoalPageId ? setupScopeKey : null);
+  }
+  const brief = useSeoBrief(
+    owner,
+    session?.user.id,
+    session?.session.activeOrganizationId ?? null,
+    setupGoalAdvanced ||
+      dialog === "brief" ||
+      dialog === "analysis" ||
+      filters.tab === "actions" ||
+      (filters.tab === "agent" && data.actions.length > 0),
+  );
+  const setupGoalSuggestion = useSeoGoalSuggestion(
+    owner,
+    session?.user.id,
+    session?.session.activeOrganizationId ?? null,
+    setupGoalAdvanced &&
+      setupGoalPageId &&
+      brief.data &&
+      Number.isInteger(brief.data.revision) &&
+      canSetBriefPage(brief.data.pages, setupGoalPageId) &&
+      !brief.data.pages.some(
+        (page) => page.pageId === setupGoalPageId && page.action,
+      )
+      ? setupGoalPageId
+      : undefined,
+  );
   const statisticsSync = useSeoAutopilot({
     data,
+    refreshBrief: brief.invalidate,
     viewerKey: identity,
     enabled:
       Boolean(session?.user.id) &&
@@ -456,6 +651,13 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   });
   return {
     data,
+    brief,
+    setupGoalAdvanced,
+    setSetupGoalAdvanced,
+    setupGoalPageId,
+    setupGoalSuggestion,
+    setupScopeKey,
+    reviewGoal: reviewGoal?.scopeKey === setupScopeKey ? reviewGoal : null,
     statisticsSync,
     setup,
     waitingForGoogle,
@@ -466,12 +668,12 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     skipGoogleSetup,
     viewerKey: identity,
     openChat,
-    shownAction,
-    setShownAction,
-    showAction,
     shownStrategy,
     setShownStrategy,
     showStrategy,
+    shownAction,
+    setShownAction,
+    showAction,
     chatDraft,
     setChatDraft,
     chatOpen,
@@ -491,6 +693,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     editingKeyword,
     toggleCompetitor,
     createActionTask,
+    acknowledgeReview,
     loadingScope: !result.data && !waitingForSession,
     /** The page shows the read of other dates while the read of the picked ones loads. */
     updating: result.isPlaceholderData,
@@ -520,4 +723,13 @@ export type SeoWorkspaceModel = ReturnType<typeof useSeoWorkspace>;
 /** One action of one check; action ids repeat across checks. */
 export function seoActionKey(action: { observationId: string; id: string }) {
   return `${action.observationId}:${action.id}`;
+}
+
+/** A manual Run uses the frozen schedule revision. Other launches use their Core idempotency key. */
+function seoLaunchKey(command: SeoCommand) {
+  if (command.kind === "request_analysis") return command.body.idempotencyKey;
+  if (command.kind === "create_monitor") return command.body.operationId;
+  if (command.kind === "monitor_run_now")
+    return `run:${command.monitorId}:${command.expectedRevision}`;
+  return null;
 }

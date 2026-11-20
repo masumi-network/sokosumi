@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { askJev } = vi.hoisted(() => ({ askJev: vi.fn() }));
 vi.mock("@/lib/soko-bot/jev", () => ({ askJev }));
 
+import { expectCoreLogWhys } from "@/test/core-log";
 import { judgeRoleInboxes, MIN_PERSON_PROBABILITY } from "./capture-judge";
 
 const samples = [
@@ -51,8 +52,21 @@ describe("judgeRoleInboxes", () => {
   });
 
   it("returns null when Jev fails, and asks nothing for nothing", async () => {
-    askJev.mockRejectedValue(new Error("timeout"));
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not check whether role inboxes are read by a person",
+      ["Jev, the judging model, failed or timed out"],
+    );
+    // A model error can quote the contact data it was sent.
+    askJev.mockRejectedValue(
+      new Error('timeout judging "Sam Founder" <hello@founder.dev>'),
+    );
     expect(await judgeRoleInboxes(samples)).toBeNull();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "contact_capture_judge",
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(warnings[0]?.event)).not.toContain("Sam Founder");
     askJev.mockReset();
     expect(await judgeRoleInboxes([])).toEqual([]);
     expect(askJev).not.toHaveBeenCalled();

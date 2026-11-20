@@ -1,4 +1,5 @@
 import { StudioLogoPosition } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const SOURCE = new Blob(["ad"], { type: "image/png" });
@@ -201,13 +202,13 @@ describe("Studio headline rendering", () => {
     const { context } = canvasHarness();
     const { fetchCss } = fontHarness();
     fetchCss.mockResolvedValueOnce(new Response(null, { status: 400 }));
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warning = expectConsole("warn", "Studio headline font unavailable");
     await renderStudioHeadline(SOURCE, "Brew slowly", undefined, {
       fonts: ["Unknown Face", "Inter"],
     });
     expect(fetchCss).toHaveBeenCalledTimes(2);
     expect(context.font).toContain('"StudioHeadline2"');
-    expect(warning).toHaveBeenCalledOnce();
+    expect(warning).toHaveLength(1);
   });
 
   it.each(["network", "font", "untrusted source", "empty stylesheet"])(
@@ -227,7 +228,7 @@ describe("Studio headline rendering", () => {
         );
       if (failure === "empty stylesheet")
         fetchCss.mockResolvedValue(new Response(""));
-      const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warning = expectConsole("warn", "Studio headline font unavailable");
 
       await expect(
         renderStudioHeadline(SOURCE, "Brew slowly", undefined, {
@@ -237,9 +238,9 @@ describe("Studio headline rendering", () => {
       ).resolves.toBe(OUTPUT);
       expect(context.font).toBe("700 81px system-ui");
       expect(styles).toEqual(["#fff", "#A33421"]);
-      expect(warning).toHaveBeenCalledWith(
-        "Studio headline font unavailable; using a fallback.",
-      );
+      expect(warning).toEqual([
+        ["Studio headline font unavailable; using a fallback."],
+      ]);
     },
   );
 
@@ -249,7 +250,7 @@ describe("Studio headline rendering", () => {
     const { context, add } = canvasHarness();
     const { load } = fontHarness();
     load.mockReturnValue(new Promise(() => {}));
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "Studio headline font unavailable");
     const rendering = renderStudioHeadline(SOURCE, "Brew slowly", undefined, {
       fontUrl: "blob:hung-font",
     });

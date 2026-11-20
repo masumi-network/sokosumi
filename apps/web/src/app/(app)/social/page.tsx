@@ -1,27 +1,23 @@
-import type { SocialPost } from "@sokosumi/core-client";
 import type { Metadata } from "next";
-import { unstable_rethrow } from "next/navigation";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
-import type { CalendarType } from "@/app/calendar/calendar-types";
+import { calendarSearchFields } from "@/app/calendar/calendar-search";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
-import {
-  type CalendarPageSearchParams,
-  type LoadedWorkspaceCalendarPage,
-  loadWorkspaceCalendarPage,
-} from "@/app/calendar/load-calendar-page";
+import type { LoadedWorkspaceCalendarPage } from "@/app/calendar/load-calendar-page";
 import { ProjectPostingInstructions } from "@/app/projects/components/project-posting-instructions";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
-import {
-  SECTION_ORDER,
-  SECTION_STATUSES,
-} from "@/app/projects/components/social-posts/constants";
+import { SECTION_ORDER } from "@/app/projects/components/social-posts/constants";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
+import {
+  searchSocialPosts,
+  socialPostSearchFields,
+} from "@/app/projects/components/social-posts/social-post-list";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
-import { projectService } from "@/lib/services/project.service";
-import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { PageQuerySearchField } from "@/components/page-query-search-field";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
+import { SearchablePageContent } from "@/components/searchable-page-content";
+import { rankPageItems } from "@/lib/utils/page-search";
 
 import { SocialAllProjectsAttention } from "./components/social-all-projects-attention";
 import { SocialAllProjectsTabs } from "./components/social-all-projects-tabs";
@@ -29,42 +25,17 @@ import { SocialCalendarPreviewProvider } from "./components/social-calendar-prev
 import { SocialComposeProvider } from "./components/social-compose-context";
 import { SocialNewPostMenu } from "./components/social-new-post-menu";
 import { SocialPageShell } from "./components/social-page-shell";
+import {
+  loadSocialPageData,
+  SOCIAL_CALENDAR_TYPES,
+  type SocialPageQuery,
+} from "./social-page-data";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
 
-/**
- * All projects' Needs attention: what a project lists there (failed and
- * missed) plus posts waiting for someone's approval.
- */
-const ALL_PROJECTS_ATTENTION_STATUSES = [
-  ...SECTION_STATUSES.attention,
-  "NEEDS_APPROVAL",
-] as const;
-
-/** Social's calendar shows Social posts and asks Core for nothing else. */
-const SOCIAL_CALENDAR_TYPES: readonly CalendarType[] = ["social"];
-
-/**
- * Social's calendar has no agenda list, but older links (and the workspace
- * calendar's phone default) can still carry `view=agenda`; loading that
- * range would leave the month grid missing posts. Task filters would also
- * hide Social posts on the Core read, so drop them here.
- */
-function socialCalendarQuery(query: CalendarPageSearchParams) {
-  return {
-    ...query,
-    assigneeId: undefined,
-    assigneeUserId: undefined,
-    // Older links may still carry a Tasks source filter; Social has none.
-    sourceId: undefined,
-    status: undefined,
-    view: query.view === "agenda" ? undefined : query.view,
-  };
-}
-
 interface SocialPageProps {
-  searchParams: Promise<CalendarPageSearchParams & { postId?: string }>;
+  searchParams: Promise<SocialPageQuery>;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -82,42 +53,28 @@ export async function generateMetadata(): Promise<Metadata> {
  * note that accounts are connected per project.
  */
 export default async function SocialPage({ searchParams }: SocialPageProps) {
-  await connection();
-
   const query = await searchParams;
-  const t = await getTranslations("App.Social");
+  const [t, tSearch, data] = await Promise.all([
+    getTranslations("App.Social"),
+    getTranslations("App.PageSearch"),
+    loadSocialPageData(query),
+  ]);
   const projectId = query.projectId?.trim();
-  let project = null;
-  let projectLoadFailed = false;
-  if (projectId) {
-    try {
-      project = await projectService.getProjectById(projectId);
-    } catch {
-      projectLoadFailed = true;
-    }
-  }
+  const term = typeof query.q === "string" ? query.q.trim() : "";
+  const showCalendar = !data.searchTab || data.searchTab === "calendar";
+  const field = (
+    <PageQuerySearchField inHeader placeholder={tSearch("posts")} />
+  );
 
-  if (!project) {
-    const [calendar, sokoBot, attention] = await Promise.all([
-      // Drop an id the workspace no longer has, or the calendar would filter
-      // to a project that is not there.
-      loadWorkspaceCalendarPage({
-        searchParams: Promise.resolve({
-          ...socialCalendarQuery(query),
-          projectId: undefined,
-        }),
-        types: SOCIAL_CALENDAR_TYPES,
-      }),
-      sokoBotService.getMine().catch(() => null),
-      projectService
-        .listWorkspaceSocialPosts(ALL_PROJECTS_ATTENTION_STATUSES)
-        .catch(() => null),
-    ]);
+  if (data.kind === "workspace") {
+    const { calendar, sokoBot, attention, projectLoadFailed } = data;
     return (
       <SocialPageShell title={t("title")}>
+        <RefreshPrefetchedPage />
         <SocialCalendarPreviewProvider>
           <SocialComposeProvider>
             <SocialAllProjectsTabs
+              searchField={field}
               actions={
                 <SocialNewPostMenu
                   project={null}
@@ -125,21 +82,41 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
                 />
               }
               attention={
-                attention ? (
-                  <SocialAllProjectsAttention
-                    hasMore={attention.hasMore}
-                    items={attention.items}
-                  />
-                ) : (
-                  <SocialLoadError kind="attention" />
-                )
+                <>
+                  {attention ? (
+                    <SocialAllProjectsAttention
+                      query={term}
+                      hasMore={attention.hasMore}
+                      items={
+                        term
+                          ? data.searchTab === "attention"
+                            ? rankPageItems(
+                                attention.items,
+                                term,
+                                ({ post, projectName }) =>
+                                  socialPostSearchFields(post, projectName),
+                              )
+                            : []
+                          : attention.items
+                      }
+                    />
+                  ) : (
+                    <SocialLoadError kind="attention" />
+                  )}
+                </>
               }
               attentionCount={
                 attention?.items.length
                   ? `${attention.items.length}${attention.hasMore ? "+" : ""}`
                   : undefined
               }
-              calendar={<SocialCalendar calendar={calendar} />}
+              calendar={
+                <>
+                  {showCalendar && (
+                    <SocialCalendar calendar={calendar} query={term} />
+                  )}
+                </>
+              }
               notice={
                 projectId && !projectLoadFailed
                   ? t("pickUnavailable")
@@ -154,132 +131,83 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     );
   }
 
-  const [
+  const {
+    project,
     pages,
     connectionsResult,
     selectedPostResult,
     calendarResult,
     sokoBot,
     queueResult,
-  ] = await Promise.all([
-    Promise.all(
-      SECTION_ORDER.map(async (section) => {
-        try {
-          return {
-            failed: false as const,
-            ...(await projectService.listSocialPosts(project.id, {
-              statuses: SECTION_STATUSES[section],
-            })),
-          };
-        } catch {
-          return {
-            failed: true as const,
-            posts: [],
-            nextCursor: null,
-          };
-        }
-      }),
-    ),
-    projectService
-      .listSocialConnections(project.id)
-      .then((connections) => ({ failed: false as const, connections }))
-      .catch(() => ({ failed: true as const, connections: [] })),
-    query.postId
-      ? projectService
-          .getSocialPost(project.id, query.postId)
-          .then((post) => ({ failed: false as const, post }))
-          .catch(() => ({ failed: true as const, post: null }))
-      : Promise.resolve({ failed: false as const, post: null }),
-    loadWorkspaceCalendarPage({
-      projectId: project.id,
-      searchParams: Promise.resolve(socialCalendarQuery(query)),
-      types: SOCIAL_CALENDAR_TYPES,
-    })
-      .then((calendar) => ({ failed: false as const, calendar }))
-      .catch((error: unknown) => {
-        unstable_rethrow(error);
-        return { failed: true as const, calendar: null };
-      }),
-    sokoBotService.getMine().catch(() => null),
-    projectService
-      .listSocialQueueSlots(project.id)
-      .then((queueSlots) => ({ failed: false as const, queueSlots }))
-      .catch(() => ({ failed: true as const, queueSlots: null })),
-  ]);
+    affectedPosts,
+  } = data;
   const { connections, failed: accountsFailed } = connectionsResult;
   const { calendar, failed: calendarFailed } = calendarResult;
   const { post: selectedPost, failed: selectedPostFailed } = selectedPostResult;
   // Null queue slots without a failure: the posting queue is not open to this user.
   const { queueSlots, failed: queueFailed } = queueResult;
-  // Count every affected scheduled/failed post, including later list pages.
-  // A failed read here only shortens the reconnect counts; Social stays up.
-  const affectedPosts: SocialPost[] = [...pages[1].posts];
-  try {
-    const scheduledPage = await projectService.listSocialPosts(project.id, {
-      statuses: ["SCHEDULED"],
-    });
-    affectedPosts.push(...scheduledPage.posts);
-    for (const [statuses, initialCursor] of [
-      [SECTION_STATUSES.attention, pages[1].nextCursor],
-      [["SCHEDULED"], scheduledPage.nextCursor],
-    ] as const) {
-      let cursor = initialCursor;
-      while (cursor) {
-        const page = await projectService.listSocialPosts(project.id, {
-          statuses,
-          cursor,
-        });
-        affectedPosts.push(...page.posts);
-        cursor = page.nextCursor;
-      }
-    }
-  } catch {
-    // Keep the posts already read.
-  }
   const activeConnections = connections.filter(
     (socialConnection) => socialConnection.status === "active",
   );
   const managedAccountCount = connections.filter(
     (socialConnection) => socialConnection.status !== "disconnected",
   ).length;
+  const listedPosts = term
+    ? pages.flatMap((page, index) =>
+        SECTION_ORDER[index] === data.searchTab
+          ? searchSocialPosts(page.posts, term)
+          : [],
+      )
+    : pages.flatMap((page) => page.posts);
   const posts = selectedPost
     ? [
         selectedPost,
-        ...pages
-          .flatMap((page) => page.posts)
-          .filter((post) => post.id !== selectedPost.id),
+        ...listedPosts.filter((post) => post.id !== selectedPost.id),
       ]
-    : pages.flatMap((page) => page.posts);
+    : listedPosts;
 
   return (
     <SocialPageShell title={t("title")}>
+      <RefreshPrefetchedPage />
       {project.cmo ? (
         <CmoProjectBanner className="mb-4" projectId={project.id} />
       ) : null}
       <SocialCalendarPreviewProvider>
         <SocialComposeProvider>
           <ProjectSocialPosts
+            searchField={field}
+            searchQuery={term}
+            sectionCounts={
+              term
+                ? {
+                    drafts: pages[0].posts.length,
+                    attention: pages[1].posts.length,
+                  }
+                : undefined
+            }
             readOnly={project.cmo}
             connectDisabled={Boolean(project.closingAt || project.closedAt)}
             accounts={
-              <div className="space-y-6">
-                <ProjectSocialAccounts
-                  projectId={project.id}
-                  connections={connections}
-                  readOnly={project.cmo}
-                  queueSlots={queueSlots ?? undefined}
-                  connectDisabled={Boolean(
-                    project.closingAt || project.closedAt,
-                  )}
-                />
-                <ProjectPostingInstructions
-                  projectId={project.id}
-                  postingInstructionsMd={project.postingInstructionsMd}
-                  disabled={Boolean(
-                    project.cmo || project.closingAt || project.closedAt,
-                  )}
-                />
-              </div>
+              <SearchablePageContent>
+                <div className="space-y-6">
+                  <ProjectSocialAccounts
+                    projectId={project.id}
+                    connections={connections}
+                    readOnly={project.cmo}
+                    queueSlots={queueSlots ?? undefined}
+                    connectDisabled={Boolean(
+                      project.closingAt || project.closedAt,
+                    )}
+                  />
+                  <ProjectPostingInstructions
+                    projectId={project.id}
+                    postingInstructionsMd={project.postingInstructionsMd}
+                    disabled={Boolean(
+                      project.cmo || project.closingAt || project.closedAt,
+                    )}
+                  />
+                </div>
+              </SearchablePageContent>
             }
             actions={
               project.cmo ? undefined : (
@@ -291,10 +219,15 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             }
             calendar={
               calendar ? (
-                <SocialCalendar
-                  calendar={calendar}
-                  lockedProjectId={project.id}
-                />
+                <>
+                  {showCalendar && (
+                    <SocialCalendar
+                      calendar={calendar}
+                      lockedProjectId={project.id}
+                      query={term}
+                    />
+                  )}
+                </>
               ) : undefined
             }
             accountCount={managedAccountCount}
@@ -327,9 +260,11 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
 
 function SocialCalendar({
   calendar,
+  query,
   lockedProjectId,
 }: {
   calendar: LoadedWorkspaceCalendarPage;
+  query: string;
   lockedProjectId?: string;
 }) {
   return (
@@ -338,7 +273,9 @@ function SocialCalendar({
       coworkers={calendar.coworkerOptions}
       currentUserId={calendar.currentUserId}
       initialDate={calendar.initialDate}
-      items={calendar.items}
+      items={rankPageItems(calendar.items, query, (entry) =>
+        calendarSearchFields(entry, calendar),
+      )}
       key={calendar.calendarKey}
       latestDate={calendar.latestDate}
       lockedProjectId={lockedProjectId}

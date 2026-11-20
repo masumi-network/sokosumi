@@ -1,10 +1,12 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
+import { type CmoVolumeLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
+import { recordCoreWarning } from "@/lib/evlog";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import {
   CmoConflictError,
@@ -18,10 +20,7 @@ import {
   LIVE_CUSO_WHERE,
   requireCuso,
 } from "@/services/cmo-cuso.service";
-import {
-  approvedMarketingStrategy,
-  mayApproveMarketingStrategy,
-} from "@/services/marketing-strategy.service";
+import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
 /**
  * Tester credits (all Projects, or one): what a Cuso works on without a CMO
@@ -103,11 +102,15 @@ export async function isCmoSubscribed(
  * counts until the period ends; past due and ended do not), and Tester
  * credits not used up.
  */
-async function cmoPaidFor(
+export async function cmoPaidFor(
   projectId: string,
   now: Date,
   db: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,
-): Promise<{ subscribed: boolean; testerCreditsLeft: boolean }> {
+): Promise<{
+  subscribed: boolean;
+  tier: string | null;
+  testerCreditsLeft: boolean;
+}> {
   const [subscription, testerBuckets] = await Promise.all([
     db.polarSubscription.findFirst({
       where: {
@@ -116,7 +119,7 @@ async function cmoPaidFor(
         status: "active",
         OR: [{ cancelAtPeriodEnd: false }, { currentPeriodEnd: { gt: now } }],
       },
-      select: { id: true },
+      select: { tier: true },
     }),
     db.creditBucket.findMany({
       where: {
@@ -130,12 +133,26 @@ async function cmoPaidFor(
   ]);
   return {
     subscribed: subscription !== null,
+    tier: subscription?.tier ?? null,
     testerCreditsLeft: testerBuckets.some(
       (bucket) =>
         bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n) <
         bucket.amount,
     ),
   };
+}
+
+/**
+ * How much of the month a Cuso's plan makes: an active plan's tier. Tester
+ * credits, and a Cuso nobody pays for yet (hiring, before Subscribe), make
+ * all of it, whatever plan is pending or lapsed beside them.
+ */
+export async function cmoPlanLevel(
+  projectId: string,
+  now: Date,
+): Promise<CmoVolumeLevel> {
+  const paid = await cmoPaidFor(projectId, now, prisma);
+  return cmoVolumeLevelForTier(paid.testerCreditsLeft ? null : paid.tier);
 }
 
 /** What a tester's skip gives a Cuso, as a hire before CMO plans got. */
@@ -283,9 +300,16 @@ export interface CmoBilling {
 /** The tier of a plan product; null when Polar's catalog does not answer. */
 async function cmoPlanTier(productId: string): Promise<string | null> {
   const catalog = await getCmoCatalog().catch((error) => {
-    console.warn("CMO catalog not read", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    recordCoreWarning(
+      { operation: "cmo_plan_tier" },
+      {
+        message: "Could not read the CMO plan catalog",
+        why: "Polar's product catalog did not answer",
+        fix: "The scheduled plan change shows no tier until the catalog answers again. If it keeps failing, read the error under warnings[].cause.",
+        cause: error,
+      },
+      { polarProduct: { id: productId } },
+    );
     return null;
   });
   return (
@@ -326,24 +350,6 @@ export async function readCmoBilling(projectId: string): Promise<CmoBilling> {
       : null,
     hasTesterCredits: tester !== null,
   };
-}
-
-/**
- * Approving the strategy spends the business's credits and publishes in its
- * name: the organization's owners and admins only
- * (ADR 0061). Every other member works with Cuso freely.
- */
-export async function requireCmoCommitter(
-  userId: string,
-  cuso: Pick<Cuso, "workspaceId">,
-): Promise<void> {
-  const { organizationId } = await cmoPayer(cuso);
-  const workspace = { id: cuso.workspaceId, userId: null, organizationId };
-  if (!(await mayApproveMarketingStrategy(userId, workspace))) {
-    throw new CmoForbiddenError(
-      "Only the organization's owners and admins approve Cuso's plan and start his month",
-    );
-  }
 }
 
 /**

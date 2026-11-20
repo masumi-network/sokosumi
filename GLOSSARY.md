@@ -24,6 +24,7 @@ _Avoid_: Task, run (unless a UI label)
 
 **Task**:
 Work assigned to a Coworker. Not a Job.
+A Task in an Organization workspace belongs to the workspace, not to the person who made it, so a refund on it has no user and shows only in the Workspace's credit history.
 _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 
 **Coworker**:
@@ -99,7 +100,7 @@ The product at cmo.xyz: an AI agent that runs a business's marketing end to end 
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
 **Cuso**:
-CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that markets one Business from one Project of an organization, for every member of it. A Project has at most one, an organization may hold several, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
+CMO's mascot and the name of every CMO agent: a shared Soko Bot on the CMO profile that markets one Business from one Project of an organization, for every member of it. A Project has at most one, an organization may hold several, and he is found as that bot, with no CMO record beside it.
 _Avoid_: CMO bot, marketing assistant, the CMO (that is the product), CMO hire (what he knows and plans belongs to the Project)
 
 **CMO Project**:
@@ -122,6 +123,9 @@ _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 The 10,000 credits a person whose verified email is on Core's `CMO_SUBSCRIPTION_SKIP_ALLOWLIST` gives a Cuso in place of a CMO subscription, again once they are used up; the credits each Hiring Cuso granted before CMO subscriptions are Tester credits now ([ADR 0068](docs/adr/0068-cmo-sells-its-plans-through-polar.md)). They are Project credits of his Project with their own credit bucket type, never expire, keep him working while unspent, end his hiring without a checkout, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
 _Avoid_: Starter credits (the former name), trial credits (CMO has no trial), free credits (that is any admin grant), skip credits
 
+**Test copy**:
+A Cuso hired as the copy of another Cuso in the same organization, to test CMO end to end ([ADR 0073](docs/adr/0073-a-cmo-test-copy-links-its-sources-connected-accounts.md)). His Project carries the mark, his Social connections are links to the source's connected accounts, none of his posts ever publishes, and he is torn down within six hours.
+
 **CMO plan**:
 One of the three tiers CMO sells, monthly or yearly: a price and the credits it grants each month.
 _Avoid_: Subscription plan (that is Sokosumi's seat-based plan), tier, package
@@ -134,9 +138,13 @@ _Avoid_: Subscription (alone, that is the organization's Stripe plan), CMO hire,
 A one-time purchase of Project credits for one subscribed Cuso's Project, bought through Polar. They expire 12 months after purchase.
 _Avoid_: Top-up (alone, that is a Stripe purchase into the Organization credit pool), credit pack, refill
 
+**Polar customer**:
+The Organization as Polar knows it. Every CMO subscription and Project top-up belongs to it, whoever in the Organization pays.
+_Avoid_: Customer (alone), payer
+
 **Marketing strategy**:
 A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
-_Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
+_Avoid_: Plan (in anything a person or Cuso reads; that is a CMO plan), CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
 
 **Brand Brain**:
 What a Project knows about the business it works for (summary, voice, audience, products, competitors, channels). Every bot in the Project reads it and any member of its Workspace edits it; Cuso drafts it while Hiring Cuso. Its look (logo, colours, fonts) is the Project's logo and DESIGN.md, not part of it.
@@ -199,8 +207,12 @@ The person who asked a Soko Bot to act, recorded on its turns and Soko Bot sched
 _Avoid_: Context user, on-behalf-of user, initiator, owner
 
 **Task participant**:
-A person who follows a Task to hear about it. Distinct from Participant, which belongs to Threads.
-_Avoid_: Participant (when meaning a Task), follower, watcher
+A person on a Task's participant list: added by an @-mention or by joining the Task themselves. Each one hears by the bell when the Task completes, fails, is canceled, goes overdue or has its due date moved later. Distinct from Participant, which belongs to Threads, and from Task follower.
+_Avoid_: Participant (when meaning a Task), watcher
+
+**Task follower**:
+A person whose personal Soko Bot follows a Task for them. The bot tells them the same moments in its 1:1, and writes a summary when the Task completes; without a live bot they hear by the bell. Following needs a personal Soko Bot (a paused one is fine; while paused, the moments go to the bell), never adds them to the participant list, and leaving that list never stops it. UI copy says "Follow task with Soko Bot".
+_Avoid_: Subscribed participant, subscriber, interested
 
 ### Calendar
 
@@ -437,6 +449,18 @@ _Avoid_: Activity feed (when meaning the Notification Center), history (the full
 **Closed project**:
 A project whose close has finished: its scheduled work is stopped, its history kept, and it cannot be reopened. Out of the Project switcher's list, and in the Projects list only under its Closed view; the Open view is the default. Opening one still makes it the Project scope, so its history stays readable, and the switcher then marks it Closed. A project that is closing, or whose close failed, is not yet Closed. Closed is the archive: there is no separate archived state.
 _Avoid_: Archived project, deleted project, inactive project
+
+**Tracked competitor**:
+A competitor a Project watches, up to five. Members add, change and remove them on the Project's Competitors page; in a CMO Project, Cuso's Brand Brain research fills the list and CMO changes it ([ADR-0072](docs/adr/0072-competitor-monitoring-is-a-project-feature.md)).
+_Avoid_: SEO competitor (a site that ranks for the Project's keywords), rival, watched company
+
+**Competitor check**:
+The weekly reading of a Project's Tracked competitors: each one's website and pricing page, news, ads and Instagram numbers. Off until a member turns it on; 3 credits per competitor a week. A CMO Project's runs while its Cuso is paid for.
+_Avoid_: Competitor scan, competitor audit, monitoring run
+
+**Competitor signal**:
+One thing a Competitor check found, with its source's title, publisher, address, date and own words. Written once and never edited; "This week" may only say what its signals say.
+_Avoid_: Finding, alert, competitor update
 
 **Pinned project**:
 The current user's personal pin of a project they can read. Not shared, and not capped. Product UI: Pin / Unpin; the API and database say star ([ADR-0036](docs/adr/0036-project-pins.md)). Activity never moves a Pinned project, and there is no reorder mode: the order is `starredAt` ascending, which here really is the time of pinning. Pinned from the Projects list row or the project header, never from the Project switcher, which is a shortcut rather than a place to curate. Closing a project keeps the pin but drops it out of the switcher for good. Distinct from a Pinned room and a Pinned message.

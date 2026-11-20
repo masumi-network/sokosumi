@@ -3,24 +3,6 @@
 import { ChevronRight, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 
-interface StatRowProps {
-  stats: { value: string; line: string }[];
-}
-
-/** Big numbers over a small line, set off by a top line. */
-export function StatRow({ stats }: StatRowProps) {
-  return (
-    <dl className="ob-stats">
-      {stats.map((stat) => (
-        <div key={stat.value}>
-          <dt>{stat.value}</dt>
-          <dd>{stat.line}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 interface GoalBlockProps {
   label: string;
   /** The short goal: the screen's one H1 when `headline` is set. */
@@ -64,8 +46,8 @@ export function GoalBlock({
 
 interface TileProps {
   label: string;
-  value: string;
-  detail?: string;
+  value: ReactNode;
+  detail?: ReactNode;
   source?: string;
   open?: boolean;
   onToggle?: () => void;
@@ -149,7 +131,7 @@ export function SidePanel({
   return (
     <aside
       ref={sheet}
-      className="ob-side card card-focus"
+      className="ob-side card"
       aria-label={title}
       tabIndex={-1}
     >

@@ -93,6 +93,113 @@ function imageModelOverrides(): ImageModelOverride[] {
       ],
       verifiedAt: "2026-11-09",
     },
+    // The models that remake a picture in a reference library style after
+    // Muse Image (REFERENCE_STYLE_MODELS). fal bills GPT Image 2.6 and Nano
+    // Banana 2.1 in "units" by size, and no per-image figure is published,
+    // so each price is the highest per-image estimate found: a customer is
+    // never charged less than the image costs. Check them against a fal
+    // invoice and lower them.
+    {
+      endpoint: "openai/gpt-image-2.6/flare",
+      id: "gpt-image-2-6",
+      label: "GPT Image 2.6",
+      description:
+        "OpenAI's image model, strongest at period looks and lettering (GPT Image 2.6 Flare).",
+      editEndpoint: "openai/gpt-image-2.6/flare/edit",
+      aspectRatios: IMAGE_ASPECT_RATIOS,
+      resolutions: ["1K"],
+      outputFormats: IMAGE_OUTPUT_FORMATS,
+      supportsSeed: false,
+      maxReferences: 4,
+      dimensionMode: "image-size",
+      providerFields: [
+        "image_size",
+        "output_format",
+        "num_images",
+        "image_urls",
+      ],
+      curatedRank: null,
+      notes:
+        "Billed by fal in units by size; priced here at an upper estimate.",
+      price: {
+        unit: "images",
+        unitPriceUsd: 0.21,
+        perImageUsd: { "1K": 0.21 },
+        basis:
+          "Upper estimate, $0.21 an image: fal bills it in units by size and publishes no per-image figure.",
+        sourceUrl: "https://fal.ai/models/openai/gpt-image-2.6/flare/edit",
+        verifiedAt: "2026-11-17",
+      },
+      sourceUrls: ["https://fal.ai/models/openai/gpt-image-2.6/flare/edit/api"],
+      verifiedAt: "2026-11-17",
+    },
+    {
+      endpoint: "google/nano-banana-2.1",
+      id: "nano-banana-2-1",
+      label: "Nano Banana 2.1",
+      description:
+        "Google's image model, bold compositions and reference editing (Nano Banana 2.1).",
+      editEndpoint: "google/nano-banana-2.1/edit",
+      aspectRatios: IMAGE_ASPECT_RATIOS,
+      resolutions: ["1K"],
+      outputFormats: IMAGE_OUTPUT_FORMATS,
+      supportsSeed: false,
+      maxReferences: 4,
+      dimensionMode: "aspect-ratio",
+      providerFields: [
+        "aspect_ratio",
+        "output_format",
+        "num_images",
+        "image_urls",
+      ],
+      curatedRank: null,
+      notes:
+        "Billed by fal in units by size; priced here at an upper estimate.",
+      price: {
+        unit: "images",
+        unitPriceUsd: 0.08,
+        perImageUsd: { "1K": 0.08 },
+        basis:
+          "Upper estimate, $0.08 an image: fal bills it in units and publishes no per-image figure; Google's own 2K rate is $0.05.",
+        sourceUrl: "https://fal.ai/models/google/nano-banana-2.1/edit",
+        verifiedAt: "2026-11-17",
+      },
+      sourceUrls: ["https://fal.ai/models/google/nano-banana-2.1/edit/api"],
+      verifiedAt: "2026-11-17",
+    },
+    {
+      endpoint: "bytedance/seedream/v5/pro/text-to-image",
+      id: "seedream-5-pro",
+      label: "Seedream 5 Pro",
+      description:
+        "ByteDance's image model, clean and modern, with up to ten references (Seedream 5.0 Pro).",
+      editEndpoint: "bytedance/seedream/v5/pro/edit",
+      aspectRatios: IMAGE_ASPECT_RATIOS,
+      resolutions: ["1K"],
+      outputFormats: ["png", "jpeg"],
+      supportsSeed: false,
+      maxReferences: 10,
+      dimensionMode: "image-size",
+      providerFields: [
+        "image_size",
+        "output_format",
+        "num_images",
+        "image_urls",
+      ],
+      curatedRank: null,
+      notes: "Up to ten references.",
+      price: {
+        unit: "images",
+        unitPriceUsd: 0.0675,
+        perImageUsd: { "1K": 0.0675 },
+        basis:
+          "$0.0675 an image, as fal's pricing API lists the edit endpoint.",
+        sourceUrl: "https://fal.ai/models/bytedance/seedream/v5/pro/edit",
+        verifiedAt: "2026-11-17",
+      },
+      sourceUrls: ["https://fal.ai/models/bytedance/seedream/v5/pro/edit/api"],
+      verifiedAt: "2026-11-17",
+    },
     {
       // Nano Banana 2. The studio's default, and the first model whose
       // capabilities and price a person read off fal's own pages end to end.
@@ -214,11 +321,34 @@ function imageModelOverrides(): ImageModelOverride[] {
     },
     {
       // Typography and posters: the shortlist's one reliable letterer.
+      // fal lists `/edit` next to the generate model, but that endpoint is
+      // mask inpainting (`image_url` + `mask_url`, required). Studio Refine
+      // has no mask painter, so the refine path is `/remix` (`image_url` +
+      // `strength`). Lettering uses `/edit` with a generated headline mask.
+      // Verified against fal's docs on 2026-11-16:
+      // https://fal.ai/models/fal-ai/ideogram/v3/edit/api
+      // https://fal.ai/models/fal-ai/ideogram/v3/remix/api
       endpoint: "fal-ai/ideogram/v3",
       id: "ideogram-v3",
+      editEndpoint: "fal-ai/ideogram/v3/remix",
+      inpaintEndpoint: "fal-ai/ideogram/v3/edit",
+      providerFields: [
+        "image_size",
+        "num_images",
+        "seed",
+        "image_url",
+        "strength",
+        "image_urls",
+      ],
       curatedRank: 5,
       notes:
-        "Strongest of the shortlist at typography and poster layout. Capabilities otherwise as fal publishes them.",
+        "Strongest of the shortlist at typography and poster layout. Studio Refine uses /remix with image_url and strength 0.8 (fal's default, keeps most of the input). Lettering uses /edit with image_url plus a same-size mask (black = headline band to paint, white = keep).",
+      sourceUrls: [
+        "https://fal.ai/models/fal-ai/ideogram/v3/api",
+        "https://fal.ai/models/fal-ai/ideogram/v3/remix/api",
+        "https://fal.ai/models/fal-ai/ideogram/v3/edit/api",
+      ],
+      verifiedAt: "2026-11-16",
     },
     {
       // Vector, icons, and one brand style held across a set.
@@ -279,6 +409,7 @@ export function applyCatalogOverrides(fetched: ImageModel[]): ImageModel[] {
       description: rest.description ?? "",
       generateEndpoint: endpoint,
       editEndpoint: rest.editEndpoint ?? null,
+      inpaintEndpoint: rest.inpaintEndpoint ?? null,
       aspectRatios: rest.aspectRatios ?? IMAGE_ASPECT_RATIOS,
       resolutions: rest.resolutions ?? ["1K"],
       outputFormats: rest.outputFormats ?? [],

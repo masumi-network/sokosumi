@@ -4,6 +4,7 @@ import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
+  ComposioToolError,
   createComposioToolSession,
   executeComposioTool,
   guardSocialCreateOutcome,
@@ -18,16 +19,18 @@ const FACEBOOK_CREATE_PHOTO_TOOL_SLUG = "FACEBOOK_CREATE_PHOTO_POST";
 const FACEBOOK_CREATE_MULTI_PHOTO_TOOL_SLUG =
   "FACEBOOK_CREATE_MULTI_PHOTO_POST";
 const FACEBOOK_CREATE_VIDEO_TOOL_SLUG = "FACEBOOK_CREATE_VIDEO_POST";
+const FACEBOOK_PUBLISH_REEL_TOOL_SLUG = "FACEBOOK_PUBLISH_PAGE_REEL";
 
 const FACEBOOK_TOOL_SLUGS = [
   FACEBOOK_CREATE_POST_TOOL_SLUG,
   FACEBOOK_CREATE_PHOTO_TOOL_SLUG,
   FACEBOOK_CREATE_MULTI_PHOTO_TOOL_SLUG,
   FACEBOOK_CREATE_VIDEO_TOOL_SLUG,
+  FACEBOOK_PUBLISH_REEL_TOOL_SLUG,
 ];
 
 function externalIdOf(data: Record<string, unknown> | null): string | null {
-  const candidates = [data?.post_id, data?.id];
+  const candidates = [data?.post_id, data?.id, data?.video_id];
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate) return candidate;
   }
@@ -42,7 +45,9 @@ function permalinkOf(data: Record<string, unknown> | null): string | null {
 
 /**
  * Publishes to the connection's single managed Page. Photos and videos are
- * handed to Facebook by their public Drive URLs, so nothing is downloaded.
+ * handed to Facebook by their public Drive URLs, so nothing is downloaded. A
+ * vertical short video goes out as a Reel: the video tool posts it as a feed
+ * video, and only the Reel tool carries Facebook's AI label.
  */
 export async function publishFacebookPost(
   context: SocialPostPublishContext,
@@ -59,19 +64,27 @@ export async function publishFacebookPost(
   const pageId = context.externalAccountId;
   const images = context.media.filter((ref) => ref.kind === "image");
   const video = context.media.find((ref) => ref.kind === "video");
-  const toolSlug = video
-    ? FACEBOOK_CREATE_VIDEO_TOOL_SLUG
-    : images.length > 1
-      ? FACEBOOK_CREATE_MULTI_PHOTO_TOOL_SLUG
-      : images.length === 1
-        ? FACEBOOK_CREATE_PHOTO_TOOL_SLUG
-        : FACEBOOK_CREATE_POST_TOOL_SLUG;
+  const reel = Boolean(video && context.reel);
+  const toolSlug = reel
+    ? FACEBOOK_PUBLISH_REEL_TOOL_SLUG
+    : video
+      ? FACEBOOK_CREATE_VIDEO_TOOL_SLUG
+      : images.length > 1
+        ? FACEBOOK_CREATE_MULTI_PHOTO_TOOL_SLUG
+        : images.length === 1
+          ? FACEBOOK_CREATE_PHOTO_TOOL_SLUG
+          : FACEBOOK_CREATE_POST_TOOL_SLUG;
   const toolArguments = video
     ? {
         page_id: pageId,
         file_url: video.fileUrl,
         description: context.text,
-        published: true,
+        ...(reel
+          ? {
+              video_state: "PUBLISHED",
+              ...(context.aiGenerated ? { is_ai_generated: true } : {}),
+            }
+          : { published: true }),
       }
     : images.length > 1
       ? {
@@ -102,11 +115,20 @@ export async function publishFacebookPost(
     );
     const externalId = externalIdOf(post);
     if (!externalId) throw new ComposioPublishOutcomeUnknownError(label);
+    if (reel && post?.finish_success === false)
+      throw new ComposioToolError({
+        message: "Facebook took the video but did not publish the Reel",
+      });
     return {
       externalId,
-      publishedUrl:
-        permalinkOf(post) ??
-        socialPostPublishedUrl("facebook", context.externalHandle, externalId),
+      publishedUrl: reel
+        ? `https://www.facebook.com/reel/${externalId}`
+        : (permalinkOf(post) ??
+          socialPostPublishedUrl(
+            "facebook",
+            context.externalHandle,
+            externalId,
+          )),
       toolSlug,
     };
   } finally {

@@ -12,6 +12,9 @@ import { type RefCallback, useCallback, useRef, useState } from "react";
 
 /** The map zooms in to an eighth of its area: a cluster of easy keywords pulls apart there. */
 export const SEO_MAP_MAX_ZOOM = 8;
+/** A press that moves farther than this, in px, drags the map and gets no click. The d3 default is 0, so a
+ * hand that shakes by 1 px would open no keyword. */
+export const SEO_MAP_PRESS_SLOP = 4;
 
 /**
  * Pan and zoom of the keyword map, with the d3-zoom of the contacts map: drag, double-click, a pinch on a
@@ -29,6 +32,7 @@ export function useSeoMapZoom() {
     if (!element) return;
     const behavior = zoom<HTMLDivElement, unknown>()
       .scaleExtent([1, SEO_MAP_MAX_ZOOM])
+      .clickDistance(SEO_MAP_PRESS_SLOP)
       .filter((event: WheelEvent | MouseEvent | TouchEvent) => {
         if (event.type === "wheel") return event.ctrlKey || event.metaKey;
         if (event.type === "touchstart")

@@ -132,8 +132,9 @@ export async function describeDecision(
 
 /**
  * The Tasks, Projects and Job a decision proposal writes to. `create_task`
- * without a Project files the Task outside every Project; `update_task`
- * without one leaves the Task's Project as it is.
+ * without a Project files the Task outside every Project, unless it is a
+ * sub-task: that takes its parent's Project, so the parent is the target.
+ * `update_task` without one leaves the Task's Project as it is.
  */
 export function decisionProposalTargets(
   toolName: SokoBotDecisionTarget,
@@ -143,8 +144,12 @@ export function decisionProposalTargets(
     case "create_task": {
       const input = taskCreateInputSchema.parse(proposal);
       return {
-        taskIds: [input.triggeringTaskId],
-        projectIds: [input.projectId ?? null],
+        taskIds: [
+          input.triggeringTaskId,
+          input.parentTaskId,
+          input.afterTaskId,
+        ],
+        projectIds: input.parentTaskId ? [] : [input.projectId ?? null],
       };
     }
     case "update_task": {

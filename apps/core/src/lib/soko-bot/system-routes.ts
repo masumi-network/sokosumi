@@ -5,7 +5,14 @@ import {
   SOKO_BOT_CAPABILITIES,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
-import { type PresetRoute, presetClassificationResult } from "./classifier";
+import {
+  PRESET_VERSION,
+  type PresetRoute,
+  presetClassificationResult,
+  storedWriteScope,
+} from "./classifier";
+
+const MEETING_PREP_REASON = "Meeting prep: brief the owner, change nothing.";
 
 /**
  * A mail check may also file attachments the owner's saved rules ask for
@@ -78,13 +85,21 @@ export const SYSTEM_TURN_ROUTES = {
   },
   /** Brief before an external meeting: read and report, change nothing. */
   "meeting-prep": {
+    systemKey: "meeting-prep",
+    capabilities: [],
     route: "DIRECT_RESPONSE",
-    reason: "Meeting prep: brief the owner, change nothing.",
+    reason: MEETING_PREP_REASON,
   },
   "end-of-day": {
     route: "MANAGE_WORK",
     writeScope: "MEMORY",
     reason: "End of day: summarise and note priorities.",
+  },
+  /** A Task the owner follows completed: read it and report, change nothing. */
+  "task-summary": {
+    route: "DIRECT_RESPONSE",
+    reason:
+      "Task summary: report what a followed Task delivered, change nothing.",
   },
   /** Offers drafts in chat; sending stays the owner's. */
   "follow-ups": {
@@ -150,17 +165,101 @@ export function systemScheduleRoute(
     : undefined;
 }
 
+interface StoredSystemRoute {
+  source: string;
+  classifierVersion: string | null;
+  classification: unknown;
+}
+
+export function storedMeetingPrepKind(
+  turn: StoredSystemRoute,
+): "current" | "legacy" | null {
+  if (turn.source !== "SCHEDULE" && turn.source !== "ADMIN_RETRY") return null;
+  const record = turn.classification;
+  if (
+    turn.classifierVersion !== PRESET_VERSION ||
+    !record ||
+    typeof record !== "object"
+  )
+    return null;
+  if ("systemKey" in record)
+    return record.systemKey === "meeting-prep" ? "current" : null;
+  // Before systemKey was stored, Core wrote this fixed reason for its preset.
+  return "rationaleSummary" in record &&
+    record.rationaleSummary === MEETING_PREP_REASON
+    ? "legacy"
+    : null;
+}
+
+export function isStoredMeetingPrep(turn: StoredSystemRoute): boolean {
+  return storedMeetingPrepKind(turn) !== null;
+}
+
+/** Only Core's preset for a rebuilt retry can attest to its original slot. */
+export function storedMeetingRetrySlot(turn: StoredSystemRoute): Date | null {
+  const record = turn.classification;
+  if (
+    turn.source !== "ADMIN_RETRY" ||
+    storedMeetingPrepKind(turn) !== "current" ||
+    !record ||
+    typeof record !== "object" ||
+    !("meetingPrepSlot" in record) ||
+    typeof record.meetingPrepSlot !== "string"
+  )
+    return null;
+  const slot = new Date(record.meetingPrepSlot);
+  return Number.isFinite(slot.getTime()) &&
+    slot.toISOString() === record.meetingPrepSlot
+    ? slot
+    : null;
+}
+
+/** Concurrent builders of the same retry can read different provider data. */
+export function matchesReservedTurnMessage(
+  turn: StoredSystemRoute & { userMessage: string },
+  message: string,
+  preset?: PresetRoute,
+): boolean {
+  if (preset?.systemKey === "meeting-prep" && preset.meetingPrepSlot)
+    return (
+      storedMeetingRetrySlot(turn)?.toISOString() === preset.meetingPrepSlot
+    );
+  return turn.userMessage === message;
+}
+
+export function failedTurnRoute(
+  failed: StoredSystemRoute & {
+    route: PresetRoute["route"] | null;
+    capabilityNames: readonly string[];
+  },
+): PresetRoute | undefined {
+  if (isStoredMeetingPrep(failed)) return SYSTEM_TURN_ROUTES["meeting-prep"];
+  if (!failed.route) return undefined;
+  // Replays on the route the failed turn had, never a wider one.
+  return {
+    route: failed.route,
+    writeScope: storedWriteScope(failed.classification),
+    reason: "Operator retry on the failed turn's route.",
+    sandbox: failed.capabilityNames.includes("bash"),
+    // The failed turn's own writes: a stand-up's narrower set,
+    // not its route's.
+    writes: failed.capabilityNames.filter(isSokoBotCapability),
+  };
+}
+
 /**
  * A follow-up the bot wrote for itself runs with the tools of the turn that
  * wrote it, not a route Jev guesses from its prompt: "continue the CRM table
  * from March" must still be able to write rows. The writing turn had those
- * tools already, so the schedule grants nothing new.
+ * tools already, so the schedule grants nothing new. A schedule with no
+ * stored tools was written by a person before console schedules stored
+ * theirs, so it runs with a person's tools like one written today.
  */
 export function inheritedScheduleRoute(
   capabilityNames: readonly string[],
-): PresetRoute | undefined {
-  const capabilities = capabilityNames.filter(isSokoBotCapability);
-  if (!capabilities.length) return undefined;
+): PresetRoute {
+  const stored = capabilityNames.filter(isSokoBotCapability);
+  const capabilities = stored.length ? stored : PERSON_SCHEDULE_CAPABILITIES;
   return {
     route: "DELEGATE_TASK",
     reason: "Schedule run, with the tools of whoever wrote it.",
@@ -196,3 +295,9 @@ export function withOwnScheduleTools(
 ): SokoBotCapability[] {
   return [...new Set([...capabilities, ...OWN_SCHEDULE_CAPABILITIES])];
 }
+
+/**
+ * Client turn id prefix of a followed Task's completion summary. Its reply
+ * pushes like a Direct the owner never turned off, as other Task notices do.
+ */
+export const TASK_SUMMARY_CLIENT_TURN_PREFIX = "task-interest:";

@@ -25,6 +25,7 @@ const SEO_STATISTICS_BUSY_RETRIES = 20;
 export class SeoStatisticsCollectionBusyError extends Error {}
 
 interface StatisticsContext {
+  refreshBrief: () => Promise<void>;
   data: ProjectSeoWorkspace;
   viewerKey: string;
   enabled: boolean;
@@ -127,15 +128,18 @@ function useAutomaticProvider(
         );
       if (!response.ok)
         throw new Error("Automatic statistics collection did not complete");
-      await queryClient.invalidateQueries({
-        queryKey: [
-          "seo-workspace",
-          session?.session.activeOrganizationId,
-          session?.user.id,
-          owner.kind,
-          owner.id,
-        ],
-      });
+      await Promise.all([
+        context.refreshBrief(),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "seo-workspace",
+            session?.session.activeOrganizationId,
+            session?.user.id,
+            owner.kind,
+            owner.id,
+          ],
+        }),
+      ]);
       return true;
     },
     // Core must reactivate the selected cached snapshot when a previous selection is revisited.
@@ -150,20 +154,35 @@ function useAutomaticProvider(
   const needsProperty =
     enabled &&
     connected &&
-    choice.properties.data?.status === "available" &&
-    Boolean(choice.properties.data.properties.length) &&
+    choice.eligibleProperties.length > 0 &&
     !choice.propertyId;
   const failed =
     enabled &&
     (connection.isError ||
       (connected && (choice.propertiesUnavailable || collection.isError)));
   return {
+    /** A collection finished for the property in use: an empty result is then a fact, not a guess. */
+    collected: enabled && collection.isSuccess,
+    selectingProperty:
+      enabled &&
+      !choice.selectedPropertyId &&
+      data.searchConsolePropertyId === null &&
+      (connection.isLoading || (connected && choice.properties.isLoading)),
+    auditPropertyId:
+      choice.selectedPropertyId ||
+      (data.searchConsolePropertyId === null ? choice.propertyId : undefined),
+    refreshAccess: async () => {
+      if ((await connection.refetch()).data?.status === "connected")
+        await choice.properties.refetch();
+    },
     loading:
       enabled &&
       (connection.isFetching ||
         (connected && choice.properties.isFetching) ||
         collection.isFetching),
     needsProperty,
+    sitesWithoutProperty:
+      enabled && connected ? choice.sitesWithoutProperty : [],
     failed,
     retry: async () => {
       if (connected && choice.propertyId && !choice.propertiesUnavailable)
@@ -195,6 +214,16 @@ export function useSeoAutopilot(context: StatisticsContext) {
           : "idle";
   return {
     state,
+    searchConsolePropertyId: search.auditPropertyId,
+    selectingSearchProperty: search.selectingProperty,
+    refreshSearchConsoleAccess: search.refreshAccess,
+    sitesWithoutProperty: search.sitesWithoutProperty,
+    /** Google Analytics alone: the Agent tab names why its statistics are missing. */
+    analytics: {
+      collected: analytics.collected,
+      loading: analytics.loading,
+      failed: analytics.failed,
+    },
     propertyProvider: search.needsProperty
       ? ("search_console" as const)
       : analytics.needsProperty

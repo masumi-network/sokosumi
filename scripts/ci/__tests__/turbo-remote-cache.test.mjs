@@ -107,7 +107,14 @@ describe("GitHub OIDC remote cache wiring", () => {
       jobBlock(ci, "web"),
       /permissions: &turbo-permissions\n\s+contents: read\n\s+id-token:\s*write/,
     );
-    for (const jobId of ["core", "packages", "cli", "build", "typecheck"]) {
+    for (const jobId of [
+      "core",
+      "core-postgres",
+      "packages",
+      "cli",
+      "build",
+      "typecheck",
+    ]) {
       assert.match(jobBlock(ci, jobId), /permissions: \*turbo-permissions/);
     }
   });
@@ -260,6 +267,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["typecheck", "js"],
       ["web", "web"],
       ["core", "core"],
+      ["core-postgres", "core"],
       ["packages", "packages"],
       ["cli", "cli"],
       ["local-env", "local-env"],
@@ -290,7 +298,10 @@ describe("GitHub OIDC remote cache wiring", () => {
     for (const [jobId, name] of [
       ["web", "Test Web"],
       ["core", "Test Core"],
+      ["core-postgres", "Test Core PostgreSQL"],
       ["packages", "Test Packages"],
+      ["cli", "Test CLI"],
+      ["ci-config", "Test CI config"],
     ]) {
       const block = jobBlock(test, jobId);
       assert.match(block, new RegExp(`\\n    name: ${name}\\n`));
@@ -314,7 +325,7 @@ describe("GitHub OIDC remote cache wiring", () => {
 
   it("the PostgreSQL suites run in parallel only on per-worker databases", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
-    const step = jobBlock(test, "core").match(
+    const step = jobBlock(test, "core-postgres").match(
       /- name: Test against PostgreSQL\n([\s\S]*?)(?=\n      - |\n\n  [a-z]|$)/,
     );
     assert.ok(step, "missing step Test against PostgreSQL");

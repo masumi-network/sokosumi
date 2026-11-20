@@ -12,6 +12,7 @@ const BOT_TEAM_SELECT = {
   id: true,
   name: true,
   avatarImageUrl: true,
+  avatarCode: true,
   avatarSeed: true,
   status: true,
   lastActivityAt: true,
@@ -51,6 +52,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       id: string;
       name: string | null;
       avatarImageUrl: string | null;
+      avatarCode: string | null;
       avatarSeed: string | null;
       status: string;
       lastActivityAt: Date | null;
@@ -62,6 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             id: bot.id,
             name: bot.name,
             avatarImageUrl: bot.avatarImageUrl,
+            avatarCode: bot.avatarCode,
             avatarSeed: bot.avatarSeed,
             status: bot.status,
             lastActivityAt: bot.lastActivityAt,

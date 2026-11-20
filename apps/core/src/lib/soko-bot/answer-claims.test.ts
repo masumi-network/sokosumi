@@ -6,6 +6,7 @@ vi.mock("ai", () => ({
   gateway: { evaluationModel: vi.fn() },
 }));
 
+import { expectCoreLogWhys } from "@/test/core-log";
 import { claimsAction } from "./answer-claims";
 
 describe("claimsAction", () => {
@@ -37,6 +38,11 @@ describe("claimsAction", () => {
   });
 
   it("reports a failed or malformed check as unchecked", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not check a Soko Bot reply for unconfirmed claims",
+      ["Jev, the judging model, failed or timed out"],
+    );
     evaluateMock.mockRejectedValueOnce(new Error("timeout"));
     await expect(claimsAction("Here is the draft.")).resolves.toBeNull();
     evaluateMock.mockResolvedValueOnce({ answers: {} });

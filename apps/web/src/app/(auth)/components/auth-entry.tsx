@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
 import AuthFlow, { type AuthMode } from "@/auth/components/auth-flow";
+import ChatInviteNotice from "@/auth/components/chat-invite-notice";
 import OAuthHandBack, {
   OAuthRequestError,
 } from "@/auth/components/oauth-hand-back";
@@ -28,7 +29,7 @@ export async function renderAuthEntry(
   mode: AuthMode,
   searchParams: Promise<AuthEntrySearchParams>,
 ): Promise<ReactNode> {
-  const { invitationId, error } = await searchParams;
+  const { invitationId, error, returnUrl } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
   if (oauthRequest?.hasExpired) {
     return <OAuthRequestError client={oauthRequest.client} />;
@@ -54,9 +55,14 @@ export async function renderAuthEntry(
       prefilledEmail={await getInvitationEmail(invitationId)}
       invitationId={invitationId}
       lastUsedMethod={lastUsedMethod}
-      notice={<SignInErrorNotice error={error} />}
+      notice={
+        <>
+          <ChatInviteNotice returnUrl={returnUrl} />
+          <SignInErrorNotice error={error} />
+        </>
+      }
     >
-      <TermsNotice />
+      <TermsNotice brand={oauthRequest?.client?.brand} />
     </AuthFlow>
   );
 }

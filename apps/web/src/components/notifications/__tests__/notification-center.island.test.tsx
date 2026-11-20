@@ -1,4 +1,5 @@
 import type { NotificationItem } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -44,6 +45,7 @@ const toastErrorMock = vi.fn();
 const sessionMock = vi.fn();
 const getTasksMock = vi.fn();
 const getTasksSummaryMock = vi.fn();
+const getWorkspaceOrganizationIdMock = vi.fn();
 const fetchWaitingQuestionsMock = vi.fn();
 let deliverRealtime: (event: NotificationEventData) => void = () => {};
 
@@ -94,6 +96,8 @@ vi.mock("@/lib/clients/core.browser.client", async (importOriginal) => {
       ...actual.coreClient,
       getTasks: (...args: unknown[]) => getTasksMock(...args),
       getTasksSummary: (...args: unknown[]) => getTasksSummaryMock(...args),
+      getWorkspaceOrganizationId: (...args: unknown[]) =>
+        getWorkspaceOrganizationIdMock(...args),
     },
   };
 });
@@ -286,6 +290,7 @@ beforeEach(() => {
     sessionMock,
     getTasksMock,
     getTasksSummaryMock,
+    getWorkspaceOrganizationIdMock,
     fetchWaitingQuestionsMock,
   ]) {
     mock.mockReset();
@@ -494,9 +499,8 @@ describe("Notification Center, both frames", () => {
   });
 
   it("puts a row back and says so when marking it read fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to fetch notifications");
+    expectConsole("error", "Failed to mark notification as read");
     getNotificationsMock.mockResolvedValue(
       page([row("mine", { isRead: false, readAt: null })]),
     );
@@ -514,7 +518,6 @@ describe("Notification Center, both frames", () => {
 
     expect(toastErrorMock).toHaveBeenCalledWith("markReadError");
     expect(screen.getByRole("button", { name: "markRead: mine" })).toBeTruthy();
-    consoleError.mockRestore();
   });
 
   it("adds an arriving row to the open panel without dropping the pages loaded", async () => {
@@ -624,9 +627,7 @@ describe("Notification Center, both frames", () => {
   });
 
   it("keeps a failed page on the row and loads it when the reader retries", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to load older notifications");
     getNotificationsMock.mockResolvedValue(page([row("newest")], "newest"));
 
     await renderPage();
@@ -654,7 +655,6 @@ describe("Notification Center, both frames", () => {
     await settle();
 
     expect(screen.getByText("older")).toBeTruthy();
-    consoleError.mockRestore();
   });
 
   it("says the Notification Center is empty when it is", async () => {
@@ -674,9 +674,7 @@ describe("Notification Center, both frames", () => {
   });
 
   it("offers a retry when the first page will not load", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to fetch notifications");
     getNotificationsMock.mockRejectedValue(new Error("offline"));
 
     await renderPage();
@@ -690,7 +688,6 @@ describe("Notification Center, both frames", () => {
     await settle();
 
     expect(screen.getByText("back")).toBeTruthy();
-    consoleError.mockRestore();
   });
 
   it("opens the panel without putting focus in its first row", async () => {
@@ -1212,6 +1209,7 @@ describe("Notification Center view filter", () => {
   it.each(FRAMES)(
     "puts a row back when mark-read fails after it left the Unread view in the %s",
     async (_, mount) => {
+      expectConsole("error", "Failed to fetch notifications");
       const first = row("first", { isRead: false, readAt: null });
       const second = row("second", {
         isRead: false,
@@ -1246,9 +1244,7 @@ describe("Notification Center view filter", () => {
       });
       expect(screen.getByText("second")).toBeTruthy();
 
-      const consoleError = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      expectConsole("error", "Failed to mark notification as read");
       getNotificationsMock.mockRejectedValue(new Error("offline"));
       await act(async () => {
         rejectRead(new Error("offline"));
@@ -1262,7 +1258,6 @@ describe("Notification Center view filter", () => {
       expect(
         screen.getByRole("button", { name: "markRead: first" }),
       ).toBeTruthy();
-      consoleError.mockRestore();
     },
   );
 
@@ -1391,9 +1386,7 @@ describe("Notification Center view filter", () => {
   it.each(FRAMES)(
     "offers a retry that keeps the unread query in the %s",
     async (_, mount) => {
-      const consoleError = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      expectConsole("error", "Failed to fetch notifications");
       getNotificationsMock.mockResolvedValue(
         page([row("mine", { isRead: true })]),
       );
@@ -1417,7 +1410,6 @@ describe("Notification Center view filter", () => {
         isRead: "false",
       });
       expect(screen.getByText("waiting")).toBeTruthy();
-      consoleError.mockRestore();
     },
   );
 
@@ -1618,18 +1610,23 @@ describe("Notification Center Needs you view", () => {
         ],
         sort: "updatedAt",
         limit: 50,
+        // The summary counts sub-tasks, so the list asks for them too.
+        includeSubtasks: "true",
       });
       const tasks = screen.getByRole("region", { name: "heading" });
       const links = within(tasks).getAllByRole("link");
       // Three wait and two are listed, so the rest are one click away.
       expect(links.map((link) => link.getAttribute("href"))).toEqual([
-        "/tasks",
+        "/tasks?scope=workspace",
         "/tasks/task-brief",
         "/tasks/task-newsletter",
       ]);
       expect(links[1]?.textContent).toContain("Q4 launch brief");
       expect(links[1]?.textContent).toContain("ask.INPUT_REQUIRED");
-      expect(links[1]?.textContent).toContain("action.INPUT_REQUIRED");
+      // Input is answered in place, so its move is a button beside the link.
+      expect(
+        within(tasks).getByRole("button", { name: "action.INPUT_REQUIRED" }),
+      ).toBeTruthy();
       expect(links[2]?.textContent).toContain("status.APPROVAL_REQUIRED");
       expect(links[2]?.textContent).toContain("action.APPROVAL_REQUIRED");
       expect(screen.getByText("job-ask")).toBeTruthy();
@@ -2257,6 +2254,7 @@ describe("Notification Center Mentions view", () => {
       messageKey: "Notifications.Chat.mentioned",
       messageParams: { label: id },
       referenceId: `room-${id}`,
+      metadata: { workspaceId: "ws-personal" },
       isRead: false,
       readAt: null,
       ...overrides,
@@ -2321,6 +2319,11 @@ describe("Notification Center Mentions view", () => {
   });
 
   it("quotes what the mention said and replies from the row", async () => {
+    // The reader is in the mentions' personal workspace: no switch
+    // (`notification-navigation.test.ts` covers the switch).
+    getWorkspaceOrganizationIdMock.mockResolvedValue({
+      data: { organizationId: null },
+    });
     const named = mention("named", {
       messageParams: {
         label: "named",
@@ -2352,6 +2355,7 @@ describe("Notification Center Mentions view", () => {
 
     // Reply opens the mention the way the row does, and reads it.
     expect(patchNotificationReadMock).toHaveBeenCalledWith({ id: "named" });
+    expect(getWorkspaceOrganizationIdMock).toHaveBeenCalledWith("ws-personal");
   });
 
   it("says nobody has mentioned the reader when nobody has", async () => {

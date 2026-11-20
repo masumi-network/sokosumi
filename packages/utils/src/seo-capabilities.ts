@@ -1,12 +1,10 @@
 /**
  * What the SEO agent and the SEO tab cannot do yet, for the "What the agent cannot do yet" dialog. Hand-written from the SEO bot's
  * `docs/seo-feature-gaps.md` (repository masumi-network/seo-bot, 45 items in 8 groups); the bot publishes the
- * same items as `docs/seo-capabilities.json` with the same ids (the doc's item numbers). Statuses are as of
- * SEO_CAPABILITIES_AS_OF and count what this Sokosumi build and the SEO bot's ticket 77 branches build. An item
+ * same items as `docs/seo-capabilities.json` with the same ids (the doc's item numbers). Statuses count what
+ * this Sokosumi build and the SEO bot's ticket 77 branches build. An item
  * the bot computes that Core does not store yet stays partial.
  */
-
-export const SEO_CAPABILITIES_AS_OF = "2026-11-13";
 
 /** The doc's groups, in its order. */
 export const SEO_CAPABILITY_GROUPS = [
@@ -24,7 +22,7 @@ export type SeoCapabilityGroup = (typeof SEO_CAPABILITY_GROUPS)[number];
 export type SeoCapabilityStatus = "built" | "partial" | "missing" | "planned";
 
 /** What it takes to get an item: a step of the reader, paid data, or work of the team. */
-export const SEO_CAPABILITY_UNLOCKS = [
+const SEO_CAPABILITY_UNLOCKS = [
   "search_console",
   "ga4",
   "ga4_key_events",
@@ -410,7 +408,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     title: "Export and date presets",
     status: "partial",
     missing:
-      "No comparison with the same period last year. The countries and devices, competitors, keyword ideas and AI assistants tables have no CSV download. The CSV separator follows the app language, not the computer's region.",
+      "No comparison with the same period last year. Export is unavailable for “Countries and devices”, “AI assistants”, and “What changed in organic visits”. The CSV separator follows the app language, not the computer's region.",
     unlocks: [DEV],
   },
   {

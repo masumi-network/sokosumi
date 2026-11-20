@@ -6,6 +6,7 @@ import { TaskStatus } from "@sokosumi/core-client";
 
 import { getTasksListPage } from "./tasks-list-page";
 
+const WORKSPACE_TAG_ID = "12345678-1234-7123-8123-123456789abc";
 const listTasksMock = vi.fn();
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 
@@ -88,6 +89,8 @@ describe("getTasksListPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      search: "launch",
+      tag: WORKSPACE_TAG_ID,
       visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
@@ -103,6 +106,8 @@ describe("getTasksListPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: PROJECT_ID,
+      search: "launch",
+      workspaceTagId: WORKSPACE_TAG_ID,
       cursor: null,
       limit: 2,
     });
@@ -266,6 +271,35 @@ describe("getTasksListPage", () => {
     expect(params.status).not.toContain(TaskStatus.COMPLETED);
   });
 
+  it("lists the reader's input-required Tasks under Needs me, and only the stuck ones with Stuck on", async () => {
+    listTasksMock.mockResolvedValue({ tasks: [], pagination: null });
+    const params = {
+      cursor: null,
+      limit: 10,
+      scope: "workspace" as const,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: null,
+      projectId: null,
+      visibility: null,
+      needsMe: true,
+      coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
+    };
+
+    await getTasksListPage(params);
+    await getTasksListPage({ ...params, stuck: true });
+
+    for (const [query] of listTasksMock.mock.calls) {
+      expect(query.scope).toBe("mine");
+      expect(query.status).toContain(TaskStatus.APPROVAL_REQUIRED);
+      // Ready waits, but on nobody in particular.
+      expect(query.status).not.toContain(TaskStatus.READY);
+    }
+    expect(listTasksMock.mock.calls[1]?.[0].statusBefore).toBeInstanceOf(Date);
+  });
+
   it("lists nothing under Stuck for a status that cannot wait", async () => {
     const page = await getTasksListPage({
       cursor: null,
@@ -282,7 +316,7 @@ describe("getTasksListPage", () => {
       personalAssistantFallback: "Personal assistant",
     });
 
-    expect(page).toEqual({ tasks: [], nextCursor: null });
+    expect(page).toEqual({ tasks: [], nextCursor: null, total: 0 });
     expect(listTasksMock).not.toHaveBeenCalled();
   });
 });

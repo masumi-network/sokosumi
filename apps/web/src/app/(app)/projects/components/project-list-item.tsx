@@ -1,6 +1,6 @@
-import { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { Pin } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useOptimistic } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import {
@@ -15,6 +15,7 @@ import type { ProjectMenuChange } from "@/app/projects/components/use-project-me
 import {
   PROJECTS_CARD_CLASS,
   PROJECTS_CARD_LAYOUT_CLASS,
+  type ProjectsListProject,
 } from "@/app/projects/constants";
 import { TimeAgo } from "@/components/time-ago";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +36,7 @@ interface ProjectListItemLabels {
 }
 
 interface ProjectListItemProps {
-  project: ProjectListItemType;
+  project: ProjectsListProject;
   labels: ProjectListItemLabels;
   /** The card sits in the Hidden view: no Pin, and its menu offers Show. */
   hidden?: boolean;
@@ -58,6 +59,7 @@ export function ProjectListItem({
     new Date(project.createdAt).getTime();
   // Only a finished close counts: closing and close-failed projects stay Open.
   const closedAt = project.closedAt;
+  const isClosing = project.closingAt != null && !closedAt;
   // A Closed card shows no Pin: the Closed view never sorts by one. A Hidden
   // project has none, since hiding unpinned it.
   const savedIsPinned = !closedAt && project.starredAt != null;
@@ -125,7 +127,10 @@ export function ProjectListItem({
           ) : null}
         </div>
 
-        {briefing ? (
+        {/* A close in progress matters more than the briefing it replaces. */}
+        {isClosing ? (
+          <ProjectClosingStatus closeStatus={project.closeStatus} />
+        ) : briefing ? (
           <p className="text-muted-foreground line-clamp-2 text-sm wrap-anywhere">
             {briefing}
           </p>
@@ -181,5 +186,33 @@ export function ProjectListItem({
         />
       )}
     </article>
+  );
+}
+
+/** A closing card's badge and, when its status was read, what remains. */
+function ProjectClosingStatus({
+  closeStatus,
+}: {
+  closeStatus: ProjectsListProject["closeStatus"];
+}) {
+  const t = useTranslations("App.Projects.list.closing");
+  const failed = closeStatus?.state === "CLOSE_FAILED";
+
+  return (
+    <div
+      data-testid="project-closing"
+      className="flex min-w-0 flex-col items-start gap-1.5"
+    >
+      <Badge variant={failed ? "destructive" : "secondary"}>
+        {t(failed ? "failedBadge" : "badge")}
+      </Badge>
+      {closeStatus ? (
+        <p className="text-muted-foreground line-clamp-1 text-sm">
+          {failed
+            ? t("failed")
+            : t("remaining", { count: closeStatus.owedOccurrenceCount })}
+        </p>
+      ) : null}
+    </div>
   );
 }

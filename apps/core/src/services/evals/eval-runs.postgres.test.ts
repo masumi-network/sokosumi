@@ -1,4 +1,14 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import type { CaseOutcome } from "./eval-case-runner";
+import { infrastructureCaseOutcome } from "./eval-infrastructure";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -43,6 +53,7 @@ vi.mock("@/services/soko-bot-version.service", () => ({
 /** Which cases pass, per repeat; a case not listed stays running. */
 const outcomes = new Map<string, "PASSED" | "FAILED">();
 const busy = new Set<number>();
+const infrastructureOutcomes = new Map<string, CaseOutcome>();
 
 vi.mock("./eval-case-runner", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./eval-case-runner")>();
@@ -61,6 +72,10 @@ vi.mock("./eval-case-runner", async (importOriginal) => {
     ),
     pollEvalCase: vi.fn(
       async (evalCase: { id: string }, evalLane: { lane: number }) => {
+        const infrastructure = infrastructureOutcomes.get(
+          `${evalCase.id}:${evalLane.lane}`,
+        );
+        if (infrastructure) return { kind: "done", outcome: infrastructure };
         const status = outcomes.get(`${evalCase.id}:${evalLane.lane}`);
         if (!status) return { kind: "waiting" };
         return {
@@ -79,7 +94,9 @@ vi.mock("./eval-case-runner", async (importOriginal) => {
   };
 });
 
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { CMO_EVAL_CASES } from "./eval-cmo-cases";
 import {
   cancelEvalRun,
   createEvalRun,
@@ -105,8 +122,32 @@ async function resultStates(runId: string) {
 describe.skipIf(!enabled)("eval runs", () => {
   beforeEach(async () => {
     outcomes.clear();
+    infrastructureOutcomes.clear();
     busy.clear();
     await prisma.evalRun.deleteMany({});
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("starts a month result on PostgreSQL time so its turns fall inside the result window", async () => {
+    const month = CMO_EVAL_CASES.find((item) => item.kind === "cmo-month");
+    if (!month) throw new Error("Missing month eval fixture");
+    const run = await createEvalRun({ trigger: "MANUAL", caseIds: [month.id] });
+    const before = await databaseNow();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(before.getTime() + 60 * 60_000);
+
+    await tickEvalRuns();
+
+    const [{ startedAt }] = await prisma.evalResult.findMany({
+      where: { runId: run.id },
+    });
+    expect(startedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(startedAt?.getTime()).toBeLessThanOrEqual(
+      (await databaseNow()).getTime(),
+    );
   });
 
   afterAll(async () => {
@@ -229,6 +270,110 @@ describe.skipIf(!enabled)("eval runs", () => {
     const { pauseEvalLanes } = await import("./eval-lanes.service");
     expect(pauseEvalLanes).toHaveBeenCalledWith(2);
   });
+
+  it("stops unstarted cases after a confirmed budget cap and lets active work settle", async () => {
+    const run = await createEvalRun({
+      trigger: "MANUAL",
+      caseIds: CASES,
+      repeats: 2,
+    });
+    const queued = await createEvalRun({
+      trigger: "MANUAL",
+      caseIds: ["chat-post"],
+      repeats: 1,
+    });
+    await tickEvalRuns();
+    const { startEvalCase } = await import("./eval-case-runner");
+    const startedCount = vi.mocked(startEvalCase).mock.calls.length;
+    infrastructureOutcomes.set("ambiguous-request:1", {
+      ...infrastructureCaseOutcome(
+        "turn-budget",
+        {
+          status: "FAILED",
+          errorKind: "GatewayInternalServerError",
+          errorDetail:
+            "API key budget exceeded. Current spend: $400.12, limit: $400.00.",
+        },
+        {},
+      )!,
+      turnIds: [],
+    });
+    await tickEvalRuns();
+    expect(await resultStates(run.id)).toEqual([
+      "1:ambiguous-request=ERROR",
+      "1:inbox-summary=ERROR",
+      "1:chat-post=ERROR",
+      "2:ambiguous-request=RUNNING",
+      "2:inbox-summary=PENDING",
+      "2:chat-post=PENDING",
+    ]);
+    expect(vi.mocked(startEvalCase).mock.calls).toHaveLength(startedCount);
+    const notExecuted = await prisma.evalResult.findMany({
+      where: {
+        runId: run.id,
+        status: "ERROR",
+        turnId: null,
+        caseId: { not: "ambiguous-request" },
+      },
+    });
+    expect(notExecuted).toHaveLength(2);
+    expect(
+      notExecuted.every(
+        (row) =>
+          row.error?.startsWith("Not executed:") &&
+          (row.output as { notExecuted?: boolean }).notExecuted,
+      ),
+    ).toBe(true);
+    expect(
+      (await prisma.evalRun.findUniqueOrThrow({ where: { id: queued.id } }))
+        .status,
+    ).toBe("QUEUED");
+    outcomes.set("ambiguous-request:2", "PASSED");
+    expect(await tickEvalRuns()).toEqual({ runId: run.id, completed: true });
+    expect(
+      await prisma.evalResult.count({
+        where: {
+          runId: run.id,
+          status: "ERROR",
+          caseId: { not: "ambiguous-request" },
+        },
+      }),
+    ).toBe(4);
+    expect(vi.mocked(startEvalCase).mock.calls).toHaveLength(startedCount);
+    expect(
+      (await prisma.evalRun.findUniqueOrThrow({ where: { id: queued.id } }))
+        .status,
+    ).toBe("QUEUED");
+  });
+
+  it.each([
+    ["runner_exited", "The runner ended with exit code 1"],
+    ["GatewayInternalServerError", "Temporary upstream failure"],
+  ])(
+    "continues the lane after a nonfatal %s execution error",
+    async (errorKind, errorDetail) => {
+      const run = await createEvalRun({
+        trigger: "MANUAL",
+        caseIds: CASES,
+        repeats: 1,
+      });
+      await tickEvalRuns();
+      infrastructureOutcomes.set("ambiguous-request:1", {
+        ...infrastructureCaseOutcome(
+          "turn-transient",
+          { status: "FAILED", errorKind, errorDetail },
+          {},
+        )!,
+        turnIds: [],
+      });
+      await tickEvalRuns();
+      expect(await resultStates(run.id)).toEqual([
+        "1:ambiguous-request=ERROR",
+        "1:inbox-summary=SKIPPED",
+        "1:chat-post=RUNNING",
+      ]);
+    },
+  );
 
   it("queues a second run until the first is done", async () => {
     const first = await createEvalRun({

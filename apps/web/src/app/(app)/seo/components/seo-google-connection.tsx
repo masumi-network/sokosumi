@@ -1,7 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { useSession } from "@/lib/auth/auth.client";
 import { SeoConnectionButton } from "./seo-connection-button";
+import { SeoGoogleAccounts } from "./seo-google-accounts";
 import {
   type SeoConnectionProvider,
   useSeoConnectionStatus,
@@ -20,7 +23,13 @@ type GoogleConnectionProps = {
   inRow?: boolean;
   /** The view shows a failed Search Console action itself. See SeoConnectionButton. */
   onError?: (message: string | null) => void;
+  /** Opens the statistics settings from the account card's menu. */
+  onSettings?: () => void;
 };
+
+function settledWithoutAccount(status: string | undefined) {
+  return status === "not_connected" || status === "unavailable";
+}
 
 /**
  * One Google step for the two statistics sources. Each source has its own
@@ -28,16 +37,39 @@ type GoogleConnectionProps = {
  * The user leaves Google Analytics out in the approval window, not here.
  * The sync is not here: the view that shows the accounts has its own sync action.
  */
-export function SeoGoogleConnection({
+export function SeoGoogleConnection(props: GoogleConnectionProps) {
+  const { data: session } = useSession();
+  // A new viewer or workspace starts at its own step: the card of the last one does not stay.
+  return (
+    <GoogleConnectionStep
+      key={JSON.stringify([
+        session?.user.id,
+        session?.session.activeOrganizationId,
+      ])}
+      {...props}
+    />
+  );
+}
+
+function GoogleConnectionStep({
   variant = "outline",
   onConnected,
   inRow,
   onError,
+  onSettings,
 }: GoogleConnectionProps) {
   const t = useTranslations("App.Seo");
   const search = useSeoConnectionStatus("search_console").status.data?.status;
   const ga4 = useSeoConnectionStatus("ga4").status.data?.status;
   const searchDone = search === "connected";
+  // Once shown, the card stays. A switch of the only connected account reads "pending" during
+  // its approval, and the card runs that approval: a remount would cancel it.
+  // When both sources are settled without an account, the first-connection step returns.
+  const [card, setCard] = useState(false);
+  const cardNow = !inRow && (searchDone || ga4 === "connected");
+  if (cardNow && !card) setCard(true);
+  if (card && settledWithoutAccount(search) && settledWithoutAccount(ga4))
+    setCard(false);
   // A Google Analytics account that is connected, or waits for a repair, has its own row.
   const analyticsStarted =
     ga4 !== undefined && ga4 !== "not_connected" && ga4 !== "unavailable";
@@ -50,7 +82,6 @@ export function SeoGoogleConnection({
         analyticsStarted ? undefined : t("connections.connectGoogle")
       }
       onConnected={() => onConnected?.("search_console")}
-      inRow={inRow}
       onError={onError}
     />
   );
@@ -61,18 +92,15 @@ export function SeoGoogleConnection({
     />
   );
   if (inRow && ga4 !== "needs_reconnect") return searchButton;
-  // A Google Analytics account that exists has its row before Search Console is done too.
-  const analyticsShown = searchDone || analyticsStarted;
+  // Once one source is connected, both sources are one card: one account, one check per source,
+  // one menu. Only "connected" switches: a pending first approval keeps the control that runs it.
+  if (!inRow && (cardNow || card))
+    return <SeoGoogleAccounts onSettings={onSettings} />;
   // No status yet, a failed read, or no connections here: the button says all there is to say.
-  // An unread Google Analytics status is not "not connected": its button says what it is.
   const note =
-    !search || search === "unavailable" || analyticsStarted
-      ? null
-      : !searchDone
-        ? "connections.analyticsNext"
-        : ga4 === "not_connected"
-          ? "connections.analyticsOff"
-          : null;
+    search && search !== "unavailable" && !analyticsStarted
+      ? "connections.analyticsNext"
+      : null;
   // One tree shape in every state: a status that changes during an approval
   // must not remount the control that runs it. One control under the other,
   // so every left edge is the same.
@@ -80,7 +108,8 @@ export function SeoGoogleConnection({
     <div className="flex max-w-full min-w-0 flex-col items-start gap-2">
       {searchButton}
       {/* The second approval is on offer once the first one is done. */}
-      {analyticsShown ? analyticsButton : null}
+      {/* A Google Analytics account that exists has its row before Search Console is done too. */}
+      {analyticsStarted ? analyticsButton : null}
       {note ? (
         <p role="status" className="text-muted-foreground text-sm">
           {t(note)}

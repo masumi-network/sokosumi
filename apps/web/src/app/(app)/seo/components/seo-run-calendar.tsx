@@ -29,7 +29,7 @@ const IN_VIEW_CLASS = "bg-accent text-accent-foreground rounded-md";
 const NO_CHECK_CLASS = "text-muted-foreground";
 
 /**
- * "Other dates" at the end of the row of checks: a calendar under it. It opens on the month of the first check and marks
+ * "Other dates" at the start of the checks footer: a calendar under it. It opens on the month of the first check and marks
  * each day with a check. A day, then a second day, set the range; the page behind it follows each press.
  */
 export function SeoRunCalendar({
@@ -68,7 +68,7 @@ export function SeoRunCalendar({
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent
         ref={content}
-        align="end"
+        align="start"
         className="w-auto p-0"
         // The focus ring starts on the boxed day: on today it marked a second day.
         onOpenAutoFocus={(event) => {

@@ -1,7 +1,12 @@
 "use client";
 
+import {
+  SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
+} from "@sokosumi/utils";
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRef, useState } from "react";
 import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,23 +28,25 @@ import {
   type SeoAnalysisLimits,
   SeoAnalysisSummary,
 } from "./seo-analysis-summary";
+import { SeoBriefDialog } from "./seo-brief-dialog";
+import { SeoBriefSummary } from "./seo-brief-summary";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_ANALYSIS_MODULES,
+  SEO_AUDIT_PRICE_EXAMPLE,
   SEO_COUNTRIES,
   SEO_DEVICES,
   SEO_FULL_AUDIT_KEYWORDS,
-  SEO_FULL_AUDIT_LIMITS,
   SEO_MAX_MONITOR_RUNS,
   SEO_MAX_PAGES,
   seoAnalysisMaxCredits,
 } from "./seo-form-model";
+import { SeoSearchConsoleWarning } from "./seo-search-console-warning";
 import { useSeoAnalysisForm } from "./use-seo-analysis";
 import { useSeoAnalysisMarket } from "./use-seo-analysis-market";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const OPTIONS_ID = "seo-analysis-options";
-
 /** The repeats of a new schedule of checks. */
 const SEO_MONITOR_REPEATS = ["weekly", "monthly"] as const;
 /** The ends of a new schedule: after its runs (the default), or never. */
@@ -56,22 +63,33 @@ export function SeoAnalysisDialog({
 }) {
   const t = useTranslations("App.Seo");
   const form = useSeoAnalysisForm(model, monitor);
+  const formElement = useRef<HTMLFormElement>(null);
+  const [editingBrief, setEditingBrief] = useState(false);
+  const [keepSetupSelection, setKeepSetupSelection] = useState(true);
   const full = form.kind === "audit_full";
-  const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
   const noService = !form.serviceAvailable;
   const market = useSeoAnalysisMarket(
     form.workspace.keywords,
     full ? SEO_FULL_AUDIT_KEYWORDS : undefined,
     seoDefaultMarket(form.workspace),
   );
-  const limits: SeoAnalysisLimits = multiPageFull
-    ? { kind: "full", ...SEO_FULL_AUDIT_LIMITS }
-    : full
-      ? { kind: "standard" }
-      : form.usesPaidData
-        ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
-        : { kind: "free" };
-  const maxCredits = seoAnalysisMaxCredits(limits);
+  const limits: SeoAnalysisLimits = form.usesPaidData
+    ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
+    : { kind: "free" };
+  const maxCredits = full ? null : seoAnalysisMaxCredits(limits);
+  // A full audit has a minimum and no maximum, so its line never says "up to"; a focused check names its ceiling.
+  const price = full
+    ? t(
+        monitor
+          ? "analysis.fullAuditCreditsPerRun"
+          : "analysis.fullAuditCredits",
+        { credits: SEO_FULL_AUDIT_CREDITS },
+      )
+    : maxCredits
+      ? t(monitor ? "analysis.maxCreditsPerRun" : "analysis.maxCredits", {
+          credits: maxCredits,
+        })
+      : null;
   return (
     <Dialog
       open
@@ -97,6 +115,7 @@ export function SeoAnalysisDialog({
           </DialogDescription>
         </DialogHeader>
         <form
+          ref={formElement}
           className="space-y-6"
           // A closed field the browser refuses cannot take focus: open the fields so its message shows.
           onInvalidCapture={() => form.setOptionsOpen(true)}
@@ -120,6 +139,43 @@ export function SeoAnalysisDialog({
               devices={form.devices}
               keywords={form.wantsKeywords ? market.keywords : null}
             />
+            {full && !monitor && model.brief ? (
+              <SeoBriefSummary
+                brief={form.reviewBrief}
+                setupGoal={
+                  keepSetupSelection && form.reviewGoal?.share
+                    ? form.reviewGoal
+                    : null
+                }
+                onShareChange={() => setKeepSetupSelection(false)}
+                model={model}
+                edit={() => setEditingBrief(true)}
+              />
+            ) : null}
+            {form.reviewGoal?.changed && (!full || !form.reviewGoal.action) ? (
+              <p className="text-muted-foreground text-sm">
+                {t("setup.goal.private", {
+                  goal: form.reviewGoal.action
+                    ? t(
+                        `brief.actions.${form.reviewGoal.action.replaceAll(" ", "_")}`,
+                      )
+                    : t("setup.goal.autoOption"),
+                })}
+              </p>
+            ) : null}
+            {!monitor &&
+            model.reviewGoal?.changed &&
+            !full &&
+            form.kind !== "page_check" ? (
+              <p className="text-muted-foreground text-sm" role="status">
+                {t("setup.goal.unsupportedCheck")}
+              </p>
+            ) : null}
+            {full ? (
+              <p className="text-muted-foreground text-sm">
+                {t("analysis.relatedPages", { count: SEO_MAX_PAGES })}
+              </p>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -156,7 +212,10 @@ export function SeoAnalysisDialog({
                 id="seo-analysis-kind"
                 name="kind"
                 value={form.kind}
-                onValueChange={form.setKind}
+                onValueChange={(value) => {
+                  setKeepSetupSelection(false);
+                  form.setKind(value);
+                }}
                 options={form.kinds.map((value) => ({
                   value,
                   label: t(`analysis.${value}`),
@@ -279,6 +338,20 @@ export function SeoAnalysisDialog({
               </p>
             )}
           </div>
+          {full && monitor ? (
+            <div className="space-y-1">
+              {/* The terms of a full audit show with the fields closed: the submit below is the one consent. */}
+              <p className="text-sm">
+                {t("analysis.fullAuditTermsPerRun", {
+                  minimum: SEO_FULL_AUDIT_CREDITS,
+                  markup: SEO_FULL_AUDIT_MARKUP_PERCENT,
+                })}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {t("analysis.fullAuditExample", SEO_AUDIT_PRICE_EXAMPLE)}
+              </p>
+            </div>
+          ) : null}
           {monitor ? (
             <div className="space-y-4">
               <TaskScheduleWhen
@@ -310,9 +383,19 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
+          {form.selectingProperty ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {t("statistics.propertiesLoading")}
+            </p>
+          ) : null}
+          {form.staleGoal ? (
+            <p role="alert" className="text-destructive text-sm">
+              {t("setup.goal.reviewChanged")}
+            </p>
+          ) : null}
           <DialogFooter className="sm:items-center">
             {/* The close button and Escape leave the form; a Cancel beside the submit said it twice. */}
-            {noService ? (
+            {noService || form.staleGoal ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -326,9 +409,11 @@ export function SeoAnalysisDialog({
             <Button
               type="submit"
               variant="primary"
-              loading={model.pending}
+              loading={model.pending || form.selectingProperty}
               disabled={
                 noService ||
+                form.selectingProperty ||
+                form.staleGoal ||
                 model.pending ||
                 (monitor && !form.rule) ||
                 !form.workspace.scope.pageIds.length ||
@@ -345,21 +430,33 @@ export function SeoAnalysisDialog({
               className="text-muted-foreground text-sm empty:hidden max-sm:text-center sm:order-first sm:mr-auto"
               aria-live="polite"
             >
-              {maxCredits
-                ? t(
-                    full
-                      ? monitor
-                        ? "analysis.fixedCreditsPerRun"
-                        : "analysis.fixedCredits"
-                      : monitor
-                        ? "analysis.maxCreditsPerRun"
-                        : "analysis.maxCredits",
-                    { credits: maxCredits },
-                  )
-                : null}
+              {price}
             </p>
           </DialogFooter>
         </form>
+        {form.warning ? (
+          <SeoSearchConsoleWarning
+            reason={form.warning}
+            model={model}
+            mode={monitor ? "monitor" : "audit"}
+            price={price}
+            selectingProperty={form.selectingProperty}
+            disabled={form.staleGoal}
+            onClose={() => model.setDialog(null)}
+            onRetry={() => formElement.current?.requestSubmit()}
+            onLimited={() => {
+              if (formElement.current?.reportValidity())
+                void form.submit(new FormData(formElement.current), true);
+            }}
+          />
+        ) : null}
+        {editingBrief ? (
+          <SeoBriefDialog
+            key={model.viewerKey}
+            model={model}
+            onClose={() => setEditingBrief(false)}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );

@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import Stripe from "stripe";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -395,6 +395,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
   });
 
   it("answers 500 when the local write fails after Stripe", async () => {
+    expectConsole("error", "Error: local seat write failed");
     setMembership("owner");
     subscriptionUpdateMock.mockRejectedValueOnce(
       new Error("local seat write failed"),
@@ -503,19 +504,20 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
   });
 
   it("keeps other Stripe failures as server errors", async () => {
+    const errorCalls = expectConsole("error", "");
     setMembership("owner");
-    updateSubscriptionItemQuantityMock.mockRejectedValue(
-      new Stripe.errors.StripeAPIError({
-        message: "Stripe is unavailable.",
-        statusCode: 500,
-        type: "api_error",
-      }),
-    );
+    const error = new Stripe.errors.StripeAPIError({
+      message: "Stripe is unavailable.",
+      statusCode: 500,
+      type: "api_error",
+    });
+    updateSubscriptionItemQuantityMock.mockRejectedValue(error);
 
     const response = await updateSeats("org_123", 6);
 
     expect(response.status).toBe(500);
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
+    expect(errorCalls[0]?.[0]).toBe(error);
   });
 
   it("returns 500 when the Stripe subscription has no items", async () => {

@@ -4,25 +4,20 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useTheme } from "next-themes";
-import { useMemo } from "react";
 import {
   AgentActionButtons,
   AgentActionButtonsSkeleton,
 } from "@/components/agents/agent-action-buttons";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
+import { BackLink } from "@/components/back-link";
 import { Skeleton } from "@/components/ui/skeleton";
-import useIsClient from "@/hooks/use-is-client";
 import {
-  getAgentCategoryStyles,
   getAgentName,
   getAgentResolvedIcon,
   getFullAgentAuthorName,
 } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
-import { generateGradientBorder } from "@/lib/utils/gradient";
-import { getCategoryColor } from "@/lib/utils/theme";
 
 interface AgentDetailHeaderProps {
   agent: CoreAgentDto;
@@ -40,44 +35,19 @@ function AgentDetailHeader({
   onClose,
 }: AgentDetailHeaderProps) {
   const tJobsHeader = useTranslations("App.Agents.Jobs.Header");
-  const { resolvedTheme } = useTheme();
-  const isClient = useIsClient();
-  const categoryStyles = getAgentCategoryStyles(agent);
-  const currentTheme = isClient && resolvedTheme === "dark" ? "dark" : "light";
-  const gradientBorder = useMemo(
-    () =>
-      isClient ? generateGradientBorder(categoryStyles, currentTheme) : null,
-    [isClient, categoryStyles, currentTheme],
-  );
-  const categoryColor = useMemo(
-    () => getCategoryColor(categoryStyles, currentTheme),
-    [categoryStyles, currentTheme],
-  );
-  const iconBorderStyle =
-    isClient && gradientBorder
-      ? {
-          // Whole pixels. 0.2px is a fifth of a device pixel even on a 2x
-          // display, so the browser rounds it to nothing or to a hairline
-          // depending on position. 1px is what it was already trying to be.
-          border: "1px solid transparent",
-          backgroundImage: `linear-gradient(var(--card-background), var(--card-background)), ${gradientBorder}`,
-          backgroundOrigin: "border-box",
-          backgroundClip: "padding-box, border-box",
-        }
-      : undefined;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="hidden w-full md:block">
         <div className="flex w-full items-center justify-between">
           {showBackButton && (
-            <Link
+            <BackLink
               href="/agents"
               className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm text-nowrap transition-colors"
             >
               <ArrowLeft className="size-4" />
               <span>{tJobsHeader("back")}</span>
-            </Link>
+            </BackLink>
           )}
           <AgentActionButtons
             agent={agent}
@@ -88,27 +58,19 @@ function AgentDetailHeader({
         </div>
       </div>
       <div className="flex flex-col gap-6 md:flex-row">
-        <div
-          className="border-border bg-card-background flex size-24 shrink-0 items-center justify-center rounded-lg border md:size-32"
-          style={iconBorderStyle}
-        >
-          <div style={{ color: categoryColor }}>
-            <AgentIcon
-              agent={{
-                name: getAgentName(agent),
-                icon: getAgentResolvedIcon(agent),
-              }}
-              className="size-14 md:size-16"
-            />
-          </div>
+        <div className="border-border bg-card-background flex size-24 shrink-0 items-center justify-center rounded-lg border md:size-32">
+          <AgentIcon
+            agent={{
+              name: getAgentName(agent),
+              icon: getAgentResolvedIcon(agent),
+            }}
+            className="size-14 md:size-16"
+          />
         </div>
         <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-start gap-4 md:items-center">
-              <h1
-                className="text-xl leading-tight font-semibold tracking-tight md:text-3xl"
-                style={{ color: categoryColor }}
-              >
+              <h1 className="text-xl leading-tight font-semibold tracking-tight md:text-3xl">
                 {getAgentName(agent)}
               </h1>
               <AgentVerifiedBadge />

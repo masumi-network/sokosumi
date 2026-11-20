@@ -6,15 +6,17 @@ import {
   X402_MAX_TIMEOUT_SECONDS,
   X402_SUPPORTED_SCHEMES,
 } from "@sokosumi/masumi/schemas";
+import { waitUntil } from "@vercel/functions";
 import { type Address, type Hex, verifyTypedData } from "viem";
-
 import { badGateway, conflict, internalServerError } from "@/helpers/error";
+import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
 import {
   parseSignedX402Authorization,
   parseX402BaseUnits,
   prepareX402ReplayHeader,
   type SignedX402Authorization,
 } from "@/helpers/x402-settlement";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { TaskX402PaymentSigned } from "@/schemas/x402-payment.schema";
 import {
@@ -580,4 +582,34 @@ export async function finalizeVerifiedTaskX402Payment(
     amount: charged.amount,
     payTo: charged.payTo,
   };
+}
+
+export function schedulePostCommitFanout(
+  taskId: string,
+  taskOwnerId: string | null,
+  outOfCreditsEventId?: string,
+): void {
+  if (taskOwnerId) {
+    waitUntil(
+      (async () => {
+        try {
+          await publishTaskEventData({
+            userId: taskOwnerId,
+            taskId,
+            eventType: "task_event",
+          });
+        } catch (error) {
+          Sentry.captureException(error, {
+            tags: { error_type: "publish_task_event" },
+            extra: { taskId, userId: taskOwnerId },
+          });
+        }
+      })(),
+    );
+  }
+  if (outOfCreditsEventId) {
+    waitUntil(
+      notifyTaskStatusEvent(taskId, outOfCreditsEventId, "OUT_OF_CREDITS"),
+    );
+  }
 }

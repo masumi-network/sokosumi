@@ -38,6 +38,10 @@ import type {
   contactSchema,
 } from "@/schemas/contact.schema";
 import {
+  contactSearchWhere,
+  readNameMatchesFirst,
+} from "@/services/contact-name-search";
+import {
   type ContactScoreDto,
   readerScores,
   refreshContactFamiliarity,
@@ -367,8 +371,8 @@ interface ContactFieldData {
   nextStep?: string | null;
   followUpAt?: Date | null;
   avatarUrl?: string | null;
-  stage?: z.infer<typeof contactFieldsSchema>["stage"];
-  kind?: z.infer<typeof contactFieldsSchema>["kind"];
+  stage?: NonNullable<FieldsInput["stage"]>;
+  kind?: NonNullable<FieldsInput["kind"]>;
   customFields?: Prisma.InputJsonObject;
 }
 
@@ -979,7 +983,9 @@ async function refreshDerivedFields(tx: Tx, contactId: string) {
     where: { id: contactId },
     data: {
       // With no interaction left, the contact keeps the time it was added.
-      firstContactAt: aggregate._min.occurredAt ?? undefined,
+      ...(aggregate._min.occurredAt
+        ? { firstContactAt: aggregate._min.occurredAt }
+        : {}),
       lastContactAt: aggregate._max.occurredAt,
       interactionCount: aggregate._count._all,
       lastInboundAt,
@@ -1356,31 +1362,6 @@ export async function findDuplicateContacts(
  */
 const MAX_FILTER_IDS = 50_000;
 
-/**
- * Contacts whose location holds `search`, ignoring case and accents, so
- * "zurich" finds "Zürich". Prisma's `contains` cannot unaccent, so plain
- * matches stay a column predicate and only places that need the accents
- * folded are looked up: as their distinct spellings, not one id per contact.
- */
-async function locationSearchWhere(
-  workspaceId: string,
-  search: string,
-): Promise<Prisma.ContactWhereInput> {
-  const pattern = literalSubstringPattern(search);
-  const rows = await prisma.$queryRaw<{ location: string }[]>(PrismaRaw.sql`
-    SELECT DISTINCT "location" FROM "contact"
-    WHERE "workspaceId" = ${workspaceId}::uuid
-      AND "mergedIntoId" IS NULL
-      AND unaccent("location") ILIKE unaccent(${pattern}) ESCAPE '\\'
-      AND "location" NOT ILIKE ${pattern} ESCAPE '\\'
-    LIMIT ${MAX_FILTER_IDS + 1}`);
-  const plain: Prisma.ContactWhereInput = {
-    location: { contains: search, mode: "insensitive" },
-  };
-  if (!rows.length) return plain;
-  return { OR: [plain, { location: { in: rows.map((row) => row.location) } }] };
-}
-
 /** How many list values (`in`, `notIn`) a where binds, at any depth. */
 export function boundListValues(where: unknown): number {
   if (Array.isArray(where))
@@ -1416,21 +1397,14 @@ export async function contactFilterWhere(
 ): Promise<Prisma.ContactWhereInput[]> {
   const days = (count: number) => new Date(now.getTime() - count * 86_400_000);
   const and: Prisma.ContactWhereInput[] = [];
-  if (filter.search) {
-    const search = filter.search;
-    and.push({
-      OR: [
-        { name: { contains: search, mode: "insensitive" } },
-        { organization: { contains: search, mode: "insensitive" } },
-        {
-          channels: {
-            some: { value: { contains: search, mode: "insensitive" } },
-          },
-        },
-        await locationSearchWhere(actor.workspaceId, search),
-      ],
-    });
-  }
+  if (filter.search)
+    and.push(
+      await contactSearchWhere(
+        actor.workspaceId,
+        filter.search,
+        MAX_FILTER_IDS,
+      ),
+    );
   if (filter.stages) and.push({ stage: { in: filter.stages } });
   if (filter.kind) and.push({ kind: filter.kind });
   if (filter.replyStates)
@@ -1632,6 +1606,23 @@ export async function listContacts(
 ): Promise<{ items: ContactDto[]; total: number; nextCursor: string | null }> {
   const where = await contactListWhere(actor, options);
   if (options.query) return listContactsByQuery(actor, options, where);
+  if (options.filter.search) {
+    return readNameMatchesFirst(
+      where,
+      options.filter.search,
+      options,
+      (scope, cursor, limit) =>
+        listSortedContacts(actor, { ...options, cursor, limit }, scope),
+    );
+  }
+  return listSortedContacts(actor, options, where);
+}
+
+async function listSortedContacts(
+  actor: ContactActor,
+  options: ListContactsOptions,
+  where: Prisma.ContactWhereInput,
+): Promise<{ items: ContactDto[]; total: number; nextCursor: string | null }> {
   if (options.sort === "familiarity" || options.sort === "importance")
     return listContactsByScore(actor, options, where);
   const [rows, total] = await prisma.$transaction([
@@ -2301,7 +2292,7 @@ export async function applyContactClassification(
   changes: {
     kind?: "PERSON" | "ORGANIZATION";
     name?: string;
-    stage?: z.infer<typeof contactFieldsSchema>["stage"];
+    stage?: NonNullable<ContactFieldData["stage"]>;
   },
   provenance: { method: string },
 ): Promise<string[]> {

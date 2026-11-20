@@ -29,6 +29,7 @@ vi.mock("next-intl", () => ({
     values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { PurchaseSuccessCoworkerRow } from "./purchase-success-coworker-row";
 
 function createCoworker(
@@ -50,12 +51,16 @@ function createCoworker(
 }
 
 describe("PurchaseSuccessCoworkerRow", () => {
-  it("shows a loading skeleton while the coworkers promise is pending", () => {
+  it("shows a loading skeleton while the coworkers promise is pending", async () => {
     const coworkersPromise = new Promise<CoworkerOption[]>(() => {});
 
-    const { container } = render(
-      <PurchaseSuccessCoworkerRow coworkersPromise={coworkersPromise} />,
-    );
+    // The row suspends on the promise: render inside an awaited act.
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <PurchaseSuccessCoworkerRow coworkersPromise={coworkersPromise} />,
+      ));
+    });
 
     expect(container.querySelectorAll("[aria-hidden]").length).toBeGreaterThan(
       0,
@@ -80,15 +85,15 @@ describe("PurchaseSuccessCoworkerRow", () => {
 
     expect(screen.getByText("Elena").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=elena",
+      "/tasks?scope=workspace&create=true&assignee=elena",
     );
     expect(screen.getByText("Hannah").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=hannah",
+      "/tasks?scope=workspace&create=true&assignee=hannah",
     );
     expect(screen.getByText("Alex").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=alex",
+      "/tasks?scope=workspace&create=true&assignee=alex",
     );
   });
 
@@ -105,7 +110,7 @@ describe("PurchaseSuccessCoworkerRow", () => {
 
     expect(screen.getByText("A B").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=a%20b",
+      "/tasks?scope=workspace&create=true&assignee=a%20b",
     );
   });
 
@@ -160,15 +165,13 @@ describe("PurchaseSuccessCoworkerRow", () => {
   });
 
   it("degrades to the 'go to tasks' fallback instead of crashing when the coworkers promise rejects", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "[default-error-boundary]");
+    const reactErrors = expectConsole("error", "");
+    const error = new Error("boom");
 
     await act(async () => {
       render(
-        <PurchaseSuccessCoworkerRow
-          coworkersPromise={Promise.reject(new Error("boom"))}
-        />,
+        <PurchaseSuccessCoworkerRow coworkersPromise={Promise.reject(error)} />,
       );
     });
 
@@ -176,20 +179,19 @@ describe("PurchaseSuccessCoworkerRow", () => {
       "href",
       "/tasks",
     );
-
-    consoleError.mockRestore();
+    expect(reactErrors[0]?.[1]).toBe(error);
   });
 
   it("calls onNavigate from the error-boundary 'go to tasks' fallback", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "[default-error-boundary]");
+    const reactErrors = expectConsole("error", "");
+    const error = new Error("boom");
     const onNavigate = vi.fn();
 
     await act(async () => {
       render(
         <PurchaseSuccessCoworkerRow
-          coworkersPromise={Promise.reject(new Error("boom"))}
+          coworkersPromise={Promise.reject(error)}
           onNavigate={onNavigate}
         />,
       );
@@ -198,7 +200,6 @@ describe("PurchaseSuccessCoworkerRow", () => {
     screen.getByText("goToTasks").closest("a")?.click();
 
     expect(onNavigate).toHaveBeenCalled();
-
-    consoleError.mockRestore();
+    expect(reactErrors[0]?.[1]).toBe(error);
   });
 });

@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { hasSessionCookie, renewSession } from "./lib/auth";
-import { config, LANDING_PATH, proxy, showsLanding } from "./proxy";
+import { config, proxy } from "./proxy";
 
 /** CMO's public origin, as `getAuth().options.baseURL` reports it. */
 const cmo = vi.hoisted(() => ({ baseURL: "https://app.cmo.xyz" }));
@@ -27,24 +27,14 @@ afterEach(() => {
   vi.mocked(listCmoCusos).mockReset();
 });
 
-it("shows the waitlist site to a signed-out visitor of the home page", async () => {
+it("lets the home page send a signed-out visitor on to sign in", async () => {
   vi.mocked(renewSession).mockResolvedValue(
     new Response(null, { status: 204 }),
   );
 
   const response = await proxy(new NextRequest("https://app.cmo.xyz/"));
 
-  expect(response.headers.get("x-middleware-rewrite")).toBe(
-    `https://app.cmo.xyz${LANDING_PATH}`,
-  );
-});
-
-it("leaves the app to the signed in, and errors and other pages to the app", () => {
-  const url = (path: string) => new URL(`https://app.cmo.xyz${path}`);
-  expect(showsLanding(url("/"), false)).toBe(true);
-  expect(showsLanding(url("/"), true)).toBe(false);
-  expect(showsLanding(url("/?error=state_mismatch"), false)).toBe(false);
-  expect(showsLanding(url("/login"), false)).toBe(false);
+  expect(response.headers.has("x-middleware-rewrite")).toBe(false);
 });
 
 it("renders the app for a visitor with a session", async () => {
@@ -56,6 +46,25 @@ it("renders the app for a visitor with a session", async () => {
   const response = await proxy(new NextRequest("https://app.cmo.xyz/"));
 
   expect(response.headers.has("x-middleware-rewrite")).toBe(false);
+});
+
+it("forgets the sign out once someone is signed in", async () => {
+  vi.mocked(renewSession).mockResolvedValue(
+    new Response(null, { status: 204 }),
+  );
+  const visit = () =>
+    proxy(
+      new NextRequest("https://app.cmo.xyz/login", {
+        headers: { cookie: "cmo-signed-out=1" },
+      }),
+    );
+
+  const signedOut = await visit();
+  vi.mocked(hasSessionCookie).mockReturnValueOnce(true);
+  const signedIn = await visit();
+
+  expect(signedOut.cookies.has("cmo-signed-out")).toBe(false);
+  expect(signedIn.cookies.get("cmo-signed-out")?.value).toBe("");
 });
 
 it("remembers on this device the Cuso an address opens", async () => {

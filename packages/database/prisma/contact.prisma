@@ -428,30 +428,32 @@ model ContactSearch {
 /// `n:acmerobotics`. The row holds facts people, bots and the background
 /// lookup add: one lookup per company domain, never per person.
 model ContactCompany {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  workspaceId   String    @db.Uuid
-  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  key           String
-  name          String
-  domain        String?
-  website       String?
-  description   String?
-  industry      String?
+  id             String    @id @default(uuid(7)) @db.Uuid
+  workspaceId    String    @db.Uuid
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  key            String
+  name           String
+  domain         String?
+  website        String?
+  description    String?
+  industry       String?
   /// Headcount as written: "11-50", "about 200".
-  size          String?
-  headquarters  String?
-  linkedinUrl   String?
-  whyItMatters  String?
+  size           String?
+  headquarters   String?
+  linkedinUrl    String?
+  whyItMatters   String?
   /// Every spelling its people have written (lowercase letters and digits),
   /// kept after a rename so archived people are still found.
-  aliases       String[]  @default([])
-  /// When the background lookup last read the company's site; null queues it.
-  enrichedAt    DateTime?
+  aliases        String[]  @default([])
+  /// When the background lookup last completed successfully, even with no facts.
+  enrichedAt     DateTime?
+  /// Failed lookups of the current site. The queue caps these across runs.
+  lookupFailures Int       @default(0)
   /// Since when no live contact belongs to it: its lookup waits until one does.
-  inactiveSince DateTime?
-  version       Int       @default(1)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  inactiveSince  DateTime?
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   listMemberships ContactCompanyListMember[]
 

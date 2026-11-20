@@ -53,6 +53,9 @@ import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import { loadMoreSocialPosts, loadSocialPostQuoteCandidates } from "./actions";
 import { writeRememberedComposerAccounts } from "./social-post-composer-accounts";
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getProjectsByIdSocialConnections: (...args: unknown[]) =>
@@ -60,6 +63,21 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes: (
       ...args: unknown[]
     ) => getSuggestedTimesMock(...args),
+    getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator: async (
+      _project: string,
+      account: string,
+    ) => ({
+      data: {
+        creator_nickname: "Sandbox creator",
+        privacy_level_options: [
+          account === "public-account" ? "PUBLIC_TO_EVERYONE" : "SELF_ONLY",
+        ],
+        comment_disabled: true,
+        duet_disabled: false,
+        stitch_disabled: true,
+        max_video_post_duration_sec: 10,
+      },
+    }),
     getProjectsByIdSocialConnectionsByConnectionIdSubscription: (
       ...args: unknown[]
     ) => getSubscriptionMock(...args),
@@ -359,26 +377,48 @@ vi.mock("next-intl", async () => {
     useFormatter: () => createTestFormatter(),
     useLocale: () => "en",
     useTimeZone: () => "UTC",
-    useTranslations:
-      (namespace: string) =>
-      (key: string, values?: Record<string, string | number>) => {
-        if (namespace === "App.Projects.SocialPosts.toasts") {
-          const messages: Record<string, string> =
-            enMessages.App.Projects.SocialPosts.toasts;
-          return createTranslator({ locale: "en", messages })(key, values);
-        }
-        const message =
-          MESSAGES[
-            namespace === "App.Projects.SocialPosts.quote"
-              ? `quote.${key}`
-              : key
-          ] ?? key;
-        if (!values) return message;
-        return Object.entries(values).reduce(
-          (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
-          message,
-        );
-      },
+    useTranslations: (namespace: string) =>
+      Object.assign(
+        (key: string, values?: Record<string, string | number>) => {
+          if (key.startsWith("composer.tt")) {
+            const messages = Object.fromEntries(
+              Object.entries(
+                enMessages.App.Projects.SocialPosts.composer,
+              ).filter(
+                (entry): entry is [string, string] =>
+                  typeof entry[1] === "string",
+              ),
+            );
+            return createTranslator({ locale: "en", messages })(
+              key.slice("composer.".length),
+              values,
+            );
+          }
+          if (namespace === "App.Projects.SocialPosts.toasts") {
+            const messages: Record<string, string> =
+              enMessages.App.Projects.SocialPosts.toasts;
+            return createTranslator({ locale: "en", messages })(key, values);
+          }
+          const message =
+            MESSAGES[
+              namespace === "App.Projects.SocialPosts.quote"
+                ? `quote.${key}`
+                : key
+            ] ?? key;
+          if (!values) return message;
+          return Object.entries(values).reduce(
+            (text, [name, value]) =>
+              text.replaceAll(`{${name}}`, String(value)),
+            message,
+          );
+        },
+        {
+          rich: createTranslator({
+            locale: "en",
+            messages: enMessages.App.Projects.SocialPosts,
+          }).rich,
+        },
+      ),
   };
 });
 
@@ -476,6 +516,7 @@ function buildConnection(
   overrides: Partial<ProjectSocialConnection> = {},
 ): ProjectSocialConnection {
   return {
+    personalProfile: false,
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",
@@ -571,6 +612,7 @@ const SCHEDULED_POST = buildPost({
   scheduledAt: new Date("2026-10-01T10:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -617,6 +659,7 @@ const FAILED_POST = buildPost({
   scheduledAt: new Date("2026-09-10T10:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -650,6 +693,7 @@ const PUBLISHING_POST = buildPost({
   scheduledAt: new Date("2026-09-15T09:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -760,6 +804,29 @@ function render(ui: React.ReactElement, searchParams?: string) {
 }
 
 describe("ProjectSocialPosts", () => {
+  it("selects only the matching failed posts when searching before a bulk retry", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          { ...FAILED_POST, id: "shown", text: "Launch day" },
+          { ...FAILED_POST, id: "hidden", text: "Sunday update" },
+        ]}
+        projectId={PROJECT_ID}
+        searchQuery="launch"
+      />,
+      "?tab=attention",
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Select all posts that can be retried",
+      }),
+    );
+    expect(screen.getByText("1 selected")).toBeVisible();
+    expect(screen.queryByTestId("social-post-select-hidden")).toBeNull();
+  });
+
   it("shows waiting in the list and preview for a due quote", async () => {
     const user = userEvent.setup();
     render(
@@ -989,6 +1056,7 @@ describe("ProjectSocialPosts", () => {
       projectId: PROJECT_ID,
       action: "reconnect",
       socialConnectionId: "connection-1",
+      accountChoice: true,
     });
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText("Retry 1 failed posts?")).toBeVisible();
@@ -1305,6 +1373,7 @@ describe("ProjectSocialPosts", () => {
           buildPost({
             id: "post-handle",
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1317,6 +1386,7 @@ describe("ProjectSocialPosts", () => {
             id: "post-name",
             provider: "linkedin",
             socialConnection: {
+              personalProfile: false,
               id: "connection-2",
               externalHandle: null,
               displayName: "Sokosumi Co",
@@ -1403,6 +1473,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1435,6 +1506,7 @@ describe("ProjectSocialPosts", () => {
             provider: "linkedin",
             media: [IMAGE_REF],
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1469,6 +1541,7 @@ describe("ProjectSocialPosts", () => {
             provider: "linkedin",
             text: "word ".repeat(80),
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1513,6 +1586,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -1694,6 +1768,7 @@ describe("ProjectSocialPosts", () => {
     const named = buildPost({
       status: "FAILED",
       socialConnection: {
+        personalProfile: false,
         id: "connection-1",
         externalHandle: "sokosumi",
         displayName: "Sokosumi HQ",
@@ -1722,6 +1797,7 @@ describe("ProjectSocialPosts", () => {
           buildPost({
             status: "FAILED",
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -3639,6 +3715,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-2",
               externalHandle: "sokosumi-co",
               displayName: null,
@@ -4810,6 +4887,73 @@ describe("ProjectSocialPosts", () => {
     ).toBeDisabled();
   });
 
+  it.each([
+    ["public-account", "PUBLIC_TO_EVERYONE"],
+    ["private-account", "SELF_ONLY"],
+  ])(
+    "requires the creator’s chosen %s audience, consent and a valid duration",
+    async (id, level) => {
+      const user = userEvent.setup();
+      const connection = buildConnection({ id, provider: "tiktok" });
+      render(
+        <SocialProviderAvailabilityProvider enabledProviders={["tiktok"]}>
+          <ProjectSocialPosts
+            connections={[connection]}
+            posts={[]}
+            projectId={PROJECT_ID}
+          />
+        </SocialProviderAvailabilityProvider>,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = within(screen.getByRole("dialog"));
+      await dialog.findByText("Posting to Sandbox creator");
+      const audience = dialog.getByLabelText("Who can see this video?");
+      expect(audience).toHaveValue("");
+      expect(dialog.getByLabelText("Allow comments")).toBeDisabled();
+      expect(
+        dialog.getByLabelText("Allow Duet with this video"),
+      ).not.toBeChecked();
+      await user.click(dialog.getByRole("button", { name: "Add from Drive" }));
+      await user.click(screen.getByRole("button", { name: "pick clip.mp4" }));
+      const submit = dialog.getByRole("button", { name: "Post now" });
+      expect(submit).toBeDisabled();
+      await user.selectOptions(audience, level);
+      const music = dialog.getByRole("checkbox", {
+        name: /I reviewed this video/,
+      });
+      expect(music).not.toBeChecked();
+      await user.click(music);
+      const video = dialog
+        .getByRole("group", { name: "TikTok" })
+        .querySelector("video")!;
+      Object.defineProperty(video, "duration", {
+        value: 11,
+        configurable: true,
+      });
+      fireEvent.loadedMetadata(video);
+      expect(submit).toBeDisabled();
+      Object.defineProperty(video, "duration", { value: 5 });
+      fireEvent.loadedMetadata(video);
+      expect(submit).toBeEnabled();
+      await user.click(submit);
+      await waitFor(() =>
+        expect(publishProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tikTokSettings: {
+              acceptedMusicUsage: true,
+              privacyLevel: level,
+              previewConsent: true,
+              allowComment: false,
+              allowDuet: false,
+              allowStitch: false,
+              promotesOwnBrand: false,
+            },
+          }),
+        ),
+      );
+    },
+  );
+
   it("never selects a disabled TikTok account for a new draft", async () => {
     const user = userEvent.setup();
     render(
@@ -5661,6 +5805,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...SCHEDULED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi HQ",
@@ -6146,6 +6291,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...SCHEDULED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -6179,6 +6325,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...FAILED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -6423,16 +6570,26 @@ describe("ProjectSocialPosts", () => {
         );
         expect(initiateProjectSocialConnection).toHaveBeenCalledWith(
           status === "disconnected"
-            ? { projectId: PROJECT_ID, action: "connect", provider: "x" }
+            ? {
+                projectId: PROJECT_ID,
+                action: "connect",
+                provider: "x",
+                accountChoice: true,
+              }
             : {
                 projectId: PROJECT_ID,
                 action: "reconnect",
                 socialConnectionId: connection.id,
+                accountChoice: true,
               },
         );
         expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
           projectId: PROJECT_ID,
           connectionId: "ca-1",
+          callbackProof: undefined,
+          pendingDataToken: undefined,
+          connectToken: undefined,
+          offerChoice: true,
         });
         expect(within(dialog).getByLabelText("Text")).toHaveValue("Fixed copy");
         expect(

@@ -93,7 +93,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT,
       );
 
-      const { cursor, take, skip } = parseCursorPagination({
+      const { cursor, take } = parseCursorPagination({
         cursor: query.cursor,
         limit,
       });
@@ -115,8 +115,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // most recent window, not the first 200 messages ever written.
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
           select: {
             id: true,
             content: true,

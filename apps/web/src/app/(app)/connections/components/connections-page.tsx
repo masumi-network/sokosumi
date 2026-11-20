@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { cn } from "@/lib/utils";
@@ -35,31 +36,38 @@ export async function ConnectionsPage() {
     <div className="min-h-full w-full">
       <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <div className="space-y-6">
-          <header className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {tPage("title")}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              {tPage("description")}
-            </p>
-          </header>
-          <section className="space-y-3" data-testid="connections-sign-in">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">{t("title")}</h2>
-              <p className="text-muted-foreground text-sm">
-                {t("description")}
-              </p>
-            </div>
-            {socialAccountsSection}
-          </section>
-          <ConnectionsTabs
-            connectedAppsContent={<OAuthAuthorizedClients />}
-            mcpContent={
-              <Suspense fallback={null}>
-                <McpActiveKeyView />
-              </Suspense>
+          <SearchablePageContent
+            heading={
+              <header className="min-w-0 flex-1 space-y-1">
+                <h1 className="text-2xl font-semibold tracking-tight">
+                  {tPage("title")}
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  {tPage("description")}
+                </p>
+              </header>
             }
-          />
+          >
+            <div className="space-y-6">
+              <section className="space-y-3" data-testid="connections-sign-in">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold">{t("title")}</h2>
+                  <p className="text-muted-foreground text-sm">
+                    {t("description")}
+                  </p>
+                </div>
+                {socialAccountsSection}
+              </section>
+              <ConnectionsTabs
+                connectedAppsContent={<OAuthAuthorizedClients />}
+                mcpContent={
+                  <Suspense fallback={null}>
+                    <McpActiveKeyView />
+                  </Suspense>
+                }
+              />
+            </div>
+          </SearchablePageContent>
         </div>
       </div>
     </div>

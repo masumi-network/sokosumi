@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { deleteStripeCustomerBestEffort } from "./stripe-customer-delete";
 
 const {
@@ -102,6 +101,7 @@ describe("deleteStripeCustomerBestEffort", () => {
     expect(deleteCustomerMock).not.toHaveBeenCalled();
     expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(lookupDown, {
       label: "stripe_customer_delete",
+      errorDetail: "cause",
       sentry: {
         tags: {
           context: "stripe_customer_delete",
@@ -132,6 +132,7 @@ describe("deleteStripeCustomerBestEffort", () => {
     });
     expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(stripeDown, {
       label: "stripe_customer_delete",
+
       sentry: {
         tags: {
           context: "stripe_customer_delete",

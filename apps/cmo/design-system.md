@@ -1,61 +1,65 @@
 # CMO.XYZ design system
 
-The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi palette. Masumi brings the calm (neutrals, PP Mori, one pink); Cuso brings the outline (a visible 1px ink line and one hard shadow). It should read like a serious tool with a friendly face.
+The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the same look as the CMO.XYZ landing page. Masumi brings the palette (neutrals, PP Mori, one pink); Cuso brings the outline (thick ink lines and hard shadows). It should read like a serious tool with a loud, friendly face.
 
 - **Voice, product, agent naming:** [`DESIGN.md`](DESIGN.md). This file covers how things look.
-- **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
+- **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Since 2026-11-17 the app follows the landing page's look (thick lines, larger hard shadows, pills), which the canvas does not show. Where a board and this file disagree, this file wins.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
-- **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
-
+- **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` is exempt because it draws the networks' own UIs.
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, avatar sizes) and Cuso's states as the sidebar shows them sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming), `/design-system/app/<view>` (today, chat, strategy, calendar, seo, results, competitors, brain, channels, settings; competitors also takes `?state=empty` and `?state=loading`, and every view `?state=busy`, a month of 150 posts) and `/design-system/pages/<page>` (signed-in, invite-only, sign-in-problem, name-setup, error) render each real screen over fixture data (`?theme=dark` pins the theme). The Logo section shows every lockup in use.
 ## Five rules
 
-1. **Lines do the work.** A 1px ink line on every card, input and full-size button. A hairline for small buttons and chips, and for structure inside a card: dividers, list rows, inner items.
-2. **The hard shadow means: look here.** 3px offset, no blur, on the primary action, the card in focus, and any card that needs the owner now. When the action is done the card goes flat.
-3. **Iris means now.** The current step and the next action. Never decoration, never text, never a thin mark. Text on Iris is always Neutral 950.
-4. **Bold speaks, Regular works.** One PP Mori SemiBold H1 per screen. Regular for statements, big numbers and UI, SemiBold for labels that lead and section heads. Mori ships two cuts: weights 300 to 500 draw Regular, 600 to 800 draw SemiBold.
-5. **Three layers.** White page, gray panel, outlined white cards. A card sits on a panel, never straight on the page.
+1. **One line does the work.** A 3px ink line on every outlined thing: cards, panels, frames (Cuso's picture too), inputs and full-size buttons. 2px on chips, tags, badges, small buttons and avatar circles. A 1px hairline only for structure inside a card: dividers, list rows, inner items. The landing page uses the same two widths.
+2. **A hard shadow means you can act.** An offset with no blur, in two sizes and nothing above 6px. 4px under anything you can click, type in or pick: buttons, chips, inputs, the account card, the page you are on, and every one of a set to pick from (each tab, filter, pace and plan, picked or not). 6px only under the hire screen's button and the post that is open on the Calendar. What you cannot click has its line and no shadow, even when it needs the owner: every card and panel, Cuso's scene, report and message cards, tags, badges, labels, images (`design-guards.test.ts` holds this). The buttons inside a card carry the shadow.
+3. **Iris means now, and picked.** The primary button, the current step, and the picked one of a set (the page in the sidebar, a tab, a filter, a plan). The fill alone says which one is picked: the others keep their shadow, so each still reads as a button. Never text, never a thin mark. Text on Iris is always Neutral 950.
+4. **Bold speaks, Regular works.** One PP Mori SemiBold H1 per screen, tracked at -0.03em. Regular for statements, big numbers and UI, SemiBold for buttons, pills, labels that lead and section heads. Mori ships two cuts: weights 300 to 500 draw Regular, 600 to 800 draw SemiBold.
+5. **Black strips for contrast.** White page, outlined panels and cards, and a black strip where the page needs weight: the action bar at the bottom of an onboarding step, a banner that needs the owner, the goal block. A strip inverts in dark.
 
 ## Colour
 
-| Token                  | Role                            | Light               | Dark                |
-| ---------------------- | ------------------------------- | ------------------- | ------------------- |
-| `--background`         | page                            | `#FFFFFF`           | `#0C0C0C`           |
-| `--surface`            | panel (gray layer, sidebar)     | `#F5F5F5`           | `#171717`           |
-| `--card`               | card on a panel                 | `#FFFFFF`           | `#0C0C0C`           |
-| `--foreground`         | text                            | `#171717`           | `#FAFAFA`           |
-| `--muted`              | secondary text                  | `#525252`           | `#A3A3A3`           |
-| `--line`               | ink line on controls and cards  | `#0C0C0C`           | `#A3A3A3`           |
-| `--border`             | hairline                        | `#E5E5E5`           | `#262626`           |
-| `--primary`            | Iris Flower                     | `#FF51FF`           | `#D141D1`           |
-| `--primary-hover`      | Iris on hover                   | `#FF51FF`           | `#FF51FF`           |
-| `--primary-foreground` | text on Iris, green, yellow     | `#0C0C0C`           | `#0C0C0C`           |
-| `--peach`              | Peach Blossom, behind Cuso only | `#FFC8F0`           | `#FFC8F0`           |
-| `--ok`                 | done                            | `#00D43B`           | `#00D43B`           |
-| `--warn`               | needs an answer                 | `#FFD300`           | `#FFD300`           |
-| `--shadow-hard`        | the one hard shadow             | `3px 3px 0 #0C0C0C` | `3px 3px 0 #FAFAFA` |
-| `--shadow-iris`        | selected tile's hard shadow     | `3px 3px 0 Iris`    | `3px 3px 0 Iris`    |
-| `--stage`              | Cuso's avatar circle            | `#F5F5F5`           | `#F5F5F5`           |
-| `--scrim`              | behind a modal sheet only       | black at 30%        | black at 30%        |
+| Token                  | Role                                | Light            | Dark             |
+| ---------------------- | ----------------------------------- | ---------------- | ---------------- |
+| `--background`         | page                                | `#FFFFFF`        | `#0C0C0C`        |
+| `--surface`            | panel (gray layer, sidebar)         | `#F5F5F5`        | `#171717`        |
+| `--card`               | card on a panel                     | `#FFFFFF`        | `#0C0C0C`        |
+| `--foreground`         | text                                | `#171717`        | `#FAFAFA`        |
+| `--muted`              | secondary text                      | `#525252`        | `#A3A3A3`        |
+| `--line`               | ink line and hard shadows           | `#0C0C0C`        | `#FAFAFA`        |
+| `--border`             | hairline                            | `#E5E5E5`        | `#262626`        |
+| `--primary`            | Iris Flower                         | `#FF51FF`        | `#D141D1`        |
+| `--primary-hover`      | Iris on hover                       | `#FF51FF`        | `#FF51FF`        |
+| `--primary-foreground` | text on Iris, green, yellow         | `#0C0C0C`        | `#0C0C0C`        |
+| `--peach`              | Peach Blossom, behind Cuso only     | `#FFC8F0`        | `#FFC8F0`        |
+| `--ok`                 | done                                | `#00D43B`        | `#00D43B`        |
+| `--warn`               | needs an answer                     | `#FFD300`        | `#FFD300`        |
+| `--net-*`              | a post's network (Today, Calendar)  | light tints      | same as light    |
+| `--shadow`             | anything you can click or type in   | `4px 4px 0` ink  | `4px 4px 0` ink  |
+| `--shadow-big`         | the open Calendar post, hire button | `6px 6px 0` ink  | `6px 6px 0` ink  |
+| `--shadow-iris`        | second button on a strip            | `4px 4px 0 Iris` | `4px 4px 0 Iris` |
+| `--strip`              | the black strip                     | `#0C0C0C`        | `#FAFAFA`        |
+| `--strip-foreground`   | text and lines on a strip           | `#FFFFFF`        | `#0C0C0C`        |
+| `--stage`              | Cuso's avatar circle                | `#F5F5F5`        | `#F5F5F5`        |
+| `--scrim`              | behind a modal sheet only           | black at 30%     | black at 30%     |
 
-- **One pink per view.** Iris on the primary button and the current step. Peach appears only behind Cuso, never next to an Iris surface.
+- **Iris is the one accent.** The primary button, the current step and the picked item. Peach appears only behind Cuso, never next to an Iris surface.
 - **Dark Iris rests at `#D141D1`** and goes to `#FF51FF` on hover (approved for CMO 2026-11-04; the Masumi guide still says Iris is the same in both themes).
 - **Green, yellow and Iris are fills only**, under a Neutral 950 glyph. On white they measure 1.4 to 2.7:1, so they never carry text or a thin mark.
 - **Channel marks** keep their networks' colours (`--mark-*`); they are logos, not palette.
+- **Network fills** (`--net-linkedin`, `--net-x`, `--net-facebook`, `--net-instagram`, `--net-youtube`, `--net-tiktok`, `--net-newsletter`, `--net-seo`, `--net-ads`; the `.net-<channel>` classes) are light, solid tints of each network's colour under a Neutral 950 glyph, the same in both themes, so a week of posts tells its networks apart at a glance. Like Iris, green and yellow they are fills only, never text or a line. They mean the network and nothing else.
 - No gradients, no glow, no blur, no transparency washes. The scrim behind a modal sheet is the one see-through colour.
 
 ## Type
 
-PP Mori, through `--font-sans` (`mori-regular.woff2` and `mori-semibold.woff2` in `public/site/assets/fonts`, loaded in `src/app/layout.tsx`). Numbers that compare use `font-variant-numeric: tabular-nums`.
+PP Mori, through `--font-sans` (`mori-regular.woff2` and `mori-semibold.woff2` in `public/fonts`, loaded in `src/app/layout.tsx`). The one other face on screen is content: the Brand Brain's "Your look" sets each of the brand's font names in that font where the device has it (`FontNames` in `brand-look.tsx`, the guard's one exception), and shows the brand's colours as discs, never as hex codes in a row. Numbers that compare use `font-variant-numeric: tabular-nums`.
 
 | Step      | Size / line | Weight     | Tracking | Use                                  |
 | --------- | ----------- | ---------- | -------- | ------------------------------------ |
-| display   | 72 / 68     | 800        | -0.045em | Site hero only                       |
-| h1        | 36 / 38     | 800        | -0.035em | the one screen title                 |
+| display   | 72 / 68     | 600        | -0.03em  | Site hero only                       |
+| h1        | 36 / 38     | 600        | -0.03em  | the one screen title                 |
 | statement | 28 / 32     | 300        | -0.01em  | a promise, the plan goal             |
 | value     | 24 / 28     | 300        | -0.005em | tile values, big numbers, a question |
 | h2        | 16 / 20     | 600        | 0        | card and panel heads                 |
-| body      | 14 / 18     | 400        | 0        | UI text; 500 for labels and buttons  |
+| body      | 14 / 18     | 400        | 0        | UI text; 500 for labels, 600 buttons |
 | small     | 12 / 16     | 400 or 500 | 0        | meta, field help, step markers       |
 | micro     | 11 / 14     | 400 or 500 | 0        | sources, tags                        |
 
@@ -63,84 +67,115 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Shape and space
 
-- **Radius:** 6px small marks (checkboxes, tags, badges), 8px controls (buttons, inputs, step markers, chips, tabs), 10px cards, 14px panels. Fully round only for avatars and status dots.
+- **Line:** `--line-width` 3px and `--line-width-small` 2px, and the 1px hairline inside a card. No other border width.
+- **Radius:** one small scale, the same on the landing page: 8px small marks (checkboxes), 12px controls (buttons, inputs, nav rows), 20px cards, panels, sheets and Cuso's stage. `--radius-pill` (fully round) for tags, badges, step markers, tabs, filters, chips and the tilted labels. No 28px panel radius any more.
 - **Space:** a 4px grid. Page padding 32px (16px under 768px). Panel padding and gap 12px. Card padding 16, 20 or 24px. Sections stack 24 to 48px apart.
-- **Width:** onboarding is one centred column, 640px (the hire screen 820px for its headline); the open full plan widens to 1120px for its calendar. Home main column 1120px.
+- **Width:** onboarding is one centred column, 640px (the hire screen 820px for its headline); the open full plan widens to 1120px for its calendar. Every app page and the chat share one centred column, 880px; Strategy alone is wider for its funnel and calendar.
 - **Breakpoints:** layouts are `flex-wrap` with min widths, so they reflow without media queries. Under 768px everything is one column and the side panel becomes a bottom sheet.
 
 ## Elevation and motion
 
-- Flat by default. The hard shadow is the only elevation. It marks the primary button, the card in focus (the question card, the open side panel or sheet, the Launch accounts list) and a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks); the card goes flat once the action is done, and a card with only optional buttons stays flat. The Site hero's tilted labels are the one exception.
+- Hard shadows are the only elevation, in two sizes, and only on what you can act on. Every button, chip and input casts the 4px shadow, and so do the account card, the page you are on and every tab, filter, pace and plan of a set, picked or not. The 6px shadow marks the hire screen's button and the post that is open on the Calendar, which is a button. A post card on the Calendar takes the 4px shadow on hover. Every card that is not itself a button is flat, whatever it holds: the question card, the Launch accounts list, an approval waiting, a source or network not connected. Tags, badges, labels, pictures, Cuso's stage, sheets, report cards and info cards are flat too.
 - An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
-- **Pressed:** the shadowed element moves 3px right and down and drops its shadow, as if pushed flat.
+- **Pressed:** the shadowed element moves right and down by its own offset (4px, or 6px for the hire button) and drops its shadow, as if pushed flat.
 - Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`. Onboarding adds three entrances, transform and opacity only: each piece of a step settles in after the one above it (450ms), a sheet rises from the bottom (400ms), and Cuso pops in.
 
 ## Components
 
-**Logo.** The CMO.XYZ wordmark from the concept canvas (`src/components/logo.tsx`), drawn in the text colour: ink on a light page, white on a dark one. 16px high in a header, never recoloured or set in Iris. Cuso's pointer mark stays the favicon and app icon.
+**Logo.** Approved lockups from the Masumi Family Brand Guide (`Logo` in `src/components/logo.tsx`, files copied unchanged into `public/logo/`), each only on the background the guide approves for it: the file for white on a light page, the file for black on a dark page. Never recoloured, stretched, outlined or given a shadow; a lockup with the mascot is never narrower than 120px. Only `Logo` names the files.
 
-**Header (onboarding).** Logo 16px high left, step markers centre, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
+| Lockup  | Where                                       | Light page                 | Dark page            |
+| ------- | ------------------------------------------- | -------------------------- | -------------------- |
+| Stacked | the header, 46px tall (121px wide)          | `stacked-text-black`       | `stacked-text-white` |
+| Primary | beside the lead of the pages around sign in | `mascot-top-outline-black` | `mascot-top-white`   |
+| Framed  | the 404                                     | `framed-black`             | `framed-white`       |
+| Block   | the error page ("Something went wrong.")    | `block-black`              | `block-white`        |
 
-**Step marker.** 8px radius, small 500, "1 Site". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Five steps: Site, Brand, Plan, Launch, Subscribe.
+A page that leads with a lockup (the hero pages) hides the header's, so one logo shows at a time: 440px wide beside the copy, 220px above it on a phone. The knockout block's letters are the page showing through, which is why it sits only on the page colour. The favicon and app icon are the guide's Iris monogram. The guide's lockups on Iris stay out of the app until a page puts a logo on an Iris surface.
 
-**Buttons.** 44px high, 8px radius, body 500, 0 18px.
+**Header (onboarding).** Logo left, step markers centre, the site chip right (a pill: green 8px dot with a line edge, then the domain). A 3px ink line below, 14px 32px padding.
 
-- Primary: Iris fill, ink line, Neutral 950 text, hard shadow, trailing arrow. One per screen; its label is the screen's question ("Start reading", "Looks like us", "Approve plan", "Launch {agent}").
-- Secondary: card fill, ink line, no shadow.
-- Small: 32px high, 12px text; hairline edge by default, ink fill with inverted text when it is the selected item ("Open").
+**Step marker.** One calm row, small 600, "1 Research". Only the current step is a pill: Iris fill, 2px ink line, `aria-current="step"`, flat as a label. Done and not yet are the same plain label with no line: a check and the text colour, or the number and muted text. A step that goes back to its screen is a link: its name underlined, a panel fill on hover, no line and no shadow, so it is never heavier than the step you are on. On a phone, where only the current step keeps its name, a step to go back to stands on the panel fill instead. Five steps: Research, Brand, Plan, Subscribe, Launch.
+
+**Buttons.** 44px high, 12px radius, body 600, 0 18px.
+
+- Primary: Iris fill, 3px ink line, Neutral 950 text, 4px hard shadow, trailing arrow. One per screen; its label is the screen's question ("Start reading", "Looks like us", "Approve plan", "Launch {agent}"). On the hire screen it takes the 6px shadow.
+- Secondary: card fill, 3px ink line, 4px hard shadow.
+- Small: 32px high, 12px text, 2px ink line, 4px shadow; Iris fill when it is the picked item ("Open").
 - Text: underlined muted 12px, 32px tap height ("Skip, decide on the plan").
+- Disabled: flat, hairline colour, no shadow.
+- On a strip: the line and shadow take the strip's text colour; a secondary button stands on an Iris shadow.
 
-**Input.** 44px, 8px radius, ink line, 16px text, card fill. Label above (body 500), help below (small, muted). Inputs keep the ink line so their edge passes 3:1.
+**Pill.** Chips, tabs and filters: fully round, 2px ink line, card fill, 12px 600 text, and the 4px shadow, because you click them. A tag is a label ("Big move", "Partly backed", a date, a kind): fully round, a flat panel fill with a hairline, 12px 500 text, no ink line and no shadow, so it never reads as a button. A count is an ink pill with inverted text. Where a post or campaign stands (Written, Scheduled, Running) is not a pill: small muted words beside a mark (`.state`), so it never reads as a button.
 
-**Selection.** Tabs, radio cards (pace) and the open tile button use the ink inversion: ink fill, inverted text. Iris is never selection; it means now.
+**Input.** 44px, 12px radius, 3px ink line, 4px hard shadow, 16px text, card fill. Label above (body 500), help below (small, muted). The chat's composer is one input: one line and one shadow around its textarea.
 
-**Plan card (Subscribe).** The CMO plans of one interval as cards on a panel: name (h2), price (value step) with its interval (small, muted), credits a month (small). A Monthly / Yearly switch above them uses the ink inversion; the picked plan is the selected tile and takes the Iris shadow. One primary button below ("Continue to payment") leads to Polar's hosted checkout.
+**Selection.** Every one of a set to pick from is a button at rest: card fill, its ink line and the 4px shadow (tabs, filters, chips, the plan cards). The picked one is the same button filled with Iris under Neutral 950 text. Never a shadow on the picked one alone: a flat outline beside it reads as a label (`design-guards.test.ts`, "every choice reads as a button"). One that cannot be picked now is disabled: flat, hairline colour. The sidebar is a list of pages, not a set of buttons: its rows are plain and the page you are on takes Iris, the 2px line and the shadow.
 
-**Card.** Card fill, 1px ink line, 10px radius, flat. The focused card, or one that needs the owner now, adds the hard shadow (`.card-focus`); a selected tile in a grid gets an Iris shadow instead.
+**Plan card (Subscribe).** Under Cuso's scene and a card of what the approved month holds (checks: pieces and channels, pictures and videos, the daily and weekly work), the CMO plans of one interval as cards: a flat "Makes all of it" mark on the smallest plan that makes the whole strategy, the tier's name, the price a month (value step; a yearly plan shows its month and "billed once a year"), what the plan makes of this strategy a month (small: "74 posts, 8 pictures and 2 videos a month from your strategy"), credits a month (small). A Monthly / Yearly switch above them is a pair of pills, the picked one on Iris, and names the yearly saving; every plan card casts the 4px shadow and the picked one is filled with Iris. One primary button below names the plan and its price ("Start Growth for $500 a month") and leads to Polar's hosted checkout; a quiet row under it says only what is true (change or cancel in Settings, discount codes, Polar).
 
-**Tile.** A row in one gray group, hairlines between: label (small 500, muted), value (16px 500, one line), one line of detail (small, muted), chevron right. Tap opens the row's sheet, which carries the source.
+**Card.** Card fill, 3px ink line, 20px radius, flat. Only a card that is a button casts a shadow: the open Calendar post takes the 6px one (`button.card-focus`), and a tile to pick in a grid casts the 4px shadow, filled with Iris once picked. A panel (a section of an app page, a fold, a tab panel, a group of tiles) is the same line and radius.
 
-**Side panel.** A sheet that rises from the bottom of the screen, as wide as the column: h2 title, 32px close button with a hairline edge, short summary, hairline-separated list, source link, and a "Tell {agent} what's off" input.
+**Funnel (Strategy).** One shape that narrows toward the sale, a slice a stage: each slice starts as wide as the one above ends, with a 3px ink line and a flat fill (card, Iris, yellow, and green for the last stage, the sale), and holds the stage's number, its classic name (Awareness, Interest, Desire, Action) and what people do there in Neutral 950 (text colour on the card slice). The funnel is the one place Iris, yellow and green are fills for a picture and mean neither picked nor a status. Beside each slice, under it on a phone: the stage's goal (value step) and the same three answers at every stage, so they line up down the page: What Cuso does (his own sentence, then one line a channel), What you do (the owner's sentence, and at the sale Cuso's ideas for their pages), and How we know it works (the number, today's value in the value step only when it is a figure of five words at most, a sentence as plain words, and a green disc when it is measured or "Cuso's estimate" when it is not). Nothing is pressed and nothing folds.
 
-**Question card.** Progress as five 6px segments (done: text fill; current: Iris with ink line; next: hairline). Topic (small, muted), question (value step), "Why I ask" line with an info icon, then Yes / No / Not sure as secondary buttons in three columns, and a text button to skip.
+**Number.** A count to read (Results, SEO) is a small muted label over the value step, with no box: an outlined box reads as a field to type in.
 
-**Checklist.** 18px boxes, 6px radius. Done: green fill, ink line, check. Working: dashed ink line with a dot. Not yet: hairline.
+**Calendar weeks.** The month opens on this week: its head carries an Iris "This week" label (flat, a 2px line), a post going out today says "Today" on an Iris fill where its day stands, and a post without a picture shows its opening words on its network's fill (`.net-<channel>`), so a week reads by network at a glance.
+
+**Results charts.** Until the networks report reach, the numbers that exist are the month's own: "This month" is Today's bar, and "By network" draws one bar per network, as long as its share of the month's posts, outlined with the 2px line, filled in the network's colour for the posts already out ("2 of 5"). Longest first. Bars grow from the left (off under reduced motion). Charts are pictures: no shadow.
+
+**Post (Calendar sheet).** A social post as it will look on its network: a hairline card with the business's mark, name, handle and time, the network's mark at the right, the words, then the picture or video (Instagram: picture first). Flat. Under it, where the post stands (`.state`) on the left and "Edit text" (a small secondary button) on the right; editing swaps the words for an input and Save / Cancel.
+
+**Tile.** A row in one outlined gray group, hairlines between: label (small 500, muted), value (16px 500, one line), one line of detail (small, muted), chevron right. Tap opens the row's sheet, which carries the source.
+
+**Side panel.** A sheet that rises from the bottom of the screen, as wide as the column: h2 title, 32px close button with the small line and the 4px shadow, short summary, hairline-separated list, source link, and a "Tell {agent} what's off" input.
+
+**Question card.** Progress as 10px pill segments with a 2px ink line (done: text fill; current: Iris; next: empty). Topic (small, muted), question (value step), "Why I ask" line with an info icon, then Yes / No / Not sure as secondary buttons in three columns, and a text button to skip.
+
+**Checklist.** 20px boxes, 8px radius, 2px line. Done: green fill, ink line, check. Working: dashed ink line with a dot. Not yet: hairline colour.
 
 **Skeleton.** Dashed hairline box with hairline bars. Never a shimmer.
 
-**Assumption chip.** Sits on the line it changes (the budget, a move): panel fill, 8px radius, a 20px yellow disc with a Neutral 950 "!", the question, a small Yes button and a text alternative ("Change", "No").
+**Assumption chip.** Sits on the line it changes (the budget, a move): panel fill, a 20px yellow disc with a Neutral 950 "!", the question, a small Yes button and a text alternative ("Change", "No").
 
-**Goal block.** The plan's goal: an ink block with inverted text that inverts again in dark, 10px radius, statement step.
+**Goal block.** The plan's goal: an ink block with inverted text that inverts again in dark, 20px radius, statement step.
 
-**Stat row.** Value step numbers over a small muted line, separated by a top line.
+**Sidebar (CMO home).** Panel fill, a 3px ink line on its right, 232 to 260px. On top, the Business as the head of a dashboard, above a 3px ink line: its logo from its DESIGN.md (the dark version on a dark theme), else its mark and name, then a muted row with its site (opens it) and, when the person has another Cuso, "Your Cusos" (the picker). Nav rows 40px with 12px radius, the current row on Iris with a 2px ink line and the 4px shadow. Counts are ink pills, micro text: the Today row counts what needs the owner. Cuso stands at the bottom, large (see Cuso).
 
-**Sidebar (CMO home).** Panel fill, hairline right, 232 to 260px. Workspace card on top, nav rows 40px with 8px radius, current row as a card with an ink line. Counts are ink badges, 6px radius, micro text. Cuso's status card sits at the bottom.
+**Today (home).** One column that fits one screen at 1440 by 900, even with six posts a day: the H1 greeting and one line in the value step; "This month" right under it, one bar of pills with a 2px line, green out, Iris scheduled, yellow written, panel to make, with a legend of discs; "Needs you" as one yellow card with a row each (an outlined "!" disc, the thing in body 600, one line, its button: the first row's is the screen's primary button, the rest small secondary), every network posts wait for in one row, and nothing at all when nothing waits (the line under the greeting says so). "This week" is seven columns in one outlined panel, today filled with Iris (`aria-current="date"`); a day counts its posts per network as small pills on the network's fill (mark and number, 1px line), then shows its first three posts as small buttons on their network's fill (mark and title in two lines), each opening its sheet on the Calendar; "+N more" or the day's date opens the rest of that day in place. On a phone the week is a row of seven dates (each with its post count, one of a set to pick, so each casts the 4px shadow and the picked one is Iris; today's number is underlined) over the picked day, today until another is tapped, with its posts one line each with the time. The pieces settle in one after another and the bar grows from its left (transform and opacity only, off under reduced motion).
+
+**Tab bar (phone).** Under 861px the sidebar gives way to a bar at the bottom, within the thumb's reach: Today (with its count), Cuso, Calendar, Results and More, each an icon over a micro label, with a 3px ink line on top and the panel fill. The page you are on fills its icon's pill with Iris and the 2px line; a page under More marks More. More opens a card above the bar, anchored to it, with every other page, Your Cusos, the theme and Sign out; it closes on a pick, a press outside or Escape. A tab gives under the thumb at once (the pill scales to 92%). Nothing in the bar casts a shadow: it is navigation, like the sidebar's rows.
+
+**Strip.** A black band with white text that inverts in dark (`--strip`, `--strip-foreground`): the action bar at the bottom of an onboarding step and the banner that says Cuso is paused or out of credits.
+
+**Working and "How I got here" (chat).** While Cuso works, his row shows the step he is on (body 500, beside the three working dots) and the model's latest reasoning under it (small, muted, two lines at most). Under a reply, "How I got here" is a fold: a muted small row with a chevron, opening to the steps and the reasoning behind a hairline on the left. Both are flat with no ink line: nothing here is pressed but the fold's row.
 
 **Status.** Done: green disc, Neutral 950 check. Needs you: yellow disc, Neutral 950 "!". Failed or blocked: Neutral 950 disc, white X. Live: green dot with a line edge.
 
 ## Cuso
 
-- **Cuso is the status.** Poses map to states: Reading, Thinking, Needs you (the only one labelled on Iris), Reporting, Done.
+- **Cuso is the status.** He is drawn flat, black line on white, in five poses (walking, pointing, thinking, thumbs up, searching). Poses map to states: Needs you (pointing; whenever anything waits on the owner), Reading (searching), Thinking (thinking), Reporting (walking), Done (thumbs up).
+- **One big Cuso on every app page.** He stands at the foot of the sidebar on a 168px light disc with the 3px ink line (128px on a window under 900px tall, none under 840px), leaning 20px out over the sidebar's edge: no page puts anything in its first 24px, so he covers nothing. Above him a bubble (card fill, 2px line, a tail pointing down at him) says his name and one line: what needs the owner, how far the month is while it is made, else his state. While something needs the owner the bubble is Iris with the 4px shadow and opens Today; the drawing itself never takes a press (`pointer-events: none`). He steps down out of sight while a sheet or dialog is open. On a phone he stands in his own tab, on a 26px light disc. No page shows another picture of him (the chat's message avatars and the approval celebration are his voice, not the page's picture).
 - **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card, 176px where he leads an onboarding step.
-- **Cuso leads onboarding.** Every step opens with him, large and centred, in the pose of its state; the title under him is what he says. He pops in, then breathes (a slow 6px drift), still under `prefers-reduced-motion`. Below him sits the one thing to do; everything else folds into rows (`.ob-fold`) and sheets, and the step's action stays in a bar at the bottom of the screen (`.ob-bar`).
-- **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600). This is the one place labels tilt.
-- **Celebration:** the party image shows only after Launch is pressed.
-- **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`), and play once they are half on screen. The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first and Cuso announces its three labels: each pops out of his megaphone while he shouts (500ms, transform only, the one entrance longer than 150ms); then the avatar beside the intro plays; the reading scene and the celebration play once. Under `prefers-reduced-motion` only the still shows.
+- **Cuso leads onboarding.** Every step opens with his pose on the hero's Iris stage (`CusoScene`, 220 by 280px): Research, Brand, Plan, Subscribe and Launch each have their own; a failure or a question shows the Needs you avatar instead. While he works, a tilted label over the stage's lower edge says what he is doing now (with the working dot) and an ink bar runs along the bottom, so the wait reads as work. The title under him is what he says. Below him sits the one thing to do; everything else folds into rows (`.ob-fold`) and sheets, and the step's action stays in a bar at the bottom of the screen (`.ob-bar`).
+- **Stage:** Cuso's stage is a picture, so it is flat: a 3px ink line and a 20px radius in onboarding, a full circle in the sidebar. The hire hero adds up to three tilted labels (flat pills: 2px ink line, 16px 600); a step's scene carries one, what he is doing now. These are the only places labels tilt.
+- **Celebration:** the thumbs-up on an Iris card shows after Launch is pressed. Approving a post Cuso made swaps the card's buttons for a green row with his thumbs-up on his light circle and when it goes out ("Approved. It goes out on X …"); he pops up with a small overshoot (520ms), the one bounce in the app, because the owner's yes is the moment it marks. Off under reduced motion.
+- **Motion:** Cuso's poses are stills. On the hire screen the three labels pop in one after another (500ms, transform only, the one entrance longer than 150ms); while he works, the bar under his pose or line runs. In the sidebar he pops into each new pose (520ms, a small overshoot) and then bobs gently, 5px up and down every 3.2 seconds. Under `prefers-reduced-motion` nothing moves.
 - **Name:** every string with the agent's name comes from the person's chosen name; build it in one string so no double space appears.
 
 ## Accessibility
 
 - Text meets AA (Neutral 600 on white 7.8:1; Neutral 400 on Neutral 950 7.7:1; Neutral 950 on dark Iris 5:1).
-- Focus: 2px solid `--foreground` outline, 2px offset. Iris is too light for a focus ring.
+- Focus: 2px solid `--foreground` outline, 2px offset. Iris is too light for a focus ring. A source chip inside a sentence draws it 4px inside its 32px tap area, so the ring hugs the words and not the lines around them.
 - Tap targets 44px; dense rows may use 32px with 8px between.
 - Status is never colour alone: each disc carries its glyph and an accessible name.
 - Every image has `alt`; decorative Cuso avatars use `alt=""`.
 
 ## Deliberate deviations from the Masumi guide
 
-- Hard offset shadows (the guide asks for flat surfaces).
+- Thick ink lines and hard offset shadows (the guide asks for flat surfaces).
 - Dark Iris at `#D141D1`.
 
 Raise these with the guide owner rather than drifting further.
 
-Last updated: 2026-11-15
+Last updated: 2026-11-20

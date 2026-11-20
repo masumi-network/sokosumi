@@ -225,10 +225,6 @@ import SwiftUI
       return retryMention
     }
 
-    private var failedMentionView: some View {
-      CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention)
-    }
-
     private var pinnedLabel: some View {
       Label {
         Text("Pinned", tableName: "ChatPins", comment: "A channel message that is pinned.")
@@ -255,7 +251,7 @@ import SwiftUI
           }
           if !row.isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-              ParticipantProfileButton(sender: message.sender) {
+              ParticipantProfileButton(sender: message.sender, showsAgentMark: true) {
                 Text(messageSenderName(message.sender))
                   .fontWeight(.semibold)
                   .foregroundStyle(.primary)
@@ -435,8 +431,11 @@ import SwiftUI
       switch part {
       case let .sokoBotSource(label):
         SokoBotSourceLabelView(label: label)
-      case .failedMention:
-        failedMentionView
+      case let .failedMention(aiBudgetExceeded, isSokoBot, isCancelled):
+        CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention,
+                                  aiBudgetExceeded: aiBudgetExceeded, isSokoBot: isSokoBot, isCancelled: isCancelled)
+      case let .backgroundFailure(title, kind, noticeMention):
+        backgroundFailureBody(title: title, kind: kind, noticeMention: noticeMention)
       case let .thought(startedAt, shellWorking):
         CoworkerThoughtView(thought: CoworkerThought(message: message), working: streamThinking || shellWorking,
                             startedAt: startedAt)
@@ -445,10 +444,7 @@ import SwiftUI
           .italic()
           .foregroundStyle(.secondary)
       case .quote:
-        if let quote = message.quote {
-          MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
-            .id(quote.messageId + quote.snippet)
-        }
+        quoteBody
       case .editComposer:
         if let editing {
           MessageEditComposer(editing: editing).id(message.id)
@@ -462,8 +458,25 @@ import SwiftUI
       }
     }
 
+    @ViewBuilder
+    private var quoteBody: some View {
+      if let quote = message.quote {
+        MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
+          .id(quote.messageId + quote.snippet)
+      }
+    }
+
     private var markdownBody: some View {
       MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
+    }
+
+    private func backgroundFailureBody(title: String, kind: SokoBotBackgroundFailureKind, noticeMention: String?) -> some View {
+      VStack(alignment: .leading, spacing: 4) {
+        if let noticeMention {
+          MessageMarkdownView(source: noticeMention, room: room, channels: channels)
+        }
+        SokoBotBackgroundFailureView(title: title, kind: kind)
+      }
     }
 
     private func actionControls(compact: Bool) -> some View {

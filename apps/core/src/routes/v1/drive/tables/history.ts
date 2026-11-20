@@ -65,7 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("History cursor not found");
     const where = {
       tableId: id,
-      rowId: query.rowId,
+      ...(query.rowId !== undefined && { rowId: query.rowId }),
       ...(query.columnId
         ? { OR: [{ columnId: query.columnId }, { columnId: null }] }
         : {}),

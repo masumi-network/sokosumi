@@ -1,42 +1,55 @@
 "use client";
 
+import { SeoActions, SeoPage } from "./seo-page";
 import "../onboarding/onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { ArrowUp, CalendarDays, PanelRight } from "lucide-react";
+import { withoutSokosumiLinks } from "@sokosumi/utils";
+import { ArrowUp, CalendarDays } from "lucide-react";
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   useTransition,
 } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
+import type { ChatTable, ChatWork } from "../../lib/chat-work";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
+import { needsYou } from "../../lib/today";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
+import { HowIGotHere, Working } from "../cuso-trace";
+import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
   type CardActions,
+  CompetitorWeekCard,
   ConnectCard,
   LearningCard,
   StrategyCard,
   UpdateCard,
 } from "./cards";
+import { MadeInChat } from "./chat-work";
+import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
+import { cusoMood } from "./cuso-status";
+import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
+import { MessageText } from "./message-text";
 import {
   type AddMailingList,
   BrandBrainPage,
   ChannelsPage,
   type ConnectChannel,
+  ResultsLead,
   ResultsPage,
   SettingsPage,
 } from "./pages";
@@ -44,36 +57,33 @@ import { cmoPause, PausedBanner } from "./paused";
 import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
-import { UpNext } from "./up-next";
+import { TabBar } from "./tab-bar";
+import { TodayPage } from "./today-page";
 
 const POLL_MS = 4_000;
 
-/** Below this width Up next is a drawer with its own open state. */
-const DRAWER_QUERY = "(max-width: 860px)";
-
-function subscribeToDrawerQuery(onChange: () => void): () => void {
-  const query = window.matchMedia(DRAWER_QUERY);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-function useDrawerLayout(): boolean {
-  return useSyncExternalStore(
-    subscribeToDrawerQuery,
-    () => window.matchMedia(DRAWER_QUERY).matches,
-    () => false,
-  );
-}
-
-export interface CmoAppActions extends AdActions {
+export interface CmoAppActions
+  extends AdActions,
+    Omit<SeoActions, "connectSearchConsole"> {
   loadState: () => Promise<{
     overview: CmoOverview | null;
     messages: CusoMessage[];
   }>;
+  /** What Cuso made, or is making, in the chat, as it stands now. */
+  loadChatWork: () => Promise<ChatWork[]>;
+  /** The full words of a file Cuso wrote or of work he handed on. */
+  loadChatWorkText: (id: string) => Promise<string | null>;
+  /** All the rows of a table Cuso made or filled. */
+  loadChatWorkTable: (id: string) => Promise<ChatTable | null>;
   sendMessage: (content: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
   loadPieceText: (entryId: string) => Promise<string | null>;
   approveStrategy: (versionId?: string) => Promise<CmoOverview>;
+  /** A whole new strategy, written as a new hire's first one. */
+  requestStrategy: () => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
   /** The owner's own monthly ad budget; Cuso re-plans around it. */
   setAdBudget: (
     monthly: number,
@@ -88,14 +98,32 @@ export interface CmoAppActions extends AdActions {
     error: string | null;
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
+  /** Approve, decline or rewrite a post Cuso made outside the month. */
+  approveDraft: (
+    postId: string,
+    revision: number,
+    tikTokSettings?: TikTokSettings,
+  ) => Promise<DraftResult>;
+  readTikTokCreator: DraftActions["tikTokCreator"];
+  declineDraft: (postId: string, revision: number) => Promise<DraftResult>;
+  editDraft: (
+    postId: string,
+    revision: number,
+    text: string,
+  ) => Promise<DraftResult>;
+  competitors: CompetitorActions;
   connectChannel: ConnectChannel;
+  /** Signs in again to put another account in a connection's place. */
+  changeChannel?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app",
+    from: "onboarding" | "app" | "seo",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** Moves Cuso's routines to this time zone; a refusal comes back as text. */
+  setTimeZone: (timeZone: string) => Promise<string | null>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
   /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
@@ -111,14 +139,20 @@ export interface CmoAppActions extends AdActions {
 interface CmoAppProps {
   overview: CmoOverview;
   messages: CusoMessage[];
+  /** The pictures, videos and voice-overs Cuso started in the chat. */
+  work?: ChatWork[];
   name: string;
   email: string;
   /** Where a redirect (a channel connection) returns to. */
   initialView?: View;
-  /** The channel connection that sent the founder back did not finish. */
-  connectFailed?: boolean;
+  /** Why the channel connection that sent the founder back did not finish. */
+  connectError?: string | null;
   /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
   plans?: CmoSubscriptionPlan[];
+  /** The person has another Cuso, for the sidebar's "Your Cusos". */
+  manyCusos?: boolean;
+  /** The person may hire another Cuso (CMO is invite-only for now). */
+  mayHire?: boolean;
   actions: CmoAppActions;
 }
 
@@ -147,21 +181,22 @@ const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/;
 
 /**
  * Cuso and Core write Markdown: `**bold**` and `[label](url)` read badly raw.
- * Core links point into Sokosumi (e.g. `/social?postId=…`), so a relative
- * link resolves against Sokosumi's web origin and opens there.
+ * CMO never opens Sokosumi: a link into it (a relative route such as
+ * `/social?postId=…`, or its web address) shows as its words alone.
  */
 export function renderInline(
   text: string,
   webOrigin: string,
 ): React.ReactNode[] {
-  return text.split(INLINE).map((part, index) => {
+  const parts = withoutSokosumiLinks(text, webOrigin).split(INLINE);
+  return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;
     }
     const link = LINK.exec(part);
     if (link?.[1] && link[2]) {
-      const href = new URL(link[2], webOrigin);
-      if (href.protocol !== "https:" && href.protocol !== "http:") {
+      const href = URL.parse(link[2]);
+      if (href?.protocol !== "https:" && href?.protocol !== "http:") {
         return link[1];
       }
       return (
@@ -197,15 +232,19 @@ function suggestions(overview: CmoOverview): string[] {
 export function CmoApp({
   overview: initialOverview,
   messages: initialMessages,
+  work: initialWork = [],
   name,
   email,
-  initialView = "chat",
-  connectFailed = false,
+  initialView = "today",
+  connectError = null,
   plans = [],
+  manyCusos = false,
+  mayHire = false,
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
+  const [work, setWork] = useState(initialWork);
   const [view, setView] = useState<View>(initialView);
   // Each page has its own address, so reload, Back and new tabs land on it.
   const go = useCallback((next: View) => {
@@ -216,21 +255,15 @@ export function CmoApp({
   }, []);
   useEffect(() => {
     const onPop = () =>
-      setView(viewFromPath(window.location.pathname) ?? "chat");
+      setView(viewFromPath(window.location.pathname) ?? "today");
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-  // An empty Up next would take a quarter of the screen to say so.
-  const [upNextOpen, setUpNextOpen] = useState(
-    initialOverview.upNext.length > 0 ||
-      initialOverview.production.state === "running" ||
-      initialOverview.production.state === "starting",
-  );
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const drawerLayout = useDrawerLayout();
   const [draft, setDraft] = useState("");
+  // A post opened from Today opens on the Calendar.
+  const [focusEntry, setFocusEntry] = useState<string | null>(null);
   const [sending, startSending] = useTransition();
-  const [highlight, setHighlight] = useState<string | null>(null);
+  const [sendFailed, setSendFailed] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -242,7 +275,12 @@ export function CmoApp({
   }, [initialView]);
 
   const refresh = useCallback(async () => {
-    const state = await actions.loadState().catch(() => null);
+    // On its own: the chat still shows when one of the two reads fails.
+    const [state, made] = await Promise.all([
+      actions.loadState().catch(() => null),
+      actions.loadChatWork().catch(() => null),
+    ]);
+    if (made) setWork(made);
     if (!state?.overview) return;
     setOverview(state.overview);
     setMessages(state.messages);
@@ -260,18 +298,22 @@ export function CmoApp({
     };
   }, [refresh]);
 
-  const thread = buildThread(overview, messages);
+  const thread = buildThread(overview, messages, work);
   const threadLength = thread.length;
+  // What Cuso is doing sits under the thread, so it scrolls into view too.
+  const working =
+    overview.botStatus === "RUNNING"
+      ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
+      : null;
   useEffect(() => {
     if (view === "chat" && threadLength > 0) {
       end.current?.scrollIntoView({ block: "end" });
     }
-  }, [threadLength, view]);
+  }, [threadLength, view, working]);
 
   const compose = useCallback(
     (text: string) => {
       go("chat");
-      setDrawerOpen(false);
       setDraft(text);
       window.setTimeout(() => input.current?.focus(), 0);
     },
@@ -294,6 +336,22 @@ export function CmoApp({
     if (!error) await refresh();
     return error;
   });
+  // A refused change (the draft moved on meanwhile) shows the draft as it is now.
+  const settleDraft = async (change: Promise<DraftResult>) => {
+    const { overview: next, error } = await change;
+    if (next) setOverview(next);
+    else await refresh();
+    return error;
+  };
+  const draftActions: DraftActions = {
+    approve: (postId, revision, tikTokSettings) =>
+      settleDraft(actions.approveDraft(postId, revision, tikTokSettings)),
+    tikTokCreator: actions.readTikTokCreator,
+    decline: (postId, revision) =>
+      settleDraft(actions.declineDraft(postId, revision)),
+    edit: (postId, revision, text) =>
+      settleDraft(actions.editDraft(postId, revision, text)),
+  };
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
     revert: async (id) => setOverview(await actions.revertUpdate(id)),
@@ -305,6 +363,7 @@ export function CmoApp({
     compose,
     open: (target) => go(target),
     topUp,
+    drafts: draftActions,
   };
 
   function send(event: React.FormEvent) {
@@ -312,12 +371,14 @@ export function CmoApp({
     const content = draft.trim();
     if (!content) return;
     setDraft("");
+    setSendFailed(false);
     startSending(async () => {
       // A message that did not send comes back to the box, not lost.
       try {
         await actions.sendMessage(content);
       } catch {
         setDraft(content);
+        setSendFailed(true);
         return;
       }
       await refresh();
@@ -326,7 +387,6 @@ export function CmoApp({
 
   function openUpdate(id: string) {
     go("chat");
-    setHighlight(id);
     window.setTimeout(
       () =>
         document
@@ -336,23 +396,16 @@ export function CmoApp({
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
   const status = cusoStatus(overview);
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
   const pause = strategyApproved(overview) ? cmoPause(overview) : null;
-  const upNextCount = overview.upNext.length;
 
   return (
-    <div
-      className={[
-        "app",
-        upNextOpen ? "" : "upnext-closed",
-        drawerOpen ? "upnext-open" : "",
-      ].join(" ")}
-    >
+    <div className="app">
       <Sidebar
         overview={overview}
+        manyCusos={manyCusos}
         view={view}
         onSelect={go}
         name={name}
@@ -361,62 +414,42 @@ export function CmoApp({
       />
 
       <main className="main">
-        <div className="vhead">
-          <h2>{VIEWS.find(([id]) => id === view)?.[1]}</h2>
-          {view === "chat" ? (
-            <span className="status">
-              <span
-                className={
-                  overview.botStatus === "RUNNING" ? "dot live" : "dot"
+        {/* A page's lead names it; only the chat and Strategy keep a bar for their status. */}
+        {view === "chat" || view === "strategy" ? (
+          <div className="vhead">
+            <h2>{VIEWS.find(([id]) => id === view)?.[1]}</h2>
+            {view === "chat" ? (
+              <span className="status">
+                <span
+                  className={
+                    overview.botStatus === "RUNNING" ? "dot live" : "dot"
+                  }
+                  aria-hidden="true"
+                />
+                {status}
+              </span>
+            ) : null}
+            {view === "strategy" && overview.strategy ? (
+              strategyApproved(overview) ? (
+                <StatusText>Approved</StatusText>
+              ) : (
+                <span className="muted">Draft</span>
+              )
+            ) : null}
+            <span className="sp" />
+            {view === "strategy" &&
+            overview.strategy &&
+            !strategyApproved(overview) &&
+            !overview.strategyShort &&
+            overview.viewerCanApprove ? (
+              <ApproveDraft
+                approve={async () =>
+                  setOverview(await actions.approveStrategy())
                 }
-                aria-hidden="true"
               />
-              {status}
-            </span>
-          ) : null}
-          {view === "strategy" && overview.strategy ? (
-            strategyApproved(overview) ? (
-              <StatusText>Approved</StatusText>
-            ) : (
-              <span className="muted">Draft</span>
-            )
-          ) : null}
-          <span className="sp" />
-          {view === "strategy" &&
-          overview.strategy &&
-          !strategyApproved(overview) &&
-          overview.viewerCanApprove ? (
-            <ApproveDraft
-              approve={async () => setOverview(await actions.approveStrategy())}
-            />
-          ) : null}
-          {view === "strategy" || view === "brain" ? (
-            <button
-              type="button"
-              className="button button-secondary button-small"
-              onClick={() => compose("")}
-            >
-              Change with {AGENT_NAME}
-            </button>
-          ) : null}
-          {view === "chat" ? (
-            <button
-              type="button"
-              className="button button-secondary button-small"
-              aria-pressed={drawerLayout ? drawerOpen : upNextOpen}
-              onClick={() => {
-                if (drawerLayout) {
-                  setDrawerOpen((open) => !open);
-                } else {
-                  setUpNextOpen((open) => !open);
-                }
-              }}
-            >
-              <PanelRight size={16} aria-hidden="true" />
-              Up next <span className="count num">{upNextCount}</span>
-            </button>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {pause ? (
           <PausedBanner
@@ -432,7 +465,7 @@ export function CmoApp({
 
         {view === "chat" ? (
           <>
-            <div className="scroll">
+            <div className="scroll chat">
               <div className="thread">
                 {thread.map((item) => (
                   <ThreadEntry
@@ -442,25 +475,18 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
-                    highlighted={
-                      item.kind === "update" && item.update.id === highlight
-                    }
+                    loadText={actions.loadChatWorkText}
+                    loadTable={actions.loadChatWorkTable}
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
                   <CusoSays pose="thinking">
-                    <span
-                      className="typing"
-                      aria-label={`${AGENT_NAME} is working`}
-                    >
-                      <i />
-                      <i />
-                      <i />
-                    </span>
+                    <Working activity={overview.activity} />
                   </CusoSays>
                 ) : null}
-                <div ref={end} />
               </div>
+              {/* Outside the thread, so it adds no gap under the last message. */}
+              <div ref={end} />
             </div>
             <div className="composer-wrap">
               <div className="suggest">
@@ -475,6 +501,11 @@ export function CmoApp({
                   </button>
                 ))}
               </div>
+              {sendFailed ? (
+                <p className="note" role="alert">
+                  Your message didn't send. Try again.
+                </p>
+              ) : null}
               <form className="composer" onSubmit={send}>
                 <textarea
                   ref={input}
@@ -501,23 +532,54 @@ export function CmoApp({
             </div>
           </>
         ) : (
-          <div className="scroll">
-            <div
-              className={
-                view === "strategy" || view === "brain" ? undefined : "panel"
-              }
-            >
-              {view === "calendar" ? (
+          // A new element per page, so each page opens at its top.
+          <div className="scroll" key={view}>
+            <div className={view === "strategy" ? undefined : "page"}>
+              {PAGE_LEADS[view] ? (
+                <PageLead
+                  title={PAGE_LEADS[view].title}
+                  line={
+                    view === "results" ? (
+                      <ResultsLead overview={overview} />
+                    ) : (
+                      PAGE_LEADS[view].line
+                    )
+                  }
+                />
+              ) : null}
+              {view === "today" ? (
+                <TodayPage
+                  overview={overview}
+                  firstName={name.trim().split(/\s+/)[0] ?? ""}
+                  open={go}
+                  openEntry={(id) => {
+                    setFocusEntry(id);
+                    go("calendar");
+                  }}
+                />
+              ) : view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
+                  initialOpenId={focusEntry}
+                  drafts={draftActions}
+                  onConnect={() => go("channels")}
                   loadText={actions.loadPieceText}
                   pieceExtra={(entry) => (
-                    <SearchAdControl
-                      entry={entry}
-                      overview={overview}
-                      actions={actions}
-                      onChange={setOverview}
-                    />
+                    <>
+                      <SearchAdControl
+                        entry={entry}
+                        overview={overview}
+                        actions={actions}
+                        onChange={setOverview}
+                      />
+                      {entry.status === "published" ? null : (
+                        <PauseButton
+                          pause={async () =>
+                            setOverview(await actions.pauseEntry(entry.id))
+                          }
+                        />
+                      )}
+                    </>
                   )}
                   onAsk={async (text) => {
                     await actions.sendMessage(text);
@@ -534,6 +596,23 @@ export function CmoApp({
                   onApprove={async (versionId) =>
                     setOverview(await actions.approveStrategy(versionId))
                   }
+                  onWriteNew={async () => {
+                    const result = await actions.requestStrategy();
+                    if (result.overview) setOverview(result.overview);
+                    return result.error;
+                  }}
+                />
+              ) : view === "seo" ? (
+                <SeoPage
+                  timeZone={overview.timeZone}
+                  actions={{
+                    ...actions,
+                    connectSearchConsole: () =>
+                      actions.connectMeasurement(
+                        "google_search_console",
+                        "seo",
+                      ),
+                  }}
                 />
               ) : view === "results" ? (
                 <ResultsPage
@@ -545,6 +624,13 @@ export function CmoApp({
                   }
                   ads={actions}
                   onChange={setOverview}
+                  openView={go}
+                />
+              ) : view === "competitors" ? (
+                <CompetitorsPage
+                  overview={overview}
+                  actions={actions.competitors}
+                  compose={compose}
                 />
               ) : view === "brain" ? (
                 <BrandBrainPage
@@ -566,7 +652,12 @@ export function CmoApp({
                   connectAds={actions.connectAds}
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
-                  connectFailed={connectFailed}
+                  connectError={connectError}
+                  change={actions.changeChannel}
+                  openSeo={() => go("seo")}
+                  connectSearchConsole={() =>
+                    actions.connectMeasurement("google_search_console", "seo")
+                  }
                 />
               ) : (
                 <SettingsPage
@@ -575,6 +666,8 @@ export function CmoApp({
                   name={name}
                   email={email}
                   startOver={actions.startOver}
+                  mayHire={mayHire}
+                  setTimeZone={actions.setTimeZone}
                   signOut={actions.signOut}
                   topUp={topUp}
                   plans={plans}
@@ -587,33 +680,74 @@ export function CmoApp({
           </div>
         )}
       </main>
-
-      <UpNext
-        overview={overview}
-        today={today}
-        compose={compose}
-        pause={async (id) => setOverview(await actions.pauseEntry(id))}
-        close={() => {
-          setUpNextOpen(false);
-          setDrawerOpen(false);
-        }}
-        topUp={topUp}
+      <TabBar
+        view={view}
+        onSelect={go}
+        needs={needsYou(overview).length}
+        pose={cusoMood(overview).art}
+        manyCusos={manyCusos}
+        signOut={actions.signOut}
       />
-      {drawerOpen ? (
-        <button
-          type="button"
-          className="scrim"
-          aria-label="Close Up next"
-          onClick={() => setDrawerOpen(false)}
-        />
-      ) : null}
     </div>
+  );
+}
+
+/** The head of a page, as onboarding's steps lead: what it is, in one line. */
+const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
+  calendar: {
+    title: "Your month",
+    line: `Every post ${AGENT_NAME} makes. Each one opens once it is made.`,
+  },
+  seo: {
+    title: "Found on Google",
+    line: "A full audit of your site every week, what to change, and what to write next.",
+  },
+  results: {
+    title: "How it's going",
+    line: "Real numbers from your accounts, checked every week.",
+  },
+  competitors: {
+    title: "Your competitors",
+    line: "I check each one every week and tell you what moved, with the source.",
+  },
+  channels: {
+    title: "Where I post",
+    line: "Connect a network and I post there on your strategy's schedule.",
+  },
+  settings: {
+    title: "Settings",
+    line: `Your plan, your credits and when ${AGENT_NAME} works.`,
+  },
+};
+
+function PageLead({ title, line }: { title: string; line: ReactNode }) {
+  return (
+    <header className="page-lead">
+      <h1 className="ob-h1">{title}</h1>
+      <p className="muted">{line}</p>
+    </header>
+  );
+}
+
+/** Takes a piece out of the plan and cancels its post. */
+function PauseButton({ pause }: { pause: () => Promise<void> }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      className="button button-ghost button-small"
+      disabled={pending}
+      onClick={() => startTransition(pause)}
+    >
+      {pending ? "Pausing…" : "Pause this post"}
+    </button>
   );
 }
 
 function threadKey(item: ThreadItem): string {
   if (item.kind === "message") return `m-${item.message.id}`;
   if (item.kind === "update") return `u-${item.update.id}`;
+  if (item.kind === "work") return `w-${item.work.id}`;
   return item.kind;
 }
 
@@ -623,21 +757,23 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
-  highlighted,
+  loadText,
+  loadTable,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
   openCalendar: () => void;
-  highlighted: boolean;
+  loadText: (id: string) => Promise<string | null>;
+  loadTable: (id: string) => Promise<ChatTable | null>;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
       return (
         <div className="msg">
           <span className="mav user" aria-hidden="true">
-            {initial(name)}
+            {initial(item.message.author || name)}
           </span>
           <div className="mbody">
             <MessageMeta author={item.message.author || name} at={item.at} />
@@ -646,11 +782,32 @@ function ThreadEntry({
         </div>
       );
     }
+    if (item.message.week) {
+      return (
+        <CusoSays at={item.at}>
+          <CompetitorWeekCard week={item.message.week} actions={actions} />
+        </CusoSays>
+      );
+    }
     return (
       <CusoSays at={item.at}>
-        <p className="txt">
-          {renderInline(item.message.content, webOriginOf(overview))}
-        </p>
+        <MessageText
+          content={item.message.content}
+          inline={(text) => renderInline(text, webOriginOf(overview))}
+        />
+        {item.message.trace ? <HowIGotHere trace={item.message.trace} /> : null}
+      </CusoSays>
+    );
+  }
+  if (item.kind === "work") {
+    return (
+      <CusoSays at={item.at}>
+        <MadeInChat
+          work={item.work}
+          compose={actions.compose}
+          loadText={loadText}
+          loadTable={loadTable}
+        />
       </CusoSays>
     );
   }
@@ -658,9 +815,9 @@ function ThreadEntry({
     return (
       <CusoSays at={item.at}>
         <p className="txt">
-          Your plan is ready. I'm making this month's posts now and publish each
-          one on its day; the Calendar shows every piece. Ask me anything here,
-          or tell me what to change.
+          Your strategy is ready. I'm making this month's posts now and publish
+          each one on its day; the Calendar shows every post. Ask me anything
+          here, or tell me what to change.
         </p>
       </CusoSays>
     );
@@ -695,7 +852,6 @@ function ThreadEntry({
           <div id={`update-${item.update.id}`}>
             <UpdateCard
               update={item.update}
-              focused={highlighted}
               actions={actions}
               approved={
                 overview.strategyVersion?.approvedAt != null &&
@@ -772,9 +928,11 @@ function ProductionCard({
             ? "Your month is ready"
             : production.state === "stuck"
               ? "Most of your month is ready"
-              : notStarted
-                ? `${AGENT_NAME} is about to make your month`
-                : `${AGENT_NAME} is making your month`}
+              : production.state === "blocked"
+                ? `${AGENT_NAME} couldn't start your month`
+                : notStarted
+                  ? `${AGENT_NAME} is about to make your month`
+                  : `${AGENT_NAME} is making your month`}
         </b>
         <span className="note num">
           {production.ready} of {production.total} ready
@@ -794,12 +952,14 @@ function ProductionCard({
         {ready
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
-            ? `A few pieces didn't finish. ${AGENT_NAME} tries them again on his next round.`
-            : notStarted
-              ? "He starts shortly: first every piece's words, then the pictures."
-              : production.state === "starting"
-                ? `${productionSteps(production)}. He makes the rest shortly.`
-                : `${productionSteps(production)}. First the words, then the pictures.`}
+            ? `A few posts didn't finish. ${AGENT_NAME} tries them again on his next round.`
+            : production.state === "blocked"
+              ? "Something on our side keeps him from starting. He tries again every ten minutes."
+              : notStarted
+                ? "He starts shortly: first every post's words, then the pictures."
+                : production.state === "starting"
+                  ? `${productionSteps(production)}. He makes the rest shortly.`
+                  : `${productionSteps(production)}. First the words, then the pictures.`}
       </p>
       <button
         type="button"
@@ -823,8 +983,7 @@ interface CusoSaysProps {
 function CusoSays({ at, pose = "done", children }: CusoSaysProps) {
   return (
     <div className="msg">
-      {/* Only the live working row moves; past messages keep the still. */}
-      <CusoAvatar pose={pose} size={36} animate={pose === "thinking"} />
+      <CusoAvatar pose={pose} size={36} />
       <div className="mbody">
         <MessageMeta author={AGENT_NAME} at={at} />
         {children}
@@ -837,27 +996,7 @@ function MessageMeta({ author, at }: { author: string; at?: string }) {
   return (
     <span className="meta">
       <b>{author}</b>
-      {at ? (
-        <time dateTime={at} suppressHydrationWarning>
-          {stamp(at)}
-        </time>
-      ) : null}
+      {at ? <LocalStamp at={at} /> : null}
     </span>
   );
-}
-
-/** "14:02" today, "Mon 5 Oct, 14:02" before. */
-function stamp(at: string): string {
-  const date = new Date(at);
-  const time = date.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (date.toDateString() === new Date().toDateString()) return time;
-  const day = date.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  return `${day}, ${time}`;
 }

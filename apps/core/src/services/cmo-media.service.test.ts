@@ -92,18 +92,25 @@ describe("cmoSocialPostMedia", () => {
   it("shows each Social post's own media, a carousel with its slides", () => {
     expect(
       cmoSocialPostMedia([
-        { entry: piece("post-1"), entryId: "a", media: [file("one.png")] },
+        {
+          entry: piece("post-1"),
+          entryId: "a",
+          revision: 1,
+          media: [file("one.png")],
+        },
         {
           entry: piece("post-2"),
           entryId: "b",
+          revision: 1,
           media: [file("s1.png"), file("s2.png")],
         },
         {
           entry: piece("post-3"),
           entryId: "c",
+          revision: 1,
           media: [file("v.mp4", "video")],
         },
-        { entry: piece("post-4"), entryId: "d", media: [] },
+        { entry: piece("post-4"), entryId: "d", revision: 1, media: [] },
       ]),
     ).toEqual([
       { entryId: "post-1", kind: "image", url: "https://blob.example/one.png" },

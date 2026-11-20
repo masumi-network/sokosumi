@@ -58,13 +58,19 @@ export function isAgentOnlyTaskStatus(status: string): boolean {
 }
 
 /**
- * User reopen from terminal statuses to READY requires a non-empty comment
- * so the coworker knows what to do next (SOK-631). Enforced in Core on
- * create-task-event for non-agent actors.
+ * A person who sends a Task back to READY for a Coworker or Soko Bot must
+ * say what to do next (SOK-631): from COMPLETED or CANCELED (a reopen), or
+ * from INPUT_REQUIRED (an answer). A Task without an agent assignee reopens
+ * with no comment. Enforced in Core on create-task-event for non-agent actors.
  */
 export function userTaskStatusTransitionRequiresComment(
   from: UserTransitionTaskStatus,
   to: UserTransitionTaskStatus,
+  hasAgentAssignee: boolean,
 ): boolean {
-  return to === "READY" && (from === "CANCELED" || from === "COMPLETED");
+  return (
+    hasAgentAssignee &&
+    to === "READY" &&
+    (from === "CANCELED" || from === "COMPLETED" || from === "INPUT_REQUIRED")
+  );
 }

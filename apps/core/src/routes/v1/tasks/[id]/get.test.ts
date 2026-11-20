@@ -52,6 +52,7 @@ vi.mock("@/lib/db/prisma", () => ({
     project: { findUnique: projectFindUniqueMock },
     projectIdentifierAlias: { findUnique: prefixAliasFindUniqueMock },
     taskIdentifierAlias: { findUnique: aliasFindUniqueMock },
+    projectSeoAnalysis: { findUnique: vi.fn(async () => null) },
   },
 }));
 
@@ -221,6 +222,20 @@ describe("GET /tasks/{id}", () => {
         };
       },
     );
+  });
+
+  it("does not select pending workspace labels for an assigned coworker with a standalone key", async () => {
+    const app = createApp({ actor: "coworker" });
+    mountGetTaskById(app);
+    const response = await app.request("http://localhost/tsk_a");
+    expect(response.status).toBe(200);
+    const included = taskFindFirstMock.mock.calls.find(
+      ([query]) => query.include,
+    )?.[0].include;
+    expect(included.workspaceTagDecisions.where).toEqual({
+      labelId: { in: [] },
+    });
+    expect(included.workspaceTags).toBeDefined();
   });
 
   it("filters archived peer links from user task reads", async () => {

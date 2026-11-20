@@ -36,33 +36,6 @@ export function AiCoworkerIcon({
   );
 }
 
-interface AiCoworkerAvatarBadgeProps {
-  className?: string;
-}
-
-/** Discord-style bot chip for avatar corner (sibling of Avatar, not inside it). */
-export function AiCoworkerAvatarBadge({
-  className,
-}: AiCoworkerAvatarBadgeProps) {
-  const t = useTranslations("App.Channels");
-
-  return (
-    <span
-      role="img"
-      aria-label={t("coworkerBadge")}
-      data-testid="coworker-avatar-badge"
-      className={cn(
-        // bg-muted + foreground icon so chip reads on dark chat (bg-background was invisible)
-        "bg-muted text-foreground absolute -right-0.5 -bottom-0.5 z-10 flex size-3.5 items-center justify-center rounded-full ring-2 ring-background",
-        className,
-      )}
-    >
-      {/* Decorative — label lives on the chip so we avoid nested named graphics */}
-      <Bot className="size-2.5 shrink-0" aria-hidden />
-    </span>
-  );
-}
-
 /** Parity with rooms-client messageLoadFailed empty-state; reload re-fetches RSC props. */
 export function MembersRosterLoadFailed({
   className,
@@ -115,6 +88,8 @@ export interface DirectDraftTarget {
   key: string;
   id: string;
   name: string;
+  /** Whose initials the avatar falls back to, when `name` is a label. */
+  initialsName?: string;
   detail: string;
   image: string | null;
   kind: "self" | "human" | "coworker" | "sokoBot";
@@ -218,7 +193,7 @@ export function DirectDraftTargetRow({
       <Avatar className="size-7 shrink-0">
         <AvatarImage src={target.image ?? undefined} alt="" />
         <AvatarFallback className="text-2xs">
-          {getInitials(target.name)}
+          {getInitials(target.initialsName ?? target.name)}
         </AvatarFallback>
       </Avatar>
       <span className="min-w-0 flex-1">

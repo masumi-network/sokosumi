@@ -39,7 +39,13 @@ export const createSeoAuditSchema = z
 export const seoAuditListQuerySchema = cursorPaginationQuerySchema
   .extend({
     cursor: seoIdSchema.optional(),
+    status: z.enum(["active", "archived"]).optional(),
     // The header's Project scope: only the Audits linked to this Project.
     projectId: seoIdSchema.optional(),
   })
   .openapi("SeoAuditListQuery");
+
+export const setSeoAuditArchivedSchema = z
+  .object({ archived: z.boolean() })
+  .strict()
+  .openapi("SetSeoAuditArchivedRequest");

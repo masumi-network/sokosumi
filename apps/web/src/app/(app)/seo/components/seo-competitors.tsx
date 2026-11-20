@@ -20,6 +20,8 @@ import {
   type SeoCompetitorSite,
 } from "./seo-competitors-model";
 import { seoDaySpan } from "./seo-day-span";
+import { SeoExportMenu } from "./seo-export-menu";
+import { seoCompetitorsExport } from "./seo-export-model";
 import { seoStrategyRows } from "./seo-places-model";
 import { SeoRankPill } from "./seo-rank-pill";
 import { SeoRowMenu } from "./seo-row-menu";
@@ -123,13 +125,28 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       // The three lists of the switch start with a title of one size.
       strong
       actions={
-        model.data.availableActions.canEdit ? (
-          <SeoAddButton
-            label={t("competitors.add")}
-            lead={!rows.length}
-            onClick={() => model.setDialog("competitor")}
-          />
-        ) : null
+        // Every site the search matches, not only the rows in view; the platforms are not rivals, so they stay out.
+        <div className="flex items-center gap-1">
+          {/* The unfiltered list: a search that matches nothing keeps the menu, so a failed copy can finish. */}
+          {competitorSites(
+            model.data.competitors.filter((row) => row.role !== "page"),
+          ).sites.length ? (
+            <SeoExportMenu
+              name="competitors"
+              titleKey="competitors.title"
+              workspace={model.data}
+              table={(report) => seoCompetitorsExport(sites, report)}
+              empty={!sites.length}
+            />
+          ) : null}
+          {model.data.availableActions.canEdit ? (
+            <SeoAddButton
+              label={t("competitors.add")}
+              lead={!rows.length}
+              onClick={() => model.setDialog("competitor")}
+            />
+          ) : null}
+        </div>
       }
     >
       {newest?.observedAt && !namedDays ? (

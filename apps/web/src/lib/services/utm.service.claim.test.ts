@@ -13,6 +13,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getServerCoreApiBaseUrl: () => "https://owned-core.example.test/v1",
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { utmService } from "./utm.service";
 
 describe("social conversion through the generated Core client", () => {
@@ -87,10 +88,14 @@ describe("social conversion through the generated Core client", () => {
   });
 
   it("ignores invalid UTM cookies while still claiming the signup", async () => {
+    const errorCalls = expectConsole("error", "Failed to parse UTM cookie");
     cookieStore.get.mockReturnValue({ value: "invalid-json" });
-    vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(utmService.claimSignUpConversion()).resolves.toBe("google");
     expect(await requests[0].json()).toEqual({});
+    expect(errorCalls[0]?.[1]).toBeInstanceOf(SyntaxError);
+    expect(errorCalls[0]?.[1]).toMatchObject({
+      message: expect.stringContaining('"invalid-json"'),
+    });
   });
 
   it("bounds an unresponsive Core request", async () => {

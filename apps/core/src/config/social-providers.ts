@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import {
+  SOCIAL_BETA_ORGANIZATION_SLUG,
   type SocialProviderWorkspace,
   socialProviderUnavailableMessage,
 } from "@sokosumi/utils";
@@ -53,9 +54,56 @@ export function socialProviderForToolkit(toolkitSlug: string) {
   );
 }
 
+const UTXO_MAINNET_WORKSPACE_ID = "03d70dc0-f302-45d5-a161-86beb31d2448";
+
+/**
+ * TikTok is open to every workspace through Zernio's audited TikTok app
+ * (#7451), wherever Core holds a Zernio key. `workspaceId` keeps call sites
+ * stable.
+ */
+export function socialProviderWorkspace(
+  organizationSlug: string | null,
+  _workspaceId: string,
+): SocialProviderWorkspace {
+  return {
+    organizationSlug,
+    tiktokEnabled: Boolean(process.env.ZERNIO_API_KEY?.trim()),
+  };
+}
+
+/**
+/** utxo AG's mainnet workspace, where a network opens before everyone gets it. */
+function isSocialBetaProject(project: SocialProviderProject): boolean {
+  return (
+    process.env.NETWORK === "Mainnet" &&
+    project.workspace.organization?.slug === SOCIAL_BETA_ORGANIZATION_SLUG &&
+    project.workspace.id === UTXO_MAINNET_WORKSPACE_ID
+  );
+}
+
+/**
+ * Our own TikTok app (the Composio path) has not passed TikTok's audit, so it
+ * stays where it was allowed before (#7443): utxo's mainnet workspace. Every
+ * other TikTok connection is a Zernio one.
+ */
+export function requireOwnTikTokAppAllowed(
+  project: SocialProviderProject,
+): void {
+  if (!isSocialBetaProject(project)) {
+    throw badRequest(
+      "This TikTok connection is no longer supported. Connect the account again.",
+    );
+  }
+}
+
 /** Always resolve availability from the owning Project, never the actor's memberships. */
 export const socialProviderProjectSelect = {
-  workspace: { select: { organization: { select: { slug: true } } } },
+  workspace: {
+    select: {
+      organization: { select: { slug: true } },
+      id: true,
+    },
+  },
 } satisfies Prisma.ProjectSelect;
 
 type SocialProviderProject = Prisma.ProjectGetPayload<{
@@ -65,7 +113,10 @@ type SocialProviderProject = Prisma.ProjectGetPayload<{
 export function socialProviderWorkspaceForProject(
   project: SocialProviderProject,
 ): SocialProviderWorkspace {
-  return { organizationSlug: project.workspace.organization?.slug ?? null };
+  return socialProviderWorkspace(
+    project.workspace.organization?.slug ?? null,
+    project.workspace.id,
+  );
 }
 
 /** Shared by connection flows and post mutations before any external effect. */

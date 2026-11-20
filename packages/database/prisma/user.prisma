@@ -86,13 +86,16 @@ model User {
   contactInteractions     ContactInteraction[]     @relation("ContactInteractionUser")
   contactScores           ContactScore[]           @relation("ContactScoreUser")
   taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
+  taskEventMentions       TaskEventMention[]       @relation("TaskEventMentionUser")
+  taskFollows             TaskFollower[]           @relation("TaskFollowerUser")
+  taskViewPreferences     TaskViewPreference[]     @relation("TaskViewPreferenceUser")
+  taskMomentDeliveries    TaskMomentDelivery[]     @relation("TaskMomentDeliveryUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
   coworkerUsages          CoworkerUsage[]
   sokoBotUsages           SokoBotUsage[]
   sokoBotTurns            SokoBotTurn[]
   sokoBotAskedTurns       SokoBotTurn[]            @relation("SokoBotTurnAskedBy")
-  sokoBotRequestedAvatars SokoBotAvatar[]          @relation("SokoBotAvatarRequestedBy")
   sokoBotPendingDecisions SokoBotPendingDecision[]
   sokoBotSchedules        SokoBotSchedule[]
   sokoBotLegacyMessages   SokoBotLegacyMessage[]
@@ -132,6 +135,10 @@ model User {
   imageSessions ProjectImageSession[] @relation("ProjectImageSessionCreator")
   imageJobs     ProjectImageJob[]     @relation("ProjectImageJobRequester")
   imageReviews  ProjectImageReview[]  @relation("ProjectImageReviewDecider")
+
+  adFeedback          AdFeedback[]
+  adEvents            AdEvent[]
+  adDataConsentDecided WorkspaceAdDataConsent[]
 
   authoredMarketingStrategies MarketingStrategy[] @relation("MarketingStrategyAuthor")
   approvedMarketingStrategies MarketingStrategy[] @relation("MarketingStrategyApprover")

@@ -7,7 +7,6 @@ import outlookReceived from "./__fixtures__/outlook-received.json";
 import outlookSent from "./__fixtures__/outlook-sent.json";
 import slack from "./__fixtures__/slack.json";
 import {
-  cleanPersonName,
   type ExtractContext,
   extractInboundMail,
   extractMeeting,
@@ -15,7 +14,6 @@ import {
   extractSlackConversation,
   extractXDms,
   mailTopic,
-  parseAddresses,
   parseEvent,
   parseMail,
   parseSignature,
@@ -51,35 +49,7 @@ function mails(fixture: { messages?: unknown[]; value?: unknown[] }) {
   });
 }
 
-describe("addresses and names", () => {
-  it("splits lists on separating commas only", () => {
-    expect(
-      parseAddresses(
-        '"Keller, Nina" <Nina.Keller@acme.com>, bob@x.com; Max Muster <max@y.org>',
-      ),
-    ).toEqual([
-      { email: "nina.keller@acme.com", name: "Nina Keller" },
-      { email: "bob@x.com", name: null },
-      { email: "max@y.org", name: "Max Muster" },
-    ]);
-  });
-
-  it("reads Graph recipient objects", () => {
-    expect(
-      parseAddresses([
-        {
-          emailAddress: { name: "Ana Silva", address: "Ana.Silva@lawfirm.pt" },
-        },
-      ]),
-    ).toEqual([{ email: "ana.silva@lawfirm.pt", name: "Ana Silva" }]);
-  });
-
-  it("drops names that are only the address", () => {
-    expect(cleanPersonName("contracts@lawfirm.pt")).toBeUndefined();
-    expect(cleanPersonName("nina", "nina@acme.com")).toBeUndefined();
-    expect(cleanPersonName("Jane Doe (via Google Docs)")).toBe("Jane Doe");
-  });
-
+describe("mail topics", () => {
   it("strips reply prefixes from topics", () => {
     expect(mailTopic("Re: Fwd: AW: Pilot pricing")).toBe("Pilot pricing");
     expect(mailTopic("  ")).toBe("Email without a subject");

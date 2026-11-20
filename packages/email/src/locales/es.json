@@ -28,10 +28,10 @@
       "footer": "Si no solicitaste esta invitación, puedes ignorar este email."
     },
     "emailCode": {
-      "subject": "Tu código de Sokosumi: {code}",
-      "title": "Tu código de Sokosumi",
+      "subject": "Tu código de {product}: {code}",
+      "title": "Tu código de {product}",
       "greeting": "Hola",
-      "message": "Introduce este código en Sokosumi para continuar. Caduca en {minutes} minutos.",
+      "message": "Introduce este código en {product} para continuar. Caduca en {minutes} minutos.",
       "footer": "Si no pediste este código, puedes ignorar este email. No compartas el código con nadie."
     }
   },
@@ -136,6 +136,7 @@
           }
         },
         "completed": {
+          "seoButton": "Abrir resultados SEO",
           "subject": "Sokosumi - {coworkerName} completó {taskName}",
           "title": "Tarea completada",
           "body": "{coworkerName} completó {taskName}."
@@ -252,6 +253,14 @@
         "title": "Créditos agotándose",
         "body": "Tus créditos se están agotando. Te quedan {credits}. El trabajo se detiene cuando se acaban.",
         "button": "Añadir créditos"
+      },
+      "cusoLowCredits": {
+        "subject": "CMO - A {cusoName} para {businessName} se le acaban los créditos",
+        "preview": "A {cusoName} le quedan {credits} créditos.",
+        "title": "Créditos agotándose",
+        "body": "A {cusoName} para {businessName} le quedan {credits} créditos. Se pausa cuando se acaban.",
+        "nextGrant": "Sus próximos créditos del plan llegan el {date}.",
+        "button": "Recargar o cambiar de plan"
       }
     }
   },

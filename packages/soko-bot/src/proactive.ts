@@ -50,6 +50,23 @@ export const SOKO_BOT_BRIEF_FORMAT =
 
 const brief = (prompt: string) => `${prompt} ${SOKO_BOT_BRIEF_FORMAT}`;
 
+/**
+ * The turn a follower's bot runs when a Task they follow completes. Reads and
+ * reports; it changes nothing. The Task's text is not quoted here: the bot
+ * reads it through get_task_status, which marks it as untrusted.
+ */
+export function sokoBotTaskSummaryPrompt(task: {
+  id: string;
+  identifier: string | null;
+}): string {
+  const ref = task.identifier
+    ? `${task.identifier}, id ${task.id}`
+    : `id ${task.id}`;
+  return brief(
+    `A Task the owner follows is completed (${ref}). Read it with get_task_status: the description, the status timeline and who set each status, the comments, the files, the linked Tasks and dueOn. Use get_job_status for a Job it names. Then tell the owner whether what was asked was delivered. First line: the Task's name and one of "done as asked", "done with gaps" or "unclear". Sections: "Delivered" (each result, with its link), "Gaps" (each thing the description asked for that you find no evidence of, written "not shown", never "not done", because work can happen outside Sokosumi), "Next" (linked Tasks still open). End with Numbers: on time, or late by N days (dueOn against the completion date; skip it without a dueOn) · Jobs · credits. Change nothing: no comments, no status changes, no new Tasks.`,
+  );
+}
+
 export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
   {
     key: "standup",
@@ -83,9 +100,13 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     cronExpression: "*/30 7-19 * * 1-5",
     description:
       "Before a meeting with people from outside: who is coming, your last mail with them, and related open Tasks.",
-    prompt: brief(
-      "Meeting prep. A meeting with people from outside starts within the hour. Give the owner a short brief (under 12 lines): who is coming and from where, what was last said with them by mail, open Tasks connected to them, and anything still unanswered. The headline names the meeting, its time, and what to get out of it. The packet below is a starting point: when it has no real mail with someone, look them up yourself with search_inbox (their name, their company or domain) and read_email for the thread that matters. Say no mail was found only after you have searched. When there is nothing useful beyond the meeting itself, answer exactly: Nothing to add.",
-    ),
+    prompt: [
+      "Meeting prep. Brief the owner using only the meeting sections below. Address the owner as you.",
+      'Write a one-line headline, then one "### " heading for each meeting with its calendar title and start time. Keep simultaneous meetings separate. Put short bullets under each heading.',
+      "Use the guest names supplied for this event. Copy each supplied Contacts link when naming that guest. Only link guests who have a supplied link. For a confirmed guest without a name, use their address. Leave possible owner addresses out of the guest list. Include an agenda, earlier correspondence or an open Task only when it matters to this meeting.",
+      "Mail is past correspondence. Use the calendar entry for the meeting time and who is coming. Omit unsupported claims about missing mail, open Tasks and unanswered questions.",
+      "If there is nothing useful beyond a bare meeting title and time, answer exactly: Nothing to add.",
+    ].join(" "),
   },
   {
     key: "end-of-day",
@@ -153,11 +174,41 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
  * not offered to a shared bot.
  */
 export function sokoBotSystemSchedulePrompt(
-  schedule: Pick<SokoBotSystemSchedule, "prompt" | "promptShared">,
+  schedule: { key: string } & Pick<
+    SokoBotSystemSchedule,
+    "prompt" | "promptShared"
+  >,
   shared: boolean,
 ): string | null {
-  return shared ? (schedule.promptShared ?? null) : schedule.prompt;
+  const prompt = shared ? (schedule.promptShared ?? null) : schedule.prompt;
+  if (prompt === null) return null;
+  if (schedule.key === "standup") return `${prompt} ${ACT_ON_OWN_GOALS}`;
+  if (!GOAL_WRITING_RHYTHMS.has(schedule.key)) return prompt;
+  return `${prompt} ${shared ? SOKO_BOT_GOAL_OWNERS_SHARED : SOKO_BOT_GOAL_OWNERS}`;
 }
+
+/**
+ * Memory is free text, so a goal does not say whose it is. Jarvis saved his
+ * owner's unassigned Task as a goal, read it back as his own work and handed
+ * the Task to a Coworker. Every rhythm that writes goals names whose each one
+ * is, and the stand-up acts only on the bot's own.
+ */
+export const SOKO_BOT_GOAL_OWNERS =
+  "In memory, start every goal and follow-up with whose work it is: the owner's first name for their own work (a Task nobody is assigned to is theirs, not yours), the Coworker's or teammate's name for work they have, and \"Me:\" only for work the owner gave you.";
+
+export const SOKO_BOT_GOAL_OWNERS_SHARED =
+  'In memory, start every goal and follow-up with whose work it is: "Team:" for work nobody has taken (a Task nobody is assigned to is the team\'s, not yours), the Coworker\'s or person\'s name for work they have, and "Me:" only for work the team gave you.';
+
+const ACT_ON_OWN_GOALS =
+  'Start or hand out work only for goals and follow-ups in memory marked "Me:". For anyone else\'s, report it or ask one question; never assign or create a Task for it.';
+
+const GOAL_WRITING_RHYTHMS: ReadonlySet<string> = new Set([
+  "weekly-wrap",
+  "end-of-day",
+  "monday-plan",
+  "monthly-review",
+  "dreaming",
+]);
 
 export interface SokoBotProactiveRule {
   id: string;

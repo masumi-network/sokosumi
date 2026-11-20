@@ -505,6 +505,51 @@ describe("schedules of a shared bot", () => {
     });
   });
 
+  it("keeps a built-in rhythm as it is for a bot that may not change its own, and lets a person", async () => {
+    const rhythm = {
+      ...SHARED,
+      name: "Weekly review",
+      systemKey: "cmo-weekly-review",
+    };
+    scheduleFindFirst.mockResolvedValueOnce(rhythm);
+    await expect(
+      updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          prompt: "Remind the owner every Monday.",
+          keepBuiltInRhythms: true,
+        },
+        tx,
+      ),
+    ).rejects.toThrow(
+      '"Weekly review" is one of your built-in rhythms and stays as it is',
+    );
+    expect(scheduleUpdate).not.toHaveBeenCalled();
+
+    // A schedule the bot or a member set up is still the bot's to change.
+    await expect(
+      updateSokoBotSchedule(
+        {
+          userId: "member_2",
+          ...turnRef(SHARED),
+          enabled: false,
+          keepBuiltInRhythms: true,
+        },
+        tx,
+      ),
+    ).resolves.toMatchObject({ id: SHARED.id, enabled: false });
+
+    // A person pauses a rhythm as before.
+    scheduleFindFirst.mockResolvedValueOnce(rhythm);
+    await expect(
+      updateSokoBotSchedule(
+        { userId: "member_2", ...turnRef(SHARED), enabled: false },
+        tx,
+      ),
+    ).resolves.toMatchObject({ enabled: false });
+  });
+
   it("lets any member with access edit and delete a schedule another member wrote", async () => {
     await expect(
       updateSokoBotSchedule(
@@ -632,6 +677,9 @@ describe("schedules of a shared bot", () => {
       { userId: "owner_1", ...meRef(PERSONAL), prompt: "New" },
       tx,
     );
+    expect(scheduleUpdate.mock.lastCall?.[0]?.data).toStrictEqual({
+      prompt: "New",
+    });
     // The runtime's own lookup: the shared bot, in its workspace.
     botFindFirst.mockResolvedValueOnce({
       id: SHARED_BOT_ID,

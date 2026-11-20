@@ -7,6 +7,8 @@ function toolsCaseChecks(): Set<string> {
   const tools = new Set<string>();
   for (const evalCase of EVAL_CASES) {
     if (evalCase.kind === "cmo-research") tools.add("save_brand_brain");
+    // A month on cmo-v6 checks that Core wrote it (write_month_pieces).
+    if (evalCase.kind === "cmo-month") tools.add("write_month_pieces");
     if (evalCase.kind === "cmo-strategy") tools.add("save_strategy");
     if (evalCase.kind !== "scenario") continue;
     const { expect: wanted } = evalCase.scenario;
@@ -33,7 +35,6 @@ const NOT_YET_COVERED = new Set([
   "enrich_contact",
   "find_people",
   "log_contact_interaction",
-  "manage_contact_lists",
   "merge_contacts",
   "update_ad_campaign",
   "update_assigned_task",
@@ -49,8 +50,6 @@ const NOT_YET_COVERED = new Set([
   "find_ad_targeting",
   "find_contact_duplicates",
   "find_integrations",
-  "generate_image",
-  "generate_video",
   "generate_voiceover",
   "get_ad_campaign",
   "get_agent_input_schema",
@@ -70,7 +69,6 @@ const NOT_YET_COVERED = new Set([
   "list_background_runs",
   "list_contact_lists",
   "list_integration_tools",
-  "list_integrations",
   "list_newsletter_issues",
   "list_newsletter_subscribers",
   "list_skills",
@@ -79,7 +77,6 @@ const NOT_YET_COVERED = new Set([
   "list_tables",
   "manage_reminder",
   "move_file",
-  "open_direct_chat",
   "preview_newsletter_issue",
   "preview_newsletter_signup_form",
   "preview_result",
@@ -94,7 +91,6 @@ const NOT_YET_COVERED = new Set([
   "refresh_social_post_statistics",
   "remove_newsletter_subscriber",
   "remove_skill",
-  "report_update",
   "save_email_attachment",
   "search_companies",
   "search_exa",
@@ -200,5 +196,20 @@ describe("eval cases", () => {
         (evalCase) => evalCase.id,
       ),
     ).toEqual([]);
+  });
+});
+
+describe("CMO chat setup", () => {
+  it("seeds the change request's plan and the comment case's post", () => {
+    const prepared = (id: string) => {
+      const found = EVAL_CASES.find((evalCase) => evalCase.id === id);
+      return found?.kind === "scenario" ? found.prepare : undefined;
+    };
+    expect(prepared("cmo-change-request")).toBe("cmo-plan");
+    expect(prepared("cmo-change-reply-plain")).toBe("cmo-plan");
+    expect(prepared("cmo-funnel-aida")).toBe("cmo-plan");
+    expect(prepared("cmo-ads-yes")).toBe("cmo-plan-ads");
+    expect(prepared("cmo-comment-replies")).toBe("cmo-comments");
+    expect(prepared("cmo-brand-fit")).toBe("cmo-brand");
   });
 });

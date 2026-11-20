@@ -1,13 +1,24 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
+import de from "../../../../../messages/de.json";
+import en from "../../../../../messages/en.json";
+import es from "../../../../../messages/es.json";
 import {
+  actionablePageDetails,
   measuresOutsideToolRanges,
   measureValue,
   noteFinding,
+  PLAIN_NOTE_KEYS,
   pageDetailGuidance,
   pageDetailGuidanceRows,
+  pageDetailItemHref,
+  pageDetailItemName,
+  pageDetailItems,
+  pageDetailLinkName,
   pageDetailReferences,
-  pageDetailRuleCodes,
+  plainNote,
+  seoActionBucket,
+  seoActionWorklist,
   seoOverviewModel,
   seoPageSummaries,
   toolRangeFit,
@@ -83,6 +94,41 @@ describe("SEO overview relevance", () => {
     expect(seoOverviewModel(workspace).emptyState).toBe("no_fixes");
     workspace.observations[0].coverage.modules.failed = 1;
     expect(seoOverviewModel(workspace).emptyState).toBe("incomplete");
+  });
+
+  it("keeps separate related-page indexing issues on the same audited parent", () => {
+    const workspace = seoTestWorkspace();
+    const indexed = {
+      ...finding("indexing", "major"),
+      rowId: "AC-20",
+      device: null,
+    };
+    workspace.findings = [
+      { ...indexed, id: "parent" },
+      {
+        ...indexed,
+        id: "related-one",
+        relatedPageUrl: "https://example.com/one",
+        suggestedFix: "Fix page one.",
+      },
+      {
+        ...indexed,
+        id: "related-two",
+        relatedPageUrl: "https://example.com/two",
+        suggestedFix: "Fix page two.",
+      },
+    ];
+    const model = seoOverviewModel(workspace);
+    expect(model.issues.map((issue) => issue.id)).toEqual([
+      "parent",
+      "related-one",
+      "related-two",
+    ]);
+    expect(model.issues.map((issue) => issue.suggestedFix)).toEqual([
+      undefined,
+      "Fix page one.",
+      "Fix page two.",
+    ]);
   });
 
   it("prioritizes actual issue severities without treating measures, notes or tests as fixes", () => {
@@ -523,17 +569,150 @@ describe("tool ranges", () => {
     expect(toolRangeFit("163 characters", ["Google sets no limit"])).toBeNull();
   });
 
-  it("folds rule IDs out of the shown line, once each", () => {
+  it("takes rule IDs out of the shown line", () => {
     expect(withoutRuleCodes(description[1])).toBe(
       "vendor tools: Ahrefs under 160; Screaming Frog 70 to 155; Moz 55 to 300; Yoast 120 to 156",
     );
-    expect(pageDetailRuleCodes([...description, description[0]])).toEqual([
-      "N1-065",
-      "N1-247",
-      "N1-267",
-      "N1-279",
-      "N1-286",
+  });
+});
+
+describe("page detail items", () => {
+  it("lifts a note's flagged files out of its guidance and names each by its file", () => {
+    const { groups, guidance } = pageDetailItems([
+      "camera file name: https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1",
+      "camera file name: DSC01234.JPG",
+      "+3 more",
+      "vendor tools: Ahrefs under 70 (N1-246)",
     ]);
+    expect(groups).toEqual([
+      {
+        label: "cameraFileName",
+        values: [
+          {
+            value:
+              "https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1",
+          },
+          { value: "DSC01234.JPG" },
+        ],
+        // The bot's count of the files past its first ten stays with them, not with the rule's guidance.
+        more: 3,
+      },
+    ]);
+    expect(guidance).toEqual(["vendor tools: Ahrefs under 70 (N1-246)"]);
+    expect(pageDetailItemName(groups[0].values[0].value)).toBe(
+      "img_2696-1.jpg",
+    );
+    expect(pageDetailItemName("/u/caf%C3%A9%20au%20lait.jpg?w=5")).toBe(
+      "café au lait.jpg",
+    );
+    expect(pageDetailItemName("data:image/gif;base64,R0lGODlh")).toBeNull();
+  });
+
+  it("gives a +N more after guidance to the guidance, not to the list above it", () => {
+    const { groups, guidance } = pageDetailItems([
+      "img without alt: https://example.com/a.png",
+      "Google: describe the image",
+      "+4 more",
+    ]);
+    expect(groups[0].more).toBe(0);
+    expect(guidance).toEqual(["Google: describe the image", "+4 more"]);
+  });
+
+  it("reads a broken link line as the link and the site's answer", () => {
+    const { groups } = pageDetailItems([
+      "https://example.com/a/ → 404",
+      "https://example.com/b → 301 after 1 redirect to https://example.com/c",
+      "+2 more",
+    ]);
+    expect(groups).toEqual([
+      {
+        label: "linkStatus",
+        values: [
+          { value: "https://example.com/a/", status: "404" },
+          {
+            value: "https://example.com/b",
+            status: "301 after 1 redirect to https://example.com/c",
+          },
+        ],
+        more: 2,
+      },
+    ]);
+    expect(
+      pageDetailLinkName(
+        "https://example.com/r%C3%BCgen/",
+        "https://example.com/",
+      ),
+    ).toBe("/rügen/");
+    expect(
+      pageDetailLinkName("https://other.example/x", "https://example.com/"),
+    ).toBe("other.example/x");
+    // Two searches on one path are two links.
+    expect(
+      pageDetailLinkName(
+        "https://example.com/search?q=a",
+        "https://example.com/",
+      ),
+    ).toBe("/search?q=a");
+  });
+
+  it("keeps other rows' label lines as they are: they are page facts, not lists", () => {
+    const lines = [
+      "indexing: BLOCKED_BY_META_TAG",
+      "robots.txt: DISALLOWED",
+      "page fetch: SOFT_404",
+      "version: https://example.com/de/",
+    ];
+    expect(pageDetailItems(lines)).toEqual({ groups: [], guidance: lines });
+  });
+
+  it("links only whole web addresses", () => {
+    expect(pageDetailItemHref("https://example.com/a.jpg")).toBe(
+      "https://example.com/a.jpg",
+    );
+    expect(pageDetailItemHref("javascript:alert(1)")).toBeUndefined();
+    expect(pageDetailItemHref("DSC01234.JPG")).toBeUndefined();
+    // The bot cut this line at its length cap: the address is not the file's.
+    expect(
+      pageDetailItemHref("https://example.com/very-long-na…"),
+    ).toBeUndefined();
+  });
+});
+
+describe("plain notes", () => {
+  it("counts a share note in words and titles the rest", () => {
+    expect(plainNote("O-21", "6 of 23 image file names")).toEqual({
+      kind: "share",
+      key: "cameraFileNames",
+      found: 6,
+      total: 23,
+    });
+    // An older share note without its count line keeps the title.
+    expect(plainNote("O-21", "camera file name: a.jpg")).toEqual({
+      kind: "title",
+      key: "cameraFileNames",
+    });
+    // "N of the page's top M" is no share: O-13 has a title only.
+    expect(
+      plainNote("O-13", "3 of the page's top 10 Search Console queries …"),
+    ).toEqual({ kind: "title", key: "queryWords" });
+    expect(plainNote("XX-99", "1 of 2 things")).toBeNull();
+  });
+
+  it("has a title and a why in every language for each plain note", () => {
+    for (const messages of [en, de, es]) {
+      const notes: Record<string, { title?: string; why?: string }> =
+        messages.App.Seo.overview.plainNote;
+      for (const key of PLAIN_NOTE_KEYS) {
+        expect(notes[key]?.title, key).toBeTruthy();
+        expect(notes[key]?.why, key).toBeTruthy();
+      }
+      // A share note's count heading must exist in each language too.
+      for (const key of ["cameraFileNames", "brokenLinks"] as const)
+        expect(
+          (notes[key] as { found?: string } | undefined)?.found,
+          key,
+        ).toBeTruthy();
+    }
   });
 });
 
@@ -604,5 +783,62 @@ describe("measures outside tool ranges", () => {
         findingIds: ["desktop", "mobile"],
       },
     ]);
+  });
+});
+
+describe("actionablePageDetails", () => {
+  it("lists notes, unjudged values and values outside a range, not a value inside every range", () => {
+    const row = (id: string, evidence: string[]) => ({
+      ...finding(id, "measure"),
+      title: "Raw HTML: Title length",
+      evidence,
+    });
+    const ranges = "vendor tools: Ahrefs under 70 (N1-246)";
+    expect(
+      actionablePageDetails([
+        row("in-range", ["title 56 characters", ranges]),
+        row("outside", ["title 80 characters", ranges]),
+        row("unjudged", ["title 90 characters"]),
+        finding("note", "note"),
+      ]).map((row) => row.id),
+    ).toEqual(["outside", "unjudged", "note"]);
+  });
+});
+
+describe("seoActionBucket", () => {
+  it("groups a suggestion by its kind and a fix by its impact, an unrated fix as low", () => {
+    expect(seoActionBucket({ kind: "opportunity" }, null)).toBe("suggestions");
+    expect(seoActionBucket({ kind: "fix" }, "critical")).toBe("high");
+    expect(seoActionBucket({ kind: "fix" }, "major")).toBe("high");
+    expect(seoActionBucket({ kind: "fix" }, "minor")).toBe("low");
+    expect(seoActionBucket({ kind: "fix" }, null)).toBe("low");
+  });
+});
+
+describe("seoActionWorklist", () => {
+  it("offers only the filters that split the list, and counts each group", () => {
+    const actions = [
+      { kind: "fix", id: "a" },
+      { kind: "fix", id: "b" },
+      { kind: "opportunity", id: "c" },
+    ];
+    const worklist = seoActionWorklist(actions, (action) =>
+      action.kind === "opportunity" ? "suggestions" : "high",
+    );
+    expect(worklist.counts).toEqual({
+      all: 3,
+      high: 2,
+      low: 0,
+      suggestions: 1,
+      reviews: 0,
+    });
+    expect(worklist.filters).toEqual(["all", "high", "suggestions"]);
+    expect(worklist.rows("suggestions").map((action) => action.id)).toEqual([
+      "c",
+    ]);
+    // One group alone splits nothing.
+    expect(
+      seoActionWorklist(actions.slice(0, 2), () => "high").filters,
+    ).toEqual(["all"]);
   });
 });

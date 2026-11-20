@@ -1,12 +1,14 @@
 import {
-  type BrandBrain,
   type MarketingStrategyPlan,
   SOKO_BOT_CMO_RHYTHMS,
+  type StoredBrandBrainBody,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
+import { socialProviderWorkspace } from "@/config/social-providers";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
@@ -29,7 +31,15 @@ import {
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
+  type CmoDraft,
+  type CmoReportAttachments,
+  cmoReportAttachments,
+  listCmoDrafts,
+} from "@/services/cmo-drafts.service";
+import {
+  type CmoActivity,
   type CmoWork,
+  cmoActivity,
   cmoLearningState,
   cmoWork,
 } from "@/services/cmo-hiring.service";
@@ -47,6 +57,7 @@ import {
   type CmoUpdateRecord,
   listCmoReports,
 } from "@/services/cmo-reports.service";
+import { cmoStrategyShortfall } from "@/services/cmo-strategy.service";
 import { contactListNameKey } from "@/services/contact-lists.service";
 import {
   approvedMarketingStrategy,
@@ -76,16 +87,16 @@ export interface CmoUpNextItem {
 /**
  * Where Hiring Cuso stands, read from the data (ADR 0062): the Brand Brain
  * until a member confirms it, the Marketing strategy until a version is
- * approved, the accounts until the Project has an active Social connection,
- * the checkout until his Project has a CMO subscription (ADR 0068).
- * CMO's own cookie may skip the accounts (ADR 0062).
+ * approved, the checkout until his Project has a CMO subscription (ADR 0068),
+ * then the accounts until the Project has an active Social connection.
+ * CMO's own cookie records that Launch was pressed (ADR 0062).
  */
 /** Hiring Cuso's steps, in order. */
 export const CMO_ONBOARDING_STEPS = [
   "brandBrain",
   "strategy",
-  "accounts",
   "checkout",
+  "accounts",
   "done",
 ] as const;
 export type CmoOnboardingStep = (typeof CMO_ONBOARDING_STEPS)[number];
@@ -102,8 +113,10 @@ export function cmoOnboardingStep(input: {
   if (!input.strategyApproved) {
     return input.brandBrainConfirmed ? "strategy" : "brandBrain";
   }
-  if (!input.connected) return "accounts";
-  return input.subscribed || input.hasTesterCredits ? "done" : "checkout";
+  // The person pays before connecting accounts: a paid plan is what lets
+  // Cuso make the month, and the accounts only decide where it goes.
+  if (!input.subscribed && !input.hasTesterCredits) return "checkout";
+  return input.connected ? "done" : "accounts";
 }
 
 export interface CmoOverview {
@@ -111,18 +124,24 @@ export interface CmoOverview {
   onboardingStep: CmoOnboardingStep;
   /** The image or video attached to each calendar piece, viewable by URL. */
   media: CmoCalendarMedia[];
+  /** Each month post's revision by post id, for an owner's edit of its words. */
+  postRevisions: Record<string, number>;
   /** Cuso's Workspace's organization, when it is not a personal one. */
   organizationSlug: string | null;
   projectName: string;
   learning: CmoLearningState;
   /** Cuso's latest research or strategy work, step by step. */
   work: CmoWork | null;
+  /** The step and reasoning of the turn Cuso runs now; null while he rests. */
+  activity: CmoActivity | null;
   /** The Project's logo and DESIGN.md, with the research pictures. */
   brandVisual: CmoBrandVisual | null;
   /** Brand research screenshots and pictures, the Project's files. */
   brandMedia: CmoBrandMedia | null;
   /** The Project's logo (the site's best icon), when one was found. */
   projectLogo: string | null;
+  /** The owner gave their photo, with consent, to front talking videos. */
+  presenterSet: boolean;
   /** What Cuso does when, for Settings. */
   routines: {
     key: string;
@@ -133,14 +152,18 @@ export interface CmoOverview {
     /** The timezone "when" is in, so the next run reads the same way. */
     timezone: string | null;
   }[];
+  /** The time zone Cuso's routines run in. */
+  timeZone: string;
   roomId: string;
   /** The CMO subscription gate (`isCmoSubscribed`): false is paused. */
   subscriptionActive: boolean;
   /** This member may approve the strategy. */
   viewerCanApprove: boolean;
-  brandBrain: BrandBrain | null;
+  brandBrain: StoredBrandBrainBody | null;
   /** The newest Marketing strategy version's plan: what the owner reviews. */
   strategy: MarketingStrategyPlan | null;
+  /** A draft short of the volume it promises: Core refuses to approve it. */
+  strategyShort: { planned: number; promised: number } | null;
   /**
    * The approved version's plan as Cuso carries it out, with the pieces he
    * made. Differs from `strategy` while a change waits for approval.
@@ -151,14 +174,16 @@ export interface CmoOverview {
   /** When a plan was first approved; a later approval does not move it. */
   hiredAt: Date | null;
   botStatus: string;
-  updates: CmoUpdateRecord[];
+  updates: (CmoUpdateRecord & CmoReportAttachments)[];
+  /** Social posts that wait for the owner's approval, newest first. */
+  drafts: CmoDraft[];
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
   upNext: CmoUpNextItem[];
   connectChannelUrl: string;
+  /** TikTok may be connected to this Cuso's Project (`socialProviderWorkspace`). */
+  tiktokEnabled: boolean;
   /** Ad providers with an active connection on Cuso's Project. */
   adProviders: string[];
-  /** Sokosumi's Ads page for Cuso's Project, where ad accounts connect. */
-  connectAdsUrl: string;
   /** Google Analytics, Search Console and Shopify, as connected to Cuso. */
   measurement: CmoMeasurementStatus[];
   /** The month's production after approval: how many pieces are made. */
@@ -215,6 +240,20 @@ export function cmoUpNext(
 }
 
 /** Everything the CMO app shows, in one read, for one member of the business. */
+/**
+ * The plan as CMO shows it: a piece a patch skipped (status skipped drops
+ * one) is no longer in the month, on any screen.
+ */
+export function withoutSkippedPieces<
+  T extends Pick<MarketingStrategyPlan, "calendar"> | null,
+>(plan: T): T {
+  if (!plan?.calendar.some((entry) => entry.status === "skipped")) return plan;
+  return {
+    ...plan,
+    calendar: plan.calendar.filter((entry) => entry.status !== "skipped"),
+  };
+}
+
 export async function getCmoOverview(
   target: CusoTarget,
   now: Date = new Date(),
@@ -237,6 +276,8 @@ export async function getCmoOverview(
         logo: true,
         designMdUrl: true,
         sitePlatform: true,
+        presenterFileId: true,
+        presenterConsentAt: true,
       },
     }),
     prisma.sokoBot.findUnique({
@@ -246,6 +287,8 @@ export async function getCmoOverview(
         workspaceId: true,
         status: true,
         sharedRoomId: true,
+        ingestTimezone: true,
+        versionId: true,
         workspace: { select: { organizationId: true } },
       },
     }),
@@ -261,7 +304,7 @@ export async function getCmoOverview(
     listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
   ]);
   if (project && project.sitePlatform === null) {
-    waitUntil(learnCmoSitePlatform(cuso));
+    waitUntil(runAsBackgroundWork(() => learnCmoSitePlatform(cuso)));
   }
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
@@ -290,7 +333,7 @@ export async function getCmoOverview(
       ])
     : [[], new Map<string, MarketingStrategyFilePiece>()];
   const planOf = (version: typeof newest) => {
-    const plan = parseMarketingPlan(version?.plan);
+    const plan = withoutSkippedPieces(parseMarketingPlan(version?.plan));
     return plan && version?.approvedAt
       ? withMarketingFiles(withSocialPostCalendar(plan, posts), files)
       : plan;
@@ -308,15 +351,31 @@ export async function getCmoOverview(
         projectId: cuso.projectId,
         tx: prisma,
       }),
-      mayApproveMarketingStrategy(userId, {
-        id: cuso.workspaceId,
-        userId: null,
-        organizationId: payer.organizationId,
-      }),
+      mayApproveMarketingStrategy(
+        userId,
+        {
+          id: cuso.workspaceId,
+          userId: null,
+          organizationId: payer.organizationId,
+        },
+        prisma,
+        cuso.projectId,
+      ),
       readCmoBilling(cuso.projectId),
       maySkipCmoSubscription(userId, cuso.projectId),
     ]);
   const subscribed = await isCmoSubscribed(cuso);
+  const updates = await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN);
+  const [drafts, attachments] = await Promise.all([
+    listCmoDrafts(cuso.projectId),
+    cmoReportAttachments({
+      reports: updates,
+      projectId: cuso.projectId,
+      workspaceId: bot.workspaceId,
+      organizationId: bot.workspace.organizationId,
+      userId,
+    }),
+  ]);
   const mediaOf = (plan: typeof strategy) =>
     cmoCalendarMedia({
       strategy: plan,
@@ -349,8 +408,9 @@ export async function getCmoOverview(
     subscribed,
     now,
   });
-  const learning = await cmoLearningState(cuso, now);
-  const work = await cmoWork(cuso, now);
+  const learning = await cmoLearningState(cuso);
+  const work = await cmoWork(cuso);
+  const activity = await cmoActivity(cuso);
   const brandBrain = parseBrandBrain(cuso.brandBrain);
   // Blob storage not answering leaves the research out, not the page.
   const brandMedia = await cmoBrandMedia({
@@ -358,10 +418,15 @@ export async function getCmoOverview(
     websiteUrl: cuso.websiteUrl,
     brain: brandBrain,
   }).catch((error) => {
-    console.warn("CMO brand media not read", {
-      projectId: cuso.projectId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    recordCoreWarning(
+      { operation: "cmo_overview", project: { id: cuso.projectId } },
+      {
+        message: "Could not read the brand media for the CMO overview",
+        why: "Blob storage did not answer",
+        fix: "The overview shows no research pictures until storage answers again. If it keeps failing, read the error under warnings[].cause.",
+        cause: error,
+      },
+    );
     return null;
   });
   const brandVisual = await cmoBrandVisual(
@@ -400,12 +465,20 @@ export async function getCmoOverview(
       hasTesterCredits: billing.hasTesterCredits,
     }),
     media,
+    postRevisions: Object.fromEntries(
+      posts.map((post) => [post.entry.id, post.revision]),
+    ),
     learning,
     work,
+    activity,
     brandVisual,
     brandMedia,
     projectLogo: project.logo,
+    presenterSet: Boolean(
+      project.presenterFileId && project.presenterConsentAt,
+    ),
     routines,
+    timeZone: bot.ingestTimezone,
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,
     roomId: bot.sharedRoomId,
@@ -413,11 +486,19 @@ export async function getCmoOverview(
     viewerCanApprove,
     brandBrain,
     strategy,
+    strategyShort: newest?.approvedAt
+      ? null
+      : cmoStrategyShortfall(bot.versionId, newest?.plan),
     approvedStrategy: approved ? running : null,
     strategyVersions,
     hiredAt,
     botStatus: bot.status,
-    updates: await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN),
+    updates: updates.map((update) => ({
+      ...update,
+      posts: attachments.get(update.id)?.posts ?? [],
+      media: attachments.get(update.id)?.media ?? [],
+    })),
+    drafts,
     channels,
     upNext: cmoUpNext(
       running,
@@ -428,8 +509,10 @@ export async function getCmoOverview(
     ),
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
     connectChannelUrl: `${web}/social?projectId=${cuso.projectId}`,
+    tiktokEnabled:
+      socialProviderWorkspace(organization?.slug ?? null, cuso.workspaceId)
+        .tiktokEnabled === true,
     adProviders: [...new Set(adConnections.map((row) => row.provider))],
-    connectAdsUrl: `${web}/ads?projectId=${cuso.projectId}`,
     measurement,
     production: production.status,
     mailingListSize,

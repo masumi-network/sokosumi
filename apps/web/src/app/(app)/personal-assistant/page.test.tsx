@@ -18,6 +18,8 @@ vi.mock("@/lib/clients/core.client", () => ({
 vi.mock("@/lib/services/user.service", () => ({
   userService: { getActiveOrganizationId: async () => null },
 }));
+const listMcpServersMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: {
     getChatState: () => chatStateMock(),
@@ -27,6 +29,9 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
     searchIntegrationCatalog: async () => [],
     listVersions: async () => [],
     listSkills: async () => [],
+    listMcpServers: (id: string) => listMcpServersMock(id),
+    getSandboxSetup: async () => ["npm install -g vercel"],
+    listSecrets: async () => [],
   },
 }));
 vi.mock("@/lib/soko-bot/load-bot-ad-accounts", () => ({
@@ -87,6 +92,36 @@ describe("SokoBotPage", () => {
     expect(loadAdsMock).not.toHaveBeenCalled();
     expect(consoleMock).toHaveBeenCalledWith(
       expect.objectContaining({ ads: null }),
+    );
+  });
+
+  it("hands the console its own bot's MCP servers, setup and keys behind Advanced", async () => {
+    listMcpServersMock.mockResolvedValue([]);
+    await renderWith(true);
+    expect(listMcpServersMock).toHaveBeenCalledWith("bot-1");
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownTools: {
+          mcpServers: [],
+          setupCommands: ["npm install -g vercel"],
+          secrets: [],
+        },
+      }),
+    );
+  });
+
+  it("leaves them out when Core cannot load them, and outside Advanced", async () => {
+    listMcpServersMock.mockRejectedValue(new Error("down"));
+    await renderWith(true);
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ownTools: null }),
+    );
+    consoleMock.mockClear();
+    listMcpServersMock.mockClear();
+    await renderWith(true, {});
+    expect(listMcpServersMock).not.toHaveBeenCalled();
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ownTools: null }),
     );
   });
 

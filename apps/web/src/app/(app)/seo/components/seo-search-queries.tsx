@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { type SeoBrandView, seoBrandRows } from "./seo-brand-model";
 import { SeoBrandSplit } from "./seo-brand-terms";
-import { SeoCsvButton } from "./seo-csv-button";
+import { SeoExportMenu } from "./seo-export-menu";
 import { seoQueriesExport } from "./seo-export-model";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
@@ -125,12 +125,15 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("queries.title")}
-      foot={
-        rows.length ? (
-          <SeoCsvButton
+      actions={
+        // The unfiltered list: a search or brand view that leaves nothing keeps the menu, so a failed copy can finish.
+        source?.rows.length ? (
+          <SeoExportMenu
             name="search-queries"
-            title={t("queries.title")}
-            table={() => seoQueriesExport(rows, t)}
+            titleKey="queries.title"
+            workspace={model.data}
+            table={(report) => seoQueriesExport(rows, report)}
+            empty={!rows.length}
           />
         ) : undefined
       }

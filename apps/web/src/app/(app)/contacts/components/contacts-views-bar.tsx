@@ -6,8 +6,8 @@ import {
   ChevronDown,
   ListFilter,
   Plus,
-  Sparkles,
   X,
+  Zap,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -173,7 +173,7 @@ export function ListsMenu<List extends MenuList>({
                 className="size-3.5 shrink-0"
               />
             ) : list.createdAutomatically ? (
-              <Sparkles
+              <Zap
                 aria-label={t("views.autoList")}
                 className="size-3.5 shrink-0"
               />

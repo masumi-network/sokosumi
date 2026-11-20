@@ -64,6 +64,7 @@ type Page = ReactElement<{
   mayHire?: boolean;
   inviteOnly?: boolean;
   cusoPicker?: boolean;
+  manyCusos?: boolean;
   overview?: { projectId: string };
 }>;
 
@@ -137,8 +138,7 @@ describe("CMO home page", () => {
     vi.restoreAllMocks();
   });
 
-  // Without a session the proxy serves the waitlist site; what reaches the
-  // page (an error, a stale cookie) goes to the unlinked /login.
+  // Without a session the home page goes to /login, which goes on to sign in.
   it("sends a visitor without a session to /login, without asking Core", async () => {
     getSession.mockResolvedValue(null);
 
@@ -156,7 +156,9 @@ describe("CMO home page", () => {
     expect(page.type).toBe(CmoApp);
     expect(page.props.overview?.projectId).toBe("project-2");
     expect(loadOverview).toHaveBeenCalledExactlyOnceWith("project-2");
-    expect(loadCusos).not.toHaveBeenCalled();
+    // Only for the sidebar's "Your Cusos", never to pick the Cuso.
+    expect(loadCusos).toHaveBeenCalledTimes(1);
+    expect(page.props.manyCusos).toBe(false);
   });
 
   it("opens the Cuso last opened on this device", async () => {
@@ -169,7 +171,7 @@ describe("CMO home page", () => {
     const page = await render();
 
     expect(page.props.overview?.projectId).toBe("project-1");
-    expect(loadCusos).not.toHaveBeenCalled();
+    expect(page.props.manyCusos).toBe(true);
   });
 
   it("opens the only Cuso directly, by an address this device remembers", async () => {

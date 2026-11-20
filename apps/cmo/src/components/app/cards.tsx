@@ -1,6 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoCompetitorWeek } from "@sokosumi/utils";
 import { useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
@@ -8,6 +9,7 @@ import { channelLabel, planRange } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
 import { StatusText } from "../status";
 import { OutOfCredits, type StartTopUp } from "../top-up";
+import { type DraftActions, MadeByCuso } from "./draft-post";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -22,10 +24,18 @@ export interface CardActions {
   /** Puts text in the composer and focuses it. */
   compose: (text: string) => void;
   open: (
-    view: "strategy" | "brain" | "results" | "channels" | "settings",
+    view:
+      | "strategy"
+      | "brain"
+      | "results"
+      | "competitors"
+      | "channels"
+      | "settings",
   ) => void;
   /** The top-up checkout, or null when this Cuso may not top up. */
   topUp: StartTopUp | null;
+  /** Approve, rewrite or decline a post Cuso made outside the month. */
+  drafts: DraftActions;
 }
 
 type BrandBrain = NonNullable<CmoOverview["brandBrain"]>;
@@ -78,7 +88,7 @@ export function LearningCard({
           ? "Done"
           : `${missing} not confirmed yet`;
   return (
-    <div className={failed ? "card card-focus" : "card"}>
+    <div className="card">
       <div className="ch">
         <b>Learning</b>
         <span className="sp" />
@@ -198,8 +208,8 @@ const PREVIEW_LABELS = {
   newsletter: "Newsletter",
 } as const;
 
-/** Ads, SEO and newsletters have no Sokosumi tool yet: preview only. */
-const EXECUTABLE_PREVIEWS = new Set(["post"]);
+/** Ads and newsletters show as previews here; SEO work lives in the SEO tab. */
+const EXECUTABLE_PREVIEWS = new Set(["post", "seo"]);
 
 export function StrategyCard({
   overview,
@@ -213,7 +223,7 @@ export function StrategyCard({
   if (!strategy) return null;
   const approved = strategyApproved(overview);
   return (
-    <div className={approved ? "card" : "card card-focus"}>
+    <div className="card">
       <div className="ch">
         <b>
           Your strategy
@@ -287,12 +297,12 @@ export function StrategyCard({
           <>
             <StatusText>Approved</StatusText>
             <span className="note">
-              {AGENT_NAME} runs this plan and keeps it current.
+              {AGENT_NAME} runs this strategy and keeps it current.
             </span>
           </>
         ) : (
           <>
-            {overview.viewerCanApprove ? (
+            {overview.viewerCanApprove && !overview.strategyShort ? (
               <button
                 type="button"
                 className="button button-small"
@@ -310,9 +320,11 @@ export function StrategyCard({
               Change something
             </button>
             <span className="note">
-              {overview.viewerCanApprove
-                ? `This is the only thing you approve. ${AGENT_NAME} runs the rest.`
-                : APPROVED_BY_OWNERS}
+              {overview.strategyShort
+                ? `This strategy promises more than its calendar holds, so it can't be approved. Ask ${AGENT_NAME} for a new one on the Strategy page.`
+                : overview.viewerCanApprove
+                  ? `This is the only thing you approve. ${AGENT_NAME} runs the rest.`
+                  : APPROVED_BY_OWNERS}
             </span>
           </>
         )}
@@ -324,7 +336,7 @@ export function StrategyCard({
 /** Opens CMO's own Channels page, where each network connects in place. */
 export function ConnectCard({ actions }: { actions: CardActions }) {
   return (
-    <div className="card card-focus">
+    <div className="card">
       <div className="ch">
         <b>Connect a channel</b>
         <span className="muted">Not connected</span>
@@ -344,6 +356,74 @@ export function ConnectCard({ actions }: { actions: CardActions }) {
           Connect a channel
         </button>
         <span className="note">Until then I keep the posts as drafts.</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The week's competitor moves as one card: a line per move with where it was
+ * read, the big ones with what they mean and what to do. The rest of each
+ * move is on the Competitors tab.
+ */
+export function CompetitorWeekCard({
+  week,
+  actions,
+}: {
+  week: CmoCompetitorWeek;
+  actions: CardActions;
+}) {
+  return (
+    <div className="card">
+      <div className="ch">
+        <b>What your competitors did this week</b>
+      </div>
+      <div className="cb">
+        <ul className="list">
+          {week.moves.map((move) => (
+            <li key={`${move.competitor}:${move.text}`} className="li">
+              <span className="grow">
+                {move.text}
+                {move.source ? (
+                  <>
+                    {" "}
+                    <span className="note">
+                      <a
+                        href={move.source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {move.source.label}
+                      </a>
+                    </span>
+                  </>
+                ) : null}
+                {move.big && move.meaning && move.move ? (
+                  <span className="week-called">
+                    <span>
+                      <b>What this means for you:</b> {move.meaning}
+                    </span>
+                    <span>
+                      <b>Suggested move:</b> {move.move}
+                    </span>
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="cf">
+        <button
+          type="button"
+          className="button button-small"
+          onClick={() => actions.open("competitors")}
+        >
+          See every move
+        </button>
+        <span className="note">
+          Each with what it means for you and what to do.
+        </span>
       </div>
     </div>
   );
@@ -390,7 +470,6 @@ const UPDATE_TITLES = {
   weekly: "Weekly results",
   monthly: "Next month's strategy",
   brand: "Brand Brain refreshed",
-  request: "Done",
   production: "Your month",
 } as const;
 
@@ -400,6 +479,48 @@ const CHANGE_LABELS = {
   brand: "What changed in the Brand Brain",
   daily: "What I changed today",
 } as const;
+
+/**
+ * What Cuso did on a request, as his own message: a headline, what is done
+ * (ticked) and what comes next. It holds his words only, so it reads in the
+ * language he answered in, and it needs nothing from the owner.
+ */
+function RequestNote({
+  update,
+  superseded,
+  drafts,
+}: {
+  update: Update;
+  superseded: boolean;
+  drafts: DraftActions;
+}) {
+  const done = update.done ?? [];
+  const upNext = superseded ? [] : (update.upNext ?? []);
+  return (
+    <div className="stack-sm">
+      <p className="txt">
+        <strong>{update.headline}</strong>
+      </p>
+      {done.length + upNext.length > 0 ? (
+        <div className="steps txt">
+          {done.map((item) => (
+            <div key={item} className="step ok">
+              <span className="dot" aria-hidden="true" />
+              {item}
+            </div>
+          ))}
+          {upNext.map((item) => (
+            <div key={item} className="step">
+              <span className="dot" aria-hidden="true" />
+              {item}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <MadeByCuso update={update} actions={drafts} />
+    </div>
+  );
+}
 
 /** Updates that change the strategy, which the owner can put back. */
 function changesStrategy(kind: Update["kind"]): boolean {
@@ -411,7 +532,6 @@ export function UpdateCard({
   actions,
   approved,
   superseded = false,
-  focused = false,
 }: {
   update: Update;
   actions: CardActions;
@@ -422,16 +542,19 @@ export function UpdateCard({
   approved: boolean;
   /** Reported before the approval that came later: its Up next is history. */
   superseded?: boolean;
-  /** Opened from Results: the card in focus. */
-  focused?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  if (update.kind === "request") {
+    return (
+      <RequestNote
+        update={update}
+        superseded={superseded}
+        drafts={actions.drafts}
+      />
+    );
+  }
   return (
-    <div
-      className={
-        focused || update.kind === "request" ? "card card-focus" : "card"
-      }
-    >
+    <div className="card">
       <div className="ch">
         <b>{UPDATE_TITLES[update.kind]}</b>
         <span className="note">{update.headline}</span>
@@ -439,6 +562,7 @@ export function UpdateCard({
         <span className="note num">{formatTime(update.at)}</span>
       </div>
       <div className="cb">
+        <MadeByCuso update={update} actions={actions.drafts} />
         {changesStrategy(update.kind) ? (
           <div>
             <span className="label">Results</span>
@@ -462,9 +586,7 @@ export function UpdateCard({
             />
           </div>
         ) : null}
-        {update.kind !== "request" &&
-        update.kind !== "production" &&
-        (update.changes ?? []).length > 0 ? (
+        {update.kind !== "production" && (update.changes ?? []).length > 0 ? (
           <div>
             <span className="label">{CHANGE_LABELS[update.kind]}</span>
             <ul className={update.revertedAt ? "list reverted" : "list"}>

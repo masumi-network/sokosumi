@@ -204,6 +204,18 @@ describe("SEO form intent", () => {
     expect(alone).not.toHaveProperty("relatedToPageId");
   });
 
+  it("adds a page or competitor typed without https://", () => {
+    const workspace = seoTestWorkspace();
+    const form = new FormData();
+    form.set("url", " example.com/pricing ");
+    expect(editSeoCommand("page", form, workspace).body).toMatchObject({
+      url: "https://example.com/pricing",
+    });
+    expect(editSeoCommand("competitor", form, workspace).body).toMatchObject({
+      url: "https://example.com/pricing",
+    });
+  });
+
   it("takes the first page that stands alone as the main page", () => {
     const workspace = seoTestWorkspace();
     const [first] = workspace.pages;
@@ -285,31 +297,32 @@ describe("SEO form intent", () => {
 describe("seoAnalysisMaxCredits", () => {
   it("shows the ceiling Core checks, and none while a limit field is not a valid value", () => {
     expect(seoAnalysisMaxCredits({ kind: "free" })).toBe(0);
-    expect(seoAnalysisMaxCredits({ kind: "standard" })).toBe(750);
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 0.33, seconds: 900 }),
-    ).toBe(750);
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 20 })).toBe(150);
     // A half-typed field must not throw while the person types.
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 0, seconds: 900 }),
-    ).toBeNull();
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 2.5 })).toBeNull();
-    // Core refuses these limits, so the dialog shows no figure for them.
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 0.1, seconds: 900 }),
-    ).toBeNull();
-    // Below one page's reserve the worker refuses the audit.
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 0.32, seconds: 900 }),
-    ).toBeNull();
-    expect(
-      seoAnalysisMaxCredits({ kind: "full", usd: 60, seconds: 900 }),
-    ).toBeNull();
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 101 })).toBeNull();
-    for (const seconds of [30, 5_401, 90.5])
-      expect(
-        seoAnalysisMaxCredits({ kind: "full", usd: 3, seconds }),
-      ).toBeNull();
+  });
+});
+
+describe("full-audit price approval", () => {
+  it("approves cost plus 50% with a 750-credit minimum, no maximum, and never the old fixed price", () => {
+    const form = analysisForm();
+    form.set("kind", "audit_full");
+    form.set("keywords", "stablecoins");
+    // A stale or forged maximum field never reaches the approval.
+    form.set("fullAuditMaxCredits", "750");
+    const body = analysisSeoBody(form, seoTestWorkspace());
+    expect(body.fullAuditPrice).toEqual({
+      kind: "cost_plus",
+      version: 1,
+      minimumCredits: 750,
+      markupPercent: 50,
+    });
+    expect(body).not.toHaveProperty("fullAuditCredits");
+  });
+  it("sends no full-audit price with a focused check", () => {
+    expect(
+      analysisSeoBody(analysisForm(), seoTestWorkspace()),
+    ).not.toHaveProperty("fullAuditPrice");
   });
 });

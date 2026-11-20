@@ -5,6 +5,10 @@ import {
   DataRoomStorage,
 } from "@sokosumi/database";
 
+import {
+  dataRoomCompanySchema,
+  readDataRoomCompany,
+} from "@/schemas/data-room-company.schema";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import type { DataRoomTreeRow } from "@/services/data-room-files.service";
@@ -53,6 +57,7 @@ export const dataRoomSchema = z
       .openapi({ description: "The room's address: /share/rooms/{token}" }),
     title: z.union([z.string(), z.null()]),
     welcomeNote: z.union([z.string(), z.null()]),
+    company: z.union([dataRoomCompanySchema, z.null()]),
     logoFileId: z.union([z.string(), z.null()]),
     allowedDomains: z.array(z.string()),
     expiresAt: isoDate,
@@ -74,6 +79,7 @@ export function toDataRoomDto(room: DataRoom): z.infer<typeof dataRoomSchema> {
     token: room.token,
     title: room.title,
     welcomeNote: room.welcomeNote,
+    company: readDataRoomCompany(room.company),
     logoFileId: room.logoFileId,
     allowedDomains: room.allowedDomains,
     expiresAt: room.expiresAt?.toISOString() ?? null,
@@ -199,6 +205,9 @@ export const updateDataRoomRequestSchema = z
     ...storeFields,
     title: z.union([z.string().max(200), z.null()]).optional(),
     welcomeNote: z.union([z.string().max(5_000), z.null()]).optional(),
+    company: z.union([dataRoomCompanySchema, z.null()]).optional().openapi({
+      description: "The room's Company page; null removes it.",
+    }),
     logoFileId: z.union([z.string().uuid(), z.null()]).optional(),
     allowedDomains: z.array(z.string().max(253)).max(50).optional(),
     expiresAt: z.union([z.string().datetime(), z.null()]).optional(),
@@ -254,6 +263,10 @@ export const dataRoomQuestionSchema = z
     body: z.string(),
     answer: z.union([z.string(), z.null()]),
     answeredAt: isoDate,
+    sharedAt: isoDate.openapi({
+      description:
+        "When the answer was shown to everyone in the room who may open the document; null while only the asker sees it.",
+    }),
     email: z.string(),
     name: z.union([z.string(), z.null()]),
   })
@@ -270,6 +283,7 @@ export function toDataRoomQuestionDto(question: {
   body: string;
   answer: string | null;
   answeredAt: Date | null;
+  sharedAt: Date | null;
   member: { email: string; name: string | null };
 }): z.infer<typeof dataRoomQuestionSchema> {
   return {
@@ -279,8 +293,54 @@ export function toDataRoomQuestionDto(question: {
     body: question.body,
     answer: question.answer,
     answeredAt: question.answeredAt?.toISOString() ?? null,
+    sharedAt: question.sharedAt?.toISOString() ?? null,
     email: question.member.email,
     name: question.member.name,
+  };
+}
+
+/** A question as a room viewer sees it: never who asked. */
+export const dataRoomViewerQuestionSchema = z
+  .object({
+    id: z.string(),
+    createdAt: z.string(),
+    path: z.string(),
+    body: z.string(),
+    answer: z.union([z.string(), z.null()]),
+    answeredAt: isoDate,
+    mine: z.boolean().openapi({ description: "The viewer asked it." }),
+    shared: z.boolean().openapi({
+      description: "The owner showed the answer to everyone in the room.",
+    }),
+  })
+  .openapi("DataRoomViewerQuestion");
+
+export const dataRoomViewerQuestionsSchema = z
+  .array(dataRoomViewerQuestionSchema)
+  .openapi("DataRoomViewerQuestions");
+
+export function toDataRoomViewerQuestionDto(
+  question: {
+    id: string;
+    createdAt: Date;
+    path: string;
+    body: string;
+    answer: string | null;
+    answeredAt: Date | null;
+    sharedAt: Date | null;
+    memberId: string;
+  },
+  viewerMemberId: string,
+): z.infer<typeof dataRoomViewerQuestionSchema> {
+  return {
+    id: question.id,
+    createdAt: question.createdAt.toISOString(),
+    path: question.path,
+    body: question.body,
+    answer: question.answer,
+    answeredAt: question.answeredAt?.toISOString() ?? null,
+    mine: question.memberId === viewerMemberId,
+    shared: question.sharedAt !== null,
   };
 }
 
@@ -309,7 +369,14 @@ export const waitingDataRoomQuestionsQuerySchema = z
   .openapi("WaitingDataRoomQuestionsQuery");
 
 export const answerDataRoomQuestionRequestSchema = z
-  .object({ ...storeFields, answer: z.string().min(1).max(5_000) })
+  .object({
+    ...storeFields,
+    answer: z.string().min(1).max(5_000),
+    shared: z.boolean().optional().openapi({
+      description:
+        "Show the question and answer to everyone in the room who may open the document, without who asked. Left out keeps the current choice.",
+    }),
+  })
   .openapi("AnswerDataRoomQuestionRequest");
 
 export const setDataRoomOrderRequestSchema = z
@@ -332,6 +399,7 @@ export const dataRoomViewSchema = z
     state: z.enum(["in", "out", "closed", "expired"]),
     title: z.string(),
     welcomeNote: z.union([z.string(), z.null()]),
+    company: z.union([dataRoomCompanySchema, z.null()]),
     hasLogo: z.boolean(),
     allowDownload: z.boolean(),
     watermark: z.boolean(),

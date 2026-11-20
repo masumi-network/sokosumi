@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getHistoryMock, pushMock } = vi.hoisted(() => ({
@@ -58,6 +58,15 @@ const labels = {
   filesGroup: "Files",
   filesSeeAll: "See all files",
   filesFilenameMatch: "Filename match",
+  peopleGroup: "People",
+  copyEmail: (email: string) => `Copy ${email}`,
+  emailCopied: "Email copied",
+  emailCopyFailed: "Failed to copy email",
+  mentionInTask: (name: string) => `Mention ${name} in a new task`,
+  tagsGroup: "Tags",
+  tagTasksGroup: (tag: string) => `Tasks tagged ${tag}`,
+  tagsError: "Couldn't load tags",
+  tagTasksError: "Couldn't load these tasks",
 };
 
 function createTaskItem(id: string, title: string): HistoryItem {
@@ -124,6 +133,128 @@ describe("HistorySearchDialog", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  describe("results height under the on-screen keyboard", () => {
+    let phone = true;
+    const viewport = Object.assign(new EventTarget(), {
+      height: 300,
+      offsetTop: 0,
+    });
+
+    beforeEach(() => {
+      phone = true;
+      viewport.height = 300;
+      vi.stubGlobal("visualViewport", viewport);
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        matches: query === "(width < 40rem)" && phone,
+      }));
+      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+        top: 80,
+      } as DOMRect);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    function renderList() {
+      renderWithQuery(
+        <HistorySearchDialog
+          open
+          onOpenChange={vi.fn()}
+          activeOrganizationId={null}
+          labels={labels}
+        />,
+      );
+      const dialog = screen.getByRole("dialog");
+      expect(dialog.className).toMatch(/max-sm:top-/);
+      return dialog.querySelector<HTMLElement>("[cmdk-list]");
+    }
+
+    function resizeTo(height: number) {
+      viewport.height = height;
+      act(() => {
+        viewport.dispatchEvent(new Event("resize"));
+      });
+    }
+
+    it("ends the list above the keyboard on phones", () => {
+      const list = renderList();
+      // 300px visible, list starts at 80px, 8px gap above the keyboard.
+      expect(list?.style.maxHeight).toBe("212px");
+
+      // Keyboard closes: back to the usual 300px cap.
+      resizeTo(812);
+      expect(list?.style.maxHeight).toBe("300px");
+    });
+
+    it("never grows past the visible space, however little is left", () => {
+      viewport.height = 145;
+      const list = renderList();
+
+      expect(list?.style.maxHeight).toBe("57px");
+    });
+
+    it("leaves the list alone outside the phone layout", () => {
+      phone = false;
+      const list = renderList();
+
+      expect(list?.style.maxHeight).toBe("");
+
+      // Narrowing to the phone layout starts tracking the keyboard.
+      phone = true;
+      resizeTo(300);
+      expect(list?.style.maxHeight).toBe("212px");
+    });
+  });
+
+  describe("focus when search closes", () => {
+    function ControlledDialog({
+      onCloseAutoFocus,
+    }: {
+      onCloseAutoFocus: (event: Event) => void;
+    }) {
+      const [open, setOpen] = useState(true);
+      return (
+        <HistorySearchDialog
+          open={open}
+          onOpenChange={setOpen}
+          onCloseAutoFocus={onCloseAutoFocus}
+          activeOrganizationId={null}
+          labels={labels}
+        />
+      );
+    }
+
+    it("returns focus to the opener when dismissed", async () => {
+      const onCloseAutoFocus = vi.fn();
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime.bind(vi),
+      });
+      renderWithQuery(<ControlledDialog onCloseAutoFocus={onCloseAutoFocus} />);
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => expect(onCloseAutoFocus).toHaveBeenCalledTimes(1));
+    });
+
+    it("leaves focus to the new page when a result navigates", async () => {
+      const onCloseAutoFocus = vi.fn();
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime.bind(vi),
+      });
+      renderWithQuery(<ControlledDialog onCloseAutoFocus={onCloseAutoFocus} />);
+
+      await user.click(await screen.findByText("Old query result"));
+
+      expect(pushMock).toHaveBeenCalled();
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+      expect(onCloseAutoFocus).not.toHaveBeenCalled();
+    });
   });
 
   it("requests owned scope for organization users", async () => {

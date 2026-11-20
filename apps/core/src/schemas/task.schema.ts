@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/database";
 import { calendarDateSchema, isDesignMdBlobUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime.js";
-import { taskTagsSchema } from "@/helpers/task-tags";
+import { taskTagIdSchema, taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
@@ -24,6 +24,7 @@ import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { projectSummarySchema } from "@/schemas/project.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
 import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
+import { workspaceTagColorFields } from "@/schemas/tag-color.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
@@ -104,6 +105,20 @@ export const taskParticipantSchema = z
     }),
   })
   .openapi("TaskParticipant");
+
+export const taskFollowerSchema = z
+  .object({
+    user: userSummarySchema,
+    followedAt: dateTimeSchema.openapi({
+      description: "When this person started following the Task.",
+      example: "2026-09-24T12:00:00.000Z",
+    }),
+  })
+  .openapi("TaskFollower");
+
+export const taskFollowersResponseSchema = z
+  .object({ followers: z.array(taskFollowerSchema) })
+  .openapi("TaskFollowers");
 
 const taskEventActorSchema = z
   .discriminatedUnion("type", [
@@ -209,6 +224,33 @@ const taskAssigneeSchema = z
   ])
   .openapi("TaskAssignee");
 
+const workspaceTaskTag = z.object({
+  id: z.uuid(),
+  displayName: z.string(),
+  ...workspaceTagColorFields,
+});
+
+export const dismissedTopicIdsSchema = z
+  .array(taskTagIdSchema)
+  .optional()
+  .openapi({
+    description:
+      "Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.",
+  });
+
+export const dismissedWorkspaceTagIdsSchema = z
+  .array(z.uuid())
+  .optional()
+  .openapi({
+    description:
+      "Workspace tags that Jev should stop suggesting or adding to this Task.",
+  });
+
+export const taskWorkspaceTagIdsSchema = z.array(z.uuid()).optional().openapi({
+  description:
+    "Workspace tag IDs to assign. An empty array clears all workspace tags.",
+});
+
 const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
@@ -286,6 +328,15 @@ const taskBaseSchema = z.object({
       "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
   tags: taskTagsSchema.optional(),
+  workspaceTags: z
+    .array(
+      workspaceTaskTag.extend({
+        source: z.enum(["manual", "jev"]).optional(),
+        taskTopicId: taskTagIdSchema.optional(),
+      }),
+    )
+    .optional(),
+  workspaceTagSuggestions: z.array(workspaceTaskTag).optional(),
   number: z.number().int().positive().nullable().openapi({
     example: 123,
     description:
@@ -332,6 +383,26 @@ const taskBaseSchema = z.object({
       "The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.",
     example: "2026-11-20",
   }),
+  parentTaskId: z.string().nullable().openapi({
+    description:
+      "The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.",
+    example: null,
+  }),
+  position: z.number().nullable().openapi({
+    description:
+      "Order among the parent's sub-tasks, ascending. Null when parentTaskId is null.",
+    example: null,
+  }),
+  subtaskProgress: z
+    .object({
+      completed: z.number().int().nonnegative(),
+      total: z.number().int().nonnegative(),
+    })
+    .openapi("TaskSubtaskProgress", {
+      description:
+        "Direct, non-archived sub-tasks: how many are COMPLETED, and how many there are.",
+      example: { completed: 3, total: 5 },
+    }),
   scheduleId: z.string().uuid().nullable().openapi({
     description:
       "Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.",
@@ -357,6 +428,32 @@ const taskListItemSchema = taskBaseSchema
       description:
         "When the Task last changed status, or its creation time if it never did.",
     }),
+    // Optional on the wire: only a person has mentions, and a Web build
+    // that reaches a Core without the field (deploy order) reads none.
+    hasUnansweredMention: z.boolean().optional().openapi({
+      example: false,
+      description:
+        "True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.",
+    }),
+    // Optional on the wire for the same deploy-order reason, and because
+    // only people get it.
+    openSubtasks: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            identifier: z.string().nullable(),
+            name: z.string(),
+            status: taskStatusSchema,
+          })
+          .openapi("TaskOpenSubtask"),
+      )
+      .optional()
+      .openapi({
+        example: [],
+        description:
+          "The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.",
+      }),
   })
   .openapi("TaskListItem");
 
@@ -370,10 +467,51 @@ export const taskSchema = taskBaseSchema
     // Mirrors `jobSchema.share`.
     share: z.union([taskShareSchema, z.null()]).openapi({ example: null }),
     links: taskLinksSchema.openapi({ example: [] }),
+    // Optional on the wire: a Web build that reaches a Core without it
+    // (deploy order) reads no followers instead of failing the page.
+    followers: z.array(taskFollowerSchema).optional().openapi({
+      example: [],
+      description:
+        "People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.",
+    }),
     files: z.array(taskFileSchema).openapi({
       example: [],
       description: "Files uploaded to this task (newest first).",
     }),
+    ancestors: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            identifier: z.string().nullable(),
+            name: z.string(),
+            status: taskStatusSchema,
+          })
+          .openapi("TaskAncestor"),
+      )
+      .optional()
+      .openapi({
+        example: [],
+        description:
+          "For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.",
+      }),
+    seoAudit: z
+      .union([
+        z
+          .object({
+            auditId: z.string().uuid().nullable(),
+            projectId: z.string().uuid().nullable(),
+            resultAvailable: z.boolean().optional(),
+          })
+          .openapi("TaskSeoAudit"),
+        z.null(),
+      ])
+      .optional()
+      .openapi({
+        example: null,
+        description:
+          "The SEO page of an SEO analysis Task: its audit (auditId, with the audit's Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.",
+      }),
     selectableStatuses: z.array(taskStatusSchema).openapi({
       example: [TaskStatus.DRAFT, TaskStatus.RUNNING, TaskStatus.COMPLETED],
       description:

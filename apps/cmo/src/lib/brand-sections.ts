@@ -35,6 +35,11 @@ export function companyUrl(
   return (exact ?? close)?.url;
 }
 
+/** The owner asked Cuso to fix this section and he has not yet. */
+export function fixPending(section: BrandSection | undefined): boolean {
+  return Boolean(section?.fix && !section.fix.fixed);
+}
+
 export function brandProfile(brain: BrandBrain): BrandProfile {
   return (brain.profile as BrandProfile | undefined) ?? {};
 }
@@ -121,14 +126,6 @@ export function openQuestions(
   return BRAND_GROUPS.flatMap((group) => group.keys).flatMap((key) =>
     (profile[key]?.openQuestions ?? []).map((question) => ({ key, question })),
   );
-}
-
-/** "2026-10" or "2026-10-14" → "Oct 2026". */
-export function formatAsOf(asOf: string): string {
-  const [year, month] = asOf.split("-");
-  const date = new Date(Number(year), Number(month) - 1, 1);
-  if (Number.isNaN(date.getTime())) return asOf;
-  return date.toLocaleDateString("en", { month: "short", year: "numeric" });
 }
 
 export function sourceHost(url: string): string {

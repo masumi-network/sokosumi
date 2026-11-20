@@ -34,20 +34,38 @@ function CommandDialog({
   title = "Command Palette",
   description = "Search for a command to run...",
   children,
+  contentProps,
   commandProps,
+  onCloseAutoFocus,
+  showHeader = false,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
+  /** Shows the title and description; otherwise only screen readers get them. */
+  showHeader?: boolean
   commandProps?: React.ComponentProps<typeof CommandPrimitive>
+  /** Extra `DialogContent` props; close focus goes through `onCloseAutoFocus`. */
+  contentProps?: Omit<
+    React.ComponentProps<typeof DialogContent>,
+    "onCloseAutoFocus"
+  >
+  onCloseAutoFocus?: React.ComponentProps<typeof DialogContent>["onCloseAutoFocus"]
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
-      <DialogContent className="overflow-hidden p-0">
+      <DialogContent
+        {...contentProps}
+        className={cn("overflow-hidden p-0", contentProps?.className)}
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
+        {/* Inside the content, so a closed dialog leaves no heading behind. */}
+        <DialogHeader
+          className={showHeader ? "px-4 pt-4 pr-12 text-left" : "sr-only"}
+        >
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
         <Command
           className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:size-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]>svg]:size-4"
           {...commandProps}

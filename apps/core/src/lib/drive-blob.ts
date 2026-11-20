@@ -6,18 +6,17 @@ import {
   get,
   type HeadBlobResult,
   head,
-  issueSignedToken,
   type ListBlobResultBlob,
   list,
   type PutBlobResult,
   type PutCommandOptions,
-  presignUrl,
   put,
   rename,
 } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { serviceUnavailable } from "@/helpers/error";
+import { privateBlobReadUrl } from "@/lib/blob-read-url";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -233,20 +232,7 @@ export async function driveReadUrl(
   if (!meta) throw new BlobNotFoundError();
   if (meta.access === "public") return meta.url;
   const store = requirePrivateStore();
-  const validUntil = Date.now() + validMs;
-  const signedToken = await issueSignedToken({
-    token: store.token,
-    pathname,
-    operations: ["get"],
-    validUntil,
-  });
-  const { presignedUrl } = await presignUrl(signedToken, {
-    operation: "get",
-    pathname,
-    access: "private",
-    validUntil,
-  });
-  return presignedUrl;
+  return privateBlobReadUrl(pathname, store.token, validMs);
 }
 
 export async function driveExists(pathname: string): Promise<boolean> {

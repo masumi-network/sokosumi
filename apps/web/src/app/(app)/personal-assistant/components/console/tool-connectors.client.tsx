@@ -4,10 +4,13 @@ import type {
   SokoBotIntegrationCatalogEntry,
   SokoBotIntegrations,
 } from "@sokosumi/core-client";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronDown, Search } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, Loader2 } from "lucide-react";
+import { useFormatter, useNow, useTranslations } from "next-intl";
+import { useContext, useEffect, useRef, useState } from "react";
+import { LoadErrorState } from "@/components/common/load-error-state";
+import { PageListSearchContext } from "@/components/page-list-search";
+import { PageSearchField } from "@/components/page-search-field";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +23,7 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
-import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
 import {
@@ -35,6 +38,8 @@ const POPULAR_SHOWN = 6;
 /** A phone stacks one per row, so it shows fewer. */
 const POPULAR_SHOWN_ON_PHONE = 3;
 const SEARCH_DELAY_MS = 250;
+/** `searchSokoBotIntegrationCatalogAction` refuses a longer search. */
+const SEARCH_MAX_LENGTH = 100;
 
 interface Connector {
   provider: string;
@@ -45,25 +50,49 @@ interface Connector {
   hiddenOnPhone: boolean;
 }
 
-/** Composio's apps for a search; the empty search is the most used ones. */
+/**
+ * Composio's apps for a search; the empty search is the most used ones. Each
+ * search keeps its own answer, so a slow one never lands on a newer search.
+ * `phase` is about what is typed now: an older or stale answer never stands
+ * in for it, and a failed search stays failed while Try again runs.
+ */
 function useCatalog(query: string, enabled: boolean) {
   const [debounced, setDebounced] = useState(query);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query), SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
   }, [query]);
-  return useQuery({
+  const catalog = useQuery({
     queryKey: ["soko-bot-integration-catalog", debounced.trim()],
     queryFn: async (): Promise<SokoBotIntegrationCatalogEntry[]> => {
       const result = await searchSokoBotIntegrationCatalogAction({
         query: debounced.trim(),
       });
-      return result.ok ? result.value : [];
+      // A failed search is not an empty one; Try again is the retry.
+      if (!result.ok) throw new Error("Catalog search failed");
+      return result.value;
     },
     enabled,
-    placeholderData: keepPreviousData,
+    retry: false,
+    refetchOnWindowFocus: false,
     staleTime: 5 * 60_000,
   });
+  // Running or paused offline: either way no answer is in yet.
+  const inFlight = catalog.fetchStatus !== "idle";
+  // A retry with no answer yet puts the query back to pending; its last
+  // outcome is still the failure.
+  const failed =
+    catalog.isError ||
+    (inFlight && catalog.errorUpdatedAt > catalog.dataUpdatedAt);
+  const phase: "searching" | "failed" | "done" =
+    query.trim() !== debounced.trim()
+      ? "searching"
+      : failed
+        ? "failed"
+        : inFlight
+          ? "searching"
+          : "done";
+  return { ...catalog, inFlight, phase };
 }
 
 /**
@@ -84,8 +113,18 @@ export function ToolConnectors({
 }) {
   const t = useTranslations("App.SokoBot.Integrations");
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const { busy, connect, disconnect } = useIntegrationActions();
-  const [query, setQuery] = useState(focusProvider ?? "");
+  // A connect link's search obeys the same limit as a typed one.
+  const linkedQuery = (focusProvider ?? "").slice(0, SEARCH_MAX_LENGTH);
+  const [localQuery, setLocalQuery] = useState(linkedQuery);
+  const pageSearch = useContext(PageListSearchContext);
+  const setPageQuery = pageSearch?.setQuery;
+  const query = (pageSearch?.query ?? localQuery).slice(0, SEARCH_MAX_LENGTH);
+  useEffect(() => {
+    if (linkedQuery && !readOnly && integrations.configured)
+      setPageQuery?.(linkedQuery);
+  }, [linkedQuery, readOnly, integrations.configured, setPageQuery]);
   const catalog = useCatalog(query, !readOnly);
   const focused = useRef<HTMLLIElement>(null);
   // A connect link never searches on a read-only bot.
@@ -116,7 +155,7 @@ export function ToolConnectors({
       name: integration?.name ?? entry.name,
       logoUrl: integration?.logoUrl ?? entry.logoUrl,
       caption: integration
-        ? describeIntegration(integration, t, format)
+        ? describeIntegration(integration, t, format, now)
         : (entry.description ?? t("kindsGeneric")),
       integration,
       hiddenOnPhone: !searching && index >= POPULAR_SHOWN_ON_PHONE,
@@ -129,7 +168,7 @@ export function ToolConnectors({
           provider: integration.provider,
           name: integration.name,
           logoUrl: integration.logoUrl,
-          caption: describeIntegration(integration, t, format),
+          caption: describeIntegration(integration, t, format, now),
           integration,
           hiddenOnPhone: false,
         })),
@@ -141,24 +180,16 @@ export function ToolConnectors({
 
   return (
     <div className="space-y-3">
-      {readOnly ? null : (
-        <div className="relative">
-          <Search
-            aria-hidden
-            className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-          />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("searchPlaceholder")}
-            aria-label={t("searchPlaceholder")}
-            className="ps-9"
-          />
-        </div>
+      {!pageSearch && !readOnly && (
+        <PageSearchField
+          maxLength={SEARCH_MAX_LENGTH}
+          value={localQuery}
+          onValueChange={setLocalQuery}
+          placeholder={t("searchPlaceholder")}
+        />
       )}
-      {searching && catalog.data?.length === 0 && !catalog.isFetching ? (
-        <p className="text-muted-foreground px-1 text-sm">{t("noResults")}</p>
+      {searching && (catalog.phase !== "done" || !catalog.data?.length) ? (
+        <SearchOutcome query={query.trim()} catalog={catalog} />
       ) : (
         <ul
           className={cn(
@@ -210,6 +241,90 @@ export function ToolConnectors({
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** A search with no apps to list: still running, failed, or found none. */
+function SearchOutcome({
+  query,
+  catalog,
+}: {
+  query: string;
+  catalog: ReturnType<typeof useCatalog>;
+}) {
+  const t = useTranslations("App.SokoBot.Integrations");
+  if (catalog.phase === "searching") return <SearchPlaceholder query={query} />;
+  if (catalog.phase === "failed")
+    return (
+      <LoadErrorState
+        data-testid="app-search-error"
+        description={t("searchFailedHelp")}
+        retrying={catalog.inFlight}
+        retryLabel={t("tryAgain")}
+        title={t("searchFailed")}
+        variant="banner"
+        // Try again stays mounted and busy while it runs, and through another
+        // failure. Results replace it without moving focus on purpose: the
+        // browser drops focus to the page and the next Tab continues from
+        // where the button was, which never pulls a user who moved on back.
+        onRetry={() => void catalog.refetch()}
+      />
+    );
+  return (
+    <p className="text-muted-foreground px-1 text-sm" role="status">
+      {t("noResults")}
+    </p>
+  );
+}
+
+/** The search for `query` is running: cards the size of the answer's. */
+function SearchPlaceholder({ query }: { query: string }) {
+  const t = useTranslations("App.SokoBot.Integrations");
+  return (
+    <div className="space-y-3">
+      <p
+        className="text-muted-foreground flex items-center gap-2 px-1 text-sm"
+        role="status"
+      >
+        <Loader2
+          aria-hidden
+          className="size-4 animate-spin motion-reduce:animate-none"
+        />
+        <span className="min-w-0 truncate">{t("searching", { query })}</span>
+      </p>
+      <ul
+        aria-hidden
+        className={cn(HOLDER_CLASS, "grid gap-2 sm:grid-cols-2 xl:grid-cols-3")}
+      >
+        {Array.from({ length: POPULAR_SHOWN }, (_, index) => (
+          <li
+            key={index}
+            data-testid="connector-placeholder"
+            className={cn(
+              HOLDER_ITEM_CLASS,
+              "flex items-center gap-3 p-3",
+              index >= POPULAR_SHOWN_ON_PHONE && "max-sm:hidden",
+            )}
+          >
+            <Skeleton className="size-9 shrink-0" />
+            {/* A real card's line boxes: name (text-sm) over a two-line
+                caption (text-xs), then its Connect button. */}
+            <div className="min-w-0 flex-1">
+              <div className="flex h-5 items-center">
+                <Skeleton className="h-3.5 w-24" />
+              </div>
+              <div className="flex h-4 items-center">
+                <Skeleton className="h-3 w-full max-w-40" />
+              </div>
+              <div className="flex h-4 items-center">
+                <Skeleton className="h-3 w-3/4 max-w-28" />
+              </div>
+            </div>
+            <Skeleton className="h-8 w-20 shrink-0" />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

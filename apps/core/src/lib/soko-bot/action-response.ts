@@ -1,6 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
+import { getWebAppBaseUrl } from "@/config/env";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 import {
@@ -9,6 +11,8 @@ import {
 } from "./action-receipts";
 
 import {
+  ACTION_LABELS,
+  actionLabel,
   actionTarget,
   attemptedTarget,
   collapseActionLines,
@@ -21,6 +25,8 @@ import {
   UNDONE_TASK_VERBS,
 } from "./action-response-targets";
 
+import { linkCalendarContacts } from "./calendar-contact-links";
+
 /** Turns an owner asked for; the rest the bot started itself. */
 const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
 
@@ -28,102 +34,7 @@ const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
 export const HELD_BACK_REPLY =
   "I held back this reply because it could not be checked just now.";
 
-export const ACTION_LABELS: Record<string, string> = {
-  add_seo_page: "Added SEO page",
-  save_seo_scope: "Saved SEO page group",
-  save_seo_keyword: "Saved SEO keyword",
-  save_seo_competitor: "Saved SEO competitor",
-  import_seo_audit: "Imported SEO audit",
-  request_seo_analysis: "Requested SEO analysis",
-  create_seo_action_task: "Created SEO action task",
-  sync_seo_statistics: "Synced SEO statistics",
-  record_seo_page_change: "Recorded SEO page change",
-
-  newsletter_draft_issue: "Drafted newsletter issue for review",
-  create_newsletter_issue: "Created newsletter draft",
-  update_newsletter_issue: "Updated newsletter issue",
-  delete_newsletter_issue: "Deleted newsletter issue",
-  submit_newsletter_issue: "Submitted newsletter issue for approval",
-  update_newsletter_settings: "Updated newsletter settings",
-  save_announcement: "Saved announcement draft",
-  publish_announcement: "Changed what every user sees",
-  add_newsletter_subscriber: "Added newsletter subscriber",
-  import_newsletter_subscribers: "Imported newsletter subscribers",
-  add_newsletter_subscribers_from_contacts: "Added contacts to the newsletter",
-  update_newsletter_subscriber: "Updated newsletter subscriber",
-  remove_newsletter_subscriber: "Removed newsletter subscriber",
-  manage_reminder: "Updated reminder",
-  create_task: "Created task",
-  create_table: "Created table",
-  write_table_rows: "Updated table rows",
-  update_table_columns: "Updated table columns",
-  update_task: "Updated task",
-  archive_task: "Archived task",
-  assign_task: "Assigned task",
-  reply_to_task: "Added a task comment",
-  update_assigned_task: "Updated assigned task",
-  link_tasks: "Linked tasks",
-  post_chat: "Queued chat message",
-  open_direct_chat: "Queued direct message",
-  ask_coworker: "Asked a Coworker",
-  upsert_contact: "Saved contact",
-  update_contact: "Updated contact",
-  log_contact_interaction: "Logged a contact interaction",
-  merge_contacts: "Merged contacts",
-  manage_contact_lists: "Updated contact list",
-  find_people: "Found people",
-  enrich_contact: "Enriched contact",
-  create_project: "Created project",
-  update_project: "Updated project",
-  create_schedule: "Configured schedule",
-  update_schedule: "Updated schedule",
-  delete_schedule: "Deleted schedule",
-  update_memory: "Updated memory",
-  hire_agent: "Hired agent",
-  provide_job_input: "Submitted job input",
-  run_integration_tool: "Integration acknowledged operation",
-  upload_file: "Uploaded file",
-  generate_voiceover: "Made voice-over",
-  move_file: "Moved file",
-  delete_file: "Deleted file",
-  update_emails: "Updated mail",
-  draft_email: "Drafted email",
-  send_email_draft: "Sent email",
-  save_email_attachment: "Saved email attachment",
-  install_skill: "Installed skill",
-  remove_skill: "Removed skill",
-  generate_image: "Started image",
-  generate_video: "Started video",
-  create_social_post: "Created social post",
-  update_social_post: "Updated social post",
-  schedule_social_post: "Scheduled social post",
-  cancel_social_post: "Canceled social post",
-  publish_social_post: "Published social post",
-  create_ad_campaign: "Created paused ad campaign",
-  update_ad_campaign: "Updated ad campaign",
-  edit_ad_campaign: "Edited ad campaign",
-  // No link: the campaign is gone.
-  delete_ad_campaign: "Deleted ad campaign",
-};
-
-/** A comment that also changed the status says which change it was. */
-function actionLabel(call: { capability: string; result?: unknown }): string {
-  const reply = z
-    .object({ statusChanged: z.literal(true), status: z.string() })
-    .safeParse(call.result);
-  if (call.capability === "reply_to_task" && reply.success)
-    return reply.data.status === "CANCELED"
-      ? "Canceled task"
-      : reply.data.status === "COMPLETED"
-        ? "Completed task"
-        : "Resumed task";
-  if (
-    call.capability === "upload_file" &&
-    z.object({ replaced: z.literal(true) }).safeParse(call.result).success
-  )
-    return "Updated file";
-  return ACTION_LABELS[call.capability] ?? call.capability;
-}
+export { ACTION_LABELS };
 
 const QUESTIONS = {
   TARGET: "Which task or item do you mean?",
@@ -337,11 +248,25 @@ function describeRead(capability: string, value: unknown): string[] {
  */
 const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
 
-function inputCovers(later: unknown, earlier: unknown): boolean {
+/**
+ * A talking video refused for its price is made again with a shorter script,
+ * as the refusal asks: the same video for the owner.
+ */
+const REWRITTEN_KEYS: Record<string, Set<string>> = {
+  generate_talking_video: new Set(["script", "maxCredits"]),
+};
+
+function inputCovers(
+  later: unknown,
+  earlier: unknown,
+  capability: string,
+): boolean {
   if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  const rewritten = REWRITTEN_KEYS[capability];
   return Object.entries(earlier).every(
     ([key, value]) =>
       FILE_NAMING_KEYS.has(key) ||
+      rewritten?.has(key) ||
       JSON.stringify(later[key]) === JSON.stringify(value),
   );
 }
@@ -392,10 +317,19 @@ export async function buildActionResponse(
   actionRequested = false,
   narrativeInput?: unknown,
 ) {
-  const calls = await tx.sokoBotToolCall.findMany({
-    where: { turnId, capability: { in: [...ACTION_CAPABILITIES] } },
+  const narrative =
+    parseActionNarrative(narrativeInput) ??
+    parseActionNarrativeText(answerText);
+  const turnCalls = await tx.sokoBotToolCall.findMany({
+    where: {
+      turnId,
+      capability: { in: [...ACTION_CAPABILITIES, "list_calendar_events"] },
+    },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
+  const calls = turnCalls.filter((call) =>
+    ACTION_CAPABILITIES.has(call.capability),
+  );
   const replayIds = calls.flatMap((call) =>
     call.replayedReceiptId ? [call.replayedReceiptId] : [],
   );
@@ -463,7 +397,7 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input)),
+          inputCovers(applied.input, call.input, call.capability)),
     );
   const unfulfilledActions = calls
     .filter(
@@ -538,12 +472,16 @@ export async function buildActionResponse(
   // card does not carry, still follow as lines.
   // One read of the turn serves every question about it below.
   let turnRow:
-    | Promise<{ source: string | null; versionId: string | null } | null>
+    | Promise<{
+        source: string | null;
+        versionId: string | null;
+        parentTurnId: string | null;
+      } | null>
     | undefined;
   const turnInfo = () => {
     turnRow ??= tx.sokoBotTurn.findUnique({
       where: { id: turnId },
-      select: { source: true, versionId: true },
+      select: { source: true, versionId: true, parentTurnId: true },
     });
     return turnRow;
   };
@@ -632,9 +570,6 @@ export async function buildActionResponse(
             : `Couldn't ${verbs[0]} ${what()}.`,
     );
   }
-  const narrative =
-    parseActionNarrative(narrativeInput) ??
-    parseActionNarrativeText(answerText);
   const observations: string[] = [];
   if (narrative?.observationToolCallIds.length) {
     const reads = await tx.sokoBotToolCall.findMany({
@@ -702,12 +637,16 @@ export async function buildActionResponse(
       !question &&
       (narrative?.kind === "SILENT" ||
         isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
-  return {
-    appliedReceiptIds,
-    narrative,
-    observations,
-    unfulfilledActions,
-    answerText: silent
+  // A background run of Cuso's (a follow-up once a video is ready) that
+  // filed its card has delivered: its closing words would be a second
+  // message saying the same.
+  const cardSaysIt =
+    reportedByCard &&
+    !actionText.length &&
+    !question &&
+    Boolean((await turnInfo())?.parentTurnId);
+  const text =
+    silent || cardSaysIt
       ? "Nothing to add."
       : calls.length || narrativeText.length
         ? [
@@ -717,8 +656,27 @@ export async function buildActionResponse(
           ]
             .filter(Boolean)
             .join("\n\n") || "Nothing to add."
-        : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
-          ? "Nothing was changed in this turn."
-          : answerText,
+        : reportedByCard
+          ? // The card says what Cuso did; a line beside it would only repeat
+            // it, or call a delivered video "nothing changed".
+            "Nothing to add."
+          : actionRequested &&
+              !(await cmoSavedRecord(tx, turnId, await isCmo()))
+            ? (await isCmo()) && Boolean((await turnInfo())?.parentTurnId)
+              ? // A follow-up of Cuso's that changed nothing (it fetched a
+                // finished picture) has nothing to tell: CMO's chat already
+                // shows what was made, where he started it.
+                "Nothing to add."
+              : "Nothing was changed in this turn."
+            : answerText;
+  return {
+    appliedReceiptIds,
+    narrative,
+    observations,
+    unfulfilledActions,
+    // Cuso's owner reads this in CMO.xyz, where nothing opens Sokosumi.
+    answerText: (await isCmo())
+      ? withoutSokosumiLinks(text, getWebAppBaseUrl())
+      : linkCalendarContacts(text, turnCalls),
   };
 }

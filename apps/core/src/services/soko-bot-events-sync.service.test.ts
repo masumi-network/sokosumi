@@ -347,6 +347,48 @@ describe("SokoBotEventsSyncService", () => {
     );
   });
 
+  // Another sync started the turn for the same completion first: it drains
+  // it under its own lease. This duplicate observes the existing turn.
+  it("leaves a duplicate start to the sync that won it", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      taskDelegation("a", "READY", "COMPLETED"),
+    ]);
+    startTurnMock.mockResolvedValueOnce({
+      turnId: "turn_event",
+      status: "RUNNING",
+      duplicate: true,
+    });
+
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result).toMatchObject({ woken: 1, failed: 0 });
+    expect(reconcileTurnMock).not.toHaveBeenCalled();
+  });
+
+  // Its own resume or recovery acknowledged the start, so its start result
+  // carries the grant this sync uses to drain the turn it has just recovered.
+  it("drains a duplicate start this call acknowledged itself", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      taskDelegation("a", "READY", "COMPLETED"),
+    ]);
+    startTurnMock.mockResolvedValueOnce({
+      turnId: "turn_event",
+      status: "RUNNING",
+      duplicate: true,
+      reconciliationLeaseToken: "lease",
+    });
+
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+
+    expect(reconcileTurnMock).toHaveBeenCalledWith(
+      "turn_event",
+      input.abortSignal,
+      "lease",
+    );
+  });
+
   it("leaves a running background run's own Tasks to the run", async () => {
     delegationFindManyMock.mockResolvedValue([
       {

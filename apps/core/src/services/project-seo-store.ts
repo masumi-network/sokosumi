@@ -5,6 +5,7 @@ import type { Prisma } from "@sokosumi/database";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { badRequest, notFound } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
 import { requireScopedProject } from "@/services/project-social-connections.service";
@@ -83,7 +84,12 @@ export async function requireSeoOwner(
   await requireSeoWorkspace(actor, client);
   if (actor.owner.kind === "audit") {
     const audit = await client.seoAudit.findFirst({
-      where: { id: actor.owner.id, workspaceId: actor.workspaceId },
+      where: {
+        id: actor.owner.id,
+        workspaceId: actor.workspaceId,
+        deletedAt: null,
+        archivedAt: null,
+      },
       select: { id: true, projectId: true, name: true },
     });
     if (!audit) throw notFound("SEO audit not found");
@@ -127,7 +133,7 @@ export async function requireLockedSeoOwner(
   client: Prisma.TransactionClient,
   actor: SeoActor,
   requireOpen = true,
-): Promise<void> {
+) {
   const projectIds = actor.owner.kind === "project" ? [actor.owner.id] : [];
   if (
     !(await lockCalendarScope(
@@ -140,7 +146,12 @@ export async function requireLockedSeoOwner(
     throw notFound("SEO workspace not found");
   if (actor.owner.kind === "audit") {
     const audit = await client.seoAudit.findFirst({
-      where: { id: actor.owner.id, workspaceId: actor.workspaceId },
+      where: {
+        id: actor.owner.id,
+        workspaceId: actor.workspaceId,
+        deletedAt: null,
+        archivedAt: null,
+      },
       select: { projectId: true },
     });
     if (!audit) throw notFound("SEO audit not found");
@@ -151,12 +162,12 @@ export async function requireLockedSeoOwner(
       throw notFound("Linked Project not found");
     const rows = await client.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM "seo_audit"
-      WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid
+      WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid AND "deletedAt" IS NULL AND "archivedAt" IS NULL
       FOR UPDATE
     `;
     if (!rows.length) throw notFound("SEO audit not found");
   }
-  await requireSeoOwner(actor, client, requireOpen);
+  return requireSeoOwner(actor, client, requireOpen);
 }
 export async function canReadPrivateSeoMetrics(
   actor: SeoActor,
@@ -175,6 +186,18 @@ export async function canReadPrivateSeoMetrics(
     },
     select: { id: true },
   }));
+}
+/** Use the same human-private or public-only scope for a stored Task link as for its Task. */
+export function seoLinkedTaskWhere(
+  actor: SeoActor,
+  ownerPrivateAccess: boolean,
+): Prisma.TaskWhereInput {
+  return {
+    workspaceId: actor.workspaceId,
+    ...(ownerPrivateAccess
+      ? buildHumanTaskVisibilityWhere(actor.userId)
+      : { visibility: "PUBLIC" as const }),
+  };
 }
 export interface SeoMutationHooks {
   authorize?: (tx: Prisma.TransactionClient) => Promise<void>;

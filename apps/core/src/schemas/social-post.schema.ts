@@ -6,12 +6,12 @@ import {
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
+  SOCIAL_POST_THREAD_MAX_PARTS,
   type SocialPostProvider,
   socialPostTextLength,
   X_PREMIUM_TEXT_LIMIT,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { SOCIAL_POST_THREAD_MAX_PARTS } from "@/helpers/social-post-thread";
 import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
@@ -85,6 +85,7 @@ const socialPostFirstCommentSchema = z
 
 const socialPostMediaFileSchema = z.object({
   ...driveFileRefShape,
+  aiGenerated: z.boolean().optional(),
   size: z.number().int().min(0).openapi({ example: 240000 }),
   mimeType: z.string().min(1).openapi({ example: "image/png" }),
   kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),
@@ -182,6 +183,7 @@ export const socialPostSocialConnectionSchema = z
     avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
     subscriptionType: projectSocialConnectionSchema.shape.subscriptionType,
     status: projectSocialConnectionSchema.shape.status,
+    personalProfile: projectSocialConnectionSchema.shape.personalProfile,
   })
   .openapi("SocialPostSocialConnection");
 
@@ -390,10 +392,23 @@ export const rejectSocialPostRequestSchema = z
   })
   .openapi("RejectSocialPostRequest");
 
+export const tikTokPostSettingsSchema = z
+  .object({
+    privacyLevel: z.enum(["SELF_ONLY", "PUBLIC_TO_EVERYONE"]),
+    allowComment: z.boolean(),
+    allowDuet: z.boolean(),
+    allowStitch: z.boolean(),
+    promotesOwnBrand: z.boolean(),
+    acceptedMusicUsage: z.literal(true),
+    previewConsent: z.literal(true).optional(),
+  })
+  .openapi("TikTokPostSettings");
+
 export const publishSocialPostRequestSchema = z
   .object({
     revision: socialPostRevisionSchema,
   })
+  .extend({ tikTokSettings: tikTokPostSettingsSchema.optional() })
   .openapi("PublishSocialPostRequest");
 
 export const resumeSocialPostThreadRequestSchema = z

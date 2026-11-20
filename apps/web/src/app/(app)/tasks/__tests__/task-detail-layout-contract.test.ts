@@ -86,7 +86,7 @@ describe("task detail layout contract", () => {
   });
 
   it("sidebar lists Properties first and the tags section below it", () => {
-    const view = readTasks("components/task-detail-view.tsx");
+    const view = readTasks("components/task-detail-metadata-section.tsx");
 
     expect(view.indexOf("<TaskTagSection")).toBeGreaterThan(
       view.indexOf("<TaskMetadata"),

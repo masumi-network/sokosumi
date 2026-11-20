@@ -14,6 +14,7 @@ import {
   type CusoTarget,
   requireCuso,
 } from "@/services/cmo-cuso.service";
+import { testCopySourceBotId } from "@/services/cmo-test-copy.service";
 
 /**
  * Reads once what the site runs on, onto the Project next to its website, so
@@ -52,7 +53,8 @@ export async function listCmoMeasurement(
 ): Promise<CmoMeasurementStatus[]> {
   const rows = await prisma.sokoBotIntegration.findMany({
     where: {
-      sokoBotId,
+      // A test copy reads its source's accounts (ADR 0073).
+      sokoBotId: (await testCopySourceBotId(sokoBotId)) ?? sokoBotId,
       provider: { in: CMO_MEASUREMENT_SOURCES.map((source) => source.id) },
     },
     select: { provider: true, status: true },
@@ -90,8 +92,13 @@ export async function connectCmoMeasurement(
   const cuso = await requireCuso(input);
   const project = await prisma.project.findUnique({
     where: { id: cuso.projectId },
-    select: { sitePlatform: true },
+    select: { sitePlatform: true, testCopyOfProjectId: true },
   });
+  if (project?.testCopyOfProjectId) {
+    throw new CmoConflictError(
+      "A test copy uses the accounts of the Cuso it copies",
+    );
+  }
   if (input.provider === SHOPIFY && project?.sitePlatform !== SHOPIFY) {
     throw new CmoConflictError("Shopify measures Shopify shops only");
   }

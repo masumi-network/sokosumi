@@ -6,20 +6,29 @@ import {
   renderStudioHeadline,
   type StudioHeadlineLook,
 } from "./studio-ad-headline";
+import { usesExactFontOverlay } from "./studio-lettering";
 import type { PlacementRatio } from "./studio-placements";
-import type { StudioAsset } from "./types";
+import type { StudioAsset, StudioJob } from "./types";
 
 type RenderedHeadline =
   | { key: string; status: "ready"; blob: Blob; url: string }
   | { key: string; status: "error" };
 
 export function useStudioHeadlineImage(
-  { id, projectId }: Pick<StudioAsset, "id" | "projectId">,
+  asset: Pick<StudioAsset, "id" | "projectId" | "lettering">,
   placement: PlacementRatio,
   logo: StudioLogoPosition | undefined,
   headline: string | undefined,
+  jobs: readonly Pick<
+    StudioJob,
+    "parentAssetId" | "lettering" | "status"
+  >[] = [],
   look?: StudioHeadlineLook,
 ) {
+  const { id, projectId } = asset;
+  const overlayHeadline = usesExactFontOverlay(asset, jobs)
+    ? headline
+    : undefined;
   const [result, setResult] = useState<RenderedHeadline | null>(null);
   const [attempt, setAttempt] = useState(0);
   const key = JSON.stringify([
@@ -27,7 +36,7 @@ export function useStudioHeadlineImage(
     projectId,
     placement,
     logo,
-    headline,
+    overlayHeadline,
     look,
     attempt,
   ]);
@@ -37,7 +46,7 @@ export function useStudioHeadlineImage(
     setResult(null);
   }
   useEffect(() => {
-    if (!headline) return;
+    if (!overlayHeadline) return;
     const request = new AbortController();
     let url: string | undefined;
 
@@ -61,15 +70,15 @@ export function useStudioHeadlineImage(
         if (!request.signal.aborted) setResult({ key, status: "error" });
       }
     }
-    void render(headline);
+    void render(overlayHeadline);
     return () => {
       request.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [headline, id, key, logo, placement, projectId, look]);
+  }, [overlayHeadline, id, key, logo, placement, projectId, look]);
 
   return {
-    result: headline && result?.key === key ? result : null,
+    result: overlayHeadline && result?.key === key ? result : null,
     retry: () => setAttempt((value) => value + 1),
   };
 }

@@ -8,7 +8,9 @@ import {
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { driveList } from "@/lib/drive-blob";
+import { recordCoreWarning } from "@/lib/evlog";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { adoptDriveUploadResource } from "@/services/file-catalog.service";
 
 /**
@@ -268,11 +270,24 @@ export async function adoptDriveStoreIfPending(input: {
     // Including the pending check itself. It reads the same database the
     // search reads, so a failure there is unlikely to leave the search
     // working — but "unlikely" is not a reason to let it decide.
-    console.warn("[files] drive store adoption failed; serving the catalog", {
-      workspaceId: input.workspaceId,
-      scope: input.scope,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Blob and database errors here can quote the pathnames of the
+    // person's files, so content-free metadata only.
+    recordCoreWarning(
+      {
+        operation: "files_drive_store_adoption",
+        workspace: { id: input.workspaceId },
+      },
+      {
+        message:
+          "Could not adopt the Drive store; the search served the catalog",
+        why: "Listing or recording the Drive store failed",
+        fix: "Search keeps working from the catalog and the next search retries the adoption. If it keeps failing, look up the error name and code under failure.",
+      },
+      {
+        driveStore: { scope: input.scope },
+        failure: messageSafeErrorFields(error),
+      },
+    );
     return { ran: true, failed: true };
   }
 }

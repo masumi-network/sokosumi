@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   latestSeoMeasurements,
   savedSeoStatistics,
-  seoChangeMarkers,
+  seoChartMarkers,
   seoCheckPeriod,
   seoCoverageIsNews,
   seoDatePreset,
@@ -75,6 +75,22 @@ describe("SEO statistics presentation", () => {
     });
   });
 
+  it("restores the selected cached property with its actual collection date", () => {
+    const original = metric();
+    const cached = {
+      ...original,
+      selectedAt: new Date("2026-10-31T10:00:00Z"),
+    };
+    const later = metric({
+      propertyId: "properties/456",
+      observedAt: new Date("2026-10-30T10:00:00Z"),
+    });
+    expect(latestSeoMeasurements([later, cached])).toEqual([cached]);
+    expect(savedSeoStatistics([later, cached])?.observedAt).toEqual(
+      original.observedAt,
+    );
+  });
+
   it("chooses the Search Console property that holds the page, and guesses nothing on a tie", () => {
     const property = (id: string, name = id) => ({ id, name });
     const page = "https://shop.example.com/boots";
@@ -111,6 +127,21 @@ describe("SEO statistics presentation", () => {
       ]),
     ).toBe("https://shop.example.com/boots");
     expect(choose(["sc-domain:a.com", "sc-domain:b.com"], undefined)).toBe("");
+  });
+
+  it("matches URL-prefix properties by origin and normalized property URL", () => {
+    const choose = (id: string, page: string) =>
+      seoMatchingProperty("search_console", [{ id, name: id }], page);
+    expect(choose("https://example.com", "https://example.com.au/guide")).toBe(
+      "",
+    );
+    for (const id of [
+      "https://EXAMPLE.com/",
+      "https://example.com:443/",
+      "https://example.com",
+    ]) {
+      expect(choose(id, "https://example.com/guide")).toBe(id);
+    }
   });
 
   it("chooses the one Google Analytics property that names the host", () => {
@@ -289,30 +320,71 @@ describe("seoDefaultMetric", () => {
   });
 });
 
-describe("seoChangeMarkers", () => {
-  const item = (kind: "page_change" | "check", at: string, title: string) => ({
+describe("seoChartMarkers", () => {
+  const item = (
+    kind: "page_change" | "check" | "audit",
+    at: string,
+    title: string,
+    observationId: string | null = null,
+  ) => ({
     id: title,
     kind,
     title,
     at: new Date(at),
     pageIds: [],
-    observationId: null,
+    observationId,
     taskId: null,
     status: "recorded",
     detail: "",
   });
 
-  it("marks recorded page changes on their day in the metric's time zone", () => {
-    const timeline = [
-      item("page_change", "2026-10-05T03:00:00Z", "New title"),
-      item("check", "2026-10-05T03:00:00Z", "Check finished"),
-    ];
+  it("marks page changes and audits on their day in the metric's time zone, and leaves routine checks out", () => {
+    const workspace = {
+      timeline: [
+        item("page_change", "2026-10-05T03:00:00Z", "New title"),
+        item("check", "2026-10-05T03:00:00Z", "Check finished", "check-1"),
+        item("audit", "2026-10-08T12:00:00Z", "SEO audit imported", "audit-1"),
+        // An audit still running has no results to mark.
+        item("audit", "2026-10-09T12:00:00Z", "Requested"),
+      ],
+      // The audit read the site two days before its report was saved.
+      observations: [
+        { id: "audit-1", observedAt: new Date("2026-10-06T12:00:00Z") },
+      ],
+      actions: [],
+    } as unknown as Parameters<typeof seoChartMarkers>[0];
     // 03:00 UTC is still the evening before in California.
-    expect(seoChangeMarkers(timeline, "America/Los_Angeles")).toEqual([
-      { date: "2026-10-04", label: "New title" },
+    expect(seoChartMarkers(workspace, "America/Los_Angeles")).toEqual([
+      { date: "2026-10-04", kind: "change", label: "New title" },
+      { date: "2026-10-06", kind: "audit", label: "" },
     ]);
-    expect(seoChangeMarkers(timeline, "not_determined")).toEqual([
-      { date: "2026-10-05", label: "New title" },
+    expect(seoChartMarkers(workspace, "not_determined")[0]).toEqual({
+      date: "2026-10-05",
+      kind: "change",
+      label: "New title",
+    });
+  });
+
+  it("marks the day a Task completed an action and the day a check confirmed it", () => {
+    const action = (change: Record<string, unknown>) => ({
+      title: "Shorten the title",
+      ...change,
+    });
+    const workspace = {
+      timeline: [],
+      observations: [],
+      actions: [
+        action({
+          completedAt: new Date("2026-10-07T09:00:00Z"),
+          verifiedAt: new Date("2026-10-09T09:00:00Z"),
+        }),
+        // Open work has no day to mark yet.
+        action({ title: "Add a description" }),
+      ],
+    } as unknown as Parameters<typeof seoChartMarkers>[0];
+    expect(seoChartMarkers(workspace, "UTC")).toEqual([
+      { date: "2026-10-07", kind: "task", label: "Shorten the title" },
+      { date: "2026-10-09", kind: "verified", label: "Shorten the title" },
     ]);
   });
 });

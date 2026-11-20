@@ -99,6 +99,8 @@ export interface ComposerWysiwygEditorHandle {
   focus: () => void;
   focusAtEnd: () => void;
   insertText: (text: string) => void;
+  /** Add `text` after the whole draft, with a space after a word. */
+  appendText: (text: string) => void;
   /** Remove the last occurrence of `text`; false when it is not in the editor. */
   removeLastText: (text: string) => boolean;
   openMentions: () => void;
@@ -821,6 +823,18 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [handleInput],
   );
 
+  const appendText = useCallback(
+    (text: string) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const draft = serializeEditorText(editor);
+      // No saved caret: insertText puts the caret at the end.
+      savedCaretOffsetRef.current = null;
+      insertText(draft.length === 0 || /\s$/.test(draft) ? text : ` ${text}`);
+    },
+    [insertText],
+  );
+
   const removeLastText = useCallback(
     (text: string) => {
       const editor = editorRef.current;
@@ -1394,6 +1408,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         selection.addRange(range);
       },
       insertText,
+      appendText,
       removeLastText,
       openMentions,
       applyFormat,
@@ -1405,6 +1420,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }),
     [
       applyFormat,
+      appendText,
       insertLink,
       insertText,
       openMentions,

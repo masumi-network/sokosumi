@@ -10,6 +10,7 @@ import {
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS, type CoreApiErrorKind } from "@sokosumi/utils";
 import { conflict } from "@/helpers/error";
+import { postsAsPerson } from "@/helpers/linkedin-person";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccessForUser } from "@/lib/image-studio/access";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
@@ -196,6 +197,7 @@ const CUSO_SELECT = {
       id: true,
       workspaceId: true,
       websiteUrl: true,
+      cmoPendingAdBudget: true,
       workspace: { select: { organizationId: true } },
       brandBrain: {
         select: { body: true, updatedAt: true, confirmedAt: true },
@@ -222,6 +224,27 @@ export interface Cuso {
   brandBrain: Prisma.JsonValue | null;
   brandBrainUpdatedAt: Date | null;
   brandBrainConfirmedAt: Date | null;
+  /** An ad budget the owner set while he was busy, still to plan. */
+  pendingAdBudget?: CmoPendingAdBudget | null;
+}
+
+/** An ad budget set while Cuso was busy: he plans it when his turn ends. */
+export interface CmoPendingAdBudget {
+  monthly: number;
+  currency: string;
+  userId: string;
+}
+
+function pendingAdBudgetOf(
+  value: Prisma.JsonValue | null,
+): CmoPendingAdBudget | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const { monthly, currency, userId } = value as Record<string, unknown>;
+  return typeof monthly === "number" &&
+    typeof currency === "string" &&
+    typeof userId === "string"
+    ? { monthly, currency, userId }
+    : null;
 }
 
 /** Null for a bot without a Project, which `CUSO_BOT_WHERE` never returns. */
@@ -238,6 +261,7 @@ function cusoView({ id, createdAt, project }: CusoRow): Cuso | null {
     brandBrain: project.brandBrain?.body ?? null,
     brandBrainUpdatedAt: project.brandBrain?.updatedAt ?? null,
     brandBrainConfirmedAt: project.brandBrain?.confirmedAt ?? null,
+    pendingAdBudget: pendingAdBudgetOf(project.cmoPendingAdBudget),
   };
 }
 
@@ -421,6 +445,21 @@ export async function startCmoTurn(
 
 export const ONBOARDING_TURN_PREFIX = "cmo:onboarding:";
 
+/** How long a run usually takes; the CMO app's slow copy uses the same. */
+const CMO_USUAL_MS = { research: 7 * 60_000, strategy: 6 * 60_000 } as const;
+
+/**
+ * A run past twice its usual time may be restarted by the founder's Try
+ * again, even while it still makes progress.
+ */
+export function cmoRunIsSlow(
+  kind: keyof typeof CMO_USUAL_MS,
+  startedAt: Date,
+  now: Date,
+): boolean {
+  return now.getTime() - startedAt.getTime() > 2 * CMO_USUAL_MS[kind];
+}
+
 /** Where Cuso's first look at the business stands, for the learning card. */
 export type CmoLearningState = SettledTurnStatus;
 
@@ -490,11 +529,16 @@ export async function listCmoChannels(projectId: string) {
     select: {
       id: true,
       provider: true,
+      externalAccountId: true,
       externalHandle: true,
       displayName: true,
       status: true,
     },
   });
   // Project Social stores "active"; CMO reads statuses upper case.
-  return rows.map((row) => ({ ...row, status: row.status.toUpperCase() }));
+  return rows.map(({ externalAccountId, ...row }) => ({
+    ...row,
+    status: row.status.toUpperCase(),
+    personalProfile: postsAsPerson(row.provider, externalAccountId),
+  }));
 }

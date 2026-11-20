@@ -15,11 +15,11 @@ import {
   CloudUpload,
   Copy,
   ExternalLink,
+  ImageOff,
   Info,
   Link2,
   Loader2,
   RotateCw,
-  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -85,14 +85,14 @@ import {
 } from "@/lib/constants/organization-logo";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 import {
-  cleanupOrganizationLogoBestEffort,
-  getOrganizationLogoUploadErrorMessage,
-  uploadOrganizationLogoDirect,
-} from "@/lib/utils/organization-logo-upload.client";
-import {
   ClientTimeoutError,
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
+import {
+  cleanupOwnedLogoBestEffort,
+  getUserFileUploadErrorMessage,
+  uploadOwnedLogoDirect,
+} from "@/lib/utils/user-file-upload.client";
 import { sweepWorkspace } from "@/lib/workspace-sweep";
 
 const TOTAL_STEPS = 4;
@@ -358,7 +358,11 @@ export function CreateOrganizationWizard({
         data: { logo: nextLogo },
       });
       if (previousLogo && previousLogo !== nextLogo) {
-        void cleanupOrganizationLogoBestEffort(organizationId, previousLogo);
+        void cleanupOwnedLogoBestEffort(
+          "organization",
+          organizationId,
+          previousLogo,
+        );
       }
     },
     [organizationId],
@@ -380,7 +384,11 @@ export function CreateOrganizationWizard({
             data: { logo: result.value.url },
           });
           if (previousLogo && previousLogo !== result.value.url) {
-            void cleanupOrganizationLogoBestEffort(orgId, previousLogo);
+            void cleanupOwnedLogoBestEffort(
+              "organization",
+              orgId,
+              previousLogo,
+            );
           }
         }
       } catch (error) {
@@ -580,9 +588,14 @@ export function CreateOrganizationWizard({
       const previousLogo = logoUrl;
       try {
         const uploaded = await raceWithTimeout(
-          uploadOrganizationLogoDirect(organizationId, logoFile, {
-            allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
-            maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+          uploadOwnedLogoDirect({
+            kind: "organization",
+            ownerId: organizationId,
+            file: logoFile,
+            options: {
+              allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+              maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+            },
           }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
@@ -593,10 +606,7 @@ export function CreateOrganizationWizard({
         toast.error(
           error instanceof ClientTimeoutError
             ? t("Logo.uploadError")
-            : getOrganizationLogoUploadErrorMessage(
-                error,
-                t("Logo.uploadError"),
-              ),
+            : getUserFileUploadErrorMessage(error, t("Logo.uploadError")),
         );
       } finally {
         setPendingLogoFiles([]);
@@ -951,7 +961,7 @@ export function CreateOrganizationWizard({
                     </div>
                   ) : brand.status === "failed" ? (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-                      <Sparkles className="text-muted-foreground size-6" />
+                      <ImageOff className="text-muted-foreground size-6" />
                     </div>
                   ) : (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">

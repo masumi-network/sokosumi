@@ -12,6 +12,11 @@ import {
   readConsent,
   writeConsent,
 } from "@/lib/analytics/consent";
+import {
+  authProductName,
+  buildSignedOAuthQueryFromSearchParams,
+  oauthRequestBrand,
+} from "@/lib/auth/auth.utils";
 import { cn } from "@/lib/utils";
 
 const COOKIE_POLICY_URL = "https://www.sokosumi.com/legal/cookie-policy";
@@ -80,8 +85,16 @@ export function CookieBanner() {
   const [expanded, setExpanded] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
+  const [product, setProduct] = useState(() => authProductName(undefined));
 
   useEffect(() => {
+    // A sign-in page opened from another product names that product.
+    const oauthQuery = buildSignedOAuthQueryFromSearchParams(
+      new URLSearchParams(window.location.search),
+    );
+    setProduct(
+      authProductName(oauthQuery ? oauthRequestBrand(oauthQuery) : undefined),
+    );
     const stored = readConsent();
     if (!stored) setVisible(true);
 
@@ -115,9 +128,13 @@ export function CookieBanner() {
       <div className="app-scrollbar bg-background max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border p-5 shadow-lg">
         <p className="text-sm font-medium">{t("title")}</p>
         <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-          {t("body")}{" "}
+          {t("body", { product })}{" "}
           <a
-            href={COOKIE_POLICY_URL}
+            href={
+              product === "CMO.XYZ"
+                ? "https://www.cmo.xyz/privacy#cookies-and-similar-storage"
+                : COOKIE_POLICY_URL
+            }
             target="_blank"
             rel="noreferrer"
             className="text-foreground underline"
@@ -143,7 +160,7 @@ export function CookieBanner() {
             />
             <Category
               title={t("marketingTitle")}
-              body={t("marketingBody")}
+              body={t("marketingBody", { product })}
               checked={marketing}
               onChange={setMarketing}
             />

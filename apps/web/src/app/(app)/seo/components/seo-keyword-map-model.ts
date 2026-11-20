@@ -1,3 +1,5 @@
+import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoAuditName } from "./seo-audit-name";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 
 /** Below this many keywords with both numbers, a map shows no pattern: the list says it all. */
@@ -19,6 +21,15 @@ export interface SeoKeywordPoint {
   x: number;
   /** Top to bottom, 0 to 100: more searches higher, on a log scale. */
   y: number;
+}
+
+export function seoClickGain(clicks: SeoKeywordGroup["clicks"]) {
+  return (
+    clicks && {
+      top10: Math.max(clicks.top10 - clicks.now, 0),
+      top3: Math.max(clicks.top3 - clicks.now, 0),
+    }
+  );
 }
 
 /**
@@ -43,14 +54,9 @@ export function seoKeywordMap(groups: {
   const low = Math.floor(Math.min(...decades));
   // One decade at least: equal volumes still get an axis.
   const high = Math.max(Math.ceil(Math.max(...decades)), low + 1);
-  const gainOf = (clicks: SeoKeywordGroup["clicks"]) =>
-    clicks && {
-      top10: Math.max(clicks.top10 - clicks.now, 0),
-      top3: Math.max(clicks.top3 - clicks.now, 0),
-    };
   const points: SeoKeywordPoint[] = rows.map((row) => ({
     ...row,
-    gain: gainOf(row.group.clicks),
+    gain: seoClickGain(row.group.clicks),
     x: row.difficulty,
     y: 100 - ((Math.log10(row.volume) - low) / (high - low)) * 100,
   }));
@@ -97,4 +103,19 @@ export function seoNearestPoint(
       nearest = { index, distance };
   });
   return (nearest as { index: number } | null)?.index ?? null;
+}
+
+/**
+ * The site a content brief names: the keyword's own page, else the first page in view. "none" where the
+ * workspace has no page, so the brief leaves the site out.
+ */
+export function seoKeywordBriefSite(
+  pageUrl: string | null,
+  workspace: Pick<ProjectSeoWorkspace, "pages" | "scope">,
+): string {
+  const own = pageUrl ? seoAuditName("", pageUrl) : "";
+  const inView = workspace.pages.find((page) =>
+    workspace.scope.pageIds.includes(page.id),
+  )?.url;
+  return own || (inView && seoAuditName("", inView)) || "none";
 }

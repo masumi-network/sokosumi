@@ -1,3 +1,7 @@
+import {
+  creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PRICE,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,20 +14,51 @@ import {
   SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
-import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
-import { marketingStrategyPlanSchema } from "../project-marketing.js";
+import {
+  SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
+} from "../policy.js";
+import {
+  cmoCalendarEntrySchema,
+  marketingStrategyPlanSchema,
+} from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import {
+  CMO_BATCHED_PRODUCTION_SKILL,
+  CMO_PIECE_WRITING_GUIDE,
+  CMO_SKILLS,
+} from "../versions/cmo-skills.js";
+import { cmoV6 } from "../versions/cmo-v6.js";
+import { cmoV7 } from "../versions/cmo-v7.js";
+import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkill,
   getSokoBotVersion,
   SOKO_BOT_VERSIONS,
 } from "../versions/index.js";
+import { v29 } from "../versions/v29.js";
 
 describe("CMO version", () => {
+  it("names no Sokosumi feature in Cuso's own persona, skills and rhythms", () => {
+    // He works in CMO.xyz: what he is told is what he tells the owner.
+    const own = [
+      ...CMO_SOKO_BOT_VERSION_IDS.map((id) =>
+        getSokoBotVersion(id).systemPrompt.replace(v29.systemPrompt, ""),
+      ),
+      JSON.stringify(CMO_SKILLS),
+      JSON.stringify(SOKO_BOT_CMO_SCHEDULES),
+    ]
+      .join("\n")
+      .replaceAll("Speak the founder's language, not Sokosumi's", "");
+    expect(own).toContain("You are Cuso");
+    expect(own.match(/Sokosumi|Content Studio|Soko Bot|\]\(\//g)).toBeNull();
+  });
+
   it("is resolvable but never part of the personal-assistant fleet", () => {
     expect(getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID).profile).toBe("cmo");
     expect(SOKO_BOT_VERSIONS.map((version) => version.id)).not.toContain(
@@ -34,13 +69,122 @@ describe("CMO version", () => {
     );
   });
 
+  it("keeps cmo-v1's strategy skill word for word and gives cmo-v2 the plan in pieces", () => {
+    const v1 = composeSystemPrompt(getSokoBotVersion("cmo-v1"));
+    const v2 = composeSystemPrompt(getSokoBotVersion("cmo-v2"));
+    expect(getSokoBotVersion("cmo-v2").id).toBe("cmo-v2");
+    expect(v1).toContain(
+      "Every entry has approach, pillar, date, time (HH:MM, a sensible slot for that channel's audience), channel, format, title, brief",
+    );
+    expect(v1).not.toMatch(/part patch|weeks two to four are titles/);
+    expect(v2).toMatch(/weeks two to four are titles/);
+    expect(v2).toMatch(/with part patch/);
+    expect(v2).toMatch(/refuses a save that breaks a hard rule/);
+    // Titles-only weeks are still the whole month, and a new cadence moves
+    // the calendar, not just its label.
+    expect(v2).toMatch(
+      /still hold every piece the pace and each channel's cadence call for/,
+    );
+    // ...and only that channel's: a change request once rewrote a newsletter
+    // to win the shares back.
+    expect(v2).toMatch(/changes that channel's entries only/);
+    expect(v2).toMatch(/Leave every other piece as it was/);
+    expect(v2).toMatch(/never by changing a piece the owner did not name/);
+    expect(v2).toMatch(/Never change the mix, the pillars/);
+    expect(v1).not.toMatch(
+      /still hold every piece|that channel's entries only/,
+    );
+    // A new audience reaches every part that names the old one; titles make
+    // their own point; a holiday needs a real reason.
+    expect(v2).toMatch(/A change to the audience or focus rewrites every part/);
+    expect(v2).toMatch(/Every title makes its own point/);
+    expect(v2).toMatch(
+      /only when the business has a real reason for that date/,
+    );
+    // Only the strategy skill differs.
+    const one = getSokoBotVersion("cmo-v1");
+    const two = getSokoBotVersion("cmo-v2");
+    expect(two.systemPrompt).toBe(one.systemPrompt);
+    expect(two.capabilities).toEqual(one.capabilities);
+    expect(two.model).toBe(one.model);
+    expect(two.skills).toEqual(
+      one.skills.map((skill) =>
+        skill === "cmo-brand-brain"
+          ? "cmo-brand-brain-groups"
+          : skill === "cmo-strategy"
+            ? "cmo-strategy-patches"
+            : skill,
+      ),
+    );
+  });
+
+  it("gives Core's month writer only to a Cuso whose production skill calls it", () => {
+    expect(
+      applyVersionCapabilities(getSokoBotVersion("cmo-v6"), ["read_memory"]),
+    ).toContain("write_month_pieces");
+    for (const id of ["cmo-v5", "cmo-v1", DEFAULT_SOKO_BOT_VERSION_ID])
+      expect(
+        applyVersionCapabilities(getSokoBotVersion(id), [
+          "read_memory",
+          "write_month_pieces",
+        ]),
+      ).not.toContain("write_month_pieces");
+  });
+
+  it("keeps cmo-v5's month and has cmo-v6 call the writer first, on the same writing rules", () => {
+    const skillOf = (id: string) =>
+      getSokoBotVersion(id).skills.find((skill) =>
+        skill.startsWith("cmo-production"),
+      );
+    expect(skillOf("cmo-v5")).toBe("cmo-production");
+    expect(skillOf("cmo-v6")).toBe(CMO_BATCHED_PRODUCTION_SKILL);
+    const batched = getSokoBotSkill(CMO_BATCHED_PRODUCTION_SKILL).content;
+    expect(batched).toContain("## Core writes first");
+    expect(batched).toContain("write_month_pieces");
+    const sections = (content: string) =>
+      content.split("\n## ").map((section) => section.split("\n")[0]);
+    // The same sections in the same order, one more first, and an end that
+    // leaves Core's pieces to Jev's review.
+    expect(sections(batched)).toEqual(
+      sections(getSokoBotSkill("cmo-production").content).flatMap((name) =>
+        name === "Before the first piece"
+          ? ["Core writes first", name]
+          : [name],
+      ),
+    );
+    expect(batched).toContain("do not read them back or rewrite them");
+    expect(getSokoBotSkill("cmo-production").content).not.toContain(
+      "do not read them back",
+    );
+    // The writer works from the same copy rules, without the tool steps.
+    expect(CMO_PIECE_WRITING_GUIDE).toContain("## Hooks and copy");
+    expect(CMO_PIECE_WRITING_GUIDE).not.toMatch(
+      /list_project_social_accounts|update_social_post|save_strategy/,
+    );
+  });
+
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
-    expect(applyVersionCapabilities(cmo, ["read_memory"])).toEqual([
-      "read_memory",
-      ...SOKO_BOT_CMO_CAPABILITIES,
-    ]);
+    // Cuso also always carries the competitor tools, routed or not, once.
+    for (const routed of [
+      ["read_memory"] as const,
+      ["read_memory", "check_competitors", "save_competitor_feed"] as const,
+    ])
+      expect(applyVersionCapabilities(cmo, routed)).toEqual([
+        "read_memory",
+        ...SOKO_BOT_CMO_CAPABILITIES,
+        ...SOKO_BOT_COMPETITOR_CAPABILITIES,
+      ]);
+    // Another bot gets them only from its route; Core then asks whether a
+    // Project it works in has the weekly check on.
+    expect(
+      applyVersionCapabilities(assistant, [
+        "read_memory",
+        "check_competitors",
+        "save_competitor_feed",
+      ]),
+    ).toEqual(["read_memory", "check_competitors", "save_competitor_feed"]);
     expect(
       applyVersionCapabilities(assistant, [
         "read_memory",
@@ -58,9 +202,9 @@ describe("CMO version", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
-        "code-tools",
-        "agent-jobs",
-        "ask-coworker-first",
+        "cmo-code-tools",
+        "cmo-agent-jobs",
+        "cmo-ask-coworker",
       ]),
     );
     expect(cmo.capabilities).toEqual(
@@ -81,13 +225,19 @@ describe("CMO version", () => {
     expect(prompt).toContain("When the owner forbids or defers an action");
     expect(prompt).toContain("# You are Cuso");
     expect(prompt).toContain(
-      "Answer in the language of the owner's latest message",
+      "Write to the owner in the language of their latest message in the chat",
+    );
+    expect(prompt).toContain(
+      "Every piece is in it from its title to its last word",
+    );
+    expect(prompt).not.toContain(
+      "is in the language the owner wrote their goal",
     );
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
-        "social-posting-instructions",
-        "long-and-chained-work-follow-ups",
-        "newsletter",
+        "cmo-social-posts",
+        "cmo-long-work",
+        "cmo-newsletter",
       ]),
     );
     expect(cmo.skills).not.toContain("long-work");
@@ -216,6 +366,29 @@ describe("CMO strategy and rhythms", () => {
     expect(strategy.previews).toEqual([]);
   });
 
+  it("keeps a patch record for every entry the calendar holds", () => {
+    // cmo-v3 adds weeks two to four with part patch: 153 of 204 pieces.
+    const entry = (index: number) => ({
+      id: `p${index}`,
+      date: "2026-10-05",
+      channel: "linkedin",
+      title: `Piece ${index}`,
+      format: "post",
+      status: "idea",
+    });
+    const calendar = Array.from({ length: 204 }, (_, index) => entry(index));
+    const strategy = marketingStrategyPlanSchema.parse({
+      month: "2026-10",
+      summary: "Grow LinkedIn reach with founder-led posts.",
+      goals: ["More demo requests"],
+      pillars: ["Product stories"],
+      channels: [],
+      calendar,
+      patched: calendar.slice(51).map(({ id }) => ({ id, was: null })),
+    });
+    expect(strategy.patched).toHaveLength(153);
+  });
+
   it("gives the pillars of an older plan equal shares", () => {
     const pillars = (value: unknown) =>
       marketingStrategyPlanSchema.shape.pillars.parse(value);
@@ -249,12 +422,18 @@ describe("CMO strategy and rhythms", () => {
         ],
       },
     });
-    const saved = cmoSaveStrategyInputSchema.parse(plan("website", "article"));
-    expect(saved.strategy.channels[0]?.channel).toBe("seo");
+    const saved = cmoSaveStrategyInputSchema.parse(plan("twitter", "thread"));
+    expect(saved.strategy.channels[0]?.channel).toBe("x");
     expect(saved.strategy.calendar[0]).toMatchObject({
-      channel: "seo",
-      format: "article",
+      channel: "x",
+      format: "reply",
     });
+    // SEO has its own tab: a strategy never plans an article or a page fix.
+    const seo = cmoSaveStrategyInputSchema.safeParse(
+      plan("website", "article"),
+    );
+    expect(seo.success).toBe(false);
+    expect(seo.error?.issues[0]?.message).toContain("Use a channel Cuso runs");
     expect(
       cmoSaveStrategyInputSchema.parse(plan("linkedin", "carousel")).strategy
         .calendar[0]?.format,
@@ -302,6 +481,36 @@ describe("CMO strategy and rhythms", () => {
     expect("calendar" in planOnly).toBe(false);
   });
 
+  it("takes from a patch only the entries and fields it really sent", () => {
+    const entry = {
+      id: "a",
+      date: "2026-10-05",
+      channel: "linkedin",
+      title: "One",
+      format: "post",
+      status: "idea",
+    };
+    const patch = parseCmoStrategySave({
+      part: "patch",
+      strategy: {
+        pace: { level: "active", why: "The owner asked.", perWeek: 5 },
+        mix: [],
+        funnel: [],
+        calendar: [entry],
+      },
+    });
+    expect(Object.keys(patch).sort()).toEqual(["calendar", "pace"]);
+    expect(patch.calendar).toHaveLength(1);
+  });
+
+  it("drops a patch field sent without a value, so it never wipes the plan's", () => {
+    const patch = parseCmoStrategySave({
+      part: "patch",
+      strategy: { summary: "Grow.", channels: undefined, calendar: undefined },
+    });
+    expect(Object.keys(patch)).toEqual(["summary"]);
+  });
+
   it("proposes only channels Cuso runs that the plan leaves out", () => {
     const proposing = (channel: string) => ({
       strategy: {
@@ -321,10 +530,13 @@ describe("CMO strategy and rhythms", () => {
         ],
       },
     });
-    expect(
-      cmoSaveStrategyInputSchema.safeParse(proposing("instagram")).success,
-    ).toBe(true);
-    for (const outside of ["reddit", "tiktok", "linkedin"]) {
+    // TikTok is a channel Cuso runs: the owner confirms each video.
+    for (const run of ["instagram", "tiktok"]) {
+      expect(cmoSaveStrategyInputSchema.safeParse(proposing(run)).success).toBe(
+        true,
+      );
+    }
+    for (const outside of ["reddit", "linkedin"]) {
       expect(
         cmoSaveStrategyInputSchema.safeParse(proposing(outside)).success,
       ).toBe(false);
@@ -474,5 +686,119 @@ describe("launch videos", () => {
     expect(skill?.content).toContain("loudnorm=I=-14");
     expect(skill?.content).toContain('grep -E "^\\s+I:"');
     expect(skill?.content).toContain('workspacePath "video/out/final.mp4"');
+  });
+});
+
+describe("picture styles", () => {
+  it("tells Cuso on cmo-v1 to give pictures the look of an old print, once", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-production");
+    expect(skill?.content.split("## Picture styles")).toHaveLength(2);
+    expect(skill?.content).toContain("call find_style_references");
+    expect(skill?.content).toContain("Put its id in styleReferenceId");
+    expect(SOKO_BOT_CMO_CAPABILITIES).toContain("find_style_references");
+    expect(
+      composeSystemPrompt(getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID)),
+    ).toContain("## Picture styles");
+  });
+
+  it("checks that a styled picture goes through the reference library", () => {
+    const scenario = CMO_SCENARIOS.find(
+      (entry) => entry.id === "cmo-picture-style",
+    );
+    expect(scenario?.expect.tools).toEqual(["find_style_references"]);
+  });
+});
+
+describe("pictures of the month", () => {
+  it("tells Cuso to style every picture, each slide with its own words", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-production");
+    expect(skill?.content).toContain(
+      "Every piece with a picture takes the look of an old print",
+    );
+    expect(skill?.content).toContain("slideHeadlines: one entry per slide");
+    expect(skill?.content).not.toContain("Decide per piece");
+    expect(
+      cmoCalendarEntrySchema.safeParse({
+        id: "c1",
+        date: "2026-12-01",
+        channel: "instagram",
+        title: "Three steps",
+        format: "carousel",
+        status: "draft",
+        slideHeadlines: ["Review the drafts", "Then it goes live"],
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe("pictures in chat", () => {
+  it("tells Cuso to make a chat post's picture in a library style", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-production");
+    expect(skill?.content).toContain(
+      "In chat, a picture for a post or an ad goes the same way",
+    );
+    expect(skill?.content).toContain("the reference's id as styleReferenceId");
+    expect(skill?.content).toContain("maxCredits 25");
+    expect(skill?.content).toContain(
+      "pass that picture in referenceFileIds as well",
+    );
+    const scenario = CMO_SCENARIOS.find(
+      (entry) => entry.id === "cmo-post-with-picture",
+    );
+    expect(scenario?.expect.tools).toEqual([
+      "find_style_references",
+      "generate_image",
+    ]);
+  });
+});
+
+describe("what Cuso is told a talking video costs", () => {
+  const credits = (length: number, siteShots = false) =>
+    creditsPerTalkingVideoCents(TALKING_VIDEO_PRICE, "x".repeat(length), {
+      siteShots,
+    });
+
+  it("tells the strategy the price a 150 to 400 character script is charged, with the music and B-roll a month's video has", () => {
+    const strategy = CMO_SKILLS.filter((skill) =>
+      skill.id.startsWith("cmo-strategy"),
+    );
+    expect(strategy.length).toBeGreaterThan(0);
+    const extras = 60;
+    const from = Math.round((credits(150) + extras) / 10) * 10;
+    const to = Math.round((credits(400, true) + extras) / 10) * 10;
+    for (const skill of strategy) {
+      expect(skill.content).toContain(`costs about ${from} to ${to} credits`);
+      expect(skill.content).not.toContain("200 to 450 credits");
+    }
+  });
+
+  it("quotes the same price in the tool that makes one", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.generate_talking_video).toContain(
+      `a 150-character script costs about ${credits(150)})`,
+    );
+  });
+});
+
+describe("cmo-v7", () => {
+  it("is the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v7");
+  });
+
+  it("answers a change without repeating the card or naming internals", () => {
+    expect(cmoV6.systemPrompt).toContain("then answer in one or two sentences");
+    expect(cmoV7.systemPrompt).not.toContain(
+      "then answer in one or two sentences",
+    );
+    expect(cmoV7.systemPrompt).toContain(
+      "never says what changed or what stayed the same",
+    );
+    expect(cmoV7.systemPrompt).toContain(
+      "Never name your tools, saves, checks or reviews",
+    );
+    // The month written at once comes with it.
+    expect(cmoV7.skills).toEqual(cmoV6.skills);
   });
 });

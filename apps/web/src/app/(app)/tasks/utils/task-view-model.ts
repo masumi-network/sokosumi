@@ -4,7 +4,10 @@ import type {
   TaskEvent,
   TaskListItem,
 } from "@sokosumi/core-client";
-import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
+import {
+  removeSeoTaskRequest,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 import type {
   TaskAssigneeView,
   TaskWithCoworker,
@@ -86,7 +89,7 @@ function replaceMentionsWithAgentNames(
   return result;
 }
 
-function mapTaskAssignee(
+export function mapTaskAssignee(
   task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
   personalAssistantFallback: string,
@@ -174,7 +177,9 @@ export function mapTaskToTaskWithCoworker(
     namedDescription === null
       ? null
       : stripMarkdownToText(
-          removeTaskContextAttachmentLinks(namedDescription),
+          removeSeoTaskRequest(
+            removeTaskContextAttachmentLinks(namedDescription),
+          ),
         )?.slice(0, 200);
   // Context-only descriptions strip to "". Treat that as absent so cards do
   // not render blank space and lists do not skip the "—" fallback.
@@ -202,6 +207,10 @@ export function mapTaskToTaskWithCoworker(
     runAt,
     dueOn: task.dueOn,
     statusSince: statusSince.toISOString(),
+    subtaskProgress: task.subtaskProgress,
+    openSubtasks: "openSubtasks" in task ? task.openSubtasks : undefined,
+    hasUnansweredMention:
+      "hasUnansweredMention" in task && task.hasUnansweredMention === true,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     participants: task.participants.map(({ user }) => ({
@@ -218,7 +227,10 @@ export function mapTaskToTaskWithCoworker(
         : getCommentsCount(task.events),
     columnId: getColumnId(task.status),
     tags: task.tags,
-    description: task.description ?? null,
+    workspaceTags: task.workspaceTags,
+    // A board or list row shows no description. The Task page maps
+    // a full Task, which has events, and keeps the text.
+    description: "events" in task ? (task.description ?? null) : null,
     descriptionPlain,
     events: "events" in task ? task.events : [],
   };

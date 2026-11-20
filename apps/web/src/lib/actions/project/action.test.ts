@@ -1,4 +1,5 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({
@@ -117,7 +118,6 @@ function buildCloseStatus() {
 describe("project actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => {});
     toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
       message:
         error instanceof Error
@@ -210,6 +210,7 @@ describe("project actions", () => {
   });
 
   it("does not treat a bare 409 as identifier_taken", async () => {
+    expectConsole("error", "Failed to create project");
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     toCoreApiActionErrorMock.mockReturnValue({
       message: "Something else conflicted",
@@ -302,10 +303,15 @@ describe("project actions", () => {
   });
 
   it("returns a Core error when saving posting instructions fails", async () => {
-    const { updateProjectPostingInstructions } = await import("./action");
-    projectServiceMock.patchProject.mockRejectedValueOnce(
-      new CoreApiRequestError("forbidden", { status: 403 }),
+    const errorCalls = expectConsole(
+      "error",
+      "Failed to update project posting instructions",
     );
+    const { updateProjectPostingInstructions } = await import("./action");
+    const error = new CoreApiRequestError("forbidden", { status: 403 });
+    // Exercise Node's alternate error display without changing the error type.
+    Object.defineProperty(error, "constructor", { value: Error });
+    projectServiceMock.patchProject.mockRejectedValueOnce(error);
 
     const result = await updateProjectPostingInstructions({
       projectId: "project-1",
@@ -313,6 +319,12 @@ describe("project actions", () => {
     });
 
     expect(result.ok).toBe(false);
+    expect(errorCalls[0]?.[1]).toBeInstanceOf(CoreApiRequestError);
+    expect(errorCalls[0]?.[1]).toMatchObject({
+      name: "CoreApiRequestError",
+      message: "forbidden",
+      status: 403,
+    });
   });
 
   it("rejects a non-uuid projectId for site-icon resolution", async () => {
@@ -538,6 +550,7 @@ describe("project actions", () => {
   });
 
   it("maps Core errors from mutations", async () => {
+    expectConsole("error", "Failed to update project");
     projectServiceMock.patchProject.mockRejectedValue(new Error("Core failed"));
     toCoreApiActionErrorMock.mockReturnValue({
       message: "Project name is already in use",
@@ -623,7 +636,7 @@ describe("project actions", () => {
 
     expect(projectServiceMock.finalizeSocialConnection).toHaveBeenCalledWith(
       "project-1",
-      "ca_123",
+      { connectionId: "ca_123" },
     );
     expect(result).toEqual({ ok: true, value: connection });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");

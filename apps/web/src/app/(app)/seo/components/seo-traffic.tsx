@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/table";
 import { SeoAiAssistants } from "./seo-ai-assistants";
 import { SeoBreakdown } from "./seo-breakdown";
-import { SeoCsvButton } from "./seo-csv-button";
+import { SeoExportMenu } from "./seo-export-menu";
 import { seoTopPagesExport } from "./seo-export-model";
 import { SeoQueryFilter } from "./seo-keywords";
+import { SeoLandingEngagement } from "./seo-landing-engagement";
 import { SeoMeasurements } from "./seo-measurements";
 import { MIN_PAGES_FOR_SELECTIONS } from "./seo-pages";
 import { topPages } from "./seo-search-model";
@@ -33,7 +34,11 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 /** What Google measured for the selected pages: totals and trend, the searches behind them, and each page's share. */
 export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
   // Nothing measured yet: one card says what to connect. A second empty card would ask for the same account.
-  if (!model.data.metrics.length && !model.data.searchQueries)
+  if (
+    !model.data.metrics.length &&
+    !model.data.searchQueries &&
+    !model.data.landingEngagementChange
+  )
     return (
       <div className="space-y-6">
         <SeoSearchTypeFilter model={model} />
@@ -44,6 +49,9 @@ export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
     <div className="stagger space-y-6">
       <SeoSearchTypeFilter model={model} />
       <SeoMeasurements model={model} />
+      {model.data.landingEngagementChange && (
+        <SeoLandingEngagement change={model.data.landingEngagementChange} />
+      )}
       <SeoQueryFilter
         model={model}
         rows={model.data.searchQueries?.rows.length ?? 0}
@@ -75,11 +83,12 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("pages.topPages")}
-      foot={
-        <SeoCsvButton
+      actions={
+        <SeoExportMenu
           name="top-pages"
-          title={t("pages.topPages")}
-          table={() => seoTopPagesExport(rows, t, keyEvents)}
+          titleKey="pages.topPages"
+          workspace={model.data}
+          table={(report) => seoTopPagesExport(rows, report, keyEvents)}
         />
       }
       description={

@@ -20,13 +20,9 @@ import {
   OUTBOUND_ERROR_METADATA_KEY,
   outboundLocalMessageId,
 } from "@/app/chat/utils/outbound-room-message";
-import { clearPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
-
-/** Survives React Strict Mode remount so draft auto-stream fires once per room. */
-const autoStreamStartedRoomIds = new Set<string>();
 
 /** Empty coworker shell shown while resume SSE is active but messages empty. */
 export const RESUME_PENDING_STREAM_MESSAGE_ID = "stream:resume-pending";
@@ -348,8 +344,6 @@ export interface UseCoworkerDirectRoomStreamResult {
     text: string,
     options?: CoworkerStreamSendOptions,
   ) => boolean;
-  /** Consume a one-shot draft pending message for this room (Strict Mode safe). */
-  consumePendingStreamMessage: (text: string) => void;
   /** Resend the failed turn (same message id and attachments). */
   retryFailedStreamMessage: () => void;
 }
@@ -472,7 +466,6 @@ export function useCoworkerDirectRoomStream({
       const failedRoomId = roomIdRef.current;
       const reason = coworkerStreamErrorMessage(error) ?? t("Outbound.noReply");
       if (failedRoomId) {
-        autoStreamStartedRoomIds.delete(failedRoomId);
         writeStoredStreamParentMessageId(failedRoomId, null);
         // Keep streamParentMessageId: the failed reply stays in its thread.
         setFailure({ roomId: failedRoomId, reason });
@@ -484,7 +477,6 @@ export function useCoworkerDirectRoomStream({
       if (!settledRoomId) {
         return;
       }
-      autoStreamStartedRoomIds.delete(settledRoomId);
       if (isError) {
         // Refresh only: the failed overlay row stays until Retry or the next
         // send. If Core saved the message, the merge marks that saved row
@@ -496,7 +488,6 @@ export function useCoworkerDirectRoomStream({
       // blanks the transcript for the await gap (or forever if refetch fails).
       const settled = await onStreamSettledRef.current(settledRoomId);
       if (settled && roomIdRef.current === settledRoomId) {
-        clearPendingRoomMessage(settledRoomId);
         writeStoredStreamParentMessageId(settledRoomId, null);
         setMessages([]);
         setStreamParentMessageId(null);
@@ -654,34 +645,11 @@ export function useCoworkerDirectRoomStream({
     void regenerate(lastSendOptionsRef.current);
   }, [regenerate, roomId, streamParentMessageId]);
 
-  const consumePendingStreamMessage = useCallback(
-    (text: string) => {
-      if (!roomId) {
-        return;
-      }
-      if (autoStreamStartedRoomIds.has(roomId)) {
-        return;
-      }
-      const trimmed = text.trim();
-      if (!trimmed) {
-        return;
-      }
-      // Mark before send so Strict Mode double-invoke cannot double-start.
-      // Roll back if the stream hook declined the turn.
-      autoStreamStartedRoomIds.add(roomId);
-      if (!sendStreamMessage(trimmed)) {
-        autoStreamStartedRoomIds.delete(roomId);
-      }
-    },
-    [roomId, sendStreamMessage],
-  );
-
   return {
     streamOverlayMessages,
     isStreaming,
     activeStreamParentMessageId: streamParentMessageId,
     sendStreamMessage,
-    consumePendingStreamMessage,
     retryFailedStreamMessage,
   };
 }

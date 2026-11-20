@@ -4,13 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   cmoBilling,
   cmoPlans,
-  cmoStrategyVersion,
   cmoOverview as overview,
 } from "../test-fixtures/cmo";
 import { OutOfCreditsBanner } from "./app/cmo-app";
 import { SettingsPage } from "./app/pages";
 import { PausedBanner, subscribeOffer } from "./app/paused";
-import { UpNext } from "./app/up-next";
 import { CheckoutStep } from "./onboarding/checkout-step";
 import { Refusal } from "./onboarding/refusal";
 import {
@@ -21,7 +19,6 @@ import {
 } from "./top-up";
 
 const startTopUp: StartTopUp = async () => ({ url: null, error: null });
-const noCredits = cmoBilling({ availableCredits: 0 });
 
 describe("topUpOffer", () => {
   it("offers the top-up for a Cuso with an active subscription", () => {
@@ -57,63 +54,6 @@ describe("the out-of-credits banner", () => {
     const html = renderToStaticMarkup(<OutOfCreditsBanner topUp={null} />);
     expect(html).toContain("out of credits");
     expect(html).not.toMatch(/top up/i);
-  });
-});
-
-describe("the paused Up next", () => {
-  const upNext = (
-    patch: Parameters<typeof overview>[0],
-    topUp: StartTopUp | null,
-  ) =>
-    renderToStaticMarkup(
-      <UpNext
-        overview={overview({
-          ...cmoStrategyVersion(new Date()),
-          ...patch,
-        })}
-        today="2026-11-13"
-        compose={() => {}}
-        pause={async () => {}}
-        close={() => {}}
-        topUp={topUp}
-      />,
-    );
-
-  it("offers the top-up when credits ran out", () => {
-    const html = upNext({ billing: noCredits }, startTopUp);
-    expect(html).toContain("Paused: out of credits");
-    expect(html).toContain(">Top up</button>");
-  });
-
-  it("offers none for an unsubscribed Cuso", () => {
-    const html = upNext({ billing: noCredits }, null);
-    expect(html).not.toContain("Top up");
-  });
-
-  it("marks his work paused without a paid CMO plan, credits or not", () => {
-    const upNextItems = [
-      {
-        id: "entry-1",
-        date: "2026-11-14",
-        channel: "linkedin",
-        title: "Launch post",
-        status: "planned",
-      },
-    ];
-    const working = upNext({ upNext: upNextItems }, startTopUp);
-    const paused = upNext(
-      { upNext: upNextItems, subscriptionActive: false },
-      startTopUp,
-    );
-    expect(working).not.toContain(">Paused<");
-    expect(paused).toContain(">Paused<");
-    expect(paused).not.toContain("Top up");
-  });
-
-  it("offers none while credits are left", () => {
-    const html = upNext({}, startTopUp);
-    expect(html).not.toContain("Top up");
-    expect(html).not.toContain("Paused");
   });
 });
 
@@ -179,6 +119,7 @@ describe("Settings", () => {
         name="Ada"
         email="ada@example.com"
         startOver={async () => null}
+        setTimeZone={async () => null}
         signOut={async () => {}}
         topUp={topUp}
         plans={[]}

@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 
 import { calendarInvalidationOutboxService } from "@/services/calendar-invalidation-outbox.service";
+import { failSeoAnalysesOfEndedTasks } from "@/services/project-seo-import.service";
 import { taskScheduleReleaseService } from "@/services/task-schedule-runs.service";
 
 import { handleSyncRequest } from "../handler.js";
@@ -34,12 +35,21 @@ export default function mount(app: Hono) {
             })
           : null;
 
-        console.info("[sync/task-schedules] Completed sync", {
-          scheduleRelease,
-          runAtRelease,
-          invalidations,
+        // SEO monitor Runs are Tasks: an analysis whose Task ended without a result is failed.
+        const failedSeoAnalyses = context.shouldContinue()
+          ? await failSeoAnalysesOfEndedTasks()
+          : null;
+
+        context.log.set({
+          result: {
+            scheduleRelease,
+            runAtRelease,
+            invalidations,
+            failedSeoAnalyses,
+          },
         });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

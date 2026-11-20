@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
+
 const { scheduleFindManyMock, integrationFindManyMock, turnFindFirstMock } =
   vi.hoisted(() => ({
     scheduleFindManyMock: vi.fn(),

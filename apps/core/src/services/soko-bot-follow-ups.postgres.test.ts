@@ -17,6 +17,13 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import { expectCoreLog } from "@/test/core-log";
+
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
 
 vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
   ...(await original<object>()),
@@ -282,6 +289,202 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       where: { taskId },
     });
     expect(delegation.followUpTurnId).toBe(carried[0].id);
+  });
+
+  /** Rejects as soon as `sync` ends: a gate it was due to open stays shut. */
+  function endedEarly(sync: Promise<unknown>, what: string) {
+    return sync.then(
+      () => Promise.reject(new Error(`${what} ended early`)),
+      (error: unknown) => Promise.reject(error),
+    );
+  }
+
+  it("lets the losing event sync return while the winner is still starting the turn", async () => {
+    const taskId = await delegateWithPlan("Give the findings to Alex.");
+    await complete(taskId, "Findings: A, B, C.");
+    // The winner holds after its STARTING turn commits, before the runtime
+    // accepts it. The loser has read the completion as new and holds before
+    // startTurn until then, so it gets the winner's turn as a duplicate.
+    const runtime = getSokoBotRuntime();
+    const createSession = runtime.createSession.bind(runtime);
+    const winnerStarting = Promise.withResolvers<void>();
+    const runtimeAccepts = Promise.withResolvers<void>();
+    vi.spyOn(runtime, "createSession").mockImplementation(async (input) => {
+      winnerStarting.resolve();
+      await runtimeAccepts.promise;
+      return createSession(input);
+    });
+    const startTurn = sokoBotControlPlane.startTurn.bind(sokoBotControlPlane);
+    const loserStarts = Promise.withResolvers<void>();
+    const winnerEnded = Promise.withResolvers<never>();
+    winnerEnded.promise.catch(() => undefined);
+    let loserStart: Awaited<ReturnType<typeof startTurn>> | undefined;
+    vi.spyOn(sokoBotControlPlane, "startTurn").mockImplementationOnce(
+      async (input) => {
+        loserStarts.resolve();
+        await Promise.race([winnerStarting.promise, winnerEnded.promise]);
+        loserStart = await startTurn(input);
+        return loserStart;
+      },
+    );
+    const reconcile = vi.spyOn(sokoBotControlPlane, "reconcileTurn");
+
+    const loser = syncEvents();
+    let winner: ReturnType<typeof syncEvents> | undefined;
+    let statusWhileStarting: string | undefined;
+    try {
+      await Promise.race([loserStarts.promise, endedEarly(loser, "The loser")]);
+      winner = syncEvents();
+      // A winner that ends before its turn commits fails the loser's start
+      // instead of letting it create the only turn.
+      endedEarly(winner, "The winner").catch((error: unknown) =>
+        winnerEnded.reject(error),
+      );
+      await loser;
+      statusWhileStarting = (await eventTurns())[0]?.status;
+    } finally {
+      winnerEnded.reject(new Error("Released"));
+      runtimeAccepts.resolve();
+      await Promise.allSettled([loser, winner]);
+    }
+    await winner;
+    const [turn] = await eventTurns();
+    expect(loserStart).toMatchObject({ duplicate: true, status: "STARTING" });
+    expect(statusWhileStarting).toBe("STARTING");
+
+    expect(await eventTurns()).toEqual([
+      expect.objectContaining({ id: turn.id, status: "COMPLETED" }),
+    ]);
+    // Only the winner drains it: the loser's start was a duplicate.
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    const delegation = await prisma.sokoBotDelegation.findFirstOrThrow({
+      where: { taskId },
+    });
+    expect(delegation.followUpTurnId).toBe(turn.id);
+  });
+
+  it("lets the losing event sync leave a running turn to the winner", async () => {
+    const taskId = await delegateWithPlan("Give the findings to Alex.");
+    await complete(taskId, "Findings: A, B, C.");
+    // The loser has read the completion as new and holds before startTurn
+    // until the winner's runtime acknowledged the turn, so its duplicate is
+    // RUNNING with a session. The winner holds before reconciling until the
+    // loser's sync is done: the loser must not drain the turn itself.
+    const startTurn = sokoBotControlPlane.startTurn.bind(sokoBotControlPlane);
+    const loserStarts = Promise.withResolvers<void>();
+    const winnerRunning = Promise.withResolvers<void>();
+    const winnerEnded = Promise.withResolvers<never>();
+    winnerEnded.promise.catch(() => undefined);
+    const loserDone = Promise.withResolvers<void>();
+    let loserStart: Awaited<ReturnType<typeof startTurn>> | undefined;
+    vi.spyOn(sokoBotControlPlane, "startTurn").mockImplementationOnce(
+      async (input) => {
+        loserStarts.resolve();
+        await Promise.race([winnerRunning.promise, winnerEnded.promise]);
+        loserStart = await startTurn(input);
+        return loserStart;
+      },
+    );
+    const reconcileTurn =
+      sokoBotControlPlane.reconcileTurn.bind(sokoBotControlPlane);
+    // The loser waits before startTurn, so the first reconcile is the winner's.
+    const reconcile = vi
+      .spyOn(sokoBotControlPlane, "reconcileTurn")
+      .mockImplementationOnce(async (...args) => {
+        winnerRunning.resolve();
+        await loserDone.promise;
+        return reconcileTurn(...args);
+      });
+
+    const loser = syncEvents().finally(() => loserDone.resolve());
+    let winner: ReturnType<typeof syncEvents> | undefined;
+    try {
+      await Promise.race([loserStarts.promise, endedEarly(loser, "The loser")]);
+      winner = syncEvents();
+      endedEarly(winner, "The winner").catch((error: unknown) =>
+        winnerEnded.reject(error),
+      );
+      await loser;
+      await winner;
+    } finally {
+      winnerEnded.reject(new Error("Released"));
+      loserDone.resolve();
+      await Promise.allSettled([loser, winner]);
+    }
+
+    const [turn] = await eventTurns();
+    expect(loserStart).toMatchObject({ duplicate: true, status: "RUNNING" });
+    expect(await eventTurns()).toEqual([
+      expect.objectContaining({ id: turn.id, status: "COMPLETED" }),
+    ]);
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    const delegation = await prisma.sokoBotDelegation.findFirstOrThrow({
+      where: { taskId },
+    });
+    expect(delegation.followUpTurnId).toBe(turn.id);
+  });
+
+  it("drains the turn when the duplicate sync resumed its start itself", async () => {
+    const taskId = await delegateWithPlan("Give the findings to Alex.");
+    await complete(taskId, "Findings: A, B, C.");
+    // The first sync's runtime never confirms the start (twice), so its start
+    // stays ambiguous and it gives up. The second sync, holding before
+    // startTurn until then, resumes that start itself: it owns the drain,
+    // and the runtime has already recorded the turn's whole log.
+    const errors = expectCoreLog(
+      "error",
+      "Could not wake a Soko Bot for changes in its delegated work",
+    );
+    const runtime = getSokoBotRuntime();
+    const createSession = runtime.createSession.bind(runtime);
+    let rejections = 2;
+    vi.spyOn(runtime, "createSession").mockImplementation(async (input) => {
+      if (rejections > 0) {
+        rejections -= 1;
+        throw new DOMException("Runtime acceptance timed out", "TimeoutError");
+      }
+      return createSession(input);
+    });
+    const startTurn = sokoBotControlPlane.startTurn.bind(sokoBotControlPlane);
+    const resumerStarts = Promise.withResolvers<void>();
+    const firstDone = Promise.withResolvers<void>();
+    let resumed: Awaited<ReturnType<typeof startTurn>> | undefined;
+    vi.spyOn(sokoBotControlPlane, "startTurn").mockImplementationOnce(
+      async (input) => {
+        resumerStarts.resolve();
+        await firstDone.promise;
+        resumed = await startTurn(input);
+        return resumed;
+      },
+    );
+    const reconcile = vi.spyOn(sokoBotControlPlane, "reconcileTurn");
+
+    const resumer = syncEvents();
+    let first: ReturnType<typeof syncEvents> | undefined;
+    try {
+      await Promise.race([
+        resumerStarts.promise,
+        endedEarly(resumer, "The resumer"),
+      ]);
+      first = syncEvents();
+      expect(await first).toMatchObject({ woken: 0, failed: 1 });
+    } finally {
+      firstDone.resolve();
+      await Promise.allSettled([resumer, first]);
+    }
+    await resumer;
+
+    expect(resumed).toMatchObject({
+      duplicate: true,
+      reconciliationLeaseToken: expect.any(String),
+      status: "RUNNING",
+    });
+    const [turn] = await eventTurns();
+    expect(await eventTurns()).toEqual([
+      expect.objectContaining({ id: turn.id, status: "COMPLETED" }),
+    ]);
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    expect(errors).toHaveLength(1);
   });
 
   it("refuses to claim a plan another turn already carried out", async () => {

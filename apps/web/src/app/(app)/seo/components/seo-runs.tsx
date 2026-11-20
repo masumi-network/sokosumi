@@ -2,19 +2,36 @@
 
 import { CalendarRange, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useRef } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
+import { SeoReportFiles } from "./seo-report-files";
+import { seoReportVersions } from "./seo-report-files-model";
 import { SeoRunCalendar } from "./seo-run-calendar";
+import { SeoRunDayDialog, SeoRunDayHover } from "./seo-run-day";
 import {
   seoNextScheduledCheck,
   seoRunCountDays,
   seoRunDays,
 } from "./seo-runs-model";
 import { seoRunProgress } from "./seo-setup-model";
+import { seoStops } from "./seo-timeline-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const MINUTE_MS = 60_000;
+/** The key of the stop that holds every event the page has. */
+const WHOLE = "whole";
 /** One stop of the timeline. The line runs through the middle of its dot, 7 px from the top. */
 const STOP_CLASS =
   "relative flex min-w-24 flex-1 flex-col items-center pt-0.5 text-center";
@@ -26,7 +43,7 @@ const STOP_BUTTON_CLASS =
 /**
  * The checks of the site over the tabs, in a card of their own: the run on its title line, and a timeline of one
  * stop per day with its result, oldest on the left and the newest on the right, then a check in flight and the next
- * scheduled check. A press on a day shows the page as it was on that day. "Other dates" beside the title opens a
+ * scheduled check. A press on a day shows the page as it was on that day. "Other dates" below the timeline opens a
  * calendar of the days with a check: both choose the time the page shows. It stands on every tab, so the days stand
  * at the same place on each.
  */
@@ -43,8 +60,37 @@ export function SeoRuns({
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
+  const report = useSeoResultTranslations("App.Seo");
+  const reportFormat = useSeoResultFormatter();
   const now = useNow({ updateInterval: MINUTE_MS });
   const { days, picked, checkDays } = seoRunDays(model.data, model.filters);
+  // The stop whose details are open: what happened there, in a dialog over the page.
+  // The day stays when the dialog closes, so its content does not empty while it fades.
+  const [detailsDay, setDetailsDay] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const openDetails = (day: string) => {
+    setDetailsDay(day);
+    setDetailsOpen(true);
+  };
+  const hintIds = useId();
+  // Core sends the events of the period in view only: with an older day picked, the newer stops hold nothing, so
+  // they open no card and keep their hint.
+  // The stops the row shows: the oldest of them also holds the older days. The key stands for days, a new array
+  // each render. One more stop holds every event the page has: the details of a range the reader set, where Core
+  // sends the events of the range only.
+  const shownDaysKey = days.map(({ day }) => day).join(",");
+  const stopsByDay = useMemo(
+    () =>
+      new Map([
+        ...seoStops(model.data, shownDaysKey ? shownDaysKey.split(",") : []),
+        ...seoStops(model.data, [WHOLE]),
+      ]),
+    [model.data, shownDaysKey],
+  );
+  const stopOf = (day: string) =>
+    stopsByDay.get(day) ?? { after: null, newest: false, nodes: [] };
+  // The button the details came from: the stop of the card, which is gone when the dialog closes, or the footer button.
+  const returnTo = useRef<HTMLElement | null>(null);
   const progress = seoRunProgress(model.data, now);
   // The way back unmounts with its line: focus moves to the newest entry.
   const newestRef = useRef<HTMLButtonElement>(null);
@@ -71,10 +117,19 @@ export function SeoRuns({
     else if (inner.right > outer.right)
       bar.scrollLeft += inner.right - outer.right;
   }, [pickedDay]);
-  if (!shown && !runButton) return null;
-  const dayOf = (at: Date) =>
+  const versions =
+    model.invalidDates || model.updating
+      ? []
+      : seoReportVersions(model.data, model.filters);
+  const showReports =
+    versions.length > 0 ||
+    (model.updating &&
+      (model.data.observations.some((row) => row.sourceTaskId) ||
+        model.data.analyses.some((row) => row.taskId)));
+  if (!shown && !runButton && !showReports) return null;
+  const dayOf = (at: Date, formatter = format) =>
     // The day of the filter: a run late in the evening west of UTC is on the next day.
-    format.dateTime(at, { month: "short", day: "numeric", timeZone: "UTC" });
+    formatter.dateTime(at, { month: "short", day: "numeric", timeZone: "UTC" });
   const inView = days.find((entry) => entry.selected);
   const stops = days.toReversed();
   const countDays = seoRunCountDays(days);
@@ -82,6 +137,31 @@ export function SeoRuns({
   // A range the reader set in the calendar: no one check is in view then.
   const ranged = Boolean(from || (to && !picked));
   const utcDay = (day: string) => new Date(`${day}T00:00:00Z`);
+  // A refetch can take the open stop off the row: the dialog closes with it.
+  const details = detailsDay ? stopsByDay.get(detailsDay) : undefined;
+  if (detailsOpen && !details) setDetailsOpen(false);
+  // The stop whose details the footer opens: the day in view, or every event of a range.
+  const detailsStop =
+    !shown || model.invalidDates ? undefined : ranged ? WHOLE : inView?.day;
+  const hasDetails = detailsStop ? stopOf(detailsStop).nodes.length > 0 : false;
+  // An invalid date in the address names no range: the line gives the way back alone.
+  const rangeOf = (label = t, formatter = format) =>
+    !ranged || model.invalidDates
+      ? null
+      : from
+        ? label("runs.shown", {
+            range: formatter.dateTimeRange(
+              utcDay(from),
+              to ? utcDay(to) : now,
+              {
+                month: "short",
+                day: "numeric",
+                timeZone: "UTC",
+              },
+            ),
+          })
+        : label("runs.shownUntil", { day: dayOf(utcDay(to ?? ""), formatter) });
+  const rangeText = rangeOf();
   const latest = (
     <button
       type="button"
@@ -96,74 +176,37 @@ export function SeoRuns({
   );
   return (
     // The run stays on the title line on a phone too, so the card is short and the first step of the tab shows on
-    // the first screen (owner, after pass 59). The date control is its icon alone there, so the run fits beside the
-    // title. The title keeps its own width: where a long run label leaves it no room (German, Spanish), the run wraps
+    // the first screen (owner, after pass 59). The footer has room for the full calendar label on phones.
+    // The title keeps its own width: where a long run label leaves it no room (German, Spanish), the run wraps
     // to a row of its own.
     <section className={cn(HOLDER_CLASS, "flex flex-wrap items-center gap-2")}>
+      {/* Under the audit name, the h2 of the page. */}
+      <h3 id={titleId} className="px-2 py-1.5 text-sm font-semibold">
+        {t("runs.label")}
+      </h3>
+      {showReports || runButton ? (
+        <div className="ms-auto flex flex-wrap items-center gap-1">
+          {showReports ? (
+            <SeoReportFiles
+              key={model.viewerKey}
+              versions={versions}
+              model={model}
+            />
+          ) : null}
+          {runButton}
+        </div>
+      ) : null}
       {/* The date controls form one group, the run apart from it; the group adds no box of its own. */}
       <div
         role={shown ? "group" : undefined}
         aria-labelledby={shown ? titleId : undefined}
         className="contents"
       >
-        {/* Centred, not on the baseline: the date control is an icon and a word, so a baseline sets it low. */}
-        <div className="order-1 flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 max-sm:min-w-fit sm:flex-initial">
-          {/* Under the audit name, the h2 of the page. */}
-          <h3 id={titleId} className="text-sm font-semibold">
-            {t("runs.label")}
-          </h3>
-          {shown ? (
-            // A quiet control beside the title, not a stop of the line: a stop in the line read as a third check.
-            <SeoRunCalendar
-              model={model}
-              checkDays={checkDays}
-              shownDay={model.invalidDates || from ? undefined : inView?.day}
-            >
-              <button
-                type="button"
-                data-active={ranged}
-                className="text-muted-foreground hover:text-foreground data-[state=open]:text-foreground data-[active=true]:text-foreground focus-visible:ring-ring hit-area inline-flex items-center gap-1 rounded-sm text-xs transition-colors outline-none focus-visible:ring-2"
-              >
-                <CalendarRange aria-hidden className="size-3.5" />
-                <span className="max-sm:sr-only">{t("runs.dates")}</span>
-              </button>
-            </SeoRunCalendar>
-          ) : null}
-        </div>
-        {/* Beside the date controls: an earlier check or a range in view says so, with the way back, and fades in.
-            On a phone it is the last row of the card, so a picked stop does not move under the finger. */}
-        {shown ? (
-          <p className="text-muted-foreground order-1 min-w-0 flex-1 px-2 text-xs empty:hidden max-sm:order-5 max-sm:basis-full sm:-ms-1">
-            {model.invalidDates ? (
-              // The tab says why it is empty; the line gives the way back.
-              latest
-            ) : picked && inView ? (
-              <span className="content-in">
-                {t("runs.earlier", { day: dayOf(inView.at) })} {latest}
-              </span>
-            ) : ranged ? (
-              <span className="content-in">
-                {from
-                  ? t("runs.shown", {
-                      range: format.dateTimeRange(
-                        utcDay(from),
-                        to ? utcDay(to) : now,
-                        { month: "short", day: "numeric", timeZone: "UTC" },
-                      ),
-                    })
-                  : t("runs.shownUntil", {
-                      day: dayOf(utcDay(to ?? "")),
-                    })}{" "}
-                {latest}
-              </span>
-            ) : null}
-          </p>
-        ) : null}
         {shown ? (
           <div
             // A fill without an outline: the checks card around it is the one frame. More room over the dots than
             // under the dates, so the line does not sit on the top edge.
-            className="bg-background order-3 basis-full rounded-lg px-2 pt-5 pb-3 max-sm:pt-2 max-sm:pb-1"
+            className="bg-background basis-full rounded-lg px-2 pt-5 pb-3 max-sm:pt-2 max-sm:pb-1"
           >
             <ol
               ref={line}
@@ -195,51 +238,81 @@ export function SeoRuns({
                       )}
                     />
                   ) : null}
-                  <button
-                    ref={entry.newest ? newestRef : undefined}
-                    type="button"
-                    aria-pressed={entry.selected}
-                    // The hint says what a press does: the page as it was on that day.
-                    title={
+                  {entry.selected ? null : (
+                    <span id={`${hintIds}-${entry.day}`} hidden>
+                      {t("runs.showDay", { day: dayOf(entry.at) })}
+                    </span>
+                  )}
+                  <SeoRunDayHover
+                    workspace={model.data}
+                    day={dayOf(entry.at, reportFormat)}
+                    nodes={stopOf(entry.day).nodes}
+                    hint={
                       entry.selected
-                        ? undefined
+                        ? null
                         : t("runs.showDay", { day: dayOf(entry.at) })
                     }
-                    // The run in view is bright with a bright neutral dot; the others are muted. No accent: it is a fill only.
-                    className={STOP_BUTTON_CLASS}
-                    onClick={() => {
-                      void model.setFilters({
-                        from: null,
-                        to: entry.newest ? null : entry.day,
-                      });
+                    onDetails={() => {
+                      returnTo.current =
+                        line.current
+                          ?.querySelector(`time[datetime="${entry.day}"]`)
+                          ?.closest("button") ?? null;
+                      openDetails(entry.day);
                     }}
                   >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        // The ring in the page colour cuts the line around the dot.
-                        "ring-background group-hover:ring-accent mb-1.5 size-2.5 rounded-full ring-4 transition-colors duration-150 motion-reduce:transition-none",
-                        entry.selected || entry.inRange
-                          ? "bg-foreground"
-                          : "bg-muted-foreground group-hover:bg-foreground",
+                    <button
+                      ref={entry.newest ? newestRef : undefined}
+                      type="button"
+                      aria-pressed={entry.selected}
+                      // The hint says what a press does: the page as it was on that day. A stop with a card shows it in the
+                      // card; the keyboard, which opens no card, hears it as the description.
+                      title={
+                        entry.selected || stopOf(entry.day).nodes.length
+                          ? undefined
+                          : t("runs.showDay", { day: dayOf(entry.at) })
+                      }
+                      aria-describedby={
+                        entry.selected ? undefined : `${hintIds}-${entry.day}`
+                      }
+                      // The run in view is bright with a bright neutral dot; the others are muted. No accent: it is a fill only.
+                      className={STOP_BUTTON_CLASS}
+                      onClick={() => {
+                        void model.setFilters({
+                          from: null,
+                          to: entry.newest ? null : entry.day,
+                        });
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          // The ring in the page colour cuts the line around the dot.
+                          "ring-background group-hover:ring-accent mb-1.5 size-2.5 rounded-full ring-4 transition-colors duration-150 motion-reduce:transition-none",
+                          entry.selected || entry.inRange
+                            ? "bg-foreground"
+                            : "bg-muted-foreground group-hover:bg-foreground",
+                        )}
+                      />
+                      <time dateTime={entry.day}>{dayOf(entry.at)}</time>
+                      {entry.inRange ? (
+                        <span className="sr-only">{t("runs.inRange")}</span>
+                      ) : null}
+                      {entry.issues === null ||
+                      !countDays.has(entry.day) ? null : (
+                        <span
+                          lang="en"
+                          className="text-muted-foreground text-xs font-normal"
+                        >
+                          {report("pages.issues", { count: entry.issues })}
+                        </span>
                       )}
-                    />
-                    <time dateTime={entry.day}>{dayOf(entry.at)}</time>
-                    {entry.inRange ? (
-                      <span className="sr-only">{t("runs.inRange")}</span>
-                    ) : null}
-                    {entry.issues === null ||
-                    !countDays.has(entry.day) ? null : (
-                      <span className="text-muted-foreground text-xs font-normal">
-                        {t("pages.issues", { count: entry.issues })}
-                      </span>
-                    )}
-                    {entry.scheduled ? (
-                      <span className="text-muted-foreground text-xs font-normal">
-                        {t("runs.scheduled")}
-                      </span>
-                    ) : null}
-                  </button>
+                      {entry.scheduled ? (
+                        <span className="text-muted-foreground text-xs font-normal">
+                          {t("runs.scheduled")}
+                        </span>
+                      ) : null}
+                    </button>
+                  </SeoRunDayHover>
                 </li>
               ))}
               {progress ? (
@@ -305,8 +378,96 @@ export function SeoRuns({
             </ol>
           </div>
         ) : null}
+        {/* An earlier check or a range in view says so, with the way back, and fades in.
+            It follows the timeline at every width, so a picked stop does not move under the finger. */}
+        {shown ? (
+          <p className="text-muted-foreground flex min-h-10 basis-full items-center px-2 text-xs empty:hidden md:min-h-8">
+            {model.invalidDates ? (
+              // The tab says why it is empty; the line gives the way back.
+              latest
+            ) : picked && inView ? (
+              <span className="content-in">
+                {t("runs.earlier", { day: dayOf(inView.at) })} {latest}
+              </span>
+            ) : ranged ? (
+              <span className="content-in">
+                {rangeText} {latest}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+        {shown ? (
+          <footer className="flex min-h-8 basis-full flex-wrap items-center gap-2 px-2">
+            {/* A quiet control below the line: a stop in the line read as a third check. Centre the icon and label
+                together because baseline alignment sets the calendar low. */}
+            <SeoRunCalendar
+              model={model}
+              checkDays={checkDays}
+              shownDay={model.invalidDates || from ? undefined : inView?.day}
+            >
+              <button
+                type="button"
+                data-active={ranged}
+                className="text-muted-foreground hover:text-foreground data-[state=open]:text-foreground data-[active=true]:text-foreground focus-visible:ring-ring hit-area inline-flex items-center gap-1 rounded-sm text-xs transition-colors outline-none focus-visible:ring-2"
+              >
+                <CalendarRange aria-hidden className="size-3.5" />
+                {t("runs.dates")}
+              </button>
+            </SeoRunCalendar>
+            {/* The details of the day in view: the way to them for the keyboard and on a touch screen, where a stop
+              opens no card. */}
+            {detailsStop && hasDetails ? (
+              <button
+                type="button"
+                aria-label={
+                  detailsStop !== WHOLE && inView
+                    ? t("runs.detailsOf", { day: dayOf(inView.at) })
+                    : undefined
+                }
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area ms-auto rounded-sm text-xs underline underline-offset-4 transition-colors outline-none focus-visible:ring-2"
+                onClick={(event) => {
+                  returnTo.current = event.currentTarget;
+                  openDetails(detailsStop);
+                }}
+              >
+                {t("runs.details")}
+              </button>
+            ) : null}
+          </footer>
+        ) : null}
       </div>
-      {runButton ? <div className="order-2 ms-auto">{runButton}</div> : null}
+      <SeoRunDayDialog
+        workspace={model.data}
+        open={detailsOpen}
+        title={
+          !detailsDay
+            ? ""
+            : detailsDay === WHOLE
+              ? report("runs.details")
+              : dayOf(utcDay(detailsDay), reportFormat)
+        }
+        description={
+          details?.after
+            ? report("runs.since", {
+                day: dayOf(utcDay(details.after), reportFormat),
+              })
+            : detailsDay === WHOLE && rangeText
+              ? (rangeOf(report, reportFormat) ?? "")
+              : details?.newest
+                ? report("runs.sinceAll")
+                : report("runs.sinceStart")
+        }
+        nodes={details?.nodes ?? []}
+        onClose={() => setDetailsOpen(false)}
+        onCloseAutoFocus={(event) => {
+          // The dialog has no trigger: without a button to go back to, focus goes to the newest stop.
+          event.preventDefault();
+          (returnTo.current?.isConnected
+            ? returnTo.current
+            : newestRef.current
+          )?.focus();
+        }}
+      />
     </section>
   );
 }

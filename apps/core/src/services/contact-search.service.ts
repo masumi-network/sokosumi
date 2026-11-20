@@ -6,12 +6,12 @@
  */
 import { PrismaRaw } from "@sokosumi/database/client";
 import { unprocessableEntity } from "@/helpers/error";
-import {
-  type EmbedTexts,
-  embedContactTexts,
-  vectorLiteral,
-} from "@/lib/contacts/embeddings";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
+import { vectorLiteral } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
+import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export const CONTACT_SEARCH_MODES = ["both", "words", "meaning"] as const;
 export type ContactSearchMode = (typeof CONTACT_SEARCH_MODES)[number];
@@ -151,15 +151,23 @@ export async function rankContacts(
 
 async function embedQuery(
   query: string,
-  embed: EmbedTexts = embedContactTexts,
+  embed: EmbedTexts = embedTexts,
 ): Promise<string | null> {
   try {
     const [embedding] = (await embed([query.toLowerCase()])).embeddings;
     return embedding ? vectorLiteral(embedding) : null;
   } catch (error) {
-    console.error("Contact query embedding failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    if (error instanceof AiGatewayBudgetError) return null;
+    // The error can quote the search query, so content-free metadata only.
+    recordCoreError(
+      { operation: "contact_search" },
+      {
+        message: "Could not embed a contact search query",
+        why: "The embedding call failed",
+        fix: "The search answered without meaning matches. If it repeats, look up the error name and code under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return null;
   }
 }
@@ -178,7 +186,7 @@ export async function embedStaleContacts(
     shouldContinue?: () => boolean;
   } = {},
 ): Promise<{ embedded: number; costUsd: number }> {
-  const embed = options.embed ?? embedContactTexts;
+  const embed = options.embed ?? embedTexts;
   const stale = await prisma.$queryRaw<
     { contactId: string; document: string; hash: string }[]
   >`

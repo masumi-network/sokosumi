@@ -5,7 +5,6 @@ import {
   SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
   SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
@@ -16,13 +15,7 @@ import {
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import {
-  assertGa4LandingHost,
-  ga4LandingHostArguments,
-  ga4LandingPageArguments,
-  ga4LandingPlan,
-  normalizeGa4LandingPages,
-} from "@/lib/seo/native-ga4-landing";
+import { ga4LandingPlan } from "@/lib/seo/native-ga4-landing";
 import {
   type GscBreakdownDimension,
   gscBreakdownArguments,
@@ -33,6 +26,10 @@ import {
   gscInspectionArguments,
   normalizeGscInspection,
 } from "@/lib/seo/native-gsc-inspection";
+import {
+  gscPropertyCovers,
+  readableGscProperties,
+} from "@/lib/seo/native-gsc-property";
 import {
   gscKeywordSeriesArguments,
   gscQueryArguments,
@@ -86,7 +83,16 @@ import {
   recordNativeSeoMetrics,
 } from "./project-seo.service";
 import { withAutomaticSeoStatistics } from "./project-seo-statistics-cache";
+import {
+  applyStatisticsInspections,
+  collectStatisticsInspections,
+  inspectionCacheKey,
+} from "./project-seo-statistics-inspections";
 import { requireSeoOwner, type SeoMutationHooks } from "./project-seo-store";
+import {
+  collectLandingPages,
+  landingOutcomeAccountKey,
+} from "./seo-statistics-landing";
 
 const MAX_PROPERTY_PAGES = 5;
 const PROPERTY_PAGE_SIZE = 100;
@@ -104,8 +110,10 @@ async function integrationFor(
 async function toolFor(
   integration: ComposioIntegrationAccount,
   slug: string,
+  knownTools?: SeoNativeTool[],
 ): Promise<SeoNativeTool> {
-  const tools = await listIntegrationTools(integration, { limit: 100 });
+  const tools =
+    knownTools ?? (await listIntegrationTools(integration, { limit: 100 }));
   const tool = tools.find((candidate) => candidate.slug === slug);
   if (!tool?.readOnly || !tool.inputSchema)
     throw unprocessableEntity(
@@ -123,14 +131,26 @@ async function read(
   return readIntegrationTool(integration, tool.slug, args);
 }
 
-async function propertyChoices(
+/** One read-only Google read on a connected account, its arguments bound to the tool's declared inputs. */
+export async function readNativeSeoTool(
+  integration: ComposioIntegrationAccount,
+  slug: string,
+  logical: Record<string, unknown>,
+  tools?: SeoNativeTool[],
+) {
+  return read(integration, await toolFor(integration, slug, tools), logical);
+}
+
+export async function propertyChoices(
   integration: ComposioIntegrationAccount,
   provider: SyncProjectSeoStatistics["provider"],
+  tools?: SeoNativeTool[],
 ): Promise<ProjectSeoStatisticsProperties> {
   const properties: Array<{ id: string; name: string }> = [];
   const tool = await toolFor(
     integration,
     provider === "ga4" ? GA4_PROPERTIES_TOOL : GSC_PROPERTIES_TOOL,
+    tools,
   );
   let token: string | undefined;
   const seen = new Set<string>();
@@ -174,18 +194,8 @@ async function propertyChoices(
           });
       token = body.nextPageToken;
     } else {
-      const body = z
-        .object({
-          siteEntry: z
-            .array(
-              z.object({ siteUrl: z.string(), permissionLevel: z.string() }),
-            )
-            .default([]),
-        })
-        .parse(payload);
-      for (const property of body.siteEntry)
-        if (property.permissionLevel !== "siteUnverifiedUser")
-          properties.push({ id: property.siteUrl, name: property.siteUrl });
+      for (const id of readableGscProperties(payload))
+        properties.push({ id, name: id });
       token = undefined;
     }
     if (!token)
@@ -242,30 +252,6 @@ export async function listProjectSeoStatisticsProperties(
   }
 }
 
-function propertyCovers(property: string, urls: string[]): boolean {
-  if (property.startsWith("sc-domain:")) {
-    const domain = property.slice("sc-domain:".length).toLowerCase();
-    return (
-      !!domain &&
-      urls.every((url) => {
-        const host = new URL(url).hostname.toLowerCase();
-        return host === domain || host.endsWith(`.${domain}`);
-      })
-    );
-  }
-  if (!URL.canParse(property)) return false;
-  const prefix = new URL(property);
-  return (
-    ["https:", "http:"].includes(prefix.protocol) &&
-    !prefix.username &&
-    !prefix.password &&
-    urls.every(
-      (url) =>
-        new URL(url).origin === prefix.origin && url.startsWith(prefix.href),
-    )
-  );
-}
-
 export async function syncProjectSeoStatistics(
   actor: SeoActor,
   raw: SyncProjectSeoStatistics,
@@ -312,6 +298,9 @@ export async function syncProjectSeoStatistics(
   const retain = async (
     snapshot: Parameters<typeof recordNativeSeoMetrics>[1],
     mutationHooks: SeoMutationHooks,
+    outcomes?: NonNullable<
+      Parameters<typeof recordNativeSeoMetrics>[2]
+    >["outcomes"],
   ) => {
     const current = await integrationFor(actor, input.provider);
     if (
@@ -325,6 +314,10 @@ export async function syncProjectSeoStatistics(
       );
     await recordNativeSeoMetrics(actor, snapshot, {
       ...mutationHooks,
+      outcomes,
+      ...(input.provider === "ga4" && {
+        outcomeAccountKey: landingOutcomeAccountKey(integration),
+      }),
       scope: {
         id: input.scopeId ?? null,
         version: workspace.scope.version,
@@ -343,7 +336,7 @@ export async function syncProjectSeoStatistics(
     hooks,
     readWorkspace,
     activate: retain,
-    collect: async (fingerprint, collectionHooks) => {
+    collect: async (fingerprint, collectionHooks, cached) => {
       const choices = await propertyChoices(integration, input.provider).catch(
         async (error) => {
           await recordSeoConnectionFailure(actor, input.provider, integration);
@@ -358,11 +351,41 @@ export async function syncProjectSeoStatistics(
         );
       if (
         input.provider === "search_console" &&
-        !propertyCovers(input.propertyId, pageUrls)
+        !gscPropertyCovers(input.propertyId, pageUrls)
       )
         throw unprocessableEntity(
           "The Search Console property does not cover the selected pages",
         );
+      let inspectionTool: Promise<SeoNativeTool> | undefined;
+      const collectIndexedPages = () =>
+        collectStatisticsInspections(
+          actor,
+          inspectionCacheKey(actor, integration, input.propertyId),
+          pageUrls,
+          async (pageUrl) => {
+            inspectionTool ??= toolFor(integration, GSC_INSPECT_TOOL);
+            const raw = await read(
+              integration,
+              await inspectionTool,
+              gscInspectionArguments(input.propertyId, pageUrl),
+            );
+            return normalizeGscInspection(
+              pageUrl,
+              unwrapNativeStatistics(raw, ["inspectionResult"]),
+            );
+          },
+          cached,
+        );
+      if (cached) {
+        const inspections = await collectIndexedPages();
+        const updated = {
+          ...cached,
+          collectedAt: cached.collectedAt ?? cached.observedAt,
+          observedAt: new Date().toISOString(),
+        };
+        applyStatisticsInspections(updated, inspections);
+        return retain(updated, collectionHooks);
+      }
       const tool = await toolFor(
         integration,
         input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
@@ -463,52 +486,6 @@ export async function syncProjectSeoStatistics(
       // Organic key events per landing page. Google Analytics only.
       const landingPlan =
         input.provider === "ga4" ? ga4LandingPlan(query) : null;
-      const collectLandingPages = async () => {
-        if (!landingPlan?.query.pageUrls.length) return null;
-        const hosts = unwrapNativeStatistics(
-          await read(integration, tool, ga4LandingHostArguments(query)),
-          ["metricHeaders"],
-        );
-        assertGa4LandingHost(query, hosts);
-        return {
-          ...normalizeGa4LandingPages(
-            landingPlan.query,
-            unwrapNativeStatistics(
-              await read(
-                integration,
-                tool,
-                ga4LandingPageArguments(landingPlan.query),
-              ),
-              ["metricHeaders"],
-            ),
-            landingPlan.skippedUrls,
-          ),
-          verifiedHost: new URL(query.pageUrls[0]!).hostname,
-        };
-      };
-      // One URL Inspection per page. A page Google did not answer for is left out, never guessed.
-      const collectIndexedPages = async () => {
-        if (input.provider !== "search_console") return null;
-        const inspect = await toolFor(integration, GSC_INSPECT_TOOL);
-        const results = await Promise.allSettled(
-          pageUrls.map(async (pageUrl) =>
-            normalizeGscInspection(
-              pageUrl,
-              unwrapNativeStatistics(
-                await read(
-                  integration,
-                  inspect,
-                  gscInspectionArguments(input.propertyId, pageUrl),
-                ),
-                ["inspectionResult"],
-              ),
-            ),
-          ),
-        );
-        return results.flatMap((result) =>
-          result.status === "fulfilled" ? [result.value] : [],
-        );
-      };
       const tracked = readsQueries
         ? selectTrackedKeywords(workspace.keywords)
         : { groups: [], leftOut: [] };
@@ -557,8 +534,15 @@ export async function syncProjectSeoStatistics(
         collectPrevious(),
         collectBreakdown("country"),
         collectBreakdown("device"),
-        collectIndexedPages(),
-        collectLandingPages(),
+        input.provider === "search_console" ? collectIndexedPages() : null,
+        collectLandingPages(
+          query,
+          landingPlan,
+          actor,
+          workspace.pages,
+          integration,
+          (args) => read(integration, tool, args),
+        ),
       ]);
       if (period.status === "rejected" && daily.status === "rejected") {
         await recordSeoConnectionFailure(actor, input.provider, integration);
@@ -603,9 +587,11 @@ export async function syncProjectSeoStatistics(
       if (landingPlan) {
         if (landingPlan.skippedUrls.length)
           metrics.notes.push(SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE);
-        if (landing.status === "fulfilled" && landing.value)
-          metrics.landingPages = landing.value;
-        else if (landingPlan.query.pageUrls.length)
+        if (landing.status === "fulfilled" && landing.value) {
+          metrics.landingPages = landing.value.landingPages;
+          metrics.landingEngagementEvidence =
+            landing.value.landingEngagementEvidence;
+        } else if (landingPlan.query.pageUrls.length)
           metrics.notes.push(
             SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
           );
@@ -639,13 +625,8 @@ export async function syncProjectSeoStatistics(
         else if (device) metrics.devices = device.split;
         if (byCountry.status === "rejected" || byDevice.status === "rejected")
           metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
-        if (indexed.status === "fulfilled" && indexed.value?.length)
-          metrics.indexedPages = indexed.value;
-        if (
-          indexed.status === "rejected" ||
-          (indexed.value?.length ?? 0) < pageUrls.length
-        )
-          metrics.notes.push(SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE);
+        if (indexed.status === "rejected") throw indexed.reason;
+        if (indexed.value) applyStatisticsInspections(metrics, indexed.value);
         if (tracked.leftOut.length)
           metrics.notes.push(
             seoStatisticsKeywordsLeftOutNote(
@@ -657,7 +638,11 @@ export async function syncProjectSeoStatistics(
       }
       metrics.collectionFingerprint = fingerprint;
       metrics.collectedAt = metrics.observedAt;
-      return retain(metrics, collectionHooks);
+      return retain(
+        metrics,
+        collectionHooks,
+        landing.status === "fulfilled" ? landing.value?.outcomes : undefined,
+      );
     },
   });
 }

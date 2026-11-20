@@ -103,6 +103,7 @@ function network(
   workspace: ProjectSeoWorkspace,
   routes: {
     connection?: (provider: string) => object;
+    properties?: { id: string; name: string }[] | (() => Reply);
     chat?: (init?: RequestInit) => Reply;
     unfiltered?: ProjectSeoWorkspace | (() => Reply);
   } = {},
@@ -121,13 +122,15 @@ function network(
             source: "personal_assistant",
           },
         );
-      if (pathname.endsWith("statistics/properties"))
+      if (pathname.endsWith("statistics/properties")) {
+        if (typeof routes.properties === "function") return routes.properties();
         return Response.json({
           provider: "search_console",
           status: "available",
           reason: null,
-          properties: [],
+          properties: routes.properties ?? [],
         });
+      }
       if (pathname.endsWith("/chat"))
         return (
           routes.chat?.(init) ??
@@ -180,6 +183,128 @@ afterEach(() => {
 });
 
 describe("SEO audit first run", () => {
+  it("starts once with the displayed matching property when both a domain and URL prefix cover the page", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.searchConsolePropertyId = null;
+    const domain = "sc-domain:example.com";
+    let finishDiscovery!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      finishDiscovery = resolve;
+    });
+    network(workspace, {
+      properties: async () => {
+        await waiting;
+        return Response.json({
+          status: "available",
+          properties: [
+            { id: "https://example.com/", name: "Site prefix" },
+            { id: domain, name: "Whole domain" },
+          ],
+        });
+      },
+    });
+    const action = vi.mocked(mutateSeo);
+    action.mockReset().mockResolvedValue({ ok: true, value: null });
+    await renderWorkspace(workspace);
+    await user.click(
+      await screen.findByRole("button", { name: "Run full audit" }),
+    );
+    const start = await screen.findByRole("button", { name: "Start check" });
+    expect(start).toHaveAttribute("aria-busy", "true");
+    await user.click(start);
+    expect(action).not.toHaveBeenCalled();
+    finishDiscovery();
+    await waitFor(() => expect(start).not.toHaveAttribute("aria-busy"));
+    await user.click(start);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(action.mock.calls[0][0].command).toMatchObject({
+      kind: "request_analysis",
+      body: { searchConsolePropertyId: domain },
+    });
+  });
+
+  it("keeps shared property hints out of the request and retries the repaired choice once", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const previous = "https://example.com/old/";
+    const replacement = "sc-domain:example.com";
+    workspace.sharing = "organization";
+    workspace.metrics = [{ ...seoTestMetric(), propertyId: previous }];
+    network(workspace, {
+      properties: [{ id: replacement, name: "Authorized domain" }],
+    });
+    const action = vi.mocked(mutateSeo);
+    action.mockReset().mockResolvedValue({ ok: true, value: null });
+    const refused = {
+      ok: false,
+      error: { code: "BAD_INPUT", kind: "seo_gsc_property", status: 409 },
+    } as const;
+    action.mockResolvedValueOnce(refused).mockResolvedValueOnce(refused);
+    await renderWorkspace(workspace);
+    async function start() {
+      await user.click(
+        await screen.findByRole("button", { name: "Run full audit" }),
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Start check" }),
+      );
+      return screen.findByRole("dialog", { name: "Search Console coverage" });
+    }
+    const first = await start();
+    expect(
+      within(first).getByRole("heading", { name: "Without Search Console" }),
+    ).toBeVisible();
+    expect(
+      within(first).getByText(
+        /skip Search Console clicks, impressions and indexing data/,
+      ),
+    ).toBeVisible();
+    expect(
+      within(first).queryByRole("button", { name: "Retry and start audit" }),
+    ).toBeNull();
+    expect(within(first).getByRole("alert")).toHaveTextContent(
+      "every selected page",
+    );
+    await user.click(within(first).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(action).toHaveBeenCalledTimes(1);
+
+    const warning = await start();
+    await user.click(
+      within(warning).getByRole("button", { name: "Google connections" }),
+    );
+    const settings = await screen.findByRole("dialog", {
+      name: "Google connections",
+    });
+    const section = within(settings).getByRole("region", {
+      name: "Search Console",
+    });
+    await user.click(
+      within(section).getByRole("combobox", { name: "Property" }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: "Authorized domain" }),
+    );
+    await user.keyboard("{Escape}");
+    expect(action).toHaveBeenCalledTimes(2);
+    await user.click(
+      within(warning).getByRole("button", { name: "Retry and start audit" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const bodies = action.mock.calls.map(([{ command }]) =>
+      command.kind === "request_analysis" ? command.body : undefined,
+    );
+    expect(bodies).toHaveLength(3);
+    expect(bodies[1]).not.toHaveProperty("searchConsolePropertyId");
+    expect(bodies[2]).toMatchObject({
+      searchConsolePropertyId: replacement,
+      idempotencyKey: bodies[1]?.idempotencyKey,
+    });
+    expect(bodies[2]).not.toHaveProperty("allowLimitedAudit");
+  });
+
   it("asks for Google before offering the first audit, then permits an explicit skip", async () => {
     const workspace = seoTestWorkspace();
     network(workspace, {
@@ -198,6 +323,9 @@ describe("SEO audit first run", () => {
     expect(
       within(setup).queryByRole("button", { name: "Run full audit" }),
     ).toBeNull();
+    expect(
+      within(setup).getByRole("button", { name: "1 page in this audit" }),
+    ).toHaveAttribute("aria-expanded", "false");
     expect(within(setup).getAllByRole("listitem")).toHaveLength(2);
     await userEvent
       .setup()
@@ -207,6 +335,12 @@ describe("SEO audit first run", () => {
     expect(
       await within(setup).findByRole("button", { name: "Run full audit" }),
     ).toBeVisible();
+    expect(
+      within(setup).getByRole("heading", {
+        name: `${copy.statistics.title} (${copy.setup.done})`,
+      }),
+    ).toBeVisible();
+    expect(within(setup).queryByText(copy.setup.googleBody)).toBeNull();
   });
 
   it("does not expose a header run on another tab while Google setup waits", async () => {
@@ -458,11 +592,15 @@ describe("SEO audit first run", () => {
     // The check needs no more input, so the wait is the time for the statistics.
     expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
     const setup = screen.getByTestId("seo-setup");
+    // The settings are in the account card's menu: no second button stands under the card.
     expect(
       await within(setup).findByRole("button", {
-        name: "Google statistics settings",
+        name: copy.connections.options,
       }),
     ).toBeVisible();
+    expect(
+      within(setup).queryByRole("button", { name: "Google connections" }),
+    ).toBeNull();
     expect(within(setup).getByText(copy.setup.checkRunning)).toBeVisible();
     expect(primaryButtons(setup)).toEqual([]);
   });
@@ -506,6 +644,7 @@ describe("SEO audit first run", () => {
   it("explains automatic collection on Traffic once the account is connected", async () => {
     const workspace = seoTestWorkspace();
     network(workspace, {
+      properties: [{ id: "sc-domain:example.com", name: "Example" }],
       connection: (provider) => ({
         provider,
         name: provider,
@@ -524,7 +663,7 @@ describe("SEO audit first run", () => {
     // Nothing is measured yet: one card asks for the sync, and no second empty card asks again.
     expect(screen.queryByText(copy.queries.notSynced)).toBeNull();
     expect(
-      screen.getAllByRole("button", { name: "Google statistics settings" }),
+      screen.getAllByRole("button", { name: "Google connections" }),
     ).toHaveLength(1);
   });
 
@@ -579,25 +718,26 @@ describe("SEO audit first run", () => {
       within(row)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Google statistics settings"]);
-    // The dialog opens on this banner's source.
+    ).toEqual(["Google connections"]);
+    // The dialog marks this banner's source.
     await userEvent.click(within(row).getByRole("button"));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Google connections",
+    });
     expect(
-      within(
-        await screen.findByRole("dialog", { name: "Google statistics" }),
-      ).getByRole("combobox", { name: "Source" }),
-    ).toHaveTextContent("Search Console");
-    // Without a source the dialog starts on the connected account too: on Google Analytics it had no sync.
+      within(dialog).getByRole("region", { name: "Search Console" }),
+    ).toHaveAttribute("aria-current", "true");
+    // Without a source no connected source is marked.
     await userEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
     await openStatisticsSetup(userEvent);
     const reopened = await screen.findByRole("dialog", {
-      name: "Google statistics",
+      name: "Google connections",
     });
-    await waitFor(() =>
-      expect(
-        within(reopened).getByRole("combobox", { name: "Source" }),
-      ).toHaveTextContent("Search Console"),
-    );
+    expect(
+      await within(reopened).findByRole("region", { name: "Search Console" }),
+    ).toBeVisible();
+    for (const region of within(reopened).getAllByRole("region"))
+      expect(region).not.toHaveAttribute("aria-current");
   });
 
   it("asks for the account on the Traffic tab while no account is connected", async () => {
@@ -823,6 +963,56 @@ describe("SEO audit first run", () => {
     await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
   });
 
+  it("opens the added page count with the keyboard and lists only the current audit URLs in scope order", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const home = workspace.pages[0];
+    const pricing = {
+      ...home,
+      id: crypto.randomUUID(),
+      label: "Pricing",
+      url: "https://example.com/products/upgrade?plan=annual",
+    };
+    const outside = {
+      ...home,
+      id: crypto.randomUUID(),
+      label: "Support",
+      url: "https://example.com/help",
+    };
+    workspace.pages = [outside, home, pricing];
+    workspace.scope.pageIds = [pricing.id, home.id];
+    network(workspace);
+    await renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    const heading = setup.getByRole("heading", {
+      level: 4,
+      name: /2 pages in this audit/,
+    });
+    const toggle = within(heading).getByRole("button", {
+      name: "2 pages in this audit",
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(setup.queryByRole("link", { name: pricing.url })).toBeNull();
+    const requests = vi.mocked(fetch).mock.calls.length;
+    toggle.focus();
+    await user.keyboard("{Enter}");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const links = setup.getAllByRole("link", { name: /^https:\/\// });
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      pricing.url,
+      home.url,
+    ]);
+    expect(links.map((link) => link.textContent)).toEqual([
+      pricing.url,
+      home.url,
+    ]);
+    expect(setup.getByRole("button", { name: copy.addPage })).toBeVisible();
+    await user.keyboard(" ");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveFocus();
+    expect(fetch).toHaveBeenCalledTimes(requests);
+  });
+
   it("shows only the page step before a page is added", async () => {
     const workspace = seoTestWorkspace();
     workspace.pages = [];
@@ -838,6 +1028,9 @@ describe("SEO audit first run", () => {
     });
     await renderWorkspace(workspace);
     const setup = within(screen.getByTestId("seo-setup"));
+    expect(
+      setup.queryByRole("button", { name: /pages? in this audit/ }),
+    ).toBeNull();
     expect(setup.getAllByRole("listitem")).toHaveLength(1);
     expect(setup.getByRole("button", { name: copy.addPage })).toBeVisible();
     expect(
@@ -870,7 +1063,12 @@ describe("SEO audit first run", () => {
     await user.click(
       screen.getByRole("button", { name: copy.setup.skipGoogle }),
     );
-    expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
+    const start = within(screen.getByTestId("seo-setup")).getByRole("button", {
+      name: copy.setup.pausedStart,
+    });
+    expect(start).toBeVisible();
+    expect(start).toHaveAttribute("aria-disabled", "true");
+    expect(start).toHaveAccessibleDescription(copy.setup.pausedReason);
     expect(
       screen.queryByRole("button", { name: copy.runFullAudit }),
     ).toBeNull();
@@ -1036,12 +1234,13 @@ describe("SEO audit first run", () => {
     ];
     network(workspace);
     await renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
-    // No check can run: the headline is what is known, and the line under it does not repeat it.
+    // No check can run: the headline is what is known, and the figure under it names the period only.
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       /^Google search on this page: 2 clicks, 35 impressions$/,
     );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Jan 1\W+2, 2026\s*Open traffic$/,
+      // The name also says where the figure leads.
+      /^Traffic: Jan 1\W+2, 2026$/,
     );
     // One notice above the tabs; no second line about schedules under the chat.
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();

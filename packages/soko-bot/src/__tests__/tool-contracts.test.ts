@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -9,13 +10,28 @@ import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotArchiveTaskInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotLinkTasksInputSchema,
   sokoBotListTasksInputSchema,
+  sokoBotPostChatInputSchema,
   sokoBotReplyToTaskInputSchema,
+  sokoBotSetTaskParentInputSchema,
   sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateTaskInputSchema,
 } from "../index.js";
 
 describe("Soko Bot tool contracts", () => {
+  it("lets post_chat send as much as a person may post", () => {
+    const post = (length: number) =>
+      sokoBotPostChatInputSchema.safeParse({
+        roomId: "room-1",
+        content: "x".repeat(length),
+      }).success;
+    // A day's complete PR roundup ran past the old 4,000 characters.
+    expect(post(9_000)).toBe(true);
+    expect(post(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH)).toBe(true);
+    expect(post(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1)).toBe(false);
+  });
+
   it("defines one input schema and description for every capability", () => {
     expect(Object.keys(SOKO_BOT_TOOL_INPUT_SCHEMAS).sort()).toEqual(
       [...SOKO_BOT_CAPABILITIES].sort(),
@@ -91,6 +107,43 @@ describe("Soko Bot tool contracts", () => {
         .success,
     ).toBe(false);
     expect(isSokoBotDecisionTarget("archive_task")).toBe(true);
+  });
+
+  it("links no parent or child: a parent is a sub-task now", () => {
+    for (const relation of ["parent", "child"])
+      expect(
+        sokoBotLinkTasksInputSchema.safeParse({
+          taskId: "a",
+          peerTaskId: "b",
+          relation,
+        }).success,
+      ).toBe(false);
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.link_tasks).toContain("set_task_parent");
+  });
+
+  it("tells the bot get_task_status lists a capped number of sub-tasks", () => {
+    // Core returns at most 25 sub-tasks and a subtaskCount of all of them.
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.get_task_status).toMatch(
+      /first 25.*subtaskCount/,
+    );
+  });
+
+  it("sets or clears a parent, and never leaves it out", () => {
+    // Core's move reads an absent parentTaskId as "keep the parent", so a
+    // call without one would answer success and change nothing.
+    const taskId = "01960001-0001-7001-8001-000000000001";
+    const parentTaskId = "01960001-0001-7001-8001-000000000002";
+    expect(
+      sokoBotSetTaskParentInputSchema.safeParse({ taskId, parentTaskId })
+        .success,
+    ).toBe(true);
+    expect(
+      sokoBotSetTaskParentInputSchema.safeParse({ taskId, parentTaskId: null })
+        .success,
+    ).toBe(true);
+    expect(sokoBotSetTaskParentInputSchema.safeParse({ taskId }).success).toBe(
+      false,
+    );
   });
 
   it("restricts decision requests to supported mutation targets", () => {

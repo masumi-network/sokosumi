@@ -10,3 +10,23 @@ export const SEO_SEARCH_TYPES = [
   "discover",
   "googleNews",
 ] as const;
+
+/** Search Console URL-prefix properties require the same origin and the registered path prefix. */
+export function seoSearchUrlPrefixCovers(
+  property: string,
+  pageUrls: readonly string[],
+) {
+  if (!URL.canParse(property)) return false;
+  const prefix = new URL(property);
+  return (
+    ["https:", "http:"].includes(prefix.protocol) &&
+    !prefix.username &&
+    !prefix.password &&
+    pageUrls.every((url) => {
+      const page = URL.parse(url);
+      return (
+        page?.origin === prefix.origin && page.href.startsWith(prefix.href)
+      );
+    })
+  );
+}

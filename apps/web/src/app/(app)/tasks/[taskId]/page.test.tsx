@@ -7,6 +7,7 @@ const getTaskWorkspaceMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getTranslationsMock = vi.fn();
 const notFoundMock = vi.fn();
+const connectionMock = vi.fn();
 const taskDetailViewMock = vi.fn();
 const taskWorkspaceSwitchDialogMock = vi.fn();
 const projectScopeMarkerMock = vi.fn();
@@ -37,7 +38,9 @@ const targetOrganization = {
   stripeCustomerId: null,
 };
 
-vi.mock("next/server", () => ({ connection: async () => undefined }));
+vi.mock("next/server", () => ({
+  connection: () => connectionMock(),
+}));
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));
@@ -81,13 +84,20 @@ vi.mock("@/app/components/project-scope/project-scope-marker", () => ({
   },
 }));
 
+vi.mock("@/components/refresh-prefetched-page.client", () => ({
+  RefreshPrefetchedPage: () => null,
+}));
+
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: (...args: unknown[]) => getSessionMock(...args),
+  getPrivateCachedSession: (...args: unknown[]) => getSessionMock(...args),
+}));
+
+vi.mock("@/app/tasks/utils/private-task-detail-cache", () => ({
+  getPrivateCachedTask: (...args: unknown[]) => getTaskByIdMock(...args),
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
-    getTaskById: (...args: unknown[]) => getTaskByIdMock(...args),
     getTaskWorkspace: (...args: unknown[]) => getTaskWorkspaceMock(...args),
   },
 }));
@@ -201,6 +211,52 @@ describe("TaskDetailPage", () => {
     expect(screen.getByTestId("task-detail-view")).toBeInTheDocument();
     // A task with no project reports the workspace.
     expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
+  });
+
+  // A task link's prefetch carries the page only while it never calls
+  // connection(). Every other outcome must render fresh on the click, so a
+  // passing Core outage is never kept in the browser as a 404.
+  it("keeps the task view prefetchable and renders a miss fresh", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_workspace" },
+      user: sessionUser,
+    });
+    getTaskByIdMock.mockResolvedValue({ id: "task_1", name: "Report" });
+    const { default: TaskDetailPage } = await import("./page");
+
+    render(
+      await TaskDetailPage({ params: Promise.resolve({ taskId: "SOK-1" }) }),
+    );
+    expect(connectionMock).not.toHaveBeenCalled();
+
+    // connection() must settle before notFound(): a prefetch render stops
+    // at the pending connection() and never reaches the 404.
+    let releaseConnection = () => {};
+    connectionMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        releaseConnection = resolve;
+      }),
+    );
+    getTaskByIdMock.mockRejectedValue(new Error("Core answered 503"));
+    const missed = TaskDetailPage({
+      params: Promise.resolve({ taskId: "SOK-1" }),
+    });
+    await vi.waitFor(() => expect(connectionMock).toHaveBeenCalledTimes(1));
+    expect(notFoundMock).not.toHaveBeenCalled();
+
+    releaseConnection();
+    await expect(missed).rejects.toThrow("notFound");
+  });
+
+  it("renders a signed-out miss fresh", async () => {
+    getSessionMock.mockResolvedValue(null);
+    getTaskByIdMock.mockResolvedValue({ id: "task_1", name: "Report" });
+    const { default: TaskDetailPage } = await import("./page");
+
+    await expect(
+      TaskDetailPage({ params: Promise.resolve({ taskId: "SOK-1" }) }),
+    ).rejects.toThrow("notFound");
+    expect(connectionMock).toHaveBeenCalledTimes(1);
   });
 
   it("reports the task's project to the project switchers", async () => {
@@ -321,5 +377,44 @@ describe("TaskDetailPage", () => {
 
     expect(getTaskByIdMock).toHaveBeenCalledWith("SOK-99-gone");
     expect(getTaskWorkspaceMock).not.toHaveBeenCalled();
+  });
+
+  // The tab title is what a screen reader announces when the task opens.
+  describe("generateMetadata", () => {
+    it("titles the page with the task's name", async () => {
+      getTaskByIdMock.mockResolvedValue({
+        id: "task_1",
+        name: "Quarterly report",
+      });
+      const { generateMetadata } = await import("./page");
+
+      await expect(
+        generateMetadata({ params: Promise.resolve({ taskId: TASK_UUID }) }),
+      ).resolves.toEqual({ title: "Quarterly report" });
+      expect(getTaskByIdMock).toHaveBeenCalledWith(TASK_UUID);
+    });
+
+    // Same text as the page heading, so the tab never shows Markdown marks.
+    it("strips inline Markdown from the title like the heading does", async () => {
+      getTaskByIdMock.mockResolvedValue({
+        id: "task_1",
+        name: "**Weekly** `brief` for [Spring](https://example.com)",
+      });
+      const { generateMetadata } = await import("./page");
+
+      await expect(
+        generateMetadata({ params: Promise.resolve({ taskId: TASK_UUID }) }),
+      ).resolves.toEqual({ title: "Weekly brief for Spring" });
+    });
+
+    it("keeps the default title when the task cannot be read", async () => {
+      getTaskByIdMock.mockResolvedValueOnce(null);
+      getTaskByIdMock.mockRejectedValueOnce(new Error("Core down"));
+      const { generateMetadata } = await import("./page");
+      const params = Promise.resolve({ taskId: TASK_UUID });
+
+      await expect(generateMetadata({ params })).resolves.toEqual({});
+      await expect(generateMetadata({ params })).resolves.toEqual({});
+    });
   });
 });

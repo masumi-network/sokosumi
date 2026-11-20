@@ -70,6 +70,7 @@ export function useHistorySearchCorpus({
 
   return {
     query,
+    debouncedQuery,
     setQuery,
     history: data ?? [],
     error: isError ? errorLabel : null,

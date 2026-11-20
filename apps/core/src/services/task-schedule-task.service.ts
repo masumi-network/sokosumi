@@ -9,6 +9,7 @@ import { taskCreationEvents } from "@/helpers/task-creation-events";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { releaseSeoMonitorRun } from "./project-seo-monitor.service";
+import type { ManualSeoRunApproval } from "./seo-monitor-search-console";
 import type { ReleasedTask } from "./task-schedule-runs.service";
 
 export async function createTaskFromBlueprint(
@@ -16,8 +17,15 @@ export async function createTaskFromBlueprint(
   schedule: TaskSchedule,
   runId: string,
   manual = false,
+  approval?: ManualSeoRunApproval,
 ) {
-  const seoTask = await releaseSeoMonitorRun(tx, schedule, runId, manual);
+  const seoTask = await releaseSeoMonitorRun(
+    tx,
+    schedule,
+    runId,
+    manual,
+    approval,
+  );
   if (seoTask) return seoTask;
   return tx.task.create({
     data: {

@@ -3,8 +3,13 @@ import { checkFileLabelName } from "@sokosumi/utils";
 
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
+import { mergeTaskTagAssignments } from "@/helpers/merge-task-tag-assignments";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  toWorkspaceLabel,
+  workspaceLabelSelect,
+} from "@/helpers/workspace-label";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -97,6 +102,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       await prisma.$transaction(async (tx) => {
+        if (label.kind === "TAG") {
+          // Task edits lock their workspace FOR UPDATE before reading the applied
+          // tag IDs. Wait here before moving assignments or dismissal decisions.
+          await tx.$queryRaw`
+            SELECT id FROM "workspace"
+            WHERE id = ${context.workspaceId}::uuid FOR KEY SHARE
+          `;
+        }
+        // Task assignments hold shared locks on these rows. Take both locks
+        // before moving assignments so a concurrent edit cannot revive the source.
+        const active = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM workspace_label
+          WHERE id IN (${label.id}::uuid, ${target.id}::uuid)
+            AND "mergedIntoId" IS NULL
+            AND (id = ${label.id}::uuid OR "archivedAt" IS NULL)
+          ORDER BY id FOR UPDATE
+        `;
+        if (active.length !== 2) {
+          throw conflict(
+            "A merged label or archived target cannot be used for a merge",
+          );
+        }
+        if (label.kind === "TAG") {
+          await mergeTaskTagAssignments(tx, label.id, target.id);
+        }
+
         // Move assignments that the target does not already have, then drop
         // the duplicates, so a merge never doubles a file's tag list.
         const assignments = await tx.fileLabel.findMany({
@@ -163,6 +194,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (clash) throw conflict("That name is already in this workspace");
     }
 
+    const changesMeaning =
+      rename || body.archived !== undefined || body.description !== undefined;
     const updated = await prisma.workspaceLabel.update({
       where: { id: label.id },
       data: {
@@ -177,31 +210,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(body.description !== undefined
           ? { description: body.description ?? null }
           : {}),
+        ...(body.color !== undefined && { color: body.color }),
+        // Older clients can still choose a named color or reset to Automatic.
+        ...(body.customColor !== undefined
+          ? { customColor: body.customColor }
+          : body.color !== undefined
+            ? { customColor: null }
+            : {}),
         ...(body.archived !== undefined
           ? { archivedAt: body.archived ? new Date() : null }
           : {}),
-        vocabularyVersion: { increment: 1 },
+        // A color has no bearing on whether the tag matches a Task or a file.
+        ...(changesMeaning ? { vocabularyVersion: { increment: 1 } } : {}),
       },
-      select: {
-        id: true,
-        kind: true,
-        displayName: true,
-        description: true,
-        archivedAt: true,
-        vocabularyVersion: true,
-      },
+      select: workspaceLabelSelect,
     });
 
-    return ok(
-      c,
-      workspaceLabelSchema.parse({
-        id: updated.id,
-        kind: updated.kind,
-        displayName: updated.displayName,
-        description: updated.description,
-        archived: updated.archivedAt !== null,
-        vocabularyVersion: updated.vocabularyVersion,
-      }),
-    );
+    return ok(c, toWorkspaceLabel(updated));
   });
 }

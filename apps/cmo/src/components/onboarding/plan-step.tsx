@@ -8,19 +8,26 @@ import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import { strategyApproved } from "../../lib/strategy";
+import {
+  monthLabel,
+  monthPostCount,
+  strategyApproved,
+} from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
+import { AdsChoice, money } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
 import {
   Checklist,
+  type ChecklistItem,
   PLANNING_PHASES,
   useElapsed,
   workChecklist,
+  workNow,
 } from "./checklist";
+import { CusoScene } from "./cuso-scene";
 import {
   type ConnectMeasurement,
   MonthPanel,
@@ -99,12 +106,12 @@ export function planningRows(
         ...done,
         id: `pillar:${pillar.name}`,
         kind: "brain",
-        label: `${pillar.name}: ${pillar.share}% of pieces`,
+        label: `${pillar.name}: ${pillar.share}% of posts`,
       });
     }
   }
   if (running) {
-    const pieces = strategy?.calendar.length ?? 0;
+    const pieces = strategy ? monthPostCount(strategy.calendar) : 0;
     // On top, so what Cuso is on stays in view above the plan so far.
     rows.unshift({
       id: strategy ? "calendar" : "plan",
@@ -112,13 +119,31 @@ export function planningRows(
       label: !strategy
         ? "Choosing your idea, channels and pillars"
         : pieces > 0
-          ? `Writing four weeks, day by day: ${pieces} pieces so far`
+          ? `Writing four weeks, day by day: ${pieces} posts so far`
           : "Writing four weeks, day by day",
       url: null,
       status: "running",
     });
   }
   return rows;
+}
+
+/**
+ * The planning checklist. Once the plan's idea and channels are saved, Cuso
+ * is on the calendar, whatever steps Core has reported so far; the checklist
+ * then agrees with the feed below it.
+ */
+export function planningChecklist(
+  steps: Step[],
+  strategy: Strategy | null,
+  running: boolean,
+): ChecklistItem[] {
+  const items = workChecklist(steps, PLANNING_PHASES, running);
+  if (!running || !strategy) return items;
+  return items.map((item, at) => ({
+    ...item,
+    state: at === items.length - 1 ? "working" : "done",
+  }));
 }
 
 const ANSWER_WORDS: Record<string, string> = {
@@ -221,17 +246,26 @@ function Planning({
     starting || (work?.kind === "strategy" && work.status === "running");
   const noCredits = !running && overview.billing.availableCredits <= 0;
   const elapsed = useElapsed(work?.startedAt, running);
-  const rows = planningRows(
-    work?.kind === "strategy" ? work.steps : [],
+  const steps = work?.kind === "strategy" ? work.steps : [];
+  const rows = planningRows(steps, overview.strategy ?? null, running);
+  const checklist = planningChecklist(
+    steps,
     overview.strategy ?? null,
     running,
   );
   return (
     <section className="ob-wait">
       <div className="ob-lead">
-        <CusoAvatar pose={running ? "thinking" : "needs-you"} size={176} />
+        {running ? (
+          <CusoScene
+            scene="planning"
+            now={workNow(steps, checklist) ?? "Getting started"}
+          />
+        ) : (
+          <CusoAvatar pose="needs-you" size={176} />
+        )}
         <h1 className="ob-h1">
-          {running ? "Writing your plan" : "Planning stopped"}
+          {running ? "Writing your strategy" : "Writing stopped"}
         </h1>
         {noCredits ? (
           <Refusal
@@ -248,17 +282,11 @@ function Planning({
           </p>
         )}
         {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
-        <Checklist
-          items={workChecklist(
-            work?.kind === "strategy" ? work.steps : [],
-            PLANNING_PHASES,
-            running,
-          )}
-        />
+        <Checklist items={checklist} />
         <div className="ob-feed" aria-label="What Cuso is writing">
           <p className="ob-feed-title">
             <span className={running ? "ob-live on" : "ob-live"} />
-            {running ? "Live" : "What Cuso wrote"}
+            {running ? "Live" : `What ${AGENT_NAME} wrote`}
           </p>
           {rows.length === 0 ? (
             <p className="ob-feed-empty">
@@ -330,8 +358,8 @@ function WriteNeeded({
   return (
     <section className="ob-wait">
       <div className="ob-lead">
-        <CusoAvatar pose="reporting" size={176} />
-        <h1 className="ob-h1">Ready to write your plan</h1>
+        <CusoScene scene="planning" />
+        <h1 className="ob-h1">Ready to write your strategy</h1>
         <p className="muted">
           I build it from your Brand Brain and your answers.
         </p>
@@ -349,7 +377,7 @@ function WriteNeeded({
             })
           }
         >
-          {pending ? "Starting…" : "Write my plan"}
+          {pending ? "Starting…" : "Write my strategy"}
           {pending ? null : <ArrowRight size={16} aria-hidden="true" />}
         </button>
         {refusal ? (
@@ -401,7 +429,6 @@ export function PlanReview({
   const changing = sending !== null;
   const [going, startGoing] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
-  const [budgetOpen, setBudgetOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const work = overview.work;
   const writing = work?.kind === "strategy" && work.status === "running";
@@ -420,10 +447,9 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const pieces = strategy.calendar.length;
-  const pages =
-    overview.brandMedia?.pages.filter((page) => page.device === "desktop")
-      .length ?? 0;
+  const month = monthLabel(strategy.calendar);
+  // Core refuses to approve a month short of what it promises.
+  const short = overview.strategyShort;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -453,13 +479,24 @@ export function PlanReview({
     );
   }
 
-  const written = strategy.contentLanguage
-    ? ` Written in ${strategy.contentLanguage}.`
-    : "";
-  const line =
-    pages > 0
-      ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the plan."}`;
+  // Same path as a change, and not in a transition (which would hold the
+  // waiting screen back): the plan waits while Cuso refits it.
+  const update = () => {
+    setRefusal(null);
+    send("Fitting your strategy to your answers", onUpdate).catch(() => {});
+  };
+
+  // What it rests on and the language of the posts, in plain words. No page
+  // count: the screenshots Core keeps are not the pages Cuso read.
+  const line = [
+    `${month} for the next four weeks, built from your website and your answers.`,
+    strategy.contentLanguage
+      ? `The posts are written in ${strategy.contentLanguage}.`
+      : null,
+    approved ? null : "Nothing goes out until you approve the strategy.",
+  ]
+    .filter(Boolean)
+    .join(" ");
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -469,8 +506,20 @@ export function PlanReview({
       Continue to {ahead.label}
       <ArrowRight size={16} aria-hidden="true" />
     </button>
-  ) : locked ? null : !overview.viewerCanApprove && !unfitted ? (
-    <p className="muted">An owner or admin approves the plan.</p>
+  ) : locked ? null : short && !busy ? (
+    <button
+      type="button"
+      className="button"
+      onClick={() => {
+        setRefusal(null);
+        send("Writing your strategy again", () => onRequest()).catch(() => {});
+      }}
+    >
+      Write it again
+      <ArrowRight size={16} aria-hidden="true" />
+    </button>
+  ) : !overview.viewerCanApprove && !unfitted ? (
+    <p className="muted">An owner or admin approves the strategy.</p>
   ) : (
     <button
       type="button"
@@ -478,10 +527,8 @@ export function PlanReview({
       disabled={going || busy}
       onClick={() => {
         setRefusal(null);
-        // Same path as a change, and not in a transition (which would hold
-        // the waiting screen back): the plan waits while Cuso refits it.
         if (unfitted) {
-          send("Fitting your plan to your answers", onUpdate).catch(() => {});
+          update();
           return;
         }
         // A refused approval (a new version on its way) stays here.
@@ -499,13 +546,13 @@ export function PlanReview({
       ) : writing ? (
         <>
           <Loader2 size={16} className="spin" aria-hidden="true" />
-          {asked
+          {asked || work?.change
             ? `${AGENT_NAME} is changing it`
             : `${AGENT_NAME} is finishing`}
         </>
       ) : (
         <>
-          {unfitted ? "Update plan" : "Approve plan"}
+          {unfitted ? "Update strategy" : "Approve strategy"}
           <ArrowRight size={16} aria-hidden="true" />
         </>
       )}
@@ -513,21 +560,38 @@ export function PlanReview({
   );
 
   const ads = strategy.ads;
-  const pace = PACES.find((option) => option.level === strategy.pace?.level);
   const hasChecks = questions.length > 0 || strategy.pace || ads;
+  // An approval covers what the owner said yes or no to, not what stayed open.
+  const answers = approved
+    ? questions.filter(
+        (question) => question.answer === "yes" || question.answer === "no",
+      )
+    : questions;
 
   return (
     <section className="ob-plan">
       <div className="ob-lead">
         {/* Cuso leads the hiring step; the app's Strategy page has its own head. */}
-        {readOnly ? null : <CusoAvatar pose="reporting" size={176} />}
-        <p className="muted">{line}</p>
+        {readOnly ? null : (
+          <CusoScene
+            scene="planning"
+            now={
+              writing
+                ? asked
+                  ? "Changing your strategy"
+                  : "Finishing your strategy"
+                : null
+            }
+          />
+        )}
+        {/* The app's page opens on the goal; the line follows it there. */}
+        {readOnly ? null : <p className="muted">{line}</p>}
       </div>
 
       {asking && !locked ? (
         <div>
           <form
-            className="card card-focus ob-change"
+            className="card ob-change"
             onSubmit={(event) => {
               event.preventDefault();
               requestChange(note);
@@ -580,11 +644,20 @@ export function PlanReview({
           skip={skip}
         />
       ) : null}
+      {short && !busy && !locked ? (
+        <p className="alert" role="status">
+          {short.promised > short.planned
+            ? `This strategy plans ${short.planned} posts, but it promises about ${short.promised}.`
+            : "This strategy promises more than its calendar holds."}{" "}
+          {AGENT_NAME} couldn't fill the month, so it can't be approved. Ask him
+          to write it again.
+        </p>
+      ) : null}
       {stopped ? (
         <p className="alert" role="alert">
           {asked
             ? "That change didn't go through. Ask again."
-            : `${AGENT_NAME} stopped before he finished. Ask him to finish the plan.`}
+            : `${AGENT_NAME} stopped before he finished. Ask him to finish the strategy.`}
         </p>
       ) : null}
 
@@ -594,7 +667,7 @@ export function PlanReview({
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
             <p className="muted">
-              {replanning}. About two minutes; your new plan opens here.
+              {replanning}. About two minutes; your new strategy opens here.
             </p>
           </div>
         </div>
@@ -608,6 +681,7 @@ export function PlanReview({
           statement={sentence !== goal ? sentence : undefined}
           facts={goalFacts(strategy)}
         />
+        {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
 
         {changes.length > 0 && !writing ? (
           <div className="card ob-changed">
@@ -620,41 +694,33 @@ export function PlanReview({
           </div>
         ) : null}
 
-        {locked && hasChecks ? (
-          <div className="card ob-checks">
-            <h2>{approved ? "What you approved" : "Your answers"}</h2>
-            <ul className="ob-approved">
-              {questions.map((question) => (
-                <li key={question.id}>
-                  {question.question}{" "}
-                  <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
-                  {question.answer === "no" && question.note
-                    ? `: ${question.note}`
-                    : ""}
-                </li>
-              ))}
-              {pace ? (
-                <li>
-                  Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
-                </li>
-              ) : null}
-              {ads ? (
-                <li>
-                  {ads.monthly > 0
-                    ? `${money(ads.monthly, ads.currency)} a month for ads`
-                    : "No ads"}
-                </li>
-              ) : null}
-            </ul>
-          </div>
+        {locked ? (
+          answers.length > 0 || ads ? (
+            <div className="card ob-checks">
+              <h2>{approved ? "What you approved" : "Your answers"}</h2>
+              <ul className="ob-approved">
+                {answers.map((question) => (
+                  <li key={question.id}>
+                    {question.question}{" "}
+                    <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+                    {question.answer === "no" && question.note
+                      ? `: ${question.note}`
+                      : ""}
+                  </li>
+                ))}
+
+                {ads ? (
+                  <li>
+                    {ads.monthly > 0
+                      ? `${money(ads.monthly, ads.currency)} a month for ads`
+                      : "No ads"}
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          ) : null
         ) : hasChecks ? (
-          <div
-            className={
-              questions.some((question) => !question.answer)
-                ? "card card-focus ob-checks"
-                : "card ob-checks"
-            }
-          >
+          <div className="card ob-checks">
             <h2>Check these</h2>
             {questions.map((question) => (
               <PlanQuestionChip
@@ -663,43 +729,38 @@ export function PlanReview({
                 onAnswer={(value, text) => answer(question.id, value, text)}
               />
             ))}
-            {strategy.pace ? (
-              <div className="ob-pace">
-                <PacePicker
-                  pace={strategy.pace}
-                  onAsk={(text, label) =>
-                    send(label ?? text, () => onRequest(text))
-                  }
-                />
+            {unfitted ? (
+              <div className="ob-unfitted" role="status">
+                <p>This strategy still shows your old answer.</p>
+                <button
+                  type="button"
+                  className="button button-secondary button-small"
+                  disabled={busy}
+                  onClick={update}
+                >
+                  Update strategy
+                </button>
               </div>
+            ) : null}
+            {strategy.pace ? (
+              <p className="ob-pace note">
+                This month is written at the most a plan makes. Next you pick
+                your plan, and with it how much of the month {AGENT_NAME} makes.
+              </p>
             ) : null}
             {ads ? (
               <div className="ob-budget">
-                <div className="ob-budget-row">
-                  <p>
-                    {ads.monthly > 0
-                      ? `${money(ads.monthly, ads.currency)} a month for ads`
-                      : "No ads"}
-                  </p>
-                  <button
-                    type="button"
-                    className="button button-ghost button-small"
-                    aria-expanded={budgetOpen}
-                    onClick={() => setBudgetOpen(!budgetOpen)}
-                  >
-                    {ads.monthly > 0 ? "Change" : "Add a budget"}
-                  </button>
-                </div>
-                {budgetOpen ? (
-                  <AdBudget
-                    ads={ads}
-                    onSetAds={(monthly, currency) =>
-                      send(`Ad budget: ${currency} ${monthly} a month`, () =>
-                        onSetAds(monthly, currency),
-                      )
-                    }
-                  />
-                ) : null}
+                <AdsChoice
+                  ads={ads}
+                  onSetAds={(monthly, currency) =>
+                    send(
+                      monthly > 0
+                        ? `Ad budget: ${currency} ${monthly} a month`
+                        : "No ads",
+                      () => onSetAds(monthly, currency),
+                    )
+                  }
+                />
               </div>
             ) : null}
           </div>
@@ -713,7 +774,7 @@ export function PlanReview({
               aria-controls="ob-fullplan-body"
               onClick={() => setFull(!full)}
             >
-              <span>The full plan</span>
+              <span>The full strategy</span>
               <span className="ob-small">
                 {TABS.map((candidate) => candidate.label).join(" · ")}
               </span>
@@ -729,7 +790,7 @@ export function PlanReview({
               animate={{ height: full ? "auto" : 0, opacity: full ? 1 : 0 }}
               transition={{ type: "spring", bounce: 0, duration: 0.5 }}
             >
-              <div className="ob-tabs" role="tablist" aria-label="Plan">
+              <div className="ob-tabs" role="tablist" aria-label="Strategy">
                 {TABS.map((candidate, index) => (
                   <button
                     key={candidate.id}
@@ -772,7 +833,11 @@ export function PlanReview({
                     }
                   />
                 ) : tab === "month" ? (
-                  <MonthPanel strategy={strategy} onOpen={setOpen} />
+                  <MonthPanel
+                    strategy={strategy}
+                    onOpen={setOpen}
+                    pending={!approved}
+                  />
                 ) : (
                   <ResultsPanel
                     overview={overview}
@@ -800,7 +865,7 @@ export function PlanReview({
                   });
                 }}
               >
-                Hide the full plan
+                Hide the full strategy
               </button>
             </motion.div>
           </MotionConfig>
@@ -855,14 +920,14 @@ function goalFacts(strategy: Strategy): { term: string; value: string }[] {
   const where = strategy.channels
     .map((channel) => channelLabel(channel.channel))
     .join(", ");
-  const pieces = strategy.calendar.length;
+  const pieces = monthPostCount(strategy.calendar);
   const facts = [
     { term: "Who", value: who },
     { term: "The offer", value: offer },
     { term: "Where", value: where },
     {
       term: "This month",
-      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "piece" : "pieces"}` : "",
+      value: pieces > 0 ? monthLabel(strategy.calendar) : "",
     },
   ];
   return facts.filter((fact): fact is { term: string; value: string } =>

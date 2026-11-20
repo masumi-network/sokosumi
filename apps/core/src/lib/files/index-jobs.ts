@@ -382,6 +382,7 @@ export async function backfillMissingSuggestionJobs(input?: {
       AND EXISTS (
         SELECT 1 FROM workspace_label wl
         WHERE wl."workspaceId" = fr."workspaceId"
+          AND NOT wl."isTaskPreset"
           AND wl."archivedAt" IS NULL
           AND wl."mergedIntoId" IS NULL
       )
@@ -422,7 +423,7 @@ export async function leaseNextFileIndexJob(input: {
   const leaseOwner = randomUUID();
 
   const runnable = {
-    pipeline: input.pipeline,
+    ...(input.pipeline !== undefined && { pipeline: input.pipeline }),
     runAfter: { lte: now },
     OR: [
       { state: FileIndexJobState.QUEUED },

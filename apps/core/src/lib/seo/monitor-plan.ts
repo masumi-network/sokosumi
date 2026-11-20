@@ -3,10 +3,10 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { toLocalDateKey } from "@/helpers/task-schedule";
 import {
   requestSeoAnalysisSchema,
-  SEO_MAX_MONITOR_RUNS,
   seoIdSchema,
 } from "@/schemas/project-seo.schema";
 import {
+  SEO_MAX_MONITOR_RUNS,
   type SeoMonitorRule,
   seoMonitorRuleSchema,
 } from "@/schemas/project-seo-monitor.schema";
@@ -21,6 +21,7 @@ const LEGACY_SEO_MONITOR_CRON = {
   weekly: "0 9 * * 1",
 } as const;
 const planFields = {
+  requiresApprovalRecord: z.literal(true).optional(),
   scopeVersion: z.number().int().nonnegative(),
   analysis: requestSeoAnalysisSchema,
 };
@@ -47,6 +48,7 @@ export type SeoMonitorPlan = (
   | { version: 1 }
   | { version: 2; auditId: string }
 ) & {
+  requiresApprovalRecord?: true;
   rule: SeoMonitorRule;
   scopeVersion: number;
   analysis: z.infer<typeof requestSeoAnalysisSchema>;
@@ -67,6 +69,10 @@ export function parseSeoMonitorPlan(
   if (
     !parsed.success ||
     parsed.data.analysis.scopeId ||
+    parsed.data.analysis.setupGoal ||
+    parsed.data.analysis.sharedBrief ||
+    parsed.data.analysis.searchConsolePropertyId !== undefined ||
+    parsed.data.analysis.allowLimitedAudit !== undefined ||
     !parsed.data.analysis.pageIds?.length ||
     !parsed.data.analysis.coworkerId
   )
@@ -89,10 +95,23 @@ export function parseSeoMonitorPlan(
         };
   return {
     ...owner,
+    ...(data.requiresApprovalRecord && {
+      requiresApprovalRecord: true as const,
+    }),
     rule,
     scopeVersion: data.scopeVersion,
     analysis: data.analysis,
   };
+}
+
+/** Only a readable v2 packet can start a Run for a saved audit. UUID spelling does not change its owner. */
+export function seoMonitorAuditId(description: string | null): string | null {
+  try {
+    const plan = parseSeoMonitorPlan(description);
+    return plan?.version === 2 ? plan.auditId.toLowerCase() : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The schedule description that stores an approved plan. */
@@ -159,13 +178,19 @@ export function isSeoMonitorDescription(description: string | null): boolean {
 /** The check and page count a client needs to write the plan sentence. Null for another schedule or a broken plan. */
 export function seoMonitorSummary(
   description: string | null,
-): { kind: SeoMonitorPlan["analysis"]["kind"]; pageCount: number } | null {
+  readerIsOwner: boolean,
+) {
   try {
     const plan = parseSeoMonitorPlan(description);
     return plan
       ? {
           kind: plan.analysis.kind,
           pageCount: plan.analysis.pageIds?.length ?? 0,
+          ...(readerIsOwner &&
+            plan.version === 2 &&
+            plan.analysis.kind === "audit_full" && {
+              auditId: plan.auditId,
+            }),
         }
       : null;
   } catch {
@@ -207,9 +232,10 @@ export function seoMonitorDescriptionForUser(
 }
 
 /** New generic schedule writes must approve current pricing too; stored legacy plans keep their terms. */
-export function requireSeoMonitorPriceForWrite(
+export function requireSeoMonitorApprovalForWrite(
   description: string | null | undefined,
   previous?: string | null,
+  approvedMonitor?: "interactive" | "cmo-subscription",
 ): void {
   if (
     !isSeoMonitorDescription(description ?? null) ||
@@ -222,5 +248,13 @@ export function requireSeoMonitorPriceForWrite(
   } catch {
     throw unprocessableEntity("The SEO monitor blueprint is not valid");
   }
-  if (plan) requireSeoFullAuditPriceApproval(plan.analysis);
+  if (plan)
+    requireSeoFullAuditPriceApproval(
+      plan.analysis,
+      approvedMonitor === "cmo-subscription",
+    );
+  if (plan?.analysis.kind === "audit_full" && !approvedMonitor)
+    throw conflict(
+      "Start the recurring full audit from SEO to approve its Search Console coverage.",
+    );
 }

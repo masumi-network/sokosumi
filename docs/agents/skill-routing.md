@@ -5,7 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Agent skills
 
-First-party sources in `skills/` are only `linear-requirement` (retired here — use Sokosumi Tasks), `steward`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three, and `.agents/skills/sokosumi` links to the CLI's bundled [`apps/cli/skills/sokosumi/`](../../apps/cli/skills/sokosumi/) (each `.claude/skills/<name>` is a symlink to `.agents/skills/<name>`, so a new skill needs its own link). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party skills that ship as agent plugins (`ponytail`, `i-have-adhd`, `mattpocock-skills`) are not vendored: their marketplaces and plugins are enabled in `.claude/settings.json`, `.codex/config.toml`, and `.cursor/settings.json`, so change them there, never through `npx skills`. Other third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`). Adding a shadcn component or block: [`shadcn-add`](../../apps/web/.agents/skills/shadcn-add/SKILL.md).
+First-party sources in `skills/` are only `linear-requirement` (retired here — use Sokosumi Tasks), `steward`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three, and `.agents/skills/sokosumi` links to the CLI's bundled [`apps/cli/skills/sokosumi/`](../../apps/cli/skills/sokosumi/) (each `.claude/skills/<name>` is a symlink to `.agents/skills/<name>`, so a new skill needs its own link). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Personal style plugins (`ponytail`, `i-have-adhd`) are installed at user scope rather than declared at project scope. Third-party skills (including the 27 promoted `mattpocock/skills`) live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`). Adding a shadcn component or block: [`shadcn-add`](../../apps/web/.agents/skills/shadcn-add/SKILL.md).
 
 ### Manage installations with the skills CLI
 
@@ -56,7 +56,7 @@ The user types `/create-new-in-sokosumi` with a PR, a description or screenshots
 
 ### Ask Matt
 
-Main engineering flow. Use the `ask-matt` skill (`mattpocock-skills` plugin) when choosing how to grill, spec, ticket, or implement.
+Main engineering flow. Use the `ask-matt` skill ([`.agents/skills/ask-matt/`](../../.agents/skills/ask-matt/)) when choosing how to grill, spec, ticket, or implement.
 
 ### Steward
 
@@ -72,7 +72,7 @@ Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode
 
 ### Sokosumi Task implementation
 
-Inside that flow, ship a Sokosumi Task that already has its spec in `description` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a written Task description skip `/to-spec`.
+Inside that flow, ship a Sokosumi Task that already has its spec in `description` with `/to-spec` then `/implement`. Draft PR, merged through the merge queue. Bugs and refactors without a written Task description skip `/to-spec`.
 
 Do **not** invent or file Tasks during implement work. Filing a new requirement is a separate, explicit ask: load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/) and create the Task after approval (see [`issue-tracker.md`](../../docs/agents/issue-tracker.md)). The legacy [`linear-requirement`](../../.agents/skills/linear-requirement/) skill is retired for this repo (`disable-model-invocation`); do not publish new work to Linear.
 

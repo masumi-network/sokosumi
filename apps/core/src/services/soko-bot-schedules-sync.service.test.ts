@@ -1,4 +1,7 @@
-import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_SYSTEM_SCHEDULES,
+  sokoBotSystemSchedulePrompt,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -32,6 +35,10 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+const { beatDatabaseNow } = vi.hoisted(() => ({
+  beatDatabaseNow: vi.fn(async () => new Date()),
+}));
+vi.mock("@/lib/db/database-now", () => ({ databaseNow: beatDatabaseNow }));
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
   buildSystemBeatMessage: vi.fn(),
@@ -81,6 +88,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 import { conflict } from "@/helpers/error";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { SokoBotRuntimeUnavailableError } from "@/lib/soko-bot/runtime-errors";
+import { PERSON_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   SokoBotNoDestinationError,
@@ -296,6 +304,10 @@ describe("SokoBotSchedulesSyncService", () => {
       message: dueSchedule.prompt,
       source: "SCHEDULE",
       ownScheduleId: dueSchedule.id,
+      presetRoute: expect.objectContaining({
+        route: "DELEGATE_TASK",
+        capabilities: PERSON_SCHEDULE_CAPABILITIES,
+      }),
       scheduleReservation: {
         runId: claimedRun.id,
         attempt: claimedRun.attempt,
@@ -316,6 +328,26 @@ describe("SokoBotSchedulesSyncService", () => {
       },
       data: { status: "RUNNING" },
     });
+  });
+
+  it("links a scheduled duplicate without enqueueing a drain", async () => {
+    const enqueueReconciliation = vi.fn();
+    startTurnMock.mockResolvedValue({
+      turnId: "turn_1",
+      status: "RUNNING",
+      duplicate: true,
+    });
+
+    const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+      enqueueReconciliation,
+    });
+
+    expect(result).toMatchObject({ deferred: 1, failed: 0 });
+    expect(runUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "RUNNING" } }),
+    );
+    expect(enqueueReconciliation).not.toHaveBeenCalled();
   });
 
   it("runs a follow-up the bot wrote with its writing turn's tools", async () => {
@@ -376,6 +408,8 @@ describe("SokoBotSchedulesSyncService", () => {
   );
 
   it("runs a Cuso rhythm with his own registry prompt, his dream included", async () => {
+    const databaseTime = new Date("2026-08-17T12:01:23.000Z");
+    beatDatabaseNow.mockResolvedValueOnce(databaseTime);
     botFindUniqueMock.mockResolvedValue({
       id: "bot_1",
       name: "Cuso",
@@ -407,6 +441,7 @@ describe("SokoBotSchedulesSyncService", () => {
     const [beat] = vi.mocked(buildSystemBeatMessage).mock.calls[0] ?? [];
     expect(beat?.prompt).toContain("your daily run does that");
     expect(beat?.prompt).not.toContain("stand-up");
+    expect(beat?.now).toEqual(databaseTime);
   });
 
   it("completes a quiet built-in rhythm without starting a turn", async () => {
@@ -472,8 +507,9 @@ describe("SokoBotSchedulesSyncService", () => {
       const standup = SOKO_BOT_SYSTEM_SCHEDULES.find(
         (schedule) => schedule.key === "standup",
       );
+      if (!standup) throw new Error("no stand-up rhythm");
       expect(vi.mocked(buildSystemBeatMessage).mock.calls[0]?.[0].prompt).toBe(
-        shared ? standup?.promptShared : standup?.prompt,
+        sokoBotSystemSchedulePrompt(standup, shared),
       );
     },
   );

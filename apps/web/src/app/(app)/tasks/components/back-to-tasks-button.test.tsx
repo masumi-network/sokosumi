@@ -8,23 +8,48 @@ import {
 } from "@/app/tasks/components/task-navigation";
 
 const routerPrefetchMock = vi.fn();
-const routerPushMock = vi.fn();
+const routerReplaceMock = vi.fn();
+const routerBackMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tasks/task-1",
   useRouter: () => ({
     prefetch: routerPrefetchMock,
-    push: routerPushMock,
+    push: vi.fn(),
+    replace: routerReplaceMock,
+    back: routerBackMock,
   }),
 }));
 
 describe("BackToTasksButton", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     window.sessionStorage.clear();
   });
 
-  it("prefetches and navigates to the stored tasks return path", async () => {
+  it("links to and navigates to the stored tasks return path", async () => {
+    window.sessionStorage.setItem(
+      TASKS_RETURN_PATH_SESSION_KEY,
+      "/tasks?view=list",
+    );
+
+    render(<BackToTasksButton label="Back" />);
+
+    const link = screen.getByRole("link", { name: "Back" });
+    await waitFor(() => {
+      expect(link.getAttribute("href")).toBe("/tasks?view=list");
+    });
+
+    fireEvent.click(link);
+
+    expect(routerReplaceMock).toHaveBeenCalledWith("/tasks?view=list");
+  });
+
+  it("loads only the stored return path's content, not the placeholder", async () => {
+    vi.spyOn(Element.prototype, "getClientRects").mockReturnValue([
+      new DOMRect(0, 0, 10, 10),
+    ] as unknown as DOMRectList);
     window.sessionStorage.setItem(
       TASKS_RETURN_PATH_SESSION_KEY,
       "/tasks?view=list",
@@ -33,12 +58,53 @@ describe("BackToTasksButton", () => {
     render(<BackToTasksButton label="Back" />);
 
     await waitFor(() => {
-      expect(routerPrefetchMock).toHaveBeenCalledWith("/tasks?view=list");
+      expect(routerPrefetchMock).toHaveBeenCalled();
+    });
+    expect(routerPrefetchMock.mock.calls).toEqual([
+      ["/tasks?view=list", expect.objectContaining({ kind: "full" })],
+    ]);
+  });
+
+  it("loads nothing up front where the board is not the next page", async () => {
+    vi.spyOn(Element.prototype, "getClientRects").mockReturnValue([
+      new DOMRect(0, 0, 10, 10),
+    ] as unknown as DOMRectList);
+    window.sessionStorage.setItem(
+      TASKS_RETURN_PATH_SESSION_KEY,
+      "/tasks?view=list",
+    );
+
+    render(<BackToTasksButton label="Back" loadOnMount={false} />);
+
+    const link = screen.getByRole("link", { name: "Back" });
+    await waitFor(() => {
+      expect(link.getAttribute("href")).toBe("/tasks?view=list");
+    });
+    expect(routerPrefetchMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a modified click to the browser", () => {
+    render(<BackToTasksButton label="Back" />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Back" }), {
+      metaKey: true,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
 
-    expect(routerPushMock).toHaveBeenCalledWith("/tasks?view=list");
+  it("reads the return path at click time, not from a lagging href", () => {
+    render(<BackToTasksButton label="Back" />);
+    window.sessionStorage.setItem(
+      TASKS_RETURN_PATH_SESSION_KEY,
+      "/tasks?view=board&assignee=me",
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Back" }));
+
+    expect(routerReplaceMock).toHaveBeenCalledWith(
+      "/tasks?view=board&assignee=me",
+    );
   });
 
   it.each([
@@ -65,9 +131,9 @@ describe("BackToTasksButton", () => {
         />,
       );
 
-      fireEvent.click(await screen.findByRole("button", { name }));
+      fireEvent.click(await screen.findByRole("link", { name }));
 
-      expect(routerPushMock).toHaveBeenCalledWith(href);
+      expect(routerReplaceMock).toHaveBeenCalledWith(href);
     },
   );
 
@@ -83,8 +149,8 @@ describe("BackToTasksButton", () => {
 
     render(<BackToTasksButton label="Back" />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Back" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Back" }));
 
-    expect(routerPushMock).toHaveBeenCalledWith("/tasks");
+    expect(routerReplaceMock).toHaveBeenCalledWith("/tasks");
   });
 });

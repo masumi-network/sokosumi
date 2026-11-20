@@ -183,9 +183,11 @@ export async function postChat(
     // A chat turn's answer already appears where it was asked, in the thread
     // when it was asked in one. Posting it into that room as well put the
     // same answer in the thread and in the channel. A post that summons a
-    // Coworker or another assistant is a message of its own and still goes.
+    // Coworker or another assistant is a message of its own and still goes,
+    // and so does a link Core itself posts for a table the turn created.
     if (
       !input.via &&
+      !input.publicationId &&
       authorized.turn.source === "CHAT" &&
       authorized.turn.chainDepth === 0 &&
       mentionedCoworkerIds.length === 0 &&
@@ -238,6 +240,26 @@ export async function postChat(
       if (botMessagesThisHour >= ROOM_BOT_MESSAGES_PER_HOUR) {
         throw new SokoBotRuntimeValidationError(
           `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
+        );
+      }
+      // Two follow-ups of one run each read the room, saw the post and still
+      // sent the same weekly summary to Everyone again. Reading first is not
+      // enough, so the same text from this bot twice in an hour is refused.
+      const repeat = await tx.chatRoomMessage.findFirst({
+        where: {
+          roomId: room.id,
+          senderSokoBotId: room.sokoBotId,
+          content: input.content,
+          deletedAt: null,
+          createdAt: {
+            gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
+          },
+        },
+        select: { id: true },
+      });
+      if (repeat) {
+        throw new SokoBotRuntimeValidationError(
+          `You already posted this exact message here in the last hour (message ${repeat.id}). It is done: do not post it again.`,
         );
       }
       const created = await tx.chatRoomMessage.create({

@@ -1,15 +1,28 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/page-query-search-field", () => ({
+  PageQuerySearchField: () => null,
+}));
+
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => key,
+}));
+
 const redirectMock = vi.fn();
 const loadWorkspaceCalendarPageMock = vi.fn();
+const connectionMock = vi.fn(async () => undefined);
 
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
     redirectMock(url);
     throw new Error("NEXT_REDIRECT");
   },
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
+
+vi.mock("next/server", () => ({ connection: () => connectionMock() }));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 
 vi.mock("./load-calendar-page", () => ({
   loadWorkspaceCalendarPage: (query: unknown) =>
@@ -31,8 +44,12 @@ vi.mock("@/app/tasks/components/create-task-modal", () => ({
 }));
 
 vi.mock("@/app/calendar/components/workspace-calendar", () => ({
-  WorkspaceCalendar: (props: { newsletterEnabled: boolean }) => (
+  WorkspaceCalendar: (props: {
+    items: { id: string }[];
+    newsletterEnabled: boolean;
+  }) => (
     <div
+      data-items={props.items.map((item) => item.id).join(",")}
       data-newsletter={String(props.newsletterEnabled)}
       data-testid="workspace-calendar"
     />
@@ -68,8 +85,32 @@ const PAGE = {
 describe("CalendarPage", () => {
   beforeEach(() => {
     redirectMock.mockClear();
+    connectionMock.mockClear();
     loadWorkspaceCalendarPageMock.mockReset();
     loadWorkspaceCalendarPageMock.mockResolvedValue(PAGE);
+  });
+
+  it("sends matching event titles and metadata to the calendar across event kinds", async () => {
+    loadWorkspaceCalendarPageMock.mockResolvedValue({
+      ...PAGE,
+      items: [
+        {
+          kind: "socialPost",
+          id: "post",
+          text: "An update",
+          projectName: "Launch",
+        },
+        { kind: "newsletterIssue", id: "issue", subject: "Launch day" },
+        { kind: "RUN", id: "task", taskName: "Unrelated" },
+      ],
+    });
+    render(
+      await CalendarPage({ searchParams: Promise.resolve({ q: "launch" }) }),
+    );
+    expect(screen.getByTestId("workspace-calendar")).toHaveAttribute(
+      "data-items",
+      "issue,post",
+    );
   });
 
   it("renders the Calendar instead of redirecting to the Tasks tab", async () => {
@@ -91,6 +132,14 @@ describe("CalendarPage", () => {
       "data-newsletter",
       "true",
     );
+  });
+
+  // The calendar reads are cached, so a link prefetch carries the page.
+  it("renders the page without deferring to the request", async () => {
+    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByTestId("workspace-calendar")).toBeInTheDocument();
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 
   it("gives the Calendar the create-task modal it opens from an empty slot", async () => {

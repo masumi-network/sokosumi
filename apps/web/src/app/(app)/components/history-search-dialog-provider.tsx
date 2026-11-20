@@ -7,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
@@ -14,7 +15,8 @@ import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
 interface HistorySearchContextValue {
-  openHistorySearch: () => void;
+  /** `opener` gets focus back when the dialog closes. */
+  openHistorySearch: (opener?: HTMLElement | null) => void;
   searchShortcutLabel: string;
 }
 
@@ -57,8 +59,30 @@ export function HistorySearchDialogProvider({
   const isApplePlatform = useIsApplePlatform();
   const searchShortcutLabel = isApplePlatform ? "⌘K" : "Ctrl+K";
 
-  const openHistorySearch = useCallback(() => {
-    setOpen(true);
+  // The dialog has no DialogTrigger, so Radix cannot return focus itself.
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  const openHistorySearch = useCallback(
+    (opener?: HTMLElement | null) => {
+      // Already open (⌘K again): keep the original opener, not a dialog control.
+      if (open) return;
+      openerRef.current =
+        opener ??
+        (document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null);
+      setOpen(true);
+    },
+    [open],
+  );
+
+  const restoreOpenerFocus = useCallback((event: Event) => {
+    const opener = openerRef.current;
+    openerRef.current = null;
+    if (opener?.isConnected) {
+      event.preventDefault();
+      opener.focus();
+    }
   }, []);
 
   useEffect(() => {
@@ -90,6 +114,7 @@ export function HistorySearchDialogProvider({
       <HistorySearchDialog
         open={open}
         onOpenChange={setOpen}
+        onCloseAutoFocus={restoreOpenerFocus}
         activeOrganizationId={activeOrganizationId}
         labels={{
           dialogTitle: tSearch("title"),
@@ -102,6 +127,15 @@ export function HistorySearchDialogProvider({
           filesGroup: tSearch("filesGroup"),
           filesSeeAll: tSearch("filesSeeAll"),
           filesFilenameMatch: tSearch("filesFilenameMatch"),
+          peopleGroup: tSearch("peopleGroup"),
+          copyEmail: (email) => tSearch("copyEmail", { email }),
+          emailCopied: tSearch("emailCopied"),
+          emailCopyFailed: tSearch("emailCopyFailed"),
+          mentionInTask: (name) => tSearch("mentionInTask", { name }),
+          tagsGroup: tSearch("tagsGroup"),
+          tagTasksGroup: (tag) => tSearch("tagTasksGroup", { tag }),
+          tagsError: tSearch("tagsError"),
+          tagTasksError: tSearch("tagTasksError"),
         }}
       />
     </HistorySearchContext.Provider>

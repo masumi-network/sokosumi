@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatter } from "next-intl";
+import { useSeoResultFormatter } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 
 /** The last position of the first three results and of the first page. */
@@ -30,7 +30,7 @@ const BAND_CLASS: Record<ReturnType<typeof seoRankBand>, string> = {
 
 /** A Google position as a small pill in the colour of its band. The number says it all; the colour only helps. */
 export function SeoRankPill({ position }: { position: number }) {
-  const format = useFormatter();
+  const format = useSeoResultFormatter();
   return (
     <span
       className={cn(

@@ -8,9 +8,9 @@ import {
 import { computeJobStatus } from "@sokosumi/database/helpers";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
-
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
 import type prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
 import { findImageModelForEndpoint } from "@/lib/image-studio/catalog";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -283,6 +283,8 @@ async function findJobIdsWithResultMatching(
   { q, scope, userContext, workspaceContext }: BuildHistoryWhereParams,
   prismaClient: Pick<HistoryPrismaClient, "job">,
 ): Promise<string[]> {
+  if (!q) return [];
+
   const jobs = await prismaClient.job.findMany({
     where: {
       workspaceId: workspaceContext.workspaceId,
@@ -514,10 +516,17 @@ export async function loadAgentPreviewsByIds(
     .catch((error) => {
       // Best-effort enrichment: degrade to null name/icon rather than failing
       // the history request, but log so a real DB failure stays observable.
-      console.warn("Failed to load agent previews for history feed", {
-        agentIdCount: agentIds.length,
-        error,
-      });
+      // A read by agent ids.
+      recordCoreWarning(
+        { operation: "history_previews" },
+        {
+          message: "Failed to load agent previews for history feed",
+          why: "Reading the agents behind the history rows failed",
+          fix: "The rows show without agent names or icons. If it repeats, check the database.",
+          cause: error,
+        },
+        { agentIdCount: agentIds.length },
+      );
       return [];
     });
 
@@ -554,10 +563,17 @@ export async function loadUserPreviewsByIds(
     .catch((error) => {
       // Best-effort enrichment: degrade to null owner rather than failing
       // the history request, but log so a real DB failure stays observable.
-      console.warn("Failed to load user previews for history feed", {
-        userIdCount: userIds.length,
-        error,
-      });
+      // A read by user ids.
+      recordCoreWarning(
+        { operation: "history_previews" },
+        {
+          message: "Failed to load user previews for history feed",
+          why: "Reading the owners behind the history rows failed",
+          fix: "The rows show without owner names or images. If it repeats, check the database.",
+          cause: error,
+        },
+        { userIdCount: userIds.length },
+      );
       return [];
     });
 

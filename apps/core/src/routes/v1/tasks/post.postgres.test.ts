@@ -3,6 +3,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  createTaskScheduleTestApp,
+  jsonRequest,
+} from "@/test-fixtures/task-schedule-app";
+import mountPatchTask from "./[id]/patch";
+import mountGetTasks from "./get";
 import mountPostTask from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -12,6 +18,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   );
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
+
+vi.mock("@/lib/ably/publish", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ably/publish")>()),
+  publishTaskEventData: vi.fn(),
+}));
 
 // Seats are not under test here; inline tag classification would call out.
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -82,7 +93,11 @@ const actors = {
   }),
 };
 
-async function createTask(ws: Workspace, authContext: AuthenticationContext) {
+async function createTask(
+  ws: Workspace,
+  authContext: AuthenticationContext,
+  extra: Record<string, unknown> = {},
+) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "task-creator-owner");
@@ -101,7 +116,7 @@ async function createTask(ws: Workspace, authContext: AuthenticationContext) {
   const response = await app.request("http://localhost/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "Prepare the board pack" }),
+    body: JSON.stringify({ name: "Prepare the board pack", ...extra }),
   });
   const body = await response.json();
   expect(response.status, JSON.stringify(body)).toBe(201);
@@ -185,6 +200,79 @@ describe.skipIf(!enabled)(
       await prisma.organization.deleteMany({ where: { id: organizationId } });
       await prisma.user.deleteMany({ where: { id: adaId } });
       await prisma.$disconnect();
+    });
+
+    it("keeps dismissed topics out of filtered GETs after another classification", async () => {
+      const ws = workspaces[0];
+      const actor = actors.person(ws);
+      const task = await createTask(ws, actor);
+      const workspace = {
+        workspaceId: ws.workspaceId,
+        userId: adaId,
+        organizationId: null,
+      };
+      const list = createTaskScheduleTestApp(mountGetTasks, actor, workspace);
+      const edit = createTaskScheduleTestApp(mountPatchTask, actor, workspace);
+      async function matches(topicId: string) {
+        const response = await list.request(`/?topicTagId=${topicId}`);
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        return body.data.some((row: { id: string }) => row.id === task.id);
+      }
+      await prisma.task.update({
+        where: { id: task.id },
+        data: {
+          automaticTags: ["research"],
+          manualTags: ["design"],
+          rejectedTags: ["strategy"],
+        },
+      });
+      expect(await matches("design")).toBe(true);
+      expect(await matches("research")).toBe(true);
+      const dismiss = () =>
+        edit.request(
+          `/${task.id}`,
+          jsonRequest("PATCH", {
+            dismissedTopicIds: ["research", "design"],
+          }),
+        );
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const response = await dismiss();
+        expect(response.status).toBe(200);
+        expect((await response.json()).data.tags).toEqual({
+          automatic: [],
+          manual: [],
+          rejected: ["strategy", "research", "design"],
+        });
+      }
+      await prisma.task.update({
+        where: { id: task.id },
+        data: { name: "New content revision" },
+      });
+      await prisma.task.update({
+        where: { id: task.id },
+        data: {
+          automaticTags: ["design", "research", "writing"],
+          tagClassificationState: "complete",
+        },
+      });
+      expect(await matches("research")).toBe(false);
+      expect(await matches("design")).toBe(false);
+      expect(await matches("writing")).toBe(true);
+    });
+
+    it("stores the due date given at create", async () => {
+      const ws = workspaces[0];
+      const task = await createTask(ws, actors.person(ws), {
+        dueOn: "2026-11-20",
+      });
+
+      expect(task.dueOn).toBe("2026-11-20");
+      const row = await prisma.task.findUniqueOrThrow({
+        where: { id: task.id },
+        select: { dueOn: true },
+      });
+      expect(row.dueOn?.toISOString()).toBe("2026-11-20T00:00:00.000Z");
     });
 
     describe.each(workspaces)("in a $kind workspace", (ws) => {

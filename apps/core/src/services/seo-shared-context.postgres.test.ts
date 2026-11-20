@@ -11,9 +11,13 @@ import {
   vi,
 } from "vitest";
 
+import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
+import { createSeoWorkspaceRouter } from "@/routes/v1/projects/[id]/seo";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
+import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
+import { createTaskScheduleTestApp } from "@/test-fixtures/task-schedule-app";
 import {
   addProjectSeoPage,
   getProjectSeoWorkspace,
@@ -24,13 +28,18 @@ import { sha256 } from "./project-seo-store";
 import {
   createSeoAudit,
   getSeoAuditWorkspaceMapping,
+  listSeoAudits,
 } from "./seo-audit.service";
+import { setSeoAuditArchived } from "./seo-audit-archive";
+import { saveSeoBrief } from "./seo-audit-brief.service";
 import { listSeoChat, sendSeoChat } from "./seo-chat.service";
 import { disconnectSeoConnection } from "./seo-connection-oauth.service";
 import {
+  connectionVersion,
   getSeoConnection,
   resolveSeoStatisticsIntegration,
 } from "./seo-connections.service";
+import { landingOutcomeAccountKey } from "./seo-statistics-landing";
 
 const boundary = vi.hoisted(() => ({
   deleteAccount: vi.fn(async () => undefined),
@@ -40,6 +49,11 @@ const boundary = vi.hoisted(() => ({
   read: vi.fn(async () => {
     throw new Error("Unexpected provider data request");
   }),
+}));
+vi.mock("@/middleware/auth", async (original) => ({
+  ...(await original<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
 }));
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
@@ -163,6 +177,88 @@ async function legacyPrivateRows(actor: SeoActor, pageIds: string[]) {
   return { observation, turn };
 }
 
+const PRIVATE_CONSOLE_REASON =
+  "Private Console reason: Google chose an unexpected canonical";
+const PRIVATE_CONSOLE_FIX =
+  "Private Console fix: confirm the intended canonical before changing it";
+async function consoleFinding(actor: SeoActor, pageIds: string[]) {
+  const taskId = randomUUID();
+  const observedAt = new Date().toISOString();
+  const publicPayload = {
+    version: 1,
+    kind: "audit_full",
+    requestId: null,
+    pageUrls: [pageUrl],
+    observedAt,
+    countryCode: "US",
+    languageCode: "en",
+    rulebookVersion: "fixture",
+    checks: [],
+    keywords: [],
+    competitors: [],
+    actions: [],
+    findings: [
+      {
+        id: "public-title",
+        pageUrl,
+        device: null,
+        rowId: "O-02",
+        title: "Public title finding",
+        severity: "minor",
+        evidence: ["Public HTML reason"],
+        sourceRef: "public-capture",
+        observedAt,
+      },
+    ],
+    coverage: { checked: 1, skipped: 0, failed: 0 },
+    notes: [],
+  };
+  const receiptHash = sha256(`private-console-fixture:${taskId}`);
+  const privatePayload = {
+    version: 1,
+    taskId,
+    receiptHash,
+    checkedAt: observedAt,
+    assessments: [
+      {
+        pageUrl,
+        status: "issue",
+        report: true,
+        reason: PRIVATE_CONSOLE_REASON,
+        suggestedFix: PRIVATE_CONSOLE_FIX,
+        evidence: ["Private Console evidence: Google URL Inspection NEUTRAL"],
+      },
+    ],
+  };
+  for (const data of [
+    {
+      kind: "audit_full",
+      source: "seo_coworker",
+      ownerId: null,
+      payload: publicPayload,
+    },
+    {
+      kind: "index_triage",
+      source: "seo_worker",
+      ownerId: actor.userId,
+      payload: privatePayload,
+    },
+  ])
+    await prisma.projectSeoObservation.create({
+      data: {
+        auditId: actor.owner.id,
+        sourceKey: randomUUID(),
+        sourceTaskId: taskId,
+        visibility: "PRIVATE",
+        pageIds,
+        scopeVersion: 0,
+        observedAt: new Date(observedAt),
+        artifactHash: sha256(JSON.stringify(data.payload)),
+        ...data,
+      },
+    });
+}
+
 describe.skipIf(!enabled)(
   "Organization Audit context with real storage and membership",
   () => {
@@ -245,6 +341,420 @@ describe.skipIf(!enabled)(
         where: { id: { in: [firstUserId, secondUserId, foreignUserId] } },
       });
       await prisma.$disconnect();
+    });
+
+    it("lets a teammate archive and restore the same report with its history", async () => {
+      const { workspace, actor, other } = await audit("Shared archive");
+      const id = actor.owner.id;
+      const observation = await recordNativeSeoMetrics(actor, metrics(14));
+      const turn = await sendSeoChat(actor, question("Keep this history"), {
+        generate: async () => modelReply,
+      });
+      await expect(
+        setSeoAuditArchived(outsider, id, true),
+      ).rejects.toMatchObject({ status: 404 });
+      await setSeoAuditArchived(other, id, true);
+      await expect(getProjectSeoWorkspace(actor)).rejects.toMatchObject({
+        status: 404,
+      });
+      await expect(
+        getSeoAuditWorkspaceMapping(other.userId, id),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(
+        (await listSeoAudits(other, { status: "archived" })).audits.map(
+          (row) => row.id,
+        ),
+      ).toContain(id);
+      await expect(
+        setSeoAuditArchived(outsider, id, false),
+      ).rejects.toMatchObject({ status: 404 });
+      await setSeoAuditArchived(other, id, false);
+      const restored = await getProjectSeoWorkspace(other);
+      expect(restored.scope.pageIds).toEqual(workspace.scope.pageIds);
+      expect(restored.metrics).toMatchObject([{ value: 14 }]);
+      expect(
+        await prisma.projectSeoObservation.findUnique({
+          where: { id: observation.id },
+        }),
+      ).toMatchObject({ auditId: id });
+      expect((await listSeoChat(other)).turns.map((row) => row.id)).toContain(
+        turn.id,
+      );
+    });
+
+    it("keeps legacy deleted reports out of the archive and refuses their restoration", async () => {
+      const { actor, other } = await audit("Previously deleted");
+      const id = actor.owner.id;
+      await prisma.seoAudit.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      expect(
+        (await listSeoAudits(other, { status: "archived" })).audits.map(
+          (row) => row.id,
+        ),
+      ).not.toContain(id);
+      await expect(setSeoAuditArchived(other, id, false)).rejects.toMatchObject(
+        { status: 404 },
+      );
+      await expect(setSeoAuditArchived(actor, id, true)).rejects.toMatchObject({
+        status: 404,
+      });
+    });
+
+    it("returns the viewer's own Search Console selection when a colleague synced the same pages", async () => {
+      const { actor, other } = await audit("Shared Search Console pages");
+      const property = "sc-domain:example.test";
+      await recordNativeSeoMetrics(actor, {
+        ...metrics(0),
+        provider: "search_console",
+        propertyId: property,
+        channel: "organic",
+        metrics: [],
+      });
+      async function readSelection(viewer: SeoActor) {
+        const app = createTaskScheduleTestApp(
+          (root) =>
+            root.route("/audits/:id", createSeoWorkspaceRouter("audit")),
+          {
+            actor: "user",
+            userId: viewer.userId,
+            role: "user",
+            organizationId,
+          },
+          { userId: viewer.userId, workspaceId, organizationId },
+        );
+        const response = await app.request(
+          `http://localhost/audits/${viewer.owner.id}`,
+        );
+        expect(response.status).toBe(200);
+        return (await response.json()).data.searchConsolePropertyId;
+      }
+      expect(await readSelection(other)).toBeNull();
+      expect(await readSelection(actor)).toBe(property);
+    });
+
+    it("reopens only the owner's recommendation on named organic conversions and protects the acknowledgement from a teammate", async () => {
+      const { actor, other, workspace } = await audit("Owner action review");
+      const page = workspace.pages[0]!;
+      const connection = await prisma.seoConnection.create({
+        data: {
+          workspaceId,
+          userId: firstUserId,
+          provider: "ga4",
+          status: "ACTIVE",
+          composioAccountId: randomUUID(),
+          entityId: randomUUID(),
+        },
+      });
+      try {
+        const account = (await resolveSeoStatisticsIntegration(actor, "ga4"))!;
+        const version = connectionVersion(account);
+        await saveSeoBrief(actor, {
+          expectedRevision: 0,
+          objective: "sales",
+          audience: null,
+          outcome: null,
+          constraints: null,
+          pages: [
+            {
+              pageId: page.id,
+              role: "product",
+              action: "buy",
+              indexIntent: "index",
+              job: null,
+            },
+          ],
+        });
+        const origin = "2026-09-08T12:00:00Z";
+        const raw = legacyReport();
+        const payload = parsePublicSeoArtifact({
+          ...raw,
+          request: { url: page.url },
+          header: { ...raw.header, capturedAt: origin },
+          strategyDecisions: [
+            {
+              kind: "offer_availability",
+              id: "stock",
+              targetUrl: page.url,
+              action: "Clarify the current stock status.",
+              reason: "The stock information differs across page elements.",
+              alternative: "Keep the current offer.",
+              nextCheck: "Review the purchase outcomes for this page.",
+              evidence: ["offerAvailability"],
+            },
+          ],
+        });
+        await prisma.projectSeoObservation.create({
+          data: {
+            auditId: actor.owner.id,
+            source: "seo_coworker",
+            kind: "audit_full",
+            sourceKey: randomUUID(),
+            pageIds: [page.id],
+            artifactHash: "action-fixture",
+            observedAt: new Date(origin),
+            payload,
+          },
+        });
+        async function sync(
+          from: string,
+          to: string,
+          at: string,
+          count: number,
+        ) {
+          return recordNativeSeoMetrics(
+            actor,
+            {
+              ...metrics(50),
+              from,
+              to,
+              observedAt: at,
+              channel: "organic",
+              landingPages: {
+                channel: "organic",
+                timeZone: "UTC",
+                verifiedHost: "example.test",
+                rows: [
+                  {
+                    pageUrl,
+                    sessions: 100,
+                    keyEvents: 99,
+                    engagementSeconds: 4000,
+                    views: 200,
+                  },
+                ],
+              },
+              landingEngagementEvidence: { connectionVersion: version },
+            },
+            {
+              outcomes: {
+                version: 1,
+                accountKey: landingOutcomeAccountKey(account),
+                propertyId: "properties/123",
+                verifiedHost: "example.test",
+                timeZone: "UTC",
+                channel: "organic",
+                from,
+                to,
+                rows: [
+                  { pageUrl, event: "purchase", count },
+                  { pageUrl, event: "sign_up", count: 77 },
+                ],
+              },
+            },
+          );
+        }
+        const baseline = await sync(
+          "2026-09-01",
+          "2026-09-07",
+          "2026-09-08T06:00:00Z",
+          10,
+        );
+        const change = await sync(
+          "2026-09-09",
+          "2026-09-15",
+          "2026-09-16T12:00:00Z",
+          3,
+        );
+        const app = (viewer: SeoActor) =>
+          createTaskScheduleTestApp(
+            (root) =>
+              root.route("/audits/:id", createSeoWorkspaceRouter("audit")),
+            {
+              actor: "user",
+              userId: viewer.userId,
+              role: "user",
+              organizationId,
+            },
+            { userId: viewer.userId, workspaceId, organizationId },
+          );
+        const url = `http://localhost/audits/${actor.owner.id}`;
+        const lookup = async (viewer: SeoActor) => {
+          const res = await app(viewer).request(url);
+          expect(res.status).toBe(200);
+          const data = (await res.json()).data;
+          return data.actions.find(
+            (a: { decision?: { kind: string } }) =>
+              a.decision?.kind === "offer_availability",
+          );
+        };
+        const item = await lookup(actor);
+        expect(item).toMatchObject({
+          followUpReview: {
+            kind: "purchase_rate_changed",
+            before: 10,
+            after: 3,
+            baselineObservationId: baseline.id,
+            observationId: change.id,
+            beforePeriod: { sessions: 100 },
+            afterPeriod: { sessions: 100 },
+          },
+        });
+        const input = {
+          pageId: page.id,
+          actionId: item.id,
+          kind: item.followUpReview.kind,
+          baselineObservationId: baseline.id,
+          observationId: change.id,
+        };
+        const acknowledge = async (viewer: SeoActor) =>
+          (
+            await app(viewer).request(url + "/actions/reviews", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(input),
+            })
+          ).status;
+        expect((await lookup(other)).followUpReview).toBeUndefined();
+        expect(await acknowledge(other)).toBe(409);
+        expect(await acknowledge(actor)).toBe(204);
+        await sync("2026-09-09", "2026-09-15", "2026-09-17T12:00:00Z", 3);
+        expect(await acknowledge(actor)).toBe(204);
+        expect(await acknowledge(other)).toBe(409);
+        expect((await lookup(actor)).followUpReview).toBeUndefined();
+        const receipts = await prisma.projectSeoObservation.findMany({
+          where: { auditId: actor.owner.id, kind: "recommendation_review" },
+        });
+        expect(receipts).toHaveLength(1);
+        expect(receipts[0]).toMatchObject({
+          ownerId: firstUserId,
+          visibility: "PRIVATE",
+          pageIds: [],
+        });
+        await sync("2026-09-16", "2026-09-22", "2026-09-23T12:00:00Z", 4);
+        expect((await lookup(actor)).followUpReview).toBeUndefined();
+        await sync("2026-09-23", "2026-09-29", "2026-09-30T12:00:00Z", 10);
+        const later = await sync(
+          "2026-09-30",
+          "2026-10-06",
+          "2026-10-07T12:00:00Z",
+          4,
+        );
+        expect((await lookup(actor)).followUpReview.observationId).toBe(
+          later.id,
+        );
+        expect(
+          (await getProjectSeoWorkspace(actor)).actions.some(
+            (a) => a.followUpReview,
+          ),
+        ).toBe(false);
+        await prisma.seoConnection.update({
+          where: { id: connection.id },
+          data: { status: "DISCONNECTED" },
+        });
+        expect((await lookup(actor)).followUpReview).toBeUndefined();
+        expect(
+          await prisma.projectSeoActionTask.count({
+            where: { auditId: actor.owner.id },
+          }),
+        ).toBe(0);
+        expect(boundary.read).not.toHaveBeenCalled();
+      } finally {
+        await prisma.seoConnection.delete({ where: { id: connection.id } });
+      }
+    });
+
+    it("corroborates a headline topic with one member's retained query across two pages and keeps it out of shared contexts", async () => {
+      const { actor, other, workspace } = await audit(
+        "Search evidence for a heading phrase",
+      );
+      const second = await addProjectSeoPage(actor, {
+        url: "https://example.test/fuentes-termales-norte",
+        relationship: "related",
+        relatedToPageId: workspace.pages[0].id,
+      });
+      const pages = [workspace.pages[0], second],
+        topic = "Fuentes termales",
+        query = "Fuentes termales del norte";
+      const raw = legacyReport();
+      const children = pages.map((p, i) => ({
+        ...raw,
+        request: { url: p.url },
+        articleDates: {
+          publishedOn: i ? "2026-10-04" : "2026-10-01",
+          headline: topic + ": " + (i ? "Agua mineral" : "Rutas cortas"),
+          record: String(i + 1).repeat(64),
+        },
+      }));
+      const dated = children.map((c) => ({
+        url: c.request.url,
+        publishedOn: c.articleDates.publishedOn,
+        record: c.articleDates.record,
+      }));
+      const payload = parsePublicSeoArtifact({
+        ...siteStrategyReport(),
+        pages: children,
+        request: { url: pageUrl, pages: [{ url: second.url }] },
+        selection: {
+          pages: pages.map((p) => ({ url: p.url, source: "owner" })),
+        },
+        topicLaunches: [
+          {
+            topic,
+            basis: "headline_phrase",
+            publishedFrom: dated[0].publishedOn,
+            publishedThrough: dated[1].publishedOn,
+            pages: dated,
+          },
+        ],
+      });
+      expect(payload.topicLaunches).toHaveLength(1);
+      await prisma.projectSeoObservation.create({
+        data: {
+          auditId: actor.owner.id,
+          kind: "audit_full",
+          source: "seo_coworker",
+          sourceKey: randomUUID(),
+          pageIds: pages.map((p) => p.id),
+          artifactHash: "public-topic",
+          payload,
+          observedAt: new Date(payload.observedAt),
+        },
+      });
+      const base = {
+        ...metrics(1),
+        provider: "search_console" as const,
+        propertyId: "sc-domain:example.test",
+        channel: "organic" as const,
+        pageUrls: pages.map((p) => p.url),
+        observedAt: "2026-11-04T12:00:00Z",
+      };
+      const rows = pages.map((p) => ({
+        query,
+        pageUrl: p.url,
+        clicks: 1,
+        impressions: 15,
+        ctr: 1 / 15,
+        averagePosition: 9,
+      }));
+      await recordNativeSeoMetrics(actor, {
+        ...base,
+        queries: { rowLimit: 250, truncated: false, rows },
+      });
+      const opts = { includePrivateReviews: true };
+      const results = await getProjectSeoWorkspace(actor, {}, opts);
+      expect(results.privateTopicQueries).toMatchObject([
+        { topic, query, pages: pages.map((p) => p.url).sort() },
+      ]);
+      expect(
+        (await getProjectSeoWorkspace(other, {}, opts)).privateTopicQueries,
+      ).toBeUndefined();
+      expect(
+        (await getProjectSeoWorkspace(actor)).privateTopicQueries,
+      ).toBeUndefined();
+      expect(
+        (await getProjectSeoWorkspace(actor, { pageId: second.id }, opts))
+          .privateTopicQueries,
+      ).toBeUndefined();
+      await recordNativeSeoMetrics(actor, {
+        ...base,
+        observedAt: "2026-11-05T12:00:00Z",
+        queries: { rowLimit: 250, truncated: false, rows: rows.slice(0, 1) },
+      });
+      expect(
+        (await getProjectSeoWorkspace(actor, {}, opts)).privateTopicQueries,
+      ).toBeUndefined();
     });
 
     it("shares new organization measurements and authored chat across current members without transferring account access", async () => {
@@ -399,6 +909,91 @@ describe.skipIf(!enabled)(
       ]);
     });
 
+    it("does not copy owner-only Console findings into a shared reply or another member's history", async () => {
+      const { actor, other, workspace } = await audit("Shared chat boundary");
+      await consoleFinding(actor, workspace.scope.pageIds);
+      const ownerView = await getProjectSeoWorkspace(actor);
+      expect(
+        ownerView.findings.some((finding) => finding.visibility === "PRIVATE"),
+      ).toBe(true);
+      expect(ownerView.observations[0].issues).toBe(2);
+      const sharedSource = await getProjectSeoWorkspace(
+        actor,
+        {},
+        { includePrivateIndexing: false },
+      );
+      expect(sharedSource.observations[0].issues).toBe(1);
+      const generate = vi.fn(async (_system: string, prompt: string) => {
+        const context = JSON.parse(JSON.parse(prompt).auditEvidence);
+        expect(prompt).not.toContain(PRIVATE_CONSOLE_REASON);
+        expect(prompt).not.toContain(PRIVATE_CONSOLE_FIX);
+        expect(prompt).not.toContain("Private Console evidence");
+        expect(context.findings).toMatchObject([
+          { title: "Public title finding" },
+        ]);
+        expect(context.totals.findings).toBe(1);
+        return modelReply;
+      });
+      const turn = await sendSeoChat(actor, question("What needs a fix?"), {
+        generate,
+      });
+      expect(generate).toHaveBeenCalledOnce();
+      expect(
+        await prisma.seoAuditChatTurn.findUniqueOrThrow({
+          where: { id: turn.id },
+        }),
+      ).toMatchObject({
+        visibility: "SHARED",
+        response: "Review the shared measurements.",
+      });
+      const history = await listSeoChat(other);
+      expect(history.turns.map((row) => row.id)).toEqual([turn.id]);
+      expect(JSON.stringify(history)).not.toContain("Private Console");
+      await sendSeoChat(other, question("Explain the previous reply"), {
+        generate,
+      });
+      expect(generate).toHaveBeenCalledTimes(2);
+    });
+
+    it("retains Console evidence and its saved fix in the owner's personal private conversation", async () => {
+      const workspace = await createSeoAudit(outsider, {
+        name: "Private Console conversation",
+        firstPage: { url: pageUrl, relationship: "primary" },
+      });
+      if (!workspace.auditId) throw new Error("Expected personal Audit");
+      const actor: SeoActor = {
+        ...outsider,
+        owner: { kind: "audit", id: workspace.auditId },
+      };
+      await consoleFinding(actor, workspace.scope.pageIds);
+      const generated = vi.fn(async (_system: string, prompt: string) => {
+        expect(prompt).toContain(PRIVATE_CONSOLE_REASON);
+        expect(prompt).toContain(PRIVATE_CONSOLE_FIX);
+        expect(prompt).toContain("Google URL Inspection NEUTRAL");
+        return {
+          ...modelReply,
+          text: JSON.stringify({ reply: PRIVATE_CONSOLE_FIX, actions: [] }),
+        };
+      });
+      const turn = await sendSeoChat(
+        actor,
+        question("How should I fix the indexing issue?"),
+        { generate: generated },
+      );
+      expect(generated).toHaveBeenCalledOnce();
+      expect(
+        await prisma.seoAuditChatTurn.findUniqueOrThrow({
+          where: { id: turn.id },
+        }),
+      ).toMatchObject({ visibility: "PRIVATE", response: PRIVATE_CONSOLE_FIX });
+      expect(JSON.stringify(await listSeoChat(actor))).toContain(
+        PRIVATE_CONSOLE_FIX,
+      );
+      await expect(
+        listSeoChat({ ...firstMember, owner: actor.owner }),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
     it("rejects a foreign Workspace and a member whose access was revoked", async () => {
       const { actor, other } = await audit("Membership fences");
       const deniedGenerate = vi.fn(async () => modelReply);
@@ -420,6 +1015,9 @@ describe.skipIf(!enabled)(
           status: 404,
         });
         await expect(listSeoChat(other)).rejects.toMatchObject({ status: 404 });
+        await expect(
+          setSeoAuditArchived(other, actor.owner.id, true),
+        ).rejects.toMatchObject({ status: 404 });
         await expect(
           sendSeoChat(other, question("Revoked read"), {
             generate: deniedGenerate,

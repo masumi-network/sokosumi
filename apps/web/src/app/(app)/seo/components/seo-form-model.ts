@@ -4,13 +4,31 @@ import type {
   RequestProjectSeoAnalysisRequest,
 } from "@sokosumi/core-client";
 import {
+  normalizeWebsiteUrl,
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_SECONDS,
-  SEO_MIN_AUDIT_USD,
+  seoCreditsForCents,
+  seoFullAuditPrice,
   seoMaxCredits,
 } from "@sokosumi/utils";
 import type { SeoCommand } from "@/lib/actions/seo/types";
 import type { SeoAnalysisLimits } from "./seo-analysis-summary";
+
+const CENTS_PER_DOLLAR = 100;
+const LOW_EXAMPLE_USD = 4;
+const HIGH_EXAMPLE_USD = 10;
+export const SEO_AUDIT_PRICE_EXAMPLE = {
+  lowCost: LOW_EXAMPLE_USD,
+  lowCharge: Math.max(
+    SEO_FULL_AUDIT_CREDITS,
+    seoCreditsForCents(LOW_EXAMPLE_USD * CENTS_PER_DOLLAR),
+  ),
+  highCost: HIGH_EXAMPLE_USD,
+  highCharge: Math.max(
+    SEO_FULL_AUDIT_CREDITS,
+    seoCreditsForCents(HIGH_EXAMPLE_USD * CENTS_PER_DOLLAR),
+  ),
+};
 
 /**
  * The target page of a keyword's choice. A keyword tracked from its check has no stored choice
@@ -37,6 +55,17 @@ export const SEO_COUNTRIES = [
   "NL",
   "BR",
   "PT",
+] as const;
+
+/** The search languages of the markets above. */
+export const SEO_LANGUAGES = [
+  "en",
+  "de",
+  "fr",
+  "es",
+  "it",
+  "nl",
+  "pt",
 ] as const;
 export const SEO_ANALYSIS_KINDS = [
   "page_check",
@@ -67,11 +96,6 @@ export const SEO_NO_RELATED_PAGE = "no-related-page";
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_KEYWORD_LENGTH = 80;
 export const SEO_MAX_PROVIDER_CALLS = 100;
-/** Core's bounds of a multi-page audit's USD limit (fullAuditLimits.usd); the minimum comes from utils. */
-const SEO_MAX_AUDIT_USD = 50;
-/** Core's bounds of a multi-page audit's time limit in whole seconds (fullAuditLimits.seconds). */
-const SEO_MIN_AUDIT_SECONDS = 60;
-const SEO_MAX_AUDIT_SECONDS = SEO_FULL_AUDIT_MAX_SECONDS;
 /**
  * The limits every multi-page full audit sends. The reader does not see them: the price shows in credits, and the
  * time limit only keeps a stuck check from running on (owner, 2026-11-13).
@@ -94,6 +118,12 @@ export function defaultFullAuditSeconds(pageCount: number) {
     SEO_FULL_AUDIT_FIRST_PAGE_SECONDS +
       Math.max(0, pageCount - 1) * SEO_FULL_AUDIT_RELATED_PAGE_SECONDS,
   );
+}
+
+/** A typed page address: "example.com" means https://example.com/; Core checks the rest. */
+function formUrl(form: FormData) {
+  const typed = formText(form, "url");
+  return normalizeWebsiteUrl(typed) ?? typed;
 }
 
 export function formText(form: FormData, name: string) {
@@ -174,7 +204,7 @@ export function editSeoCommand(
     return {
       kind: "add_page",
       body: {
-        url: formText(form, "url"),
+        url: formUrl(form),
         label: formText(form, "label"),
         relationship: relatedToPageId ? "related" : "primary",
         ...(relatedToPageId ? { relatedToPageId } : {}),
@@ -198,7 +228,7 @@ export function editSeoCommand(
     return { kind: "create_scope", body };
   }
   if (kind === "competitor") {
-    const url = formText(form, "url");
+    const url = formUrl(form);
     const current = workspace.competitors.find(
       (row) => row.url === url && row.version > 0,
     );
@@ -306,9 +336,8 @@ export function analysisSeoBody(
     throw new RangeError("The selected checks exceed the data request limit");
   return {
     kind,
-    ...(kind === "audit_full"
-      ? { fullAuditCredits: SEO_FULL_AUDIT_CREDITS }
-      : {}),
+    // A new full audit approves the cost-plus terms with no maximum (owner, 2026-11-19); never the old fixed price.
+    ...(kind === "audit_full" ? { fullAuditPrice: seoFullAuditPrice() } : {}),
     ...(workspace.scope.id
       ? {
           scopeId: workspace.scope.id,
@@ -332,24 +361,13 @@ export function analysisSeoBody(
 }
 
 /**
- * The most the check can charge, in whole credits, as Core and the check service compute it (seoMaxCredits).
- * Null while a limit field holds a value Core refuses.
+ * The most a focused check can charge, in whole credits, as Core and the check service compute it (seoMaxCredits).
+ * Null while a field holds a value Core refuses. A full audit has no maximum.
  */
 export function seoAnalysisMaxCredits(
   limits: SeoAnalysisLimits,
 ): number | null {
   if (limits.kind === "free") return 0;
-  if (limits.kind === "standard")
-    return seoMaxCredits({ kind: "audit_full", pages: 1 });
-  if (limits.kind === "full")
-    // "full" is the multi-page audit; any page count above one reads the USD limit.
-    return limits.usd >= SEO_MIN_AUDIT_USD &&
-      limits.usd <= SEO_MAX_AUDIT_USD &&
-      Number.isInteger(limits.seconds) &&
-      limits.seconds >= SEO_MIN_AUDIT_SECONDS &&
-      limits.seconds <= SEO_MAX_AUDIT_SECONDS
-      ? seoMaxCredits({ kind: "audit_full", pages: 2, usd: limits.usd })
-      : null;
   return Number.isSafeInteger(limits.count) &&
     limits.count >= 0 &&
     limits.count <= SEO_MAX_PROVIDER_CALLS

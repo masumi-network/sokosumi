@@ -1,0 +1,143 @@
+import {
+  buildAvatarSvg,
+  formatAvatarCode,
+  parseAvatarCode,
+  randomAvatarLook,
+} from "@sokosumi/soko-bot";
+import { put } from "@vercel/blob";
+import { HTTPException } from "hono/http-exception";
+import sharp from "sharp";
+import { getEnv } from "@/config/env";
+import { conflict, unprocessableEntity } from "@/helpers/error";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+
+/**
+ * A Soko Bot's face is a feature code (`v1.<animal>.<bg>…`) drawn as SVG. The
+ * code is stored on `avatarCode`; `avatarImageUrl` keeps a rendered still of it
+ * so every place that shows the face as a plain image keeps working.
+ */
+
+const STILL_SIZE = 512;
+const STILL_QUALITY = 85;
+const RANDOM_TRIES = 8;
+const BLOB_DIR = "soko-bots/avatars/code";
+
+/** Render a code to a 512 px WebP still in the blob store; returns its public URL. */
+export async function renderAvatarCode(code: string): Promise<string> {
+  const look = parseAvatarCode(code);
+  if (!look) throw new Error(`Invalid avatar code: ${code}`);
+  const token = getEnv().BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  const image = await sharp(Buffer.from(buildAvatarSvg(look)))
+    .resize(STILL_SIZE, STILL_SIZE)
+    .webp({ quality: STILL_QUALITY })
+    .toBuffer();
+  // The path is the code, so the same code always writes the same bytes.
+  const blob = await put(`${BLOB_DIR}/${code}.webp`, image, {
+    access: "public",
+    contentType: "image/webp",
+    token,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    abortSignal: AbortSignal.timeout(60_000),
+  });
+  return blob.url;
+}
+
+const taken = () =>
+  conflict("Another Soko Bot already has this look", {
+    kind: "avatar_code_taken",
+  });
+
+/** Give a bot the look of `code`. 422 for a bad code, 409 when another bot has it. */
+export async function setSokoBotAvatarCode(sokoBotId: string, code: string) {
+  if (!parseAvatarCode(code)) {
+    throw unprocessableEntity("Not a valid avatar code", {
+      kind: "avatar_code_invalid",
+    });
+  }
+  const holder = await prisma.sokoBot.findFirst({
+    where: { avatarCode: code, id: { not: sokoBotId } },
+    select: { id: true },
+  });
+  if (holder) throw taken();
+  const avatarImageUrl = await renderAvatarCode(code);
+  try {
+    await prisma.sokoBot.update({
+      where: { id: sokoBotId },
+      data: { avatarCode: code, avatarImageUrl },
+      select: { id: true },
+    });
+  } catch (error) {
+    if (isPrismaUniqueViolation(error)) throw taken();
+    throw error;
+  }
+  return { avatarCode: code, avatarImageUrl };
+}
+
+/** A random look no other bot has. Retries when a draw collides. */
+export async function assignRandomAvatarCode(
+  sokoBotId: string,
+  rand: () => number = Math.random,
+) {
+  for (let attempt = 0; attempt < RANDOM_TRIES; attempt += 1) {
+    try {
+      return await setSokoBotAvatarCode(
+        sokoBotId,
+        formatAvatarCode(randomAvatarLook(rand)),
+      );
+    } catch (error) {
+      if (!isTaken(error)) throw error;
+    }
+  }
+  throw new Error("No free avatar look found");
+}
+
+/**
+ * A new bot's first look: the one picked in the studio, or a random free one when none was
+ * picked or another bot took it meanwhile. A failure leaves the bot faceless (the orb) rather
+ * than failing the create.
+ */
+export async function giveNewSokoBotAvatar(
+  sokoBotId: string,
+  code?: string | null,
+) {
+  // Nowhere to keep the still: environments without Blob (tests, local)
+  // create bots without a look, as before avatar codes.
+  if (!getEnv().BLOB_READ_WRITE_TOKEN) return null;
+  try {
+    if (code) {
+      try {
+        return await setSokoBotAvatarCode(sokoBotId, code);
+      } catch (error) {
+        if (!isTaken(error) && !isInvalid(error)) throw error;
+      }
+    }
+    return await assignRandomAvatarCode(sokoBotId);
+  } catch (error) {
+    // Vercel Blob copies its response's text into the error: only its shape is logged.
+    // A warning: the create goes on, and the request's error stays free for a later failure.
+    recordCoreWarning(
+      { operation: "soko_bot_avatar" },
+      {
+        message: "Could not give a new Soko Bot its avatar",
+        why: "Rendering or saving the avatar look failed",
+        fix: "The bot shows the orb until its owner picks a look in the studio. If it repeats, check that Vercel Blob is up and BLOB_READ_WRITE_TOKEN is valid for the store.",
+        details: {
+          sokoBot: { id: sokoBotId },
+          failure: messageSafeErrorFields(error),
+        },
+      },
+    );
+    return null;
+  }
+}
+
+const isInvalid = (error: unknown) =>
+  error instanceof HTTPException && error.status === 422;
+// The service's only 409 is "taken".
+const isTaken = (error: unknown) =>
+  error instanceof HTTPException && error.status === 409;

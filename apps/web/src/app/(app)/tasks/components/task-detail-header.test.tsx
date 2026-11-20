@@ -35,6 +35,7 @@ describe("TaskDetailHeader", () => {
   it("hides the in-page back control below md and keeps desktop flex layout", () => {
     const { container } = render(
       <TaskDetailHeader
+        taskId="task-1"
         taskName="Example task"
         backLabel="Back"
         actions={<button type="button">Actions</button>}
@@ -45,13 +46,15 @@ describe("TaskDetailHeader", () => {
     expect(row?.className).toContain("justify-end");
     expect(row?.className).toContain("md:justify-between");
 
-    const back = screen.getByRole("button", { name: "Back" });
+    const back = screen.getByRole("link", { name: "Back" });
     expect(back.className).toContain("hidden");
     expect(back.className).toContain("md:inline-flex");
   });
 
   it("renders the task name without a private badge", () => {
-    render(<TaskDetailHeader taskName="Secret" backLabel="Back" />);
+    render(
+      <TaskDetailHeader taskId="task-1" taskName="Secret" backLabel="Back" />,
+    );
 
     expect(screen.getByRole("heading", { name: "Secret" })).toBeInTheDocument();
     expect(screen.queryByText("Private")).not.toBeInTheDocument();
@@ -59,7 +62,11 @@ describe("TaskDetailHeader", () => {
 
   it("shows a Markdown task name as plain text", () => {
     render(
-      <TaskDetailHeader taskName="**Task Name:** _Weekly_" backLabel="Back" />,
+      <TaskDetailHeader
+        taskId="task-1"
+        taskName="**Task Name:** _Weekly_"
+        backLabel="Back"
+      />,
     );
 
     expect(
@@ -77,6 +84,7 @@ describe("TaskDetailHeader", () => {
     it("shows the identifier as quiet text above the title", () => {
       render(
         <TaskDetailHeader
+          taskId="task-1"
           taskName="Fix login"
           identifier="SOK-12"
           identifierLabels={identifierLabels}
@@ -107,6 +115,7 @@ describe("TaskDetailHeader", () => {
         .mockResolvedValue();
       render(
         <TaskDetailHeader
+          taskId="task-1"
           taskName="Fix login"
           identifier="SOK-12"
           identifierLabels={identifierLabels}
@@ -127,6 +136,7 @@ describe("TaskDetailHeader", () => {
       );
       render(
         <TaskDetailHeader
+          taskId="task-1"
           taskName="Fix login"
           identifier="SOK-12"
           identifierLabels={identifierLabels}
@@ -144,6 +154,7 @@ describe("TaskDetailHeader", () => {
     it("renders no identifier for a task without a project", () => {
       render(
         <TaskDetailHeader
+          taskId="task-1"
           taskName="Loose task"
           identifier={null}
           identifierLabels={identifierLabels}
@@ -154,6 +165,47 @@ describe("TaskDetailHeader", () => {
       expect(
         screen.queryByRole("button", { name: /Copy task ID/ }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("SEO audit link", () => {
+    const seoAuditLabels = {
+      audit: "Open SEO audit",
+      project: "Open project SEO workspace",
+    };
+    const renderWith = (
+      seoAudit: { auditId: string | null; projectId: string | null } | null,
+    ) =>
+      render(
+        <TaskDetailHeader
+          taskId="task-1"
+          taskName="SEO audit full"
+          backLabel="Back"
+          seoAudit={seoAudit}
+          seoAuditLabels={seoAuditLabels}
+        />,
+      );
+
+    it("links an audit Task to its audit in the audit's Project", () => {
+      renderWith({ auditId: "audit-1", projectId: "project-1" });
+
+      expect(
+        screen.getByRole("link", { name: "Open SEO audit" }),
+      ).toHaveAttribute("href", "/seo?projectId=project-1&auditId=audit-1");
+    });
+
+    it("links a Project analysis Task to the Project SEO workspace", () => {
+      renderWith({ auditId: null, projectId: "project-1" });
+
+      expect(
+        screen.getByRole("link", { name: "Open project SEO workspace" }),
+      ).toHaveAttribute("href", "/seo?projectId=project-1&view=project");
+    });
+
+    it("shows no SEO link for another Task", () => {
+      renderWith(null);
+
+      expect(screen.queryByRole("link", { name: /SEO/ })).toBeNull();
     });
   });
 });

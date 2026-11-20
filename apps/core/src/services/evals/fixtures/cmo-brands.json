@@ -134,7 +134,8 @@
     "main": "vegetar|vegan|restaurant|hiltl",
     "why": "local restaurant with a German site: German posts, whatever language the owner plans in",
     "contentLanguage": "german|deutsch",
-    "siteLanguage": "German"
+    "siteLanguage": "German",
+    "pieceLanguage": "\\b(?:der|die|das|den|dem|ein|eine|einen|und|oder|für|mit|im|zum|zur|vom|von|bei|auf|aus|wie|warum|wo|ist|sind|wird|unser|unsere|ihr|dein|nicht|kein|mehr|ohne|seit|über|nach|statt|geht|gibt)\\b"
   },
   {
     "name": "Apple",
@@ -143,6 +144,16 @@
     "main": "iphone|mac|ipad|apple",
     "minOffers": 5,
     "why": "many product lines: the Brand Brain lists each, not only the one the homepage features",
+    "contentLanguage": "english"
+  },
+  {
+    "name": "Begin",
+    "url": "https://begin.is/",
+    "goal": "More users",
+    "main": "wallet",
+    "price": "^free(?!.*(ios|android|chrome|may apply))",
+    "profile": "(x|twitter)\\.com/beginwallet",
+    "why": "the wallet is free on every platform, and its X account is linked only from the site's footer",
     "contentLanguage": "english"
   }
 ]

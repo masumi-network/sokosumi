@@ -13,6 +13,7 @@ import {
   getAdminSokoBotFleetDays as coreGetAdminSokoBotFleetDays,
   getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
+  getAdminSokoBotTurn as coreGetAdminSokoBotTurn,
   getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminWritingSkills as coreGetAdminWritingSkills,
   listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
@@ -24,7 +25,7 @@ import {
   performAdminSokoBotAction as corePerformAdminSokoBotAction,
   promoteAdminSokoBotVersion as corePromoteAdminSokoBotVersion,
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
-  setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
+  setAdminSokoBotAvatarCode as coreSetAdminSokoBotAvatarCode,
   updateAdminSokoBotVersion as coreUpdateAdminSokoBotVersion,
 } from "@sokosumi/core-client";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
@@ -59,16 +60,16 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     );
   }
 
-  async function setAdminSokoBotAvatar(sokoBotId: string, avatarId: string) {
+  async function setAdminSokoBotAvatarCode(sokoBotId: string, code: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreSetAdminSokoBotAvatar({
+        coreSetAdminSokoBotAvatarCode({
           client,
           path: { sokoBotId },
-          body: { avatarId },
+          body: { code },
         }),
-      "Failed to set Soko Bot avatar",
+      "Failed to set Soko Bot avatar code",
     );
   }
 
@@ -137,6 +138,19 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
       (client) =>
         coreGetAdminSokoBot({ client, path: { sokoBotId }, cache: "no-store" }),
       "Failed to fetch Soko Bot",
+    );
+  }
+
+  async function getAdminSokoBotTurn(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotTurn({
+          client,
+          path: { turnId },
+          cache: "no-store",
+        }),
+      "Failed to fetch admin Soko Bot turn",
     );
   }
 
@@ -259,7 +273,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     getAdminSokoBotAvailability,
     setAdminSokoBotAvailability,
     deleteAdminSokoBot,
-    setAdminSokoBotAvatar,
+    setAdminSokoBotAvatarCode,
     listAdminSokoBots,
     getAdminSokoBotQuality,
     getAdminSokoBotModelEvaluations,
@@ -267,6 +281,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     getAdminWritingSkills,
     getAdminSokoBotFleetDays,
     getAdminSokoBot,
+    getAdminSokoBotTurn,
     listAdminSokoBotChats,
     listAdminSokoBotChatMessages,
     performAdminSokoBotAction,

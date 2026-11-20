@@ -1,4 +1,6 @@
 import {
+  Activity,
+  Award,
   Bot,
   BotMessageSquare,
   BrainCircuit,
@@ -13,7 +15,6 @@ import {
   Palette,
   PenLine,
   Receipt,
-  Sparkles,
   Store,
   Users,
   WalletCards,
@@ -104,6 +105,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     group: "catalog",
   },
   {
+    key: "seoAlerts",
+    href: "/admin/seo-alerts",
+    Icon: Activity,
+    group: "operations",
+  },
+  {
     key: "tasks",
     href: "/admin/tasks",
     Icon: ListTodo,
@@ -134,6 +141,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     group: "operations",
   },
   {
+    key: "adEvals",
+    href: "/admin/ad-evals",
+    Icon: FlaskConical,
+    group: "operations",
+  },
+  {
     key: "cmoSpend",
     href: "/admin/cmo-spend",
     Icon: Receipt,
@@ -148,7 +161,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {
     key: "badgeCampaigns",
     href: "/admin/badge-campaigns",
-    Icon: Sparkles,
+    Icon: Award,
     group: "operations",
   },
   {
@@ -158,3 +171,11 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     group: "reference",
   },
 ];
+
+export function getVisibleAdminSections(
+  hasAdEvalsAccess: boolean,
+): AdminSection[] {
+  return ADMIN_SECTIONS.filter(
+    (section) => section.key !== "adEvals" || hasAdEvalsAccess,
+  );
+}

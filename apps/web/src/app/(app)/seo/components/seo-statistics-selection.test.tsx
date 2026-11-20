@@ -203,7 +203,7 @@ describe("statistics source and property recovery", () => {
     expect(viewers.every((id) => id === "owner")).toBe(true);
   });
 
-  it("syncs the displayed source's saved property and traffic while generic setup keeps the newest source", async () => {
+  it("syncs the displayed source's saved property and traffic while generic setup shows each source with its own", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.observations = [
@@ -276,17 +276,18 @@ describe("statistics source and property recovery", () => {
     await user.click(screen.getByRole("tab", { name: "Traffic" }));
     await user.click(screen.getByRole("combobox", { name: "Source" }));
     await user.click(screen.getByRole("option", { name: "Google Analytics" }));
-    // Analytics has no one-click sync; its button opens the dialog for the displayed source.
+    // Analytics has no one-click sync; its button opens the dialog on the displayed source.
     await user.click(
-      screen.getAllByRole("button", { name: "Google statistics settings" })[0],
+      screen.getAllByRole("button", { name: "Google connections" })[0],
     );
     const dialog = screen.getByRole("dialog");
-    expect(
-      within(dialog).getByRole("combobox", { name: "Source" }),
-    ).toHaveTextContent("Google Analytics");
+    const analytics = within(dialog).getByRole("region", {
+      name: "Google Analytics",
+    });
+    expect(analytics).toHaveAttribute("aria-current", "true");
     await waitFor(() =>
       expect(
-        within(dialog).getByRole("combobox", { name: "Property" }),
+        within(analytics).getByRole("combobox", { name: "Property" }),
       ).toHaveTextContent("Saved Analytics property"),
     );
     // No range and no traffic field: the dialog says what it reads. The saved source keeps its traffic.
@@ -295,36 +296,37 @@ describe("statistics source and property recovery", () => {
       within(dialog).queryByRole("combobox", { name: "Traffic" }),
     ).toBeNull();
     expect(
-      within(dialog).getByTestId("seo-statistics-reads"),
+      within(analytics).getByTestId("seo-statistics-reads-ga4"),
     ).toHaveTextContent("Reads the last 90 days of all website traffic.");
     await user.click(
       within(dialog).getAllByRole("button", { name: "Close" })[0],
     );
     await openStatisticsSetup(user);
     const generic = screen.getByRole("dialog");
-    expect(
-      within(generic).getByRole("combobox", { name: "Source" }),
-    ).toHaveTextContent("Search Console");
+    const search = within(generic).getByRole("region", {
+      name: "Search Console",
+    });
     // One property: a line, not a field.
     expect(
-      await within(generic).findByText("Saved Search property"),
+      await within(search).findByText("Saved Search property"),
     ).toBeVisible();
     expect(
-      within(generic).queryByRole("combobox", { name: "Property" }),
+      within(search).queryByRole("combobox", { name: "Property" }),
     ).toBeNull();
     expect(
-      within(generic).getByTestId("seo-statistics-reads"),
+      within(search).getByTestId("seo-statistics-reads-search_console"),
     ).toHaveTextContent("Reads the last 90 days of Google search data.");
-    // A change of source in the dialog takes that source's own last sync: its property and its traffic.
-    await user.click(within(generic).getByRole("combobox", { name: "Source" }));
-    await user.click(screen.getByRole("option", { name: "Google Analytics" }));
+    // Each source shows its own last sync: its property and its traffic.
+    const genericAnalytics = within(generic).getByRole("region", {
+      name: "Google Analytics",
+    });
     await waitFor(() =>
       expect(
-        within(generic).getByRole("combobox", { name: "Property" }),
+        within(genericAnalytics).getByRole("combobox", { name: "Property" }),
       ).toHaveTextContent("Saved Analytics property"),
     );
     expect(
-      within(generic).getByTestId("seo-statistics-reads"),
+      within(genericAnalytics).getByTestId("seo-statistics-reads-ga4"),
     ).toHaveTextContent("Reads the last 90 days of all website traffic.");
     expect(statistics).not.toHaveBeenCalled();
   });
@@ -350,7 +352,7 @@ describe("statistics source and property recovery", () => {
     const { finish } = await renderWithPendingAgentRefresh();
     await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
-    await within(dialog).findByTestId("seo-statistics-reads");
+    await within(dialog).findAllByTestId(/^seo-statistics-reads-/);
     expect(within(dialog).queryByRole("button", { name: /sync/i })).toBeNull();
     expect(statistics).toHaveBeenCalledOnce();
     finish({ ok: true, value: null });

@@ -37,13 +37,21 @@ function useWorkspace(): string | null {
   return session.session.activeOrganizationId ?? session.user.id;
 }
 
-/** Keeps the previous result while loading, but never across workspaces. */
-function sameWorkspace<T>(
+/**
+ * Keeps the previous result while loading, but never across workspaces, nor
+ * between live and archived contacts: a live row must not offer Restore, an
+ * archived one must not reach the editable grid.
+ */
+function keepPrevious<T>(
   previous: T | undefined,
   query: { queryKey: readonly unknown[] } | undefined,
   workspace: string | null,
+  archived?: string,
 ): T | undefined {
-  return query?.queryKey[1] === workspace ? previous : undefined;
+  const filters = query?.queryKey[2] as { archived?: string } | undefined;
+  return query?.queryKey[1] === workspace && filters?.archived === archived
+    ? previous
+    : undefined;
 }
 
 type ContactPage = Awaited<ReturnType<typeof contactsService.list>>;
@@ -62,7 +70,7 @@ export function useContactRows(query: ContactQuery) {
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace, query.archived),
   });
 }
 
@@ -78,7 +86,7 @@ export function useContactMap(query: ContactQuery, enabled = true) {
     queryKey: [...CONTACT_MAP_KEY, workspace, filters],
     queryFn: () => contactsService.map(filters),
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace, filters.archived),
     refetchInterval: ({ state }) =>
       (state.data?.pending ?? 0) > 0 && state.dataUpdateCount < MAP_POLLS
         ? 2_000
@@ -116,7 +124,7 @@ export function useCompanies(query: CompanyQuery, enabled: boolean) {
     queryKey: [...COMPANIES_KEY, workspace, query],
     queryFn: () => contactsService.companies(query),
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace),
   });
 }
 
@@ -137,7 +145,7 @@ export function useContactOrganizations(search: string) {
     queryKey: [...CONTACT_ORGANIZATIONS_KEY, workspace, search],
     queryFn: () => contactsService.organizations(search || undefined),
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace),
   });
 }
 
@@ -158,7 +166,7 @@ export function useContactBreakdown(query: ContactQuery, enabled: boolean) {
     queryKey: [...CONTACT_BREAKDOWN_KEY, workspace, filters],
     queryFn: () => contactsService.breakdown(filters, OVERVIEW),
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace),
   });
 }
 
@@ -224,8 +232,8 @@ export function writeContact(cache: QueryClient, contact: Contact) {
         })),
       },
   );
-  cache.setQueryData<ContactDetail>(
-    contactKey(contact.id),
+  cache.setQueriesData<ContactDetail>(
+    { queryKey: contactKey(contact.id) },
     (detail) => detail && { ...detail, ...contact },
   );
 }

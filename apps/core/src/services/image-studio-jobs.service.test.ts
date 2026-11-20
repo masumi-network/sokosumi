@@ -1,4 +1,6 @@
-import { FileSourceKind } from "@sokosumi/database";
+import { createHash } from "node:crypto";
+
+import { FileSourceKind, Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -25,6 +27,9 @@ const {
   driveHeadMock,
   driveReadUrlMock,
   loadLiveResourcesMock,
+  snapshotUpsertMock,
+  waitUntilMock,
+  adEventCreateMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -49,7 +54,12 @@ const {
   driveHeadMock: vi.fn(),
   driveReadUrlMock: vi.fn(),
   loadLiveResourcesMock: vi.fn(),
+  snapshotUpsertMock: vi.fn(),
+  waitUntilMock: vi.fn(),
+  adEventCreateMock: vi.fn(),
 }));
+
+vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 
 vi.mock("@/lib/drive-blob", () => ({
   driveHead: driveHeadMock,
@@ -93,6 +103,8 @@ vi.mock("@/lib/db/prisma", () => {
       create: vi.fn(),
     },
     project: { findUnique: projectFindUniqueMock },
+    projectImagePromptSnapshot: { upsert: snapshotUpsertMock },
+    adEvent: { create: adEventCreateMock },
     transaction: { create: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
@@ -138,12 +150,14 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
 }));
 
 import { imageModel } from "@/lib/image-studio/catalog";
+import { STUDIO_PROMPT_ASSEMBLY_VERSION } from "@/lib/image-studio/studio-brand";
 import {
   createImageJob,
   readProviderSize,
   recoverUnclaimedReservations,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 /**
  * The default model's endpoints, taken from the catalog rather than written out.
@@ -225,6 +239,8 @@ describe("image studio job submission", () => {
     );
     // One caller wins the lease.
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    snapshotUpsertMock.mockReset().mockResolvedValue({});
+    adEventCreateMock.mockReset().mockResolvedValue({});
     projectFindUniqueMock.mockResolvedValue({
       designMdUrl: null,
       contextMd: null,
@@ -268,6 +284,30 @@ describe("image studio job submission", () => {
     );
   });
 
+  it("takes the edit endpoint for a job whose only reference is a library style", async () => {
+    // The generate endpoint refuses the style reference it is then sent.
+    // This row has no library store to read from, so sending stops early.
+    expectCoreLogWhys("warn", "An image generation failed before it was sent", [
+      "Preparing the request for the image provider threw",
+    ]);
+    const stored = jobRow({ model: "google/nano-banana-2.1/edit" });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    await createImageJob({
+      ...BASE_INPUT,
+      modelId: "nano-banana-2-1",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+    });
+    expect(jobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "EDIT",
+          model: "google/nano-banana-2.1/edit",
+        }),
+      }),
+    );
+  });
+
   it("sends only the provider fields the chosen endpoint declares", async () => {
     // `num_images` and `limit_generations` are Gemini's fields. Sending them to
     // a model that never declared them is a 422 on a generation that would
@@ -308,13 +348,26 @@ describe("image studio job submission", () => {
   );
 
   it("classifies a definite provider refusal as failed and therefore retryable", async () => {
+    const refusals = expectCoreLogWhys(
+      "warn",
+      "The image provider refused a generation",
+      ["fal answered the submission with a rejection"],
+    );
     submitToQueueMock.mockResolvedValue({
       kind: "rejected",
       status: 422,
-      message: "prompt rejected",
+      message: "prompt rejected: SECRET-PROMPT-SENTINEL",
     });
 
     const job = await createImageJob(BASE_INPUT);
+
+    // The provider's message can quote the prompt: only its status is logged.
+    expect(refusals[0]?.event).toMatchObject({
+      imageJobs: [{ id: "job-1", provider: { name: "fal", status: 422 } }],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
 
     expect(job.status).toBe("FAILED");
     expect(jobUpdateMock).toHaveBeenCalledWith(
@@ -325,12 +378,20 @@ describe("image studio job submission", () => {
   });
 
   it("classifies a lost answer as uncertain, never as failed", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not tell whether the image provider received a generation",
+      ["The submission to fal ended without a clear answer"],
+    );
     submitToQueueMock.mockResolvedValue({
       kind: "uncertain",
-      message: "The operation timed out",
+      message: "The operation timed out: SECRET-PROMPT-SENTINEL",
     });
 
     const job = await createImageJob(BASE_INPUT);
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
 
     // The distinction is the whole point: a retry here could be a second
     // charge, so it must not look like an ordinary failure.
@@ -343,13 +404,44 @@ describe("image studio job submission", () => {
   });
 
   it("returns the existing job for a replayed idempotency key without calling fal", async () => {
-    jobFindUniqueMock.mockResolvedValue(jobRow({ status: "QUEUED" }));
+    jobFindUniqueMock.mockResolvedValue(
+      jobRow({
+        status: "QUEUED",
+        parentAssetId: "asset-1",
+        batchSlotId: "slot-1",
+      }),
+    );
 
     const job = await createImageJob(BASE_INPUT);
 
     expect(job.status).toBe("QUEUED");
     expect(jobCreateMock).not.toHaveBeenCalled();
     expect(submitToQueueMock).not.toHaveBeenCalled();
+    expect(snapshotUpsertMock).not.toHaveBeenCalled();
+    expect(adEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("records the refinement without replacing a batch slot before delivery", async () => {
+    jobCreateMock.mockResolvedValue(
+      jobRow({ parentAssetId: "asset-1", batchSlotId: "slot-1" }),
+    );
+    adEventCreateMock.mockRejectedValue(new Error("event store unavailable"));
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+      status: "QUEUED",
+    });
+
+    expect(adEventCreateMock).toHaveBeenNthCalledWith(1, {
+      data: {
+        workspaceId: BASE_INPUT.workspaceId,
+        assetId: "asset-1",
+        userId: BASE_INPUT.userId,
+        type: "refined",
+        meta: { jobId: "job-1" },
+      },
+    });
+    expect(adEventCreateMock).toHaveBeenCalledTimes(1);
   });
 
   it("persists the selected product and batch independently of provider settings", async () => {
@@ -372,9 +464,15 @@ describe("image studio job submission", () => {
     expect(assetFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("inherits the product from a parent image in the same project", async () => {
+  it("inherits the product without copying prompt context from a parent image", async () => {
     assetFindFirstMock.mockResolvedValueOnce({
-      job: { productId: "product-a", productName: "Clay mug" },
+      job: {
+        productId: "product-a",
+        productName: "Clay mug",
+        templateId: "social-post",
+        creativeDirection: "lifestyle",
+        variationIndex: 2,
+      },
     });
     jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
 
@@ -398,6 +496,10 @@ describe("image studio job submission", () => {
         productName: "Clay mug",
       }),
     });
+    const data = jobCreateMock.mock.lastCall?.[0]?.data;
+    expect(data).not.toHaveProperty("templateId");
+    expect(data).not.toHaveProperty("creativeDirection");
+    expect(data).not.toHaveProperty("variationIndex");
   });
 
   const photoInput = {
@@ -512,6 +614,11 @@ describe("image studio job submission", () => {
   ])(
     "blocks a recovered job without photo access ($idempotencyKey)",
     async ({ idempotencyKey, kind }) => {
+      expectCoreLogWhys(
+        "warn",
+        "An image generation failed before it was sent",
+        ["Preparing the request for the image provider threw"],
+      );
       const now = new Date("2026-11-10T12:00:00Z");
       const pending = jobRow({
         createdAt: new Date("2026-11-10T11:58:00Z"),
@@ -587,6 +694,13 @@ describe("image studio job submission", () => {
   });
 
   it("refuses to generate before spending anything when there is no private store", async () => {
+    expectCoreLogWhys(
+      "error",
+      "Refused an image studio request, because its private storage is not configured",
+      [
+        "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is unset, and the studio never falls back to the shared public store named by BLOB_READ_WRITE_TOKEN",
+      ],
+    );
     // Checked ahead of the reservation and the provider call, because the
     // alternative is paying fal for an image the studio is not allowed to
     // keep — which is exactly what happened when settlement was the only place
@@ -629,6 +743,23 @@ describe("image studio job submission", () => {
       status: 429,
     });
     expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
+  it("gives Core's month media six at a time and no hourly cap", async () => {
+    // The approved plan bounds a month; NMKR's 34 pictures in 37 minutes
+    // ran into a person's 40 an hour.
+    jobCountMock.mockResolvedValue(5);
+    await createImageJob({ ...BASE_INPUT, forCmoMonth: true });
+    expect(jobCreateMock).toHaveBeenCalledTimes(1);
+    // Only the project's jobs in flight are counted, never the hour's.
+    expect(jobCountMock).toHaveBeenCalledTimes(1);
+
+    jobCreateMock.mockClear();
+    jobCountMock.mockResolvedValue(6);
+    await expect(
+      createImageJob({ ...BASE_INPUT, forCmoMonth: true }),
+    ).rejects.toMatchObject({ status: 429 });
+    expect(jobCreateMock).not.toHaveBeenCalled();
   });
 
   it("routes a refinement to the edit endpoint with the reference attached", async () => {
@@ -684,6 +815,10 @@ describe("image studio job submission", () => {
         }),
       }),
     );
+    expect(adEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ assetId: "asset-1", type: "refined" }),
+    });
+    expect(adEventCreateMock).toHaveBeenCalledTimes(1);
   });
 
   it("tries a reference File once more when its download fails", async () => {
@@ -816,6 +951,9 @@ describe("image studio job submission", () => {
     );
     expect(driveReadUrlMock).toHaveBeenCalledWith("drive/w/leggings.jpg");
     expect(fetchMock).toHaveBeenCalledWith(signedUrl, expect.any(Object));
+    expect(snapshotUpsertMock.mock.calls[0]![0].create.finalPrompt).toBe(
+      submitToQueueMock.mock.calls[0]![0].input.prompt,
+    );
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: DEFAULT_IMAGE_ENDPOINT_EDIT,
@@ -916,6 +1054,127 @@ describe("image studio job submission", () => {
         "Brief:\na calm product shot",
       ].join("\n\n"),
     );
+    const snapshot = snapshotUpsertMock.mock.calls[0]![0];
+    expect(snapshot).toEqual({
+      where: { jobId: "job-1" },
+      create: {
+        jobId: "job-1",
+        ...snapshot.update,
+      },
+      update: {
+        finalPrompt: submitToQueueMock.mock.calls[0]![0].input.prompt,
+        brandContextHash: createHash("sha256")
+          .update(
+            [
+              "Follow this project's brand.",
+              "Design:\n# Brand\nUse crimson.",
+              "Memory:\nWe never use serif.",
+            ].join("\n\n"),
+          )
+          .digest("hex"),
+        brandLook: Prisma.DbNull,
+        assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
+        templateId: null,
+        creativeDirection: null,
+        variationIndex: null,
+      },
+    });
+  });
+
+  it("persists the generation context and brand look with the exact headline guidance", async () => {
+    const context = {
+      templateId: "social-post",
+      creativeDirection: "lifestyle",
+      variationIndex: 0,
+    };
+    const look = { colors: ["#123456"], fonts: ["Inter"] };
+    const stored = jobRow({ ...context, exportHeadline: "Approved headline" });
+    projectFindUniqueMock.mockResolvedValue({ studioBrandLook: look });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await createImageJob({ ...BASE_INPUT, ...context });
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining(context),
+    });
+    const finalPrompt = submitToQueueMock.mock.calls[0]![0].input.prompt;
+    expect(finalPrompt).toContain(
+      "Studio adds the approved headline after generation.",
+    );
+    expect(snapshotUpsertMock).toHaveBeenCalledWith({
+      where: { jobId: "job-1" },
+      create: expect.objectContaining({
+        ...context,
+        finalPrompt,
+        brandLook: look,
+        brandContextHash: createHash("sha256")
+          .update(
+            [
+              "Follow this project's brand.",
+              "Use these Studio choices for the ad's palette and fonts. They take precedence over any palette or typefaces in the other brand context.",
+              "Palette: #123456",
+              "Fonts: Inter",
+            ].join("\n\n"),
+          )
+          .digest("hex"),
+      }),
+      update: expect.objectContaining({
+        ...context,
+        finalPrompt,
+        brandLook: look,
+      }),
+    });
+  });
+
+  it("queues the job and logs a snapshot failure", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not save the prompt snapshot of an image generation",
+      ["The database write of the snapshot failed"],
+    );
+    snapshotUpsertMock.mockRejectedValueOnce(
+      new Error("snapshot unavailable: SECRET-PROMPT-SENTINEL"),
+    );
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+      status: "QUEUED",
+    });
+    await Promise.all(waitUntilMock.mock.calls.map(([work]) => work));
+    // Its own event, after the response; the write's error can quote the prompt.
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_prompt_snapshot",
+      imageJobs: [{ id: "job-1", failure: { errorName: "Error" } }],
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
+  });
+
+  it("does not wait for a snapshot write before submitting or returning the job", async () => {
+    // Held open while the job is created and returned, then settled, so the
+    // drain after the test finishes it even when an assertion fails.
+    let finishSnapshot = () => {};
+    snapshotUpsertMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishSnapshot = resolve;
+      }),
+    );
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    try {
+      await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+        status: "QUEUED",
+      });
+      expect(snapshotUpsertMock).toHaveBeenCalledOnce();
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+      expect(submitToQueueMock).toHaveBeenCalledOnce();
+    } finally {
+      finishSnapshot();
+    }
   });
 
   it("still sends the brief when Design cannot be read", async () => {

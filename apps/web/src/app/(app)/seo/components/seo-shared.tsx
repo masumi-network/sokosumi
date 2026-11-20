@@ -3,7 +3,7 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { ArrowUpRight, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Fragment, type ReactNode } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,13 @@ import {
   HOLDER_ITEM_CLASS,
   HOLDER_ITEM_HOVER_CLASS,
 } from "@/components/ui/holder-surface";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
+
+export { SeoDate, SeoPeriod } from "./seo-date";
 
 /** A column header names its column: it is quiet and in the weight of body text, so the rows lead. */
 const SEO_QUIET_HEADERS_CLASS =
@@ -138,23 +144,22 @@ export function SeoSection({
   description,
   children,
   actions,
-  foot,
   strong = false,
   titleHidden = false,
+  lang,
 }: {
+  lang?: string;
   title: string;
   description?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
-  /** A quiet control under the list, such as its export: the title line keeps the actions on the list itself. */
-  foot?: ReactNode;
   /** The title is the result of the list, not its name: it reads as the loudest line. */
   strong?: boolean;
   /** The chosen tab already says this title: it stays for screen readers only. */
   titleHidden?: boolean;
 }) {
   return (
-    <section className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}>
+    <section lang={lang} className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}>
       <div className={cn("space-y-0.5 px-2 pt-1", titleHidden && "sr-only")}>
         {/* The button stands on the line of the title, on a phone too: a row of its own pushed the list down. */}
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -178,7 +183,6 @@ export function SeoSection({
         ) : null}
       </div>
       {children}
-      {foot ? <div className="px-2">{foot}</div> : null}
     </section>
   );
 }
@@ -356,51 +360,6 @@ export function SeoPageLink({
   );
 }
 
-export function SeoDate({
-  value,
-  timeZone,
-  day,
-}: {
-  value: string | Date | null;
-  timeZone?: string;
-  /** The day alone. Two reads of one check differ by minutes; a line that dates the check must not. */
-  day?: boolean;
-}) {
-  const t = useTranslations("App.Seo");
-  const format = useFormatter();
-  if (!value) return <span>{t("none")}</span>;
-  const date = value instanceof Date ? value : new Date(value);
-  return (
-    <time dateTime={date.toISOString()}>
-      {day
-        ? format.dateTime(date, {
-            dateStyle: "medium",
-            ...(timeZone ? { timeZone } : {}),
-          })
-        : format.dateTime(
-            date,
-            "dateTimeMedium",
-            timeZone ? { timeZone } : undefined,
-          )}
-    </time>
-  );
-}
-
-/** A reporting period of calendar days, shown as the provider's dates without a time zone shift. */
-export function SeoPeriod({ from, to }: { from: string; to: string }) {
-  const format = useFormatter();
-  const day = (value: string) => new Date(`${value}T12:00:00Z`);
-  // The locale picks the range form and its separator.
-  return (
-    <span>
-      {format.dateTimeRange(day(from), day(to), {
-        dateStyle: "medium",
-        timeZone: "UTC",
-      })}
-    </span>
-  );
-}
-
 export function SeoSource({
   observationId,
   workspace,
@@ -499,9 +458,12 @@ export function SeoBarNumber({
   max: number;
   unit: string;
 }) {
-  const format = useFormatter();
+  const format = useSeoResultFormatter();
   return (
-    <span className="inline-flex flex-col items-end gap-1 max-sm:flex-row max-sm:items-baseline">
+    <span
+      lang="en"
+      className="inline-flex flex-col items-end gap-1 max-sm:flex-row max-sm:items-baseline"
+    >
       {format.number(value)}
       <span className="sm:hidden">{unit}</span>
       {max > 0 ? (
@@ -658,7 +620,11 @@ export function SeoFoldSummary({
 }
 
 const SEO_ROW_CONTROL_CLASS =
-  "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2";
+  "group/row press focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2";
+
+/** The arrow at the end of a row: it moves a little toward its target while the pointer is on the row. */
+export const SEO_ROW_ARROW_CLASS =
+  "text-muted-foreground size-4 shrink-0 motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-out motion-safe:group-hover/row:translate-x-0.5";
 
 /** A row that is one button: the whole row opens its target, and an arrow at its end says so. */
 export const SEO_ROW_BUTTON_CLASS = cn(
@@ -685,7 +651,7 @@ export function SeoNextStepRow({
       onClick={onClick}
     >
       <span className="min-w-0 flex-1 font-medium">{children}</span>
-      <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+      <ChevronRight className={SEO_ROW_ARROW_CLASS} />
     </button>
   );
 }
@@ -709,9 +675,10 @@ export function SeoSeverity({
 }: {
   severity: "critical" | "major" | "minor";
 }) {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   return (
     <span
+      lang="en"
       title={t(`severityHint.${severity}`)}
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap",

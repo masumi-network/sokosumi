@@ -1,11 +1,13 @@
 import { z } from "@hono/zod-openapi";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { badRequest } from "@/helpers/error";
+import { escapeLikeText } from "@/helpers/query-params";
 
 const projectActivityCursorSchema = z.object({
   workspaceId: z.uuid(),
   id: z.uuid(),
   lastActivityAt: z.iso.datetime(),
+  matchRank: z.number().int().min(0).max(1).optional(),
   // Absent on cursors minted before Pins could lead the order.
   starredAt: z.iso.datetime().nullable().optional(),
 });
@@ -13,6 +15,7 @@ const projectActivityCursorSchema = z.object({
 export interface ProjectActivityRow {
   id: string;
   lastActivityAt: Date;
+  matchRank?: number;
   /** The reader's Pin when the page leads with Pins, otherwise null. */
   starredAt?: Date | null;
 }
@@ -35,6 +38,7 @@ export function encodeProjectActivityCursor(
       id: row.id,
       lastActivityAt: row.lastActivityAt.toISOString(),
       starredAt: row.starredAt?.toISOString() ?? null,
+      matchRank: row.matchRank,
     }),
   ).toString("base64url");
 }
@@ -71,12 +75,19 @@ interface ProjectActivityPageParams {
  * character itself) keeps the query a literal substring match.
  */
 export function literalSubstringPattern(search: string): string {
-  const escaped = search.replace(/[\\%_]/g, (match) => `\\${match}`);
-  return `%${escaped}%`;
+  return `%${escapeLikeText(search)}%`;
 }
 
-function projectNameSearchClause(search: string) {
-  return PrismaRaw.sql`AND p.name ILIKE ${literalSubstringPattern(search)} ESCAPE '\\'`;
+function primaryProjectMatch(pattern: string) {
+  return PrismaRaw.sql`(p.name ILIKE ${pattern} ESCAPE '\\'
+    OR p.identifier ILIKE ${pattern} ESCAPE '\\')`;
+}
+
+function projectSearchClause(search: string) {
+  const pattern = literalSubstringPattern(search);
+  return PrismaRaw.sql`AND (${primaryProjectMatch(pattern)}
+    OR p.briefing ILIKE ${pattern} ESCAPE '\\'
+    OR p."websiteUrl" ILIKE ${pattern} ESCAPE '\\')`;
 }
 
 /** The reader's Hide on project `p`, for `EXISTS` / `NOT EXISTS`. */
@@ -121,7 +132,7 @@ function projectListFilterClause({
   state,
   readerUserId = null,
 }: ProjectListFilter) {
-  return PrismaRaw.sql`${search ? projectNameSearchClause(search) : PrismaRaw.empty}
+  return PrismaRaw.sql`${search ? projectSearchClause(search) : PrismaRaw.empty}
       ${projectStateClause(state, readerUserId)}`;
 }
 
@@ -159,6 +170,9 @@ export function projectActivityPageQuery({
   const boundary = cursor
     ? decodeProjectActivityCursor(cursor, workspaceId)
     : undefined;
+  const matchRank = search
+    ? PrismaRaw.sql`CASE WHEN ${primaryProjectMatch(literalSubstringPattern(search))} THEN 0 ELSE 1 END`
+    : PrismaRaw.sql`0`;
   return PrismaRaw.sql`
     WITH activity AS (
       SELECT t."projectId", GREATEST(t."createdAt",
@@ -181,7 +195,7 @@ export function projectActivityPageQuery({
       FROM project_event e JOIN project p ON p.id = e."projectId"
       WHERE p."workspaceId" = ${workspaceId}::uuid
     ), ranked AS (
-      SELECT p.id, GREATEST(p."createdAt", MAX(a.at)) AS "lastActivityAt",
+      SELECT p.id, ${matchRank} AS "matchRank", GREATEST(p."createdAt", MAX(a.at)) AS "lastActivityAt",
         ${
           pinnedFirstUserId
             ? PrismaRaw.sql`MAX(s."starredAt")`
@@ -197,9 +211,14 @@ export function projectActivityPageQuery({
       ${projectListFilterClause({ search, state, readerUserId })}
       GROUP BY p.id, p."createdAt"
     )
-    SELECT r.id, r."lastActivityAt", r."starredAt" FROM ranked r
-    ${boundary ? projectActivityBoundaryClause(boundary) : PrismaRaw.empty}
-    ORDER BY r."starredAt" ASC NULLS LAST, r."lastActivityAt" DESC, r.id DESC
+    SELECT r.id, r."lastActivityAt", r."starredAt", r."matchRank" FROM ranked r
+    ${
+      boundary
+        ? PrismaRaw.sql`WHERE r."matchRank" > ${boundary.matchRank ?? 0}
+      OR (r."matchRank" = ${boundary.matchRank ?? 0} AND (${projectActivityBoundaryClause(boundary)}))`
+        : PrismaRaw.empty
+    }
+    ORDER BY r."matchRank", r."starredAt" ASC NULLS LAST, r."lastActivityAt" DESC, r.id DESC
     LIMIT ${take}
   `;
 }
@@ -210,9 +229,9 @@ function projectActivityBoundaryClause(
 ) {
   const afterActivity = PrismaRaw.sql`(r."lastActivityAt", r.id) < (${boundary.lastActivityAt}::timestamp, ${boundary.id}::uuid)`;
   if (!boundary.starredAt) {
-    return PrismaRaw.sql`WHERE r."starredAt" IS NULL AND ${afterActivity}`;
+    return PrismaRaw.sql`r."starredAt" IS NULL AND ${afterActivity}`;
   }
-  return PrismaRaw.sql`WHERE r."starredAt" IS NULL
+  return PrismaRaw.sql`r."starredAt" IS NULL
     OR r."starredAt" > ${boundary.starredAt}::timestamp
     OR (r."starredAt" = ${boundary.starredAt}::timestamp AND ${afterActivity})`;
 }

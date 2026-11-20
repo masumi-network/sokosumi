@@ -1,4 +1,8 @@
-import { type LanguageModelMiddleware, streamText } from "ai";
+import { type LanguageModelMiddleware, RetryError, streamText } from "ai";
+import {
+  aiGatewayBudgetScope,
+  GATEWAY_INTERNAL_SERVER_ERROR,
+} from "../ai-gateway-budget-error";
 
 /**
  * Soko Bot model calls stream, because the AI Gateway cuts a non-streamed
@@ -8,6 +12,65 @@ import { type LanguageModelMiddleware, streamText } from "ai";
  */
 
 type StreamTextOptions = Parameters<typeof streamText>[0];
+
+// Gateway chat model IDs with thinking on by default.
+const GOOGLE_MODELS_WITH_DEFAULT_THINKING = new Set([
+  "google/gemini-2.5-flash",
+  "google/gemini-2.5-pro",
+  "google/gemini-3-flash",
+  "google/gemini-3.1-flash-lite",
+  "google/gemini-3.1-pro-preview",
+  "google/gemini-3.5-flash-lite",
+  "google/gemini-3.6-flash",
+  "google/gemini-3.8-flash",
+  "google/gemini-4-argon",
+  "google/gemini-4-carbon",
+  "google/gemini-4-hydrogen",
+  "google/gemini-4-neon",
+]);
+
+/**
+ * Each provider's switch for a returned reasoning summary (never raw
+ * thoughts); other providers ignore it.
+ */
+export function modelReasoningSummaryOptions(
+  model: StreamTextOptions["model"],
+) {
+  const modelId = typeof model === "string" ? model : model.modelId;
+  return {
+    openai: { reasoningSummary: "auto" },
+    ...(GOOGLE_MODELS_WITH_DEFAULT_THINKING.has(modelId)
+      ? { google: { thinkingConfig: { includeThoughts: true } } }
+      : {}),
+  };
+}
+
+/**
+ * A step's reasoning summary, one paragraph per part; undefined when the
+ * provider returned none. `reasoningText` runs the parts together.
+ */
+export function stepReasoningSummary(step: {
+  reasoning: readonly object[];
+}): string | undefined {
+  const summary = step.reasoning
+    .map((part) =>
+      "text" in part && typeof part.text === "string" ? part.text.trim() : "",
+    )
+    .filter(Boolean)
+    .join("\n\n");
+  return summary || undefined;
+}
+
+/** The runtime reports only a failure's name and message over the turn API. */
+function unwrapGatewayBudgetRetry(error: unknown): unknown {
+  if (!RetryError.isInstance(error)) return error;
+  const last = error.lastError ?? error.errors.at(-1);
+  return last instanceof Error &&
+    last.name === GATEWAY_INTERNAL_SERVER_ERROR &&
+    aiGatewayBudgetScope(last.message)
+    ? last
+    : error;
+}
 
 /**
  * `streamText`, settled like `generateText`: resolves once every step has
@@ -22,16 +85,16 @@ export async function streamModelCall(options: StreamTextOptions) {
       failure ??= error;
     },
   });
-  const [text, finishReason, steps, response] = await Promise.all([
+  const [text, finishReason, steps, responseMessages] = await Promise.all([
     result.text,
     result.finishReason,
     result.steps,
-    result.response,
+    result.responseMessages,
   ]).catch((error: unknown) => {
-    throw failure ?? error;
+    throw unwrapGatewayBudgetRetry(failure ?? error);
   });
-  if (failure !== undefined) throw failure;
-  return { text, finishReason, steps, response };
+  if (failure !== undefined) throw unwrapGatewayBudgetRetry(failure);
+  return { text, finishReason, steps, responseMessages };
 }
 
 type WrapStream = NonNullable<LanguageModelMiddleware["wrapStream"]>;

@@ -18,6 +18,7 @@ import {
   formatParticipantNameList,
   linkifyChannelLinksInMarkdown,
 } from "@sokosumi/utils";
+import { isPersistedMentionThoughtShell } from "@/app/chat/utils/coworker-thought";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import type {
@@ -26,6 +27,7 @@ import type {
 } from "@/components/ui/mention-textarea-utils";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { chatRoomHref } from "../utils/chat-route-base";
+import type { RoomTranscriptRenderRow } from "../utils/room-transcript-ranges";
 
 /**
  * Room markdown density: zero default paragraph margin so single-block
@@ -89,6 +91,8 @@ export type ChatParticipantHoverProfile =
       caption: string | null;
       image: string | null;
       avatarSeed: string | null;
+      /** The live SVG avatar's code; absent until the bot has one. */
+      avatarCode?: string | null;
       presence: ChatRoomPresence;
     };
 
@@ -334,17 +338,6 @@ export function createRoomComposerOverflowMarkdownFile(content: string): File {
   });
 }
 
-interface PendingCoworkerStreamInput {
-  isCoworkerStreamRoom: boolean;
-  hasPendingMessage: boolean;
-}
-
-export function shouldConsumePendingCoworkerStream(
-  input: PendingCoworkerStreamInput,
-): boolean {
-  return input.isCoworkerStreamRoom && input.hasPendingMessage;
-}
-
 export function appendMessage(
   messages: ChatRoomMessage[],
   nextMessage: ChatRoomMessage,
@@ -431,6 +424,7 @@ export function senderProfile(
       caption: sokoBot.caption,
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
+      avatarCode: sokoBot.avatarCode ?? null,
       presence: sokoBot.presence,
     };
   }
@@ -458,6 +452,55 @@ export function senderKey(sender: ChatRoomMessageSender): string | null {
     return `sokoBot:${sender.sokoBot.id}`;
   }
   return null;
+}
+
+/** How far back the live faces look; older bot messages keep the still picture. */
+const LIVE_FACE_LOOKBACK = 200;
+
+/**
+ * The rows that show a Soko Bot's face live, one per bot: the header of its
+ * newest message group (continuations draw no face), mapped to whether its
+ * newest message is still being written. Older bot rows keep the still picture,
+ * so a long room costs one WebGL draw per bot.
+ */
+export function liveSokoBotFaces(
+  rows: readonly RoomTranscriptRenderRow[],
+  localCalendarReady: boolean,
+): Map<string, boolean> {
+  const faces = new Map<string, boolean>();
+  const found = new Set<string>();
+  const streamingOf = new Map<string, boolean>();
+  for (
+    let i = rows.length - 1;
+    i >= Math.max(0, rows.length - LIVE_FACE_LOOKBACK);
+    i--
+  ) {
+    const row = rows[i];
+    if (row?.kind !== "message") continue;
+    const key = messageSenderKey(row.message);
+    if (!key?.startsWith("sokoBot:") || found.has(key)) continue;
+    if (!streamingOf.has(key)) {
+      streamingOf.set(
+        key,
+        row.message.id.startsWith("stream:") ||
+          isPersistedMentionThoughtShell(row.message.metadata),
+      );
+    }
+    // The same rule the row uses to drop its face (rooms-client).
+    const daySeparator =
+      localCalendarReady &&
+      (!row.dayPreviousMessage ||
+        messageDayKey(row.dayPreviousMessage.createdAt) !==
+          messageDayKey(row.message.createdAt));
+    const continuation =
+      localCalendarReady &&
+      !daySeparator &&
+      isMessageContinuation(row.previousMessage, row.message);
+    if (continuation) continue;
+    faces.set(row.message.id, streamingOf.get(key) ?? false);
+    found.add(key);
+  }
+  return faces;
 }
 
 /** Faces on a thread reply bar. Core caps `threadRepliers` at the same. */
@@ -738,6 +781,7 @@ export function getRoomParticipantPreviews(
         caption: sokoBot.caption,
         image: sokoBot.image,
         avatarSeed: sokoBot.avatarSeed,
+        avatarCode: sokoBot.avatarCode ?? null,
         presence: sokoBot.presence,
       }),
     )
@@ -843,6 +887,7 @@ export function chatParticipantProfileForDirectTarget(
       caption: sokoBot.caption,
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
+      avatarCode: sokoBot.avatarCode ?? null,
       presence: sokoBot.presence,
     };
   }

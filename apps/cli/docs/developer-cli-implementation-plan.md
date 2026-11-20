@@ -14,9 +14,9 @@
 
 [VERIFIED: git history at `c2271e441`] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) merged the Core receipt route and CLI reader. [VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:113-122`] The reader reports MPS settlement state after checking stored purchase terms. A settled result can have a null transaction hash. This source behavior does not prove a live Coworker payment.
 
-[VERIFIED: draft branch contents, 2026-09-30] These open draft PRs contain planning documents and corrections to existing guides. Each draft uses the preceding branch, with #5463 based on `main`.
+[VERIFIED: GitHub PR read, 2026-11-17] [#5463](https://github.com/masumi-network/sokosumi/pull/5463), [#5464](https://github.com/masumi-network/sokosumi/pull/5464), and [#5465](https://github.com/masumi-network/sokosumi/pull/5465) merged on 2026-09-30 as documentation only. The payment code those briefs describe is still unbuilt.
 
-| Draft                                                         | Proposed implementation                                        | Brief                                                                |
+| Brief                                                         | Proposed implementation                                        | Document                                                             |
 | ------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- |
 | [#5463](https://github.com/masumi-network/sokosumi/pull/5463) | Seller binding and customer Task approval                      | [Seller authorization](mps-payment-stack/01-seller-authorization.md) |
 | [#5464](https://github.com/masumi-network/sokosumi/pull/5464) | Funding, execution, result submission, collection and recovery | [Paid runtime](mps-payment-stack/02-paid-runtime.md)                 |
@@ -70,7 +70,7 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 [VERIFIED] Current Core Coworker creation allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). This CLI work does not change that permission. Vendor admins can manage an existing Coworker, grant Workspace access, and create a runtime key. [Create route](../../core/src/routes/v1/coworkers/post.ts#L83-L112) · [Management access](../../core/src/routes/v1/coworkers/coworker-management-access.ts#L24-L66) · [Workspace access](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts#L48-L74)
 
-[VERIFIED] The current CLI lists organization workspaces but does not create one. When none exists, it directs the user to the Sokosumi Web workspace switcher. [Workspace guidance](../src/cli/registration-authority.ts#L18-L23) · [Workspace command](../src/cli/commands/workspaces.ts#L39-L45)
+[VERIFIED] The current CLI lists organization workspaces but does not create one. When none exists, it directs the user to the Sokosumi Web workspace switcher. [Workspace guidance](../src/cli/registration-authority.ts#L4-L6) · [Workspace command](../src/cli/commands/workspaces.ts#L39-L45)
 
 [VERIFIED: CLI source] `coworkers register` creates a Coworker through Core, then requests Workspace access. `coworkers connect` requests access for an existing Coworker. Both report completion only after `GRANTED`. [CORRECTION, REPORTED: pilot run, 2026-09-27] The recorded pilot reached `GRANTED`; current live access has not been rechecked. [CLI command](../src/cli/commands/coworkers.ts) · [Core route](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts)
 

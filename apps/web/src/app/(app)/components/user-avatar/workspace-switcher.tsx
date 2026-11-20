@@ -15,6 +15,7 @@ import {
 } from "@/lib/activate-organization-workspace";
 import { isListedInWorkspace } from "@/lib/chat/room-workspace-scope";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import { isUuidString } from "@/lib/utils/uuid";
 
 export function getAgentJobsBasePath(pathname: string): string | null {
   const jobsRouteMatch = pathname.match(/^\/agents\/([^/]+)\/jobs(?:\/.*)?$/);
@@ -33,6 +34,11 @@ export function getTaskDetailBasePath(pathname: string): string | null {
   }
 
   return "/tasks";
+}
+
+/** A Project belongs to one workspace; after a switch its pages are a 404. */
+export function getProjectDetailBasePath(pathname: string): string | null {
+  return /^\/projects\/[^/]+(?:\/.*)?$/.test(pathname) ? "/projects" : null;
 }
 
 /**
@@ -170,6 +176,31 @@ export async function switchOrganizationWorkspace(
   }
 
   if (options?.router && options?.pathname) {
+    const projectDetailBasePath = getProjectDetailBasePath(options.pathname);
+    if (projectDetailBasePath) {
+      runRouterTransition(() => {
+        options.router?.replace(projectDetailBasePath);
+        refreshUnlessRendered();
+      }, options.startTransition);
+      return;
+    }
+
+    if (options.pathname === "/tasks") {
+      const filters = new URLSearchParams(window.location.search);
+      // Custom tags belong to the old workspace. Built-in topics exist in both.
+      // Scope defaults differ per workspace, so the target picks its own.
+      const oldTag = isUuidString(filters.get("tag") ?? "");
+      if (oldTag || filters.has("scope")) {
+        if (oldTag) filters.delete("tag");
+        filters.delete("scope");
+        const query = filters.toString();
+        runRouterTransition(() => {
+          options.router?.replace(query ? `/tasks?${query}` : "/tasks");
+          refreshUnlessRendered();
+        }, options.startTransition);
+        return;
+      }
+    }
     // Without this a Project of the old workspace stays in the address and the page says it is unavailable.
     const seoBasePath = getSeoBasePath(
       options.pathname,

@@ -10,6 +10,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "hire_agent",
   "provide_job_input",
   "run_integration_tool",
+  "run_mcp_tool",
   "upload_file",
   "publish_social_post",
   // Creates a campaign at Google; never repeated after an unclear failure.
@@ -21,6 +22,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
   "generate_video",
+  "generate_talking_video",
   "generate_voiceover",
   "draft_email",
   "send_email_draft",
@@ -76,6 +78,8 @@ export const ACTION_CAPABILITIES = new Set([
   "reply_to_task",
   "update_assigned_task",
   "link_tasks",
+  "set_task_parent",
+  "stop_following_task",
   "post_chat",
   "open_direct_chat",
   "ask_coworker",
@@ -215,8 +219,12 @@ export async function commitActionReceipt(
       verification: "LOCAL_TRANSACTION",
       actorBotId: input.actorBotId,
       targetId: input.targetId,
-      effectEventId: input.effectEventId,
-      observedVersion: input.observedVersion,
+      ...(input.effectEventId !== undefined && {
+        effectEventId: input.effectEventId,
+      }),
+      ...(input.observedVersion !== undefined && {
+        observedVersion: input.observedVersion,
+      }),
       committedAt: new Date(),
       result: input.result,
     },
@@ -250,7 +258,9 @@ export async function commitActionReceipt(
       await tx.sokoBotIntent.update({
         where: {
           id: turn.intentId,
-          revision: turn.intentRevision ?? undefined,
+          ...(turn.intentRevision !== null && {
+            revision: turn.intentRevision,
+          }),
         },
         data: { targetIds: [...targets, input.targetId] },
       });
@@ -276,6 +286,13 @@ export async function commitActionReceipt(
   return receipt;
 }
 
+/** Tools that start a Content Studio job and answer with its jobId. */
+const STUDIO_JOB_CAPABILITIES: ReadonlySet<string> = new Set([
+  "generate_image",
+  "generate_video",
+  "generate_talking_video",
+]);
+
 /** Only specific provider acknowledgments prove an external action. Arbitrary
  * integration payloads cannot attest that the user's requested business effect happened.
  */
@@ -283,7 +300,7 @@ export function externalActionReceipt(capability: string, result: unknown) {
   let targetId: string | null = null;
   // The studio refused before sending, and refunded: nothing happened.
   if (
-    (capability === "generate_image" || capability === "generate_video") &&
+    STUDIO_JOB_CAPABILITIES.has(capability) &&
     z.object({ status: z.literal("FAILED") }).safeParse(result).success
   )
     return {
@@ -316,10 +333,7 @@ export function externalActionReceipt(capability: string, result: unknown) {
         capability as keyof typeof AD_WRITE_RECEIPT_PROOF
       ].safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.campaignId;
-  } else if (
-    capability === "generate_image" ||
-    capability === "generate_video"
-  ) {
+  } else if (STUDIO_JOB_CAPABILITIES.has(capability)) {
     // Only a job the provider took; an uncertain submission stays UNKNOWN.
     const acknowledged = z
       .object({

@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import { createError } from "evlog";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   SOKO_BOT_OWNER_NAME_SELECT,
   type SokoBotOwnerNameSource,
 } from "@/helpers/soko-bot-owner";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
@@ -193,17 +197,28 @@ export class SokoBotTaskboardSyncService {
           continue;
         }
         result.failed += 1;
-        console.error("Soko Bot taskboard sync failed", {
-          sokoBotId: bot.id,
-          error: error instanceof Error ? error.message : "unknown",
+        // The events cron runs after its response: its own event.
+        const log = createCoreLogger({
+          operation: "soko_bot_taskboard_sync",
+          sokoBot: { id: bot.id },
         });
+        log.error(
+          createError({
+            message: "Could not check a Soko Bot's taskboard",
+            why: "The taskboard check threw",
+            fix: "The next soko-bot-events sync checks this bot again. If it fails every run, check failure.errorName and failure.status.",
+          }),
+          // Only safe fields: turn work can echo its prompt.
+          { failure: messageSafeErrorFields(error) },
+        );
+        log.emit();
       }
     }
     if (input.shouldContinue() && !input.abortSignal.aborted)
       await prisma.syncMetadata.update({
         where: { key: scan.key },
         data: {
-          cursorId: bots.length === 50 ? bots.at(-1)?.id : null,
+          cursorId: bots.length === 50 ? bots.at(-1)!.id : null,
           lastSyncedAt: new Date(),
         },
       });
@@ -462,7 +477,7 @@ export class SokoBotTaskboardSyncService {
       await prisma.syncMetadata.update({
         where: { key: scan.key },
         data: {
-          cursorId: tasks.length === 50 ? tasks.at(-1)?.id : null,
+          cursorId: tasks.length === 50 ? tasks.at(-1)!.id : null,
           lastSyncedAt: now,
         },
       });
@@ -481,7 +496,7 @@ export class SokoBotTaskboardSyncService {
     // meant anyone who could put a Task on the bot could drive unlimited
     // billed turns, and a bot that assigned work to itself could loop on the
     // one-minute cron forever. The owner's limit is the number they set.
-    const gate = await proactiveGate(bot.id, now);
+    const gate = await proactiveGate(bot.id);
     if (!gate.ok) return false;
     const batch = updates.slice(0, MAX_TASKS_PER_TURN);
     // A personal bot runs for its owner; a shared bot runs for nobody.
@@ -553,10 +568,24 @@ export class SokoBotTaskboardSyncService {
           started.reconciliationLeaseToken,
         )
         .catch((error) => {
-          console.error("Soko Bot taskboard turn reconciliation failed", {
-            turnId: started.turnId,
-            error: error instanceof Error ? error.message : "unknown",
+          if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+            return;
+          const log = createCoreLogger({
+            operation: "soko_bot_taskboard_sync",
+            sokoBot: { id: bot.id },
+            turn: { id: started.turnId },
           });
+          log.error(
+            createError({
+              message:
+                "Could not reconcile a Soko Bot turn that the taskboard started",
+              why: "Turn reconciliation threw",
+              fix: "The soko-bot-turns sync picks the turn up. If the turn stays stuck, check failure.errorName and failure.status.",
+            }),
+            // Only safe fields: turn work can echo its prompt.
+            { failure: messageSafeErrorFields(error) },
+          );
+          log.emit();
         });
     }
     return true;

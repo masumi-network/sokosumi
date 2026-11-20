@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  AcknowledgeProjectSeoReviewRequest,
   AddProjectSeoPageRequest,
   CreateProjectSeoActionTaskRequest,
   CreateProjectSeoMonitorRequest,
@@ -8,6 +9,7 @@ import type {
   CreateSeoAuditRequest,
   GetProjectSeoWorkspaceData,
   ImportProjectSeoAuditRequest,
+  ListSeoAuditsData,
   RecordProjectSeoPageChangeRequest,
   RequestProjectSeoAnalysisRequest,
   SaveProjectSeoBrandTermsRequest,
@@ -17,6 +19,8 @@ import type {
   UpdateProjectSeoScopeRequest,
 } from "@sokosumi/core-client";
 import {
+  acknowledgeProjectSeoReview,
+  acknowledgeSeoAuditReview,
   addProjectSeoPage,
   addSeoAuditPage,
   createProjectSeoActionTask,
@@ -44,6 +48,7 @@ import {
   saveSeoAuditBrandTerms,
   saveSeoAuditCompetitor,
   saveSeoAuditKeyword,
+  setSeoAuditArchived,
   syncProjectSeoStatistics,
   syncSeoAuditStatistics,
   updateProjectSeoScope,
@@ -59,9 +64,7 @@ export type SeoWorkspaceQuery = NonNullable<
 >;
 
 export const seoServiceNoRedirect = {
-  async listAudits(
-    query: { cursor?: string; limit?: number; projectId?: string } = {},
-  ) {
+  async listAudits(query: NonNullable<ListSeoAuditsData["query"]> = {}) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) => listSeoAudits({ client, query }),
@@ -76,6 +79,18 @@ export const seoServiceNoRedirect = {
       "Failed to create SEO audit",
     );
     return response.data;
+  },
+  async setAuditArchived(auditId: string, archived: boolean) {
+    await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        setSeoAuditArchived({
+          client,
+          path: { id: auditId },
+          body: { archived },
+        }),
+      "Failed to update SEO report archive status",
+    );
   },
   async getWorkspace(owner: SeoOwner, query: SeoWorkspaceQuery = {}) {
     const response = await executeCoreOperation(
@@ -197,6 +212,23 @@ export const seoServiceNoRedirect = {
       "Failed to save SEO competitor",
     );
     return response.data;
+  },
+  async acknowledgeReview(
+    owner: SeoOwner,
+    body: AcknowledgeProjectSeoReviewRequest,
+  ) {
+    return executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        (owner.kind === "audit"
+          ? acknowledgeSeoAuditReview
+          : acknowledgeProjectSeoReview)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
+      "Failed to mark the SEO recommendation as reviewed",
+    );
   },
   async createActionTask(
     owner: SeoOwner,

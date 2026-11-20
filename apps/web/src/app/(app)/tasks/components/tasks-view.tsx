@@ -1,140 +1,54 @@
 "use client";
 
-import {
-  DndContext,
-  type DragEndEvent,
-  DragOverlay,
-  type DragStartEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { TaskStatus } from "@sokosumi/core-client";
-import {
-  CORE_API_ERROR_KINDS,
-  makeUserTasksChannelName,
-  userTaskStatusTransitionRequiresComment,
-} from "@sokosumi/utils";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import type { TaskStatus } from "@sokosumi/core-client";
+import { makeUserTasksChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import {
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
-import { toast } from "sonner";
+import { useMemo, useRef } from "react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
-import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
-import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
-import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
-import { buildPendingTask } from "@/app/tasks/utils/pending-created-task";
+import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
 import {
-  appendUniqueTasks,
-  buildInitialColumnCursorById,
-} from "@/app/tasks/utils/task-pages";
+  effectiveTasksSort,
+  type TasksSort,
+} from "@/app/tasks/utils/task-sort";
 import {
   buildTasksFiltersSearchParams,
   clearTasksFilters,
-  getTasksFiltersFromSearchParams,
-  getTasksFiltersResetKey,
   hasClearableTasksFilters,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
-import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { EmptyState } from "@/components/common/empty-state";
-import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { type TaskEventData, taskEventDataSchema } from "@/lib/ably/schema";
-import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import {
-  serializeTasksDensityCookie,
-  type TasksDensity,
-} from "@/lib/ui-preferences/tasks-density";
-import {
-  serializeTasksViewModeCookie,
-  type TasksViewMode,
-} from "@/lib/ui-preferences/tasks-view-mode";
+import type { TasksDensity } from "@/lib/ui-preferences/tasks-density";
+import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
-import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { CreateTaskModal, CreateTaskModalProvider } from "./create-task-modal";
 import { KanbanBoard } from "./kanban-board";
-import { shouldRollbackBoardReopenOnDismiss } from "./task-board-reopen";
 import { TaskCard } from "./task-card";
-import {
-  isDnDDragColumn,
-  isDnDDropColumn,
-  isTaskDnDDraggable,
-  statusForColumn,
-} from "./task-dnd";
+import { isTaskDnDDraggable } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
-import {
-  TaskReopenToReadyDialog,
-  type TaskReopenToReadyDialogLabels,
-} from "./task-reopen-to-ready-dialog";
+import { ShowOpenSubtasksContext } from "./task-open-subtasks";
+import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
+import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
+import { replaceTasksQuery } from "./tasks-search-params";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
-import { usePendingCreatedTasks } from "./use-pending-created-tasks";
-
-interface PendingBoardReopen {
-  taskId: string;
-  fromColumn: KanbanColumnId;
-  toColumn: KanbanColumnId;
-  previousStatus: TaskStatus;
-  previousStatusSince: string | undefined;
-  desiredStatus: TaskStatus;
-  moveVersion: number;
-}
-
-const hydrationStore = (() => {
-  let isHydrated = false;
-  const listeners = new Set<() => void>();
-
-  function notify() {
-    listeners.forEach((listener) => listener());
-  }
-
-  function subscribe(listener: () => void) {
-    listeners.add(listener);
-    if (!isHydrated && typeof window !== "undefined") {
-      window.requestAnimationFrame(() => {
-        if (isHydrated) return;
-        isHydrated = true;
-        notify();
-      });
-    }
-    return () => {
-      listeners.delete(listener);
-    };
-  }
-
-  function getSnapshot() {
-    return isHydrated;
-  }
-
-  function getServerSnapshot() {
-    return false;
-  }
-
-  return { subscribe, getSnapshot, getServerSnapshot };
-})();
+import { TasksKeyboard } from "./use-board-keyboard";
+import { useTasksViewModel } from "./use-tasks-view-model";
 
 interface TasksRealtimeListenerProps {
   userId: string;
@@ -164,7 +78,12 @@ function TasksRealtimeListener({
   return null;
 }
 
-interface TasksViewProps {
+// Only the URL changes: Core already sends each Task's open sub-tasks, so a
+// display switch needs no server reload. Next keeps useSearchParams in step.
+const URL_ONLY_NAVIGATOR = {
+  replace: (href: string) => window.history.replaceState(null, "", href),
+};
+export interface TasksViewProps {
   tasks: TaskWithCoworker[];
   listNextCursor: string | null;
   columnNextCursorById: Record<KanbanColumnId, string | null>;
@@ -202,6 +121,10 @@ interface TasksViewProps {
     columns: Record<KanbanColumnId, string>;
     display: {
       button: string;
+      layout: string;
+      sortBy: string;
+      sortOptions: Record<TasksSort, string>;
+      showSubtasks: string;
       list: string;
       board: string;
       density: string;
@@ -212,588 +135,59 @@ interface TasksViewProps {
     loadMore: string;
     dragError: string;
     loadMoreError: string;
-    reopenToReady: TaskReopenToReadyDialogLabels & {
-      commentRequired: string;
-    };
+    reopenToReady: { commentRequired: string };
   };
 }
 
-export function TasksView({
-  tasks,
-  listNextCursor: initialListNextCursor,
-  columnNextCursorById: initialColumnNextCursorById,
-  columnHiddenCountById: initialColumnHiddenCountById,
-  columns = KANBAN_COLUMNS,
-  coworkerOptions,
-  projectOptions,
-  userId,
-  activeOrganizationId,
-  initialFilters,
-  defaultViewMode,
-  defaultDensity,
-  initialCreateTaskOpen = false,
-  initialAssigneeId = null,
-  initialCreateTaskPrompt = null,
-  createTaskModalResetKey = "default",
-  canCreateTask = false,
-  labels,
-}: TasksViewProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
-  const searchParams = useSearchParams();
-  const tTasks = useTranslations("App.Tasks");
-  /**
-   * The board already restored the card by the time this runs. A refused move
-   * gets the status error; only a stale client gets the reload modal.
-   */
-  const reportDragRejection = (kind: TaskMutationErrorKind) => {
-    if (kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE) {
-      toast.error(tTasks("Errors.updateStatus"));
-      return;
-    }
-    showCalendarClientUpgradeModal();
-  };
-  const routeFilters = useMemo(
-    () =>
-      getTasksFiltersFromSearchParams(
-        searchParams,
-        activeOrganizationId,
-        coworkerOptions,
-        projectOptions,
-      ),
-    [activeOrganizationId, coworkerOptions, projectOptions, searchParams],
-  );
-  const [viewMode, setViewMode] = useState<TasksViewMode>(
-    defaultViewMode ?? "board",
-  );
-  const [density, setDensity] = useState<TasksDensity>(
-    defaultDensity ?? "normal",
-  );
-  const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
-  const [columnCursorById, setColumnCursorById] = useState<
-    Record<KanbanColumnId, string | null>
-  >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
-  const [columnHiddenById, setColumnHiddenById] = useState(
-    initialColumnHiddenCountById,
-  );
-  const [listCursor, setListCursor] = useState<string | null>(
-    initialListNextCursor,
-  );
-  const [isLoadingListMore, setIsLoadingListMore] = useState(false);
-  const [loadingColumnIds, setLoadingColumnIds] = useState<Set<KanbanColumnId>>(
-    () => new Set(),
-  );
-  const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
-  const [activeDragRect, setActiveDragRect] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const [pendingBoardReopen, setPendingBoardReopen] =
-    useState<PendingBoardReopen | null>(null);
-  const [reopenComment, setReopenComment] = useState("");
-  const [isReopenPending, startReopenTransition] = useTransition();
-  const isMounted = useSyncExternalStore(
-    hydrationStore.subscribe,
-    hydrationStore.getSnapshot,
-    hydrationStore.getServerSnapshot,
-  );
-  const [_isPending, startTransition] = useTransition();
-  const moveVersionRef = useRef(0);
-  const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-  // Drag, merge and paging keep reading `items`: a pending row is display only.
-  const shownItems = usePendingCreatedTasks(
-    items,
-    useCallback(
-      (input) => buildPendingTask(input, { coworkerOptions, projectOptions }),
-      [coworkerOptions, projectOptions],
-    ),
-  );
-  const columnCursorByIdRef = useRef(columnCursorById);
-  columnCursorByIdRef.current = columnCursorById;
-  // Every setListCursor / setIsLoadingListMore call writes these refs directly.
-  const listCursorRef = useRef(listCursor);
-  const isLoadingListMoreRef = useRef(isLoadingListMore);
-  const loadingColumnIdsRef = useRef(loadingColumnIds);
-  loadingColumnIdsRef.current = loadingColumnIds;
-  const refreshRoute = useRefreshWhenShown(() => router.refresh());
-
-  const serverTasksFiltersResetKey = useMemo(
-    () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
-    [activeOrganizationId, initialFilters],
-  );
-  const routeTasksFiltersResetKey = useMemo(
-    () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
-    [activeOrganizationId, routeFilters],
-  );
-  const defaultProjectId = routeFilters.projectId;
-
-  const isTaskPaginationInSync =
-    routeTasksFiltersResetKey === serverTasksFiltersResetKey;
-  const previousTasksFiltersResetKeyRef = useRef(serverTasksFiltersResetKey);
-  const previousDefaultViewModeRef = useRef(defaultViewMode);
-  const handleEventUpdate = (_data: TaskEventData) => {
-    refreshRoute();
-  };
-
-  useLayoutEffect(() => {
-    if (
-      previousTasksFiltersResetKeyRef.current === serverTasksFiltersResetKey
-    ) {
-      return;
-    }
-
-    previousTasksFiltersResetKeyRef.current = serverTasksFiltersResetKey;
-    moveVersionRef.current = 0;
-    pendingMoveVersionByTaskIdRef.current.clear();
-
-    itemsRef.current = tasks;
-    setItems(tasks);
-    setColumnCursorById(
-      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-    );
-    setColumnHiddenById(initialColumnHiddenCountById);
-    setListCursor(initialListNextCursor);
-    listCursorRef.current = initialListNextCursor;
-    setLoadingColumnIds(new Set());
-    setIsLoadingListMore(false);
-    isLoadingListMoreRef.current = false;
-  }, [
-    columns,
-    initialColumnNextCursorById,
-    initialListNextCursor,
-    serverTasksFiltersResetKey,
-    tasks,
-  ]);
-
-  useLayoutEffect(() => {
-    if (previousDefaultViewModeRef.current === defaultViewMode) {
-      return;
-    }
-
-    previousDefaultViewModeRef.current = defaultViewMode;
-    moveVersionRef.current = 0;
-    pendingMoveVersionByTaskIdRef.current.clear();
-    setViewMode(defaultViewMode ?? "board");
-
-    itemsRef.current = tasks;
-    setItems(tasks);
-    setColumnCursorById(
-      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-    );
-    setColumnHiddenById(initialColumnHiddenCountById);
-    setListCursor(initialListNextCursor);
-    listCursorRef.current = initialListNextCursor;
-    setLoadingColumnIds(new Set());
-    setIsLoadingListMore(false);
-    isLoadingListMoreRef.current = false;
-  }, [
-    columns,
-    defaultViewMode,
-    initialColumnNextCursorById,
-    initialListNextCursor,
-    tasks,
-  ]);
-
-  // Before paint: the commit that brings new rows also drops a pending row,
-  // and the board must not show a frame without either.
-  useLayoutEffect(() => {
-    const isListView = defaultViewMode === "list";
-    const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
-    const next = mergeTasksOnServerRefresh({
-      prev: itemsRef.current.filter((task) => !isTaskArchived(task.id)),
-      serverTasks,
-      pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
-      // List is a single updatedAt stream: keep load-more rows across
-      // router.refresh() and listCursor goes stale vs the new first page.
-      keepLocalOnlyTasks: !isListView,
-    });
-
-    setItems(next);
-
-    // List always resyncs. Board only when no client-only load-more rows remain.
-    if (isListView || next.length <= serverTasks.length) {
-      setColumnCursorById(
-        buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-      );
-      setColumnHiddenById(initialColumnHiddenCountById);
-      setListCursor(initialListNextCursor);
-      listCursorRef.current = initialListNextCursor;
-      setLoadingColumnIds(new Set());
-      setIsLoadingListMore(false);
-      isLoadingListMoreRef.current = false;
-    }
-  }, [
-    columns,
-    defaultViewMode,
-    initialColumnNextCursorById,
-    initialListNextCursor,
-    tasks,
-  ]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-  );
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const activeId = event.active.id;
-    if (typeof activeId !== "string") return;
-
-    const initialRect = event.active.rect.current.initial;
-    const translatedRect = event.active.rect.current.translated;
-    const currentRect = translatedRect ?? initialRect;
-
-    setActiveDragTaskId(activeId);
-    setActiveDragRect(
-      currentRect
-        ? {
-            width: currentRect.width,
-            height: currentRect.height,
-          }
-        : null,
-    );
-  };
-
-  const handleDragCancel = () => {
-    setActiveDragTaskId(null);
-    setActiveDragRect(null);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveDragTaskId(null);
-    setActiveDragRect(null);
-
-    const activeId = event.active.id;
-    const overId = event.over?.id;
-    if (typeof activeId !== "string" || typeof overId !== "string") return;
-
-    const draggedTask = itemsRef.current.find((task) => task.id === activeId);
-    if (!draggedTask || !isTaskDnDDraggable(draggedTask)) {
-      return;
-    }
-
-    const toColumn = overId as KanbanColumnId;
-    if (!isDnDDropColumn(toColumn)) return;
-
-    const fromColumn = event.active.data.current?.columnId as
-      | KanbanColumnId
-      | undefined;
-    if (
-      !fromColumn ||
-      !isDnDDragColumn(fromColumn) ||
-      fromColumn === toColumn
-    ) {
-      return;
-    }
-
-    const desiredStatus = statusForColumn(toColumn);
-    if (!desiredStatus) return;
-
-    // Preserve the task's prior status on rollback when a drag update fails.
-    const previousStatus = draggedTask.status;
-    const previousStatusSince = draggedTask.statusSince;
-
-    const moveVersion = (moveVersionRef.current += 1);
-    pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
-
-    setItems((prev) =>
-      prev.map((task) =>
-        task.id === activeId
-          ? {
-              ...task,
-              status: desiredStatus,
-              columnId: toColumn,
-              // The new status starts its clock now.
-              statusSince: new Date().toISOString(),
-            }
-          : task,
-      ),
-    );
-
-    if (
-      userTaskStatusTransitionRequiresComment(previousStatus, desiredStatus)
-    ) {
-      setReopenComment("");
-      setPendingBoardReopen({
-        taskId: activeId,
-        fromColumn,
-        toColumn,
-        previousStatus,
-        previousStatusSince,
-        desiredStatus,
-        moveVersion,
-      });
-      return;
-    }
-
-    const rollbackMove = () => {
-      const pendingVersion =
-        pendingMoveVersionByTaskIdRef.current.get(activeId);
-      if (pendingVersion !== moveVersion) return;
-
-      pendingMoveVersionByTaskIdRef.current.delete(activeId);
-      setItems((prev) =>
-        prev.map((task) =>
-          task.id === activeId &&
-          task.columnId === toColumn &&
-          task.status === desiredStatus
-            ? {
-                ...task,
-                status: previousStatus,
-                columnId: fromColumn,
-                statusSince: previousStatusSince,
-              }
-            : task,
-        ),
-      );
-    };
-
-    startTransition(async () => {
-      try {
-        const result = await setTaskStatusFromDrag({
-          taskId: activeId,
-          desiredStatus,
-        });
-        if (!result.ok) {
-          rollbackMove();
-          reportDragRejection(result.error.kind);
-          return;
-        }
-        if (
-          pendingMoveVersionByTaskIdRef.current.get(activeId) === moveVersion
-        ) {
-          pendingMoveVersionByTaskIdRef.current.delete(activeId);
-        }
-      } catch {
-        rollbackMove();
-        toast.error(labels.dragError);
-      }
-    });
-  };
-
-  const rollbackBoardReopen = (pending: PendingBoardReopen) => {
-    const pendingVersion = pendingMoveVersionByTaskIdRef.current.get(
-      pending.taskId,
-    );
-    if (pendingVersion !== pending.moveVersion) return;
-
-    pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
-    setItems((prev) =>
-      prev.map((task) =>
-        task.id === pending.taskId &&
-        task.columnId === pending.toColumn &&
-        task.status === pending.desiredStatus
-          ? {
-              ...task,
-              status: pending.previousStatus,
-              columnId: pending.fromColumn,
-              statusSince: pending.previousStatusSince,
-            }
-          : task,
-      ),
-    );
-  };
-
-  const handleBoardReopenOpenChange = (open: boolean) => {
-    if (open) return;
-    if (!shouldRollbackBoardReopenOnDismiss(isReopenPending)) return;
-    if (pendingBoardReopen) {
-      rollbackBoardReopen(pendingBoardReopen);
-    }
-    setPendingBoardReopen(null);
-    setReopenComment("");
-  };
-
-  const handleBoardReopenConfirm = () => {
-    if (!pendingBoardReopen) return;
-
-    const trimmedComment = reopenComment.trim();
-    if (!trimmedComment) {
-      toast.error(labels.reopenToReady.commentRequired);
-      return;
-    }
-
-    const pending = pendingBoardReopen;
-    startReopenTransition(async () => {
-      try {
-        const result = await setTaskStatusFromDrag({
-          taskId: pending.taskId,
-          desiredStatus: pending.desiredStatus,
-          comment: trimmedComment,
-        });
-        if (!result.ok) {
-          rollbackBoardReopen(pending);
-          setPendingBoardReopen(null);
-          setReopenComment("");
-          reportDragRejection(result.error.kind);
-          return;
-        }
-        if (
-          pendingMoveVersionByTaskIdRef.current.get(pending.taskId) ===
-          pending.moveVersion
-        ) {
-          pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
-        }
-        setPendingBoardReopen(null);
-        setReopenComment("");
-      } catch {
-        rollbackBoardReopen(pending);
-        setPendingBoardReopen(null);
-        setReopenComment("");
-        toast.error(labels.dragError);
-      }
-    });
-  };
-
-  const handleLoadMoreColumn = useCallback(
-    async (columnId: KanbanColumnId) => {
-      if (!isTaskPaginationInSync) return;
-
-      const cursor = columnCursorByIdRef.current[columnId] ?? null;
-      if (cursor === null || loadingColumnIdsRef.current.has(columnId)) return;
-
-      const nextLoading = new Set(loadingColumnIdsRef.current);
-      nextLoading.add(columnId);
-      loadingColumnIdsRef.current = nextLoading;
-      setLoadingColumnIds(nextLoading);
-
-      try {
-        const result = await loadMoreTasksColumn({
-          columnId,
-          cursor,
-          scope: routeFilters.scope,
-          assigneeId: routeFilters.assigneeId,
-          assigneeSokoBotId: routeFilters.assigneeSokoBotId,
-          assigneeUserId: routeFilters.assigneeUserId,
-          status: routeFilters.status,
-          projectId: routeFilters.projectId,
-          visibility: routeFilters.visibility,
-          stuck: routeFilters.stuck,
-        });
-        setItems((prev) => appendUniqueTasks(prev, result.tasks));
-        const nextCursor = result.nextCursor;
-        setColumnHiddenById((prev) => ({
-          ...prev,
-          [columnId]: nextCursor
-            ? Math.max(0, (prev[columnId] ?? 0) - result.tasks.length)
-            : 0,
-        }));
-        setColumnCursorById((prev) => ({
-          ...prev,
-          [columnId]: nextCursor,
-        }));
-        columnCursorByIdRef.current = {
-          ...columnCursorByIdRef.current,
-          [columnId]: nextCursor,
-        };
-      } catch {
-        setColumnCursorById((prev) => ({
-          ...prev,
-          [columnId]: null,
-        }));
-        columnCursorByIdRef.current = {
-          ...columnCursorByIdRef.current,
-          [columnId]: null,
-        };
-        toast.error(labels.loadMoreError);
-      } finally {
-        const afterLoading = new Set(loadingColumnIdsRef.current);
-        afterLoading.delete(columnId);
-        loadingColumnIdsRef.current = afterLoading;
-        setLoadingColumnIds(afterLoading);
-      }
-    },
-    [
-      isTaskPaginationInSync,
-      labels.loadMoreError,
-      routeFilters.assigneeId,
-      routeFilters.assigneeSokoBotId,
-      routeFilters.assigneeUserId,
-      routeFilters.projectId,
-      routeFilters.scope,
-      routeFilters.status,
-      routeFilters.stuck,
-      routeFilters.visibility,
-    ],
-  );
-
-  const handleLoadMoreList = useCallback(async () => {
-    if (!isTaskPaginationInSync) return;
-
-    const cursor = listCursorRef.current;
-    if (cursor === null || isLoadingListMoreRef.current) return;
-
-    isLoadingListMoreRef.current = true;
-    setIsLoadingListMore(true);
-
-    try {
-      const result = await loadMoreTasksList({
-        cursor,
-        scope: routeFilters.scope,
-        assigneeId: routeFilters.assigneeId,
-        assigneeSokoBotId: routeFilters.assigneeSokoBotId,
-        assigneeUserId: routeFilters.assigneeUserId,
-        status: routeFilters.status,
-        projectId: routeFilters.projectId,
-        visibility: routeFilters.visibility,
-        stuck: routeFilters.stuck,
-      });
-      setItems((prev) => appendUniqueTasks(prev, result.tasks));
-      const nextCursor = result.nextCursor;
-      setListCursor(nextCursor);
-      listCursorRef.current = nextCursor;
-    } catch {
-      setListCursor(null);
-      listCursorRef.current = null;
-      toast.error(labels.loadMoreError);
-    } finally {
-      isLoadingListMoreRef.current = false;
-      setIsLoadingListMore(false);
-    }
-  }, [
+export function TasksView(props: TasksViewProps) {
+  const {
+    columns = KANBAN_COLUMNS,
+    coworkerOptions,
+    projectOptions,
+    userId,
+    activeOrganizationId,
+    initialCreateTaskOpen = false,
+    initialAssigneeId = null,
+    initialCreateTaskPrompt = null,
+    createTaskModalResetKey = "default",
+    canCreateTask = false,
+    labels,
+  } = props;
+  const {
+    router,
+    pathname,
+    searchParams,
+    tTasks,
+    routeFilters,
+    viewMode,
+    density,
+    shownItems,
+    columnCursorById,
+    columnHiddenById,
+    listCursor,
+    isLoadingListMore,
+    loadingColumnIds,
+    activeDragRect,
+    pendingBoardReopen,
+    reopenComment,
+    setReopenComment,
+    isReopenPending,
+    isMounted,
+    defaultProjectId,
     isTaskPaginationInSync,
-    labels.loadMoreError,
-    routeFilters.assigneeId,
-    routeFilters.assigneeSokoBotId,
-    routeFilters.assigneeUserId,
-    routeFilters.projectId,
-    routeFilters.scope,
-    routeFilters.status,
-    routeFilters.stuck,
-    routeFilters.visibility,
-  ]);
-
-  const handleViewModeChange = (next: TasksViewMode) => {
-    setViewMode(next);
-    document.cookie = serializeTasksViewModeCookie(next);
-    // A link's `?view=` held only that visit; once chosen here, the saved
-    // view decides, so drop it or the refresh would read the old view.
-    if (searchParams.has("view")) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("view");
-      const nextQuery = params.toString();
-      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
-      return;
-    }
-    router.refresh();
-  };
-
-  const handleDensityChange = (next: TasksDensity) => {
-    setDensity(next);
-    document.cookie = serializeTasksDensityCookie(next);
-  };
-
-  const activeDragTask = useMemo(
-    () =>
-      activeDragTaskId
-        ? (items.find((task) => task.id === activeDragTaskId) ?? null)
-        : null,
-    [activeDragTaskId, items],
-  );
+    handleEventUpdate,
+    sensors,
+    handleDragStart,
+    handleDragCancel,
+    handleDragEnd,
+    handleBoardReopenOpenChange,
+    handleBoardReopenConfirm,
+    handleLoadMoreColumn,
+    handleLoadMoreList,
+    handleViewModeChange,
+    handleDensityChange,
+    activeDragTask,
+  } = useTasksViewModel(props);
   const columnFooterById = useMemo<
     Partial<Record<KanbanColumnId, React.ReactNode>>
   >(() => {
@@ -858,14 +252,33 @@ export function TasksView({
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
+  const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
+  const replaceRouteFilters = (
+    patch: Partial<TasksFilters>,
+    navigator: { replace: (href: string) => void } = router,
+  ) => {
+    replaceTasksQuery(
+      navigator,
+      pathname,
+      buildTasksFiltersSearchParams(searchParams, {
+        ...routeFilters,
+        ...patch,
+      }),
+      activeOrganizationId,
+    );
+  };
+
   const toolbarRef = useRef<HTMLDivElement>(null);
   const handleClearFilters = () => {
-    const nextQuery = buildTasksFiltersSearchParams(
-      searchParams,
-      clearTasksFilters(routeFilters, activeOrganizationId),
+    replaceTasksQuery(
+      router,
+      pathname,
+      buildTasksFiltersSearchParams(
+        searchParams,
+        clearTasksFilters(routeFilters, activeOrganizationId),
+      ),
       activeOrganizationId,
-    ).toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    );
     focusToolbarControl(toolbarRef.current);
   };
 
@@ -876,10 +289,7 @@ export function TasksView({
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div
-        ref={toolbarRef}
-        className="flex flex-row flex-wrap items-center justify-end gap-2 sm:gap-3"
-      >
+      <div ref={toolbarRef} className="flex items-start gap-2">
         <TasksViewToolbarActions
           filters={{
             activeOrganizationId,
@@ -893,8 +303,14 @@ export function TasksView({
             onChange: handleViewModeChange,
             density,
             onDensityChange: handleDensityChange,
+            sort: shownSort,
+            onSortChange: (sort) => replaceRouteFilters({ sort }),
+            showSubtasks: routeFilters.subtasks === true,
+            onShowSubtasksChange: (subtasks) =>
+              replaceRouteFilters({ subtasks }, URL_ONLY_NAVIGATOR),
             labels: labels.display,
           }}
+          exportFilters={{ ...routeFilters, sort: shownSort }}
         />
       </div>
 
@@ -937,6 +353,8 @@ export function TasksView({
                     columnFooterById={columnFooterById}
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
+                    sort={shownSort}
+                    preserveSearchOrder={Boolean(routeFilters.search)}
                     canDragTask={(task) =>
                       canCreateTask && isTaskDnDDraggable(task)
                     }
@@ -968,6 +386,9 @@ export function TasksView({
                       {viewMode === "board" ? (
                         <TaskCard
                           task={activeDragTask}
+                          quietStatus={
+                            COLUMN_MAIN_STATUS[activeDragTask.columnId]
+                          }
                           compact={density === "compact"}
                           statusLabels={labels.filters.statusOptions}
                         />
@@ -991,6 +412,8 @@ export function TasksView({
                 columnFooterById={columnFooterById}
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
+                sort={shownSort}
+                preserveSearchOrder={Boolean(routeFilters.search)}
                 labels={{
                   columns: labels.columns,
                   emptyColumn: labels.listPlaceholder,
@@ -1015,48 +438,53 @@ export function TasksView({
   );
 
   return (
-    <CreateTaskModalProvider
-      key={createTaskModalResetKey}
-      initialOpen={initialCreateTaskOpen}
-      initialAssigneeId={initialAssigneeId}
-      initialPrompt={initialCreateTaskPrompt}
-      initialProjectId={defaultProjectId}
-    >
-      {userId ? (
-        <LazyAblyProvider>
-          <ChannelProvider
-            channelName={makeUserTasksChannelName(
-              userId,
-              getRealtimeChannelEnvironment(),
-            )}
-          >
-            <TasksRealtimeListener
-              userId={userId}
-              onEvent={handleEventUpdate}
-            />
-          </ChannelProvider>
-        </LazyAblyProvider>
-      ) : null}
-      {/* The page's seat check is fresher than the layout's after a soft navigation. */}
-      <OrganizationSeatContext value={canCreateTask}>
-        {content}
-      </OrganizationSeatContext>
-      {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
-      <CreateTaskModal
-        coworkerOptions={coworkerOptions}
-        projectOptions={projectOptions}
-        defaultProjectId={defaultProjectId}
-        initialCreateTaskOpen={initialCreateTaskOpen}
-      />
-      <TaskReopenToReadyDialog
-        open={pendingBoardReopen != null}
-        onOpenChange={handleBoardReopenOpenChange}
-        labels={labels.reopenToReady}
-        comment={reopenComment}
-        onCommentChange={setReopenComment}
-        onConfirm={handleBoardReopenConfirm}
-        isPending={isReopenPending}
-      />
-    </CreateTaskModalProvider>
+    <TaskTagCatalogProvider organizationId={activeOrganizationId}>
+      <CreateTaskModalProvider
+        key={createTaskModalResetKey}
+        initialOpen={initialCreateTaskOpen}
+        initialAssigneeId={initialAssigneeId}
+        initialPrompt={initialCreateTaskPrompt}
+        initialProjectId={defaultProjectId}
+      >
+        {userId ? (
+          <LazyAblyProvider>
+            <ChannelProvider
+              channelName={makeUserTasksChannelName(
+                userId,
+                getRealtimeChannelEnvironment(),
+              )}
+            >
+              <TasksRealtimeListener
+                userId={userId}
+                onEvent={handleEventUpdate}
+              />
+            </ChannelProvider>
+          </LazyAblyProvider>
+        ) : null}
+        {/* The page's seat check is fresher than the layout's after a soft navigation. */}
+        <OrganizationSeatContext value={canCreateTask}>
+          <TasksKeyboard />
+          <ShowOpenSubtasksContext value={routeFilters.subtasks === true}>
+            {content}
+          </ShowOpenSubtasksContext>
+        </OrganizationSeatContext>
+        {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
+        <CreateTaskModal
+          coworkerOptions={coworkerOptions}
+          projectOptions={projectOptions}
+          defaultProjectId={defaultProjectId}
+          initialCreateTaskOpen={initialCreateTaskOpen}
+        />
+        <TaskReopenToReadyDialog
+          open={pendingBoardReopen != null}
+          onOpenChange={handleBoardReopenOpenChange}
+          assigneeName={pendingBoardReopen?.assigneeName ?? ""}
+          comment={reopenComment}
+          onCommentChange={setReopenComment}
+          onConfirm={handleBoardReopenConfirm}
+          isPending={isReopenPending}
+        />
+      </CreateTaskModalProvider>
+    </TaskTagCatalogProvider>
   );
 }

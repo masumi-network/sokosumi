@@ -1,4 +1,7 @@
+import { reportAiGatewayBudgetResponse } from "@/lib/ai-gateway-budget";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
 const MODELS_TIMEOUT_MS = 8_000;
@@ -54,16 +57,33 @@ export async function listGatewayModels(): Promise<GatewayModel[]> {
       signal: AbortSignal.timeout(MODELS_TIMEOUT_MS),
     });
     if (!response.ok) {
-      console.warn("AI Gateway model list failed", { status: response.status });
+      if (await reportAiGatewayBudgetResponse(response, apiKey))
+        return cache?.models ?? [];
+      recordCoreWarning(
+        { operation: "ai_gateway_list_models" },
+        {
+          message: "The AI Gateway did not return its model list",
+          why: "The AI Gateway answered the model list request with an error status",
+          fix: "The picker shows the last list it loaded, or none. If it repeats, check the AI Gateway key and Vercel's status.",
+        },
+        { provider: "ai-gateway", status: response.status },
+      );
       return cache?.models ?? [];
     }
     const models = parseModels(await response.json());
     cache = { at: Date.now(), models };
     return models;
   } catch (error) {
-    console.warn("AI Gateway model list unreachable", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // A provider's answer is untrusted text: content-free fields only.
+    recordCoreWarning(
+      { operation: "ai_gateway_list_models" },
+      {
+        message: "The AI Gateway model list could not be loaded",
+        why: "The model list request failed before an answer could be read",
+        fix: "The picker shows the last list it loaded, or none. If it repeats, check the network path to the AI Gateway.",
+      },
+      { provider: "ai-gateway", failure: messageSafeErrorFields(error) },
+    );
     return cache?.models ?? [];
   }
 }

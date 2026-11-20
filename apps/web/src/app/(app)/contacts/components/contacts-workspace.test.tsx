@@ -1,30 +1,55 @@
 import type { Contact, ContactList } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rows, setStage, undoStage, toast } = vi.hoisted(() => ({
-  rows: { current: [] as Array<Pick<Contact, "id" | "name">> },
+const { rows, setStage, undoStage, unarchive, toast } = vi.hoisted(() => ({
+  rows: { current: [] as Array<Pick<Contact, "id" | "name" | "channels">> },
   setStage: vi.fn(),
   undoStage: vi.fn(),
+  unarchive: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { count?: number }) =>
+    key === "selected" || key === "bulk.selected" ? String(values?.count) : key,
+  useFormatter: () => ({}),
 }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/services/contacts.client", () => ({
-  contactsService: { setStage, undoStage },
+  contactsService: { setStage, undoStage, unarchive },
 }));
 vi.mock("./use-contact-update", () => ({
   useContactUpdate: () => vi.fn(),
   useImportanceUpdate: () => vi.fn(),
 }));
 vi.mock("./list-overview", () => ({ ListOverview: () => null }));
-vi.mock("./contacts-list", () => ({ ContactsList: () => null }));
+// The phone list stands in for the Archived rows: a Restore button per row
+// when the workspace passes `onRestore`.
+vi.mock("./contacts-list", () => ({
+  ContactsList: ({
+    contacts,
+    onRestore,
+  }: {
+    contacts: Contact[];
+    onRestore?: (contact: Contact) => void;
+  }) =>
+    onRestore ? (
+      <ul aria-label="archived rows">
+        {contacts.map((contact) => (
+          <li key={contact.id}>
+            {contact.name}
+            <button type="button" onClick={() => onRestore(contact)}>
+              restore {contact.name}
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : null,
+}));
 // The grid stands in for row checkboxes: one button selects every row shown.
 vi.mock("./contacts-grid", () => ({
   ContactsGrid: ({
@@ -64,16 +89,35 @@ const SMART_LIST: ContactList = {
 };
 
 vi.mock("./use-contacts-data", () => ({
+  CONTACTS_KEY: ["contacts"],
   CONTACT_LISTS_KEY: ["contact-lists"],
   DUPLICATE_GROUP_LIMIT: 200,
   refreshContacts: vi.fn(async () => {}),
   useContactDuplicates: () => ({ data: [] }),
   useContactLists: () => ({ data: [SMART_LIST] }),
+  useCompanyLists: () => ({ data: [] }),
+  useCompanies: ({ search = "" }: { search?: string }) => {
+    const companies = rows.current
+      .filter((row) => row.name.includes(search))
+      .map((row) => ({
+        ...row,
+        listIds: [],
+        warmth: "none",
+      }));
+    return { data: { companies, total: companies.length } };
+  },
   useContactMap: () => undefined,
   useContactOrganizations: () => ({ data: [] }),
   useTeammates: () => ({ teammates: [] }),
-  useContactRows: () => ({
-    data: { pages: [{ contacts: rows.current, total: rows.current.length }] },
+  useContactRows: ({ search = "" }: { search?: string }) => ({
+    data: {
+      pages: [
+        {
+          contacts: rows.current.filter((row) => row.name.includes(search)),
+          total: rows.current.length,
+        },
+      ],
+    },
     isPending: false,
     isPlaceholderData: false,
     error: null,
@@ -88,19 +132,20 @@ const { ContactsWorkspace } = await import("./contacts-workspace");
 
 beforeEach(() => {
   rows.current = [
-    { id: "c1", name: "Ada Lead" },
-    { id: "c2", name: "Ben Lead" },
+    { id: "c1", name: "Ada Lead", channels: [] },
+    { id: "c2", name: "Ben Lead", channels: [] },
   ];
   setStage.mockReset();
   undoStage.mockReset();
+  unarchive.mockReset();
   toast.success.mockReset();
   toast.error.mockReset();
 });
 
-function renderSmartList() {
+function renderSmartList(searchParams = "?list=list-leads") {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <NuqsTestingAdapter searchParams="?list=list-leads">
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <ContactsWorkspace sync={null} />
       </NuqsTestingAdapter>
     </QueryClientProvider>,
@@ -121,6 +166,51 @@ function undoAction(kind: "success" | "error") {
   expect(options?.action?.label).toBe("bulk.undo");
   return options.action.onClick as () => void;
 }
+
+describe("search with a bulk selection", () => {
+  it.each([
+    {
+      page: "contacts",
+      searchParams: "?list=list-leads",
+      selectRole: "button",
+      selectName: "select all",
+      label: "toolbar.search",
+      bulk: "bulk.label",
+    },
+    {
+      page: "companies",
+      searchParams: "?layout=companies",
+      selectRole: "checkbox",
+      selectName: "selectAll",
+      label: "search",
+      bulk: "bulkLabel",
+    },
+  ])(
+    "preserves the selected $page as search narrows and clears",
+    async ({ searchParams, selectRole, selectName, label, bulk }) => {
+      renderSmartList(searchParams);
+      await userEvent.click(screen.getByRole(selectRole, { name: selectName }));
+      const search = screen.getByRole("searchbox", { name: label });
+      fireEvent.keyDown(window, { key: "f", ctrlKey: true });
+      expect(search).toHaveFocus();
+      expect(screen.getByRole("toolbar", { name: bulk })).toHaveTextContent(
+        "2",
+      );
+      await userEvent.type(search, "Ada");
+      await waitFor(() =>
+        expect(screen.getByRole("toolbar", { name: bulk })).toHaveTextContent(
+          "1",
+        ),
+      );
+      await userEvent.clear(search);
+      await waitFor(() =>
+        expect(screen.getByRole("toolbar", { name: bulk })).toHaveTextContent(
+          "2",
+        ),
+      );
+    },
+  );
+});
 
 describe("ContactsWorkspace bulk relationship", () => {
   it("clears the selection when the change drops rows from a smart list", async () => {
@@ -181,5 +271,129 @@ describe("ContactsWorkspace bulk relationship", () => {
     renderSmartList();
     await setAllTo("LEAD");
     expect(toast.success).toHaveBeenLastCalledWith("bulk.stageSet", undefined);
+  });
+});
+
+describe("ContactsWorkspace Archived view", () => {
+  function renderAt(searchParams: string) {
+    const onUrlUpdate = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <NuqsTestingAdapter
+          searchParams={searchParams}
+          onUrlUpdate={onUrlUpdate}
+          hasMemory
+        >
+          <ContactsWorkspace sync={null} />
+        </NuqsTestingAdapter>
+      </QueryClientProvider>,
+    );
+    return onUrlUpdate;
+  }
+
+  it("is no tab: it opens from the More actions menu", async () => {
+    renderAt("");
+    expect(screen.getByRole("radio", { name: "presets.all" })).toBeChecked();
+    expect(
+      screen.queryByRole("radio", { name: "presets.archived" }),
+    ).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "presets.archived" }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+  });
+
+  it("names the open Archived view and leads back to all contacts", async () => {
+    const onUrlUpdate = renderAt("?list=archived");
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: "presets.all" })).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "views.backToContacts" }),
+    );
+    expect(screen.getByRole("radio", { name: "presets.all" })).toBeChecked();
+    expect(
+      screen.queryByRole("heading", { name: "presets.archived" }),
+    ).toBeNull();
+    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("list")).toBeNull();
+  });
+
+  it("keeps the live layouts out of the archive, even from a mixed link", async () => {
+    const onUrlUpdate = renderAt("?list=archived&layout=companies");
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    expect(
+      screen.queryByRole("radio", { name: "layout.companies" }),
+    ).toBeNull();
+    await waitFor(() =>
+      expect(
+        onUrlUpdate.mock.lastCall?.[0].searchParams.get("layout"),
+      ).toBeNull(),
+    );
+    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("list")).toBe(
+      "archived",
+    );
+  });
+
+  it("opens the archive from the Companies layout as the archive list", async () => {
+    const onUrlUpdate = renderAt("?layout=companies");
+    await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "presets.archived" }),
+    );
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    expect(
+      screen.queryByRole("radio", { name: "layout.companies" }),
+    ).toBeNull();
+    const url = onUrlUpdate.mock.lastCall?.[0].searchParams;
+    expect(url?.get("layout")).toBeNull();
+    expect(url?.get("list")).toBe("archived");
+  });
+
+  it("moves keyboard focus to the archive heading on entry and to All contacts on the way back", async () => {
+    renderAt("");
+    screen.getByRole("button", { name: "toolbar.more" }).focus();
+    await userEvent.keyboard("{Enter}");
+    const item = await screen.findByRole("menuitem", {
+      name: "presets.archived",
+    });
+    item.focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "presets.archived" }),
+      ).toHaveFocus(),
+    );
+
+    screen.getByRole("button", { name: "views.backToContacts" }).focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "presets.all" })).toHaveFocus(),
+    );
+  });
+
+  it("lists archived people read-only, without the editable grid or bulk actions", () => {
+    renderAt("?list=archived");
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "select all" })).toBeNull();
+  });
+
+  it("restores a person from their row", async () => {
+    unarchive.mockResolvedValue(undefined);
+    renderAt("?list=archived");
+    await userEvent.click(
+      screen.getByRole("button", { name: "restore Ada Lead" }),
+    );
+    expect(unarchive).toHaveBeenCalledExactlyOnceWith("c1");
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith("panel.restored"),
+    );
   });
 });

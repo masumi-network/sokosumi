@@ -21,12 +21,14 @@ import {
   seoAuditListQuerySchema,
   seoAuditSummarySchema,
   seoAuditWorkspaceMappingSchema,
+  setSeoAuditArchivedSchema,
 } from "@/schemas/seo-audit.schema";
 import {
   createSeoAudit,
   getSeoAuditWorkspaceMapping,
   listSeoAudits,
 } from "@/services/seo-audit.service";
+import { setSeoAuditArchived } from "@/services/seo-audit-archive";
 import { createSeoWorkspaceRouter } from "../../projects/[id]/seo";
 import chat from "./chat";
 
@@ -124,5 +126,35 @@ app.openapi(
     ),
 );
 app.route("/:id/chat", chat);
+app.openapi(
+  withOrganizationSlugHeaderParameter(
+    createRoute({
+      method: "patch",
+      path: "/{id}",
+      operationId: "setSeoAuditArchived",
+      tags: ["SEO"],
+      description:
+        "Archive or restore a saved SEO audit and its related Tasks in the active workspace.",
+      request: {
+        params: seoProjectParamsSchema,
+        body: {
+          content: {
+            "application/json": { schema: setSeoAuditArchivedSchema },
+          },
+          required: true,
+        },
+      },
+      responses: { 204: { description: "Archive state saved" }, ...errors },
+    }),
+  ),
+  async (c) => {
+    await setSeoAuditArchived(
+      requireSeoWorkspaceRouteActor(c.var),
+      c.req.valid("param").id,
+      c.req.valid("json").archived,
+    );
+    return c.body(null, 204);
+  },
+);
 app.route("/:id", createSeoWorkspaceRouter("audit"));
 export default app;

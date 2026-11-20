@@ -47,12 +47,8 @@ Optional, per network:
 - `COMPOSIO_API_KEY` — brokers OAuth for Gmail, Outlook and Calendar
   integrations. Without it, integrations are unavailable and the rest of the
   bot still works.
-- Avatars: the pool draws through `FAL_KEY` and stores to
-  `BLOB_READ_WRITE_TOKEN`. Without either the pool stays empty, the picker
-  offers no pictures and the sidebar shows a plain icon.
-  There is no avatar cron: opening the picker draws new avatars with
-  `fal-ai/gemini-3.1-flash-image-preview` when the pool runs low, capped at 24 per user
-  per hour.
+- Avatars: stills of each bot's avatar code are written to
+  `BLOB_READ_WRITE_TOKEN`. Without it a new bot has no still and shows the orb.
 - `AI_GATEWAY_API_KEY` — also routes every turn. Jev (`typesafe-ai/jev`)
   picks the route through the Gateway evaluation API. It has no EU region, so
   this is an owner-approved exception to the EU-only model policy; requests set
@@ -90,48 +86,13 @@ Optional, per network:
   comparison with `pnpm --filter @sokosumi/core soko-bot:judge-eval`, and the
   route classifier's with `soko-bot:router-eval`; results appear under Admin →
   Soko Bots → Model evaluations.
+- `SOKO_BOT_JUDGE_RUNNER` — `gateway` (default) or `claude-code`. Leave it
+  unset on Vercel: `claude-code` runs the judge through the local `claude`
+  CLI for evals on a developer machine, and Core refuses it when `VERCEL_ENV`
+  is set. See [Evals](../agents/evals.md).
 
 Environment changes only apply to the _next_ build, so redeploy after setting
 them.
-
-## Move the avatar pool prefix
-
-**Status:** Prisma rewrite `20260904170000_rewrite_soko_bot_avatar_blob_urls`
-is in-tree and runs on Core deploy. New puts use `soko-bots/avatars/`. The
-copy/delete-legacy steps below are leftover Blob cleanup if objects still
-exist under `soko-bot-avatars/` — not a first-run step on every deploy.
-Confirm DB URLs and the Blob listing before deleting.
-
-The Soko Bot avatar pool in Vercel Blob has two paths. Avatars already in use
-keep `soko-bots/avatars/{key}-{hash12}.png`; new ones are stored as
-`soko-bots/avatars/original/{key}-{hash12}.webp`. Older objects used
-`soko-bot-avatars/`. Chat files stay under `soko-bots/{uuid}/chats/`.
-
-`GET /v1/soko-bots/avatars` is the picker HTTP API. It is not the Blob folder.
-No cron tops up the pool: the picker's top-up draws new avatars through
-fal (`FAL_KEY`) on demand.
-
-If Blob still has objects under `soko-bot-avatars/`, copy them, then delete
-the old prefix after DB URLs are clean:
-
-1. Dry-run, then copy:
-
-   ```sh
-   pnpm --filter @sokosumi/core soko-bot:copy-avatars
-   pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --copy
-   ```
-
-2. If any stored URLs still use the old prefix, Core deploy rewrites them
-   (idempotent migration `20260904170000_rewrite_soko_bot_avatar_blob_urls`).
-   `sourceUrl` stays the fal origin.
-
-3. After every Core instance writes the new prefix, confirm that
-   `soko_bot_avatar.imageUrl` and `soko_bot.avatarImageUrl` contain no
-   `/soko-bot-avatars/` strings. Then delete the old prefix:
-
-   ```sh
-   pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --delete-legacy --confirm-delete-legacy
-   ```
 
 ## Runtime shape
 

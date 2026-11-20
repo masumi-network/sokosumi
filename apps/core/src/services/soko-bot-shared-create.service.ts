@@ -10,7 +10,8 @@ import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import { memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
-import { claimAvatar } from "@/services/soko-bot-avatar.service";
+import { recordCoreError } from "@/lib/evlog";
+import { giveNewSokoBotAvatar } from "@/services/soko-bot-avatar-code.service";
 import {
   memoryHash,
   SokoBotNotFoundError,
@@ -27,7 +28,7 @@ export interface CreateSharedSokoBotInput {
   projectId: string | null;
   name: string;
   avatarSeed?: string | null;
-  avatarId?: string | null;
+  avatarCode?: string | null;
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
@@ -168,11 +169,21 @@ export async function createSharedSokoBot(
           workspaceId: input.workspaceId,
           name,
           versionId,
-          avatarSeed: input.avatarSeed,
-          personalityTone: input.personalityTone,
-          personalityDetail: input.personalityDetail,
-          personalityStyle: input.personalityStyle,
-          ingestTimezone: input.timezone,
+          ...(input.avatarSeed !== undefined
+            ? { avatarSeed: input.avatarSeed }
+            : {}),
+          ...(input.personalityTone !== undefined
+            ? { personalityTone: input.personalityTone }
+            : {}),
+          ...(input.personalityDetail !== undefined
+            ? { personalityDetail: input.personalityDetail }
+            : {}),
+          ...(input.personalityStyle !== undefined
+            ? { personalityStyle: input.personalityStyle }
+            : {}),
+          ...(input.timezone !== undefined
+            ? { ingestTimezone: input.timezone }
+            : {}),
           memoryVersion: 1,
           memoryHash: hash,
         },
@@ -207,20 +218,30 @@ export async function createSharedSokoBot(
         where: { id: bot.id },
         data: { sharedRoomId: room.id },
       });
-      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return shared;
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
   );
+  // Outside the transaction: it uploads to Blob.
+  const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+  if (look) Object.assign(created, look);
   // Shared bots get their built-in rhythms switched off; a member turns them on.
   const { ensureSystemSchedules } = await import(
     "@/services/soko-bot-proactive.service"
   );
   await ensureSystemSchedules(created).catch((error) => {
-    console.error("Soko Bot system schedules failed", {
-      sokoBotId: created.id,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Awaited inside the create request (Web, CMO onboarding); an eval lane
+    // creates outside one and gets its own event.
+    recordCoreError(
+      { operation: "soko_bot_shared_create" },
+      {
+        message: "Created a shared Soko Bot without its built-in rhythms",
+        why: "Creating the system schedules failed",
+        fix: "The bot works without them. A member can add the rhythms on the bot's Schedules page, or rerun the create once the database is healthy.",
+        cause: error,
+      },
+      { sokoBot: { id: created.id } },
+    );
   });
   return created;
 }
@@ -263,7 +284,7 @@ export async function reactivateSharedSokoBot(
       data: {
         archivedAt: null,
         // A durable administrator pause survives reactivation.
-        status: bot.adminPausedAt === null ? "IDLE" : undefined,
+        ...(bot.adminPausedAt === null ? { status: "IDLE" } : {}),
       },
     });
     if (count === 0) throw new SokoBotNotFoundError("Soko Bot not found");

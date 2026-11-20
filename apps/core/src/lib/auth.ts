@@ -56,6 +56,7 @@ import {
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-workspace.service";
 import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
@@ -77,6 +78,7 @@ import {
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
   revokeUserOAuthTokens,
+  signsInToCmo,
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import {
@@ -85,6 +87,7 @@ import {
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { pendingEmailChange } from "./auth-pending-email-change";
+import { createAuthRateLimitStorage } from "./auth-rate-limit";
 import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
@@ -100,6 +103,10 @@ import {
   validateUpdatedUserName,
   validateUserNameLength,
 } from "./auth-user-name";
+import {
+  betterAuthLogger,
+  captureBetterAuthOAuthErrorURL,
+} from "./evlog-library-logs";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -167,6 +174,7 @@ const APP_TOKEN_REVOKING_PATHS = new Set([
 
 export const auth = betterAuth({
   appName: "Sokosumi",
+  logger: betterAuthLogger,
   advanced: {
     database: {
       generateId: "uuid",
@@ -289,7 +297,11 @@ export const auth = betterAuth({
                 });
               }),
           );
-          waitUntil(webhookService.callUserWebhook("userCreated", user));
+          waitUntil(
+            runAsBackgroundWork(() =>
+              webhookService.callUserWebhook("userCreated", user),
+            ),
+          );
         },
       },
       update: {
@@ -302,7 +314,11 @@ export const auth = betterAuth({
           return { data: guarded };
         },
         after: async (user, _ctx) => {
-          waitUntil(webhookService.callUserWebhook("userUpdated", user));
+          waitUntil(
+            runAsBackgroundWork(() =>
+              webhookService.callUserWebhook("userUpdated", user),
+            ),
+          );
           waitUntil(handleUserUpdateStripeEmailSync(user));
         },
       },
@@ -334,8 +350,12 @@ export const auth = betterAuth({
     "/change-email",
   ],
   rateLimit: {
-    storage: "database",
+    storage: "secondary-storage",
   },
+  // Sessions already use storeSessionInDatabase. Keep verification values
+  // there too and use secondary storage only for rate-limit counters.
+  verification: { storeInDatabase: true },
+  secondaryStorage: createAuthRateLimitStorage(betterAuthCookiePrefix),
   trustedOrigins: Array.from(
     new Set([
       "https://app.sokosumi.com",
@@ -399,6 +419,7 @@ export const auth = betterAuth({
         );
       }
 
+      await captureBetterAuthOAuthErrorURL(ctx.path);
       await afterNewSession(ctx);
     }),
   },
@@ -503,12 +524,14 @@ export const auth = betterAuth({
       },
       afterDelete: async (user) => {
         waitUntil(
-          deleteStripeCustomerBestEffort({
-            stripeCustomerId: (user as { stripeCustomerId?: string | null })
-              .stripeCustomerId,
-            ownerType: "user",
-            ownerId: user.id,
-          }),
+          runAsBackgroundWork(() =>
+            deleteStripeCustomerBestEffort({
+              stripeCustomerId: (user as { stripeCustomerId?: string | null })
+                .stripeCustomerId,
+              ownerType: "user",
+              ownerId: user.id,
+            }),
+          ),
         );
       },
     },
@@ -551,6 +574,7 @@ export const auth = betterAuth({
           const { renderEmailCodeEmail } = await import("@sokosumi/email");
           const renderedEmail = await renderEmailCodeEmail({
             locale: getEmailLocale(ctx?.request, ctx?.headers),
+            brand: (await signsInToCmo()) ? "cmo" : undefined,
             code: otp,
             expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
           });

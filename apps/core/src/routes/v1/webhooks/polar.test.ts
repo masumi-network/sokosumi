@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
-
 import router from "./index";
 
 /** Credits are stored as cents, base 10^10 (apps/core/AGENTS.md). */
@@ -550,6 +549,7 @@ describe("POST /v1/webhooks/polar", () => {
         where: {
           polarSubscriptionId: "sub_1",
           polarEventAt: { lte: new Date("2026-11-13T10:00:03.000Z") },
+          revokeOwedAt: null,
         },
         data: expect.objectContaining({
           pendingPolarProductId: null,

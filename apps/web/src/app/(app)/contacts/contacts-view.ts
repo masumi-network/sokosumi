@@ -16,13 +16,17 @@ export const CONTACT_PRESETS = {
   all: {},
   mine: { knownByMe: "true" },
   recent: { createdWithinDays: 14 },
+  archived: { archived: "true" },
 } satisfies Record<string, Partial<ContactQuery>>;
 
 export type ContactPreset = keyof typeof CONTACT_PRESETS;
 
-export const CONTACT_PRESET_IDS = Object.keys(
-  CONTACT_PRESETS,
-) as ContactPreset[];
+/** The presets shown as tabs. Archived opens from the More actions menu. */
+export const CONTACT_PRESET_IDS = [
+  "all",
+  "mine",
+  "recent",
+] as const satisfies readonly ContactPreset[];
 
 export function isContactPreset(value: string): value is ContactPreset {
   return value in CONTACT_PRESETS;
@@ -132,12 +136,14 @@ export function searchMatchRange(
   return [start, end];
 }
 
-/** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. */
+/** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. Roles and summaries also match. */
 export function matchesContactSearch(
   contact: {
     name: string;
     organization: string | null;
     location: string | null;
+    role?: string | null;
+    summary?: string | null;
     channels: ContactChannel[];
   },
   search: string,
@@ -147,10 +153,22 @@ export function matchesContactSearch(
     [
       contact.name,
       contact.organization,
+      contact.role,
+      contact.summary,
       ...contact.channels.map((channel) => channel.value),
     ].some((value) => value?.toLowerCase().includes(needle)) ||
     (!!contact.location && !!searchMatchRange(contact.location, search))
   );
+}
+
+/** Update the visible checkboxes while remembering rows outside the current search. */
+export function replaceVisibleSelection(
+  previous: readonly string[],
+  visible: readonly string[],
+  next: string[],
+): string[] {
+  const visibleIds = new Set(visible);
+  return [...previous.filter((id) => !visibleIds.has(id)), ...next];
 }
 
 /**
@@ -477,8 +495,9 @@ export function smartFilterOf(
   /** The open list's kind, when a list is open. */
   listKind?: "manual" | "smart",
 ) {
-  // A smart list's own filter cannot be combined here; offer nothing.
-  if (listKind === "smart") return null;
+  // A smart list's own filter cannot be combined here, and a list never holds
+  // archived people; offer nothing.
+  if (listKind === "smart" || view.view === "archived") return null;
   const listed = isUuidString(view.view) ? [view.view] : null;
   const filter = {
     ...(view.view === "mine" ? { knownByMe: true } : {}),

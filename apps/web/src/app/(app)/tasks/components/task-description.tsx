@@ -1,3 +1,4 @@
+import { ContactMentionScope } from "@/components/contact-mention-card";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
@@ -29,13 +30,15 @@ export function TaskDescription({
       <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       {content ? (
         <div className="space-y-2">
-          <ExpandableMarkdown
-            content={content}
-            className="text-foreground"
-            expandLabel={expandLabel}
-            collapseLabel={collapseLabel}
-            fadeClassName="to-background"
-          />
+          <ContactMentionScope>
+            <ExpandableMarkdown
+              content={content}
+              className="text-foreground"
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+              fadeClassName="to-background"
+            />
+          </ContactMentionScope>
           {attachmentUrls.length > 0 ? (
             <div className="flex flex-wrap gap-3">
               {attachmentUrls.map((url) => (

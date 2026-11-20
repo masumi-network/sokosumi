@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { isActive, type StudioAsset, type StudioJob } from "./types";
@@ -27,6 +27,7 @@ import { isActive, type StudioAsset, type StudioJob } from "./types";
 const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
+  loadOlder: vi.fn().mockResolvedValue(undefined),
   listBatchAssets: vi.fn(),
   saveHeadline: vi.fn(),
   loadBrandKit: vi.fn().mockResolvedValue({ approvedLines: [] }),
@@ -34,6 +35,9 @@ const mocks = vi.hoisted(() => ({
   saveDownload: vi.fn(),
   enqueue: vi.fn(),
 }));
+
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -55,6 +59,10 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: mocks.cancel,
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
+}));
+
+vi.mock("./studio-batch-compare", () => ({
+  StudioBatchCompareButton: () => null,
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", async (importOriginal) => ({
@@ -93,7 +101,11 @@ vi.mock("./use-studio-state", () => ({
   useStudioState: ({
     initialState,
   }: {
-    initialState: { assets: StudioAsset[]; jobs: StudioJob[] };
+    initialState: {
+      assets: StudioAsset[];
+      jobs: StudioJob[];
+      nextCursor?: { id: string };
+    };
   }) => ({
     state: initialState,
     selectedAsset: initialState.assets[0] ?? null,
@@ -103,8 +115,8 @@ vi.mock("./use-studio-state", () => ({
     // its notice.
     activeJobs: initialState.jobs.filter((job) => isActive(job)),
     refresh: mocks.refresh,
-    loadOlder: vi.fn(),
-    hasOlder: false,
+    loadOlder: mocks.loadOlder,
+    hasOlder: Boolean(initialState.nextCursor),
     error: null,
   }),
 }));
@@ -253,7 +265,7 @@ describe("a gallery with work in it", () => {
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open]);
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     expect(screen.queryByLabelText("logoOnBatch")).not.toBeInTheDocument();
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", {
@@ -268,6 +280,8 @@ describe("a gallery with work in it", () => {
     expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
       [open, older],
       undefined,
+      undefined,
+      [],
     );
     expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
       expect.any(Blob),
@@ -282,7 +296,7 @@ describe("a gallery with work in it", () => {
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open], [], "https://example.com/approved-logo.png");
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     const batchLogo = screen.getByLabelText("logoOnBatch");
     expect(batchLogo).toHaveValue("");
     fireEvent.change(batchLogo, {
@@ -304,6 +318,8 @@ describe("a gallery with work in it", () => {
     expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
       [open, older],
       StudioLogoPosition.TOP_LEFT,
+      undefined,
+      [],
     );
     expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
       expect.any(Blob),
@@ -327,7 +343,7 @@ describe("a gallery with work in it", () => {
         "https://example.com/logo.png",
         StudioLogoPosition.BOTTOM_LEFT,
       );
-      fireEvent.click(screen.getByRole("img").closest("button")!);
+      fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
       const batchLogo = screen.getByLabelText("logoOnBatch");
       expect(batchLogo).toHaveValue(StudioLogoPosition.BOTTOM_LEFT);
       if (override) fireEvent.change(batchLogo, { target: { value: "" } });
@@ -343,6 +359,8 @@ describe("a gallery with work in it", () => {
         expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
           [open],
           expected,
+          undefined,
+          [],
         ),
       );
     },
@@ -356,8 +374,11 @@ describe("a gallery with work in it", () => {
       .mockResolvedValue({ approvedLines: [active] });
 
     mount([{ ...ASSET, projectId: "p" }]);
-    fireEvent.click(screen.getByRole("img").closest("button")!);
-    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
+    // Opening the preview and each download start async transitions.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    });
 
     const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
     const select = await preview.findByLabelText("approvedHeadline");
@@ -370,7 +391,9 @@ describe("a gallery with work in it", () => {
       expect(select).toHaveValue(removed);
       expect(download).toBeEnabled();
     });
-    fireEvent.click(download);
+    await act(async () => {
+      fireEvent.click(download);
+    });
     await waitFor(() =>
       expect(
         preview.queryByRole("option", { name: removed }),
@@ -383,7 +406,9 @@ describe("a gallery with work in it", () => {
       expect(select).toHaveValue(active);
       expect(download).toBeEnabled();
     });
-    fireEvent.click(download);
+    await act(async () => {
+      fireEvent.click(download);
+    });
     await waitFor(() =>
       expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
         expect.any(Blob),
@@ -418,7 +443,7 @@ describe("a gallery with work in it", () => {
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open]);
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     fireEvent.click(
       screen.getByRole("button", { name: "reviewBatchHeadlines" }),
     );
@@ -442,7 +467,12 @@ describe("a gallery with work in it", () => {
     mocks.loadBrandKit.mockResolvedValueOnce({ approvedLines: [first] });
     fireEvent.click(download);
     await waitFor(() => expect(mocks.loadBrandKit).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(download).toBeEnabled());
+    // A loading Button stays enabled but ignores clicks (aria-busy), so wait
+    // for the first attempt to finish, not only for the button to enable.
+    await waitFor(() => {
+      expect(download).toBeEnabled();
+      expect(download).not.toHaveAttribute("aria-busy");
+    });
     expect(mocks.createArchive).not.toHaveBeenCalled();
 
     fireEvent.click(download);
@@ -451,6 +481,7 @@ describe("a gallery with work in it", () => {
         [open, older],
         undefined,
         { [open.id]: first, [older.id]: second },
+        [],
         { p: look },
       ),
     );
@@ -466,7 +497,7 @@ describe("a gallery with work in it", () => {
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([original]);
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     fireEvent.click(
       screen.getByRole("button", { name: "reviewBatchHeadlines" }),
     );
@@ -486,8 +517,51 @@ describe("a gallery with work in it", () => {
       expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
         [revised],
         undefined,
+        undefined,
+        [],
       ),
     );
+  });
+
+  it("searches the assistant in a narrow window and restores gallery search after closing it", () => {
+    const nativeMatch = window.matchMedia.bind(window);
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => {
+      const media = nativeMatch(query);
+      if (query === "(min-width: 64rem)")
+        Object.defineProperty(media, "matches", { value: false });
+      return media;
+    });
+    render(
+      <SearchablePageContent>
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={
+            {
+              assets: [{ ...ASSET, myReasons: [] }],
+              jobs: [],
+              sessions: [],
+              nextCursor: { id: "older" },
+            } as never
+          }
+          labels={TEST_LABELS}
+          projectId="p"
+        />
+      </SearchablePageContent>,
+    );
+    const field = screen.getByRole("searchbox", { name: "filter" });
+    fireEvent.click(screen.getByRole("button", { name: "Assistant.title" }));
+    fireEvent.change(field, { target: { value: "sample" } });
+    const panel = screen.getByRole("complementary", {
+      name: "Assistant.title",
+    });
+    expect(panel).toBeVisible();
+    expect(field).toHaveAccessibleName("find");
+    expect(mocks.loadOlder).not.toHaveBeenCalled();
+    fireEvent.click(within(panel).getByRole("button", { name: "close" }));
+    expect(field).toHaveAccessibleName("filter");
+    expect(field).toHaveValue("sample");
+    expect(mocks.loadOlder).toHaveBeenCalledOnce();
   });
 
   it("hands the selected ad to the assistant and keeps the generation draft", () => {
@@ -496,7 +570,7 @@ describe("a gallery with work in it", () => {
     const draft = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(draft, { target: { value: "An unrelated draft" } });
 
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     const dialog = screen.getByRole("dialog");
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Assistant.edit" }),
@@ -581,7 +655,7 @@ describe("a gallery with work in it", () => {
     mount(manyAssets(3));
 
     const ratios = [
-      ...document.querySelectorAll("figure[data-asset-id] button > span"),
+      ...document.querySelectorAll("figure[data-asset-id] > div[style]"),
     ].map((node) => (node as HTMLElement).style.aspectRatio.replace(/\s/g, ""));
     expect(new Set(ratios)).toEqual(new Set(["1536/1024", "1024/1536"]));
   });
@@ -757,10 +831,12 @@ describe("a gallery with work in it", () => {
   });
 
   /**
-   * The gallery wraps each tile in a button that opens the lightbox, and the
-   * recovery control from a broken thumbnail sits inside it. Without
+   * The gallery wrapped each tile in a button that opens the lightbox, and the
+   * recovery control from a broken thumbnail sat inside it. Without
    * `stopPropagation` the click reached both, so recovering a thumbnail threw
    * the reader into the full-screen viewer — which is not what they asked for.
+   * The open button is now a sibling laid over the tile; this pins that the
+   * whole studio still keeps the two presses apart.
    */
   it("recovers a broken thumbnail without opening the lightbox", async () => {
     vi.stubGlobal(

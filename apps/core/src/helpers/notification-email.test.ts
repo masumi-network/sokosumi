@@ -160,6 +160,24 @@ describe("buildNotificationEmail", () => {
     expect(textIn(email?.html ?? "")).toContain("Launch");
   });
 
+  it("links an SEO completion email to the result for the signed-in reader", async () => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "audit/task",
+        messageKey: "Notifications.Task.completed",
+        messageParams: {
+          coworkerName: "Atlas",
+          taskName: "SEO audit",
+          seoResult: true,
+        },
+        metadata: { seoResult: true },
+      }),
+    );
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/audit%2Ftask/result`);
+    expect(textIn(email?.html ?? "")).toContain("Open SEO results");
+  });
+
   it("tells the reader a task finished", async () => {
     const email = await buildNotificationEmail(
       input({
@@ -167,7 +185,7 @@ describe("buildNotificationEmail", () => {
         referenceId: "task-1",
         messageKey: "Notifications.Task.completed",
         messageParams: { coworkerName: "Atlas", taskName: "Pricing review" },
-        metadata: null,
+        metadata: { seoResult: false },
       }),
     );
 

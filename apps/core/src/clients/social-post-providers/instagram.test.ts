@@ -8,7 +8,11 @@ const { getEnvMock, logSetMock } = vi.hoisted(() => ({
   logSetMock: vi.fn(),
 }));
 
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSetMock }),
+}));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 
 const context = {
@@ -149,7 +153,7 @@ describe("publishInstagramPost", () => {
     ]);
   });
 
-  it("uses the video URL for a Reel container", async () => {
+  it("asks for a Reel that also shows in the feed for a video", async () => {
     const fetchMock = stubSession((call) =>
       call.tool_slug === "INSTAGRAM_POST_IG_USER_MEDIA"
         ? toolResponse({ creation_id: "container_2" })
@@ -163,7 +167,9 @@ describe("publishInstagramPost", () => {
       arguments: {
         ig_user_id: "17841400000000000",
         caption: "Hello Instagram",
+        media_type: "REELS",
         video_url: VIDEO_REF.fileUrl,
+        share_to_feed: true,
       },
     });
   });

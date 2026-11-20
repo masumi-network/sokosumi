@@ -1,6 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
-
 import {
   emitChatMessageNotifications,
   persistChatHumanMentions,
@@ -9,6 +8,7 @@ import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-cr
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import type { PersistedChatUiPart } from "./message-content";
 
 export function reasoningPartsToMetadata(
@@ -173,7 +173,7 @@ export async function persistAssistantToChatRoom(params: {
           senderCoworkerId,
           senderUserId: null,
           content: contentText,
-          metadata,
+          ...(metadata !== undefined && { metadata }),
           responsesApiResponseId: responseId,
           parentMessageId: parentMessageId ?? null,
         },
@@ -196,10 +196,12 @@ export async function persistAssistantToChatRoom(params: {
       publishChatRoomMessageRealtimeById(created.id, "create"),
     ]);
     waitUntil(
-      emitChatMessageNotifications({
-        messageId: created.id,
-        mentionedUserIds: created.mentionedUserIds,
-      }),
+      runAsBackgroundWork(() =>
+        emitChatMessageNotifications({
+          messageId: created.id,
+          mentionedUserIds: created.mentionedUserIds,
+        }),
+      ),
     );
     return { id: created.id };
   } catch (error) {
@@ -268,8 +270,6 @@ export async function persistUserMessageToChatRoom(params: {
     ...(metadata ?? {}),
     ...(clientId ? { client_message_id: clientId } : {}),
   };
-  const metadataToStore =
-    Object.keys(mergedMetadata).length > 0 ? mergedMetadata : undefined;
 
   try {
     const created = await prisma.$transaction(async (tx) => {
@@ -279,7 +279,9 @@ export async function persistUserMessageToChatRoom(params: {
           senderUserId,
           senderCoworkerId: null,
           content: contentText,
-          metadata: metadataToStore,
+          ...(Object.keys(mergedMetadata).length > 0 && {
+            metadata: mergedMetadata,
+          }),
           clientMessageId: clientId,
           parentMessageId: parentMessageId ?? null,
         },

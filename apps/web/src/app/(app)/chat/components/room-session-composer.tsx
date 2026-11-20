@@ -55,6 +55,10 @@ import {
 import { RoomTypingLine } from "./room-typing-line";
 import { useRoomTypingContext } from "./room-typing-provider";
 
+/** The room composer's handle, plus adding text to the draft. */
+export type RoomSessionComposerHandle = RoomComposerHandle &
+  Pick<RoomComposerEditHandle, "addText">;
+
 export interface RoomSessionSendRequest {
   content: string;
   /** Chips at send time; content already carries their markdown links. */
@@ -125,7 +129,7 @@ interface RoomSessionComposerProps {
    * pending so Instant→shell does not open the OSK / jump selection early.
    */
   focusOnMount?: boolean;
-  ref?: Ref<RoomComposerHandle>;
+  ref?: Ref<RoomSessionComposerHandle>;
   /** Claim in-flight lock with clientMessageId; return false to abort clear. */
   onBeforeSend?: (clientMessageId: string) => boolean;
   onSend: (request: RoomSessionSendRequest) => Promise<RoomSessionSendResult>;
@@ -283,6 +287,7 @@ export function RoomSessionComposer({
     () => ({
       attachFiles: (files) => composerRef.current?.attachFiles(files),
       focus: () => composerRef.current?.focus(),
+      addText: (text) => composerRef.current?.addText(text),
     }),
     [],
   );

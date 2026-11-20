@@ -4,10 +4,14 @@ import { Pause, Play } from "lucide-react";
 import Image from "next/image";
 import { type PointerEvent, useLayoutEffect, useRef, useState } from "react";
 
+import {
+  usePageListSearch,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-
 import { STUDIO_EMPTY_ADS } from "./studio-empty-ads";
+import { TemplateButton } from "./studio-template-picker";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import { buildStudioWall, getStudioWallTransform } from "./studio-wall-layout";
 import type { StudioLabels } from "./types";
@@ -22,13 +26,37 @@ interface Drag {
   moved: boolean;
 }
 
-export function StudioTemplateCanvas({
-  labels,
-  onApplyTemplate,
-}: {
+interface TemplateCanvasProps {
   labels: StudioLabels;
   onApplyTemplate: (template: StudioTemplate) => void;
-}) {
+}
+
+export function StudioTemplateCanvas(props: TemplateCanvasProps) {
+  const query = usePageSearchQuery();
+  const templates = usePageListSearch(STUDIO_TEMPLATES, (template) => ({
+    primary: [props.labels.templateLabels[template.id]],
+    secondary: [template.prompt, template.aspectRatio],
+  }));
+  if (query)
+    return (
+      <div
+        className="flex flex-wrap content-start gap-2"
+        aria-label={props.labels.templates}
+      >
+        {templates.map((template) => (
+          <TemplateButton
+            key={template.id}
+            template={template}
+            label={props.labels.templateLabels[template.id]}
+            onApplyTemplate={props.onApplyTemplate}
+          />
+        ))}
+      </div>
+    );
+  return <TemplateCanvas {...props} />;
+}
+
+function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const columnsRef = useRef<(HTMLDivElement | null)[]>([]);

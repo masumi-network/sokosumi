@@ -1,10 +1,15 @@
 import {
+  CMO_POST_WITH_PICTURE_SCENARIO_ID,
   evaluateScenario,
+  isSokoBotSandboxCapability,
   type ScenarioCheck,
   type SokoBotJudgeVerdict,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { judgeEvalScenarioTurn } from "@/services/soko-bot-lab-judge.service";
 import {
@@ -13,14 +18,43 @@ import {
   startLabScenarioTurn,
 } from "@/services/soko-bot-lab-scenario.service";
 import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
+import {
+  followUpCapabilities,
+  followUpMessage,
+} from "@/services/soko-bot-watches.service";
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
+import {
+  COMPETITOR_ADS_CASE_ID,
+  COMPETITOR_LANDING_PAGE_CASE_ID,
+  competitorAdChecks,
+  competitorLandingPageChecks,
+} from "./eval-cmo-competitor-ads";
+import {
+  competitorFeedChecks,
+  isCompetitorEvalCase,
+  prepareSokoBotCompetitorCase,
+  SOKO_BOT_COMPETITOR_CASE_ID,
+  sokoBotCompetitorChecks,
+} from "./eval-cmo-competitors";
+import {
+  adsChecks,
+  CMO_ADS_CASE_ID,
+  CMO_FUNNEL_CASE_ID,
+  funnelChecks,
+} from "./eval-cmo-funnel";
+import {
+  REPORT_HEADLINE_CASE_ID,
+  reportHeadlineChecks,
+} from "./eval-cmo-report-headline";
 import {
   commentChecks,
   pollCmoCase,
   prepareCmoChatCase,
   startCmoCase,
+  styledPictureChecks,
 } from "./eval-cmo-runner";
+import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
@@ -94,6 +128,53 @@ export function caseError(
   return { status: "ERROR", checks: [], output: {}, error: message, turnIds };
 }
 
+/**
+ * The follow-up of the lane Cuso's chat turn for `ask`, as the watch sync
+ * starts one: a child turn with that turn's tools and Core's brief.
+ */
+async function startFollowUp(
+  trigger: Extract<SokoBotScenario["trigger"], { kind: "follow_up" }>,
+  lane: EvalLaneRecord,
+  clientTurnId: string,
+): Promise<string> {
+  const asked = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: lane.cusoBotId,
+      source: "CHAT",
+      parentTurnId: null,
+      userMessage: trigger.ask,
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, capabilityNames: true, destinationRoomId: true },
+  });
+  if (!asked)
+    throw new Error("No chat turn to follow up: run the case that asks first");
+  const capabilities = followUpCapabilities(
+    "background_run",
+    asked.capabilityNames,
+  );
+  const started = await sokoBotControlPlane.startTurn({
+    userId: lane.userId,
+    workspaceId: lane.workspaceId,
+    sokoBotId: lane.cusoBotId,
+    clientTurnId,
+    message: followUpMessage({ ...trigger, timedOut: false }),
+    source: "CHAT",
+    presetRoute: {
+      route: "DELEGATE_TASK",
+      reason: "Follow-up",
+      capabilities,
+      sandbox: capabilities.some(isSokoBotSandboxCapability),
+    },
+    background: {
+      parentTurnId: asked.id,
+      title: "Follow-up",
+      destinationRoomId: asked.destinationRoomId,
+    },
+  });
+  return started.turnId;
+}
+
 async function startScenario(
   scenario: SokoBotScenario,
   bot: "soko-bot" | "cuso",
@@ -140,6 +221,8 @@ async function startScenario(
       timezone: "Europe/Berlin",
       ...schedule,
     });
+  if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID)
+    await prepareSokoBotCompetitorCase(lane);
   if (seoCase) {
     const prepared = await prepareSeoEvalCase(lane, scenario, context.resultId);
     scenario = prepared.scenario;
@@ -147,15 +230,17 @@ async function startScenario(
   }
   const turnId =
     bot === "cuso"
-      ? (
-          await sokoBotControlPlane.startTurn({
-            userId: lane.userId,
-            workspaceId: lane.workspaceId,
-            sokoBotId,
-            clientTurnId,
-            message: scenario.prompt,
-          })
-        ).turnId
+      ? scenario.trigger?.kind === "follow_up"
+        ? await startFollowUp(scenario.trigger, lane, clientTurnId)
+        : (
+            await sokoBotControlPlane.startTurn({
+              userId: lane.userId,
+              workspaceId: lane.workspaceId,
+              sokoBotId,
+              clientTurnId,
+              message: scenario.prompt,
+            })
+          ).turnId
       : await startLabScenarioTurn(
           scenario,
           {
@@ -191,7 +276,10 @@ async function pollScenario(
 ): Promise<CasePoll> {
   const turn = await loadLabScenarioTurn(turnId);
   if (!SETTLED_TURN_STATUSES.includes(turn.status)) {
-    if (Date.now() - context.startedAt.getTime() < SCENARIO_TIMEOUT_MS)
+    if (
+      (await databaseNow()).getTime() - context.startedAt.getTime() <
+      SCENARIO_TIMEOUT_MS
+    )
       return { kind: "waiting" };
     await sokoBotControlPlane
       .cancelTurn(lane.userId, turnId)
@@ -201,6 +289,12 @@ async function pollScenario(
       outcome: caseError("The turn did not settle in 20 minutes", [turnId]),
     };
   }
+  const infrastructure = infrastructureCaseOutcome(
+    turnId,
+    turn,
+    scenarioOutput(turn),
+  );
+  if (infrastructure) return { kind: "done", outcome: infrastructure };
   const result = evaluateScenario(scenario, turn);
   if (isSeoEvalCase(scenario.id)) {
     const checks = await seoEvalChecks(scenario.id, lane, turn, state);
@@ -216,12 +310,74 @@ async function pollScenario(
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
   }
+  if (isCompetitorEvalCase(scenario.id)) {
+    const extra = await competitorFeedChecks(
+      lane,
+      scenario.id,
+      context.startedAt,
+    );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === COMPETITOR_ADS_CASE_ID) {
+    const extra = await competitorAdChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_ADS_CASE_ID) {
+    const extra = await adsChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_FUNNEL_CASE_ID) {
+    const extra = await funnelChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === COMPETITOR_LANDING_PAGE_CASE_ID) {
+    const extra = await competitorLandingPageChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID) {
+    const extra = await sokoBotCompetitorChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === REPORT_HEADLINE_CASE_ID) {
+    const extra = await reportHeadlineChecks(lane, context.startedAt);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_POST_WITH_PICTURE_SCENARIO_ID) {
+    const extra = await styledPictureChecks(lane, context.startedAt);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
   const judged = await judgeEvalScenarioTurn(turnId, scenario).catch(
     (error: unknown) => {
-      console.warn("Eval judge failed", {
-        turnId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // The eval cron, or an admin's tick request.
+      recordCoreWarning(
+        { operation: "eval_tick" },
+        {
+          message:
+            "Could not judge an eval turn, so it is scored by its checks alone",
+          why: "Judging the turn threw",
+        },
+        // An array: one tick judges a turn per lane. Only safe fields: the
+        // judge reads the turn's messages, and its error can quote them.
+        {
+          evalJudgeFailures: [{ turnId, ...messageSafeErrorFields(error) }],
+        },
+      );
       return null;
     },
   );

@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { newerSeoAuditVerdict, seoIndexReviewState } from "@sokosumi/utils";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import {
   type SeoChatAction,
@@ -55,6 +56,7 @@ const SEO_CHAT_DIAGNOSTIC_PRIORITY = Object.keys(
 
 export const SEO_CHAT_SYSTEM = `You are the SEO assistant inside an audit. You are a native part of the SEO workspace, not the user's personal project manager.
 Explain the selected pages, saved keywords, competitors, findings, traffic statistics and actions using only the supplied audit evidence. Say when data is missing or old. A zero, missing value and unmeasured value are different.
+A page's googleIndex gives the verdict and when it was read. VERDICT_UNSPECIFIED means Google gave no definite answer. If googleIndex is missing, use any dated findings or indexing notes for that page before answering.
 A keyword's observedPageUrl is the page associated with its observed result. Only ranked status with a measured position proves a ranking. targetPageUrl is the saved target; a saved target alone does not prove a ranking.
 Comparison rows with role page describe the audited page. Role competitor identifies a competing page. Use these roles when explaining backlink comparisons.
 Only critical, major and minor findings indicate a reported issue. Treat measure, note and test findings as observations. They alone do not justify a fix.
@@ -82,10 +84,49 @@ function clip(text: string) {
   return text.slice(0, SEO_CHAT_TEXT_MAX_CHARS);
 }
 
+/** A shared reply must not derive advice from a finding only its author may read. */
+function chatEvidence(
+  workspace: ProjectSeoWorkspace,
+  sharing: NonNullable<ProjectSeoWorkspace["sharing"]>,
+) {
+  if (sharing === "personal")
+    return { findings: workspace.findings, actions: workspace.actions };
+  const privateIds = new Set(
+    workspace.findings
+      .filter((finding) => finding.visibility === "PRIVATE")
+      .map((finding) => finding.id),
+  );
+  return {
+    findings: workspace.findings.filter(
+      (finding) => !privateIds.has(finding.id),
+    ),
+    actions: workspace.actions.filter(
+      (action) => !action.findingIds.some((id) => privateIds.has(id)),
+    ),
+  };
+}
+
 /** Only the actor-authorized projection enters inference. Credentials and raw artifacts never do. */
-export function seoChatContext(workspace: ProjectSeoWorkspace): string {
+export function seoChatContext(
+  workspace: ProjectSeoWorkspace,
+  sharing: NonNullable<ProjectSeoWorkspace["sharing"]> = "organization",
+): string {
+  const { findings, actions } = chatEvidence(workspace, sharing);
   const selectedIds = new Set(workspace.scope.pageIds);
   const pages = workspace.pages.filter((page) => selectedIds.has(page.id));
+  const selectedUrls = new Set(pages.map((page) => page.url));
+  const assessments =
+    sharing === "personal"
+      ? (workspace.indexTriage?.assessments ?? []).filter((row) =>
+          selectedUrls.has(row.auditPageUrl ?? row.pageUrl),
+        )
+      : [];
+  const indexingNotes = assessments.filter(
+    (row) =>
+      row.status === "review" ||
+      row.status === "expected_exclusion" ||
+      row.status === "unavailable",
+  );
   const context = {
     audit: workspace.auditName,
     scope: {
@@ -102,11 +143,60 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
       competitors: workspace.competitors.filter(
         (row) => row.role === "competitor",
       ).length,
-      findings: workspace.findings.length,
-      actions: workspace.actions.length,
+      findings: findings.length,
+      actions: actions.length,
       metrics: workspace.metrics.length,
     },
-    pages: pages.slice(0, SEO_CHAT_PAGE_LIMIT),
+    pages: pages.slice(0, SEO_CHAT_PAGE_LIMIT).map((page) => {
+      if (sharing !== "personal") return page;
+      const synced = workspace.indexStatus?.pages.find(
+        (read) => read.pageUrl === page.url,
+      );
+      const audit = newerSeoAuditVerdict(
+        page.url,
+        synced?.checkedAt,
+        assessments,
+      );
+      if (audit)
+        return {
+          ...page,
+          googleIndex: {
+            source: "seo_worker",
+            verdict: audit.verdict,
+            coverageState: audit.coverageState,
+            lastCrawlTime: audit.lastCrawlTime,
+            checkedAt: audit.assessment.checkedAt,
+          },
+        };
+      if (!synced) return page;
+      const { verdict, coverageState, lastCrawlTime, checkedAt } = synced;
+      return {
+        ...page,
+        googleIndex: {
+          source: "search_console",
+          verdict,
+          coverageState,
+          lastCrawlTime,
+          checkedAt,
+        },
+      };
+    }),
+    ...(indexingNotes.length > 0 && {
+      indexingNotes: indexingNotes
+        .slice(0, SEO_CHAT_COLLECTION_LIMIT)
+        .map((row) => {
+          const status = seoIndexReviewState(row);
+          return {
+            pageUrl: row.pageUrl,
+            ...(row.auditPageUrl && { auditPageUrl: row.auditPageUrl }),
+            status,
+            reason: row.reason,
+            checkedAt: row.checkedAt,
+            ...(status !== "unknown" &&
+              row.suggestedFix && { suggestedFix: row.suggestedFix }),
+          };
+        }),
+    }),
     observations: workspace.observations
       .slice(0, SEO_CHAT_COLLECTION_LIMIT)
       .map((row) => ({
@@ -168,7 +258,7 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
         rank: row.rank,
         observedAt: row.observedAt,
       })),
-    findings: workspace.findings
+    findings: findings
       .toSorted(
         (left, right) =>
           (SEO_CHAT_ISSUE_PRIORITY[left.severity] ??
@@ -180,12 +270,14 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
       .map((row) => ({
         observationId: row.observationId,
         pageUrl: row.pageUrl,
+        ...(row.relatedPageUrl ? { relatedPageUrl: row.relatedPageUrl } : {}),
         device: row.device,
         severity: row.severity,
         title: clip(row.title),
         evidence: row.evidence.slice(0, SEO_CHAT_EVIDENCE_LIMIT).map(clip),
+        ...(row.suggestedFix ? { suggestedFix: clip(row.suggestedFix) } : {}),
       })),
-    actions: chatActionSample(workspace.actions).map((row) => ({
+    actions: chatActionSample(actions).map((row) => ({
       id: row.id,
       kind: row.kind,
       title: clip(row.title),
@@ -269,6 +361,7 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
     context.searchQueries?.rows ?? [],
     context.strategy?.actions ?? [],
     context.strategy?.placesNotes ?? [],
+    context.indexingNotes ?? [],
     context.observations,
     context.keywords,
     context.competitors,
@@ -283,6 +376,7 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
     [context.totals.keywords, context.keywords.length],
     [workspace.competitors.length, context.competitors.length],
     [context.totals.findings, context.findings.length],
+    [indexingNotes.length, context.indexingNotes?.length ?? 0],
     [context.totals.actions, context.actions.length],
     [context.totals.metrics, context.metrics.length],
     [
@@ -337,10 +431,13 @@ export function availableSeoChatActions(
   );
 }
 
-export function seoChatTaskActions(workspace: ProjectSeoWorkspace) {
+export function seoChatTaskActions(
+  workspace: ProjectSeoWorkspace,
+  sharing: NonNullable<ProjectSeoWorkspace["sharing"]> = "organization",
+) {
   return new Set(
-    workspace.actions
-      .filter((action) => action.status === "recommended")
+    chatEvidence(workspace, sharing)
+      .actions.filter((action) => action.status === "recommended")
       .map((action) => `${action.observationId}:${action.id}`),
   );
 }

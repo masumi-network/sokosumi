@@ -13,11 +13,15 @@ function sameIds(left: readonly string[], right: readonly string[]): boolean {
 }
 
 /**
- * The private channel where a bot asks Coworkers something with its owner
- * watching: exactly the owner, the bot and these Coworkers. Reused while its
- * roster is still exactly that, so asking Elena twice continues one
- * conversation; a room the owner has since widened is left alone, because a
- * question meant for the owner's eyes must not reach a teammate they added.
+ * The channel where a bot asks Coworkers something with the person who asked
+ * watching: exactly that person, the bot and these Coworkers. Reused while
+ * its roster is still exactly that, so asking Elena twice continues one
+ * conversation; a room widened since is left alone.
+ *
+ * A personal bot's room is private: a question meant for its owner's eyes
+ * must not reach a teammate. A shared bot's room is public, because every
+ * member may read what a shared bot does (ADR 0057), and it never reuses a
+ * private one.
  *
  * A channel, not a Direct: a Direct cannot mix people, Coworkers and
  * assistants.
@@ -26,9 +30,11 @@ export async function createOrGetCoworkerQuestionRoom(
   tx: Prisma.TransactionClient,
   params: {
     organizationId: string;
-    ownerUserId: string;
+    /** A personal bot's owner, or the member who asked a shared bot. */
+    memberUserId: string;
     sokoBotId: string;
     coworkers: readonly QuestionRoomCoworker[];
+    discoverability: "private" | "public";
   },
 ): Promise<{ id: string; name: string; created: boolean }> {
   const coworkerIds = params.coworkers.map(({ id }) => id);
@@ -36,9 +42,9 @@ export async function createOrGetCoworkerQuestionRoom(
     where: {
       organizationId: params.organizationId,
       kind: "channel",
-      discoverability: "private",
+      discoverability: params.discoverability,
       archivedAt: null,
-      userMembers: { some: { userId: params.ownerUserId } },
+      userMembers: { some: { userId: params.memberUserId } },
       sokoBotMembers: { some: { sokoBotId: params.sokoBotId } },
       coworkerMembers: { some: { coworkerId: { in: coworkerIds } } },
     },
@@ -56,7 +62,7 @@ export async function createOrGetCoworkerQuestionRoom(
     (room) =>
       sameIds(
         room.userMembers.map(({ userId }) => userId),
-        [params.ownerUserId],
+        [params.memberUserId],
       ) &&
       sameIds(
         room.sokoBotMembers.map(({ sokoBotId }) => sokoBotId),
@@ -73,14 +79,14 @@ export async function createOrGetCoworkerQuestionRoom(
   const room = await tx.chatRoom.create({
     data: {
       organizationId: params.organizationId,
-      createdByUserId: params.ownerUserId,
+      createdByUserId: params.memberUserId,
       name,
       slug: channelSlugWithId(name, randomUUID(), "ask"),
-      discoverability: "private",
+      discoverability: params.discoverability,
       userMembers: {
-        create: [{ userId: params.ownerUserId, access: "member" }],
+        create: [{ userId: params.memberUserId, access: "member" }],
       },
-      readStates: { create: [{ userId: params.ownerUserId }] },
+      readStates: { create: [{ userId: params.memberUserId }] },
       coworkerMembers: {
         create: coworkerIds.map((coworkerId) => ({ coworkerId })),
       },

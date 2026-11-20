@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+
+const SUBJECT = "Confidential merger with Acme";
+const KEY = "sk_live_abc123";
+
+function throwOnRead(): never {
+  throw new Error("getter threw");
+}
+
 const {
   messageFindUniqueMock,
   mergeMetadataKeysMock,
@@ -428,6 +437,89 @@ describe("scheduleChatRoomMessageUnfurls", () => {
       persisted: 0,
     });
   });
+
+  it("logs one standalone warning when the unfurl run fails, and never throws", async () => {
+    const errors = expectCoreLog(
+      "warn",
+      "Could not add link previews to a chat message",
+    );
+    messageFindUniqueMock.mockRejectedValue(new Error("connection reset"));
+
+    await expect(
+      scheduleChatRoomMessageUnfurls(MESSAGE_ID),
+    ).resolves.toMatchObject({ messageId: MESSAGE_ID, persisted: 0 });
+
+    expect(errors[0]).toMatchObject({ why: "The unfurl run threw" });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("connection reset");
+    expect(errors[0]?.event).toMatchObject({
+      operation: "chat_message_unfurl",
+      chatMessage: { id: MESSAGE_ID },
+      failure: { errorName: "Error" },
+    });
+  });
+
+  it("keeps a subject and key in the error's name, code and details out of the event", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not add link previews to a chat message",
+    );
+    messageFindUniqueMock.mockRejectedValue(
+      Object.assign(new Error(`Subject: ${SUBJECT}`), {
+        name: `${SUBJECT} ${KEY}`,
+        code: KEY,
+        statusCode: 502,
+        details: { operation: `Subject: ${SUBJECT}`, status: KEY },
+      }),
+    );
+
+    await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+    const event = JSON.stringify(warnings[0]?.event);
+    expect(event).not.toContain("Confidential");
+    expect(event).not.toContain("sk_live");
+    expect(warnings[0]?.event).toMatchObject({
+      failure: { errorName: "Error", status: 502 },
+    });
+  });
+
+  it.each([
+    [
+      "a throwing getter",
+      () =>
+        Object.defineProperties(new Error("body"), {
+          name: { get: throwOnRead },
+          code: { get: throwOnRead },
+          statusCode: { get: throwOnRead },
+        }),
+    ],
+    [
+      "a proxy that throws on every read",
+      () =>
+        new Proxy(new Error("body"), {
+          get: throwOnRead,
+          has: throwOnRead,
+          getPrototypeOf: throwOnRead,
+        }),
+    ],
+  ])(
+    "keeps its empty result and logs one event when the error has %s",
+    async (_kind, makeError) => {
+      const warnings = expectCoreLog(
+        "warn",
+        "Could not add link previews to a chat message",
+      );
+      messageFindUniqueMock.mockRejectedValue(makeError());
+
+      await expect(scheduleChatRoomMessageUnfurls(MESSAGE_ID)).resolves.toEqual(
+        { messageId: MESSAGE_ID, attempted: 0, persisted: 0 },
+      );
+
+      expect(coreLogEvents()).toHaveLength(1);
+      expect(warnings[0]?.event).toMatchObject({
+        failure: { errorName: "Error" },
+      });
+    },
+  );
 
   describe("unfurl snapshots (ADR 0030)", () => {
     const ROOM_ID = "019fa92e-3818-707e-86ea-2db89f35cc23";

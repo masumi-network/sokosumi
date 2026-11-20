@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
+import { createFormats } from "@/i18n/time-format";
 
 const { openPreview } = vi.hoisted(() => ({ openPreview: vi.fn() }));
 vi.mock("./social-calendar-preview", () => ({
@@ -31,13 +32,22 @@ function post(overrides: Partial<SocialPost>): SocialPost {
   } as SocialPost;
 }
 
-function setup(items: WorkspaceSocialPost[], hasMore = false) {
+function setup(items: WorkspaceSocialPost[], hasMore = false, query = "") {
   return render(
-    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+    <NextIntlClientProvider
+      locale="en"
+      messages={messages}
+      timeZone="UTC"
+      formats={createFormats()}
+    >
       <SocialProviderAvailabilityProvider
         enabledProviders={SOCIAL_PUBLIC_PROVIDERS}
       >
-        <SocialAllProjectsAttention hasMore={hasMore} items={items} />
+        <SocialAllProjectsAttention
+          query={query}
+          hasMore={hasMore}
+          items={items}
+        />
       </SocialProviderAvailabilityProvider>
     </NextIntlClientProvider>,
   );
@@ -45,6 +55,13 @@ function setup(items: WorkspaceSocialPost[], hasMore = false) {
 
 describe("SocialAllProjectsAttention", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("distinguishes an empty search from an empty attention queue", () => {
+    setup([], false, "launch");
+    expect(screen.getByTestId("social-all-attention-empty")).toHaveTextContent(
+      "No matches",
+    );
+  });
 
   it("lists each project's failed and approval posts with the action that fixes them", async () => {
     const user = userEvent.setup();

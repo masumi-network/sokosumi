@@ -46,7 +46,6 @@ function mapCoreCategoryToCategory(category: CoreCategory): Category {
     description: category.description ?? undefined,
     image: category.image ?? undefined,
     icon: category.icon ?? undefined,
-    styles: category.styles ?? undefined,
   };
 }
 

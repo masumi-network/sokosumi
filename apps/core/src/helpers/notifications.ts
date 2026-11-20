@@ -10,7 +10,6 @@ import {
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
-
 import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
@@ -21,6 +20,7 @@ import {
   CHAT_ROOM_BADGE_MESSAGE_KEYS,
   deliveryOutsideMention,
   resolveNotificationDelivery,
+  TASK_COMPLETED_MESSAGE_KEY,
   toNotificationCategory,
 } from "@/helpers/notification-delivery";
 import {
@@ -34,8 +34,11 @@ import {
 } from "@/helpers/notification-publish-queue";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { seoTaskResultHint } from "@/helpers/seo-task-notification";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError, runAsBackgroundWork } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export interface CreateNotificationInput {
   userId: string;
@@ -50,6 +53,12 @@ export interface CreateNotificationInput {
    * Room messages use the same channel complement.
    */
   suppressMentionDelivery?: boolean;
+  /**
+   * Push when the reader stored no push row for this category, instead of the
+   * category default. A stored row still wins. Task interest messages only:
+   * someone who follows a Task asked to hear about it.
+   */
+  osBannerDefaultOn?: boolean;
 }
 
 export interface CreateNotificationResult {
@@ -98,6 +107,7 @@ export async function resolveDelivery(
       category: toNotificationCategory(input.kind, input.messageKey),
       preferences: user.notificationPreferences,
       pushOptIn: user.pushOptIn,
+      osBannerDefaultOn: input.osBannerDefaultOn,
     });
     if (!input.suppressMentionDelivery) return delivery;
     return deliveryOutsideMention(
@@ -109,9 +119,16 @@ export async function resolveDelivery(
       }),
     );
   } catch (error) {
-    console.error(
-      "Failed to read the notification preferences; skipping push:",
-      error,
+    // A read by user id.
+    recordCoreError(
+      { operation: "notification_delivery_read", userId: input.userId },
+      {
+        message: "Failed to read the notification preferences; skipping push",
+        why: "Reading the user's notification preferences failed",
+        fix: "The notification is shown in the app only. If it repeats, check the database; Sentry has the error.",
+        cause: error,
+      },
+      { kind: input.kind, messageKey: input.messageKey },
     );
     Sentry.captureException(error, {
       extra: {
@@ -247,7 +264,20 @@ async function chatRoomArrivals(
     }
     return count > 0 ? count : undefined;
   } catch (error) {
-    console.error("Failed to count the room's unread notifications:", error);
+    // A read by user and room id.
+    recordCoreError(
+      {
+        operation: "chat_room_arrival_count",
+        userId: notification.userId,
+        referenceId: notification.referenceId,
+      },
+      {
+        message: "Failed to count the room's unread notifications",
+        why: "Reading the room's unread notification rows failed",
+        fix: "The banner shows without a count. If it repeats, check the database; Sentry has the error.",
+        cause: error,
+      },
+    );
     Sentry.captureException(error, {
       extra: {
         userId: notification.userId,
@@ -340,7 +370,20 @@ export async function publishNotificationRow(
     });
     return true;
   } catch (error) {
-    console.error("Failed to publish notification over Ably:", error);
+    // The payload carries the notification's text, which an error can quote.
+    recordCoreError(
+      {
+        operation: "ably_publish_notification",
+        notificationId: notification.id,
+        userId: notification.userId,
+      },
+      {
+        message: "A notification was not published over Ably",
+        why: "The Ably publish of the notification failed",
+        fix: "The user sees it on their next refresh. If it repeats, check Ably's status; Sentry has the error.",
+      },
+      { kind: notification.kind, failure: messageSafeErrorFields(error) },
+    );
     Sentry.captureException(error, {
       extra: {
         notificationId: notification.id,
@@ -522,15 +565,24 @@ export async function createNotification(
   }
 
   try {
+    const seoResult =
+      input.workspaceId &&
+      input.kind === NotificationKind.TASK &&
+      input.messageKey === TASK_COMPLETED_MESSAGE_KEY
+        ? await seoTaskResultHint(client, input.workspaceId, input.referenceId)
+        : undefined;
+    const storedMetadata =
+      seoResult === undefined ? metadata : { ...metadata, seoResult };
+    const messageParams = seoResult
+      ? { ...input.messageParams, seoResult: true }
+      : input.messageParams;
     const notification = await client.notification.create({
       data: {
         ...uniqueKey,
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-        messageParams: JSON.stringify(input.messageParams),
+        messageParams: JSON.stringify(messageParams),
         metadata:
-          metadata === undefined || metadata === null
-            ? null
-            : JSON.stringify(metadata),
+          storedMetadata == null ? null : JSON.stringify(storedMetadata),
         inApp: delivery.inApp,
         ...notificationPublishFields(delivery),
       },
@@ -545,7 +597,9 @@ export async function createNotification(
     // Scheduled rather than awaited: the write may be inside the caller's
     // transaction, and the email waits for it to commit (SOK-1090).
     if (delivery.email) {
-      waitUntil(dispatchNotificationEmail(notification));
+      waitUntil(
+        runAsBackgroundWork(() => dispatchNotificationEmail(notification)),
+      );
     }
 
     return { notification, created: true };
@@ -627,7 +681,7 @@ async function deletePendingRequestNotifications(
   });
   const result = await prismaClient.notification.deleteMany({ where });
 
-  waitUntil(cancelNotificationEmails(scheduled));
+  waitUntil(runAsBackgroundWork(() => cancelNotificationEmails(scheduled)));
 
   return result.count;
 }

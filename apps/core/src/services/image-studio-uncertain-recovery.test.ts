@@ -102,6 +102,7 @@ import {
   reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+import { pngBytes } from "@/test/image-bytes";
 
 function uncertainJob(overrides: Record<string, unknown> = {}) {
   return {
@@ -123,6 +124,7 @@ function uncertainJob(overrides: Record<string, unknown> = {}) {
     submittedAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
     statusUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     asset: null,
+    idempotencyKey: "key-abcdefgh",
     ...overrides,
   };
 }
@@ -138,7 +140,7 @@ beforeEach(() => {
     userId: "user-1",
   });
   downloadMediaMock.mockResolvedValue({
-    bytes: new Uint8Array([1, 2, 3]),
+    bytes: pngBytes(1024, 1024),
     contentType: "image/png",
   });
   putMock.mockResolvedValue({ pathname: "projects/p/image-studio/job-1-abc" });

@@ -94,13 +94,15 @@ describe("contactFilterWhere", () => {
     ]);
   });
 
-  it("searches name, organization, channel values and location without case", async () => {
+  it("searches names, organizations, roles, summaries, channels and locations without case", async () => {
     queryRaw.mockResolvedValueOnce([]);
     const [search] = await contactFilterWhere(actor, { search: "acme" }, now);
     expect(search).toEqual({
       OR: [
         { name: { contains: "acme", mode: "insensitive" } },
         { organization: { contains: "acme", mode: "insensitive" } },
+        { role: { contains: "acme", mode: "insensitive" } },
+        { summary: { contains: "acme", mode: "insensitive" } },
         {
           channels: {
             some: { value: { contains: "acme", mode: "insensitive" } },
@@ -117,7 +119,10 @@ describe("contactFilterWhere", () => {
       { location: "Zürich, Switzerland" },
     ]);
     const [search] = await contactFilterWhere(actor, { search: "zurich" }, now);
-    expect(search?.OR?.at(-1)).toEqual({
+    const alternatives = search?.OR;
+    if (!Array.isArray(alternatives))
+      throw new Error("Missing search alternatives");
+    expect(alternatives.at(-1)).toEqual({
       OR: [
         { location: { contains: "zurich", mode: "insensitive" } },
         { location: { in: ["Zürich", "Zürich, Switzerland"] } },

@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { curatedFileVocabularyRows } from "../../../utils/src/file-curated-vocabulary.js";
+
 /**
  * From source, not from `@sokosumi/utils`.
  *
@@ -11,7 +13,6 @@ import { describe, expect, it } from "vitest";
  * passed. CI builds utils before typecheck, so it would have caught it there
  * and not here, which is the worst of both.
  */
-import { curatedFileVocabularyRows } from "../../../utils/src/file-curated-vocabulary.js";
 
 /**
  * The backfill migration and the curated list still agree.
@@ -90,6 +91,20 @@ const byName = <T extends { kind: string; displayName: string }>(rows: T[]) =>
   );
 
 describe("the curated vocabulary backfill", () => {
+  it("defers work-type preset rows until the new Files classifier is serving", () => {
+    const sql = readFileSync(
+      new URL(
+        "../../prisma/migrations/20261118123350_task_work_type_presets/migration.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(sql).toMatch(
+      /ALTER TABLE "workspace_label" ADD COLUMN "isTaskPreset"/,
+    );
+    expect(sql).not.toMatch(/\bINSERT\s+INTO\b/i);
+  });
+
   it("inserts exactly the curated list", () => {
     expect(
       byName(MIGRATIONS.flatMap(migrationRows)),

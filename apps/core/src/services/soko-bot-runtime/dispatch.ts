@@ -8,15 +8,18 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { executeCmoSeoTool } from "./cmo-seo";
 import { dispatchAnnouncementTools } from "./dispatch-announcements";
 import { dispatchChatTools } from "./dispatch-chat";
 import { dispatchFilesTools } from "./dispatch-files";
 import { dispatchIntegrationsTools } from "./dispatch-integrations";
+import { dispatchMcpTools } from "./dispatch-mcp";
 import { dispatchNewsletterTools } from "./dispatch-newsletter";
 import { dispatchOtherTools } from "./dispatch-other";
 import { dispatchSchedulesTools } from "./dispatch-schedules";
 import { dispatchSocialTools } from "./dispatch-social";
 import { dispatchTablesTools } from "./dispatch-tables";
+import { dispatchTaskInterestTools } from "./dispatch-task-interest";
 import { dispatchTasksTools } from "./dispatch-tasks";
 import { type RuntimeOperations } from "./operations";
 
@@ -93,6 +96,7 @@ export async function executeAuthorizedTool(
     case "list_social_comments":
     case "handle_social_comment":
     case "read_writing_skill":
+    case "find_style_references":
     case "read_social_profile":
       return dispatchSocialTools(runtime, input, authorized);
     case "wait_for":
@@ -130,15 +134,27 @@ export async function executeAuthorizedTool(
     case "save_brand_brain":
     case "save_strategy":
     case "report_update":
+    case "write_month_pieces":
     case "evaluate_with_jev":
     case "search_exa":
+    case "check_competitors":
+    case "save_competitor_feed":
       return dispatchOtherTools(runtime, input, authorized);
+    case "read_seo":
+    case "research_keywords":
+    case "research_competitor_keywords":
+    case "check_search_rankings":
+    case "save_seo_suggestions":
+      return executeCmoSeoTool(input, authorized);
     case "list_tables":
     case "read_table":
     case "create_table":
     case "write_table_rows":
     case "update_table_columns":
       return dispatchTablesTools(runtime, input, authorized);
+    case "list_followed_tasks":
+    case "stop_following_task":
+      return dispatchTaskInterestTools(runtime, input, authorized);
     case "create_task":
     case "update_task":
     case "archive_task":
@@ -148,6 +164,7 @@ export async function executeAuthorizedTool(
     case "update_assigned_task":
     case "reply_to_task":
     case "link_tasks":
+    case "set_task_parent":
     case "find_agents":
     case "get_agent_input_schema":
     case "hire_agent":
@@ -173,6 +190,7 @@ export async function executeAuthorizedTool(
     case "get_image":
     case "generate_video":
     case "get_video":
+    case "generate_talking_video":
     case "read_file":
       return dispatchFilesTools(runtime, input, authorized);
     case "list_integrations":
@@ -188,5 +206,9 @@ export async function executeAuthorizedTool(
     case "run_integration_tool":
     case "list_calendar_events":
       return dispatchIntegrationsTools(runtime, input, authorized);
+    case "list_mcp_tools":
+    case "read_mcp_tool":
+    case "run_mcp_tool":
+      return dispatchMcpTools(input, authorized);
   }
 }

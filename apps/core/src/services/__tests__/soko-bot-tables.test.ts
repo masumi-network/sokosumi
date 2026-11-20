@@ -181,6 +181,51 @@ describe("Soko Bot table dispatch", () => {
     );
     expect(result).toMatchObject({ table, url: `/drive/tables/${table.id}` });
   });
+  it("posts no table link for Cuso, whose owner sees the table in CMO's chat", async () => {
+    const runtime = service();
+    vi.spyOn(runtime, "authorize").mockResolvedValue({
+      ...authorized,
+      turn: { ...authorized.turn, versionId: "cmo-v2" },
+    });
+    const post = vi.fn<SokoBotRuntimeService["postChat"]>();
+    runtime["postChat"] = post;
+    const table = { id: randomUUID(), title: "Content tracker" };
+    mocks.create.mockImplementation(async (_actor, _input, complete) => {
+      await complete(prisma, {
+        tableId: table.id,
+        result: {
+          ...table,
+          workspaceId,
+          projectId: null,
+          description: "",
+          createdBy: sokoBotId,
+          version: 1,
+          archivedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          columns: [],
+          views: [],
+        },
+        replayed: false,
+      });
+      return table;
+    });
+
+    const result = await runtime["executeAuthorizedTool"]({
+      sessionId,
+      turnId,
+      toolCallId: "create",
+      capability: "create_table",
+      input: {
+        key: randomUUID(),
+        title: table.title,
+        columns: [{ id: randomUUID(), name: "Post", type: "text" }],
+      },
+    });
+
+    expect(result).toMatchObject({ table });
+    expect(post).not.toHaveBeenCalled();
+  });
   it("reuses the operation key and publication identity across tool receipts", async () => {
     const runtime = service();
     const post = vi.fn<SokoBotRuntimeService["postChat"]>().mockResolvedValue({

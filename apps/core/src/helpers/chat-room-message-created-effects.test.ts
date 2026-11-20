@@ -75,9 +75,8 @@ vi.mock("@sentry/node", () => ({
 }));
 
 import * as Sentry from "@sentry/node";
-
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
-
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
   emitChatRoomMessageCreatedEffects,
   invalidateChatRoomMessageReaders,
@@ -497,6 +496,13 @@ describe("emitChatRoomMessageCreatedEffects", () => {
    * so a rejection here would arrive as an unhandled one that names nothing.
    */
   it("reports a failed roster read instead of rejecting", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "A chat message's notifications or reader refresh failed",
+      [
+        "Notifying the room's members of a new message failed after it was saved",
+      ],
+    );
     const failure = new Error("pool exhausted");
     membershipFindManyMock.mockRejectedValueOnce(failure);
 
@@ -507,10 +513,23 @@ describe("emitChatRoomMessageCreatedEffects", () => {
       extra: { roomId: ROOM_ID, messageId: MESSAGE_ID },
     });
     expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(errors[0]?.event).toMatchObject({
+      operation: "chat_room_message_effects",
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+      failure: { errorName: "Error" },
+    });
   });
 
-  /** A settled failure is reported, not only written to a console nobody reads. */
+  /** A settled failure is reported, not only written to a log nobody reads. */
   it("reports a failed effect instead of only logging it", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A chat message's notifications or reader refresh failed",
+      [
+        "Notifying the room's members of a new message failed after it was saved",
+      ],
+    );
     const failure = new Error("readers unavailable");
     userFindManyMock.mockRejectedValueOnce(failure);
 
@@ -520,6 +539,28 @@ describe("emitChatRoomMessageCreatedEffects", () => {
       tags: { context: "chat_room_message_effects" },
       extra: { roomId: ROOM_ID, messageId: MESSAGE_ID },
     });
+  });
+
+  it("keeps a failed effect's text, which can quote the message, out of the log", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A chat message's notifications or reader refresh failed",
+      [
+        "Notifying the room's members of a new message failed after it was saved",
+      ],
+    );
+    userFindManyMock.mockRejectedValueOnce(
+      Object.assign(
+        new Error("Invalid invocation: preview: 'Ada private note'"),
+        {
+          name: "PrismaClientValidationError",
+        },
+      ),
+    );
+
+    await expect(emit()).resolves.toBeUndefined();
+
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private note");
   });
 
   it("never notifies the author of their own message", async () => {
@@ -540,7 +581,9 @@ describe("emitChatRoomMessageCreatedEffects", () => {
 it("reports a reader lookup failure without rejecting invalidation", async () => {
   const error = new Error("reader lookup failed");
   membershipFindManyMock.mockRejectedValueOnce(error);
-  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  expectCoreLogWhys("error", "A chat room's readers were not told to refresh", [
+    "Publishing the room change to its members failed",
+  ]);
   await expect(
     invalidateChatRoomMessageReaders({ roomId: ROOM_ID }),
   ).resolves.toBeUndefined();
@@ -548,5 +591,4 @@ it("reports a reader lookup failure without rejecting invalidation", async () =>
     tags: { context: "chat_room_reader_invalidation" },
     extra: { roomId: ROOM_ID },
   });
-  log.mockRestore();
 });

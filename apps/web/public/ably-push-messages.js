@@ -51,14 +51,20 @@ globalThis.MESSAGES = {
     "Notifications.Task.outOfCredits":
       "{coworkerName} ran out of credits for {taskName}",
     "Notifications.Task.completed": "{coworkerName} completed {taskName}",
+    "Notifications.Task.seoCompleted": "Open SEO results for {taskName}.",
     "Notifications.Task.failed": "{coworkerName} failed to complete {taskName}",
     "Notifications.Task.canceled": "{taskName} was canceled",
+    "Notifications.Task.overdue": "{taskName} is past its due date",
+    "Notifications.Task.dueDateMovedLater":
+      "The due date of {taskName} moved later",
     "Notifications.Task.scheduleRepaired":
       "The schedule for {taskName} was repaired",
     "Notifications.Task.scheduleRemovedByOperator":
       "The schedule for {taskName} was removed after review",
     "Notifications.Billing.lowBalance":
       "Your credits are running low: {credits} left",
+    "Notifications.Billing.cusoLowCredits":
+      "{cusoName} for {businessName} is running low: {credits} credits left",
     "Notifications.Billing.paymentFailed": "A subscription payment failed",
     "Notifications.Billing.creditsAdded":
       "{credits} credits were added to your balance",
@@ -129,15 +135,21 @@ globalThis.MESSAGES = {
       "{coworkerName} hat keine Credits mehr für {taskName}",
     "Notifications.Task.completed":
       "{coworkerName} hat {taskName} abgeschlossen",
+    "Notifications.Task.seoCompleted": "SEO-Ergebnisse für {taskName} öffnen.",
     "Notifications.Task.failed":
       "{coworkerName} konnte {taskName} nicht abschließen",
     "Notifications.Task.canceled": "{taskName} wurde abgebrochen",
+    "Notifications.Task.overdue": "{taskName} ist überfällig",
+    "Notifications.Task.dueDateMovedLater":
+      "Das Fälligkeitsdatum von {taskName} wurde nach hinten verschoben",
     "Notifications.Task.scheduleRepaired":
       "Der Zeitplan für {taskName} wurde repariert",
     "Notifications.Task.scheduleRemovedByOperator":
       "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
     "Notifications.Billing.lowBalance":
       "Deine Credits werden knapp: noch {credits}",
+    "Notifications.Billing.cusoLowCredits":
+      "{cusoName} für {businessName} gehen die Credits aus: noch {credits}",
     "Notifications.Billing.paymentFailed":
       "Eine Abo-Zahlung ist fehlgeschlagen",
     "Notifications.Billing.creditsAdded":
@@ -211,14 +223,21 @@ globalThis.MESSAGES = {
     "Notifications.Task.outOfCredits":
       "{coworkerName} se quedó sin créditos para {taskName}",
     "Notifications.Task.completed": "{coworkerName} completó {taskName}",
+    "Notifications.Task.seoCompleted":
+      "Abrir los resultados SEO de {taskName}.",
     "Notifications.Task.failed": "{coworkerName} no pudo completar {taskName}",
     "Notifications.Task.canceled": "{taskName} fue cancelado",
+    "Notifications.Task.overdue": "{taskName} superó su fecha límite",
+    "Notifications.Task.dueDateMovedLater":
+      "La fecha límite de {taskName} se pospuso",
     "Notifications.Task.scheduleRepaired":
       "Se reparó la programación de {taskName}",
     "Notifications.Task.scheduleRemovedByOperator":
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Billing.lowBalance":
       "Tus créditos se están agotando: quedan {credits}",
+    "Notifications.Billing.cusoLowCredits":
+      "A {cusoName} para {businessName} se le acaban los créditos: quedan {credits}",
     "Notifications.Billing.paymentFailed": "Un pago de suscripción falló",
     "Notifications.Billing.creditsAdded":
       "Se añadieron {credits} créditos a tu saldo",

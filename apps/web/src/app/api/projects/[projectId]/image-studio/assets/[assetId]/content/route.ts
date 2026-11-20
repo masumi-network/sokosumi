@@ -37,11 +37,14 @@ export async function GET(
       if (value !== null) query.set(key, value);
     }
     const rendered = query.size > 0;
+    if (request.nextUrl.searchParams.get("download") === "true") {
+      query.set("download", "true");
+    }
     // A `<video>` seeks with byte ranges, and Safari plays nothing without them.
     const range = request.headers.get("range");
     if (range && !rendered) headers.set("range", range);
     const upstream = await fetch(
-      `${base}/projects/${projectId}/image-studio/assets/${assetId}/content${rendered ? `?${query}` : ""}`,
+      `${base}/projects/${projectId}/image-studio/assets/${assetId}/content${query.size ? `?${query}` : ""}`,
       { headers, cache: "no-store" },
     );
     if (!upstream.ok || !upstream.body) {

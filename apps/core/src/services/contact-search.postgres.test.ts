@@ -6,8 +6,8 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { EmbedTexts } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
+import type { EmbedTexts } from "@/lib/embeddings";
 import { runContactTool } from "@/lib/soko-bot/contact-tools";
 import {
   breakDownContacts,
@@ -373,6 +373,7 @@ describe.runIf(enabled)("contact search on PostgreSQL", () => {
     expect(result.total).toBe(1);
     expect(result.contacts[0]).toEqual({
       id: ids.lena,
+      link: `/contacts?contact=${ids.lena}&workspace=${workspaceId}`,
       name: "Lena Fox",
       kind: "PERSON",
       organization: null,

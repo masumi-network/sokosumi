@@ -179,6 +179,11 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
   deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
+// The archive locks the Task before it reads its sub-tasks.
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockTaskRows: async () => true,
+}));
+
 vi.mock("@/helpers/access-control", () => ({
   requireTaskWriteAccess: requireTaskWriteAccessMock,
 }));
@@ -236,6 +241,15 @@ function createApp(
   return app;
 }
 
+/** The error Prisma raises when Postgres picks this transaction to break a deadlock. */
+const deadlockError = () =>
+  Object.assign(
+    new Error(
+      "Invalid `prisma.$queryRaw()` invocation:\n\n\nRaw query failed. Code: `40P01`. Message: `deadlock detected`",
+    ),
+    { name: "PrismaClientKnownRequestError", code: "P2010" },
+  );
+
 const archivedTask = {
   id: "tsk_123",
   createdAt: "2026-03-25T10:00:00.000Z",
@@ -261,7 +275,11 @@ const archivedTask = {
   archivedAt: null,
   runAt: null,
   dueOn: null,
+  parentTaskId: null,
+  position: null,
+  subtaskProgress: { completed: 0, total: 0 },
   scheduleId: null,
+  followers: [],
   selectableStatuses: [],
   participants: [],
   linksFrom: [],
@@ -289,6 +307,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: vi.fn().mockResolvedValue({ count: 1 }),
           findFirstOrThrow: findFirstOrThrowMock,
         },
@@ -324,6 +343,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: findFirstOrThrowMock,
         },
@@ -382,6 +402,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: vi.fn(),
         },
@@ -418,6 +439,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: findFirstOrThrowMock,
         },
@@ -447,12 +469,39 @@ describe("DELETE /tasks/{id}", () => {
     );
   });
 
+  it("retries an archive that Postgres broke off to end a deadlock", async () => {
+    const tx = {
+      task: {
+        findMany: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirstOrThrow: vi.fn().mockResolvedValue(archivedTask),
+      },
+    };
+    prismaTransactionMock
+      .mockRejectedValueOnce(deadlockError())
+      .mockImplementation(async (callback) => await callback(tx));
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.READY,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
+  });
+
   it("returns 409 when org admin archive races grant approval", async () => {
     const updateManyMock = vi.fn().mockResolvedValue({ count: 0 });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: vi.fn(),
         },
@@ -486,6 +535,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: vi.fn().mockResolvedValue(archivedTask),
         },
@@ -560,6 +610,7 @@ describe("DELETE /tasks/{id}", () => {
               workspaceId: "22222222-2222-7222-8222-222222222222",
               ...columns,
             }),
+            findMany: vi.fn().mockResolvedValue([]),
             updateMany: taskUpdateManyMock,
             findFirstOrThrow: vi.fn().mockResolvedValue(archivedTask),
           },

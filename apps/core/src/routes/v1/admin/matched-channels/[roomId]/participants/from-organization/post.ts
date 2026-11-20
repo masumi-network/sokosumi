@@ -7,6 +7,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { recordMembershipPublishFailures } from "@/routes/v1/chats/rooms/channel-membership";
 import {
   ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS,
   adminAddMatchedChannelFromOrganizationBodySchema,
@@ -103,14 +104,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         publishChatRoomMembershipStatusMessagesBestEffort([message]),
       ),
     );
-    for (const publishResult of publishResults) {
-      if (publishResult.status === "rejected") {
-        console.error(
-          "Failed to publish chat membership status after org snapshot",
-          publishResult.reason,
-        );
-      }
-    }
+    recordMembershipPublishFailures(
+      { operation: "admin_matched_channel_add_organization", roomId },
+      publishResults.map((result) => ["status_messages", result] as const),
+    );
 
     return ok(
       c,

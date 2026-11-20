@@ -15,6 +15,7 @@ import {
   isFollowUpDue,
   matchesContactSearch,
   primaryEmail,
+  replaceVisibleSelection,
   STAGE_DOT,
   searchMatchRange,
   smartFilterOf,
@@ -33,6 +34,13 @@ const base: ContactView = {
   sort: "updatedAt",
   direction: "desc",
 };
+
+it("keeps a hidden selection when a visible checkbox changes", () => {
+  expect(replaceVisibleSelection(["hidden", "old"], ["old"], ["new"])).toEqual([
+    "hidden",
+    "new",
+  ]);
+});
 
 describe("contactQuery", () => {
   it("narrows to one company inside any view", () => {
@@ -58,6 +66,16 @@ describe("contactQuery", () => {
       sort: "updatedAt",
       direction: "desc",
     });
+  });
+
+  it("asks Core for archived contacts only in the Archived view", () => {
+    expect(contactQuery({ ...base, view: "archived", search: "ada" })).toEqual({
+      archived: "true",
+      search: "ada",
+      sort: "updatedAt",
+      direction: "desc",
+    });
+    expect(contactQuery(base)).not.toHaveProperty("archived");
   });
 
   it("treats any other view as a list id", () => {
@@ -329,6 +347,12 @@ describe("smartFilterOf", () => {
     expect(smartFilterOf({ ...base, view: listId }, "manual")).toBeNull();
     expect(
       smartFilterOf({ ...base, view: listId, kind: "PERSON" }, "smart"),
+    ).toBeNull();
+  });
+
+  it("offers no smart list from the Archived view, whose filter lists cannot keep", () => {
+    expect(
+      smartFilterOf({ ...base, view: "archived", search: "ada" }),
     ).toBeNull();
   });
 });

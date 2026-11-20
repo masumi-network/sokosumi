@@ -128,6 +128,7 @@ interface TransactionMock {
     updateMany: ReturnType<typeof vi.fn>;
   };
   task: {
+    count: ReturnType<typeof vi.fn>;
     findFirst: ReturnType<typeof vi.fn>;
     findUniqueOrThrow: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
@@ -243,7 +244,11 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     archivedAt: null,
     runAt: null,
     dueOn: null,
+    parentTaskId: null,
+    position: null,
+    subtaskProgress: { completed: 0, total: 0 },
     scheduleId: null,
+    followers: [],
     selectableStatuses: [],
     participants: [],
     ...restOverrides,
@@ -365,6 +370,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         updateMany: jobUpdateManyMock,
       },
       task: {
+        count: vi.fn().mockResolvedValue(0),
         findFirst: taskFindFirstMock,
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
         update: taskUpdateMock,
@@ -894,6 +900,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         updateMany: jobUpdateManyMock,
       },
       task: {
+        count: vi.fn().mockResolvedValue(0),
         findFirst: taskFindFirstMock,
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
         update: taskUpdateMock,

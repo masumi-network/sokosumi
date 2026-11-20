@@ -17,7 +17,10 @@ import {
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
-import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
+import {
+  isEditableKeyboardTarget,
+  OPEN_SURFACE_SELECTOR,
+} from "@/lib/utils/is-editable-keyboard-target";
 import { useMarkFeatureSeen, useNewBadgeState } from "./feature-badges";
 
 // Alt+N (Option+N on a Mac). Matched by physical key: on a Mac, Option+N is
@@ -26,8 +29,6 @@ import { useMarkFeatureSeen, useNewBadgeState } from "./feature-badges";
 // at QWERTY's N, not the one printed "N".
 const SHORTCUT_CODE = "KeyN";
 const SHORTCUT_KEYS = "Alt+N";
-const OPEN_SURFACE_SELECTOR =
-  '[role="dialog"], [role="alertdialog"], [role="menu"]';
 
 /**
  * New task, the sidebar header's main action, so it alone sits on a quiet

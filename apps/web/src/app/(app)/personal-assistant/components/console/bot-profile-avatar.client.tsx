@@ -1,5 +1,6 @@
 "use client";
 
+import type { AvatarState } from "@sokosumi/soko-bot";
 import { Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -9,6 +10,8 @@ interface BotProfileAvatarProps {
   name: string;
   seed: string;
   imageUrl: string | null;
+  avatarCode?: string | null;
+  avatarState?: AvatarState;
   /** Opens the picture picker; null when the viewer cannot change it. */
   onEdit: (() => void) | null;
 }
@@ -18,6 +21,8 @@ export function BotProfileAvatar({
   name,
   seed,
   imageUrl,
+  avatarCode,
+  avatarState,
   onEdit,
 }: BotProfileAvatarProps) {
   const t = useTranslations("App.SokoBot.Avatar");
@@ -28,6 +33,10 @@ export function BotProfileAvatar({
           imageUrl={imageUrl}
           seed={seed}
           orbSize={368}
+          avatarCode={avatarCode}
+          avatarState={avatarState}
+          avatarSize={184}
+          interactive
           alt={name}
           className="size-full"
         />

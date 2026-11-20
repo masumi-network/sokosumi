@@ -243,7 +243,9 @@ export function RoomShellLayout({
       className={rootClassName ?? ROOM_SHELL_ROOT_CLASSNAME}
     >
       {beforeMain}
-      <main ref={mainRef} className={ROOM_SHELL_MAIN_CLASSNAME}>
+      {/* The app frame's `main` holds this; a second one would give screen
+          readers two main landmarks. */}
+      <div ref={mainRef} className={ROOM_SHELL_MAIN_CLASSNAME}>
         <section ref={sectionRef} className={ROOM_SHELL_SECTION_CLASSNAME}>
           {column}
         </section>
@@ -256,7 +258,7 @@ export function RoomShellLayout({
             </RoomSidePanelSlot>
           ) : null}
         </AnimatePresence>
-      </main>
+      </div>
     </div>
   );
 }

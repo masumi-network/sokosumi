@@ -4,7 +4,15 @@ import {
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
+import { HTTPException } from "hono/http-exception";
 import prisma from "@/lib/db/prisma";
+import {
+  createCoreLogger,
+  logCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
@@ -23,13 +31,13 @@ const ANSWER_PREVIEW_CHARS = 1_500;
  * The run reads this first. It has no conversation to fall back on, so it is
  * told plainly that the brief is all it gets and where its answer goes.
  */
-function runMessage(title: string, brief: string): string {
+function runMessage(title: string, brief: string, shared: boolean): string {
   // The control plane gives a run six hours; aim to report well before.
   const reportBy = new Date(Date.now() + 5.5 * 60 * 60 * 1_000);
   return [
     `Background run: ${title}`,
     `Report by ${reportBy.toISOString()} at the latest.`,
-    "You are working on your own, beside your chat with the owner. The brief below is everything you were given; nobody is waiting to answer questions, so decide and keep going. Work through the whole job in batches, keep your plan up to date with update_plan, and save results as you go (a Files table, Task or file) so nothing is lost if you run out of time. Your final report is posted in the chat: start it with DONE:, say what you did, link what you made, and name anything left undone. A reply without DONE: is treated as a progress note and you will be asked to continue.",
+    `You are working on your own, beside ${shared ? "the chat you were asked in" : "your chat with the owner"}. The brief below is everything you were given; nobody is waiting to answer questions, so decide and keep going. Work through the whole job in batches, keep your plan up to date with update_plan, and save results as you go (a Files table, Task or file) so nothing is lost if you run out of time. Your final report is posted in the chat: start it with DONE:, say what you did, link what you made, and name anything left undone. A reply without DONE: is treated as a progress note and you will be asked to continue.`,
     "",
     brief,
   ].join("\n");
@@ -40,30 +48,47 @@ export async function startBackgroundRun(
   authorized: AuthorizedSokoBotRuntime,
   input: { title: string; brief: string },
 ) {
-  // Every shared turn names its member, so the owner check below would
-  // refuse it anyway, with a message about an owner the bot does not have.
-  if (authorized.reader.sharedScope)
-    throw new SokoBotRuntimeValidationError(
-      "A shared Soko Bot cannot start background runs; do the work in this turn.",
-    );
+  const shared = Boolean(authorized.reader.sharedScope);
   const parent = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: authorized.turn.id },
     select: {
       source: true,
       parentTurnId: true,
+      requestedByUserId: true,
       askedByUserId: true,
       chainDepth: true,
       destinationRoomId: true,
+      sokoBot: { select: { sharedRoomId: true } },
     },
   });
   if (parent.parentTurnId)
     throw new SokoBotRuntimeValidationError(
       "A background run cannot start another one; do the work in this run.",
     );
-  // A run works with the owner's whole context and posts where it was asked;
-  // started from a teammate's or another bot's message, that would carry the
-  // owner's private context into their room.
-  if (parent.askedByUserId || parent.chainDepth > 0)
+  const member = authorized.turn.actingUserId;
+  if (shared) {
+    // A shared bot has no owner (ADR 0057): the run is the member's who asked
+    // for it in chat. Its own rhythms, another bot's message and a follow-up
+    // start none, so a run always has a person who can stop it.
+    if (
+      member === null ||
+      parent.source !== "CHAT" ||
+      parent.chainDepth > 0 ||
+      parent.askedByUserId !== parent.requestedByUserId ||
+      authorized.askedByKind === "ASSISTANT"
+    )
+      throw new SokoBotRuntimeValidationError(
+        "Only a member's own request in chat can start a background run; do the work in this turn.",
+      );
+    const running = await activeMemberRun(authorized.turn.sokoBotId);
+    if (running)
+      throw new SokoBotRuntimeValidationError(
+        `"${running.backgroundTitle}" is still running (runId ${running.id}). One background run at a time: wait for it, or stop it with stop_background_run first.`,
+      );
+  } else if (parent.askedByUserId || parent.chainDepth > 0)
+    // A run works with the owner's whole context and posts where it was
+    // asked; started from a teammate's or another bot's message, that would
+    // carry the owner's private context into their room.
     throw new SokoBotRuntimeValidationError(
       "Only the owner can start a background run.",
     );
@@ -83,8 +108,8 @@ export async function startBackgroundRun(
     // Cuso shares a workspace with the owner's own assistant: the run belongs
     // to the bot that started it.
     sokoBotId: authorized.turn.sokoBotId,
-    clientTurnId: `background:${authorized.turn.id}:${key}`,
-    message: runMessage(input.title, input.brief),
+    clientTurnId: `${MEMBER_RUN_PREFIX}${authorized.turn.id}:${key}`,
+    message: runMessage(input.title, input.brief, shared),
     source: parent.source === "ADMIN_RETRY" ? "CHAT" : parent.source,
     versionId: authorized.turn.versionId ?? undefined,
     presetRoute: {
@@ -93,31 +118,50 @@ export async function startBackgroundRun(
       capabilities,
       sandbox: capabilities.some(isSokoBotSandboxCapability),
     },
+    // The member asks the run as they asked the turn: it keeps their audience.
+    ...(shared && member ? { chat: { askedByUserId: member } } : {}),
     background: {
       parentTurnId: authorized.turn.id,
       title: input.title,
-      destinationRoomId: parent.destinationRoomId,
+      // A shared bot reports in its own room, where every member reads it.
+      destinationRoomId:
+        (shared ? parent.sokoBot.sharedRoomId : null) ??
+        parent.destinationRoomId,
     },
   });
   // Drain it now like a chat turn; the turns sync takes over once this
   // request's function ends.
+  const { reconciliationLeaseToken } = started;
   if (
-    started.reconciliationLeaseToken &&
+    reconciliationLeaseToken &&
     (started.status === "STARTING" || started.status === "RUNNING")
   )
     waitUntil(
-      sokoBotControlPlane
-        .reconcileTurn(
-          started.turnId,
-          undefined,
-          started.reconciliationLeaseToken,
-        )
-        .catch((error: unknown) => {
-          console.warn("Soko Bot background run reconciliation stopped", {
-            turnId: started.turnId,
-            error: error instanceof Error ? error.message : "unknown",
-          });
-        }),
+      runAsBackgroundWork(() =>
+        sokoBotControlPlane
+          .reconcileTurn(started.turnId, undefined, reconciliationLeaseToken)
+          .catch((error: unknown) => {
+            if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+              return;
+            // After the tool call's response: its own event.
+            const log = createCoreLogger({
+              operation: "soko_bot_background_run",
+              turn: { id: started.turnId, parentId: authorized.turn.id },
+            });
+            logCoreWarning(
+              log,
+              {
+                message:
+                  "A Soko Bot background run stopped draining before it finished",
+                why: "Turn reconciliation threw",
+                fix: "The soko-bot-turns sync resumes the run. If it stays stuck, read the turn's events.",
+              },
+              // Only safe fields: turn work can echo its prompt.
+              { failure: messageSafeErrorFields(error) },
+            );
+            log.emit();
+          }),
+      ),
     );
   return {
     runId: started.turnId,
@@ -125,6 +169,22 @@ export async function startBackgroundRun(
     status: started.status,
     note: "Started. It works beside this chat and posts its answer here when it finishes.",
   };
+}
+
+/** Runs a bot started with `start_background_run` carry this in their key. */
+const MEMBER_RUN_PREFIX = "background:";
+
+/** The run a member started that is still going, if there is one. */
+function activeMemberRun(sokoBotId: string) {
+  return prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId,
+      parentTurnId: { not: null },
+      clientTurnId: { startsWith: MEMBER_RUN_PREFIX },
+      status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+    },
+    select: { id: true, backgroundTitle: true },
+  });
 }
 
 function latestPlan(input: unknown): unknown {
@@ -197,9 +257,17 @@ export async function stopBackgroundRun(
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
-  await sokoBotControlPlane.cancelTurn(
-    authorized.turn.actingUserId ?? { sokoBotId: authorized.turn.sokoBotId },
-    run.id,
-  );
+  try {
+    await sokoBotControlPlane.cancelTurn(
+      authorized.turn.actingUserId ?? { sokoBotId: authorized.turn.sokoBotId },
+      run.id,
+    );
+  } catch (error) {
+    // A shared bot's run is stopped by the member who started it, or by an
+    // owner or admin: say so, so the bot can tell whoever asked.
+    if (error instanceof HTTPException && error.status === 403)
+      throw new SokoBotRuntimeValidationError(error.message);
+    throw error;
+  }
   return { runId: run.id, stopped: true, previousStatus: run.status };
 }

@@ -20,16 +20,27 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: (run: (tx: object) => unknown) =>
+      run({
+        $queryRaw: vi.fn(),
+        sokoBotTurn: { updateMany: turnUpdateManyMock },
+      }),
     sokoBotTurn: {
       findMany: turnFindManyMock,
-      updateMany: turnUpdateManyMock,
     },
   },
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  SOKO_BOT_START_RECOVERY_GRACE_MS: 120_000,
+  ACTIVE_TURN_STATUSES: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"],
+  TURN_LEASE_MS: 16 * 60_000,
+  staleTurnLeaseWhere: () => ({}),
+  startRecoveryEligibility: () => ({}),
   sokoBotControlPlane: {
     expireTurn: expireTurnMock,
     recoverStartingTurn: recoverStartingTurnMock,
@@ -38,12 +49,8 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   },
 }));
 
-import {
-  SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
-  SOKO_BOT_TURN_STARTING_ABANDON_MS,
-  SOKO_BOT_TURN_STARTING_GRACE_MS,
-  sokoBotTurnsSyncService,
-} from "@/services/soko-bot-turns-sync.service";
+import { sokoBotTurnsSyncService } from "@/services/soko-bot-turns-sync.service";
+import { expectCoreLog } from "@/test/core-log";
 
 function continueFor(maxChecks: number) {
   let checks = 0;
@@ -59,7 +66,10 @@ describe("SokoBotTurnsSyncService", () => {
     turnFindManyMock.mockResolvedValue([]);
     turnUpdateManyMock.mockResolvedValue({ count: 1 });
     expireTurnMock.mockResolvedValue(true);
-    recoverStartingTurnMock.mockResolvedValue({ turnId: "recovered" });
+    recoverStartingTurnMock.mockResolvedValue({
+      turnId: "turn_abandoned",
+      reconciliationLeaseToken: "recovered_lease",
+    });
     reconcileTurnMock.mockResolvedValue(undefined);
     settleUndeliverableCancellationMock.mockResolvedValue(true);
   });
@@ -131,47 +141,6 @@ describe("SokoBotTurnsSyncService", () => {
     });
   });
 
-  it("does not claim a fresh STARTING turn with a null heartbeat", async () => {
-    const result = await sokoBotTurnsSyncService.syncActiveTurns({
-      abortSignal: new AbortController().signal,
-      shouldContinue: () => true,
-    });
-
-    expect(result.claimed).toBe(0);
-    const staleQuery = turnFindManyMock.mock.calls[3]?.[0] as {
-      where: {
-        NOT: { status: string; createdAt: { gt: Date } };
-        OR: Array<Record<string, unknown>>;
-      };
-    };
-    expect(staleQuery.where.NOT).toEqual({
-      status: SokoBotTurnStatus.STARTING,
-      createdAt: { gt: expect.any(Date) },
-    });
-    expect(staleQuery.where.OR).toEqual([
-      { reconcilerHeartbeatAt: { lte: expect.any(Date) } },
-      {
-        reconcilerHeartbeatAt: null,
-        status: { not: SokoBotTurnStatus.STARTING },
-      },
-      {
-        reconcilerHeartbeatAt: null,
-        status: SokoBotTurnStatus.STARTING,
-        createdAt: { lte: expect.any(Date) },
-      },
-    ]);
-    const graceCutoff = staleQuery.where.NOT.createdAt.gt.getTime();
-    expect(Date.now() - graceCutoff).toBeGreaterThanOrEqual(
-      SOKO_BOT_TURN_STARTING_GRACE_MS - 50,
-    );
-    const staleCutoff = (
-      staleQuery.where.OR[0] as { reconcilerHeartbeatAt: { lte: Date } }
-    ).reconcilerHeartbeatAt.lte.getTime();
-    expect(Date.now() - staleCutoff).toBeGreaterThanOrEqual(
-      SOKO_BOT_TURN_STALE_HEARTBEAT_MS - 50,
-    );
-  });
-
   it("recovers abandoned STARTING turns that never received a session", async () => {
     turnFindManyMock
       .mockResolvedValueOnce([])
@@ -190,25 +159,12 @@ describe("SokoBotTurnsSyncService", () => {
       interrupted: 0,
     });
     expect(recoverStartingTurnMock).toHaveBeenCalledWith("turn_abandoned");
+    expect(reconcileTurnMock).toHaveBeenCalledWith(
+      "turn_abandoned",
+      expect.any(AbortSignal),
+      "recovered_lease",
+    );
     expect(expireTurnMock).not.toHaveBeenCalled();
-    const abandonQuery = turnFindManyMock.mock.calls[2]?.[0] as {
-      where: {
-        status: string;
-        eveSessionId: null;
-        createdAt: { lte: Date };
-      };
-    };
-    expect(abandonQuery.where).toEqual(
-      expect.objectContaining({
-        status: SokoBotTurnStatus.STARTING,
-        eveSessionId: null,
-        reconcilerHeartbeatAt: null,
-      }),
-    );
-    const abandonCutoff = abandonQuery.where.createdAt.lte.getTime();
-    expect(Date.now() - abandonCutoff).toBeGreaterThanOrEqual(
-      SOKO_BOT_TURN_STARTING_ABANDON_MS - 50,
-    );
   });
 
   it("only selects no-session STARTING turns for durable replay", async () => {
@@ -229,7 +185,12 @@ describe("SokoBotTurnsSyncService", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: "turn_2", reconcilerHeartbeatAt: staleHeartbeat },
+        {
+          id: "turn_2",
+          eveSessionId: "session_2",
+          leaseToken: "old_lease",
+          reconcilerHeartbeatAt: staleHeartbeat,
+        },
       ]);
     const abortSignal = new AbortController().signal;
 
@@ -252,6 +213,9 @@ describe("SokoBotTurnsSyncService", () => {
     expect(turnUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "turn_2",
+        eveSessionId: "session_2",
+        leaseToken: "old_lease",
+        deadlineAt: { gt: expect.any(Date) },
         status: {
           in: [
             SokoBotTurnStatus.QUEUED,
@@ -268,28 +232,6 @@ describe("SokoBotTurnsSyncService", () => {
         reconcilerHeartbeatAt: expect.any(Date),
       }),
     });
-  });
-
-  it("claims a session-bound STARTING turn after its acknowledgement grace", async () => {
-    turnFindManyMock
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        { id: "turn_starting", reconcilerHeartbeatAt: null },
-      ]);
-
-    const result = await sokoBotTurnsSyncService.syncActiveTurns({
-      abortSignal: new AbortController().signal,
-      shouldContinue: () => true,
-    });
-
-    expect(result.claimed).toBe(1);
-    expect(reconcileTurnMock).toHaveBeenCalledWith(
-      "turn_starting",
-      expect.any(AbortSignal),
-      expect.any(String),
-    );
   });
 
   it("does not hijack a turn when another worker wins the lease compare-and-set", async () => {
@@ -352,6 +294,10 @@ describe("SokoBotTurnsSyncService", () => {
   });
 
   it("records an interrupted resume without terminally settling the turn", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not resume a stalled Soko Bot turn",
+    );
     turnFindManyMock
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -359,7 +305,20 @@ describe("SokoBotTurnsSyncService", () => {
       .mockResolvedValueOnce([
         { id: "turn_3", reconcilerHeartbeatAt: staleHeartbeat },
       ]);
-    reconcileTurnMock.mockRejectedValue(new Error("stream disconnected"));
+    reconcileTurnMock.mockRejectedValue(
+      Object.assign(
+        new Error(
+          'stream disconnected while echoing "Subject: Confidential merger" sk_live_abc123',
+        ),
+        {
+          name: "Confidential merger with Acme",
+          // An upper-case secret in the code: not a known machine code.
+          code: "AKIAIOSFODNN7EXAMPLE",
+          status: 502,
+          details: { operation: "sk_live_abc123" },
+        },
+      ),
+    );
 
     const result = await sokoBotTurnsSyncService.syncActiveTurns({
       abortSignal: new AbortController().signal,
@@ -369,6 +328,15 @@ describe("SokoBotTurnsSyncService", () => {
     expect(result.interrupted).toBe(1);
     expect(result.reconciled).toBe(0);
     expect(expireTurnMock).not.toHaveBeenCalled();
+    expect(warnings[0]).toMatchObject({ why: "Turn reconciliation threw" });
+    expect(warnings[0]?.event).toMatchObject({
+      failure: { errorName: "Error", status: 502 },
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
+    expect(drained).not.toContain("AKIAIOSFODNN7EXAMPLE");
+    expect(warnings[0]?.event).toMatchObject({ turn: { id: "turn_3" } });
   });
 
   it("stops claiming further stale turns when shouldContinue flips", async () => {

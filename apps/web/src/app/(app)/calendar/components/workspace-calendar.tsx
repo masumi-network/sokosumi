@@ -29,6 +29,7 @@ import {
   startOfWeek,
 } from "date-fns";
 import {
+  Bot,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -37,7 +38,7 @@ import {
   Ellipsis,
   Plus,
   Repeat,
-  Sparkles,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -83,10 +84,7 @@ import {
   TASK_SCHEDULES_PATH,
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
-import {
-  FilterDropdownMenu,
-  type FilterDropdownMenuSection,
-} from "@/components/common/filter-dropdown-menu";
+import { type FilterDropdownMenuSection } from "@/components/common/filter-dropdown-menu";
 import {
   SOCIAL_POST_PROVIDERS,
   socialPlatformFilterSection,
@@ -114,7 +112,10 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
-import { CalendarShowFilter } from "./calendar-show-filter";
+import {
+  type CalendarFilterSurface,
+  CalendarFilters,
+} from "./calendar-filters";
 import {
   type BotRunHandlers,
   type ChangeableBotRun,
@@ -211,6 +212,7 @@ function findCalendarPeople(
 }
 
 interface WorkspaceCalendarProps {
+  searchField?: ReactNode;
   /**
    * A fixed set of features, as when another page embeds the Calendar: the
    * Show filter is left out rather than offered and then ignored.
@@ -1031,6 +1033,25 @@ function CalendarView({
 }
 
 export function WorkspaceCalendar({
+  calendarKey,
+  ...props
+}: WorkspaceCalendarProps & { calendarKey?: string }) {
+  // Choosing features reloads the data scope. Keep its open controls across that remount.
+  const [surface, setSurface] = useState<CalendarFilterSurface>(null);
+  return (
+    <WorkspaceCalendarView
+      key={calendarKey}
+      {...props}
+      surface={surface}
+      setSurface={setSurface}
+    />
+  );
+}
+
+function WorkspaceCalendarView({
+  surface,
+  setSurface,
+  searchField,
   activeOrganizationId = null,
   currentUserId = null,
   initialDate,
@@ -1045,7 +1066,10 @@ export function WorkspaceCalendar({
   workspaceId = null,
   types,
   newsletterEnabled = false,
-}: WorkspaceCalendarProps) {
+}: WorkspaceCalendarProps & {
+  surface: CalendarFilterSurface;
+  setSurface: (next: CalendarFilterSurface) => void;
+}) {
   const t = useTranslations("App.Calendar");
   const locale = useLocale();
   const tFilters = useTranslations("App.Tasks.Filters");
@@ -1487,7 +1511,7 @@ export function WorkspaceCalendar({
       {
         id: "coworker",
         label: tFilters("coworkerLabel"),
-        icon: Sparkles,
+        icon: Bot,
         value: state.assigneeId,
         allLabel: tFilters("all"),
         options: coworkers
@@ -1507,7 +1531,7 @@ export function WorkspaceCalendar({
       {
         id: "human",
         label: tFilters("humanLabel"),
-        icon: Sparkles,
+        icon: User,
         value: state.assigneeUserId,
         allLabel: tFilters("all"),
         options: coworkers
@@ -1630,7 +1654,7 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center gap-x-4 gap-y-3">
         {view === "month" || view === "week" ? (
           <div
             className={cn(
@@ -1697,44 +1721,47 @@ export function WorkspaceCalendar({
           className={cn(
             "ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between",
             socialOnly && "max-md:order-1 max-md:w-full max-md:justify-between",
+            searchField && "max-sm:justify-end",
           )}
         >
-          <ToggleGroup
-            type="single"
-            aria-label={t("view.label")}
-            value={view}
-            onValueChange={(value) => {
-              const nextView = views.find((candidate) => candidate === value);
-              if (nextView) {
-                handleViewChange(nextView);
-              }
-            }}
-            className={cn(
-              "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
-              socialOnly && "min-h-11 md:min-h-8",
-            )}
-            data-testid="calendar-views"
+          <div
+            className={
+              searchField
+                ? "flex w-full min-w-0 max-w-full flex-wrap items-center justify-end gap-2 @2xl/page-toolbar:w-auto"
+                : "contents"
+            }
           >
-            {views.map((calendarView) => (
-              <ToggleGroupItem
-                className={cn(
-                  "max-sm:px-1.5 max-sm:text-xs",
-                  socialOnly && "min-h-11 shrink-0 md:min-h-8",
-                )}
-                key={calendarView}
-                value={calendarView}
-              >
-                {t(`view.${calendarView}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          {types ? null : (
-            <CalendarShowFilter
-              available={availableTypes}
-              selected={shownTypes}
-              onChange={handleTypesChange}
-            />
-          )}
+            {searchField}
+            <ToggleGroup
+              type="single"
+              aria-label={t("view.label")}
+              value={view}
+              onValueChange={(value) => {
+                const nextView = views.find((candidate) => candidate === value);
+                if (nextView) {
+                  handleViewChange(nextView);
+                }
+              }}
+              className={cn(
+                "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                socialOnly && "min-h-11 md:min-h-8",
+              )}
+              data-testid="calendar-views"
+            >
+              {views.map((calendarView) => (
+                <ToggleGroupItem
+                  className={cn(
+                    "max-sm:px-1.5 max-sm:text-xs",
+                    socialOnly && "min-h-11 shrink-0 md:min-h-8",
+                  )}
+                  key={calendarView}
+                  value={calendarView}
+                >
+                  {t(`view.${calendarView}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
           {lockedProjectId && !socialOnly ? (
             <Button asChild size="sm" variant="outline">
               <Link
@@ -1746,17 +1773,15 @@ export function WorkspaceCalendar({
             </Button>
           ) : null}
           <div>
-            <FilterDropdownMenu
-              buttonLabel={tFilters("title")}
-              emptyResultsLabel={tFilters("emptyResults")}
-              searchPlaceholder={tFilters("searchPlaceholder")}
+            <CalendarFilters
+              available={availableTypes}
+              selected={shownTypes}
+              onChange={types ? undefined : handleTypesChange}
               sections={filterSections}
-              triggerClassName={
-                socialOnly
-                  ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
-                  : undefined
-              }
-              showActiveIndicator={filtersActive}
+              filtersActive={filtersActive}
+              socialOnly={socialOnly}
+              surface={surface}
+              setSurface={setSurface}
             />
           </div>
           {canCreate ? (

@@ -61,6 +61,7 @@ const {
   coworkerFindManyMock,
   userFindManyMock,
   integrationListMock,
+  mcpServerListMock,
   transactionBotFindUniqueOrThrowMock,
   transactionBotFindUniqueMock,
   transactionBotUpdateMock,
@@ -87,7 +88,9 @@ const {
   transactionWorkspaceFindFirstMock,
   transactionMock,
   turnFindUniqueMock,
+  scheduleRunOriginMock,
   transactionChatMessageCreateMock,
+  transactionChatMessageFindFirstMock,
   transactionChatMentionCreateManyMock,
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
@@ -161,6 +164,12 @@ const {
     credits: vi.fn(),
     readBytes: vi.fn(),
     assetFindFirst: vi.fn(),
+    jobFindUnique: vi.fn(),
+    referenceFindUnique: vi.fn(),
+    toolCallFindFirst: vi.fn(),
+    libraryAvailable: vi.fn(() => false),
+    findCuso: vi.fn(),
+    finishChatPicture: vi.fn(),
   },
   files: {
     taskFileUpsert: vi.fn(),
@@ -194,6 +203,7 @@ const {
   coworkerFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   integrationListMock: vi.fn(),
+  mcpServerListMock: vi.fn(async () => [] as unknown[]),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
   transactionBotFindUniqueMock: vi.fn(),
   transactionBotUpdateMock: vi.fn(),
@@ -220,7 +230,9 @@ const {
   transactionWorkspaceFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
+  scheduleRunOriginMock: vi.fn(),
   transactionChatMessageCreateMock: vi.fn(),
+  transactionChatMessageFindFirstMock: vi.fn(),
   transactionChatMentionCreateManyMock: vi.fn(),
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
@@ -249,6 +261,21 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+// The repeats check embeds titles through the AI Gateway: a vector per text
+// keeps it offline, the same text the same vector.
+vi.mock("@/lib/embeddings", () => ({
+  EMBEDDING_MODEL: "test-embedding",
+  embedTexts: async (values: readonly string[]) => ({
+    embeddings: values.map((value) => {
+      const vector = Array.from({ length: 256 }, () => 0);
+      let hash = 0;
+      for (const char of value) hash = (hash * 31 + char.charCodeAt(0)) % 256;
+      vector[hash] = 1;
+      return vector;
+    }),
+    costUsd: 0,
+  }),
+}));
 vi.mock("@/lib/soko-bot/seo-tools", () => ({ runSeoTool: seoReadMock }));
 vi.mock("@/lib/soko-bot/voiceover", () => ({
   speakVoiceover: speakMock,
@@ -271,6 +298,10 @@ vi.mock("@/helpers/data-table", () => ({
 }));
 
 const social = vi.hoisted(() => ({
+  ownMessage: vi.fn(async () => ({
+    problem: null as string | null,
+    costUsd: 0,
+  })),
   listAccounts: vi.fn(),
   project: vi.fn(),
   listStatistics: vi.fn(),
@@ -288,6 +319,24 @@ const social = vi.hoisted(() => ({
   seat: vi.fn(),
   owner: vi.fn(),
   postingInstructions: vi.fn(),
+}));
+/** What moveTask reads and writes beyond the shared transaction mock. */
+const subtaskMove = vi.hoisted(() => ({
+  executeRaw: vi.fn(),
+  taskFindUnique: vi.fn(),
+  taskFindMany: vi.fn(),
+  deliverCalendarInvalidations: vi.fn(),
+}));
+/** An event wake's inbox and the action claims its turn takes. */
+const eventClaims = vi.hoisted(() => ({
+  inbox: vi.fn(),
+  findUnique: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+}));
+vi.mock("@/helpers/calendar-invalidation", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  deliverCalendarInvalidationsNow: subtaskMove.deliverCalendarInvalidations,
 }));
 const ads = vi.hoisted(() => ({
   accounts: vi.fn(),
@@ -338,6 +387,7 @@ vi.mock("@/services/social-posts.service", () => ({
   scheduleSocialPost: social.schedule,
   cancelSocialPost: social.cancel,
   requireMonthPostPicture: vi.fn(),
+  ownMessageProblem: social.ownMessage,
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
@@ -380,6 +430,36 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   getJob: images.getJob,
   readAssetBytes: images.readBytes,
 }));
+vi.mock("@/services/reference-library.service", () => ({
+  referenceLibraryAvailable: images.libraryAvailable,
+}));
+vi.mock("@/services/cmo-media-maker.service", () => ({
+  MAX_STYLE_BRAND_PICTURES: 2,
+  REFERENCE_STYLE_MODELS: [
+    "gpt-image-2-6",
+    "nano-banana-2-1",
+    "seedream-5-pro",
+  ],
+  cmoStylePrompt: (input: {
+    piece: { visual: string; headline?: string };
+    brandPictures?: number;
+  }) =>
+    `styled: ${input.piece.visual} / ${input.piece.headline ?? "no words"}${input.brandPictures ? ` / ${input.brandPictures} brand` : ""}`,
+  loadStyleBrand: async () => ({ colours: [], logo: null }),
+  finishCmoChatPicture: images.finishChatPicture,
+}));
+vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/services/cmo-cuso.service")>();
+  return {
+    ...original,
+    // The real lookup unless a test names the Cuso it wants.
+    findCusoForBot: (sokoBotId: string) =>
+      images.findCuso.getMockImplementation()
+        ? images.findCuso(sokoBotId)
+        : original.findCusoForBot(sokoBotId),
+  };
+});
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: images.create,
   createVideoJob: images.createVideo,
@@ -422,6 +502,10 @@ const { taskChargeEventsMock } = vi.hoisted(() => ({
   taskChargeEventsMock: vi.fn().mockResolvedValue([]),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     taskEvent: { findMany: taskChargeEventsMock },
@@ -474,16 +558,20 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: decisionUpdateManyMock,
       findUniqueOrThrow: vi.fn(async () => ({ status: "REJECTED" })),
     },
+    sokoBotScheduleRun: { findFirst: scheduleRunOriginMock },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
       update: turnUpdateMock,
       updateMany: turnUpdateManyMock,
     },
     sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
+    projectImageJob: { findUnique: images.jobFindUnique },
+    referenceImage: { findUnique: images.referenceFindUnique },
     sokoBotToolCall: {
       count: toolCallCountMock,
       create: toolCallCreateMock,
       upsert: toolCallCreateMock,
+      findFirst: images.toolCallFindFirst,
       findUnique: toolCallFindUniqueMock,
       update: toolCallUpdateMock,
       updateMany: toolCallUpdateManyMock,
@@ -517,12 +605,23 @@ vi.mock("@/lib/soko-bot/jev-tool", () => ({
 vi.mock("@/services/soko-bot-integration-list.service", () => ({
   listSokoBotIntegrationsForBot: integrationListMock,
 }));
+vi.mock("@/services/soko-bot-mcp.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/soko-bot-mcp.service")>()),
+  listMcpServersForBot: mcpServerListMock,
+}));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: serializableTransactionMock.mockImplementation(
     async (operation) =>
       operation({
         projectSeoAnalysis: { findUnique: async () => null },
         $queryRaw: transactionTurnLockMock,
+        $executeRaw: subtaskMove.executeRaw,
+        sokoBotEventInbox: { findMany: eventClaims.inbox },
+        sokoBotTaskActionClaim: {
+          findUnique: eventClaims.findUnique,
+          create: eventClaims.create,
+          update: eventClaims.update,
+        },
         sokoBot: {
           findFirst: transactionBotFindFirstMock,
           findUnique: transactionBotFindUniqueMock,
@@ -561,6 +660,8 @@ vi.mock("@/lib/db/transaction", () => ({
           count: transactionTaskCountMock,
           create: transactionTaskCreateMock,
           findFirst: transactionTaskFindFirstMock,
+          findUnique: subtaskMove.taskFindUnique,
+          findMany: subtaskMove.taskFindMany,
           update: transactionTaskUpdateMock,
         },
         job: { count: transactionJobCountMock },
@@ -579,9 +680,9 @@ vi.mock("@/lib/db/transaction", () => ({
   ),
 }));
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     void promise;
-  },
+  }),
 }));
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatchChatRoomMentionMock,
@@ -685,6 +786,7 @@ import {
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
 import { VoiceoverRefusedError } from "@/lib/soko-bot/voiceover";
+import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
 import {
   isSokoBotDecisionTargetAllowed,
   personAssignee,
@@ -697,6 +799,7 @@ import {
   sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
 import * as scheduleService from "@/services/soko-bot-schedule.service";
+import { expectCoreLog } from "@/test/core-log";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 const SCOPE = {
@@ -1068,6 +1171,69 @@ describe("SokoBotRuntimeService authorization", () => {
       ).rejects.toThrow("Capability is not granted for this turn");
       expect(transactionTaskCreateMock).not.toHaveBeenCalled();
       expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["SCHEDULE", false],
+    ["ADMIN_RETRY", false],
+    ["SCHEDULE", true],
+    ["ADMIN_RETRY", true],
+  ] as const)(
+    "guards context and reads for %s meeting packets (rebuilt: %s)",
+    async (source, rebuilt) => {
+      scheduleRunOriginMock.mockResolvedValue({
+        scheduledFor: new Date("2026-11-19T13:30:00.000Z"),
+        schedule: { systemKey: "meeting-prep" },
+      });
+      turnFindUniqueMock.mockResolvedValue({
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        requestedByUserId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        source,
+        clientTurnId:
+          "admin-schedule-retry:01960001-0001-7001-8001-000000000045:operation",
+        classifierVersion: "soko-bot-system-route-v1",
+        classification: rebuilt
+          ? {
+              systemKey: "meeting-prep",
+              ...(source === "ADMIN_RETRY"
+                ? { meetingPrepSlot: "2026-11-19T13:30:00.000Z" }
+                : {}),
+            }
+          : {
+              rationaleSummary:
+                source === "SCHEDULE"
+                  ? "Meeting prep: brief the owner, change nothing."
+                  : "Operator retry on the failed turn's route.",
+            },
+        capabilityNames: ["search_inbox"],
+        contextSnapshot: { id: "snapshot", packet: {} },
+        createdAt: new Date(),
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { userId: SCOPE.userId, archivedAt: null, status: "RUNNING" },
+      });
+      const service = new SokoBotRuntimeService();
+      if (rebuilt) {
+        await expect(service.authorize(SCOPE)).resolves.toMatchObject({
+          meetingPrep: true,
+          grant: { capabilities: [] },
+        });
+        await expect(
+          service.authorize({ ...SCOPE, capability: "search_inbox" }),
+        ).rejects.toThrow("Capability is not granted for this turn");
+        return;
+      }
+      await expect(
+        service.authorize({ ...SCOPE, capability: "search_inbox" }),
+      ).rejects.toThrow("rebuild meeting evidence");
+      await expect(service.authorize(SCOPE)).rejects.toThrow(
+        "rebuild meeting evidence",
+      );
     },
   );
 
@@ -1721,6 +1887,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     });
 
     const service = new SokoBotRuntimeService();
@@ -1754,6 +1921,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     });
     const read = await service["readTask"](
       {
@@ -1802,6 +1970,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     });
     const teammateRead = await service["readTask"](
       {
@@ -1838,6 +2007,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     });
     const sharedRead = await service["readTask"](
       {
@@ -1856,6 +2026,38 @@ describe("SokoBotRuntimeService authorization", () => {
         data: expect.objectContaining({ status: "COMPLETED" }),
       }),
     );
+  });
+
+  it("counts every sub-task the turn can read, also past the ones it lists", async () => {
+    const subtasks = Array.from({ length: 25 }, (_, index) => ({
+      id: `step_${index}`,
+      name: `Step ${index}`,
+      status: "DRAFT",
+    }));
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      parentTaskId: null,
+      events: [],
+      files: [],
+      subtasks,
+      linksFrom: [],
+      linksTo: [],
+      _count: { subtasks: 40 },
+    });
+    const read = await new SokoBotRuntimeService()["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+      } as never,
+      "task_1",
+    );
+    expect(read).toMatchObject({ subtasks, subtaskCount: 40 });
+    // The count reads with the same filter as the listed sub-tasks.
+    const select = taskFindFirstMock.mock.calls.at(-1)?.[0]?.select;
+    expect(select._count.select.subtasks.where).toEqual(select.subtasks.where);
   });
 
   it("opens archive history only on work the person it acts for owns", async () => {
@@ -2028,6 +2230,7 @@ describe("SokoBotRuntimeService authorization", () => {
                   { type: "RELATED", note: null, toTask: secretPeer },
                 ],
             linksTo: [],
+            _count: { subtasks: 0 },
           };
         },
       );
@@ -2117,12 +2320,14 @@ describe("SokoBotRuntimeService authorization", () => {
         name: "Launch announcement copy",
         status: "DRAFT",
         updatedAt,
+        dueOn: new Date("2026-11-20T00:00:00.000Z"),
+        number: 7,
         ownerId: "user_2",
         owner: { name: "Patrick" },
         assignee: null,
         assigneeUser: null,
         assigneeSokoBot: null,
-        project: null,
+        project: { id: "proj-1", name: "Launch", identifier: "LCH" },
         events: [],
       },
     ]);
@@ -2144,11 +2349,13 @@ describe("SokoBotRuntimeService authorization", () => {
       tasks: [
         {
           id: "task-1",
+          identifier: "LCH-7",
           name: "Launch announcement copy",
           status: "DRAFT",
+          dueOn: "2026-11-20",
           owner: "Patrick, a teammate (not your owner)",
           assignee: null,
-          project: null,
+          project: { id: "proj-1", name: "Launch" },
           idleDays: 5,
           updatedAt: updatedAt.toISOString(),
           creditsCharged: 421.31,
@@ -2180,6 +2387,74 @@ describe("SokoBotRuntimeService authorization", () => {
       ]),
     );
     expect(taskCountMock).toHaveBeenCalledWith({ where });
+  });
+
+  it("lists one Task's sub-tasks in checklist order and marks them (SOKD-279)", async () => {
+    const parentTaskId = "01960001-0001-7001-8001-0000000000aa";
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "What are the steps of the offsite Task?",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_tasks"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    // No state: a checklist shows its done steps too.
+    const input = { parentTaskId };
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000011",
+      status: "PENDING",
+      capability: "list_tasks",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify(input))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "task-step",
+        name: "Book the venue",
+        status: "DRAFT",
+        updatedAt: new Date(),
+        dueOn: null,
+        number: null,
+        parentTaskId,
+        ownerId: SCOPE.userId,
+        owner: { name: "Owner" },
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+        project: null,
+        events: [],
+      },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_tasks",
+      toolCallId: "call_list_subtasks",
+      input,
+    });
+
+    expect(result).toMatchObject({
+      tasks: [{ id: "task-step", parentTaskId }],
+    });
+    const { where, orderBy } = taskFindManyMock.mock.calls[0][0];
+    expect(where.AND).toContainEqual({ parentTaskId });
+    expect(JSON.stringify(where)).not.toContain("notIn");
+    expect(orderBy).toEqual([{ position: "asc" }, { id: "asc" }]);
   });
 
   it("filters by exact status and counts every match by status", async () => {
@@ -2629,6 +2904,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     };
     taskFindFirstMock.mockResolvedValue(rawResult);
 
@@ -2948,8 +3224,10 @@ describe("SokoBotRuntimeService authorization", () => {
       capability: string,
       sokoBot: object,
       requestedByUserId: string | null = SCOPE.userId,
+      source?: "EVENT",
     ) => {
       turnFindUniqueMock.mockResolvedValue({
+        ...(source ? { source } : {}),
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
         requestedByUserId,
@@ -3096,6 +3374,535 @@ describe("SokoBotRuntimeService authorization", () => {
       expect(transactionTaskCreateMock).not.toHaveBeenCalled();
     });
 
+    describe("a sub-task", () => {
+      const PARENT_ID = "01960001-0001-7001-8001-0000000000b1";
+      const createSubtask = (input: object) =>
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "create_task",
+          toolCallId: "call_create_subtask",
+          input: { name: "Step", status: "DRAFT", ...input },
+        });
+
+      it("refuses a parent its turn cannot read, as if missing", async () => {
+        // A personal bot's writes are unscoped; its reader still applies.
+        sharedTurn("create_task", {
+          ...PROJECT_BOT,
+          userId: SCOPE.userId,
+          projectId: null,
+        });
+        transactionTaskCountMock.mockResolvedValue(0);
+        await expect(
+          createSubtask({ parentTaskId: PARENT_ID }),
+        ).rejects.toThrow("Parent Task not found");
+        expect(transactionTaskCountMock).toHaveBeenCalledWith({
+          where: expect.objectContaining({ id: PARENT_ID, archivedAt: null }),
+        });
+        expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("refuses a place in the checklist without a parent", async () => {
+        sharedTurn("create_task", PROJECT_BOT);
+        await expect(
+          createSubtask({ afterTaskId: PARENT_ID, projectId: PROJECT_ID }),
+        ).rejects.toThrow("afterTaskId needs parentTaskId");
+      });
+
+      describe("set_task_parent", () => {
+        const TASK_ID = "01960001-0001-7001-8001-0000000000b2";
+        const SIBLING_ID = "01960001-0001-7001-8001-0000000000b3";
+        const OTHER_PARENT_ID = "01960001-0001-7001-8001-0000000000b4";
+        /** The Task event the wake reports. */
+        const WAKE_EVENT_ID = "01960001-0001-7001-8001-0000000000e1";
+        const PERSONAL_BOT = {
+          ...PROJECT_BOT,
+          userId: SCOPE.userId,
+          projectId: null,
+        };
+        const row = (
+          id: string,
+          parentTaskId: string | null,
+          projectId: string = PROJECT_ID,
+        ) => ({
+          id,
+          name: id === TASK_ID ? "Book the venue" : "Plan the offsite",
+          ownerId: SCOPE.userId,
+          workspaceId: SCOPE.workspaceId,
+          projectId,
+          visibility: "PUBLIC",
+          status: TaskStatus.DRAFT,
+          parentTaskId,
+          position: parentTaskId ? 1 : null,
+          updatedAt: new Date(0),
+          // What an event wake's claim reads: no assignee, the woken event last.
+          assigneeSokoBotId: null,
+          events: [{ id: WAKE_EVENT_ID, sokoBotId: null }],
+        });
+        /**
+         * The stored tree: each Task id and its parent. The turn cannot read
+         * `hidden` Tasks; `projects` puts a Task in another Project.
+         */
+        const tree = (
+          parents: Record<string, string | null>,
+          {
+            hidden = [],
+            projects = {},
+          }: { hidden?: string[]; projects?: Record<string, string> } = {},
+        ) => {
+          const read = (id: string) =>
+            id in parents ? row(id, parents[id] ?? null, projects[id]) : null;
+          transactionTaskCountMock.mockResolvedValue(
+            Object.keys(parents).length,
+          );
+          transactionTaskFindFirstMock.mockImplementation(
+            async (args: { where: { id?: string } }) =>
+              args.where.id ? read(args.where.id) : null,
+          );
+          subtaskMove.taskFindUnique.mockImplementation(
+            async (args: { where: { id: string } }) => read(args.where.id),
+          );
+          // The reader check lists the named Tasks; moveTask's own lists
+          // (sub-tasks, siblings) are empty.
+          subtaskMove.taskFindMany.mockImplementation(
+            async (args: { where: { id?: { in?: string[] } } }) =>
+              (args.where.id?.in ?? [])
+                .filter((id) => !hidden.includes(id))
+                .flatMap((id) => read(id) ?? []),
+          );
+          // resolveTaskIds finds each id as given.
+          taskFindFirstMock.mockResolvedValue({ id: TASK_ID });
+          // Every row lock finds each row it asks for.
+          transactionTurnLockMock.mockImplementation(
+            async (_query: unknown, ids: unknown) =>
+              Array.isArray(ids)
+                ? ids.map((id) => ({ id }))
+                : [{ id: "locked" }],
+          );
+          transactionTaskUpdateMock.mockImplementation(
+            async (args: { where: { id: string }; data: object }) => ({
+              ...row(args.where.id, null),
+              ...args.data,
+            }),
+          );
+        };
+        /**
+         * An event wake about TASK_ID, with its action claims kept in a map
+         * as the claim table keeps them: one per Task, event and action kind.
+         */
+        const wake = () => {
+          type Key = {
+            taskId: string;
+            triggeringEventId: string;
+            actionKind: string;
+          };
+          const keyOf = (key: Key) =>
+            `${key.taskId}|${key.triggeringEventId}|${key.actionKind}`;
+          const claims = new Map<
+            string,
+            {
+              id: string;
+              turnId: string;
+              handlerBotId: string;
+              receiptId: string | null;
+            }
+          >();
+          eventClaims.inbox.mockResolvedValue([
+            {
+              eventId: WAKE_EVENT_ID,
+              entityId: TASK_ID,
+              designatedHandlerBotId: SCOPE.sokoBotId,
+            },
+          ]);
+          eventClaims.findUnique.mockImplementation(
+            async (args: {
+              where: { taskId_triggeringEventId_actionKind: Key };
+            }) =>
+              claims.get(
+                keyOf(args.where.taskId_triggeringEventId_actionKind),
+              ) ?? null,
+          );
+          eventClaims.create.mockImplementation(
+            async (args: {
+              data: Key & { handlerBotId: string; turnId: string };
+            }) => {
+              const claim = {
+                id: `claim_${claims.size + 1}`,
+                turnId: args.data.turnId,
+                handlerBotId: args.data.handlerBotId,
+                receiptId: null,
+              };
+              claims.set(keyOf(args.data), claim);
+              return { id: claim.id };
+            },
+          );
+          eventClaims.update.mockImplementation(
+            async (args: {
+              where: { id: string };
+              data: { receiptId: string };
+            }) => {
+              for (const claim of claims.values())
+                if (claim.id === args.where.id)
+                  claim.receiptId = args.data.receiptId;
+              return {};
+            },
+          );
+          // Each receipt has an id, so a claim records that it acted.
+          transactionToolCallUpdateMock.mockImplementation(
+            async (args: {
+              where: { turnId_toolCallId: { toolCallId: string } };
+            }) => ({
+              id: `receipt_${args.where.turnId_toolCallId.toolCallId}`,
+            }),
+          );
+          /** What reply_to_task with a status claims on this wake. */
+          const claimStatusReply = () =>
+            claimTaskEventAction(
+              {
+                sokoBotEventInbox: { findMany: eventClaims.inbox },
+                task: { findFirst: transactionTaskFindFirstMock },
+                sokoBotTaskActionClaim: {
+                  findUnique: eventClaims.findUnique,
+                  create: eventClaims.create,
+                },
+              } as never,
+              {
+                turnId: SCOPE.turnId,
+                sokoBotId: SCOPE.sokoBotId,
+                workspaceId: SCOPE.workspaceId,
+                source: "EVENT",
+              },
+              TASK_ID,
+              "TASK_STATE",
+            );
+          return { claims, keyOf, claimStatusReply };
+        };
+        const setParent = (input: object, toolCallId = "call_set_parent") =>
+          new SokoBotRuntimeService().executeTool({
+            ...SCOPE,
+            capability: "set_task_parent",
+            toolCallId,
+            input: { taskId: TASK_ID, ...input },
+          });
+        const receiptDisposition = () =>
+          transactionToolCallUpdateMock.mock.calls.at(-1)?.[0]?.data
+            ?.disposition;
+
+        afterEach(() => {
+          // clearAllMocks keeps implementations; later tests expect none.
+          for (const mock of [
+            transactionTaskFindFirstMock,
+            transactionTurnLockMock,
+            subtaskMove.taskFindUnique,
+            subtaskMove.taskFindMany,
+            taskFindFirstMock,
+            eventClaims.inbox,
+            eventClaims.findUnique,
+            eventClaims.create,
+            eventClaims.update,
+            transactionToolCallUpdateMock,
+          ])
+            mock.mockReset();
+        });
+
+        it("puts an existing Task under a parent, last in its checklist", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: null, [PARENT_ID]: null });
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({
+            id: TASK_ID,
+            parentTaskId: PARENT_ID,
+            projectChanged: false,
+          });
+          expect(transactionTaskUpdateMock).toHaveBeenCalledWith({
+            where: { id: TASK_ID },
+            data: { parentTaskId: PARENT_ID, position: 1 },
+          });
+          expect(receiptDisposition()).toBe("APPLIED");
+          // The Project did not change, so no calendar entry moved.
+          expect(
+            subtaskMove.deliverCalendarInvalidations,
+          ).not.toHaveBeenCalled();
+        });
+
+        it("delivers calendar invalidations when the parent's Project moves the Task", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree(
+            { [TASK_ID]: null, [PARENT_ID]: null },
+            { projects: { [PARENT_ID]: OTHER_PROJECT } },
+          );
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({
+            parentTaskId: PARENT_ID,
+            projectId: OTHER_PROJECT,
+            projectChanged: true,
+          });
+          expect(subtaskMove.deliverCalendarInvalidations).toHaveBeenCalledWith(
+            SCOPE.workspaceId,
+          );
+        });
+
+        it("detaches a sub-task into a Task of its own", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: PARENT_ID });
+          await expect(
+            setParent({ parentTaskId: null }),
+          ).resolves.toMatchObject({ id: TASK_ID, parentTaskId: null });
+          expect(transactionTaskUpdateMock).toHaveBeenCalledWith({
+            where: { id: TASK_ID },
+            data: { parentTaskId: null, position: null },
+          });
+        });
+
+        it("records a detach of a Task without a parent as already satisfied", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: null });
+          await expect(
+            setParent({ parentTaskId: null }),
+          ).resolves.toMatchObject({ id: TASK_ID, parentTaskId: null });
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+          expect(receiptDisposition()).toBe("ALREADY_SATISFIED");
+        });
+
+        it("records its own parent again as already satisfied, unless it names a place", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: PARENT_ID, [PARENT_ID]: null });
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({ id: TASK_ID, parentTaskId: PARENT_ID });
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+          expect(receiptDisposition()).toBe("ALREADY_SATISFIED");
+
+          // A place in the checklist is a reorder, so it moves the Task.
+          tree({
+            [TASK_ID]: PARENT_ID,
+            [PARENT_ID]: null,
+            [SIBLING_ID]: PARENT_ID,
+          });
+          await setParent(
+            { parentTaskId: PARENT_ID, afterTaskId: SIBLING_ID },
+            "call_set_parent_after",
+          );
+          expect(transactionTaskUpdateMock).toHaveBeenCalledWith({
+            where: { id: TASK_ID },
+            data: { position: expect.any(Number) },
+          });
+          expect(receiptDisposition()).toBe("APPLIED");
+        });
+
+        it("refuses to put a Task under one of its own sub-tasks", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: null, [PARENT_ID]: TASK_ID });
+          await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
+            "A Task cannot go under one of its own sub-tasks",
+          );
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("refuses a parent its turn cannot read, as if missing", async () => {
+          // A personal bot's writes are unscoped; its reader still applies.
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: null, [PARENT_ID]: null }, { hidden: [PARENT_ID] });
+          await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
+            "Task not found",
+          );
+          expect(subtaskMove.taskFindMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+              where: expect.objectContaining({
+                id: { in: [TASK_ID, PARENT_ID] },
+                archivedAt: null,
+              }),
+            }),
+          );
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("refuses an afterTaskId its turn cannot read, as if missing", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree(
+            { [TASK_ID]: null, [PARENT_ID]: null, [SIBLING_ID]: PARENT_ID },
+            { hidden: [SIBLING_ID] },
+          );
+          await expect(
+            setParent({ parentTaskId: PARENT_ID, afterTaskId: SIBLING_ID }),
+          ).rejects.toThrow("Task not found");
+          expect(subtaskMove.taskFindMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+              where: expect.objectContaining({
+                id: { in: [TASK_ID, PARENT_ID, SIBLING_ID] },
+              }),
+            }),
+          );
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("checks the afterTaskId with the reader, not a shared bot's write scope", async () => {
+          sharedTurn("set_task_parent", PROJECT_BOT);
+          tree({ [TASK_ID]: null, [PARENT_ID]: null, [SIBLING_ID]: PARENT_ID });
+          // Only the moved Task and its parent are written.
+          transactionTaskCountMock.mockResolvedValue(2);
+          await expect(
+            setParent({ parentTaskId: PARENT_ID, afterTaskId: SIBLING_ID }),
+          ).resolves.toMatchObject({ parentTaskId: PARENT_ID });
+          expect(transactionTaskCountMock).toHaveBeenCalledWith({
+            where: {
+              AND: [{ id: { in: [TASK_ID, PARENT_ID] } }, expect.anything()],
+            },
+          });
+          expect(subtaskMove.taskFindMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+              where: expect.objectContaining({
+                id: { in: [TASK_ID, PARENT_ID, SIBLING_ID] },
+              }),
+            }),
+          );
+        });
+
+        it("on an event wake, does not collide with a status reply on the same Task", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
+          tree({ [TASK_ID]: null, [PARENT_ID]: null });
+          const { claims, keyOf, claimStatusReply } = wake();
+          // reply_to_task with a status already acted on this wake.
+          claims.set(
+            keyOf({
+              taskId: TASK_ID,
+              triggeringEventId: WAKE_EVENT_ID,
+              actionKind: "TASK_STATE",
+            }),
+            {
+              id: "claim_reply",
+              turnId: SCOPE.turnId,
+              handlerBotId: SCOPE.sokoBotId,
+              receiptId: "receipt_reply",
+            },
+          );
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({ parentTaskId: PARENT_ID });
+          expect(transactionTaskUpdateMock).toHaveBeenCalledTimes(1);
+
+          // And the reverse: after the parent change, a status reply may act.
+          claims.clear();
+          await setParent({ parentTaskId: PARENT_ID }, "call_set_parent_2");
+          await expect(claimStatusReply()).resolves.toMatchObject({
+            allowed: true,
+          });
+        });
+
+        it("on an event wake, claims TASK_STATE when the parent's Project moves the Task", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
+          tree(
+            { [TASK_ID]: null, [PARENT_ID]: null },
+            { projects: { [PARENT_ID]: OTHER_PROJECT } },
+          );
+          const { claims, keyOf } = wake();
+          // update_task already changed the Project on this wake.
+          claims.set(
+            keyOf({
+              taskId: TASK_ID,
+              triggeringEventId: WAKE_EVENT_ID,
+              actionKind: "TASK_STATE",
+            }),
+            {
+              id: "claim_update",
+              turnId: SCOPE.turnId,
+              handlerBotId: SCOPE.sokoBotId,
+              receiptId: "receipt_update",
+            },
+          );
+          await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
+            "Someone else answered or changed this Task",
+          );
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+
+          // And the reverse: the Project change takes TASK_STATE, not TASK_PARENT.
+          claims.clear();
+          await setParent({ parentTaskId: PARENT_ID }, "call_set_parent_2");
+          expect([...claims.keys()]).toEqual([
+            keyOf({
+              taskId: TASK_ID,
+              triggeringEventId: WAKE_EVENT_ID,
+              actionKind: "TASK_STATE",
+            }),
+          ]);
+        });
+
+        it("on an event wake, claims TASK_PARENT when the parent stays the same, even if the stored Projects differ", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
+          tree(
+            { [TASK_ID]: PARENT_ID, [PARENT_ID]: null },
+            { projects: { [PARENT_ID]: OTHER_PROJECT } },
+          );
+          const { claims, keyOf } = wake();
+          // update_task already changed the Project on this wake.
+          claims.set(
+            keyOf({
+              taskId: TASK_ID,
+              triggeringEventId: WAKE_EVENT_ID,
+              actionKind: "TASK_STATE",
+            }),
+            {
+              id: "claim_update",
+              turnId: SCOPE.turnId,
+              handlerBotId: SCOPE.sokoBotId,
+              receiptId: "receipt_update",
+            },
+          );
+          // The same parent moves nothing, so it is not a Project change.
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({
+            parentTaskId: PARENT_ID,
+            projectChanged: false,
+          });
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("on an event wake, refuses a second parent change of the same Task", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
+          tree({
+            [TASK_ID]: null,
+            [PARENT_ID]: null,
+            [OTHER_PARENT_ID]: null,
+          });
+          wake();
+          await setParent({ parentTaskId: PARENT_ID });
+          // One action of each kind per woken event: the claim has a receipt.
+          await expect(
+            setParent({ parentTaskId: OTHER_PARENT_ID }, "call_set_parent_2"),
+          ).rejects.toThrow("Someone else answered or changed this Task");
+          expect(transactionTaskUpdateMock).toHaveBeenCalledTimes(1);
+        });
+
+        it("refuses a shared bot's turn for nobody, before it reads anything", async () => {
+          sharedTurn("set_task_parent", PROJECT_BOT, null);
+          taskFindFirstMock.mockResolvedValue({ id: TASK_ID });
+          await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
+            "needs a person on this turn",
+          );
+          expect(subtaskMove.taskFindMany).not.toHaveBeenCalled();
+          expect(transactionTaskCountMock).not.toHaveBeenCalled();
+        });
+      });
+
+      it.each(["parent", "child"])(
+        "refuses a %s link and names set_task_parent",
+        async (relation) => {
+          sharedTurn("link_tasks", PROJECT_BOT);
+          taskFindFirstMock.mockResolvedValue({ id: "task_1" });
+          await expect(
+            new SokoBotRuntimeService().executeTool({
+              ...SCOPE,
+              capability: "link_tasks",
+              toolCallId: `call_link_${relation}`,
+              input: { taskId: "task_1", peerTaskId: PARENT_ID, relation },
+            }),
+          ).rejects.toThrow("Use set_task_parent");
+        },
+      );
+    });
+
     it("refuses to propose a Task in another Project", async () => {
       sharedTurn("create_task", PROJECT_BOT);
       await expect(
@@ -3153,6 +3960,35 @@ describe("SokoBotRuntimeService authorization", () => {
         expect(integrationListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
       },
     );
+
+    it("names the bot's MCP servers among its integrations", async () => {
+      sharedTurn("list_integrations", {
+        ...PROJECT_BOT,
+        userId: SCOPE.userId,
+        projectId: null,
+      });
+      integrationListMock.mockResolvedValue({
+        configured: true,
+        integrations: [{ provider: "gmail", status: "ACTIVE" }],
+      });
+      const tracker = {
+        provider: "mcp",
+        name: "Tracker",
+        status: "ACTIVE",
+        tools: 4,
+        use: 'list_mcp_tools with server "Tracker"',
+      };
+      mcpServerListMock.mockResolvedValueOnce([tracker]);
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "list_integrations",
+          toolCallId: "call_integrations_mcp",
+          input: {},
+        }),
+      ).resolves.toEqual([{ provider: "gmail", status: "ACTIVE" }, tracker]);
+      expect(mcpServerListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
+    });
 
     it("asks Jev for the bot and books the call as turn overhead", async () => {
       sharedTurn("evaluate_with_jev", {
@@ -5141,22 +5977,66 @@ describe("SokoBotRuntimeService table actor", () => {
     ).toMatchObject({ scope: "personal", userId: SCOPE.userId });
   });
 
-  it("acts as the shared bot itself, never as the member", async () => {
-    expect(
-      await tableActorAuth({
-        userId: null,
-        projectId: "project_1",
-        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
-      }),
-    ).toEqual({
-      actor: "sokoBot",
-      scope: "project",
-      sokoBotId: SCOPE.sokoBotId,
+  it("lets a Project's shared bot work in its Project, for the member who asked", async () => {
+    const { resolveTableActor } = await import("@/helpers/data-table");
+    vi.mocked(resolveTableActor).mockReset();
+    botFindUniqueMock.mockResolvedValueOnce({
       userId: null,
-      workspaceId: SCOPE.workspaceId,
-      organizationId: "org_1",
       projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
     });
+    workspaceFindFirstMock.mockResolvedValueOnce({
+      id: SCOPE.workspaceId,
+      organizationId: "org_1",
+    });
+    const service = new SokoBotRuntimeService();
+
+    await expect(
+      service["tableActor"](authorized as never, {}),
+    ).resolves.toEqual({
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+      actorId: SCOPE.sokoBotId,
+      actorKind: "sokoBot",
+      projectScope: "project_1",
+      taskId: undefined,
+      ownerChat: true,
+    });
+    // The member's own membership is what lets the bot in.
+    expect(workspaceFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: SCOPE.workspaceId }),
+      }),
+    );
+    expect(resolveTableActor).not.toHaveBeenCalled();
+  });
+
+  it("refuses a shared bot's table work when the member left, or nobody asked", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({
+      userId: null,
+      projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+    });
+    const service = new SokoBotRuntimeService();
+    workspaceFindFirstMock.mockResolvedValueOnce(null);
+    await expect(
+      service["tableActor"](authorized as never, {}),
+    ).rejects.toThrow("Workspace access is no longer available");
+
+    botFindUniqueMock.mockResolvedValueOnce({
+      userId: null,
+      projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+    });
+    await expect(
+      service["tableActor"](
+        {
+          ...authorized,
+          turn: { ...authorized.turn, actingUserId: null },
+        } as never,
+        {},
+      ),
+    ).rejects.toThrow("nobody asked for this turn");
   });
 
   it("refuses a bot that does not fit the turn", async () => {
@@ -5528,6 +6408,7 @@ describe("post_chat chain depth", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
@@ -5690,6 +6571,30 @@ describe("post_chat chain depth", () => {
     expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
   });
 
+  it("refuses the same text from this bot twice in an hour", async () => {
+    // Two follow-ups of one run both posted the weekly summary to Everyone.
+    const authorized = armPostChat(0);
+    transactionChatMessageFindFirstMock.mockResolvedValueOnce({ id: "msg_0" });
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        toolCallId: "call_2",
+        roomId: "room_1",
+        content: "What changed last week",
+      }),
+    ).rejects.toThrow(/already posted this exact message/i);
+
+    expect(transactionChatMessageFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          content: "What changed last week",
+          deletedAt: null,
+        }),
+      }),
+    );
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
   it("tells the reader how far the chain has run", async () => {
     const authorized = armPostChat(1);
     chatMessageCountMock.mockResolvedValue(3);
@@ -5776,7 +6681,17 @@ describe("post_chat chain depth", () => {
       roomId: "room_1",
       content: "@jarvis can you check the upload?",
     });
-    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledTimes(1);
+
+    // So is the link Core posts for a table the turn created: refusing it
+    // failed create_table on every chat turn.
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_3:table-link:chat",
+      roomId: "room_1",
+      content: "[Content tracker](/drive/tables/t-1)",
+      publicationId: "11111111-1111-5111-8111-111111111111",
+    });
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledTimes(2);
 
     // So is a post into another room.
     transactionChatMessageCreateMock.mockClear();
@@ -5872,6 +6787,7 @@ describe("open_direct_chat", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
@@ -6307,6 +7223,7 @@ describe("ask_coworker", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
@@ -6349,9 +7266,10 @@ describe("ask_coworker", () => {
       expect.any(Object),
       {
         organizationId: "org_1",
-        ownerUserId: SCOPE.userId,
+        memberUserId: SCOPE.userId,
         sokoBotId: SCOPE.sokoBotId,
         coworkers: [ELENA],
+        discoverability: "private",
       },
     );
     // The mention is what the Coworker dispatch answers; the outbox turns it
@@ -6409,23 +7327,51 @@ describe("ask_coworker", () => {
     expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
   });
 
-  it("refuses a shared bot, which has no owner to ask with", async () => {
-    arm();
+  describe("on a shared bot", () => {
+    const sharedScope = {
+      sokoBotId: SCOPE.sokoBotId,
+      workspaceId: SCOPE.workspaceId,
+      projectId: "project_1",
+    };
+    const shared = (overrides: object = {}) =>
+      ({
+        ...(arm() as object),
+        askedByKind: "TEAMMATE",
+        reader: { sharedScope },
+        ...overrides,
+      }) as never;
 
-    await expect(
-      ask({
-        turn: SCOPE_TURN,
-        askedByKind: "OWNER",
-        reader: {
-          sharedScope: {
-            sokoBotId: SCOPE.sokoBotId,
-            workspaceId: SCOPE.workspaceId,
-            projectId: null,
-          },
+    it("asks for the member who asked, in a public room", async () => {
+      await expect(ask(shared())).resolves.toMatchObject({
+        roomId: "room_ask",
+        queuedMentions: 1,
+      });
+      expect(createOrGetCoworkerQuestionRoomMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        {
+          organizationId: "org_1",
+          memberUserId: SCOPE.userId,
+          sokoBotId: SCOPE.sokoBotId,
+          coworkers: [ELENA],
+          discoverability: "public",
         },
-      } as never),
-    ).rejects.toThrow(/shared Soko Bot/);
-    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+      );
+    });
+
+    it.each([
+      ["another bot's message", { askedByKind: "ASSISTANT" }],
+      ["its own rhythm", { turn: { ...SCOPE_TURN, source: "SCHEDULE" } }],
+      ["a chained turn", { turn: { ...SCOPE_TURN, chainDepth: 1 } }],
+      [
+        "a turn nobody asked for",
+        { turn: { ...SCOPE_TURN, actingUserId: null } },
+      ],
+    ])("does not ask on %s", async (_label, overrides) => {
+      await expect(ask(shared(overrides))).rejects.toThrow(
+        /member's own request in chat/,
+      );
+      expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+    });
   });
 
   it("stops after three questions in one turn", async () => {
@@ -6914,6 +7860,7 @@ describe("Soko Bot project social tools", () => {
       avatarUrl: null,
       subscriptionType: null,
       status: "active",
+      personalProfile: false,
     },
     creator: { kind: "sokoBot", id: SCOPE.sokoBotId, name: "Lili" },
     scheduledByUserId: null,
@@ -6976,6 +7923,7 @@ describe("Soko Bot project social tools", () => {
         status: "active",
         connectedAt: "2026-09-28T12:00:00Z",
         disconnectedAt: null,
+        personalProfile: false,
       },
     ]);
     social.listStatistics.mockResolvedValue({
@@ -7095,6 +8043,27 @@ describe("Soko Bot project social tools", () => {
     },
   );
 
+  it("refuses a month post that repeats another before the save's transaction", async () => {
+    social.ownMessage.mockResolvedValueOnce({
+      problem: 'Rewrite the post: it says nearly what the post "Fees" says.',
+      costUsd: 0,
+    });
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "repeat",
+        input: { projectId, postId, revision: 1, text: "Fees again" },
+      }),
+    ).rejects.toThrow('it says nearly what the post "Fees" says');
+    expect(social.ownMessage).toHaveBeenCalledWith({
+      postId,
+      workspaceId: SCOPE.workspaceId,
+      text: "Fees again",
+    });
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
   it("reads the Project's posting instructions in the turn's workspace", async () => {
     social.postingInstructions.mockResolvedValue({
       postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
@@ -7138,6 +8107,7 @@ describe("Soko Bot project social tools", () => {
       status: "active",
       connectedAt: "2026-09-28T12:00:00Z",
       disconnectedAt: null,
+      personalProfile: false,
     };
     const premiumId = "01960001-0001-7001-8001-000000000021";
     const basicId = "01960001-0001-7001-8001-000000000022";
@@ -7721,7 +8691,17 @@ describe("Soko Bot project social tools", () => {
       "refuses ad tools on a %s turn",
       async (source) => {
         const turn = await turnFindUniqueMock();
-        turnFindUniqueMock.mockResolvedValue({ ...turn, source });
+        scheduleRunOriginMock.mockResolvedValue({
+          schedule: { systemKey: "standup" },
+        });
+        turnFindUniqueMock.mockResolvedValue({
+          ...turn,
+          source,
+          clientTurnId:
+            source === "ADMIN_RETRY"
+              ? "admin-schedule-retry:01960001-0001-7001-8001-000000000045:operation"
+              : turn.clientTurnId,
+        });
         await expect(
           new SokoBotRuntimeService().executeTool({
             ...SCOPE,
@@ -10389,6 +11369,263 @@ describe("Content Studio image tools", () => {
     );
   });
 
+  describe("a picture Cuso makes in chat", () => {
+    const STYLE = "01a1eac9-fe1d-733e-b03d-56575fab5d96";
+    const cusoChat = {
+      ...ownerChat,
+      turn: {
+        ...ownerChat.turn,
+        sokoBotId: SCOPE.sokoBotId,
+        versionId: "cmo-v1",
+      },
+    };
+    const styledJob = {
+      projectId: "project-1",
+      idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1`,
+      referenceLibraryIds: [STYLE],
+      prompt: "styled: A pour-over on a counter / Fresh every week",
+      error: null,
+    };
+    beforeEach(() => {
+      images.libraryAvailable.mockReturnValue(true);
+      images.referenceFindUnique.mockResolvedValue({ id: STYLE });
+      images.findCuso.mockResolvedValue({
+        sokoBotId: SCOPE.sokoBotId,
+        projectId: "project-1",
+        workspaceId: SCOPE.workspaceId,
+        businessName: "Acme",
+      });
+      images.toolCallFindFirst.mockResolvedValue({
+        input: {
+          projectId: "project-1",
+          prompt: "A pour-over on a counter",
+          maxCredits: 30,
+          aspectRatio: "4:5",
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+        },
+      });
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+    });
+    afterEach(() => {
+      images.libraryAvailable.mockReturnValue(false);
+      images.findCuso.mockReset();
+    });
+
+    it("refuses a plain picture and says how to make it in a library style", async () => {
+      await expect(generate(cusoChat, request, "call-s0")).rejects.toThrow(
+        "Call find_style_references",
+      );
+      expect(images.create).not.toHaveBeenCalled();
+      // A model the owner named, or no library here: the plain picture.
+      await expect(
+        service["checkImageRequest"](
+          cusoChat as never,
+          { ...request, model: "gemini-pro" },
+          "call-s0",
+        ),
+      ).resolves.toMatchObject({ style: null });
+      images.libraryAvailable.mockReturnValue(false);
+      await expect(
+        service["checkImageRequest"](cusoChat as never, request, "call-s0"),
+      ).resolves.toMatchObject({ style: null });
+    });
+
+    it("leaves every other bot's pictures as they were, and refuses it a style", async () => {
+      await expect(
+        service["checkImageRequest"](ownerChat as never, request, "call-s0"),
+      ).resolves.toMatchObject({ style: null });
+      await expect(
+        generate(ownerChat, { ...request, styleReferenceId: STYLE }, "call-s0"),
+      ).rejects.toThrow("only Cuso makes pictures in a library style");
+    });
+
+    it("starts a styled picture on the first style model with the reference", async () => {
+      images.create.mockResolvedValue({ id: "job-s1", status: "QUEUED" });
+      const result = await generate(
+        cusoChat,
+        {
+          ...request,
+          prompt: "A pour-over on a counter",
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+        },
+        "call-s1",
+      );
+      expect(images.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // The model is the catalogue's, stubbed here; the tries below name theirs.
+          prompt: "styled: A pour-over on a counter / Fresh every week",
+          referenceLibraryIds: [STYLE],
+          referenceFileIds: [],
+          idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1`,
+        }),
+      );
+      expect(result).toMatchObject({ jobId: "job-s1", status: "QUEUED" });
+      expect(result).not.toHaveProperty("studioUrl");
+    });
+
+    it("sets the brand's own picture inside the style, and refuses more than two or a model", async () => {
+      const shot = "11111111-1111-4111-8111-111111111111";
+      const file = (id: string) => ({
+        id,
+        displayName: "home.jpg",
+        mimeType: "image/jpeg",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: `drive/${id}.jpg`,
+      });
+      files.loadLive.mockResolvedValueOnce([file(shot)]);
+      images.create.mockResolvedValue({ id: "job-s1", status: "QUEUED" });
+      await generate(
+        cusoChat,
+        {
+          ...request,
+          prompt: "The pricing page on a counter",
+          styleReferenceId: STYLE,
+          referenceFileIds: [shot],
+        },
+        "call-s1",
+      );
+      expect(images.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: "styled: The pricing page on a counter / no words / 1 brand",
+          referenceLibraryIds: [STYLE],
+          referenceFileIds: [shot],
+        }),
+      );
+      const three = [
+        shot,
+        "22222222-2222-4222-8222-222222222222",
+        "33333333-3333-4333-8333-333333333333",
+      ];
+      files.loadLive.mockResolvedValueOnce(three.map(file));
+      await expect(
+        generate(
+          cusoChat,
+          { ...request, styleReferenceId: STYLE, referenceFileIds: three },
+          "call-s2",
+        ),
+      ).rejects.toThrow("at most 2 of the brand's own pictures");
+      await expect(
+        generate(
+          cusoChat,
+          { ...request, styleReferenceId: STYLE, model: "gemini-pro" },
+          "call-s3",
+        ),
+      ).rejects.toThrow("A styled picture takes no model");
+    });
+
+    it("refuses an allowance that would not cover the dearest remake", async () => {
+      // The first try costs 1 credit; a remake on a stronger model 21.
+      images.credits.mockReturnValueOnce(1).mockReturnValue(21);
+      await expect(
+        generate(
+          cusoChat,
+          { ...request, maxCredits: 2, styleReferenceId: STYLE },
+          "call-s1",
+        ),
+      ).rejects.toThrow(
+        "costs 1 credits, and up to 21 when a stronger model has to make it again",
+      );
+      expect(images.create).not.toHaveBeenCalled();
+      images.credits.mockReturnValue(4);
+    });
+
+    it("refuses a reference the library does not hold", async () => {
+      images.referenceFindUnique.mockResolvedValue(null);
+      await expect(
+        generate(cusoChat, { ...request, styleReferenceId: STYLE }, "call-s1"),
+      ).rejects.toThrow("use an id find_style_references returned");
+    });
+
+    it("hands back the checked picture with its logo, without a studio link", async () => {
+      images.getJob.mockResolvedValue({
+        id: "job-s1",
+        status: "SUCCEEDED",
+        assetId: "asset-s1",
+      });
+      images.jobFindUnique.mockResolvedValue(styledJob);
+      images.finishChatPicture.mockResolvedValue({
+        passed: true,
+        file: { id: "file-s1", name: "picture.jpg" },
+      });
+      const result = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s1",
+      });
+      expect(images.finishChatPicture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+          drive: {
+            workspaceId: SCOPE.workspaceId,
+            organizationId: "org-1",
+            userId: SCOPE.userId,
+          },
+        }),
+      );
+      expect(result).toMatchObject({
+        jobId: "job-s1",
+        status: "SUCCEEDED",
+        file: { id: "file-s1" },
+      });
+      expect(result).not.toHaveProperty("studioUrl");
+      expect(images.create).not.toHaveBeenCalled();
+    });
+
+    it("makes a picture the check turned down again on the next model, until the models run out", async () => {
+      images.getJob.mockResolvedValue({
+        id: "job-s1",
+        status: "SUCCEEDED",
+        assetId: "asset-s1",
+      });
+      images.jobFindUnique.mockResolvedValue(styledJob);
+      images.finishChatPicture.mockResolvedValue({
+        passed: false,
+        problems: "extra words beyond the headline",
+      });
+      images.create.mockResolvedValue({ id: "job-s2", status: "QUEUED" });
+      const second = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s1",
+      });
+      expect(images.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: "nano-banana-2-1",
+          prompt: styledJob.prompt,
+          referenceLibraryIds: [STYLE],
+          settings: expect.objectContaining({
+            aspectRatio: "4:5",
+            outputFormat: "jpeg",
+          }),
+          idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1:style:2`,
+        }),
+      );
+      expect(second).toMatchObject({ jobId: "job-s2", replaces: "job-s1" });
+      expect(second).toMatchObject({
+        note: expect.stringContaining("extra words beyond the headline"),
+      });
+
+      images.create.mockClear();
+      images.jobFindUnique.mockResolvedValue({
+        ...styledJob,
+        idempotencyKey: `${styledJob.idempotencyKey}:style:3`,
+      });
+      const last = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s3",
+      });
+      expect(images.create).not.toHaveBeenCalled();
+      expect(last).toMatchObject({
+        status: "FAILED",
+        note: expect.stringContaining("No model made a picture that passed"),
+      });
+    });
+  });
+
   it("reports a finished image, checking access before the provider", async () => {
     images.getJob.mockResolvedValue({
       id: "job-1",
@@ -10473,6 +11710,10 @@ describe("Content Studio image tools", () => {
     });
 
     it("still reports the image when the copy fails", async () => {
+      const warnings = expectCoreLog(
+        "warn",
+        "Could not copy a studio image into Files",
+      );
       files.resourceFindUnique.mockResolvedValue(null);
       images.readBytes.mockRejectedValue(new Error("store down"));
       await expect(
@@ -10481,6 +11722,14 @@ describe("Content Studio image tools", () => {
           jobId: ready.id,
         }),
       ).resolves.toMatchObject({ status: "SUCCEEDED", file: null });
+      expect(warnings[0]).toMatchObject({ why: "The Files copy failed" });
+      expect(warnings[0]?.event).toMatchObject({
+        failure: { errorName: "Error" },
+      });
+      expect(warnings[0]?.event).toMatchObject({
+        operation: "soko_bot_studio_job",
+        imageJob: { id: expect.any(String) },
+      });
     });
   });
 
@@ -11144,6 +12393,7 @@ describe("CMO record saves", () => {
         }),
       },
       chatRoomMessage: {
+        findMany: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(
           async (args: {
             create: { id: string; createdAt: Date; metadata: unknown };
@@ -11162,6 +12412,138 @@ describe("CMO record saves", () => {
     );
     return tx;
   }
+
+  it("refuses a plan that breaks a hard rule as a tool error, saving nothing", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000ab";
+    const plan = {
+      month: "2026-11",
+      summary:
+        "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone.",
+      goals: ["More demo requests"],
+      pillars: ["Product stories"],
+      channels: [{ channel: "linkedin", cadence: "3 a week" }],
+      calendar: [],
+    };
+    const tx = {
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: SCOPE.sokoBotId,
+          createdAt: new Date("2026-10-01T09:00:00Z"),
+          project: {
+            id: PROJECT,
+            workspaceId: SCOPE.workspaceId,
+            websiteUrl: "https://acme.io",
+            workspace: { organizationId: "org-1" },
+            brandBrain: null,
+          },
+        }),
+      },
+      marketingStrategy: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    turnFindUniqueMock.mockResolvedValueOnce({
+      source: "CHAT",
+      clientTurnId: "chat-1",
+    });
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      service["saveCmoRecord"](owner as never, {
+        ...SCOPE,
+        capability: "save_strategy",
+        toolCallId: "strategy",
+        input: { part: "plan", strategy: plan },
+      }),
+    ).rejects.toThrow(/Rule "20-word summary": the summary has 21 words/);
+    expect(tx.marketingStrategy.create).not.toHaveBeenCalled();
+  });
+
+  it("reviews the first four saves that landed, so refusals never use the reviews up", async () => {
+    const service = new SokoBotRuntimeService();
+    const review = (
+      landedBefore: number,
+      calendarSent = false,
+      calendarsBefore = 0,
+    ) => {
+      toolCallCountMock.mockResolvedValueOnce(landedBefore);
+      if (calendarSent)
+        toolCallCountMock.mockResolvedValueOnce(calendarsBefore);
+      return service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "save-9",
+        } as never,
+        {
+          approved: false,
+          projectId: "project-1",
+          executing: false,
+          strategy: {
+            month: "2026-11",
+            summary: "Grow.",
+            goals: ["More demo requests"],
+            mix: [],
+            funnel: [],
+            pillars: [],
+            channels: [],
+            calendar: [],
+            questions: [],
+          } as never,
+          planSent: false,
+          calendarSent,
+        },
+      );
+    };
+
+    await expect(review(3)).resolves.toMatchObject({
+      save: 4,
+      calendar: false,
+    });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+      },
+    });
+    // Past Jev's four, the rule checks still answer a few more saves.
+    await expect(review(4)).resolves.toMatchObject({
+      save: 5,
+      mainOffer: "skipped",
+    });
+    await expect(review(8)).resolves.toBeNull();
+    // A plan saved in parts lands its calendar last: its calendar saves are
+    // reviewed however many plan and patch saves came before them.
+    await expect(review(6, true, 0)).resolves.toMatchObject({
+      save: 7,
+      calendar: true,
+    });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+        result: { path: ["review", "calendar"], equals: true },
+      },
+    });
+    // Calendar saves have their own two reviews: the first calendar and its
+    // fix. Each round resends the whole calendar, so more cost minutes.
+    await expect(review(6, true, 1)).resolves.toMatchObject({ save: 7 });
+    await expect(review(6, true, 2)).resolves.toMatchObject({
+      mainOffer: "skipped",
+    });
+    await expect(review(6, true, 4)).resolves.toBeNull();
+  });
 
   it("posts the report as a card in Cuso's shared room and makes it the Project's latest update", async () => {
     const tx = cmoTx();
@@ -11249,7 +12631,8 @@ describe("CMO record saves", () => {
   it.each([4, 5, 6])(
     "reports duplicate ad titles on unapproved save %i without extending the semantic review budget",
     async (saves) => {
-      toolCallCountMock.mockResolvedValueOnce(saves);
+      // The saves that landed before this one.
+      toolCallCountMock.mockResolvedValueOnce(saves - 1);
       botFindUniqueMock.mockClear().mockResolvedValueOnce(null);
       const strategy = marketingStrategyPlanSchema.parse({
         month: "2026-11",
@@ -11281,6 +12664,7 @@ describe("CMO record saves", () => {
           executing: false,
           strategy,
           planSent: true,
+          calendarSent: false,
         },
       );
       expect(review).toMatchObject({
@@ -11321,6 +12705,7 @@ describe("CMO record saves", () => {
           executing: false,
           strategy,
           planSent: true,
+          calendarSent: false,
         },
       ),
     ).resolves.toBeNull();
@@ -11358,6 +12743,7 @@ describe("CMO record saves", () => {
             brandBrain: null,
           },
         }),
+        findUnique: vi.fn().mockResolvedValue({ versionId: "cmo-v4" }),
       },
       marketingStrategy: {
         // The approved version runs; this turn has written none yet.
@@ -11417,6 +12803,9 @@ describe("CMO record saves", () => {
       sokoBot: {
         findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
       },
+      sokoBotTurn: {
+        findUnique: vi.fn().mockResolvedValue({ createdAt: new Date() }),
+      },
       brandBrain: {
         findUnique: vi.fn().mockResolvedValue(null),
         upsert: vi.fn().mockResolvedValue({
@@ -11458,6 +12847,9 @@ describe("CMO record saves", () => {
       $executeRaw: vi.fn().mockResolvedValue(1),
       sokoBot: {
         findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      sokoBotTurn: {
+        findUnique: vi.fn().mockResolvedValue({ createdAt: new Date() }),
       },
       brandBrain: {
         findUnique: vi.fn().mockResolvedValue({ body: { profile: {} } }),

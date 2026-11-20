@@ -1,7 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { jsonInput } from "@/helpers/prisma-json";
 import { ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -53,6 +53,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     );
     const { id: projectId } = c.req.valid("param");
     const { products, revision } = c.req.valid("json");
+    const storedProducts = jsonInput(products);
     const updated = await serializableTransaction(async (tx) => {
       await requireProjectAccess({ projectId, workspaceId, userId }, tx);
       const project = await tx.project.findUnique({
@@ -93,13 +94,13 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
 
       if (revision === 0) {
         return tx.projectStudioProductCatalog.createMany({
-          data: { projectId, products, revision: 1 },
+          data: { projectId, products: storedProducts, revision: 1 },
           skipDuplicates: true,
         });
       }
       return tx.projectStudioProductCatalog.updateMany({
         where: { projectId, revision },
-        data: { products, revision: { increment: 1 } },
+        data: { products: storedProducts, revision: { increment: 1 } },
       });
     }, CATALOG_CHANGED);
     if (!updated.count) throw conflict(CATALOG_CHANGED);

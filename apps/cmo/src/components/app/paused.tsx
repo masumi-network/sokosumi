@@ -1,8 +1,8 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-
 import { AGENT_NAME } from "../../lib/agent";
+import { LegalNotice } from "../legal-notice";
 import {
   type SkipSubscription,
   SkipSubscriptionButton,
@@ -60,6 +60,7 @@ export function PausedBanner({
           <span className="muted">He starts again once a plan is paid.</span>
           <span className="sp" />
           <TopUpButton startTopUp={subscribe} label="Subscribe" />
+          <LegalNotice />
           {skip ? <SkipSubscriptionButton skip={skip} /> : null}
         </>
       ) : (

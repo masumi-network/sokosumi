@@ -12,7 +12,6 @@ import {
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
 import { CusoAvatar } from "../cuso";
-import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
 import { brandTiles, tileSource } from "./brand-step";
@@ -22,7 +21,9 @@ import {
   SkeletonTile,
   useElapsed,
   workChecklist,
+  workNow,
 } from "./checklist";
+import { CusoScene } from "./cuso-scene";
 import {
   type Answer,
   QuestionCard,
@@ -102,12 +103,16 @@ export function SiteStep({
   const [questions, answer] = useAnswers(brain?.questions ?? [], onAnswer);
   const answered = questions.map((question) => question.answer !== undefined);
   const firstOpen = answered.indexOf(false);
-  // Where the founder is in the questions; "Change answers" starts again.
-  const [at, setAt] = useState<number | null>(null);
+  // The question the founder is on, by id: the list can change while Cuso
+  // still reads, and a place in it would then show a question twice.
+  // "Change answers" starts again.
+  const [at, setAt] = useState<string | null>(null);
+  const atIndex = questions.findIndex((question) => question.id === at);
   // Skipping shows its result at once; the cookie write takes a moment.
   const [skipping, setSkipping] = useState(false);
-  const asking = !skipping && (at !== null || (firstOpen !== -1 && !skipped));
-  const index = at ?? Math.max(firstOpen, 0);
+  const asking =
+    !skipping && (atIndex !== -1 || (firstOpen !== -1 && !skipped));
+  const index = atIndex !== -1 ? atIndex : Math.max(firstOpen, 0);
   const question = questions[index];
 
   const title = failed
@@ -157,15 +162,10 @@ export function SiteStep({
       <div className="ob-lead">
         {failed || asked ? (
           <CusoAvatar pose="needs-you" size={176} />
-        ) : finished ? (
-          <CusoAvatar pose="done" size={176} />
         ) : (
-          <CusoClip
-            className="ob-scene"
-            src="/cuso/reading-scene.jpg"
-            alt={`${AGENT_NAME} reading a site with a magnifier`}
-            width={176}
-            height={176}
+          <CusoScene
+            scene="research"
+            now={running ? workNow(work?.steps ?? [], checklist) : null}
           />
         )}
         <p className="muted">
@@ -211,8 +211,14 @@ export function SiteStep({
           index={index}
           answered={answered}
           onAnswer={async (value, note) => {
-            await answer(question.id, value, note);
-            setAt(index + 1 < questions.length ? index + 1 : null);
+            // The next question shows at once; a failed save comes back to this one.
+            setAt(questions[index + 1]?.id ?? null);
+            try {
+              await answer(question.id, value, note);
+            } catch (error) {
+              setAt(question.id);
+              throw error;
+            }
           }}
           onSkip={() => {
             setSkipping(true);
@@ -236,7 +242,7 @@ export function SiteStep({
             {skipping
               ? "Skipping…"
               : next === "plan"
-                ? "Write my plan"
+                ? "Write my strategy"
                 : "See your brand"}
             {skipping ? null : <ArrowRight size={16} aria-hidden="true" />}
           </button>
@@ -244,7 +250,7 @@ export function SiteStep({
             <button
               type="button"
               className="button button-ghost button-small"
-              onClick={() => setAt(0)}
+              onClick={() => setAt(questions[0]?.id ?? null)}
             >
               Change answers
             </button>

@@ -1,9 +1,9 @@
 "use client";
 
 import { ChevronsUpDown, X } from "lucide-react";
-import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
+import { useChromePathname } from "@/app/chat/components/room-cache-provider";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
@@ -49,7 +49,7 @@ import {
 export function SidebarScopeMobileChip() {
   const prefetch = usePrefetchScopeProjects();
   const t = useTranslations("App.ProjectScope");
-  const pathname = usePathname();
+  const pathname = useChromePathname();
   const open = useScopeSheetOpen();
   const createOpen = useScopeCreateOpen();
   const request = useScopeRequest();

@@ -90,6 +90,12 @@ const MEDIA = {
 };
 
 const ASSET: StudioAsset = {
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
   id: "asset-1",
   projectId: "project-9",
   projectName: "Launch",
@@ -171,7 +177,10 @@ describe("preview an ad", () => {
         preview.getByRole("button", { name: "downloadPlacementPng" }),
       );
       await waitFor(() => expect(click).toHaveBeenCalledOnce());
-      expect(fetch).toHaveBeenCalledWith(branded, expect.any(Object));
+      expect(fetch).toHaveBeenCalledWith(
+        `${branded}&download=true`,
+        expect.any(Object),
+      );
       expect(click.mock.contexts[0]).toHaveAttribute(
         "download",
         "ad-v1-9x16-branded.png",

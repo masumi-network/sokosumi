@@ -1,6 +1,8 @@
 import "server-only";
 
 import type {
+  AddedSokoBotMcpServer,
+  AddSokoBotMcpServerRequest,
   CreateScopedSokoBotRequest,
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
@@ -10,7 +12,6 @@ import type {
   SharedSokoBotSummary,
   SimulateSokoBotTaskEventRequest,
   SokoBot,
-  SokoBotAvatar,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
   SokoBotIntegrationCatalogEntry,
@@ -19,6 +20,8 @@ import type {
   SokoBotLabRun,
   SokoBotLabTaskEvent,
   SokoBotLabVerdict,
+  SokoBotMcpServer,
+  SokoBotSecret,
   SokoBotSkillBrowse,
   SokoBotSkillSearchResult,
   SokoBotState,
@@ -113,35 +116,6 @@ export const sokoBotService = {
   /** Brings an archived shared bot back, into its room. */
   async reactivate(botId: string): Promise<void> {
     await coreClient.reactivateSokoBot(botId);
-  },
-
-  async listAvatars(
-    take: number,
-    excludeIds: string[],
-  ): Promise<SokoBotAvatar[]> {
-    const response = await coreClient.listSokoBotAvatars({
-      take,
-      exclude: excludeIds.length > 0 ? excludeIds.join(",") : undefined,
-    });
-    return response.data;
-  },
-
-  /**
-   * Generates missing avatars before answering, so only the creation picker
-   * calls it: the sidebar must never wait on image generation. It writes rows
-   * and bills the image model, so Core exposes it as a POST.
-   */
-  async topUpAvatars(
-    take: number,
-    excludeIds: string[],
-    fresh = false,
-  ): Promise<SokoBotAvatar[]> {
-    const response = await coreClient.topUpSokoBotAvatars({
-      take,
-      excludeIds,
-      fresh,
-    });
-    return response.data;
   },
 
   /**
@@ -299,6 +273,70 @@ export const sokoBotService = {
     await coreClient.removeMySokoBotSkill(skillId);
   },
 
+  async listSecrets(botId: string): Promise<SokoBotSecret[]> {
+    return (await coreClient.listSokoBotSecrets(botId)).data;
+  },
+
+  async saveSecret(
+    botId: string,
+    name: string,
+    input: { value?: string; shellAccess?: boolean },
+  ): Promise<SokoBotSecret> {
+    return (await coreClient.saveSokoBotSecret(botId, name, input)).data;
+  },
+
+  async deleteSecret(botId: string, name: string): Promise<void> {
+    await coreClient.deleteSokoBotSecret(botId, name);
+  },
+
+  async getSandboxSetup(botId: string): Promise<string[]> {
+    return (await coreClient.getSokoBotSandboxSetup(botId)).data.commands;
+  },
+
+  async setSandboxSetup(botId: string, commands: string[]): Promise<string[]> {
+    return (await coreClient.setSokoBotSandboxSetup(botId, commands)).data
+      .commands;
+  },
+
+  async listMcpServers(botId: string): Promise<SokoBotMcpServer[]> {
+    return (await coreClient.listSokoBotMcpServers(botId)).data;
+  },
+
+  async addMcpServer(
+    botId: string,
+    input: AddSokoBotMcpServerRequest,
+  ): Promise<AddedSokoBotMcpServer> {
+    return (await coreClient.addSokoBotMcpServer(botId, input)).data;
+  },
+
+  async refreshMcpServer(
+    botId: string,
+    serverId: string,
+  ): Promise<SokoBotMcpServer> {
+    return (await coreClient.refreshSokoBotMcpServer(botId, serverId)).data;
+  },
+
+  async signInToMcpServer(
+    botId: string,
+    serverId: string,
+  ): Promise<string | null> {
+    return (await coreClient.signInToSokoBotMcpServer(botId, serverId)).data
+      .authorizationUrl;
+  },
+
+  async updateMcpTool(
+    botId: string,
+    serverId: string,
+    change: { name: string; enabled?: boolean; readOnly?: boolean },
+  ): Promise<SokoBotMcpServer> {
+    return (await coreClient.updateSokoBotMcpTool(botId, serverId, change))
+      .data;
+  },
+
+  async removeMcpServer(botId: string, serverId: string): Promise<void> {
+    await coreClient.removeSokoBotMcpServer(botId, serverId);
+  },
+
   async browseSkills(page: number): Promise<SokoBotSkillBrowse> {
     const response = await coreClient.browseSokoBotSkills(page);
     return response.data;
@@ -334,8 +372,8 @@ export const sokoBotService = {
     return response.data;
   },
 
-  async claimAvatar(avatarId: string): Promise<SokoBot> {
-    const response = await coreClient.claimMySokoBotAvatar({ avatarId });
+  async setAvatarCode(code: string, botId?: string) {
+    const response = await coreClient.setSokoBotAvatarCode(code, botId);
     return response.data;
   },
 

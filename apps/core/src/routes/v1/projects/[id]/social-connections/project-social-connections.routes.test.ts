@@ -12,6 +12,7 @@ import {
 } from "@/config/social-providers";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import { SocialAccountChoiceRequiredError } from "@/helpers/social-account-choice";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -126,6 +127,7 @@ const connection = {
   status: "active",
   connectedAt: new Date("2026-09-03T10:00:00.000Z"),
   disconnectedAt: null,
+  personalProfile: false,
 };
 
 function createApp(
@@ -375,6 +377,102 @@ describe("Project social connection routes", () => {
       connectionId: SOCIAL_CONNECTION_ID,
       trigger: "connect",
     });
+  });
+
+  it("says when a LinkedIn connection posts as the person", async () => {
+    listProjectSocialConnectionsMock.mockResolvedValue([
+      { ...connection, provider: "linkedin", personalProfile: true },
+    ]);
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-connections`,
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).data[0]).toMatchObject({
+      provider: "linkedin",
+      personalProfile: true,
+    });
+  });
+
+  it("asks which account when the sign-in reaches several, and only when asked to", async () => {
+    const choices = [
+      { id: "choice-page", name: "Acme", handle: "acme", kind: "page" },
+      { id: "choice-me", name: "Alice Doe", handle: null, kind: "profile" },
+    ];
+    finalizeProjectSocialConnectionMock.mockRejectedValueOnce(
+      new SocialAccountChoiceRequiredError(choices as never),
+    );
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connectionId: "zernio:0123456789abcdef01234567",
+          callbackProof: "proof",
+          pendingDataToken: "pending",
+          connectToken: "connect",
+          offerChoice: true,
+        }),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual({ choices });
+    expect(finalizeProjectSocialConnectionMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: "zernio:0123456789abcdef01234567",
+      callbackProof: "proof",
+      pendingDataToken: "pending",
+      connectToken: "connect",
+      offerChoice: true,
+    });
+    expect(scheduleSocialAccountRefreshMock).not.toHaveBeenCalled();
+  });
+
+  it("connects the picked account and lets the caller ask for a pick on initiate", async () => {
+    finalizeProjectSocialConnectionMock.mockResolvedValue({
+      ...connection,
+      provider: "linkedin",
+    });
+    const finalized = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connectionId: CONNECTION_ID,
+          accountChoiceId: "choice-page",
+          offerChoice: true,
+        }),
+      },
+    );
+    expect(finalized.status).toBe(201);
+    expect((await finalized.json()).data.personalProfile).toBe(false);
+    expect(finalizeProjectSocialConnectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ accountChoiceId: "choice-page" }),
+    );
+
+    initiateComposioConnectionMock.mockResolvedValue({
+      connectionId: CONNECTION_ID,
+      redirectUrl: "https://connect.composio.dev/link",
+    });
+    const initiated = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "connect",
+          provider: "linkedin",
+          accountChoice: true,
+        }),
+      },
+    );
+    expect(initiated.status).toBe(201);
+    expect(initiateComposioConnectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "linkedin", accountChoice: true }),
+    );
   });
 
   it("keeps the connection when the first stats refresh queue fails", async () => {

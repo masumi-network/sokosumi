@@ -209,6 +209,16 @@ export function normalizeContactChannelValue(
   }
 }
 
+/** Opens the contact detail panel in the workspace that supplied the link. */
+export function contactDetailHref(
+  contactId: string,
+  workspaceId?: string,
+): string {
+  const params = new URLSearchParams({ contact: contactId });
+  if (workspaceId) params.set("workspace", workspaceId);
+  return `/contacts?${params}`;
+}
+
 /** A name to file a contact under when only an address is known. */
 export function contactNameFromChannel(
   type: ContactChannelType,
@@ -462,7 +472,7 @@ export const mergeContactsSchema = z
 const columnRefSchema = z.string().trim().min(1).max(200);
 
 /** Contact field → table column (id or name) for an import. */
-export const contactImportMappingSchema = z
+const contactImportMappingSchema = z
   .object({
     name: columnRefSchema,
     organization: columnRefSchema.optional(),

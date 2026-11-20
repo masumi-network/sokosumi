@@ -1,5 +1,6 @@
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -135,6 +136,9 @@ vi.mock("@/lib/actions/task/action", () => ({
 vi.mock("@/app/tasks/actions", () => ({
   loadMoreTasksColumn: vi.fn(),
   loadMoreTasksList: vi.fn(),
+  exportTasks: vi.fn(),
+  previewTasksExport: vi.fn(async () => ({ rows: [], matched: 0 })),
+  saveTasksView: vi.fn(async () => true),
 }));
 
 vi.mock("./create-task-modal", () => ({
@@ -148,8 +152,25 @@ vi.mock("./create-task-modal", () => ({
   }),
 }));
 
-vi.mock("./tasks-view-filters", () => ({
-  TasksViewFilters: () => <button type="button">Filters</button>,
+vi.mock("./tasks-view-filters", async (importOriginal) => ({
+  // The real focus helper: clearing a filter moves focus with it.
+  focusToolbarControl: (
+    await importOriginal<typeof import("./tasks-view-filters")>()
+  ).focusToolbarControl,
+  // The filter row places the view options menu after Filters, so the stub
+  // does too.
+  TasksViewFilters: ({
+    display,
+  }: {
+    display?: React.ReactNode | ((activeFilters: string[]) => React.ReactNode);
+  }) => (
+    <>
+      <span data-filters-menu>
+        <button type="button">Filters</button>
+      </span>
+      {typeof display === "function" ? display([]) : display}
+    </>
+  ),
 }));
 vi.mock("./task-list-view", () => ({
   TaskListView: ({ compact }: { compact: boolean }) => (
@@ -233,25 +254,26 @@ const labels = {
   } as Record<KanbanColumnId, string>,
   display: {
     button: "Display",
+    layout: "Layout",
     list: "List",
     board: "Board",
     density: "Density",
     normal: "Normal",
     compact: "Compact",
+    sortBy: "Sort by",
+    sortOptions: {
+      updatedAt: "Last updated",
+      createdAt: "Newest",
+      priority: "Priority",
+      dueOn: "Due date",
+    },
+    showSubtasks: "Show subtasks",
   },
   listPlaceholder: "No tasks",
   loadMore: "Load more",
   dragError: "Could not update the task",
   loadMoreError: "Could not load more",
-  reopenToReady: {
-    title: "Reopen task",
-    description: "Say why",
-    commentLabel: "Comment",
-    commentPlaceholder: "Why reopen?",
-    confirm: "Reopen",
-    cancel: "Cancel",
-    commentRequired: "A comment is required",
-  },
+  reopenToReady: { commentRequired: "A comment is required" },
 } satisfies ComponentProps<typeof TasksView>["labels"];
 
 const EMPTY_FILTERS: TasksFilters = {
@@ -311,7 +333,7 @@ function boardView(
   );
 }
 
-it("applies Display density to board and list and restores the saved preference", async () => {
+it("applies density from the view options menu to board and list and restores the saved preference", async () => {
   document.cookie = "tasks_density=; max-age=0; path=/";
   const user = userEvent.setup();
   const { unmount } = renderBoard();
@@ -349,6 +371,38 @@ it("applies Display density to board and list and restores the saved preference"
   );
   expect(document.cookie).toContain("tasks_density=normal");
   document.cookie = "tasks_density=; max-age=0; path=/";
+});
+
+// The toolbar has no Archived button, so the view options menu is the way there.
+it("reaches archived Tasks from the view options menu", async () => {
+  const user = userEvent.setup();
+  render(boardView([TASK]));
+  expect(screen.queryByRole("link", { name: "link" })).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Display" }));
+
+  expect(await screen.findByRole("link", { name: "link" })).toHaveAttribute(
+    "href",
+    "/tasks/archived",
+  );
+});
+
+// Export as CSV opens a dialog from a menu item that is gone once the menu
+// closes, so closing the dialog must hand focus back to the menu button.
+it("returns focus to the view options button when the export dialog closes", async () => {
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      {boardView([TASK])}
+    </QueryClientProvider>,
+  );
+  const menuButton = screen.getByRole("button", { name: "Display" });
+
+  await user.click(menuButton);
+  await user.click(await screen.findByRole("button", { name: "button" }));
+  await user.click(await screen.findByRole("button", { name: "cancel" }));
+
+  await waitFor(() => expect(menuButton).toHaveFocus());
 });
 
 // New task lives in the sidebar header, so the Tasks page shows it once; the
@@ -447,6 +501,30 @@ describe("TasksView board drag", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("reopens a person's canceled Task on drop, with no comment", async () => {
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
+      ok: true,
+    } as Awaited<ReturnType<typeof setTaskStatusFromDrag>>);
+    renderBoard([
+      {
+        ...CANCELED_TASK,
+        assignee: { id: "user-2", name: "Ada", kind: "user" },
+      },
+    ]);
+
+    await dropOnTodo("task-1", "done");
+
+    await waitFor(() =>
+      expect(setTaskStatusFromDrag).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-1",
+          desiredStatus: TaskStatus.READY,
+        }),
+      ),
+    );
+    expect(screen.queryByLabelText("commentLabel")).toBeNull();
+  });
+
   it("restores a rejected reopen drag that was confirmed with a comment", async () => {
     const user = userEvent.setup();
     vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
@@ -459,12 +537,10 @@ describe("TasksView board drag", () => {
     // The reopen branch owns its own rollback and clears the dialog state
     // before reporting, so it is proven separately from the plain drop.
     await user.type(
-      await screen.findByLabelText(labels.reopenToReady.commentLabel),
+      await screen.findByLabelText("commentLabel"),
       "Reopening for the release",
     );
-    await user.click(
-      screen.getByRole("button", { name: labels.reopenToReady.confirm }),
-    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Errors.updateStatus"),
@@ -525,7 +601,7 @@ describe("TasksView board drag time in status", () => {
     renderBoard([{ ...CANCELED_TASK, statusSince: OLD }]);
 
     await dropOnTodo("task-1", "done");
-    await screen.findByLabelText(labels.reopenToReady.commentLabel);
+    await screen.findByLabelText("commentLabel");
     expect(boardCard("task-1")).toHaveAttribute(
       "data-status-since",
       NOW.toISOString(),
@@ -614,6 +690,26 @@ it("hands a link's ?view=board back to the saved view when List is picked", asyn
   searchParamsRef.current = new URLSearchParams();
 });
 
+it("turns on Show sub-tasks without reloading the page", async () => {
+  replaceMock.mockClear();
+  const replaceState = vi.spyOn(window.history, "replaceState");
+  try {
+    const user = userEvent.setup();
+    renderBoard();
+    await user.click(screen.getByRole("button", { name: "Display" }));
+    await user.click(screen.getByRole("switch", { name: "Show subtasks" }));
+
+    expect(replaceState).toHaveBeenCalledWith(
+      null,
+      "",
+      expect.stringContaining("subtasks=1"),
+    );
+    expect(replaceMock).not.toHaveBeenCalled();
+  } finally {
+    replaceState.mockRestore();
+  }
+});
+
 it("keeps a task that left the server page when this tab did not archive it", () => {
   const shifted: TaskWithCoworker = { ...TASK, id: "task-shifted" };
   const { rerender } = renderBoard([TASK, shifted]);
@@ -662,6 +758,41 @@ it("drops a load-more task once it is archived, and keeps the other load-more ro
     screen.queryByTestId(`board-card-${archived.id}`),
   ).not.toBeInTheDocument();
   expect(boardCard(loaded.id)).toBeInTheDocument();
+});
+
+it("discards a slow page for the previous tag after the board switches tags", async () => {
+  const page =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksColumn>>>();
+  vi.mocked(loadMoreTasksColumn).mockReturnValueOnce(page.promise);
+  const taggedBoard = (tag: string) => {
+    searchParamsRef.current = new URLSearchParams({ tag });
+    return cloneElement(boardView([TASK], undefined, "done-cursor"), {
+      initialFilters: { ...EMPTY_FILTERS, tag },
+    });
+  };
+  try {
+    const { rerender } = render(taggedBoard("research"));
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(loadMoreTasksColumn).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: "research" }),
+    );
+    rerender(taggedBoard("writing"));
+    // Even a return to the original tag starts a fresh stream of pages.
+    rerender(taggedBoard("research"));
+    await act(async () => {
+      page.resolve({
+        tasks: [{ ...CANCELED_TASK, id: "old-research" }],
+        nextCursor: null,
+      });
+      await page.promise;
+    });
+    expect(
+      screen.queryByTestId("board-card-old-research"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
 });
 
 it("keeps the column's unloaded count in step as more Tasks load", async () => {
@@ -739,7 +870,9 @@ describe("TasksView filtered empty state", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Filters.clear" }),
     );
-    expect(replaceMock).toHaveBeenCalledWith(`/tasks?projectId=${PROJECT_ID}`);
+    expect(replaceMock).toHaveBeenCalledWith(
+      `/tasks?projectId=${PROJECT_ID}&scope=owned`,
+    );
   });
 
   it("keeps the plain board when nothing is filtered", () => {

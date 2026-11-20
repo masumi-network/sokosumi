@@ -12,7 +12,7 @@ export const PROJECT_SCOPE_PARAM = "projectId";
  * same way they do. Unlike them it has nothing to show for the workspace
  * view, so `/studio` with no project asks for one. Social is the same shape:
  * posts belong to one project's accounts, so `/social` asks for a project too,
- * and so does `/ads`. SEO lists the chosen project's Audits, and all of the
+ * and so do `/ads` and `/competitors`. SEO lists the chosen project's Audits, and all of the
  * workspace's Audits for the workspace view. Newsletter is one per project, so each of its tabs is
  * here and lists the projects without one.
  */
@@ -22,8 +22,10 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     [TASK_SCHEDULES_PATH]: {},
     "/calendar": {},
     "/studio": {},
+    "/tiktok-studio": {},
     "/social": {},
     "/ads": {},
+    "/competitors": {},
     "/seo": {},
     "/newsletter": {},
     "/newsletter/issues": {},

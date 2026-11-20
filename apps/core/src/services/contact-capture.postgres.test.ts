@@ -29,6 +29,15 @@ const mocks = vi.hoisted(() => ({
   judgeRoleInboxes: vi.fn(),
   judgeListMemberships: vi.fn(),
   generateText: vi.fn(),
+  judgeWorkspaceImportance: vi.fn(),
+}));
+// Importance is judged by Jev after capture, through the AI Gateway; this
+// suite covers capture, and `contact-scores.service.test.ts` the judging.
+vi.mock("@/services/contact-scores.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/contact-scores.service")
+  >()),
+  judgeWorkspaceImportance: mocks.judgeWorkspaceImportance,
 }));
 vi.mock("@/lib/contacts/list-judge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/contacts/list-judge")>()),
@@ -60,6 +69,7 @@ vi.mock("ai", async (importOriginal) => ({
 }));
 
 import prisma from "@/lib/db/prisma";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import {
   ContactCaptureService,
   scheduleContactCapture,
@@ -469,6 +479,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
   });
 
   it("resumes an interrupted backfill on the page it did not finish, and completes it once", async () => {
+    const sourceErrors = expectCoreLog(
+      "error",
+      "Could not read a contact capture source",
+    );
     const bot = await addBot(backfillWorkspaceId, ["gmail"]);
     const sentCalls: string[] = [];
     let failOnCall = 3;
@@ -514,6 +528,16 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     expect(cursor["mail.sent"]?.backfillUntil).not.toBeNull();
     expect(afterFailure.lastError).toMatch(/Composio timeout/);
     expect(afterFailure.backfillCompletedAt).toBeNull();
+    // The provider's error can quote a mail: the log carries only its name.
+    expect(sourceErrors[0]).toMatchObject({
+      why: "Reading the source from its provider failed",
+    });
+    expect(sourceErrors[0]?.cause).toBeUndefined();
+    expect(sourceErrors[0]?.event).toMatchObject({
+      contactCaptureSource: { provider: "gmail", source: "mail.sent" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Composio timeout");
     expect(
       await prisma.contactInteraction.count({
         where: { workspaceId: backfillWorkspaceId },
@@ -846,8 +870,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect((lists as { id: string }[]).map((list) => list.id)).not.toContain(
         smart.id,
       );
+    const praxisId = ids.get("Praxis");
+    if (!praxisId) throw new Error("Missing Praxis fixture");
     const praxis = await prisma.contact.findUniqueOrThrow({
-      where: { id: ids.get("Praxis") },
+      where: { id: praxisId },
       include: { activities: true },
     });
     expect(praxis).toMatchObject({
@@ -864,10 +890,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       name: { before: "Praxis", after: "Praxis Weber" },
       kind: { before: "PERSON", after: "ORGANIZATION" },
     });
+    const omarId = ids.get("Omar Haddad");
+    if (!omarId) throw new Error("Missing Omar Haddad fixture");
     expect(
       (
         await prisma.contact.findUniqueOrThrow({
-          where: { id: ids.get("Omar Haddad") },
+          where: { id: omarId },
         })
       ).stage,
     ).toBe("INVESTOR");
@@ -908,6 +936,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
   });
 
   it("leaves contacts queued when the model fails or the money is spent", async () => {
+    const modelWarnings = expectCoreLog("warn", "Could not classify a contact");
     const actor: ContactActor = {
       workspaceId: mergeWorkspaceId,
       userId: bob,
@@ -929,6 +958,9 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       shouldContinue: () => true,
     });
     expect(stats.modelFailures).toBe(1);
+    expect(modelWarnings[0]).toMatchObject({
+      why: "The enrichment model call failed",
+    });
     expect(
       (
         await prisma.contact.findUniqueOrThrow({

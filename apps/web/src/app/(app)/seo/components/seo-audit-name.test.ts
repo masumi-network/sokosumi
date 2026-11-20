@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { SEO_AUDIT_NAME_MAX, seoAuditName } from "./seo-audit-name";
+import {
+  SEO_AUDIT_NAME_MAX,
+  seoAuditName,
+  seoAuditNameIsHome,
+} from "./seo-audit-name";
 
 describe("seoAuditName", () => {
   it("keeps a typed name", () => {
@@ -37,5 +41,38 @@ describe("seoAuditName without URL.parse", () => {
     } finally {
       Object.defineProperty(URL, "parse", { value: parse, configurable: true });
     }
+  });
+});
+
+describe("seoAuditNameIsHome", () => {
+  it("is true only for the host of a home page", () => {
+    expect(
+      seoAuditNameIsHome(
+        "battery-sensei.app",
+        "https://www.battery-sensei.app/",
+      ),
+    ).toBe(true);
+    expect(
+      seoAuditNameIsHome(
+        "battery-sensei.app",
+        "https://battery-sensei.app/pricing",
+      ),
+    ).toBe(false);
+    expect(
+      seoAuditNameIsHome(
+        "battery-sensei.app",
+        "https://battery-sensei.app/?ref=a",
+      ),
+    ).toBe(false);
+    expect(
+      seoAuditNameIsHome("Launch pages", "https://battery-sensei.app/"),
+    ).toBe(false);
+    expect(
+      seoAuditNameIsHome(
+        "www.Battery-Sensei.app",
+        "https://battery-sensei.app/",
+      ),
+    ).toBe(true);
+    expect(seoAuditNameIsHome("x", "not a url")).toBe(false);
   });
 });

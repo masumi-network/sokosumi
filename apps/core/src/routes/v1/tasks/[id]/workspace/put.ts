@@ -86,6 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             include: buildTaskIncludeForViewer(
               authContext,
               movedTask.workspaceId,
+              c.var.workspaceContext?.workspaceId,
             ),
           }),
         };
@@ -163,6 +164,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      // Sub-task Jobs and placement would split across workspaces (v1).
+      if (
+        current.parentTaskId ||
+        (await tx.task.count({ where: { parentTaskId: id } })) > 0
+      ) {
+        throw conflict(
+          "Cannot move a sub-task, or a task with sub-tasks, to another workspace.",
+        );
+      }
+
       // Pilot isolation: assignee must be usable in the target workspace
       // (global whitelist OR GRANTED early access). Blocks smuggling a
       // workspace-scoped coworker into another workspace via move.
@@ -203,7 +214,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         deliveryWorkspaceIds: [movedTask.workspaceId, targetWorkspace.id],
         task: await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext, targetWorkspace.id),
+          include: buildTaskIncludeForViewer(
+            authContext,
+            targetWorkspace.id,
+            c.var.workspaceContext?.workspaceId,
+          ),
         }),
       };
     }, "Task changed by a concurrent request. Please retry.");

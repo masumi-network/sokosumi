@@ -17,6 +17,7 @@ import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client
 import type { FileStore } from "@/lib/utils/file-search.client";
 import { DataRoomActivity } from "./data-room-activity";
 import { DataRoomColleagues } from "./data-room-colleagues";
+import { DataRoomCompanyPanel } from "./data-room-company";
 import { DataRoomContents } from "./data-room-contents";
 import { DataRoomPeople } from "./data-room-people";
 import { DataRoomQuestions } from "./data-room-questions";
@@ -27,6 +28,7 @@ const ROOM_TABS = [
   "activity",
   "questions",
   "contents",
+  "company",
   "settings",
 ] as const;
 
@@ -135,7 +137,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
         }}
         className="gap-3"
       >
-        {/* Five tabs are wider than a phone: scroll them, or Settings is cut off. */}
+        {/* Six tabs are wider than a phone: scroll them, or Settings is cut off. */}
         <TabsList className="app-scrollbar max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="people">
             {t("tabs.people", {
@@ -145,6 +147,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           <TabsTrigger value="activity">{t("tabs.activity")}</TabsTrigger>
           <TabsTrigger value="questions">{t("tabs.questions")}</TabsTrigger>
           <TabsTrigger value="contents">{t("tabs.contents")}</TabsTrigger>
+          <TabsTrigger value="company">{t("tabs.company")}</TabsTrigger>
           <TabsTrigger value="settings">{t("tabs.settings")}</TabsTrigger>
         </TabsList>
         <div className={cn(HOLDER_CLASS, "grid gap-2")}>
@@ -189,6 +192,14 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
             <DataRoomContents
               store={store}
               roomId={room.id}
+              rows={rows}
+              onChanged={refresh}
+            />
+          </TabsContent>
+          <TabsContent value="company">
+            <DataRoomCompanyPanel
+              store={store}
+              room={room}
               rows={rows}
               onChanged={refresh}
             />

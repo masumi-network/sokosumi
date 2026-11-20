@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { jobInclude, type Prisma } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
-import { formatTaskIdentifier, type SocialPostMediaRef } from "@sokosumi/utils";
+import {
+  formatTaskIdentifier,
+  removeSeoTaskRequest,
+  type SocialPostMediaRef,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { socialProviderProjectSelect } from "@/config/social-providers";
 import {
@@ -508,7 +512,7 @@ export async function resolveChatResultReference(
     scope?: ChatResultHydrationScope;
   },
   client: Prisma.TransactionClient = prisma,
-): Promise<ChatResultSnapshot> {
+): Promise<Omit<ChatResultSnapshot, "data"> & { data: ChatResultAvailable }> {
   const { reference: ref, actor, scope } = input;
   const workspace = scope
     ? scope.workspaces.get(actor.workspaceId)
@@ -642,7 +646,9 @@ export async function resolveChatResultReference(
           tags: mapTaskTags(task),
         },
         status: task.status,
-        summary: task.description?.slice(0, 4000) ?? null,
+        summary: task.description
+          ? removeSeoTaskRequest(task.description).slice(0, 4000) || null
+          : null,
         sourceHref: `/tasks/${encodeURIComponent(task.id)}`,
         assignee:
           task.assignee?.name ??
@@ -713,8 +719,17 @@ export async function resolveChatResultReference(
       const schedule = await client.sokoBotSchedule.findFirst({
         where: {
           id: ref.id,
-          requestedByUserId: actor.userId,
           workspaceId: actor.workspaceId,
+          // The schedule tools reach the member's personal bot and the
+          // Organization's shared bots whoever asked (`memberSokoBot`), so an
+          // update to such a schedule needs its card too.
+          OR: [
+            { requestedByUserId: actor.userId },
+            { sokoBot: { userId: actor.userId } },
+            ...(organizationId
+              ? [{ sokoBot: { userId: null, deletedAt: null } }]
+              : []),
+          ],
         },
         include: {
           sokoBot: {
@@ -977,7 +992,7 @@ export async function resolveChatResultReference(
     throw unprocessableEntity(
       "Result is too large to preview; open its source",
     );
-  return persisted.data;
+  return snapshot;
 }
 
 export async function hydrateChatResultSnapshots(
@@ -989,6 +1004,24 @@ export async function hydrateChatResultSnapshots(
     scope ?? (await preloadChatResultHydration(snapshots, viewerUserId));
   return Promise.all(
     snapshots.map(async (snapshot): Promise<ChatResultPreview> => {
+      if (snapshot.data.state === "unavailable") {
+        try {
+          const current = await resolveChatResultReference({
+            reference: snapshot.reference,
+            actor: { userId: viewerUserId, workspaceId: snapshot.workspaceId },
+            previewId: snapshot.data.id,
+            scope: resolved,
+          });
+          return current.data;
+        } catch (error) {
+          if (
+            error instanceof HTTPException &&
+            (error.status === 403 || error.status === 404)
+          )
+            return { id: snapshot.data.id, state: "unavailable" };
+          throw error;
+        }
+      }
       try {
         const current = await resolveChatResultReference({
           reference: snapshot.reference,

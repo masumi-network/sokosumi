@@ -1,5 +1,5 @@
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
-import { Mascot } from "./mascot";
+import { Logo } from "./logo";
 import { SubmitButton } from "./submit-button";
 
 interface SignInProblemProps {
@@ -23,7 +23,7 @@ const ERROR_MESSAGES = new Map([
   ["state_not_found", STATE_EXPIRED],
   [
     CMO_SIGN_IN_ERROR.unavailable,
-    "Sokosumi is not reachable right now. Try again in a minute.",
+    "Sign in is not reachable right now. Try again in a minute.",
   ],
   [
     CMO_SIGN_IN_ERROR.signedOut,
@@ -52,7 +52,7 @@ export function SignInProblem({ error, signIn }: SignInProblemProps) {
           </SubmitButton>
         </form>
       </div>
-      <Mascot className="hero-mascot" />
+      <Logo lockup="primary" className="hero-logo" />
     </main>
   );
 }

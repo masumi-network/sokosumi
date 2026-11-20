@@ -5,6 +5,10 @@ import {
 } from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
+import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
+// The checks below report through Core's logger: started before they run.
+import "@/lib/evlog-init";
+import { failStartup } from "@/lib/startup-failure";
 
 // Blank means unset, so a copied `KEY=` line does not fail startup.
 const minimumBuildSchema = z.preprocess(
@@ -101,6 +105,11 @@ const baseEnvSchema = z.object({
   KV_URL: z.string().optional(),
 
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
+  // CMO's origin, for links Core writes into CMO notices (SOKD-246).
+  CMO_APP_BASE_URL: z.url().default("https://app.cmo.xyz"),
+
+  AD_EVALS_ADMIN_ORGANIZATION_SLUG: z.string().trim().min(1).optional(),
+  AD_EVALS_ADMIN_ORGANIZATION_ID: z.string().trim().min(1).optional(),
 
   // Vercel (optional; Better Auth base URL on Preview)
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
@@ -223,6 +232,12 @@ const baseEnvSchema = z.object({
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
   /**
+   * A Meta user access token with Ad Library API access (an identity-verified
+   * Meta account on an app with the Ad Library API). Without it the
+   * competitor check reads no ads and says so.
+   */
+  META_AD_LIBRARY_ACCESS_TOKEN: z.string().min(1).optional(),
+  /**
    * Soko Bot ids that may write the announcements every user sees (the
    * sidebar card and popup). Comma-separated; empty, no bot has the tools.
    */
@@ -243,6 +258,11 @@ const baseEnvSchema = z.object({
     .default(
       "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
     ),
+  /**
+   * A local ffmpeg built with libass and libx264, for the talking video edit.
+   * Unset, Core downloads its pinned linux-x64 build (Vercel).
+   */
+  FFMPEG_PATH: z.string().min(1).optional(),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**
@@ -257,6 +277,20 @@ const baseEnvSchema = z.object({
    * model, so a case for changing it can be made with numbers.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
+  /**
+   * Who runs the judge. `gateway` calls `SOKO_BOT_JUDGE_MODEL` through the AI
+   * Gateway. `claude-code` runs the same prompt through the local `claude`
+   * CLI on the developer's Claude Code subscription, for evals run on a
+   * developer machine. It is refused on Vercel, and it is not pinned to the
+   * EU as the Gateway judge is. The bots under test keep their own models
+   * either way.
+   */
+  SOKO_BOT_JUDGE_RUNNER: z.enum(["gateway", "claude-code"]).default("gateway"),
+  /** The `claude --model` value the `claude-code` judge runs on. */
+  SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL: z
+    .string()
+    .min(1)
+    .default("claude-opus-5-5"),
   /** Immutable operator-issued preview partition; never accepted from API input. */
   SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
   /**
@@ -265,11 +299,30 @@ const baseEnvSchema = z.object({
    */
   EVALS_REPORT_EMAILS: z.string().min(1).optional(),
   /**
-   * fal.ai key for Soko Bot avatar generation and the Project image studio.
-   * Neither feature can reach the provider without it; both degrade to a
+   * fal.ai key for the Project image studio.
+   * The studio cannot reach the provider without it; it degrades to a
    * read-only view rather than failing a page render.
    */
   FAL_KEY: z.string().min(1).optional(),
+  /** Automatic studio ad evals are opt-in; PAUSED stops new judge calls. */
+  AD_EVALS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AD_EVALS_PAUSED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AD_EVALS_WORKSPACE_DAILY_LIMIT: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(100),
+  AD_EVALS_GLOBAL_DAILY_USD: z.coerce
+    .number()
+    .finite()
+    .nonnegative()
+    .default(10),
   /**
    * Shared secret the image-studio agent signs its grants with. The agent runs
    * outside Core, so a grant is how it names the acting user; Core still
@@ -332,6 +385,7 @@ const baseEnvSchema = z.object({
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
   COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  ZERNIO_API_KEY: z.string().trim().min(1).optional(),
   COMPOSIO_TIKTOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: z.string().min(1).optional(),
@@ -455,6 +509,12 @@ const baseEnvSchema = z.object({
    * See `lib/drive-blob.ts`.
    */
   DATA_ROOM_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
+   * The private reference library store: old ads, posters and covers Cuso
+   * takes a style from (`services/reference-library.service.ts`). Unset, his
+   * pictures are made from the brand's own pictures only.
+   */
+  REFERENCE_LIBRARY_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
@@ -617,20 +677,55 @@ export function resolveWebRelatedProjectFallbackHost(
   return params.configuredWebAppBaseUrl;
 }
 
+/**
+ * What a log may keep of each failed check: the variable, the issue's path
+ * and code, and Zod's message unless it quotes the variable's value. Zod 4
+ * messages describe the expected value, but a refinement's own message can
+ * say anything.
+ */
+export function invalidVariables(
+  issues: readonly z.core.$ZodIssue[],
+  env: NodeJS.ProcessEnv,
+) {
+  return issues.map((issue) => {
+    const variable = String(issue.path[0] ?? "");
+    const value = env[variable];
+    const quotesValue = Boolean(value) && issue.message.includes(value ?? "");
+    return {
+      variable,
+      path: issue.path.join("."),
+      code: issue.code,
+      ...(quotesValue ? {} : { message: issue.message }),
+    };
+  });
+}
+
 export function validateEnv(): EnvConfig {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error(
-      "❌ Invalid environment variables:",
-      JSON.stringify(result.error.format(), null, 2),
+    // Outside any request, so its own event, sent to Sentry before Core
+    // stops. Names, codes and messages only, never a value.
+    failStartup(
+      { operation: "env_validation" },
+      {
+        message: "Core cannot start, because environment variables are invalid",
+        why: "One or more environment variables are missing or fail Core's checks",
+        fix: "Set each variable in invalidVariables to a valid value (apps/core/.env.example lists them), then start Core again.",
+      },
+      { invalidVariables: invalidVariables(result.error.issues, process.env) },
     );
-    process.exit(1);
   }
 
   if (!result.data.TURNSTILE_SECRET_KEY && isDeployedEnvironment(result.data)) {
-    console.warn(
-      "TURNSTILE_SECRET_KEY is unset in a deployed environment; Turnstile captcha verification is disabled and auth email endpoints are unprotected from spam",
+    emitCoreWarning(
+      { operation: "env_validation", envVariable: "TURNSTILE_SECRET_KEY" },
+      {
+        message:
+          "Turnstile captcha verification is off in a deployed environment",
+        why: "TURNSTILE_SECRET_KEY is unset, so the auth email endpoints are unprotected from spam",
+        fix: "Set TURNSTILE_SECRET_KEY to the secret key from the Cloudflare Turnstile dashboard.",
+      },
     );
   }
 
@@ -646,15 +741,25 @@ export function validateEnv(): EnvConfig {
   // it lets an agent drive sign-in without answering a human check.
   if (result.data.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_SECRET) {
     if (isProductionEnvironment(result.data)) {
-      console.error(
-        "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret. In production this accepts every captcha token, including forged ones, while the auth endpoints appear protected. Set a real secret from the Turnstile dashboard.",
+      failStartup(
+        { operation: "env_validation", envVariable: "TURNSTILE_SECRET_KEY" },
+        {
+          message:
+            "Core cannot start in production with Turnstile's testing secret",
+          why: "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret. In production this accepts every captcha token, including forged ones, while the auth endpoints appear protected.",
+          fix: "Set TURNSTILE_SECRET_KEY to a real secret from the Cloudflare Turnstile dashboard.",
+        },
       );
-      process.exit(1);
     }
 
     if (isDeployedEnvironment(result.data)) {
-      console.warn(
-        "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a preview environment; captcha verification accepts every token, including forged ones. Intended only for driving sign-in without a human check.",
+      emitCoreWarning(
+        { operation: "env_validation", envVariable: "TURNSTILE_SECRET_KEY" },
+        {
+          message: "Turnstile accepts every captcha token in this preview",
+          why: "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret, so captcha verification accepts every token, including forged ones",
+          fix: "Nothing, if the preview is meant for driving sign-in without a human check; otherwise set TURNSTILE_SECRET_KEY to a real secret from the Cloudflare Turnstile dashboard.",
+        },
       );
     }
   }
@@ -711,8 +816,15 @@ export function getBetterAuthPublicBaseUrl(): string {
     !env.VERCEL_BRANCH_URL &&
     !env.VERCEL_URL
   ) {
-    console.warn(
-      "Better Auth preview base URL falling back to BETTER_AUTH_URL; VERCEL_BRANCH_URL and VERCEL_URL are unset (email links may point at the wrong host)",
+    // At startup and inside requests: on the request's event when there is one.
+    recordCoreWarning(
+      { operation: "better_auth_base_url", envVariable: "BETTER_AUTH_URL" },
+      {
+        message:
+          "Better Auth on this preview uses BETTER_AUTH_URL as its base URL",
+        why: "VERCEL_BRANCH_URL and VERCEL_URL are unset, so email links may point at the wrong host",
+        fix: "Check that Vercel exposes system environment variables to this project, or set BETTER_AUTH_URL to this preview's URL.",
+      },
     );
   }
 

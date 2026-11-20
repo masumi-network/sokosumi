@@ -3,8 +3,14 @@ import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
 import { generateText } from "ai";
 import { getEnv } from "@/config/env";
+import {
+  AI_BUDGET_EXCEEDED,
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import { aiGateway } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, emitCoreWarning } from "@/lib/evlog";
 import {
   ensureProjectFilesToken,
   uploadProjectContextMdFile,
@@ -17,6 +23,9 @@ import {
   latestUpdateWindowFor,
   refreshProjectLatestUpdate,
 } from "./project-latest-update";
+
+/** Names the refresh's events; it runs after the task event's response. */
+const PROJECT_MEMORY_OPERATION = "project_memory_refresh";
 
 const MEMORY_GENERATION_TIMEOUT_MS = 60_000;
 const MAX_CONTEXT_WORDS = 800;
@@ -108,6 +117,7 @@ export interface ProjectMemoryRefreshResult {
     | "oversized_output"
     | "malformed_output"
     | "incomplete_output"
+    | typeof AI_BUDGET_EXCEEDED
     | "blob_upload_failed"
     | "lost_lock";
   version?: number;
@@ -379,7 +389,9 @@ async function refreshProjectMemoryIteration({
       system: PROJECT_MEMORY_SYSTEM_PROMPT,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
-    });
+    }).catch((error: unknown) =>
+      rethrowAiGatewayFailure(error, "project-memory"),
+    );
     let candidate = validateProjectContextMd(
       generation.text,
       generation.finishReason,
@@ -399,18 +411,30 @@ The candidate exceeds the size budget. Compact it once using the original source
 ${formatPromptData(generation.text)}
 </candidate_context_md>`,
         maxOutputTokens: MAX_COMPACTION_OUTPUT_TOKENS,
-      });
+      }).catch((error: unknown) =>
+        rethrowAiGatewayFailure(error, "project-memory"),
+      );
       candidate = validateProjectContextMd(
         compaction.text,
         compaction.finishReason,
       );
     }
     if (candidate.status === "invalid") {
-      console.warn("Project memory refresh skipped: invalid model output", {
-        projectId,
-        taskId,
-        reason: candidate.reason,
-      });
+      // After the task event's response (`waitUntil`).
+      emitCoreWarning(
+        {
+          operation: PROJECT_MEMORY_OPERATION,
+          project: { id: projectId },
+          task: { id: taskId },
+        },
+        {
+          message: "Skipped a project memory refresh",
+          why: "The model's CONTEXT.md is not valid",
+          fix: "Nothing to do: the project keeps its current memory, and the next completed task refreshes it again.",
+        },
+        // A Core-owned reason code, never the output itself.
+        { projectMemory: { invalidReason: candidate.reason } },
+      );
       return {
         lockStartedAt,
         result: { status: "skipped", reason: candidate.reason },
@@ -467,9 +491,19 @@ ${formatPromptData(generation.text)}
         data: { contextMdUrl, contextMdUpdatingSince: null },
       });
     } else {
-      console.warn(
-        "Project memory updated without replacing its CONTEXT.md blob",
-        { projectId, version: nextVersion },
+      emitCoreWarning(
+        {
+          operation: PROJECT_MEMORY_OPERATION,
+          project: { id: projectId },
+          task: { id: taskId },
+        },
+        {
+          message:
+            "Updated a project's memory without replacing its CONTEXT.md file",
+          why: "The project has no files token, or the Blob upload returned no URL",
+          fix: "The new memory is saved in the database; its file follows on the next refresh. If it keeps happening, check Blob storage.",
+        },
+        { projectMemory: { version: nextVersion } },
       );
     }
 
@@ -480,6 +514,12 @@ ${formatPromptData(generation.text)}
         version: nextVersion,
         lineCount,
       },
+    };
+  } catch (error) {
+    if (!(error instanceof AiGatewayBudgetError)) throw error;
+    return {
+      lockStartedAt,
+      result: { status: "skipped", reason: error.code },
     };
   } finally {
     await releaseProjectMemoryLock(projectId, lockStartedAt);
@@ -492,9 +532,12 @@ async function refreshAfterTaskCompleted({
 }: RefreshProjectMemoryInput): Promise<ProjectMemoryRefreshResult> {
   const env = getEnv();
   if (!isProjectMemoryConfigured(env)) {
-    console.warn(
-      "Project memory refresh skipped: AI Gateway or Blob storage is not configured",
-    );
+    // A supported setup (local, previews): the refresh is off, not broken.
+    createCoreLogger({
+      operation: PROJECT_MEMORY_OPERATION,
+      project: { id: projectId },
+      projectMemory: { skipped: "missing_configuration" },
+    }).emit();
     return { status: "skipped", reason: "missing_configuration" };
   }
 

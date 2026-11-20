@@ -5,6 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { resolveTaskRefToId } from "@/helpers/task-ref";
+import { loadTaskAncestors } from "@/helpers/task-subtasks";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -15,6 +16,7 @@ import {
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
+import { loadTaskSeoAuditLink } from "@/services/seo-task-audit-link";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -77,12 +79,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: archivedWorkspaceId,
           ...buildHumanTaskVisibilityWhere(userId),
         },
-        include: buildTaskIncludeForViewer(authContext, archivedWorkspaceId),
+        include: buildTaskIncludeForViewer(
+          authContext,
+          archivedWorkspaceId,
+          c.var.workspaceContext?.workspaceId,
+        ),
       });
       if (!archivedTask) {
         throw notFound("Task not found");
       }
-      return ok(c, taskSchema.parse(mapTask(archivedTask, authContext)));
+      return ok(
+        c,
+        taskSchema.parse({
+          ...mapTask(archivedTask, authContext),
+          ancestors: await loadTaskAncestors(archivedTask.parentTaskId, prisma),
+        }),
+      );
     }
 
     const workspaceId =
@@ -91,7 +103,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? requireWorkspaceContext(workspaceContext).workspaceId
         : null;
 
-    const include = buildTaskIncludeForViewer(authContext, workspaceId);
+    const include = buildTaskIncludeForViewer(
+      authContext,
+      workspaceId,
+      c.var.workspaceContext?.workspaceId,
+    );
     const taskId = workspaceId
       ? await resolveTaskRefToId(id, workspaceId, prisma)
       : id;
@@ -102,6 +118,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       include,
     );
 
-    return ok(c, taskSchema.parse(mapTask(task, authContext)));
+    // A coworker reads only what it is assigned; parent names would leak.
+    const [ancestors, seoAudit] = await Promise.all([
+      isCoworkerAuthContext(authContext)
+        ? []
+        : loadTaskAncestors(task.parentTaskId, prisma),
+      loadTaskSeoAuditLink(c.var, task.id),
+    ]);
+    return ok(
+      c,
+      taskSchema.parse({ ...mapTask(task, authContext), ancestors, seoAudit }),
+    );
   });
 }

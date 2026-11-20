@@ -1,14 +1,19 @@
 import type { BrandBrain, CmoCalendarEntry } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { evaluateWithJev, updateMany, readPieceText, recordUsage } = vi.hoisted(
-  () => ({
-    evaluateWithJev: vi.fn(),
-    updateMany: vi.fn(),
-    readPieceText: vi.fn(),
-    recordUsage: vi.fn(),
-  }),
-);
+const {
+  evaluateWithJev,
+  updateMany,
+  readPieceText,
+  recordUsage,
+  notifyCusoLowCredits,
+} = vi.hoisted(() => ({
+  evaluateWithJev: vi.fn(),
+  updateMany: vi.fn(),
+  readPieceText: vi.fn(),
+  recordUsage: vi.fn(),
+  notifyCusoLowCredits: vi.fn(),
+}));
 
 vi.mock("@/lib/soko-bot/jev", () => ({ evaluateWithJev }));
 vi.mock("@/lib/db/prisma", () => ({
@@ -19,6 +24,9 @@ vi.mock("@/services/marketing-strategy-files.service", () => ({
 }));
 vi.mock("@/services/soko-bot-billing.service", () => ({
   recordSokoBotCheckUsage: recordUsage,
+}));
+vi.mock("@/helpers/cuso-low-credit-notification", () => ({
+  notifyCusoLowCreditsAfterCharge: notifyCusoLowCredits,
 }));
 
 import {
@@ -121,6 +129,7 @@ const review = (patch: Partial<CmoMonthReview> = {}): CmoMonthReview => ({
 beforeEach(() => {
   vi.clearAllMocks();
   updateMany.mockResolvedValue({ count: 1 });
+  recordUsage.mockResolvedValue({ chargedCents: 0n, cusoProjectId: null });
 });
 
 describe("cmoPillarShares", () => {
@@ -516,7 +525,9 @@ describe("cmoRewriteMessage", () => {
         },
       ],
     });
-    expect(message).toContain("- Lead routing: plan 50%, made 75% (3 pieces)");
+    expect(message).toContain(
+      "- Lead routing: planned 50%, made 75% (3 pieces)",
+    );
     expect(message).toContain(
       '- c · x/post · "Piece c" · misses its network\'s writing skill',
     );
@@ -538,7 +549,7 @@ describe("cmoRewriteMessage", () => {
         },
       ],
     });
-    expect(message).not.toContain("These pillars are off the plan");
+    expect(message).not.toContain("These pillars are off the strategy");
   });
 });
 
@@ -587,7 +598,9 @@ describe("advanceCmoMonthReview", () => {
     );
     const [message, runId] = startRewrite.mock.calls[0] ?? [];
     expect(runId).toBe("cmo-production:bot-1:1:review:4");
-    expect(message).toContain("- Lead routing: plan 50%, made 75% (3 pieces)");
+    expect(message).toContain(
+      "- Lead routing: planned 50%, made 75% (3 pieces)",
+    );
     expect(message).toContain(
       '- c · linkedin/post · "Piece c" · pillar Setup in minutes, but reads as Lead routing',
     );
@@ -597,6 +610,30 @@ describe("advanceCmoMonthReview", () => {
       key: "cmo-review:v1:1",
       costUsd: 0.002,
     });
+  });
+
+  it("checks Cuso's Project credits for a low balance after the read was charged", async () => {
+    recordUsage.mockResolvedValue({
+      chargedCents: 20n,
+      cusoProjectId: "project-1",
+    });
+    jevReads({ pillar: "p0" });
+    await advanceCmoMonthReview({
+      ...base,
+      version: { id: "v1", monthReview: null },
+      runs: [],
+    });
+    expect(notifyCusoLowCredits).toHaveBeenCalledWith("project-1");
+  });
+
+  it("checks nothing when the read charged nothing", async () => {
+    jevReads({ pillar: "p0" });
+    await advanceCmoMonthReview({
+      ...base,
+      version: { id: "v1", monthReview: null },
+      runs: [],
+    });
+    expect(notifyCusoLowCredits).not.toHaveBeenCalled();
   });
 
   it("rewrites a piece that misses its skill even when the pillars hold", async () => {
@@ -613,7 +650,7 @@ describe("advanceCmoMonthReview", () => {
     });
     const [message] = startRewrite.mock.calls[0] ?? [];
     expect(message).toContain('- b · linkedin/post · "Piece b" · misses "');
-    expect(message).not.toContain("These pillars are off the plan");
+    expect(message).not.toContain("These pillars are off the strategy");
   });
 
   it("stores the review and rewrites nothing when every piece holds", async () => {

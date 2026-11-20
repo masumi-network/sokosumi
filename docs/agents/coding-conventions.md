@@ -12,6 +12,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Enums**: Avoid enums; use maps instead
 - **Components**: Use functional components with TypeScript interfaces
 - **Inference**: Leverage Prisma type inference when possible
+- **Nested Prisma keys**: `tsc` does not flag a removed or misspelled key inside `select`, `include`, `omit` or `data` while a valid key sits beside it, because the literal becomes the method's type argument and skips the excess-property check. Add `satisfies Prisma.<Model>FindManyArgs` (or the matching `…Args`) where it matters, and after dropping or renaming a column `git grep` its name across `apps/core`, test mocks included; mocked-Prisma tests never run Prisma's runtime validation either.
 - **Type assertions**: Avoid `as unknown as X` double casts and `as any`; they discard type safety and hide bugs. Prefer typed APIs, type guards, or schema validation. Reach for a single `as` only to narrow a known-safe type (e.g. auth context).
 
 ### Naming & Patterns
@@ -32,6 +33,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Formatting**: Run `pnpm format` after substantial edits
 - **Imports**: Relative within features, use aliases (`@/lib/*`) otherwise
 - **Components**: Default to Server Components; add `'use client'` only for browser APIs
+- **Comments**: Write only facts the code cannot state. Do not narrate what the next line does or how the code got here. The repo runs comment-deletion sweeps across `packages/` and `apps/`, so narration comes back as rebase conflicts and gets deleted again.
 
 ### Linting & Formatting
 
@@ -69,9 +71,20 @@ function handler(_req, res) {
 
 ## Data and Concurrency
 
+- **Omit undefined Prisma arguments.** Omit absent keys or use `PrismaRaw.skip` from `@sokosumi/database/client` (Prisma’s `Prisma.skip`). This applies to nested filters, data and Json column values. Zod output can retain explicit `undefined` from `.optional()` or `.catch(undefined)`. Use `jsonInput()` in `apps/core/src/helpers/prisma-json.ts` for Json writes from those schemas or built objects with optional keys.
 - **Migrations run under the previous release.** For a PR that adds a migration, check its timing against Migrations in [`packages/database/AGENTS.md`](../../packages/database/AGENTS.md).
 - **Lock what you checked.** A write that depends on another row's state (a grant only while a Soko Bot is live, a refund only while its Project has one) checks and writes in one transaction that locks that row first. Name the writers it races (archive, delete, version change) and show both orderings: the check wins, or the other writer wins and the write sees it. When the other writer is `serializableTransaction`, write the row (a no-op `UPDATE … SET "updatedAt" = "updatedAt"`) rather than only `SELECT … FOR UPDATE`, so a writer holding an older snapshot fails and retries.
-- **Prove money races on PostgreSQL.** For a credit or billing race, add a `*.postgres.test.ts` in `apps/core` beside the mocked route test, running both orderings on separate connections; Test Core runs these against a real PostgreSQL. PGlite takes one connection and cannot run the race.
+- **Prove money races on PostgreSQL.** For a credit or billing race, add a `*.postgres.test.ts` in `apps/core` beside the mocked route test, running both orderings on separate connections; Test Core PostgreSQL runs these against a real PostgreSQL. PGlite takes one connection and cannot run the race.
+- **`null` means not given.** Store a missing value as `null`, and keep `""` out of use as a second marker beside it (new row vs legacy row): any writer that trims empty input to `null` silently moves a row between the two. When rows need different treatment, derive it from real data or add an explicit field.
+- **`skipDuplicates` is idempotent, not free.** PostgreSQL runs BEFORE INSERT row triggers for every proposed row, including the ones `ON CONFLICT DO NOTHING` (`createMany({ skipDuplicates: true })`) then skips. On a table with row triggers (`task_schedule_run` enqueues a calendar invalidation per row), send only the rows that are not there yet (for example, continue after the last planned row) instead of the whole set, and keep `skipDuplicates`, since a concurrent writer can still insert the same row.
+
+## Bug fixes
+
+- **Fix the caller that causes it.** When a fix would guard an error that is already guarded once, find the caller that produces it and fix it there. Choose the narrowest place that removes the cause; central logic stays as it is, and every other caller keeps its current behaviour.
+
+## Security
+
+- **Redirect targets keep the host.** Never build a redirect as `new URL(requestPath, base)`: a path like `//evil.example/x` is protocol-relative, so only the scheme survives and the target leaves the site. Strip leading `/` and `\` from the path, assign it to `target.pathname`, and assert `new URL(location).host` in the test.
 
 ## Testing Guidelines
 

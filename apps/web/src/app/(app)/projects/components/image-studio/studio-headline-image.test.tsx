@@ -35,6 +35,7 @@ describe("Studio headline preview image", () => {
           "1:1",
           undefined,
           "A slower morning.",
+          [],
           look,
         ),
       { initialProps: { look: LOOK } },

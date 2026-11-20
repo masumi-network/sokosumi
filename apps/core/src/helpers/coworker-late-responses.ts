@@ -1,4 +1,6 @@
+import { recordCoreError } from "@/lib/evlog";
 import { getRedisClient } from "@/lib/redis";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /**
  * Coworker responses still running when their stream request may end. The
@@ -27,7 +29,20 @@ export async function trackLateCoworkerResponse(
       JSON.stringify(entry),
     );
   } catch (error) {
-    console.error("[coworker-late-responses] Failed to track response:", error);
+    // ioredis quotes the server's or a proxy's reply: content-free fields only.
+    recordCoreError(
+      {
+        operation: "coworker_late_response_track",
+        responseId: entry.responseId,
+      },
+      {
+        message:
+          "A coworker response that may outlive its stream was not tracked",
+        why: "Writing the late-response entry to Redis failed",
+        fix: "If the stream ends before the reply, the reply is not delivered. Check Redis; failure has its name and code.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
   }
 }
 
@@ -37,9 +52,15 @@ export async function untrackLateCoworkerResponse(
   try {
     await getRedisClient()?.hdel(LATE_RESPONSES_REDIS_KEY, responseId);
   } catch (error) {
-    console.error(
-      "[coworker-late-responses] Failed to untrack response:",
-      error,
+    recordCoreError(
+      { operation: "coworker_late_response_untrack", responseId },
+      {
+        message:
+          "A delivered coworker response was not removed from the late responses",
+        why: "Deleting the late-response entry from Redis failed",
+        fix: "The late-responses sync may try to deliver it again. Check Redis; failure has its name and code.",
+      },
+      { failure: messageSafeErrorFields(error) },
     );
   }
 }

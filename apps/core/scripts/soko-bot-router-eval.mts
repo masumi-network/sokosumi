@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs";
 import { SOKO_BOT_ROUTES } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 
 import prisma from "@/lib/db/prisma";
 import {
@@ -108,7 +109,7 @@ async function viaLlm(model: string, item: RouterCase) {
       pendingProposals: [],
     }),
     abortSignal: AbortSignal.timeout(30_000),
-  });
+  }).catch(rethrowAiGatewayFailure);
   const answer = llmSchema.parse(result.output);
   const cost = Number(
     (result.providerMetadata?.gateway as { cost?: unknown } | undefined)

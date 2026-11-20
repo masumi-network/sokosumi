@@ -844,6 +844,38 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(dates).toEqual([...dates].sort((a, b) => b - a));
   });
 
+  it("pages name hits before sorted role and summary hits, including literal search characters", async () => {
+    const marker = "Q_17%";
+    const rows = await Promise.all([
+      create(asAlice, { name: "Lane Q_17%" }),
+      create(asAlice, { name: "Smith Q_17%" }),
+      create(asAlice, { name: "Adams", role: marker }),
+      create(asAlice, { name: "Doyle", summary: marker }),
+      create(asAlice, { name: "Queen17 decoy", role: "QA17-random" }),
+    ]);
+    try {
+      const pages = [];
+      let cursor: string | undefined;
+      for (let index = 0; index < 4; index++) {
+        const result = await listContacts(asAlice, {
+          filter: { search: marker },
+          sort: "name",
+          limit: 1,
+          cursor,
+        });
+        expect(result.total).toBe(4);
+        pages.push(result.items[0]?.name);
+        cursor = result.nextCursor ?? undefined;
+      }
+      expect(pages).toEqual(["Lane Q_17%", "Smith Q_17%", "Adams", "Doyle"]);
+      expect(cursor).toBeUndefined();
+    } finally {
+      await prisma.contact.deleteMany({
+        where: { id: { in: rows.map((row) => row.contact.id) } },
+      });
+    }
+  });
+
   it("pages through contacts sorted by last contact with never-contacted last", async () => {
     const seen: string[] = [];
     let cursor: string | undefined;
@@ -1126,12 +1158,16 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
           linkNewsletterContacts(tx, newsletter.id, asAlice, people, "MANUAL"),
         );
         await prisma.newsletterSubscriber.createMany({
-          data: people.map((person, index) => ({
-            newsletterId: newsletter.id,
-            contactId: original.get(person.email)?.id,
-            email: person.email,
-            status: index === 0 ? "ACTIVE" : "BOUNCED",
-          })),
+          data: people.map((person, index) => {
+            const contact = original.get(person.email);
+            if (!contact) throw new Error("Missing reader contact fixture");
+            return {
+              newsletterId: newsletter.id,
+              contactId: contact.id,
+              email: person.email,
+              status: index === 0 ? "ACTIVE" : "BOUNCED",
+            };
+          }),
         });
         const survivor = await create(asAlice, { name: "Surviving reader" });
         await inContactTransaction((tx) =>

@@ -11,12 +11,7 @@ import {
   QuestionCard,
 } from "../../components/onboarding/questions";
 import { StepMarkers } from "../../components/onboarding/step-markers";
-import {
-  GoalBlock,
-  SidePanel,
-  StatRow,
-  Tile,
-} from "../../components/onboarding/tiles";
+import { GoalBlock, SidePanel, Tile } from "../../components/onboarding/tiles";
 import { AGENT_NAME } from "../../lib/agent";
 import { overview } from "./app/fixtures";
 
@@ -129,18 +124,7 @@ export function PartsPreview() {
             { term: "Who", value: "Product teams" },
             { term: "The offer", value: "A 14-day trial" },
             { term: "Where", value: "LinkedIn, X" },
-            { term: "This month", value: "28 pieces" },
-          ]}
-        />
-      </div>
-
-      <div className="ds-part">
-        <p className="ds-t-small muted">Stat row</p>
-        <StatRow
-          stats={[
-            { value: "3 min", line: "I read your site." },
-            { value: "5 taps", line: "You answer a few questions." },
-            { value: "1 plan", line: "You approve it." },
+            { term: "This month", value: "28 posts" },
           ]}
         />
       </div>

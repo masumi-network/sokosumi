@@ -65,6 +65,39 @@ export function setupAssistantConnectPath(next: string): string {
   return withNext(SETUP_ASSISTANT_CONNECT_PATH, next);
 }
 
+/** Set on a Task's setup return path: finishing setup follows that Task. */
+export const FOLLOW_AFTER_SETUP_PARAM = "follow";
+
+/** Setup started from a Task's follow control; it ends back on that Task. */
+export function taskFollowSetupPath(taskId: string): string {
+  return setupAssistantPath(
+    `/tasks/${encodeURIComponent(taskId)}?${FOLLOW_AFTER_SETUP_PARAM}=1`,
+  );
+}
+
+const TASK_PAGE_PATH = /^\/tasks\/[^/]+\/?$/;
+
+/** Whether `next` returns to a Task to follow it, so setup ends there. */
+export function isTaskFollowReturn(next: string): boolean {
+  const url = new URL(next, "http://setup.invalid");
+  return (
+    TASK_PAGE_PATH.test(url.pathname) &&
+    url.searchParams.get(FOLLOW_AFTER_SETUP_PARAM) === "1"
+  );
+}
+
+/**
+ * `next` without the follow marker, for a setup exit without a new bot
+ * ("later", a skipped step): leaving setup follows nothing, even when a bot
+ * appears later.
+ */
+export function withoutTaskFollowMarker(next: string): string {
+  if (!isTaskFollowReturn(next)) return next;
+  const url = new URL(next, "http://setup.invalid");
+  url.searchParams.delete(FOLLOW_AFTER_SETUP_PARAM);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 export function isWorkspaceReady(
   gate: string | null | undefined,
 ): gate is "ready" {

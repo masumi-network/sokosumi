@@ -4,6 +4,7 @@ import {
   APP_HEADER_SAFE_AREA_PADDING_CLASS,
   APP_HEADER_SAFE_AREA_UNDERLAY_CLASS,
   APP_MAIN_MOBILE_PT_CLASS,
+  APP_MAIN_MOBILE_SCROLL_MT_CLASS,
   APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
   APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
   APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS,
@@ -35,6 +36,13 @@ describe("app-shell-safe-area", () => {
   it("extends former pt-20 main offset by top safe-area", () => {
     expect(APP_MAIN_MOBILE_PT_CLASS).toBe(
       "pt-[calc(5rem+env(safe-area-inset-top))]",
+    );
+  });
+
+  it("lands a block scrolled into view below the fixed mobile header", () => {
+    // Same clearance as the main's mobile top padding, inset included.
+    expect(APP_MAIN_MOBILE_SCROLL_MT_CLASS).toBe(
+      "max-md:scroll-mt-[calc(5rem+env(safe-area-inset-top))]",
     );
   });
 

@@ -2,12 +2,18 @@
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectTalkingVideoJobRequest,
   CreateProjectVideoJobRequest,
   ProjectImageAsset,
   ProjectImageJob,
   ProjectImageSettings,
+  ProjectTalkingVideoScripts,
+  SaveStudioPairwisePick,
   SocialPostMediaRef,
   StudioAdHeadline,
+  StudioCompareState,
+  StudioModelScoreboard,
+  StudioPairwisePick,
   StudioProductIdentity,
 } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
@@ -43,6 +49,9 @@ interface StartGenerationParameters extends AuthenticatedRequest {
    */
   modelId: string | null;
   prompt: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   /**
    * Passed through whole. Spelling the fields out here meant every new
    * setting — `placementId` was the one that exposed it — had to be added in
@@ -55,6 +64,7 @@ interface StartGenerationParameters extends AuthenticatedRequest {
   product?: StudioProductIdentity;
   batchId?: string;
   exportHeadline?: string;
+  lettering?: CreateProjectImageJobRequest["lettering"];
   useProductCutout?: boolean;
   sessionId: string | null;
   /**
@@ -107,6 +117,13 @@ export const startImageGeneration = withSession<
         ? { modelId: input.modelId as CreateProjectImageJobRequest["modelId"] }
         : {}),
       prompt: input.prompt,
+      ...(input.templateId ? { templateId: input.templateId } : {}),
+      ...(input.creativeDirection
+        ? { creativeDirection: input.creativeDirection }
+        : {}),
+      ...(input.variationIndex !== undefined
+        ? { variationIndex: input.variationIndex }
+        : {}),
       settings: input.settings,
       referenceAssetIds: input.referenceAssetIds,
       ...(input.referenceFileIds?.length
@@ -116,6 +133,7 @@ export const startImageGeneration = withSession<
       product: input.product,
       ...(input.batchId ? { batchId: input.batchId } : {}),
       ...(input.exportHeadline ? { exportHeadline: input.exportHeadline } : {}),
+      ...(input.lettering ? { lettering: input.lettering } : {}),
       ...(input.useProductCutout ? { useProductCutout: true } : {}),
       sessionId: input.sessionId,
       idempotencyKey: input.idempotencyKey,
@@ -151,6 +169,52 @@ export const listStudioBatchAssets = withSession<
 >(({ projectId, batchId }) =>
   imageStudioService.listBatchAssets(projectId, batchId),
 );
+
+export const getStudioComparePair = withSession<
+  AuthenticatedRequest & { projectId: string; batchId: string },
+  ActionResultDto<StudioCompareState, ActionError>
+>(async ({ projectId, batchId }) => {
+  try {
+    return toActionResult(
+      ok(await imageStudioService.getComparePair(projectId, batchId)),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const saveStudioPairwisePick = withSession<
+  AuthenticatedRequest &
+    SaveStudioPairwisePick & { projectId: string; batchId: string },
+  ActionResultDto<StudioPairwisePick, ActionError>
+>(async ({ projectId, batchId, assetId, otherAssetId, outcome }) => {
+  try {
+    return toActionResult(
+      ok(
+        await imageStudioService.savePairwisePick(projectId, batchId, {
+          assetId,
+          otherAssetId,
+          outcome,
+        }),
+      ),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const getStudioModelScoreboard = withSession<
+  AuthenticatedRequest & { projectId: string },
+  ActionResultDto<StudioModelScoreboard, ActionError>
+>(async ({ projectId }) => {
+  try {
+    return toActionResult(
+      ok(await imageStudioService.getModelScoreboard(projectId)),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
 
 interface StartVideoGenerationParameters extends AuthenticatedRequest {
   projectId: string;
@@ -188,6 +252,79 @@ export const startVideoGeneration = withSession<
       };
     }
     throw error;
+  }
+});
+
+interface StartTalkingVideoParameters
+  extends AuthenticatedRequest,
+    Pick<
+      CreateProjectTalkingVideoJobRequest,
+      | "script"
+      | "presenter"
+      | "siteShots"
+      | "broll"
+      | "music"
+      | "idempotencyKey"
+    > {
+  projectId: string;
+  modelId: string;
+  voice: string;
+  languageCode: string;
+}
+
+export const startTalkingVideo = withSession<
+  StartTalkingVideoParameters,
+  StartGenerationResult
+>(async (input) => {
+  try {
+    const job = await imageStudioService.createTalkingVideoJob(
+      input.projectId,
+      {
+        modelId: input.modelId,
+        script: input.script,
+        // Core checks the voice against its own list.
+        voice: input.voice as CreateProjectTalkingVideoJobRequest["voice"],
+        languageCode: input.languageCode,
+        presenter: input.presenter,
+        siteShots: input.siteShots,
+        broll: input.broll,
+        music: input.music,
+        idempotencyKey: input.idempotencyKey,
+      },
+    );
+    return { ok: true, job };
+  } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      return {
+        ok: false,
+        kind: error.kind ?? null,
+        message: error.message || "Could not start the video.",
+        uncertain: error.status === undefined || error.status >= 500,
+      };
+    }
+    throw error;
+  }
+});
+
+export const writeTalkingVideoScripts = withSession<
+  AuthenticatedRequest & {
+    projectId: string;
+    topic?: string;
+    languageCode: string;
+  },
+  ActionResultDto<ProjectTalkingVideoScripts["scripts"], ActionError>
+>(async ({ projectId, topic, languageCode }) => {
+  try {
+    return toActionResult(
+      ok(
+        await imageStudioService.writeTalkingVideoScripts(projectId, {
+          ...(topic ? { topic } : {}),
+          languageCode,
+        }),
+      ),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 

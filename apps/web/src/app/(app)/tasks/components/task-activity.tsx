@@ -1,10 +1,6 @@
 "use client";
 
-import type {
-  TaskEvent,
-  TaskFile,
-  TaskParticipant,
-} from "@sokosumi/core-client";
+import type { TaskEvent, TaskFile } from "@sokosumi/core-client";
 import {
   BlobStatus,
   Channel,
@@ -66,7 +62,6 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
-import { TaskActivitySubscribeControl } from "./task-activity-subscribe";
 import {
   getTaskStatusDotColorClass,
   TaskStatusInline,
@@ -108,8 +103,8 @@ interface TaskActivityProps {
   canComment?: boolean;
   /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
   mentionableUsers?: readonly MentionableUser[];
-  /** Task participants in join order. */
-  participants?: TaskParticipant[];
+  /** Sits in the header beside Jump to latest: follow and participant controls. */
+  headerAction?: ReactNode;
 }
 
 export interface MentionableUser {
@@ -118,7 +113,6 @@ export interface MentionableUser {
 }
 
 const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
-const NO_PARTICIPANTS: TaskParticipant[] = [];
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
@@ -217,7 +211,7 @@ export function TaskActivitySection({
   viewerPlan = null,
   canComment = true,
   mentionableUsers = NO_MENTIONABLE_USERS,
-  participants = NO_PARTICIPANTS,
+  headerAction,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -453,14 +447,7 @@ export function TaskActivitySection({
               {t("jumpToRecent")}
             </Button>
           ) : null}
-          <TaskActivitySubscribeControl
-            taskId={taskId}
-            viewerId={currentUser?.id ?? null}
-            viewerName={currentUser?.name ?? null}
-            viewerImage={currentUser?.image ?? null}
-            participants={participants}
-            canComment={canComment}
-          />
+          {headerAction}
         </div>
       </div>
 
@@ -523,6 +510,19 @@ export function TaskActivitySection({
             const originFromLabel = t("originFromApp", {
               appName: channelAppName,
             });
+            // "from Unknown" tells the reader nothing, so name no origin.
+            const origin =
+              event.channel === Channel.UNKNOWN ? null : (
+                <span className="whitespace-nowrap">
+                  {originFromLabel}
+                  <ChannelIcon
+                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                    role="img"
+                    aria-label={originFromLabel}
+                    data-testid={`origin-icon-${event.id}`}
+                  />
+                </span>
+              );
             const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
             const chargePresentation = getTaskEventChargePresentation(event);
             const formattedComment = chargePresentation.hasComment
@@ -679,20 +679,7 @@ export function TaskActivitySection({
                         </span>
                         <span className="max-sm:order-3 max-sm:basis-full sm:contents">
                           <span className="text-muted-foreground text-xs">
-                            <span>{action}</span>{" "}
-                            {!taskStatus ? (
-                              <>
-                                <span className="whitespace-nowrap">
-                                  {originFromLabel}
-                                  <ChannelIcon
-                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
-                                    role="img"
-                                    aria-label={originFromLabel}
-                                    data-testid={`origin-icon-${event.id}`}
-                                  />
-                                </span>
-                              </>
-                            ) : null}
+                            <span>{action}</span> {taskStatus ? null : origin}
                           </span>
                           {taskStatus ? (
                             <>
@@ -702,15 +689,7 @@ export function TaskActivitySection({
                                 label={tStatus(taskStatus)}
                               />{" "}
                               <span className="text-muted-foreground text-xs">
-                                <span className="whitespace-nowrap">
-                                  {originFromLabel}
-                                  <ChannelIcon
-                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
-                                    role="img"
-                                    aria-label={originFromLabel}
-                                    data-testid={`origin-icon-${event.id}`}
-                                  />
-                                </span>
+                                {origin}
                               </span>
                             </>
                           ) : null}

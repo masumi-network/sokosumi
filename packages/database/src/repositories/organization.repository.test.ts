@@ -3,9 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { organizationRepository } from "./organization.repository.js";
 
 const findUniqueMock = vi.fn();
+const findManyMock = vi.fn();
 const tx = {
   organization: {
     findUnique: findUniqueMock,
+    findMany: findManyMock,
+    count: vi.fn().mockResolvedValue(0),
   },
 } as never;
 
@@ -29,4 +32,16 @@ describe("organizationRepository.getOrganizationLimitedInfoBySlug", () => {
     });
     expect(result).toEqual({ id: "org_1", name: "Acme", slug: "acme" });
   });
+});
+
+it("lists the first page of organizations without a cursor or offset", async () => {
+  findManyMock.mockResolvedValue([]);
+
+  await organizationRepository.listOrganizationsForAdminOverview(
+    { take: 21 },
+    tx,
+  );
+
+  expect(findManyMock.mock.lastCall?.[0]).not.toHaveProperty("cursor");
+  expect(findManyMock.mock.lastCall?.[0]).not.toHaveProperty("skip");
 });

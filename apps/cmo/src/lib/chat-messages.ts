@@ -1,4 +1,6 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
+import { type CmoCompetitorWeek, readCmoCompetitorWeek } from "@sokosumi/utils";
+import { type CusoTrace, traceOf } from "./trace";
 
 export interface CusoMessage {
   id: string;
@@ -6,6 +8,35 @@ export interface CusoMessage {
   author: string;
   content: string;
   createdAt: string;
+  /** How Cuso got to this reply, when Core kept it. */
+  trace?: CusoTrace | null;
+  /** The turn that wrote it, when Core says: a background run's report. */
+  turnId?: string | null;
+  /** The week's competitor moves, when this is Core's message about them. */
+  week?: CmoCompetitorWeek | null;
+}
+
+/** The turn a bot's message came from, as Core records it on the message. */
+function turnOf(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const bot = (metadata as { soko_bot?: unknown }).soko_bot;
+  if (!bot || typeof bot !== "object") return null;
+  const turnId = (bot as { turn_id?: unknown }).turn_id;
+  return typeof turnId === "string" ? turnId : null;
+}
+
+function replyFailureOf(metadata: ChatRoomMessage["metadata"]) {
+  if (metadata?.mention_failed !== true) return null;
+  const failure = metadata.mention_failure;
+  const kind =
+    failure && typeof failure === "object" && "kind" in failure
+      ? failure.kind
+      : null;
+  if (kind === "turn_cancelled") return "The reply stopped before it finished.";
+  if (kind === "ai_budget_exceeded") {
+    return "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.";
+  }
+  return "Something went wrong on our side. Try again. If it keeps happening, contact support.";
 }
 
 /**
@@ -67,11 +98,16 @@ export function toCusoMessages(messages: ChatRoomMessage[]): CusoMessage[] {
             ? message.sender.sokoBot.name
             : message.sender.type === "user"
               ? message.sender.user.name
-              : "Sokosumi",
+              : message.sender.type === "coworker"
+                ? message.sender.coworker.name
+                : "Team",
         content: fromCuso
-          ? cusoText(message.content)
+          ? (replyFailureOf(message.metadata) ?? cusoText(message.content))
           : withoutIdMentions(message.content),
         createdAt: new Date(message.createdAt).toISOString(),
+        trace: fromCuso ? traceOf(message.metadata) : null,
+        turnId: fromCuso ? turnOf(message.metadata) : null,
+        week: fromCuso ? readCmoCompetitorWeek(message.metadata) : null,
       };
     })
     .filter(

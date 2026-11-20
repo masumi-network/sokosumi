@@ -1,5 +1,5 @@
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
-import { Mascot } from "./mascot";
+import { Logo } from "./logo";
 import { SubmitButton } from "./submit-button";
 
 interface SignedInProps {
@@ -33,7 +33,7 @@ export function SignedIn({ name, email, signOut, inviteOnly }: SignedInProps) {
           </SubmitButton>
         </form>
       </div>
-      <Mascot className="hero-mascot" />
+      <Logo lockup="primary" className="hero-logo" />
     </main>
   );
 }

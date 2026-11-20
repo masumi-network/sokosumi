@@ -11,17 +11,15 @@ import {
   TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
-
 import { computeNextRun } from "@/helpers/cron";
 import { computeIntervalNextRun } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
 import { isSeoMonitorDescription } from "@/lib/seo/monitor-plan";
+import type { ManualSeoRunApproval } from "./seo-monitor-search-console";
 import {
   announceReleasedTasks,
   createTaskFromBlueprint,
 } from "./task-schedule-task.service";
-
-export { announceReleasedTasks } from "./task-schedule-task.service";
 
 /**
  * The Run ledger of Task Schedules (ADR 0041): which Runs are
@@ -417,9 +415,16 @@ export async function releaseManualTaskScheduleRun(
   schedule: TaskSchedule,
   now: Date,
   actor: Pick<TaskScheduleRun, "actorUserId" | "actorCoworkerId">,
+  approval?: ManualSeoRunApproval,
 ): Promise<{ run: TaskScheduleRun; task: ReleasedTask }> {
   const runId = randomUUID();
-  const task = await createTaskFromBlueprint(tx, schedule, runId, true);
+  const task = await createTaskFromBlueprint(
+    tx,
+    schedule,
+    runId,
+    true,
+    approval,
+  );
   const run = await tx.taskScheduleRun.create({
     data: {
       id: runId,

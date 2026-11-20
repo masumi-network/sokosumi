@@ -6,6 +6,7 @@ import {
   type SeoCapability,
   type SeoStatisticsNoteGap,
 } from "@sokosumi/utils";
+import { seoIndexAssessments } from "./seo-index-triage-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
 /** The items not built yet, in the doc's groups and order; a group with no open item is left out. */
@@ -50,6 +51,7 @@ export type SeoAuditGap = {
   /** A message key under "App.Seo.improve.gaps". */
   message:
     | "noSearchConsole"
+    | "noSearchTraffic"
     | "noAnalytics"
     | "statisticsUnavailable"
     | SeoStatisticsNoteGap
@@ -69,26 +71,6 @@ export type SeoAuditGap = {
   names?: string[];
   fix: SeoAuditGapFix | null;
 };
-
-/**
- * The values of one gap's message. `list` joins names in the reader's language. A cut note names fewer
- * keywords than it counts, so `more` says how many it left out; `shown` 0 leaves the list out.
- */
-export function seoAuditGapValues(
-  gap: SeoAuditGap,
-  list: (names: string[]) => string,
-) {
-  const names = gap.names ?? [];
-  const count = gap.count ?? 0;
-  return {
-    note: gap.note ?? "",
-    count,
-    limit: count,
-    names: list(names),
-    shown: names.length,
-    more: Math.max(0, count - names.length),
-  };
-}
 
 /**
  * Whether a filter narrows the statistics Core returns: a sync counts only for its exact page group,
@@ -137,11 +119,15 @@ export function seoAuditGaps(
   const connected = connectedSources(data);
   const gaps: SeoAuditGap[] = [];
   // A narrowed view says nothing about a source it does not show.
-  if (!connected.search_console && !narrowed)
+  if (!connected.search_console && !narrowed) {
+    const inspected = seoIndexAssessments(data).some(
+      (assessment) => assessment.status !== "unavailable",
+    );
     gaps.push({
-      message: "noSearchConsole",
-      fix: canSyncMetrics ? "connect_search_console" : null,
+      message: inspected ? "noSearchTraffic" : "noSearchConsole",
+      fix: !inspected && canSyncMetrics ? "connect_search_console" : null,
     });
+  }
   if (!connected.ga4 && !narrowed)
     gaps.push({
       message: "noAnalytics",
@@ -220,6 +206,7 @@ export function seoAuditGaps(
 type CustomerAuditGap = {
   message:
     | "noSearchConsole"
+    | "noSearchTraffic"
     | "noAnalytics"
     | "statisticsIncomplete"
     | "checksIncomplete"
@@ -239,6 +226,7 @@ export function seoCustomerAuditGaps(
   for (const gap of seoAuditGaps(data, narrowed)) {
     switch (gap.message) {
       case "noSearchConsole":
+      case "noSearchTraffic":
       case "noAnalytics":
       case "noCheck":
       case "paidOff":

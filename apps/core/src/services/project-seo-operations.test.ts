@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { requestSeoAnalysisSchema } from "@/schemas/project-seo.schema";
+import { SEO_MAX_PACKET_CHARS } from "@/schemas/seo-task-pages.schema";
 import {
-  SEO_MAX_PACKET_CHARS,
   seoTaskPacket,
   validateSeoAnalysis,
 } from "./project-seo-operations.service";
@@ -20,6 +20,47 @@ const request = () =>
   });
 
 describe("SEO worker request compatibility before Task dispatch", () => {
+  it("freezes the customer's cost-plus terms independently of the worker data budget", () => {
+    const fullAuditPrice = {
+      kind: "cost_plus",
+      version: 1,
+      minimumCredits: 750,
+      markupPercent: 50,
+    };
+    const terms = { ...request(), kind: "audit_full", fullAuditPrice };
+    const input = requestSeoAnalysisSchema.parse(terms);
+    expect(seoTaskPacket(input, [page], "audit-id")).toMatchObject({
+      price: fullAuditPrice,
+      inspectRelated: true,
+    });
+    for (const invalid of [
+      { ...terms, fullAuditCredits: 750 },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, maxCredits: 749 } },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, markupPercent: 0 } },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, totalMicroUsd: 1 } },
+    ])
+      expect(requestSeoAnalysisSchema.safeParse(invalid).success).toBe(false);
+    expect(() =>
+      validateSeoAnalysis(
+        {
+          ...input,
+          analyses: undefined,
+          devices: ["mobile", "desktop"],
+          fullAuditLimits: { usd: 6, seconds: 300 },
+        },
+        [page, page + "/two"],
+      ),
+    ).toThrow(/data budget/);
+  });
+  it("rejects equivalent encoded seed URLs before emitting a fixed-price worker packet", () => {
+    expect(() =>
+      seoTaskPacket(
+        { ...request(), kind: "audit_full", fullAuditCredits: 750 },
+        [page, "https://example.test/%70age"],
+        "audit-id",
+      ),
+    ).toThrow("each audit page once");
+  });
   it("rejects keyword operators, normalized duplicates and duplicate analyses before worker intake", () => {
     const base = request();
     expect(() =>
@@ -81,6 +122,14 @@ describe("SEO worker request compatibility before Task dispatch", () => {
       "01951111-1111-7111-8111-111111111111",
     );
     expect(full.price).toEqual({ kind: "fixed", credits: 750 });
+    expect(full.inspectRelated).toBe(true);
+    expect(
+      seoTaskPacket(
+        { ...base, kind: "audit_full" },
+        [page],
+        "01951111-1111-7111-8111-111111111111",
+      ).inspectRelated,
+    ).toBeUndefined();
     expect(
       seoTaskPacket(base, [page], "01951111-1111-7111-8111-111111111111").price,
     ).toBeUndefined();
@@ -99,7 +148,7 @@ describe("SEO worker request compatibility before Task dispatch", () => {
         page,
         `${page}/next`,
       ]),
-    ).toThrow("fixed-price allowance");
+    ).toThrow("provider allowance");
     expect(() =>
       validateSeoAnalysis(base, [page, `${page}/next`]),
     ).not.toThrow();

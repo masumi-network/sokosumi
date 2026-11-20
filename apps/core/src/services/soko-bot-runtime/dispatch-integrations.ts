@@ -1,7 +1,7 @@
 import {
+  isCmoMeasurementSource,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotDraftEmailInputSchema,
-  sokoBotListCalendarEventsInputSchema,
   sokoBotListIntegrationToolsInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotRunIntegrationToolInputSchema,
@@ -10,10 +10,11 @@ import {
   sokoBotSendEmailDraftInputSchema,
   sokoBotUpdateEmailsInputSchema,
 } from "@sokosumi/soko-bot";
-import prisma from "@/lib/db/prisma";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
+import { testCopySourceBotId } from "@/services/cmo-test-copy.service";
 import {
   adToolkitRefusal,
+  integrationToolSearchResult,
   listIntegrationTools,
   readIntegrationTool,
   runIntegrationTool,
@@ -21,17 +22,35 @@ import {
 import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
 import {
   activeIntegrationsForBot,
-  fetchCalendarEvents,
   fetchInboxMessage,
   fetchInboxPage,
 } from "@/services/soko-bot-integrations.service";
+import { listMcpServersForBot } from "@/services/soko-bot-mcp.service";
 import {
   type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { listCalendarEvents } from "./calendar";
 import { type RuntimeOperations } from "./operations";
+
+/**
+ * The bot's connected account for a generic toolkit. A CMO test copy has no
+ * measurement account of its own: it reads its source's (ADR 0073), and only
+ * with tools Composio marks read-only.
+ */
+async function genericIntegration(sokoBotId: string, provider: string) {
+  const sourceBotId = isCmoMeasurementSource(provider)
+    ? await testCopySourceBotId(sokoBotId)
+    : null;
+  const [integration] = await activeIntegrationsForBot(
+    sourceBotId ?? sokoBotId,
+    "generic",
+    provider,
+  );
+  return { integration, readOnly: sourceBotId !== null };
+}
 
 export async function dispatchIntegrationsTools(
   runtime: RuntimeOperations,
@@ -39,15 +58,22 @@ export async function dispatchIntegrationsTools(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<unknown> {
   switch (input.capability) {
-    case "list_integrations":
+    case "list_integrations": {
+      const [result, mcpServers] = await Promise.all([
+        listSokoBotIntegrationsForBot(authorized.turn.sokoBotId),
+        listMcpServersForBot(authorized.turn.sokoBotId),
+      ]);
       // A bot's own ad connection is unusable: ads go through the Project's
       // ad account. The owner still sees it in Settings to disconnect it.
-      return listSokoBotIntegrationsForBot(authorized.turn.sokoBotId).then(
-        (result) =>
-          result.integrations.filter(
-            (i) => i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
-          ),
-      );
+      return [
+        ...result.integrations.filter(
+          (i) => i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
+        ),
+        // Where the bot looks first for "is X connected", so its MCP servers
+        // are named here too (ADR 0074).
+        ...mcpServers,
+      ];
+    }
 
     case "find_integrations":
       return runtime.findIntegrations(
@@ -151,9 +177,8 @@ export async function dispatchIntegrationsTools(
       const parsed = sokoBotListIntegrationToolsInputSchema.parse(input.input);
       const refusal = adToolkitRefusal(parsed.provider);
       if (refusal) throw new SokoBotRuntimeValidationError(refusal);
-      const [integration] = await activeIntegrationsForBot(
+      const { integration } = await genericIntegration(
         authorized.turn.sokoBotId,
-        "generic",
         parsed.provider.toLowerCase(),
       );
       if (!integration) {
@@ -161,12 +186,13 @@ export async function dispatchIntegrationsTools(
           `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
         );
       }
-      return {
-        tools: await listIntegrationTools(integration, {
+      return integrationToolSearchResult(
+        await listIntegrationTools(integration, {
           query: parsed.query,
           limit: parsed.limit ?? 20,
         }),
-      };
+        parsed.query,
+      );
     }
 
     case "read_integration_tool":
@@ -176,9 +202,8 @@ export async function dispatchIntegrationsTools(
       // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
       const refusal = adToolkitRefusal(parsed.provider, parsed.tool);
       if (refusal) throw new SokoBotRefusedUnsentError(refusal);
-      const [integration] = await activeIntegrationsForBot(
+      const { integration, readOnly } = await genericIntegration(
         authorized.turn.sokoBotId,
-        "generic",
         parsed.provider.toLowerCase(),
       );
       if (!integration) {
@@ -187,70 +212,13 @@ export async function dispatchIntegrationsTools(
         );
       }
       return (
-        input.capability === "read_integration_tool"
+        input.capability === "read_integration_tool" || readOnly
           ? readIntegrationTool
           : runIntegrationTool
       )(integration, parsed.tool, parsed.arguments ?? {});
     }
 
-    case "list_calendar_events": {
-      const parsed = sokoBotListCalendarEventsInputSchema.parse(input.input);
-      const from = parsed.from ? new Date(parsed.from) : new Date();
-      const to = parsed.to
-        ? new Date(parsed.to)
-        : new Date(from.getTime() + 7 * 24 * 60 * 60 * 1_000);
-      const integrations = await activeIntegrationsForBot(
-        authorized.turn.sokoBotId,
-        "calendar",
-        parsed.provider,
-      );
-      if (to <= from)
-        throw new SokoBotRuntimeValidationError(
-          "Calendar window must end after it starts",
-        );
-      const limit = parsed.limit ?? 50;
-      const result = await readSokoBotSource({
-        source: "CALENDAR",
-        filters: { from: from.toISOString(), to: to.toISOString() },
-        queries: integrations.map(
-          (integration) => () =>
-            fetchCalendarEvents(integration, { from, to, limit }),
-        ),
-      });
-      const tzRow = await prisma.sokoBot.findUnique({
-        where: { id: authorized.turn.sokoBotId },
-        select: { ingestTimezone: true },
-      });
-      const timeZone = tzRow?.ingestTimezone ?? "UTC";
-      const local = (iso: string | null) =>
-        iso
-          ? new Intl.DateTimeFormat("en-GB", {
-              timeZone,
-              weekday: "short",
-              day: "2-digit",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            }).format(new Date(iso))
-          : null;
-      return {
-        timeZone,
-        coverage: {
-          ...result.coverage,
-          includedCount: Math.min(result.rows.length, limit),
-          omittedCount: Math.max(0, result.rows.length - limit),
-        },
-        failedSources: result.failedSources,
-        note: result.note,
-        events: result.rows
-          .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-          .slice(0, limit)
-          .map((event) => ({
-            ...event,
-            startsAtLocal: local(event.startsAt),
-            endsAtLocal: local(event.endsAt),
-          })),
-      };
-    }
+    case "list_calendar_events":
+      return listCalendarEvents(authorized, input.input);
   }
 }

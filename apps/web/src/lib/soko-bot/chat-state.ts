@@ -149,6 +149,8 @@ export interface ChatBot {
   avatarSeed: string | null;
   /** Picked Soko Bot avatar image; null → generative orb. */
   avatarImageUrl: string | null;
+  /** Feature code of the live SVG avatar; null until the bot has one. */
+  avatarCode?: string | null;
   versionId: string | null;
   followWholeBoard: boolean;
   mailAutoRead: boolean;
@@ -309,6 +311,7 @@ function toChatBot(bot: SokoBot): ChatBot {
     name: bot.name,
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
+    avatarCode: bot.avatarCode ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
     mailAutoRead: bot.mailAutoRead ?? false,

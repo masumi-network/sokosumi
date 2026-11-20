@@ -46,6 +46,7 @@ vi.mock("@/schemas/chat-room.schema", () => ({
 }));
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
   publishChatRoomMembershipStatusMessagesBestEffort,
   publishChatRoomMessageRealtime,
@@ -181,11 +182,35 @@ describe("publishChatRoomMessageRealtime", () => {
   });
 
   it("swallows publish errors", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "A chat message event was not published over Ably",
+      ["Building or publishing the message event failed"],
+    );
     publishChatRoomMessageEventMock.mockRejectedValue(new Error("ably down"));
 
     await expect(
       publishChatRoomMessageRealtime(baseMessage as never, "create"),
     ).resolves.toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({
+      eventType: "create",
+      failure: { errorName: "Error" },
+    });
+  });
+
+  it("keeps a publish error's text, which can quote the message, out of the log", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A chat message event was not published over Ably",
+      ["Building or publishing the message event failed"],
+    );
+    publishChatRoomMessageEventMock.mockRejectedValue(
+      new Error("payload rejected: 'Ada private note'"),
+    );
+
+    await publishChatRoomMessageRealtime(baseMessage as never, "create");
+
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private note");
   });
 
   it("publishes a reaction patch, not a full message DTO", async () => {

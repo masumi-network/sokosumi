@@ -183,7 +183,10 @@ appcast "$WORK/other-key.xml" signature="$("$WORK/sign" sign "$OTHER_PRIVATE_KEY
 reject "a signature from another key" "signature does not verify" check "$WORK/other-key.xml"
 
 cp "$DMG" "$WORK/tampered.dmg"
-printf 'x' | dd of="$WORK/tampered.dmg" bs=1 seek=100 conv=notrunc 2> /dev/null
+# Flip the byte rather than write a fixed one: the image is random, so a
+# fixed byte already sits there 1 time in 256 and nothing changes.
+byte="$(od -An -tu1 -j100 -N1 "$WORK/tampered.dmg" | tr -d ' ')"
+printf "\\$(printf '%03o' $(((byte + 1) % 256)))" | dd of="$WORK/tampered.dmg" bs=1 seek=100 conv=notrunc 2> /dev/null
 reject "a disk image changed after signing" "signature does not verify" check "$WORK/good.xml" "$WORK/tampered.dmg"
 
 appcast "$WORK/length.xml" length=4095

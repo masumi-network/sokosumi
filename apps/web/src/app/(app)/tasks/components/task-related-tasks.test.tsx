@@ -13,8 +13,6 @@ const relationLabels = {
   related: "Related",
   blocks: "Blocking",
   blocked_by: "Blocked by",
-  parent: "Sub-task",
-  child: "Parent task",
   duplicate: "Duplicate",
 };
 
@@ -61,20 +59,6 @@ describe("TaskRelatedTasks", () => {
         relation: "related",
       },
       {
-        id: "t-sub",
-        name: "Sub",
-        identifier: null,
-        status: TaskStatus.READY,
-        relation: "parent",
-      },
-      {
-        id: "t-par",
-        name: "Par",
-        identifier: null,
-        status: TaskStatus.READY,
-        relation: "child",
-      },
-      {
         id: "t-blk",
         name: "Blk",
         identifier: null,
@@ -97,14 +81,7 @@ describe("TaskRelatedTasks", () => {
       screen
         .getAllByRole("heading", { level: 2 })
         .map((heading) => heading.textContent),
-    ).toEqual([
-      "Blocked by",
-      "Blocking",
-      "Parent task",
-      "Sub-task",
-      "Related",
-      "Duplicate",
-    ]);
+    ).toEqual(["Blocked by", "Blocking", "Related", "Duplicate"]);
   });
 
   it("lists each task once, linked, under its own group and without a relation badge", () => {

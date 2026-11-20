@@ -31,7 +31,7 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
   const rankings = keywordSummary(groups);
   const read = groups.filter((group) => group.reads.length > 0);
   // One keyword read for two pages is one search term: its searches count once in the sum.
-  // The keyword counts stay per row, as in the keywords tile and the table.
+  // The keyword counts stay per row, as in the keyword figure and the table.
   const terms = [
     ...Map.groupBy(read, ({ lead }) =>
       JSON.stringify([
@@ -77,7 +77,6 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
       ? {
           read: rankings.read,
           found: rankings.found,
-          firstPage: rankings.firstPage,
           depth: rankings.depth,
         }
       : null,

@@ -21,6 +21,89 @@ import {
 import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
+  it.each([
+    ["page", legacyReport()],
+    ["focused", focusedReport()],
+    ["site", siteStrategyReport()],
+    ["site without strategy", { ...siteStrategyReport(), strategy: undefined }],
+  ])(
+    "returns JSON-safe optional strategy fields for a %s audit",
+    (_name, raw) => {
+      const payload = parsePublicSeoArtifact(raw);
+      expect(payload).not.toHaveProperty("strategyDecisions");
+      expect(payload).not.toHaveProperty("decisionSources");
+      expect(payload).toStrictEqual(JSON.parse(JSON.stringify(payload)));
+    },
+  );
+
+  it("omits invalid difficulty from the focused keyword payload and preserves supported values", () => {
+    const raw = focusedRankingsReport();
+    for (const difficulty of [101, "invalid", undefined, 0, null, 55]) {
+      const keyword = {
+        ...raw.keywords[0],
+        ...(difficulty !== undefined && { difficulty }),
+      };
+      const payload = parsePublicSeoArtifact({ ...raw, keywords: [keyword] });
+      const stored = payload.keywords[0]!;
+      if (
+        difficulty === 101 ||
+        difficulty === "invalid" ||
+        difficulty === undefined
+      )
+        expect(stored).not.toHaveProperty("difficulty");
+      else expect(stored.difficulty).toBe(difficulty);
+      expect(payload).toStrictEqual(JSON.parse(JSON.stringify(payload)));
+    }
+  });
+  it("keeps five ranked decisions JSON-safe when stored source references are stale", () => {
+    const decisions = Array.from({ length: 5 }, (_, i) => ({
+      id: `content:${i}`,
+      kind: "content_opportunity",
+      targetUrl: SEO_TEST_PAGE,
+      action: `Revise section ${i}`,
+      reason: "Reference material changed.",
+      alternative: "Keep the current wording.",
+      nextCheck: "Review the next crawl.",
+      evidence: ["Public page capture"],
+    }));
+    const stored = publicSeoPayloadSchema.parse({
+      ...parsePublicSeoArtifact(legacyReport()),
+      strategyDecisions: decisions,
+      decisionSources: [{ snapshotId: "stale" }],
+    });
+    expect(stored.strategyDecisions).toEqual(decisions);
+    expect(stored.decisionSources ?? []).toEqual([]);
+    expect(stored).toStrictEqual(JSON.parse(JSON.stringify(stored)));
+  });
+  it("keeps observed forum questions on an audited group and discards unsafe source links", () => {
+    const raw = siteStrategyReport();
+    const questions = [
+      { title: "Can I cancel?", url: "https://example.test/thread" },
+      { title: "When is renewal?", url: "javascript:void(0)" },
+    ];
+    const parsed = parsePublicSeoArtifact({
+      ...raw,
+      selection: {
+        ...raw.selection,
+        pages: raw.selection.pages.map((p) => ({ ...p, url: p.url + "#tab" })),
+      },
+      strategy: {
+        ...raw.strategy,
+        groups: raw.strategy.groups.map((g, i) => ({
+          ...g,
+          forums: true,
+          page: i === 0 ? 1 : 999,
+          forumQuestions: questions,
+        })),
+      },
+    }).strategy;
+    expect(parsed?.groups[0].forumQuestions).toStrictEqual([
+      questions[0],
+      { title: "When is renewal?" },
+    ]);
+    expect(parsed?.groups[1].forumQuestions).toBeUndefined();
+    expect(parsed?.groups[0].pageUrl).toBe(SEO_TEST_PAGE);
+  });
   it("links actions to their source finding IDs without mixing device-specific findings", () => {
     const raw = legacyReport();
     raw.findings = ["mobile", "desktop"].map((device) => ({
@@ -187,6 +270,39 @@ describe("public SEO report trust boundary", () => {
     );
   });
 
+  it("keeps the model origins and DataForSEO receipt with the measured keyword idea", () => {
+    const fixture = legacyReport();
+    const editorial = { models: ["gemini", "codex"], record: "a".repeat(64) };
+    const report = parsePublicSeoArtifact({
+      ...fixture,
+      keywordOpportunities: {
+        list: [{ ...fixture.keywordOpportunities.list[0], editorial }],
+      },
+    });
+    expect(
+      report.keywords.find((row) => row.source === "opportunity")?.editorial,
+    ).toEqual(editorial);
+    const newer = parsePublicSeoArtifact({
+      ...fixture,
+      keywordOpportunities: {
+        list: [
+          {
+            ...fixture.keywordOpportunities.list[0],
+            editorial: { ...editorial, models: ["future-editor"] },
+          },
+        ],
+      },
+    });
+    const ordinary = newer.keywords.find((row) => row.source === "opportunity");
+    expect(ordinary).toMatchObject({
+      keyword: fixture.keywordOpportunities.list[0].keyword,
+    });
+    expect(ordinary).not.toHaveProperty("editorial");
+    expect(
+      report.keywords.find((row) => row.source === "focus"),
+    ).not.toHaveProperty("editorial");
+  });
+
   it("keeps a keyword's conversion estimate and feature, and imports the report without a value it cannot read", () => {
     const fixture = legacyReport();
     const estimate = { conversion: "medium", feature: "Low battery alerts" };
@@ -227,8 +343,8 @@ describe("public SEO report trust boundary", () => {
     expect(rows("unread estimate")).toEqual([
       expect.objectContaining({ source: "opportunity", volume: 10 }),
     ]);
-    expect(rows("unread estimate")[0].conversion).toBeUndefined();
-    expect(rows("unread estimate")[0].feature).toBeUndefined();
+    expect(rows("unread estimate")[0]).not.toHaveProperty("conversion");
+    expect(rows("unread estimate")[0]).not.toHaveProperty("feature");
     // A feature of spaces only is no feature: the level stays.
     expect(rows("blank feature")[0].conversion).toBe("low");
     expect(rows("blank feature")[0].feature).toBeUndefined();
@@ -422,6 +538,7 @@ describe("public SEO report trust boundary", () => {
           volume: 140,
           recent: 47,
           trend: "falling",
+          forums: true,
           reach: "in reach",
           position: null,
         },
@@ -443,6 +560,7 @@ describe("public SEO report trust boundary", () => {
           volume: null,
           recent: null,
           trend: null,
+          forums: true,
           reach: "not determined",
           position: null,
         },
@@ -780,4 +898,14 @@ describe("SERP reads of a focused result", () => {
       ).toThrow("unrequested keywords or devices");
     }
   });
+});
+
+it("rejects owner-only Bing evidence in a full page or a nested site result before importing decisions", () => {
+  const bing = { property: "owner.test", queries: [{ key: "private term" }] };
+  const page = { ...legacyReport(), bing };
+  for (const raw of [page, { ...siteStrategyReport(), pages: [page] }]) {
+    expect(() => parsePublicSeoArtifact(raw)).toThrow(
+      "Only public SEO evidence",
+    );
+  }
 });

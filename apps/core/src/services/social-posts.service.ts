@@ -15,6 +15,7 @@ import {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_REQUIRED,
+  SOCIAL_POST_THREAD_MAX_PARTS,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
@@ -27,7 +28,6 @@ import {
   socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
-
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -44,6 +44,10 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import {
+  socialPostConnectionSelect,
+  socialPostConnectionSummary,
+} from "@/helpers/project-social-connection-summary";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   flagSocialPostQuotes,
@@ -56,14 +60,12 @@ import {
   socialPostQuotePublishDecision,
   socialPostQuoteSelect,
 } from "@/helpers/social-post-quote";
-import {
-  SOCIAL_POST_THREAD_MAX_PARTS,
-  summarizeSocialPostThread,
-} from "@/helpers/social-post-thread";
+import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { EmbedTexts } from "@/lib/embeddings";
+import { findRepeats } from "@/lib/repeats";
 import {
-  nearDuplicatePost,
   socialPostFormattingError,
   stackedCaveatsProblem,
   tagOwnLinks,
@@ -78,9 +80,14 @@ import {
   requireScopedProject,
 } from "@/services/project-social-connections.service";
 import {
+  scheduleLeadMs,
+  TEST_COPY_SCHEDULE_FLOOR_MESSAGE,
+} from "@/services/project-test-copy";
+import {
   prepareSocialPostMedia,
   requirePreparedSocialPostProvider,
 } from "@/services/social-post-media-preparation.service";
+import { recordSocialStudioAdEvents } from "@/services/social-studio-events.service";
 import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
@@ -134,17 +141,7 @@ const socialPostInclude = {
   threadParts: { orderBy: { position: "asc" } },
   quotedPost: { select: socialPostQuoteSelect },
   project: { select: socialProviderProjectSelect },
-  socialConnection: {
-    select: {
-      id: true,
-      provider: true,
-      externalHandle: true,
-      displayName: true,
-      avatarUrl: true,
-      subscriptionType: true,
-      status: true,
-    },
-  },
+  socialConnection: { select: socialPostConnectionSelect },
   creatorUser: { select: { id: true, name: true } },
   creatorCoworker: { select: { id: true, name: true } },
   creatorSokoBot: { select: { id: true, name: true } },
@@ -209,6 +206,7 @@ export interface SocialPostSummary {
     avatarUrl: string | null;
     subscriptionType: string | null;
     status: string;
+    personalProfile: boolean;
   } | null;
   creator: SocialPostCreator;
   scheduledByUserId: string | null;
@@ -449,7 +447,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
-    socialConnection: record.socialConnection,
+    socialConnection: socialPostConnectionSummary(record.socialConnection),
     creator: mapCreator(record),
     scheduledByUserId: record.scheduledByUserId,
     scheduledByCoworkerId: record.scheduledByCoworkerId,
@@ -649,9 +647,8 @@ async function cmoLinkTags(
 }
 
 /**
- * A Soko Bot's post in a marketing month says its own thing with its own
- * pictures: a month once repeated four messages across 45 posts, and one
- * picture went on three of them.
+ * A Soko Bot's post in a marketing month carries its own pictures (one
+ * picture once went on three posts) and states its facts plainly.
  */
 async function requireOwnInMonth(
   tx: Prisma.TransactionClient,
@@ -664,7 +661,7 @@ async function requireOwnInMonth(
       id: { not: post.id },
       status: { not: "CANCELED" },
     },
-    select: { id: true, text: true, media: true, planning: true },
+    select: { id: true, text: true, media: true },
   });
   for (const item of change.media) {
     const holder = siblings.find((sibling) =>
@@ -680,16 +677,58 @@ async function requireOwnInMonth(
   if (change.text === null) return;
   const caveats = stackedCaveatsProblem(change.text);
   if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
+}
+
+/**
+ * Why a Soko Bot's new text for a post in a marketing month says what
+ * another post of the month says (a month once repeated four messages
+ * across 45 posts), or null, with what comparing cost. It waits on the
+ * embedding model, so callers run it before the save's transaction.
+ */
+export async function ownMessageProblem(
+  input: { postId: string; workspaceId: string; text: string },
+  embed?: EmbedTexts,
+): Promise<{ problem: string | null; costUsd: number }> {
+  const post = await prisma.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true, planning: true },
+  });
+  if (!post?.marketingStrategyId) return { problem: null, costUsd: 0 };
+  // A talking video's posts on several networks say the same thing on purpose.
+  const videoOf = (planning: unknown) => {
+    const plan = planning as { id?: unknown; videoOf?: unknown } | null;
+    return plan?.videoOf ?? plan?.id ?? null;
+  };
+  const video = videoOf(post.planning);
+  const siblings = await prisma.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      status: { not: "CANCELED" },
+    },
+    select: { text: true, planning: true },
+  });
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
     const planning = sibling.planning as { brief?: unknown; title?: unknown };
-    return sibling.text !== planning?.brief && sibling.text !== planning?.title;
-  });
-  const repeated = nearDuplicatePost(change.text, written);
-  if (repeated)
-    throw badRequest(
-      `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`,
+    return (
+      sibling.text !== planning?.brief &&
+      sibling.text !== planning?.title &&
+      (video === null || videoOf(sibling.planning) !== video)
     );
+  });
+  const { repeats, costUsd } = await findRepeats(
+    [...written.map((sibling) => sibling.text), input.text],
+    "post",
+    embed,
+  );
+  const repeated = written[repeats.at(-1) ?? -1];
+  return {
+    problem: repeated
+      ? `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`
+      : null,
+    costUsd,
+  };
 }
 
 /**
@@ -786,6 +825,7 @@ function normalizeSocialPostMedia(
       size: ref.size,
       mimeType,
       kind: ref.kind,
+      ...(ref.aiGenerated && { aiGenerated: true }),
       ...(ref.transformation ? { transformation: ref.transformation } : {}),
     };
   });
@@ -868,9 +908,18 @@ function hasStartedThread(post: SocialPostRecord): boolean {
   );
 }
 
-function requireFutureScheduledAt(scheduledAt: Date): void {
-  if (scheduledAt.getTime() <= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS) {
-    throw badRequest("Scheduled time must be in the future");
+/** A time far enough ahead: at once for most, 12 hours for a test copy (ADR 0073). */
+function requireFutureScheduledAt(
+  scheduledAt: Date,
+  project: { testCopyOfProjectId: string | null },
+): void {
+  const leadMs = scheduleLeadMs(project, SOCIAL_POST_MIN_SCHEDULE_LEAD_MS);
+  if (scheduledAt.getTime() <= Date.now() + leadMs) {
+    throw badRequest(
+      project.testCopyOfProjectId
+        ? TEST_COPY_SCHEDULE_FLOOR_MESSAGE
+        : "Scheduled time must be in the future",
+    );
   }
 }
 
@@ -882,6 +931,7 @@ type ConnectionCandidate = Pick<
   | "status"
   | "subscriptionType"
   | "composioConnectedAccountId"
+  | "executorProjectId"
 >;
 
 /** Loads a connection that belongs to the Project. Disconnected rows never qualify. */
@@ -899,6 +949,7 @@ async function requireProjectConnection(
       status: true,
       subscriptionType: true,
       composioConnectedAccountId: true,
+      executorProjectId: true,
       project: { select: socialProviderProjectSelect },
     },
   });
@@ -986,9 +1037,9 @@ export function listWorkspaceSocialPosts(
 async function readSocialPostsPage(
   input: Omit<ListSocialPostsInput, "projectId"> & { projectId?: string },
 ): Promise<{ posts: SocialPostSummary[]; pagination: CursorPaginationMeta }> {
-  const { cursor, take, skip } = parseCursorPagination(input);
+  const { cursor, take } = parseCursorPagination(input);
   const where: Prisma.SocialPostWhereInput = {
-    projectId: input.projectId,
+    ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
     workspaceId: input.workspaceId,
     ...(input.statuses ? { status: { in: [...input.statuses] } } : {}),
     ...(input.provider ? { provider: input.provider } : {}),
@@ -1037,7 +1088,7 @@ async function readSocialPostsPage(
                 ]
               : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip } : {}),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     }),
     prisma.socialPost.count({ where }),
   ]);
@@ -1160,27 +1211,42 @@ export async function createSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) input = await prepareSocialPostMutationMedia(input);
   if ((input.scheduledAt || input.quotedPostId) && tx === prisma) {
-    return serializableTransaction(
+    const post = await serializableTransaction(
       (tx) => createSocialPost(input, tx),
       "Project changed while scheduling a Social post",
     );
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "attached_to_post",
+      media: post.media,
+      threadParts: post.threadParts,
+    });
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   if (input.coworkerId && input.sokoBotId) {
     throw badRequest(
       "A social post cannot have both a Coworker and Soko Bot creator",
     );
   }
-  if (input.scheduledAt) {
-    await requireLockedOpenProject(tx, input, {
-      closedMessage: PROJECT_CLOSED_MESSAGE,
-    });
-  } else {
-    await requireScopedProject(input, { client: tx });
-  }
+  const project = input.scheduledAt
+    ? await requireLockedOpenProject(tx, input, {
+        closedMessage: PROJECT_CLOSED_MESSAGE,
+      })
+    : await requireScopedProject(input, { client: tx });
 
   let connection: ConnectionCandidate | null = null;
   if (input.scheduledAt) {
-    requireFutureScheduledAt(input.scheduledAt);
+    requireFutureScheduledAt(input.scheduledAt, project);
     connection = await requireActiveProjectConnection(
       input.projectId,
       input.socialConnectionId,
@@ -1259,7 +1325,17 @@ export async function createSocialPost(
     },
     include: socialPostInclude,
   });
-  return mapSocialPost(post);
+  const summary = mapSocialPost(post);
+  if (tx === prisma) {
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: summary.id,
+      type: "attached_to_post",
+      media: summary.media,
+      threadParts: summary.threadParts,
+    });
+  }
+  return summary;
 }
 
 export async function updateSocialPost(
@@ -1268,12 +1344,37 @@ export async function updateSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
     input = await prepareSocialPostMutationMedia(input);
-    return serializableTransaction(
+    const previous =
+      input.media !== undefined || input.threadParts !== undefined
+        ? await getSocialPost(input).catch(() => undefined)
+        : undefined;
+    const post = await serializableTransaction(
       (tx) => updateSocialPost(input, tx),
       "Project changed while editing a Social post",
     );
+    if (previous) {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "attached_to_post",
+        media: post.media,
+        threadParts: post.threadParts,
+        previousMedia: previous.media,
+        previousThreadParts: previous.threadParts,
+      });
+    }
+    if (input.scheduledAt && post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
-  await requireScopedProject(input, { client: tx });
+  const project = await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
   if (post.status === "SCHEDULED" || input.scheduledAt) {
     await requireLockedOpenProject(tx, input, {
@@ -1298,7 +1399,7 @@ export async function updateSocialPost(
     );
   }
   requireRevision(post, input.revision);
-  if (input.scheduledAt) requireFutureScheduledAt(input.scheduledAt);
+  if (input.scheduledAt) requireFutureScheduledAt(input.scheduledAt, project);
 
   const data: Prisma.SocialPostUncheckedUpdateManyInput = repairingDisabledPost
     ? {
@@ -1532,12 +1633,37 @@ export async function scheduleSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
     input = await prepareSocialPostMutationMedia(input);
-    return serializableTransaction(
+    const previous =
+      input.media !== undefined
+        ? await getSocialPost(input).catch(() => undefined)
+        : undefined;
+    const post = await serializableTransaction(
       (tx) => scheduleSocialPost(input, tx),
       "Project changed while scheduling a Social post",
     );
+    if (previous) {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "attached_to_post",
+        media: post.media,
+        threadParts: post.threadParts,
+        previousMedia: previous.media,
+        previousThreadParts: previous.threadParts,
+      });
+    }
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
-  await requireLockedOpenProject(tx, input, {
+  const project = await requireLockedOpenProject(tx, input, {
     closedMessage: PROJECT_CLOSED_MESSAGE,
   });
   const post = await requireScopedPost(input, tx);
@@ -1545,7 +1671,7 @@ export async function scheduleSocialPost(
     throw conflict("This post can no longer be scheduled");
   }
   requireRevision(post, input.revision);
-  requireFutureScheduledAt(input.scheduledAt);
+  requireFutureScheduledAt(input.scheduledAt, project);
   if (post.publishingThreadPartPosition != null) {
     throw conflict(
       `Thread part ${post.publishingThreadPartPosition} has an unconfirmed publishing result. Check X before retrying to avoid a duplicate post.`,
@@ -1709,12 +1835,22 @@ export async function approveSocialPost(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
-    return serializableTransaction(
+    const post = await serializableTransaction(
       (tx) => approveSocialPost(input, tx),
       "Project changed while approving a Social post",
     );
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
-  await requireLockedOpenProject(tx, input, {
+  const project = await requireLockedOpenProject(tx, input, {
     closedMessage: PROJECT_CLOSED_MESSAGE,
   });
   const post = await requireScopedPost(input, tx);
@@ -1727,9 +1863,11 @@ export async function approveSocialPost(
   if (post.socialConnection) {
     requireSocialProviderEnabled(post.socialConnection.provider, post.project);
   }
+  // A test copy's approved post sooner than its floor stays a draft.
   const schedule =
     due != null &&
-    due.getTime() >= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+    due.getTime() >=
+      Date.now() + scheduleLeadMs(project, SOCIAL_POST_MIN_SCHEDULE_LEAD_MS);
   if (schedule) {
     await requireActiveProjectConnection(
       input.projectId,

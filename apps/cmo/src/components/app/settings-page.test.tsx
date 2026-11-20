@@ -15,8 +15,19 @@ const SUBSCRIBED = {
 } as const;
 
 /** The Settings page's text for a Cuso with this billing block. */
-function settings(billing: Partial<CmoOverview["billing"]> = {}) {
+function settings(
+  billing: Partial<CmoOverview["billing"]> = {},
+  mayHire = false,
+) {
   const overview = cmoOverview();
+  return markup(billing, mayHire, overview).replace(/<[^>]+>/g, " ");
+}
+
+function markup(
+  billing: Partial<CmoOverview["billing"]>,
+  mayHire: boolean,
+  overview = cmoOverview(),
+) {
   return renderToStaticMarkup(
     <SettingsPage
       overview={{
@@ -27,15 +38,65 @@ function settings(billing: Partial<CmoOverview["billing"]> = {}) {
       name="Ada"
       email="ada@acme.io"
       startOver={async () => null}
+      setTimeZone={async () => null}
       signOut={async () => {}}
       topUp={null}
       plans={cmoPlans}
       changePlan={async () => ({ change: null, error: null })}
       openPortal={async () => ({ url: null, error: null })}
       subscribe={async () => ({ url: null, error: null })}
+      mayHire={mayHire}
     />,
-  ).replace(/<[^>]+>/g, " ");
+  );
 }
+
+describe("Settings: another website and starting over", () => {
+  it("offers a second Cuso as a link to the hire form, apart from Start over", () => {
+    const html = markup({}, true);
+    const hire = html.indexOf('href="/?hire=1"');
+    const stop = html.indexOf(`Stop this ${AGENT_NAME}`);
+    expect(hire).toBeGreaterThan(-1);
+    expect(html).toContain(`Hire ${AGENT_NAME} for another website`);
+    expect(html).toContain("This one keeps working.");
+    // Start over archives this Cuso: its own section, after the hire offer.
+    expect(stop).toBeGreaterThan(hire);
+    const another = html.slice(html.indexOf("Another website"), stop);
+    expect(another).not.toContain("Start over");
+    expect(html.slice(stop)).toContain("Start over");
+    expect(html.slice(stop)).toContain("his unsent posts are canceled");
+  });
+
+  it("leaves the hire offer out for a person who may not hire", () => {
+    const text = settings();
+    expect(text).not.toContain("Another website");
+    expect(text).not.toContain("/?hire=1");
+    expect(text).toContain("Start over");
+  });
+});
+
+describe("Settings: the time zone", () => {
+  it("says which time zone Cuso's routines run in, and offers to change it", () => {
+    const overview = cmoOverview();
+    const text = renderToStaticMarkup(
+      <SettingsPage
+        overview={{ ...overview, timeZone: "America/Los_Angeles" }}
+        compose={() => {}}
+        name="Ada"
+        email="ada@acme.io"
+        startOver={async () => null}
+        setTimeZone={async () => null}
+        signOut={async () => {}}
+        topUp={null}
+        plans={cmoPlans}
+        changePlan={async () => ({ change: null, error: null })}
+        openPortal={async () => ({ url: null, error: null })}
+        subscribe={async () => ({ url: null, error: null })}
+      />,
+    ).replace(/<[^>]+>/g, " ");
+    expect(text).toContain(`${AGENT_NAME} works on America/Los Angeles time.`);
+    expect(text).toContain("Change");
+  });
+});
 
 describe("Settings: the CMO subscription", () => {
   it("shows the tier, the interval, the renewal date and the credits left", () => {
@@ -87,7 +148,7 @@ describe("Settings: the CMO subscription", () => {
     const text = settings({ hasTesterCredits: true });
 
     expect(text).toContain("Subscribe");
-    expect(text).toContain("Your Tester credits stay");
+    expect(text).toContain("You keep the credits you have");
   });
 });
 

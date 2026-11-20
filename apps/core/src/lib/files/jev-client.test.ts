@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 
 import {
   gatewayJevEvaluator,
@@ -450,22 +451,44 @@ describe("what it reports back", () => {
     expect(outcome.reason).toBe("model-mismatch");
   });
 
-  it("reports status only, never a body that could echo the document", async () => {
-    const json = vi.fn();
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 503,
-      json,
-    } as unknown as Response);
+  it.each([
+    {
+      message: "Provider unavailable for private document text",
+      reason: "status-503",
+    },
+    {
+      message: "API key budget exceeded for private document text",
+      reason: "ai_budget_exceeded",
+    },
+  ])(
+    "keeps the refusal body out of results and logs for $reason",
+    async ({ message, reason }) => {
+      if (reason === "ai_budget_exceeded")
+        expectCoreLog("error", "AI Gateway budget exhausted");
+      fetchMock.mockResolvedValue(
+        Response.json(
+          {
+            error: {
+              type: "internal_server_error",
+              message,
+            },
+          },
+          { status: 503 },
+        ),
+      );
 
-    const outcome = await gatewayJevEvaluator.evaluate({
-      request,
-      rubric: "relevance",
-    });
+      const outcome = await gatewayJevEvaluator.evaluate({
+        request,
+        rubric: "relevance",
+      });
 
-    expect(outcome.reason).toBe("status-503");
-    expect(json).not.toHaveBeenCalled();
-  });
+      expect(outcome.reason).toBe(reason);
+      expect(JSON.stringify(outcome)).not.toContain("private document text");
+      expect(JSON.stringify(coreLogEvents())).not.toContain(
+        "private document text",
+      );
+    },
+  );
 });
 
 /**

@@ -86,6 +86,387 @@ export const StartImpersonationBodySchema = {
     ]
 } as const;
 
+export const AdminSeoAlertsSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'integer',
+            minimum: 0
+        },
+        critical: {
+            type: 'integer',
+            minimum: 0
+        },
+        warning: {
+            type: 'integer',
+            minimum: 0
+        },
+        info: {
+            type: 'integer',
+            minimum: 0
+        },
+        pageSize: {
+            type: 'integer',
+            minimum: 0
+        },
+        failurePercent: {
+            type: 'integer',
+            minimum: 0
+        },
+        importGraceMinutes: {
+            type: 'integer',
+            minimum: 0
+        },
+        billingTotal: {
+            type: 'integer',
+            minimum: 0
+        },
+        pricingAttention: {
+            type: 'integer',
+            minimum: 0
+        },
+        billing: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    taskId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    auditId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    projectId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'inProgress',
+                            'receiptsPending',
+                            'needsCredits',
+                            'retrying',
+                            'settled',
+                            'closed',
+                            'abandoned',
+                            'unverified'
+                        ]
+                    },
+                    approvedMaxCredits: {
+                        type: [
+                            'integer',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    attemptedCredits: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    dataBudgetUsd: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    chargedCredits: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    cost: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            version: {
+                                type: 'number',
+                                enum: [
+                                    1
+                                ]
+                            },
+                            gatewayMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            directModelMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            dataForSeoMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            otherApiMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            }
+                        },
+                        required: [
+                            'version',
+                            'gatewayMicroUsd',
+                            'directModelMicroUsd',
+                            'dataForSeoMicroUsd',
+                            'otherApiMicroUsd'
+                        ],
+                        additionalProperties: false
+                    }
+                },
+                required: [
+                    'id',
+                    'taskId',
+                    'auditId',
+                    'projectId',
+                    'workspaceId',
+                    'at',
+                    'status',
+                    'approvedMaxCredits',
+                    'attemptedCredits',
+                    'dataBudgetUsd',
+                    'chargedCredits',
+                    'cost'
+                ]
+            }
+        },
+        connectionTotal: {
+            type: 'integer',
+            minimum: 0
+        },
+        reconnect: {
+            type: 'integer',
+            minimum: 0
+        },
+        connections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceOrganizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    workspaceUserId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    userId: {
+                        type: 'string'
+                    },
+                    provider: {
+                        type: 'string',
+                        enum: [
+                            'ga4',
+                            'search_console'
+                        ]
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'NEEDS_RECONNECT',
+                            'DISCONNECTED'
+                        ]
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                },
+                required: [
+                    'id',
+                    'workspaceId',
+                    'workspaceOrganizationSlug',
+                    'workspaceUserId',
+                    'userId',
+                    'provider',
+                    'status',
+                    'at'
+                ]
+            }
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceOrganizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    workspaceUserId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    auditId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    projectId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    taskId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'warning',
+                            'info'
+                        ]
+                    },
+                    reasons: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'priceUnverified',
+                                'priceUnpaid',
+                                'dataBudgetExceeded',
+                                'priceReceiptPending',
+                                'priceNeedsCredits',
+                                'priceRetry',
+                                'workerOverdue',
+                                'workerFailed',
+                                'auditFailed',
+                                'reportRejected',
+                                'pageException',
+                                'pageFailureRate',
+                                'seasonalFailed',
+                                'explorationFailed',
+                                'investigationFailed',
+                                'editorialGemini',
+                                'editorialCodex',
+                                'editorialValidation',
+                                'reportMissing',
+                                'gscDisconnected',
+                                'gscProperty',
+                                'gscUnavailable',
+                                'gscSkipped'
+                            ]
+                        },
+                        minItems: 1
+                    },
+                    failedPages: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    attemptedPages: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'id',
+                    'workspaceId',
+                    'workspaceOrganizationSlug',
+                    'workspaceUserId',
+                    'auditId',
+                    'projectId',
+                    'taskId',
+                    'at',
+                    'severity',
+                    'reasons',
+                    'failedPages',
+                    'attemptedPages'
+                ]
+            }
+        }
+    },
+    required: [
+        'total',
+        'critical',
+        'warning',
+        'info',
+        'pageSize',
+        'failurePercent',
+        'importGraceMinutes',
+        'billingTotal',
+        'pricingAttention',
+        'billing',
+        'connectionTotal',
+        'reconnect',
+        'connections',
+        'items'
+    ]
+} as const;
+
 export const AdminAgentListSchema = {
     type: 'array',
     items: {
@@ -2257,34 +2638,6 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
     additionalProperties: false
 } as const;
 
-export const RestyleSokoBotAvatarsResultSchema = {
-    type: 'object',
-    properties: {
-        restyled: {
-            type: 'integer'
-        },
-        remaining: {
-            type: 'integer'
-        }
-    },
-    required: [
-        'restyled',
-        'remaining'
-    ]
-} as const;
-
-export const RestyleSokoBotAvatarsRequestSchema = {
-    type: 'object',
-    properties: {
-        limit: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 10,
-            default: 6
-        }
-    }
-} as const;
-
 export const AdminSokoBotChatRoomSchema = {
     type: 'object',
     properties: {
@@ -2733,6 +3086,13 @@ export const ChatRoomSokoBotParticipantSchema = {
                 'null'
             ],
             example: 'orb:user_123'
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Feature code of the live SVG avatar; null until the bot has one.'
         },
         ownerUserId: {
             type: [
@@ -4915,6 +5275,12 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         versionId: {
             type: [
                 'string',
@@ -5015,16 +5381,19 @@ export const AdminSokoBotActionRequestSchema = {
     additionalProperties: false
 } as const;
 
-export const ClaimSokoBotAvatarRequestSchema = {
+export const SokoBotAvatarCodeSchema = {
     type: 'object',
     properties: {
-        avatarId: {
-            type: 'string',
-            format: 'uuid'
+        avatarCode: {
+            type: 'string'
+        },
+        avatarImageUrl: {
+            type: 'string'
         }
     },
     required: [
-        'avatarId'
+        'avatarCode',
+        'avatarImageUrl'
     ]
 } as const;
 
@@ -6897,6 +7266,210 @@ export const EvalTickSchema = {
     ]
 } as const;
 
+export const AdminAdEvalsDashboardSchema = {
+    type: 'object',
+    properties: {
+        leaderboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdEvalsLeaderboardRow'
+            }
+        },
+        agreement: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdEvalsAgreementRow'
+            }
+        },
+        minimumWorkspaces: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'leaderboard',
+        'agreement',
+        'minimumWorkspaces'
+    ]
+} as const;
+
+export const AdEvalsLeaderboardRowSchema = {
+    type: 'object',
+    properties: {
+        model: {
+            type: 'string'
+        },
+        template: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        aspect: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        workspaceCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        suppressed: {
+            type: 'boolean'
+        },
+        n: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbN: {
+            type: 'integer',
+            minimum: 0
+        },
+        pairwiseN: {
+            type: 'integer',
+            minimum: 0
+        },
+        judgeN: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbRate: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 1
+        },
+        pairwiseWinRate: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 1
+        },
+        judgeMean: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 5
+        },
+        thumbRateCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        },
+        pairwiseWinRateCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        },
+        judgeMeanCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        }
+    },
+    required: [
+        'model',
+        'template',
+        'aspect',
+        'workspaceCount',
+        'suppressed',
+        'n',
+        'thumbN',
+        'pairwiseN',
+        'judgeN',
+        'thumbRate',
+        'pairwiseWinRate',
+        'judgeMean',
+        'thumbRateCi',
+        'pairwiseWinRateCi',
+        'judgeMeanCi'
+    ]
+} as const;
+
+export const AdEvalsAgreementRowSchema = {
+    type: 'object',
+    properties: {
+        criterion: {
+            type: 'string'
+        },
+        signal: {
+            type: 'string',
+            enum: [
+                'thumb',
+                'pairwise'
+            ]
+        },
+        rho: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: -1,
+            maximum: 1
+        },
+        n: {
+            type: 'integer',
+            minimum: 0
+        },
+        lowAgreement: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'criterion',
+        'signal',
+        'rho',
+        'n',
+        'lowAgreement'
+    ]
+} as const;
+
 export const AdminTaskListItemSchema = {
     type: 'object',
     properties: {
@@ -7286,6 +7859,82 @@ export const TaskSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        workspaceTags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [
+                            'manual',
+                            'jev'
+                        ]
+                    },
+                    taskTopicId: {
+                        $ref: '#/components/schemas/TaskTagId'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
+        workspaceTagSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
         number: {
             type: [
                 'integer',
@@ -7371,6 +8020,25 @@ export const TaskSchema = {
             description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
             example: '2026-11-20'
         },
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.',
+            example: null
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Order among the parent\'s sub-tasks, ascending. Null when parentTaskId is null.',
+            example: null
+        },
+        subtaskProgress: {
+            $ref: '#/components/schemas/TaskSubtaskProgress'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -7428,6 +8096,14 @@ export const TaskSchema = {
             },
             example: []
         },
+        followers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskFollower'
+            },
+            example: [],
+            description: 'People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.'
+        },
         files: {
             type: 'array',
             items: {
@@ -7435,6 +8111,26 @@ export const TaskSchema = {
             },
             example: [],
             description: 'Files uploaded to this task (newest first).'
+        },
+        ancestors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskAncestor'
+            },
+            example: [],
+            description: 'For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.'
+        },
+        seoAudit: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskSeoAudit'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'The SEO page of an SEO analysis Task: its audit (auditId, with the audit\'s Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.'
         },
         selectableStatuses: {
             type: 'array',
@@ -7483,6 +8179,9 @@ export const TaskSchema = {
         'pendingVendorGrantId',
         'runAt',
         'dueOn',
+        'parentTaskId',
+        'position',
+        'subtaskProgress',
         'scheduleId',
         'archivedAt',
         'credits',
@@ -7880,6 +8579,25 @@ export const TaskTagIdSchema = {
     ]
 } as const;
 
+export const TagColorSchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'gray',
+        'red',
+        'orange',
+        'yellow',
+        'green',
+        'teal',
+        'blue',
+        'purple',
+        'pink',
+        null
+    ]
+} as const;
+
 export const TaskVisibilitySchema = {
     type: 'string',
     enum: [
@@ -7901,6 +8619,29 @@ export const TaskPrioritySchema = {
     ],
     example: 'NONE',
     description: 'URGENT, HIGH, MEDIUM, LOW, or NONE (default).'
+} as const;
+
+export const TaskSubtaskProgressSchema = {
+    type: 'object',
+    properties: {
+        completed: {
+            type: 'integer',
+            minimum: 0
+        },
+        total: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'completed',
+        'total'
+    ],
+    description: 'Direct, non-archived sub-tasks: how many are COMPLETED, and how many there are.',
+    example: {
+        completed: 3,
+        total: 5
+    }
 } as const;
 
 export const TaskEventSchema = {
@@ -8763,6 +9504,25 @@ export const TaskLinkPeerTaskSchema = {
     }
 } as const;
 
+export const TaskFollowerSchema = {
+    type: 'object',
+    properties: {
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
+        followedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-09-24T12:00:00.000Z',
+            description: 'When this person started following the Task.'
+        }
+    },
+    required: [
+        'user',
+        'followedAt'
+    ]
+} as const;
+
 export const TaskFileSchema = {
     type: 'object',
     properties: {
@@ -8953,6 +9713,60 @@ export const TaskFileUploaderSokoBotSchema = {
         'type',
         'id',
         'sokoBot'
+    ]
+} as const;
+
+export const TaskAncestorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        }
+    },
+    required: [
+        'id',
+        'identifier',
+        'name',
+        'status'
+    ]
+} as const;
+
+export const TaskSeoAuditSchema = {
+    type: 'object',
+    properties: {
+        auditId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        resultAvailable: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'auditId',
+        'projectId'
     ]
 } as const;
 
@@ -13439,6 +14253,9 @@ export const ChatResultOutputSchema = {
                             minLength: 1,
                             example: 'launch.png'
                         },
+                        aiGenerated: {
+                            type: 'boolean'
+                        },
                         size: {
                             type: 'integer',
                             minimum: 0,
@@ -13977,63 +14794,6 @@ export const ChatSavedMessageMutationSchema = {
     required: [
         'messageId',
         'saved'
-    ]
-} as const;
-
-export const ChatSignalListItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'needsYou',
-                'question',
-                'decision',
-                'commitment'
-            ],
-            description: '`needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.'
-        },
-        room: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                name: {
-                    type: 'string'
-                },
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'channel',
-                        'direct'
-                    ]
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'kind'
-            ]
-        },
-        message: {
-            $ref: '#/components/schemas/ChatRoomMessage'
-        },
-        dueAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'kind',
-        'room',
-        'message',
-        'dueAt'
     ]
 } as const;
 
@@ -17035,6 +17795,16 @@ export const DataRoomSchema = {
                 }
             ]
         },
+        company: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DataRoomCompany'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         logoFileId: {
             anyOf: [
                 {
@@ -17084,6 +17854,7 @@ export const DataRoomSchema = {
         'token',
         'title',
         'welcomeNote',
+        'company',
         'logoFileId',
         'allowedDomains',
         'expiresAt',
@@ -17093,6 +17864,110 @@ export const DataRoomSchema = {
         'createdByUserId',
         'createdAt'
     ]
+} as const;
+
+export const DataRoomCompanySchema = {
+    type: 'object',
+    properties: {
+        legalName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        legalForm: {
+            type: 'string',
+            maxLength: 200
+        },
+        jurisdiction: {
+            type: 'string',
+            maxLength: 300
+        },
+        registrationAuthority: {
+            type: 'string',
+            maxLength: 300
+        },
+        registrationNumber: {
+            type: 'string',
+            maxLength: 100
+        },
+        incorporated: {
+            type: 'string',
+            maxLength: 200,
+            description: 'When it was formed, as the owner writes it, e.g. "2 November 2026".'
+        },
+        registeredOffice: {
+            type: 'string',
+            maxLength: 1000
+        },
+        registeredAgent: {
+            type: 'string',
+            maxLength: 300
+        },
+        businessAddress: {
+            type: 'string',
+            maxLength: 1000
+        },
+        contactEmail: {
+            type: 'string',
+            maxLength: 320
+        },
+        euRepresentative: {
+            $ref: '#/components/schemas/DataRoomCompanyRepresentative'
+        },
+        ukRepresentative: {
+            $ref: '#/components/schemas/DataRoomCompanyRepresentative'
+        },
+        vatId: {
+            type: 'string',
+            maxLength: 50
+        },
+        ein: {
+            type: 'string',
+            maxLength: 20
+        },
+        authorizedShares: {
+            type: 'string',
+            maxLength: 300
+        },
+        parValue: {
+            type: 'string',
+            maxLength: 50
+        },
+        websites: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 300
+            },
+            maxItems: 10
+        },
+        formationPath: {
+            type: 'string',
+            maxLength: 1000,
+            description: 'Folder of the formation documents, relative to the room, e.g. "Legal/Formation".'
+        }
+    },
+    required: [
+        'legalName'
+    ]
+} as const;
+
+export const DataRoomCompanyRepresentativeSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 200
+        },
+        email: {
+            type: 'string',
+            maxLength: 320
+        },
+        address: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
 } as const;
 
 export const CreateDataRoomRequestSchema = {
@@ -17183,6 +18058,17 @@ export const DataRoomQuestionSchema = {
                 }
             ]
         },
+        sharedAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When the answer was shown to everyone in the room who may open the document; null while only the asker sees it.'
+        },
         email: {
             type: 'string'
         },
@@ -17204,6 +18090,7 @@ export const DataRoomQuestionSchema = {
         'body',
         'answer',
         'answeredAt',
+        'sharedAt',
         'email',
         'name'
     ]
@@ -17480,6 +18367,17 @@ export const UpdateDataRoomRequestSchema = {
                     type: 'null'
                 }
             ]
+        },
+        company: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DataRoomCompany'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The room\'s Company page; null removes it.'
         },
         logoFileId: {
             anyOf: [
@@ -17761,6 +18659,10 @@ export const AnswerDataRoomQuestionRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 5000
+        },
+        shared: {
+            type: 'boolean',
+            description: 'Show the question and answer to everyone in the room who may open the document, without who asked. Left out keeps the current choice.'
         }
     },
     required: [
@@ -18318,6 +19220,23 @@ export const DeleteDriveFileRequestSchema = {
 export const WorkspaceLabelSchema = {
     type: 'object',
     properties: {
+        taskTopicId: {
+            $ref: '#/components/schemas/TaskTagId'
+        },
+        color: {
+            $ref: '#/components/schemas/TagColor'
+        },
+        customColor: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 7,
+            maxLength: 7,
+            pattern: '^#[0-9a-fA-F]{6}$',
+            description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+            example: '#127DA2'
+        },
         id: {
             type: 'string'
         },
@@ -21506,6 +22425,9 @@ export const ProjectImageStudioCatalogSchema = {
                 $ref: '#/components/schemas/ProjectImageStudioVideoCatalogModel'
             }
         },
+        talkingVideo: {
+            $ref: '#/components/schemas/ProjectImageStudioTalkingVideoCatalog'
+        },
         snapshotDate: {
             type: 'string'
         },
@@ -21522,6 +22444,7 @@ export const ProjectImageStudioCatalogSchema = {
         'defaultVideoModelId',
         'defaultAnimateModelId',
         'videoModels',
+        'talkingVideo',
         'snapshotDate',
         'refreshedAt'
     ]
@@ -21591,7 +22514,10 @@ export const ProjectImageStudioCatalogModelSchema = {
                     'num_images',
                     'seed',
                     'limit_generations',
-                    'image_urls'
+                    'image_urls',
+                    'image_url',
+                    'mask_url',
+                    'strength'
                 ]
             }
         },
@@ -21775,6 +22701,139 @@ export const ProjectImageStudioVideoCatalogModelSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioTalkingVideoCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    endpoint: {
+                        type: 'string'
+                    },
+                    price: {
+                        type: 'object',
+                        properties: {
+                            perSecondUsd: {
+                                type: 'number'
+                            },
+                            voicePer1000CharactersUsd: {
+                                type: 'number'
+                            },
+                            captionsPerMinuteUsd: {
+                                type: 'number'
+                            },
+                            cutoutPerSecondUsd: {
+                                type: 'number'
+                            },
+                            brollUsd: {
+                                type: 'number'
+                            },
+                            musicUsd: {
+                                type: 'number'
+                            },
+                            basis: {
+                                type: 'string'
+                            },
+                            sourceUrl: {
+                                type: 'string'
+                            },
+                            verifiedAt: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'perSecondUsd',
+                            'voicePer1000CharactersUsd',
+                            'captionsPerMinuteUsd',
+                            'cutoutPerSecondUsd',
+                            'brollUsd',
+                            'musicUsd',
+                            'basis',
+                            'sourceUrl',
+                            'verifiedAt'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'label',
+                    'description',
+                    'endpoint',
+                    'price'
+                ]
+            }
+        },
+        presenters: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    imageUrl: {
+                        type: 'string'
+                    },
+                    voice: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'description',
+                    'imageUrl',
+                    'voice'
+                ]
+            }
+        },
+        defaultVoice: {
+            type: 'string'
+        },
+        voices: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        scriptMinLength: {
+            type: 'integer'
+        },
+        scriptMaxLength: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'presenters',
+        'defaultVoice',
+        'voices',
+        'scriptMinLength',
+        'scriptMaxLength'
+    ]
+} as const;
+
 export const ImageStudioWorkspaceStateSchema = {
     type: 'object',
     properties: {
@@ -21843,6 +22902,14 @@ export const ProjectImageAssetSchema = {
         headline: {
             $ref: '#/components/schemas/StudioAdHeadline'
         },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -21896,6 +22963,9 @@ export const ProjectImageAssetSchema = {
                 }
             ]
         },
+        aiGenerated: {
+            type: 'boolean'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -21910,6 +22980,55 @@ export const ProjectImageAssetSchema = {
         },
         contentPath: {
             type: 'string'
+        },
+        myThumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myReasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            }
+        },
+        myComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thumbsUp: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbsDown: {
+            type: 'integer',
+            minimum: 0
+        },
+        score: {
+            type: 'number'
         }
     },
     required: [
@@ -21930,7 +23049,13 @@ export const ProjectImageAssetSchema = {
         'createdAt',
         'jobId',
         'settings',
-        'contentPath'
+        'contentPath',
+        'myThumb',
+        'myReasons',
+        'myComment',
+        'thumbsUp',
+        'thumbsDown',
+        'score'
     ]
 } as const;
 
@@ -22034,7 +23159,8 @@ export const ProjectImageJobSchema = {
                 'GENERATE',
                 'EDIT',
                 'TEXT_TO_VIDEO',
-                'IMAGE_TO_VIDEO'
+                'IMAGE_TO_VIDEO',
+                'TALKING_VIDEO'
             ]
         },
         model: {
@@ -22042,6 +23168,17 @@ export const ProjectImageJobSchema = {
         },
         prompt: {
             type: 'string'
+        },
+        templateId: {
+            type: 'string'
+        },
+        creativeDirection: {
+            type: 'string'
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
@@ -22055,6 +23192,9 @@ export const ProjectImageJobSchema = {
                     type: 'null'
                 }
             ]
+        },
+        talkingVideo: {
+            $ref: '#/components/schemas/ProjectTalkingVideo'
         },
         referenceAssetIds: {
             type: 'array',
@@ -22070,8 +23210,21 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
         },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
@@ -22095,6 +23248,7 @@ export const ProjectImageJobSchema = {
                 'submission_uncertain',
                 'reference_not_sendable',
                 'product_cutout_unavailable',
+                'voice_unavailable',
                 'request_not_supported',
                 'cancelled',
                 'abandoned_before_send',
@@ -22181,6 +23335,41 @@ export const ProjectImageJobSchema = {
         'retryMayDuplicateCharge',
         'credits',
         'refunded'
+    ]
+} as const;
+
+export const ProjectTalkingVideoSchema = {
+    type: 'object',
+    properties: {
+        voice: {
+            type: 'string'
+        },
+        presenterId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        languageCode: {
+            type: 'string'
+        },
+        siteShots: {
+            type: 'boolean'
+        },
+        broll: {
+            type: 'boolean'
+        },
+        music: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'voice',
+        'presenterId',
+        'languageCode',
+        'siteShots',
+        'broll',
+        'music'
     ]
 } as const;
 
@@ -25992,6 +27181,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26070,6 +27281,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26148,6 +27381,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26226,6 +27481,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26304,6 +27581,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26382,6 +27681,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26460,6 +27781,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26538,6 +27881,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26616,6 +27981,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26694,6 +28081,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26772,6 +28181,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26850,6 +28281,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -26928,6 +28381,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -27006,6 +28481,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -27084,6 +28581,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -27162,6 +28681,28 @@ export const BrandBrainSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -27513,6 +29054,9 @@ export const BrandBrainSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        promiseByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -27928,6 +29472,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28006,6 +29572,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28084,6 +29672,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28162,6 +29772,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28240,6 +29872,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28318,6 +29972,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28396,6 +30072,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28474,6 +30172,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28552,6 +30272,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28630,6 +30372,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28708,6 +30472,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28786,6 +30572,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28864,6 +30672,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -28942,6 +30772,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -29020,6 +30872,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -29098,6 +30972,28 @@ export const BrandBrainRequestSchema = {
                                     },
                                     maxItems: 3,
                                     default: []
+                                },
+                                fix: {
+                                    type: 'object',
+                                    properties: {
+                                        note: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2000
+                                        },
+                                        at: {
+                                            type: 'string',
+                                            maxLength: 40
+                                        },
+                                        fixed: {
+                                            type: 'boolean'
+                                        }
+                                    },
+                                    required: [
+                                        'note',
+                                        'at',
+                                        'fixed'
+                                    ]
                                 }
                             },
                             required: [
@@ -29449,6 +31345,9 @@ export const BrandBrainRequestSchema = {
                     },
                     maxItems: 6,
                     default: []
+                },
+                promiseByOwner: {
+                    type: 'boolean'
                 }
             },
             required: [
@@ -29463,6 +31362,691 @@ export const BrandBrainRequestSchema = {
     },
     required: [
         'brandBrain'
+    ]
+} as const;
+
+export const ProjectCompetitorsSchema = {
+    type: 'object',
+    properties: {
+        competitors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitor'
+            }
+        },
+        feed: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                checkDay: {
+                    type: 'string',
+                    description: 'The day of the check it was written from.'
+                },
+                savedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ProjectCompetitorFeedItem'
+                    }
+                },
+                openQuestions: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    description: 'What the sources could not settle this week.'
+                }
+            },
+            required: [
+                'checkDay',
+                'savedAt',
+                'items',
+                'openQuestions'
+            ],
+            description: 'This week: null until a bot wrote one.'
+        },
+        limit: {
+            type: 'integer',
+            description: 'How many competitors can be tracked.'
+        },
+        signals: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorSignal'
+            },
+            description: 'What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.'
+        },
+        scoreboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorScoreRow'
+            },
+            description: 'Instagram numbers: the business first, then each competitor. A null cell has no data.'
+        },
+        topPosts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorTopPost'
+            },
+            description: 'Each competitor\'s three strongest Instagram posts.'
+        },
+        check: {
+            type: 'object',
+            properties: {
+                on: {
+                    type: 'boolean',
+                    description: 'Whether the weekly check runs: a member turned it on, or the Project is a CMO Project, whose check runs while its Cuso is paid for.'
+                },
+                lastCheckedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                nextCheckAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                creditsPerCompetitor: {
+                    type: 'number',
+                    description: 'What one competitor costs in one weekly check, in credits.'
+                },
+                sources: {
+                    type: 'object',
+                    properties: {
+                        pages: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        news: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        ads: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        social: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        }
+                    },
+                    required: [
+                        'pages',
+                        'news',
+                        'ads',
+                        'social'
+                    ]
+                }
+            },
+            required: [
+                'on',
+                'lastCheckedAt',
+                'nextCheckAt',
+                'creditsPerCompetitor',
+                'sources'
+            ]
+        }
+    },
+    required: [
+        'competitors',
+        'feed',
+        'limit',
+        'signals',
+        'scoreboard',
+        'topPosts',
+        'check'
+    ]
+} as const;
+
+export const ProjectCompetitorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'RESEARCH',
+                'MEMBER'
+            ],
+            description: 'Who put it on the list: Brand Brain research, or a member.'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'websiteUrl',
+        'pricingUrl',
+        'instagramHandle',
+        'facebookHandle',
+        'source',
+        'createdAt'
+    ]
+} as const;
+
+export const ProjectCompetitorFeedItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        facts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    signalIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        description: 'The signals that back it; their sources show on hover.'
+                    },
+                    support: {
+                        type: 'string',
+                        enum: [
+                            'strong',
+                            'weak'
+                        ],
+                        description: 'weak: the sources back it only in part.'
+                    }
+                },
+                required: [
+                    'text',
+                    'signalIds',
+                    'support'
+                ]
+            }
+        },
+        meaning: {
+            type: 'string',
+            description: 'What this means for you.'
+        },
+        move: {
+            type: 'string',
+            description: 'One suggested move.'
+        },
+        big: {
+            type: 'boolean',
+            description: 'A price change, launch or ad burst, told in chat at once.'
+        },
+        addedToStrategyAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'facts',
+        'meaning',
+        'move',
+        'big',
+        'addedToStrategyAt'
+    ]
+} as const;
+
+export const ProjectCompetitorSignalSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'WEBSITE_CHANGE',
+                'PRICE_CHANGE',
+                'NEWS',
+                'AD',
+                'SOCIAL'
+            ]
+        },
+        summary: {
+            type: 'string',
+            description: 'What happened, in one line.'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourceTitle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourcePublisher: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        quote: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The source\'s own words that back the summary.'
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'kind',
+        'summary',
+        'observedAt',
+        'sourceUrl',
+        'sourceTitle',
+        'sourcePublisher',
+        'quote'
+    ]
+} as const;
+
+export const ProjectCompetitorScoreRowSchema = {
+    type: 'object',
+    properties: {
+        competitorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Null for the business itself.'
+        },
+        name: {
+            type: 'string'
+        },
+        postsPerWeek: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        engagementPerPost: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Likes and comments per post over the week\'s posts.'
+        },
+        followers: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        followerGrowth: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Followers gained since the reading a week before.'
+        }
+    },
+    required: [
+        'competitorId',
+        'name',
+        'postsPerWeek',
+        'engagementPerPost',
+        'followers',
+        'followerGrowth'
+    ]
+} as const;
+
+export const ProjectCompetitorMeasureSchema = {
+    type: 'object',
+    properties: {
+        value: {
+            type: 'number'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'value',
+        'sourceUrl',
+        'observedAt'
+    ]
+} as const;
+
+export const ProjectCompetitorTopPostSchema = {
+    type: 'object',
+    properties: {
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        signalId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        type: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        postedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        likes: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        comments: {
+            type: [
+                'number',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'competitorId',
+        'signalId',
+        'url',
+        'caption',
+        'type',
+        'postedAt',
+        'likes',
+        'comments'
+    ]
+} as const;
+
+export const ProjectCompetitorSourceSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'ok',
+                'not_configured',
+                'not_connected',
+                'failed'
+            ],
+            description: 'not_configured: Core lacks access to this source. not_connected: the owner has not connected the account it is read through. failed: the last check could not read it.'
+        },
+        needs: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'What it takes to read this source, when it cannot be read.'
+        }
+    },
+    required: [
+        'status',
+        'needs'
+    ]
+} as const;
+
+export const ProjectCompetitorCreateSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'Its website. A bare domain is read as https.'
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'The page that lists its prices.'
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Instagram account: the handle or its address.'
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Facebook Page: the name in its address, or the address.'
+        },
+        suggested: {
+            type: 'boolean',
+            description: 'true when the member picked it from the suggestions and typed nothing: the weekly check then fills its pricing page and accounts from its homepage, as it never does for fields a member set.'
+        }
+    },
+    required: [
+        'name'
+    ]
+} as const;
+
+export const ProjectCompetitorUpdateSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'Its website. A bare domain is read as https.'
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'The page that lists its prices.'
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Instagram account: the handle or its address.'
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Facebook Page: the name in its address, or the address.'
+        }
+    }
+} as const;
+
+export const ProjectCompetitorChecksSchema = {
+    type: 'object',
+    properties: {
+        on: {
+            type: 'boolean',
+            description: 'true turns the weekly check on: 3 credits per competitor a week, charged to the Project\'s organization (or the person, in a personal workspace). false turns it off and keeps what the checks found.'
+        }
+    },
+    required: [
+        'on'
+    ]
+} as const;
+
+export const ProjectCompetitorCheckRunSchema = {
+    type: 'object',
+    properties: {
+        outcome: {
+            type: 'string',
+            enum: [
+                'checked',
+                'not_due',
+                'no_competitors',
+                'paused',
+                'unfunded'
+            ],
+            description: 'checked: the check ran. not_due: the last one is under a week old, or one is running. no_competitors: nothing is tracked. paused: the weekly check is off. unfunded: there are not enough credits for it.'
+        },
+        competitors: {
+            $ref: '#/components/schemas/ProjectCompetitors'
+        }
+    },
+    required: [
+        'outcome',
+        'competitors'
+    ]
+} as const;
+
+export const ProjectCompetitorSuggestionsSchema = {
+    type: 'object',
+    properties: {
+        suggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    websiteUrl: {
+                        type: 'string',
+                        description: 'The company\'s homepage.'
+                    },
+                    why: {
+                        type: 'string',
+                        description: 'What it sells, in one line.'
+                    }
+                },
+                required: [
+                    'name',
+                    'websiteUrl',
+                    'why'
+                ]
+            }
+        }
+    },
+    required: [
+        'suggestions'
     ]
 } as const;
 
@@ -29485,7 +32069,7 @@ export const QuestionAnswerRequestSchema = {
         note: {
             type: 'string',
             maxLength: 400,
-            description: 'After a no: what is true instead, in the member\'s words.'
+            description: 'The member\'s own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.'
         }
     },
     required: [
@@ -29666,6 +32250,21 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    role: {
+                                        type: 'string',
+                                        enum: [
+                                            'main',
+                                            'side'
+                                        ]
+                                    },
+                                    buyer: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    setByOwner: {
+                                        type: 'boolean'
                                     }
                                 },
                                 required: [
@@ -29818,6 +32417,9 @@ export const MarketingStrategySchema = {
                                     type: 'integer',
                                     minimum: 1,
                                     maximum: 200
+                                },
+                                setByOwner: {
+                                    type: 'boolean'
                                 }
                             },
                             required: [
@@ -29852,6 +32454,25 @@ export const MarketingStrategySchema = {
                                 setByOwner: {
                                     type: 'boolean',
                                     default: false
+                                },
+                                suggest: {
+                                    type: 'object',
+                                    properties: {
+                                        channel: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        monthly: {
+                                            type: 'number',
+                                            minimum: 0,
+                                            maximum: 10000000
+                                        }
+                                    },
+                                    required: [
+                                        'channel',
+                                        'monthly'
+                                    ]
                                 }
                             },
                             required: [
@@ -30289,6 +32910,9 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         enum: [
                                             'awareness',
+                                            'interest',
+                                            'desire',
+                                            'action',
                                             'consideration',
                                             'conversion',
                                             'loyalty'
@@ -30300,6 +32924,16 @@ export const MarketingStrategySchema = {
                                         maxLength: 400
                                     },
                                     goal: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    cusoDoes: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    youDo: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
@@ -30390,12 +33024,35 @@ export const MarketingStrategySchema = {
                                 },
                                 required: [
                                     'stage',
-                                    'name',
                                     'goal',
                                     'metric'
                                 ]
                             },
                             maxItems: 4,
+                            default: []
+                        },
+                        leftOut: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 6,
                             default: []
                         },
                         proposals: {
@@ -30774,6 +33431,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 3
                                     },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
+                                    },
                                     slides: {
                                         type: 'array',
                                         items: {
@@ -30782,6 +33448,48 @@ export const MarketingStrategySchema = {
                                             maxLength: 400
                                         },
                                         maxItems: 10
+                                    },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
+                                        },
+                                        maxItems: 10
+                                    },
+                                    script: {
+                                        type: 'string',
+                                        minLength: 20,
+                                        maxLength: 600
+                                    },
+                                    presenter: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    voice: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    languageCode: {
+                                        type: 'string',
+                                        minLength: 2,
+                                        maxLength: 2
+                                    },
+                                    alsoOn: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4
+                                    },
+                                    videoOf: {
+                                        type: 'string',
+                                        maxLength: 64
                                     },
                                     story: {
                                         type: 'string',
@@ -30948,7 +33656,7 @@ export const MarketingStrategySchema = {
                                     'status'
                                 ]
                             },
-                            maxItems: 120
+                            maxItems: 240
                         },
                         previews: {
                             type: 'array',
@@ -30998,6 +33706,331 @@ export const MarketingStrategySchema = {
                                 maxLength: 400
                             },
                             maxItems: 10,
+                            default: []
+                        },
+                        patched: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    was: {
+                                        type: [
+                                            'object',
+                                            'null'
+                                        ],
+                                        properties: {
+                                            id: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 64
+                                            },
+                                            date: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                            },
+                                            time: {
+                                                type: 'string',
+                                                pattern: '^\\d{2}:\\d{2}$'
+                                            },
+                                            channel: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            title: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            format: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            status: {
+                                                type: 'string',
+                                                enum: [
+                                                    'idea',
+                                                    'draft',
+                                                    'scheduled',
+                                                    'published',
+                                                    'skipped'
+                                                ]
+                                            },
+                                            hook: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            brief: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 2000
+                                            },
+                                            draft: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 4000
+                                            },
+                                            why: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            socialPostId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            visual: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 2000
+                                            },
+                                            visualFileIds: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    maxLength: 100
+                                                },
+                                                maxItems: 3
+                                            },
+                                            styleReferenceId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            headline: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 60
+                                            },
+                                            slides: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 400
+                                                },
+                                                maxItems: 10
+                                            },
+                                            slideHeadlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 60
+                                                },
+                                                maxItems: 10
+                                            },
+                                            script: {
+                                                type: 'string',
+                                                minLength: 20,
+                                                maxLength: 600
+                                            },
+                                            presenter: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            voice: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            languageCode: {
+                                                type: 'string',
+                                                minLength: 2,
+                                                maxLength: 2
+                                            },
+                                            alsoOn: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                maxItems: 4
+                                            },
+                                            videoOf: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            },
+                                            story: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            imageFileId: {
+                                                type: 'string',
+                                                maxLength: 100
+                                            },
+                                            slideFileIds: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    maxLength: 100
+                                                },
+                                                maxItems: 10
+                                            },
+                                            fileId: {
+                                                type: 'string',
+                                                maxLength: 100
+                                            },
+                                            searchAd: {
+                                                type: 'object',
+                                                properties: {
+                                                    keywords: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 80
+                                                        },
+                                                        minItems: 1,
+                                                        maxItems: 20
+                                                    },
+                                                    headlines: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 30
+                                                        },
+                                                        minItems: 3,
+                                                        maxItems: 15
+                                                    },
+                                                    descriptions: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 90
+                                                        },
+                                                        minItems: 2,
+                                                        maxItems: 4
+                                                    },
+                                                    negativeKeywords: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 80
+                                                        },
+                                                        maxItems: 30
+                                                    },
+                                                    maxCpc: {
+                                                        type: 'number',
+                                                        exclusiveMinimum: 0,
+                                                        maximum: 1000
+                                                    },
+                                                    finalUrl: {
+                                                        type: 'string',
+                                                        maxLength: 2048,
+                                                        format: 'uri'
+                                                    },
+                                                    path1: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 15
+                                                    },
+                                                    path2: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 15
+                                                    },
+                                                    location: {
+                                                        type: 'string',
+                                                        minLength: 1,
+                                                        maxLength: 80
+                                                    },
+                                                    language: {
+                                                        type: 'string',
+                                                        pattern: '^[a-z]{2}$'
+                                                    },
+                                                    callouts: {
+                                                        type: 'array',
+                                                        items: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 25
+                                                        },
+                                                        maxItems: 10
+                                                    }
+                                                },
+                                                required: [
+                                                    'keywords',
+                                                    'headlines',
+                                                    'descriptions',
+                                                    'finalUrl'
+                                                ]
+                                            },
+                                            adCampaign: {
+                                                type: 'object',
+                                                properties: {
+                                                    accountId: {
+                                                        type: 'string',
+                                                        format: 'uuid'
+                                                    },
+                                                    campaignId: {
+                                                        type: 'string',
+                                                        maxLength: 64
+                                                    }
+                                                },
+                                                required: [
+                                                    'accountId',
+                                                    'campaignId'
+                                                ]
+                                            },
+                                            taskId: {
+                                                type: 'string',
+                                                maxLength: 100
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 64
+                                            },
+                                            approach: {
+                                                type: 'string',
+                                                enum: [
+                                                    'educational',
+                                                    'thought-leadership',
+                                                    'problem-solution',
+                                                    'product-led',
+                                                    'social-proof',
+                                                    'people-led',
+                                                    'community-led',
+                                                    'entertainment',
+                                                    'research-led',
+                                                    'promotional'
+                                                ]
+                                            },
+                                            pillar: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            }
+                                        },
+                                        required: [
+                                            'id',
+                                            'date',
+                                            'channel',
+                                            'title',
+                                            'format',
+                                            'status'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'was'
+                                ]
+                            },
+                            maxItems: 240,
                             default: []
                         }
                     },
@@ -31111,6 +34144,21 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            role: {
+                                type: 'string',
+                                enum: [
+                                    'main',
+                                    'side'
+                                ]
+                            },
+                            buyer: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            setByOwner: {
+                                type: 'boolean'
                             }
                         },
                         required: [
@@ -31263,6 +34311,9 @@ export const MarketingStrategyRequestSchema = {
                             type: 'integer',
                             minimum: 1,
                             maximum: 200
+                        },
+                        setByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -31297,6 +34348,25 @@ export const MarketingStrategyRequestSchema = {
                         setByOwner: {
                             type: 'boolean',
                             default: false
+                        },
+                        suggest: {
+                            type: 'object',
+                            properties: {
+                                channel: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                monthly: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 10000000
+                                }
+                            },
+                            required: [
+                                'channel',
+                                'monthly'
+                            ]
                         }
                     },
                     required: [
@@ -31734,6 +34804,9 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 enum: [
                                     'awareness',
+                                    'interest',
+                                    'desire',
+                                    'action',
                                     'consideration',
                                     'conversion',
                                     'loyalty'
@@ -31745,6 +34818,16 @@ export const MarketingStrategyRequestSchema = {
                                 maxLength: 400
                             },
                             goal: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            cusoDoes: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            youDo: {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
@@ -31835,12 +34918,35 @@ export const MarketingStrategyRequestSchema = {
                         },
                         required: [
                             'stage',
-                            'name',
                             'goal',
                             'metric'
                         ]
                     },
                     maxItems: 4,
+                    default: []
+                },
+                leftOut: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'channel',
+                            'why'
+                        ]
+                    },
+                    maxItems: 6,
                     default: []
                 },
                 proposals: {
@@ -32219,6 +35325,15 @@ export const MarketingStrategyRequestSchema = {
                                 },
                                 maxItems: 3
                             },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
+                            },
                             slides: {
                                 type: 'array',
                                 items: {
@@ -32227,6 +35342,48 @@ export const MarketingStrategyRequestSchema = {
                                     maxLength: 400
                                 },
                                 maxItems: 10
+                            },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
+                                },
+                                maxItems: 10
+                            },
+                            script: {
+                                type: 'string',
+                                minLength: 20,
+                                maxLength: 600
+                            },
+                            presenter: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            voice: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            languageCode: {
+                                type: 'string',
+                                minLength: 2,
+                                maxLength: 2
+                            },
+                            alsoOn: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 4
+                            },
+                            videoOf: {
+                                type: 'string',
+                                maxLength: 64
                             },
                             story: {
                                 type: 'string',
@@ -32393,7 +35550,7 @@ export const MarketingStrategyRequestSchema = {
                             'status'
                         ]
                     },
-                    maxItems: 120
+                    maxItems: 240
                 },
                 previews: {
                     type: 'array',
@@ -32443,6 +35600,331 @@ export const MarketingStrategyRequestSchema = {
                         maxLength: 400
                     },
                     maxItems: 10,
+                    default: []
+                },
+                patched: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            was: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    date: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    time: {
+                                        type: 'string',
+                                        pattern: '^\\d{2}:\\d{2}$'
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    format: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'idea',
+                                            'draft',
+                                            'scheduled',
+                                            'published',
+                                            'skipped'
+                                        ]
+                                    },
+                                    hook: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    brief: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    draft: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 4000
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    socialPostId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    visual: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    visualFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 3
+                                    },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
+                                    },
+                                    slides: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        maxItems: 10
+                                    },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
+                                        },
+                                        maxItems: 10
+                                    },
+                                    script: {
+                                        type: 'string',
+                                        minLength: 20,
+                                        maxLength: 600
+                                    },
+                                    presenter: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    voice: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    languageCode: {
+                                        type: 'string',
+                                        minLength: 2,
+                                        maxLength: 2
+                                    },
+                                    alsoOn: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4
+                                    },
+                                    videoOf: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    },
+                                    story: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    imageFileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    slideFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 10
+                                    },
+                                    fileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    searchAd: {
+                                        type: 'object',
+                                        properties: {
+                                            keywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                minItems: 1,
+                                                maxItems: 20
+                                            },
+                                            headlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 30
+                                                },
+                                                minItems: 3,
+                                                maxItems: 15
+                                            },
+                                            descriptions: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 90
+                                                },
+                                                minItems: 2,
+                                                maxItems: 4
+                                            },
+                                            negativeKeywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                maxItems: 30
+                                            },
+                                            maxCpc: {
+                                                type: 'number',
+                                                exclusiveMinimum: 0,
+                                                maximum: 1000
+                                            },
+                                            finalUrl: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            path1: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 15
+                                            },
+                                            path2: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 15
+                                            },
+                                            location: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 80
+                                            },
+                                            language: {
+                                                type: 'string',
+                                                pattern: '^[a-z]{2}$'
+                                            },
+                                            callouts: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 25
+                                                },
+                                                maxItems: 10
+                                            }
+                                        },
+                                        required: [
+                                            'keywords',
+                                            'headlines',
+                                            'descriptions',
+                                            'finalUrl'
+                                        ]
+                                    },
+                                    adCampaign: {
+                                        type: 'object',
+                                        properties: {
+                                            accountId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'accountId',
+                                            'campaignId'
+                                        ]
+                                    },
+                                    taskId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    approach: {
+                                        type: 'string',
+                                        enum: [
+                                            'educational',
+                                            'thought-leadership',
+                                            'problem-solution',
+                                            'product-led',
+                                            'social-proof',
+                                            'people-led',
+                                            'community-led',
+                                            'entertainment',
+                                            'research-led',
+                                            'promotional'
+                                        ]
+                                    },
+                                    pillar: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'date',
+                                    'channel',
+                                    'title',
+                                    'format',
+                                    'status'
+                                ]
+                            }
+                        },
+                        required: [
+                            'id',
+                            'was'
+                        ]
+                    },
+                    maxItems: 240,
                     default: []
                 }
             },
@@ -35349,6 +38831,10 @@ export const ProjectSocialConnectionSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -35360,7 +38846,8 @@ export const ProjectSocialConnectionSchema = {
         'avatarUrl',
         'status',
         'connectedAt',
-        'disconnectedAt'
+        'disconnectedAt',
+        'personalProfile'
     ]
 } as const;
 
@@ -35381,6 +38868,43 @@ export const ProjectSocialConnectionSubscriptionSchema = {
     required: [
         'subscriptionType',
         'textLimit'
+    ]
+} as const;
+
+export const TikTokCreatorInfoSchema = {
+    type: 'object',
+    properties: {
+        creator_nickname: {
+            type: 'string',
+            minLength: 1
+        },
+        privacy_level_options: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        comment_disabled: {
+            type: 'boolean'
+        },
+        duet_disabled: {
+            type: 'boolean'
+        },
+        stitch_disabled: {
+            type: 'boolean'
+        },
+        max_video_post_duration_sec: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'creator_nickname',
+        'privacy_level_options',
+        'comment_disabled',
+        'duet_disabled',
+        'stitch_disabled',
+        'max_video_post_duration_sec'
     ]
 } as const;
 
@@ -36129,6 +39653,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -36155,6 +39683,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -36181,6 +39713,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -36191,13 +39727,89 @@ export const InitiateProjectSocialConnectionRequestSchema = {
     ]
 } as const;
 
+export const SocialAccountChoicesSchema = {
+    type: 'object',
+    properties: {
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountChoice'
+            },
+            minItems: 2
+        }
+    },
+    required: [
+        'choices'
+    ]
+} as const;
+
+export const SocialAccountChoiceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Names this account within this sign-in only; send it back as `accountChoiceId`.'
+        },
+        name: {
+            type: 'string'
+        },
+        handle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page',
+                'profile'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'handle',
+        'kind'
+    ]
+} as const;
+
 export const FinalizeProjectSocialConnectionRequestSchema = {
     type: 'object',
     properties: {
+        callbackProof: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256,
+            description: 'Proof returned with a Zernio connection callback.'
+        },
         connectionId: {
             type: 'string',
             minLength: 1,
             example: 'ca_123'
+        },
+        pendingDataToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: names the Pages it reaches.'
+        },
+        connectToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4096,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: lets Core finish it.'
+        },
+        accountChoiceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The `id` of the account the person picked among the sign-in\'s accounts (`SocialAccountChoices`).'
+        },
+        offerChoice: {
+            type: 'boolean',
+            description: 'Answer 200 with the accounts to pick from when the sign-in reaches several and none is picked. Without it such a sign-in is refused, or LinkedIn connects the person\'s profile.'
         }
     },
     required: [
@@ -38470,6 +42082,15 @@ export const SocialPostSchema = {
                     },
                     maxItems: 3
                 },
+                styleReferenceId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                headline: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 60
+                },
                 slides: {
                     type: 'array',
                     items: {
@@ -38478,6 +42099,48 @@ export const SocialPostSchema = {
                         maxLength: 400
                     },
                     maxItems: 10
+                },
+                slideHeadlines: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
+                    },
+                    maxItems: 10
+                },
+                script: {
+                    type: 'string',
+                    minLength: 20,
+                    maxLength: 600
+                },
+                presenter: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                },
+                voice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                },
+                languageCode: {
+                    type: 'string',
+                    minLength: 2,
+                    maxLength: 2
+                },
+                alsoOn: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    maxItems: 4
+                },
+                videoOf: {
+                    type: 'string',
+                    maxLength: 64
                 },
                 story: {
                     type: 'string',
@@ -38594,6 +42257,9 @@ export const SocialPostMediaRefSchema = {
             minLength: 1,
             example: 'launch.png'
         },
+        aiGenerated: {
+            type: 'boolean'
+        },
         size: {
             type: 'integer',
             minimum: 0,
@@ -38662,6 +42328,9 @@ export const SocialPostMediaRefSchema = {
                             type: 'string',
                             minLength: 1,
                             example: 'launch.png'
+                        },
+                        aiGenerated: {
+                            type: 'boolean'
                         },
                         size: {
                             type: 'integer',
@@ -38851,6 +42520,10 @@ export const SocialPostSocialConnectionSchema = {
                 'disconnected'
             ],
             example: 'active'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -38859,7 +42532,8 @@ export const SocialPostSocialConnectionSchema = {
         'displayName',
         'avatarUrl',
         'subscriptionType',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -39058,10 +42732,58 @@ export const PublishSocialPostRequestSchema = {
             minimum: 0,
             description: 'Revision the client last observed; mismatches return 409',
             example: 2
+        },
+        tikTokSettings: {
+            $ref: '#/components/schemas/TikTokPostSettings'
         }
     },
     required: [
         'revision'
+    ]
+} as const;
+
+export const TikTokPostSettingsSchema = {
+    type: 'object',
+    properties: {
+        privacyLevel: {
+            type: 'string',
+            enum: [
+                'SELF_ONLY',
+                'PUBLIC_TO_EVERYONE'
+            ]
+        },
+        allowComment: {
+            type: 'boolean'
+        },
+        allowDuet: {
+            type: 'boolean'
+        },
+        allowStitch: {
+            type: 'boolean'
+        },
+        promotesOwnBrand: {
+            type: 'boolean'
+        },
+        acceptedMusicUsage: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        previewConsent: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'privacyLevel',
+        'allowComment',
+        'allowDuet',
+        'allowStitch',
+        'promotesOwnBrand',
+        'acceptedMusicUsage'
     ]
 } as const;
 
@@ -39619,6 +43341,140 @@ export const ProjectImageSessionSchema = {
     ]
 } as const;
 
+export const StudioCompareStateSchema = {
+    type: 'object',
+    properties: {
+        pair: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioComparePair'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'pair'
+    ]
+} as const;
+
+export const StudioComparePairSchema = {
+    type: 'object',
+    properties: {
+        a: {
+            $ref: '#/components/schemas/ProjectImageAsset'
+        },
+        b: {
+            $ref: '#/components/schemas/ProjectImageAsset'
+        }
+    },
+    required: [
+        'a',
+        'b'
+    ]
+} as const;
+
+export const StudioPairwisePickSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioPairwisePick'
+        },
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'id'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioPairOutcomeSchema = {
+    type: 'string',
+    enum: [
+        'A',
+        'B',
+        'TIE',
+        'BOTH_BAD'
+    ]
+} as const;
+
+export const SaveStudioPairwisePickSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        otherAssetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        outcome: {
+            $ref: '#/components/schemas/StudioPairOutcome'
+        }
+    },
+    required: [
+        'assetId',
+        'otherAssetId',
+        'outcome'
+    ]
+} as const;
+
+export const StudioModelScoreboardSchema = {
+    type: 'object',
+    properties: {
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    model: {
+                        type: 'string'
+                    },
+                    comparisons: {
+                        type: 'integer',
+                        exclusiveMinimum: 0
+                    },
+                    winRate: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    elo: {
+                        type: 'number'
+                    },
+                    provisional: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'model',
+                    'comparisons',
+                    'winRate',
+                    'elo',
+                    'provisional'
+                ]
+            }
+        },
+        minimumComparisons: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'models',
+        'minimumComparisons'
+    ]
+} as const;
+
 export const StudioBrandKitSchema = {
     type: 'object',
     properties: {
@@ -40030,6 +43886,21 @@ export const CreateProjectImageJobRequestSchema = {
             minLength: 1,
             maxLength: 4000
         },
+        templateId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        creativeDirection: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
         },
@@ -40044,6 +43915,13 @@ export const CreateProjectImageJobRequestSchema = {
         },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ]
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
@@ -40195,6 +44073,189 @@ export const CreateProjectVideoJobRequestSchema = {
     ]
 } as const;
 
+export const CreateProjectTalkingVideoJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        script: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 600
+        },
+        voice: {
+            type: 'string',
+            enum: [
+                'Aria',
+                'Roger',
+                'Sarah',
+                'Laura',
+                'Charlie',
+                'George',
+                'Callum',
+                'River',
+                'Liam',
+                'Charlotte',
+                'Alice',
+                'Matilda',
+                'Will',
+                'Jessica',
+                'Eric',
+                'Chris',
+                'Brian',
+                'Daniel',
+                'Lily',
+                'Bill'
+            ],
+            default: 'Sarah'
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        },
+        presenter: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'stock'
+                            ]
+                        },
+                        id: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 100
+                        }
+                    },
+                    required: [
+                        'kind',
+                        'id'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'file'
+                            ]
+                        },
+                        fileId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        consent: {
+                            type: 'boolean',
+                            enum: [
+                                true
+                            ]
+                        }
+                    },
+                    required: [
+                        'kind',
+                        'fileId',
+                        'consent'
+                    ]
+                }
+            ]
+        },
+        siteShots: {
+            type: 'boolean'
+        },
+        broll: {
+            type: 'boolean',
+            default: false
+        },
+        music: {
+            type: 'boolean',
+            default: false
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'script',
+        'presenter',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const ProjectTalkingVideoScriptsSchema = {
+    type: 'object',
+    properties: {
+        scripts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    hook: {
+                        type: 'string'
+                    },
+                    script: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'hook',
+                    'script'
+                ]
+            }
+        }
+    },
+    required: [
+        'scripts'
+    ]
+} as const;
+
+export const WriteProjectTalkingVideoScriptsRequestSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        }
+    }
+} as const;
+
+export const ProjectTalkingVideosSchema = {
+    type: 'object',
+    properties: {
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageJob'
+            }
+        },
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageAsset'
+            }
+        }
+    },
+    required: [
+        'jobs',
+        'assets'
+    ]
+} as const;
+
 export const CancelProjectImageJobResponseSchema = {
     type: 'object',
     properties: {
@@ -40217,6 +44278,133 @@ export const StudioAdPlacementRatioSchema = {
     ]
 } as const;
 
+export const RecordStudioAssetEventSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'viewed_lightbox'
+            ]
+        }
+    },
+    required: [
+        'type'
+    ]
+} as const;
+
+export const StudioAssetRatingSchema = {
+    type: 'object',
+    properties: {
+        myThumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myReasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            }
+        },
+        myComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thumbsUp: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbsDown: {
+            type: 'integer',
+            minimum: 0
+        },
+        score: {
+            type: 'number'
+        }
+    },
+    required: [
+        'myThumb',
+        'myReasons',
+        'myComment',
+        'thumbsUp',
+        'thumbsDown',
+        'score'
+    ]
+} as const;
+
+export const SetStudioAssetFeedbackSchema = {
+    type: 'object',
+    properties: {
+        thumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        reasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            },
+            maxItems: 5
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        }
+    },
+    required: [
+        'thumb'
+    ]
+} as const;
+
 export const ProjectImageStudioCaptionSchema = {
     type: 'object',
     properties: {
@@ -40234,6 +44422,12 @@ export const ProjectImageStudioCaptionSchema = {
 export const ProjectSeoWorkspaceSchema = {
     type: 'object',
     properties: {
+        searchConsolePropertyId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         sharing: {
             type: 'string',
             enum: [
@@ -40441,6 +44635,16 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        indexTriage: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoIndexTriage'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         strategy: {
             anyOf: [
                 {
@@ -40450,6 +44654,667 @@ export const ProjectSeoWorkspaceSchema = {
                     type: 'null'
                 }
             ]
+        },
+        landingEngagementChange: {
+            type: 'object',
+            properties: {
+                propertyId: {
+                    type: 'string'
+                },
+                timeZone: {
+                    type: 'string'
+                },
+                pageCount: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                before: {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string'
+                        },
+                        to: {
+                            type: 'string'
+                        },
+                        sessions: {
+                            type: 'integer',
+                            exclusiveMinimum: 0
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'sessions',
+                        'observationId'
+                    ]
+                },
+                after: {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string'
+                        },
+                        to: {
+                            type: 'string'
+                        },
+                        sessions: {
+                            type: 'integer',
+                            exclusiveMinimum: 0
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'sessions',
+                        'observationId'
+                    ]
+                },
+                engagementSecondsPerSession: {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        withinPageChange: {
+                            type: 'number'
+                        },
+                        mixChange: {
+                            type: 'number'
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'withinPageChange',
+                        'mixChange'
+                    ]
+                },
+                viewsPerSession: {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        withinPageChange: {
+                            type: 'number'
+                        },
+                        mixChange: {
+                            type: 'number'
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'withinPageChange',
+                        'mixChange'
+                    ]
+                }
+            },
+            required: [
+                'propertyId',
+                'timeZone',
+                'pageCount',
+                'before',
+                'after',
+                'engagementSecondsPerSession',
+                'viewsPerSession'
+            ]
+        },
+        articleDates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string',
+                        format: 'uri'
+                    },
+                    publishedOn: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    revisedOn: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    record: {
+                        type: 'string'
+                    },
+                    section: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 96
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 4,
+                        maxLength: 180
+                    }
+                },
+                required: [
+                    'url',
+                    'publishedOn',
+                    'record'
+                ]
+            }
+        },
+        topicLaunches: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    topic: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 96
+                    },
+                    basis: {
+                        type: 'string',
+                        enum: [
+                            'headline_phrase'
+                        ]
+                    },
+                    publishedFrom: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    publishedThrough: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    pages: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string',
+                                    format: 'uri'
+                                },
+                                publishedOn: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                revisedOn: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                record: {
+                                    type: 'string'
+                                }
+                            },
+                            required: [
+                                'url',
+                                'publishedOn',
+                                'record'
+                            ]
+                        },
+                        minItems: 2,
+                        maxItems: 10
+                    },
+                    earlierArticle: {
+                        type: 'object',
+                        properties: {
+                            url: {
+                                type: 'string',
+                                format: 'uri'
+                            },
+                            publishedOn: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            revisedOn: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            record: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'url',
+                            'publishedOn',
+                            'record'
+                        ]
+                    }
+                },
+                required: [
+                    'topic',
+                    'publishedFrom',
+                    'publishedThrough',
+                    'pages'
+                ]
+            }
+        },
+        privateTopicQueries: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    topic: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 96
+                    },
+                    query: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 256
+                    },
+                    from: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    to: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    pages: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uri'
+                        },
+                        minItems: 2
+                    },
+                    observationId: {
+                        type: 'string',
+                        format: 'uuid'
+                    }
+                },
+                required: [
+                    'topic',
+                    'query',
+                    'from',
+                    'to',
+                    'pages',
+                    'observationId'
+                ]
+            }
+        },
+        seasonalIdeas: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    marketBasis: {
+                        type: 'string',
+                        enum: [
+                            'vendor_scenario'
+                        ]
+                    },
+                    origin: {
+                        type: 'string',
+                        enum: [
+                            'market_history'
+                        ]
+                    },
+                    keyword: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 80
+                    },
+                    audience: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 80
+                    },
+                    url: {
+                        type: 'string',
+                        format: 'uri'
+                    },
+                    asOf: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    country: {
+                        type: 'string',
+                        pattern: '^[A-Z]{2}$'
+                    },
+                    language: {
+                        type: 'string',
+                        pattern: '^[a-z]{2}$'
+                    },
+                    pageQuote: {
+                        type: 'string',
+                        minLength: 8,
+                        maxLength: 180
+                    },
+                    action: {
+                        type: 'string',
+                        enum: [
+                            'improve_existing_page',
+                            'investigate_angle'
+                        ]
+                    },
+                    limitations: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'demand_unverified',
+                                'timing_uncertain',
+                                'audience_fit_uncertain',
+                                'offer_unverified',
+                                'existing_page_may_cover'
+                            ]
+                        },
+                        maxItems: 5
+                    },
+                    event: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            name: {
+                                type: 'string',
+                                maxLength: 80
+                            },
+                            scope: {
+                                type: 'string',
+                                maxLength: 250
+                            },
+                            date: {
+                                type: 'string',
+                                format: 'date'
+                            }
+                        },
+                        required: [
+                            'name',
+                            'scope',
+                            'date'
+                        ]
+                    },
+                    comparison: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            status: {
+                                type: 'string',
+                                enum: [
+                                    'above_baseline',
+                                    'no_observed_rise',
+                                    'insufficient'
+                                ]
+                            },
+                            earlierEdition: {
+                                type: 'object',
+                                properties: {
+                                    previousEventDate: {
+                                        type: 'string',
+                                        format: 'date'
+                                    },
+                                    leadMonth: {
+                                        type: 'object',
+                                        properties: {
+                                            period: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                            },
+                                            volume: {
+                                                type: [
+                                                    'integer',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            }
+                                        },
+                                        required: [
+                                            'period',
+                                            'volume'
+                                        ]
+                                    },
+                                    eventMonth: {
+                                        type: 'object',
+                                        properties: {
+                                            period: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                            },
+                                            volume: {
+                                                type: [
+                                                    'integer',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            }
+                                        },
+                                        required: [
+                                            'period',
+                                            'volume'
+                                        ]
+                                    },
+                                    baselineMonths: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                period: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                                },
+                                                volume: {
+                                                    type: [
+                                                        'integer',
+                                                        'null'
+                                                    ],
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'period',
+                                                'volume'
+                                            ]
+                                        }
+                                    },
+                                    baselineMedian: {
+                                        type: 'number',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'previousEventDate',
+                                    'leadMonth',
+                                    'eventMonth',
+                                    'baselineMonths',
+                                    'baselineMedian'
+                                ]
+                            },
+                            leadMonth: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    period: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    volume: {
+                                        type: [
+                                            'integer',
+                                            'null'
+                                        ],
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'period',
+                                    'volume'
+                                ]
+                            },
+                            eventMonth: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    period: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    volume: {
+                                        type: [
+                                            'integer',
+                                            'null'
+                                        ],
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'period',
+                                    'volume'
+                                ]
+                            },
+                            baselineMedian: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ],
+                                minimum: 0
+                            }
+                        },
+                        required: [
+                            'status',
+                            'leadMonth',
+                            'eventMonth',
+                            'baselineMedian'
+                        ]
+                    },
+                    windows: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                targetPeriod: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                historicalPeriod: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                historicalVolume: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                baselineMedian: {
+                                    type: 'number',
+                                    minimum: 0
+                                },
+                                referenceMonths: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    minItems: 6,
+                                    maxItems: 8
+                                },
+                                earlierCycle: {
+                                    type: 'object',
+                                    properties: {
+                                        historicalPeriod: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                        },
+                                        historicalVolume: {
+                                            type: 'integer',
+                                            minimum: 0
+                                        },
+                                        baselineMedian: {
+                                            type: 'number',
+                                            minimum: 0
+                                        },
+                                        referenceMonths: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                            },
+                                            minItems: 6,
+                                            maxItems: 8
+                                        }
+                                    },
+                                    required: [
+                                        'historicalPeriod',
+                                        'historicalVolume',
+                                        'baselineMedian'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'targetPeriod',
+                                'historicalPeriod',
+                                'historicalVolume',
+                                'baselineMedian'
+                            ]
+                        },
+                        maxItems: 4
+                    },
+                    observedMonths: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                period: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                volume: {
+                                    type: 'integer',
+                                    minimum: 0
+                                }
+                            },
+                            required: [
+                                'period',
+                                'volume'
+                            ]
+                        },
+                        minItems: 1,
+                        maxItems: 36
+                    },
+                    actionId: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'keyword',
+                    'audience',
+                    'url',
+                    'asOf',
+                    'country',
+                    'language',
+                    'pageQuote',
+                    'action',
+                    'limitations',
+                    'event',
+                    'comparison',
+                    'windows'
+                ]
+            }
         },
         serpHistory: {
             type: 'array',
@@ -40800,6 +45665,31 @@ export const ProjectSeoKeywordSchema = {
             type: [
                 'number',
                 'null'
+            ]
+        },
+        editorial: {
+            type: 'object',
+            properties: {
+                models: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        enum: [
+                            'gemini',
+                            'codex'
+                        ]
+                    },
+                    minItems: 1,
+                    maxItems: 2
+                },
+                record: {
+                    type: 'string',
+                    pattern: '^[a-f0-9]{64}$'
+                }
+            },
+            required: [
+                'models',
+                'record'
             ]
         },
         difficulty: {
@@ -41156,6 +46046,24 @@ export const ProjectSeoFindingSchema = {
                 type: 'string'
             }
         },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000
+        },
+        relatedPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        visibility: {
+            type: 'string',
+            enum: [
+                'PRIVATE'
+            ]
+        },
         sourceRef: {
             type: 'string'
         },
@@ -41211,7 +46119,8 @@ export const ProjectSeoActionSchema = {
             enum: [
                 'low',
                 'medium',
-                'high'
+                'high',
+                'unknown'
             ]
         },
         expectedEffect: {
@@ -41246,6 +46155,194 @@ export const ProjectSeoActionSchema = {
                 }
             ]
         },
+        decision: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'content_opportunity',
+                        'internal_link_opportunity',
+                        'offer_availability',
+                        'open_strategy_opportunity'
+                    ]
+                },
+                alternative: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 600
+                },
+                nextCheck: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 600
+                }
+            },
+            required: [
+                'kind',
+                'alternative',
+                'nextCheck'
+            ]
+        },
+        followUpReview: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        period: {
+                            type: 'string',
+                            pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                        },
+                        baselineObservationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        baselineObservedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        observedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'rank_crosses',
+                                'demand_returns'
+                            ]
+                        },
+                        keyword: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 256
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'baselineObservationId',
+                        'baselineObservedAt',
+                        'observationId',
+                        'observedAt',
+                        'kind',
+                        'keyword'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        period: {
+                            type: 'string',
+                            pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                        },
+                        baselineObservationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        baselineObservedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        observedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'engagement_changed',
+                                'purchase_rate_changed',
+                                'signup_rate_changed'
+                            ]
+                        },
+                        beforePeriod: {
+                            type: 'object',
+                            properties: {
+                                from: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                to: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                sessions: {
+                                    type: 'integer',
+                                    exclusiveMinimum: 0
+                                }
+                            },
+                            required: [
+                                'from',
+                                'to',
+                                'sessions'
+                            ]
+                        },
+                        afterPeriod: {
+                            type: 'object',
+                            properties: {
+                                from: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                to: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                sessions: {
+                                    type: 'integer',
+                                    exclusiveMinimum: 0
+                                }
+                            },
+                            required: [
+                                'from',
+                                'to',
+                                'sessions'
+                            ]
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'baselineObservationId',
+                        'baselineObservedAt',
+                        'observationId',
+                        'observedAt',
+                        'kind',
+                        'beforePeriod',
+                        'afterPeriod'
+                    ]
+                }
+            ]
+        },
         taskId: {
             type: [
                 'string',
@@ -41256,10 +46353,24 @@ export const ProjectSeoActionSchema = {
             type: 'string',
             enum: [
                 'recommended',
+                'needs_review',
                 'task_created',
+                'unavailable',
                 'implemented',
-                'verified'
+                'verified',
+                'canceled',
+                'failed'
             ]
+        },
+        completedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        verifiedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         },
         kind: {
             type: 'string',
@@ -41345,6 +46456,11 @@ export const ProjectSeoMetricSchema = {
             ]
         },
         observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        selectedAt: {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
@@ -41741,6 +46857,11 @@ export const ProjectSeoLandingPagesSchema = {
             minLength: 1,
             maxLength: 253
         },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
         rows: {
             type: 'array',
             items: {
@@ -41756,6 +46877,14 @@ export const ProjectSeoLandingPagesSchema = {
                         minimum: 0
                     },
                     keyEvents: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    engagementSeconds: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    views: {
                         type: 'number',
                         minimum: 0
                     }
@@ -41932,6 +47061,13 @@ export const ProjectSeoIndexedPageSchema = {
                 'null'
             ],
             maxLength: 2048
+        },
+        indexingState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
         }
     },
     required: [
@@ -41946,6 +47082,97 @@ export const ProjectSeoIndexedPageSchema = {
     additionalProperties: false
 } as const;
 
+export const ProjectSeoIndexTriageSchema = {
+    type: 'object',
+    properties: {
+        assessments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexAssessedPage'
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'assessments'
+    ]
+} as const;
+
+export const ProjectSeoIndexAssessedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        },
+        taskId: {
+            type: 'string'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        googleReturnedUnknown: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence',
+        'taskId',
+        'checkedAt'
+    ],
+    additionalProperties: false
+} as const;
+
 export const ProjectSeoStrategySchema = {
     type: 'object',
     properties: {
@@ -41956,6 +47183,95 @@ export const ProjectSeoStrategySchema = {
         why: {
             type: 'string',
             maxLength: 20000
+        },
+        purpose: {
+            type: 'string',
+            enum: [
+                'sales',
+                'traffic'
+            ]
+        },
+        purposeSource: {
+            type: 'string',
+            enum: [
+                'owner',
+                'inferred'
+            ]
+        },
+        purposeOpportunity: {
+            type: 'object',
+            properties: {
+                pageUrl: {
+                    type: 'string',
+                    maxLength: 4096
+                },
+                keyword: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000
+                },
+                demand: {
+                    type: 'number',
+                    exclusiveMinimum: 0
+                },
+                reach: {
+                    type: 'string',
+                    enum: [
+                        'ranks',
+                        'in reach'
+                    ]
+                }
+            },
+            required: [
+                'pageUrl',
+                'keyword',
+                'demand',
+                'reach'
+            ]
+        },
+        demandByIntent: {
+            type: 'object',
+            properties: {
+                buyer: {
+                    type: 'number',
+                    minimum: 0
+                },
+                informational: {
+                    type: 'number',
+                    minimum: 0
+                },
+                other: {
+                    type: 'number',
+                    minimum: 0
+                }
+            },
+            required: [
+                'buyer',
+                'informational',
+                'other'
+            ]
+        },
+        missingDemandByIntent: {
+            type: 'object',
+            properties: {
+                buyer: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                informational: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                other: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'buyer',
+                'informational',
+                'other'
+            ]
         },
         groups: {
             type: 'array',
@@ -42014,6 +47330,32 @@ export const ProjectSeoStrategySchema = {
                             'number',
                             'null'
                         ]
+                    },
+                    forums: {
+                        type: 'boolean'
+                    },
+                    forumQuestions: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                title: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 300,
+                                    pattern: '[?？؟]/u'
+                                },
+                                url: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                }
+                            },
+                            required: [
+                                'title'
+                            ]
+                        },
+                        maxItems: 5
                     }
                 },
                 required: [
@@ -43387,6 +48729,120 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 750
             ]
         },
+        fullAuditPrice: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'cost_plus'
+                    ]
+                },
+                version: {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                minimumCredits: {
+                    type: 'number',
+                    enum: [
+                        750
+                    ]
+                },
+                markupPercent: {
+                    type: 'number',
+                    enum: [
+                        50
+                    ]
+                },
+                maxCredits: {
+                    type: 'number',
+                    enum: [
+                        750
+                    ]
+                }
+            },
+            required: [
+                'kind',
+                'version',
+                'minimumCredits',
+                'markupPercent'
+            ],
+            additionalProperties: false
+        },
+        searchConsolePropertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        allowLimitedAudit: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        setupGoal: {
+            type: 'object',
+            properties: {
+                pageId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                action: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'sign up',
+                        'buy',
+                        'contact sales',
+                        'book',
+                        'subscribe',
+                        'download',
+                        'call',
+                        'visit',
+                        'read',
+                        'none',
+                        null
+                    ]
+                }
+            },
+            required: [
+                'pageId',
+                'expectedRevision',
+                'action'
+            ],
+            additionalProperties: false
+        },
+        sharedBrief: {
+            type: 'object',
+            properties: {
+                revision: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                pageIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    minItems: 1,
+                    maxItems: 10
+                }
+            },
+            required: [
+                'revision',
+                'pageIds'
+            ],
+            additionalProperties: false
+        },
         fullAuditLimits: {
             type: 'object',
             properties: {
@@ -43543,6 +48999,100 @@ export const CreateProjectSeoMonitorRequestSchema = {
         'operationId',
         'rule',
         'analysis'
+    ],
+    additionalProperties: false
+} as const;
+
+export const AcknowledgeProjectSeoReviewRequestSchema = {
+    type: 'object',
+    properties: {
+        pageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        view: {
+            type: 'object',
+            properties: {
+                scopeId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                pageId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                pageIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    minItems: 1,
+                    maxItems: 10
+                },
+                from: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                to: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                channel: {
+                    type: 'string',
+                    enum: [
+                        'all',
+                        'organic',
+                        'ai_assistant'
+                    ]
+                },
+                searchType: {
+                    type: 'string',
+                    enum: [
+                        'web',
+                        'image',
+                        'video',
+                        'news',
+                        'discover',
+                        'googleNews'
+                    ]
+                }
+            }
+        },
+        actionId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'rank_crosses',
+                'demand_returns',
+                'engagement_changed',
+                'purchase_rate_changed',
+                'signup_rate_changed'
+            ]
+        },
+        period: {
+            type: 'string',
+            pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+        },
+        baselineObservationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'pageId',
+        'actionId',
+        'kind',
+        'baselineObservationId',
+        'observationId'
     ],
     additionalProperties: false
 } as const;
@@ -43730,6 +49280,676 @@ export const SaveProjectSeoBrandTermsRequestSchema = {
     },
     required: [
         'terms'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoAuditBriefSchema = {
+    type: 'object',
+    properties: {
+        objective: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sales',
+                'traffic',
+                'support',
+                null
+            ]
+        },
+        audience: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        constraints: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 600
+        },
+        pages: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    role: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'guide',
+                            'product',
+                            'pricing',
+                            'support',
+                            'comparison',
+                            'other',
+                            null
+                        ]
+                    },
+                    job: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 300
+                    },
+                    action: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'sign up',
+                            'buy',
+                            'contact sales',
+                            'book',
+                            'subscribe',
+                            'download',
+                            'call',
+                            'visit',
+                            'read',
+                            'none',
+                            null
+                        ]
+                    },
+                    indexIntent: {
+                        type: 'string',
+                        enum: [
+                            'index',
+                            'exclude',
+                            'unknown'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'role',
+                    'job',
+                    'action',
+                    'indexIntent'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        updatedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        followUps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    changedAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time'
+                    },
+                    lastCrawlAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time'
+                    },
+                    latestClosedGoal: {
+                        type: 'object',
+                        properties: {
+                            from: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            to: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            count: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            event: {
+                                type: 'string',
+                                enum: [
+                                    'purchase',
+                                    'sign_up'
+                                ]
+                            },
+                            timeZone: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 100
+                            }
+                        },
+                        required: [
+                            'from',
+                            'to',
+                            'count',
+                            'event',
+                            'timeZone'
+                        ],
+                        additionalProperties: false
+                    },
+                    goalInvestigation: {
+                        type: 'object',
+                        properties: {
+                            pageUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            timeZone: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 100
+                            },
+                            event: {
+                                type: 'string',
+                                enum: [
+                                    'purchase',
+                                    'sign_up'
+                                ]
+                            },
+                            before: {
+                                type: 'object',
+                                properties: {
+                                    from: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    to: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    organic: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    },
+                                    direct: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    }
+                                },
+                                required: [
+                                    'from',
+                                    'to',
+                                    'organic',
+                                    'direct'
+                                ],
+                                additionalProperties: false
+                            },
+                            after: {
+                                type: 'object',
+                                properties: {
+                                    from: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    to: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    organic: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    },
+                                    direct: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    }
+                                },
+                                required: [
+                                    'from',
+                                    'to',
+                                    'organic',
+                                    'direct'
+                                ],
+                                additionalProperties: false
+                            },
+                            weekdayMix: {
+                                type: 'string',
+                                enum: [
+                                    'uneven'
+                                ]
+                            },
+                            assessment: {
+                                type: 'string',
+                                enum: [
+                                    'both_declined',
+                                    'organic_declined',
+                                    'goal_held'
+                                ]
+                            }
+                        },
+                        required: [
+                            'pageUrl',
+                            'timeZone',
+                            'event',
+                            'before',
+                            'after',
+                            'assessment'
+                        ],
+                        additionalProperties: false
+                    },
+                    outcomes: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                event: {
+                                    type: 'string',
+                                    enum: [
+                                        'purchase',
+                                        'sign_up'
+                                    ]
+                                },
+                                latest: {
+                                    type: 'object',
+                                    properties: {
+                                        from: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                        },
+                                        to: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                        },
+                                        count: {
+                                            type: 'integer',
+                                            minimum: 0
+                                        }
+                                    },
+                                    required: [
+                                        'from',
+                                        'to',
+                                        'count'
+                                    ],
+                                    additionalProperties: false
+                                },
+                                comparison: {
+                                    type: 'object',
+                                    properties: {
+                                        before: {
+                                            type: 'object',
+                                            properties: {
+                                                from: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                to: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                count: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'from',
+                                                'to',
+                                                'count'
+                                            ],
+                                            additionalProperties: false
+                                        },
+                                        after: {
+                                            type: 'object',
+                                            properties: {
+                                                from: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                to: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                count: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'from',
+                                                'to',
+                                                'count'
+                                            ],
+                                            additionalProperties: false
+                                        }
+                                    },
+                                    required: [
+                                        'before',
+                                        'after'
+                                    ],
+                                    additionalProperties: false
+                                }
+                            },
+                            required: [
+                                'event',
+                                'latest'
+                            ],
+                            additionalProperties: false
+                        },
+                        maxItems: 2
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'awaiting_recrawl',
+                            'recrawled',
+                            'unknown'
+                        ]
+                    },
+                    indexReview: {
+                        type: 'string',
+                        enum: [
+                            'expected_exclusion',
+                            'review_exclusion',
+                            'review_indexing',
+                            'unknown',
+                            'matches_intent'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'changedAt',
+                    'lastCrawlAt',
+                    'status',
+                    'indexReview'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        priorities: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    why: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    nextStep: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'pageId',
+                    'why',
+                    'nextStep'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'objective',
+        'audience',
+        'outcome',
+        'constraints',
+        'pages',
+        'revision',
+        'updatedAt',
+        'followUps',
+        'priorities'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SaveSeoAuditBriefRequestSchema = {
+    type: 'object',
+    properties: {
+        objective: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sales',
+                'traffic',
+                'support',
+                null
+            ]
+        },
+        audience: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        constraints: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 600
+        },
+        pages: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    role: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'guide',
+                            'product',
+                            'pricing',
+                            'support',
+                            'comparison',
+                            'other',
+                            null
+                        ]
+                    },
+                    job: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 300
+                    },
+                    action: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'sign up',
+                            'buy',
+                            'contact sales',
+                            'book',
+                            'subscribe',
+                            'download',
+                            'call',
+                            'visit',
+                            'read',
+                            'none',
+                            null
+                        ]
+                    },
+                    indexIntent: {
+                        type: 'string',
+                        enum: [
+                            'index',
+                            'exclude',
+                            'unknown'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'role',
+                    'job',
+                    'action',
+                    'indexIntent'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        expectedRevision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'objective',
+        'audience',
+        'outcome',
+        'constraints',
+        'pages',
+        'expectedRevision'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoBriefSuggestionSchema = {
+    type: 'object',
+    properties: {
+        action: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sign up',
+                'buy',
+                'contact sales',
+                'book',
+                'subscribe',
+                'download',
+                'call',
+                'visit',
+                'read',
+                'none',
+                null
+            ]
+        }
+    },
+    required: [
+        'action'
     ],
     additionalProperties: false
 } as const;
@@ -44202,6 +50422,19 @@ export const SendSeoAuditChatRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SetSeoAuditArchivedRequestSchema = {
+    type: 'object',
+    properties: {
+        archived: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'archived'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SeoConnectionStatusSchema = {
     type: 'object',
     properties: {
@@ -44241,6 +50474,38 @@ export const SeoConnectionStatusSchema = {
         },
         canResume: {
             type: 'boolean'
+        },
+        account: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        email: {
+                            type: 'string'
+                        },
+                        name: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        pictureUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'email',
+                        'name',
+                        'pictureUrl'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         connectionVersion: {
             type: 'string',
@@ -45869,6 +52134,16 @@ export const DataRoomViewSchema = {
                 }
             ]
         },
+        company: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DataRoomCompany'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         hasLogo: {
             type: 'boolean'
         },
@@ -45918,6 +52193,7 @@ export const DataRoomViewSchema = {
         'state',
         'title',
         'welcomeNote',
+        'company',
         'hasLogo',
         'allowDownload',
         'watermark',
@@ -45969,6 +52245,69 @@ export const DataRoomSessionRequestSchema = {
     required: [
         'email',
         'code'
+    ]
+} as const;
+
+export const DataRoomViewerQuestionsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoomViewerQuestion'
+    }
+} as const;
+
+export const DataRoomViewerQuestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        },
+        path: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        answer: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        answeredAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        mine: {
+            type: 'boolean',
+            description: 'The viewer asked it.'
+        },
+        shared: {
+            type: 'boolean',
+            description: 'The owner showed the answer to everyone in the room.'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'path',
+        'body',
+        'answer',
+        'answeredAt',
+        'mine',
+        'shared'
     ]
 } as const;
 
@@ -46527,6 +52866,17 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        activity: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoActivity'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'What Cuso is doing in the turn he runs now, whatever started it (a chat message, hiring, a rhythm, the month\'s production); null while he rests.'
+        },
         brandVisual: {
             anyOf: [
                 {
@@ -46547,22 +52897,29 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        presenterSet: {
+            type: 'boolean'
+        },
         onboardingStep: {
             type: 'string',
             enum: [
                 'brandBrain',
                 'strategy',
-                'accounts',
                 'checkout',
+                'accounts',
                 'done'
             ],
-            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.'
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.'
         },
         routines: {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/CmoRoutine'
             }
+        },
+        timeZone: {
+            type: 'string',
+            description: 'The time zone Cuso\'s routines run in, as the owner set it.'
         },
         brandBrain: {
             anyOf: [
@@ -46904,6 +53261,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -46982,6 +53361,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47060,6 +53461,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47138,6 +53561,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47216,6 +53661,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47294,6 +53761,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47372,6 +53861,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47450,6 +53961,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47528,6 +54061,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47606,6 +54161,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47684,6 +54261,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47762,6 +54361,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47840,6 +54461,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47918,6 +54561,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -47996,6 +54661,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -48074,6 +54761,28 @@ export const CmoOverviewSchema = {
                                             },
                                             maxItems: 3,
                                             default: []
+                                        },
+                                        fix: {
+                                            type: 'object',
+                                            properties: {
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2000
+                                                },
+                                                at: {
+                                                    type: 'string',
+                                                    maxLength: 40
+                                                },
+                                                fixed: {
+                                                    type: 'boolean'
+                                                }
+                                            },
+                                            required: [
+                                                'note',
+                                                'at',
+                                                'fixed'
+                                            ]
                                         }
                                     },
                                     required: [
@@ -48425,6 +55134,9 @@ export const CmoOverviewSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        promiseByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -48485,6 +55197,31 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        strategyShort: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        planned: {
+                            type: 'integer',
+                            description: 'Pieces the calendar plans.'
+                        },
+                        promised: {
+                            type: 'integer',
+                            description: 'About how many its pace and cadences promise.'
+                        }
+                    },
+                    required: [
+                        'planned',
+                        'promised'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Set while the newest draft does not hold what it promises: fewer pieces than its own pace and cadences, or no video where its funnel or a video network promises one (after Cuso\'s finish turns). Approving it is refused (409); the owner asks for a new strategy instead. `promised` equals `planned` when only a video is missing.'
+        },
         approvedStrategy: {
             anyOf: [
                 {
@@ -48529,6 +55266,13 @@ export const CmoOverviewSchema = {
             },
             description: 'The image or video Cuso attached to each calendar piece, by entry id.'
         },
+        postRevisions: {
+            type: 'object',
+            additionalProperties: {
+                type: 'integer'
+            },
+            description: 'The revision of each Social post of the month, by post id: what an owner\'s edit of its words names (PATCH drafts/{postId}).'
+        },
         strategyVersion: {
             anyOf: [
                 {
@@ -48566,6 +55310,13 @@ export const CmoOverviewSchema = {
                 $ref: '#/components/schemas/CmoUpdate'
             }
         },
+        drafts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoDraft'
+            },
+            description: 'Social posts Cuso made that wait for the owner\'s approval, newest first.'
+        },
         channels: {
             type: 'array',
             items: {
@@ -48581,14 +55332,15 @@ export const CmoOverviewSchema = {
         connectChannelUrl: {
             type: 'string'
         },
+        tiktokEnabled: {
+            type: 'boolean',
+            description: 'TikTok may be connected to this Cuso\'s Project. Cuso plans no TikTok posts yet.'
+        },
         adProviders: {
             type: 'array',
             items: {
                 type: 'string'
             }
-        },
-        connectAdsUrl: {
-            type: 'string'
         },
         measurement: {
             type: 'array',
@@ -48741,26 +55493,32 @@ export const CmoOverviewSchema = {
         'subscriptionActive',
         'viewerCanApprove',
         'work',
+        'activity',
         'brandVisual',
         'projectLogo',
+        'presenterSet',
         'onboardingStep',
         'routines',
+        'timeZone',
         'brandBrain',
         'brandBrainUpdatedAt',
         'brandBrainConfirmedAt',
         'brandMedia',
         'strategy',
+        'strategyShort',
         'approvedStrategy',
         'media',
+        'postRevisions',
         'strategyVersion',
         'strategyVersions',
         'hiredAt',
         'updates',
+        'drafts',
         'channels',
         'upNext',
         'connectChannelUrl',
+        'tiktokEnabled',
         'adProviders',
-        'connectAdsUrl',
         'measurement',
         'production',
         'mailingListSize',
@@ -48779,6 +55537,21 @@ export const CmoWorkSchema = {
                 'research',
                 'strategy'
             ]
+        },
+        change: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'fix',
+                        'patch'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A strategy turn that fixes Brand Brain sections or patches the plan\'s entries; null for a whole plan.'
         },
         status: {
             type: 'string',
@@ -48908,6 +55681,38 @@ export const CmoWorkStepSchema = {
         'url',
         'status',
         'at'
+    ]
+} as const;
+
+export const CmoActivitySchema = {
+    type: 'object',
+    properties: {
+        step: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The step Cuso is on, in CMO\'s words ("Looking for a picture style"); null before his first one.'
+        },
+        reasoning: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The model\'s latest summary of its reasoning in this turn; null when it gave none.'
+        }
+    },
+    required: [
+        'step',
+        'reasoning'
     ]
 } as const;
 
@@ -49059,6 +55864,17 @@ export const CmoBrandMediaSchema = {
                             'desktop',
                             'mobile'
                         ]
+                    },
+                    fullUrl: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The page from the top, several screens down.'
                     }
                 },
                 required: [
@@ -49066,10 +55882,64 @@ export const CmoBrandMediaSchema = {
                     'fileId',
                     'label',
                     'pageUrl',
-                    'device'
+                    'device',
+                    'fullUrl'
                 ]
             },
-            description: 'The brand\'s own pages, home first, then home on a phone.'
+            description: 'The brand\'s own pages Cuso read, home first, each on a desktop and then on a phone.'
+        },
+        sections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    fileId: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'hero',
+                            'pricing',
+                            'testimonials',
+                            'customers',
+                            'faq',
+                            'product',
+                            'features',
+                            'cta',
+                            'section'
+                        ]
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageLabel: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'url',
+                    'fileId',
+                    'kind',
+                    'title',
+                    'pageLabel',
+                    'pageUrl'
+                ]
+            },
+            description: 'Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.'
         },
         competitors: {
             type: 'array',
@@ -49134,13 +56004,113 @@ export const CmoBrandMediaSchema = {
                 ]
             },
             description: 'The large pictures on the brand\'s pages: products, screens, people.'
+        },
+        logos: {
+            type: 'object',
+            properties: {
+                logo: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                dark: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                mark: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                }
+            },
+            required: [
+                'logo',
+                'dark',
+                'mark'
+            ],
+            description: 'The brand\'s logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.'
         }
     },
     required: [
         'capturedAt',
         'pages',
+        'sections',
         'competitors',
-        'pictures'
+        'pictures',
+        'logos'
     ]
 } as const;
 
@@ -49233,6 +56203,21 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    role: {
+                        type: 'string',
+                        enum: [
+                            'main',
+                            'side'
+                        ]
+                    },
+                    buyer: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    setByOwner: {
+                        type: 'boolean'
                     }
                 },
                 required: [
@@ -49385,6 +56370,9 @@ export const CmoPlanSchema = {
                     type: 'integer',
                     minimum: 1,
                     maximum: 200
+                },
+                setByOwner: {
+                    type: 'boolean'
                 }
             },
             required: [
@@ -49419,6 +56407,25 @@ export const CmoPlanSchema = {
                 setByOwner: {
                     type: 'boolean',
                     default: false
+                },
+                suggest: {
+                    type: 'object',
+                    properties: {
+                        channel: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        monthly: {
+                            type: 'number',
+                            minimum: 0,
+                            maximum: 10000000
+                        }
+                    },
+                    required: [
+                        'channel',
+                        'monthly'
+                    ]
                 }
             },
             required: [
@@ -49856,6 +56863,9 @@ export const CmoPlanSchema = {
                         type: 'string',
                         enum: [
                             'awareness',
+                            'interest',
+                            'desire',
+                            'action',
                             'consideration',
                             'conversion',
                             'loyalty'
@@ -49867,6 +56877,16 @@ export const CmoPlanSchema = {
                         maxLength: 400
                     },
                     goal: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    cusoDoes: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    youDo: {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
@@ -49957,12 +56977,35 @@ export const CmoPlanSchema = {
                 },
                 required: [
                     'stage',
-                    'name',
                     'goal',
                     'metric'
                 ]
             },
             maxItems: 4,
+            default: []
+        },
+        leftOut: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    channel: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    why: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    }
+                },
+                required: [
+                    'channel',
+                    'why'
+                ]
+            },
+            maxItems: 6,
             default: []
         },
         proposals: {
@@ -50341,6 +57384,15 @@ export const CmoPlanSchema = {
                         },
                         maxItems: 3
                     },
+                    styleReferenceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
+                    },
                     slides: {
                         type: 'array',
                         items: {
@@ -50349,6 +57401,48 @@ export const CmoPlanSchema = {
                             maxLength: 400
                         },
                         maxItems: 10
+                    },
+                    slideHeadlines: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 60
+                        },
+                        maxItems: 10
+                    },
+                    script: {
+                        type: 'string',
+                        minLength: 20,
+                        maxLength: 600
+                    },
+                    presenter: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    voice: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    languageCode: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 2
+                    },
+                    alsoOn: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        maxItems: 4
+                    },
+                    videoOf: {
+                        type: 'string',
+                        maxLength: 64
                     },
                     story: {
                         type: 'string',
@@ -50515,7 +57609,7 @@ export const CmoPlanSchema = {
                     'status'
                 ]
             },
-            maxItems: 120
+            maxItems: 240
         },
         previews: {
             type: 'array',
@@ -50565,6 +57659,331 @@ export const CmoPlanSchema = {
                 maxLength: 400
             },
             maxItems: 10,
+            default: []
+        },
+        patched: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 64
+                    },
+                    was: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            id: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            date: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            time: {
+                                type: 'string',
+                                pattern: '^\\d{2}:\\d{2}$'
+                            },
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            title: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            format: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            status: {
+                                type: 'string',
+                                enum: [
+                                    'idea',
+                                    'draft',
+                                    'scheduled',
+                                    'published',
+                                    'skipped'
+                                ]
+                            },
+                            hook: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            brief: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            draft: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 4000
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            socialPostId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            visual: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            visualFileIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    maxLength: 100
+                                },
+                                maxItems: 3
+                            },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
+                            },
+                            slides: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                maxItems: 10
+                            },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
+                                },
+                                maxItems: 10
+                            },
+                            script: {
+                                type: 'string',
+                                minLength: 20,
+                                maxLength: 600
+                            },
+                            presenter: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            voice: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            languageCode: {
+                                type: 'string',
+                                minLength: 2,
+                                maxLength: 2
+                            },
+                            alsoOn: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 4
+                            },
+                            videoOf: {
+                                type: 'string',
+                                maxLength: 64
+                            },
+                            story: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            imageFileId: {
+                                type: 'string',
+                                maxLength: 100
+                            },
+                            slideFileIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    maxLength: 100
+                                },
+                                maxItems: 10
+                            },
+                            fileId: {
+                                type: 'string',
+                                maxLength: 100
+                            },
+                            searchAd: {
+                                type: 'object',
+                                properties: {
+                                    keywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        minItems: 1,
+                                        maxItems: 20
+                                    },
+                                    headlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 30
+                                        },
+                                        minItems: 3,
+                                        maxItems: 15
+                                    },
+                                    descriptions: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 90
+                                        },
+                                        minItems: 2,
+                                        maxItems: 4
+                                    },
+                                    negativeKeywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        maxItems: 30
+                                    },
+                                    maxCpc: {
+                                        type: 'number',
+                                        exclusiveMinimum: 0,
+                                        maximum: 1000
+                                    },
+                                    finalUrl: {
+                                        type: 'string',
+                                        maxLength: 2048,
+                                        format: 'uri'
+                                    },
+                                    path1: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 15
+                                    },
+                                    path2: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 15
+                                    },
+                                    location: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 80
+                                    },
+                                    language: {
+                                        type: 'string',
+                                        pattern: '^[a-z]{2}$'
+                                    },
+                                    callouts: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 25
+                                        },
+                                        maxItems: 10
+                                    }
+                                },
+                                required: [
+                                    'keywords',
+                                    'headlines',
+                                    'descriptions',
+                                    'finalUrl'
+                                ]
+                            },
+                            adCampaign: {
+                                type: 'object',
+                                properties: {
+                                    accountId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    }
+                                },
+                                required: [
+                                    'accountId',
+                                    'campaignId'
+                                ]
+                            },
+                            taskId: {
+                                type: 'string',
+                                maxLength: 100
+                            },
+                            campaignId: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 64
+                            },
+                            approach: {
+                                type: 'string',
+                                enum: [
+                                    'educational',
+                                    'thought-leadership',
+                                    'problem-solution',
+                                    'product-led',
+                                    'social-proof',
+                                    'people-led',
+                                    'community-led',
+                                    'entertainment',
+                                    'research-led',
+                                    'promotional'
+                                ]
+                            },
+                            pillar: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'id',
+                            'date',
+                            'channel',
+                            'title',
+                            'format',
+                            'status'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'was'
+                ]
+            },
+            maxItems: 240,
             default: []
         }
     },
@@ -50672,6 +58091,20 @@ export const CmoUpdateSchema = {
                     type: 'null'
                 }
             ]
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoDraft'
+            },
+            description: 'The Social posts the report\'s turn made, as they are now.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoMediaItem'
+            },
+            description: 'Pictures and videos the report\'s turn made that are on none of its posts.'
         }
     },
     required: [
@@ -50680,7 +58113,93 @@ export const CmoUpdateSchema = {
         'id',
         'at',
         'revertible',
-        'revertedAt'
+        'revertedAt',
+        'posts',
+        'media'
+    ]
+} as const;
+
+export const CmoDraftSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            description: 'The Social post\'s status. NEEDS_APPROVAL waits for the owner; SCHEDULED goes out at scheduledAt.'
+        },
+        revision: {
+            type: 'integer'
+        },
+        scheduledAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        publishedUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoMediaItem'
+            }
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'text',
+        'status',
+        'revision',
+        'scheduledAt',
+        'publishedUrl',
+        'media'
+    ]
+} as const;
+
+export const CmoMediaItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video'
+            ]
+        },
+        url: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'kind',
+        'url',
+        'name'
     ]
 } as const;
 
@@ -50715,6 +58234,10 @@ export const CmoChannelSchema = {
         },
         status: {
             type: 'string'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -50722,7 +58245,8 @@ export const CmoChannelSchema = {
         'provider',
         'handle',
         'displayName',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -50798,9 +58322,10 @@ export const CmoProductionSchema = {
                 'starting',
                 'running',
                 'ready',
-                'stuck'
+                'stuck',
+                'blocked'
             ],
-            description: 'starting: approved, but no run is working yet; the next sync starts one.'
+            description: 'starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.'
         },
         ready: {
             type: 'integer'
@@ -50874,6 +58399,22 @@ export const CmoProductionSchema = {
                 }
             ],
             description: 'Once the made month was read: each pillar\'s planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.'
+        },
+        level: {
+            type: 'string',
+            enum: [
+                'steady',
+                'active',
+                'all_in'
+            ],
+            description: 'How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.'
+        },
+        beyondPlan: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Calendar entries the plan bought does not make. A bigger plan makes them.'
         }
     },
     required: [
@@ -50884,7 +58425,9 @@ export const CmoProductionSchema = {
         'pictured',
         'needPictures',
         'finishedAt',
-        'pillars'
+        'pillars',
+        'level',
+        'beyondPlan'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
@@ -50975,6 +58518,17 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             minLength: 1,
             description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
+        },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The owner\'s time zone, from their browser: Cuso\'s routines run at their local times in it. Without it he works on Europe/Berlin time.'
+        },
+        testCopyOfProjectId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Hire a test copy of this Project\'s Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy\'s Social connections are links to the source\'s connected accounts.'
         }
     },
     required: [
@@ -51126,6 +58680,422 @@ export const CmoPieceTextSchema = {
     ]
 } as const;
 
+export const CmoChatWorkSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChatWorkItem'
+            }
+        }
+    },
+    required: [
+        'items'
+    ]
+} as const;
+
+export const CmoChatWorkItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'The tool call that started it; a weekly audit\'s own id.'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video',
+                'audio',
+                'file',
+                'task',
+                'agent',
+                'table',
+                'contacts',
+                'run',
+                'question',
+                'seo',
+                'audit'
+            ],
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist\'s weekly audit of the site (audit).'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'making',
+                'waiting',
+                'ready',
+                'failed',
+                'stopped'
+            ],
+            description: 'making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Cuso started it.'
+        },
+        title: {
+            type: 'string',
+            description: 'What it is: the prompt, the words spoken, the file\'s or the work\'s name.'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the finished file plays or downloads from.'
+        },
+        by: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who does handed work: the Coworker or the Agent.'
+        },
+        text: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Handed work: what is asked while it waits, the start of the result once done.'
+        },
+        readable: {
+            type: 'boolean',
+            description: 'Its full words are at /chat-work/{id}/text.'
+        },
+        files: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    url: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'name',
+                    'url'
+                ]
+            },
+            description: 'Files handed work came back with.'
+        },
+        table: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoChatTable'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A table\'s columns and first rows.'
+        },
+        people: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    detail: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'name',
+                    'detail'
+                ]
+            },
+            description: 'The first people of a contact list or a lookup.'
+        },
+        total: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Everyone that list or lookup holds, shown or not.'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    label: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'done',
+                            'now',
+                            'next'
+                        ]
+                    }
+                },
+                required: [
+                    'label',
+                    'state'
+                ]
+            },
+            description: 'A running background run\'s plan.'
+        },
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A background run\'s own turn: its report in the room is this card.'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'state',
+        'at',
+        'title',
+        'url',
+        'by',
+        'text',
+        'readable',
+        'files',
+        'table',
+        'people',
+        'total',
+        'steps',
+        'turnId'
+    ]
+} as const;
+
+export const CmoChatTableSchema = {
+    type: 'object',
+    properties: {
+        columns: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'array',
+                items: {
+                    type: 'string'
+                }
+            }
+        },
+        total: {
+            type: 'integer',
+            description: 'Every row the table holds.'
+        }
+    },
+    required: [
+        'columns',
+        'rows',
+        'total'
+    ]
+} as const;
+
+export const CmoChatWorkTableSchema = {
+    type: 'object',
+    properties: {
+        title: {
+            type: 'string'
+        },
+        table: {
+            $ref: '#/components/schemas/CmoChatTable'
+        }
+    },
+    required: [
+        'title',
+        'table'
+    ]
+} as const;
+
+export const CmoCompetitorsSchema = {
+    type: 'object',
+    properties: {
+        competitors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitor'
+            }
+        },
+        feed: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                checkDay: {
+                    type: 'string',
+                    description: 'The day of the check it was written from.'
+                },
+                savedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ProjectCompetitorFeedItem'
+                    }
+                },
+                openQuestions: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    description: 'What the sources could not settle this week.'
+                }
+            },
+            required: [
+                'checkDay',
+                'savedAt',
+                'items',
+                'openQuestions'
+            ],
+            description: 'This week: null until a bot wrote one.'
+        },
+        limit: {
+            type: 'integer',
+            description: 'How many competitors can be tracked.'
+        },
+        signals: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorSignal'
+            },
+            description: 'What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.'
+        },
+        scoreboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorScoreRow'
+            },
+            description: 'Instagram numbers: the business first, then each competitor. A null cell has no data.'
+        },
+        topPosts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorTopPost'
+            },
+            description: 'Each competitor\'s three strongest Instagram posts.'
+        },
+        check: {
+            type: 'object',
+            properties: {
+                on: {
+                    type: 'boolean',
+                    description: 'Whether the weekly check runs: a member turned it on, or the Project is a CMO Project, whose check runs while its Cuso is paid for.'
+                },
+                lastCheckedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                nextCheckAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                creditsPerCompetitor: {
+                    type: 'number',
+                    description: 'What one competitor costs in one weekly check, in credits.'
+                },
+                sources: {
+                    type: 'object',
+                    properties: {
+                        pages: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        news: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        ads: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        social: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        }
+                    },
+                    required: [
+                        'pages',
+                        'news',
+                        'ads',
+                        'social'
+                    ]
+                }
+            },
+            required: [
+                'on',
+                'lastCheckedAt',
+                'nextCheckAt',
+                'creditsPerCompetitor',
+                'sources'
+            ]
+        },
+        mapPlayers: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The Brand Brain market map\'s players that are still watched, in the map\'s spelling.'
+        }
+    },
+    required: [
+        'competitors',
+        'feed',
+        'limit',
+        'signals',
+        'scoreboard',
+        'topPosts',
+        'check',
+        'mapPlayers'
+    ]
+} as const;
+
 export const CmoCheckoutSchema = {
     type: 'object',
     properties: {
@@ -51191,6 +59161,925 @@ export const CmoCustomerPortalSchema = {
     ]
 } as const;
 
+export const CmoTestCopyCheckSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Project whose connected accounts the copy uses.'
+        },
+        tornDownAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        clean: {
+            type: 'boolean',
+            description: 'Nothing is left: no unsent post, linked account, run or Cuso.'
+        },
+        left: {
+            type: 'object',
+            properties: {
+                unsentPosts: {
+                    type: 'integer'
+                },
+                linkedAccounts: {
+                    type: 'integer'
+                },
+                activeTurns: {
+                    type: 'integer'
+                },
+                liveCuso: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'unsentPosts',
+                'linkedAccounts',
+                'activeTurns',
+                'liveCuso'
+            ]
+        },
+        publishedPosts: {
+            type: 'integer',
+            description: 'Posts of the copy that went out. Always 0.'
+        },
+        providerRevocations: {
+            type: 'integer',
+            description: 'Accounts ended at the provider through the copy. Always 0.'
+        }
+    },
+    required: [
+        'projectId',
+        'sourceProjectId',
+        'tornDownAt',
+        'clean',
+        'left',
+        'publishedPosts',
+        'providerRevocations'
+    ]
+} as const;
+
+export const CmoTestCopyTeardownSchema = {
+    type: 'object',
+    properties: {
+        removed: {
+            type: 'object',
+            properties: {
+                canceledPosts: {
+                    type: 'integer'
+                },
+                unlinkedAccounts: {
+                    type: 'integer'
+                },
+                stoppedTurns: {
+                    type: 'integer'
+                },
+                archivedCuso: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'canceledPosts',
+                'unlinkedAccounts',
+                'stoppedTurns',
+                'archivedCuso'
+            ]
+        },
+        check: {
+            $ref: '#/components/schemas/CmoTestCopyCheck'
+        }
+    },
+    required: [
+        'removed',
+        'check'
+    ]
+} as const;
+
+export const CmoTimeZoneSchema = {
+    type: 'object',
+    properties: {
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'timeZone'
+    ]
+} as const;
+
+export const CmoSeoSchema = {
+    type: 'object',
+    properties: {
+        websiteUrl: {
+            type: 'string'
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        audit: {
+            $ref: '#/components/schemas/CmoSeoAudit'
+        },
+        searchConsole: {
+            $ref: '#/components/schemas/CmoSearchConsole'
+        },
+        articles: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
+        pageChanges: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
+        landingPages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
+        keywordSearches: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoKeywordSearch'
+            }
+        },
+        keywordSearchesLeft: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'websiteUrl',
+        'countryCode',
+        'languageCode',
+        'audit',
+        'searchConsole',
+        'articles',
+        'pageChanges',
+        'landingPages',
+        'keywordSearches',
+        'keywordSearchesLeft'
+    ]
+} as const;
+
+export const CmoSeoAuditSchema = {
+    type: 'object',
+    properties: {
+        creditsPerAudit: {
+            type: 'integer'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active',
+                'paused',
+                'not_started',
+                'unavailable'
+            ]
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        running: {
+            type: 'boolean'
+        },
+        skipped: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'date-time'
+            }
+        },
+        latest: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                observedAt: {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                checked: {
+                    type: 'integer'
+                },
+                passed: {
+                    type: 'integer'
+                },
+                failedChecks: {
+                    type: 'integer'
+                },
+                readingChecks: {
+                    type: 'integer'
+                },
+                readings: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            detail: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'title',
+                            'pageUrl',
+                            'detail'
+                        ]
+                    }
+                },
+                issues: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            severity: {
+                                type: 'string',
+                                enum: [
+                                    'critical',
+                                    'major',
+                                    'minor'
+                                ]
+                            },
+                            detail: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'title',
+                            'pageUrl',
+                            'severity',
+                            'detail'
+                        ]
+                    }
+                },
+                fixes: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            why: {
+                                type: 'string'
+                            },
+                            effort: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'title',
+                            'why',
+                            'effort',
+                            'pageUrl'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'observedAt',
+                'checked',
+                'passed',
+                'failedChecks',
+                'readingChecks',
+                'readings',
+                'issues',
+                'fixes'
+            ]
+        },
+        lastFailedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        retryAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        failedTries: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'creditsPerAudit',
+        'status',
+        'nextRunAt',
+        'running',
+        'skipped',
+        'latest',
+        'lastFailedAt',
+        'retryAt',
+        'failedTries'
+    ]
+} as const;
+
+export const CmoSearchConsoleSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'connected',
+                'not_connected',
+                'no_property',
+                'unavailable'
+            ]
+        },
+        property: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        from: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        to: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        totals: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                clicks: {
+                    type: 'number'
+                },
+                impressions: {
+                    type: 'number'
+                },
+                ctr: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                position: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'clicks',
+                'impressions',
+                'ctr',
+                'position'
+            ]
+        },
+        nearFirstPage: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    clicks: {
+                        type: 'number'
+                    },
+                    impressions: {
+                        type: 'number'
+                    },
+                    ctr: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ]
+            }
+        },
+        lowClickRate: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    clicks: {
+                        type: 'number'
+                    },
+                    impressions: {
+                        type: 'number'
+                    },
+                    ctr: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ]
+            }
+        }
+    },
+    required: [
+        'status',
+        'property',
+        'from',
+        'to',
+        'observedAt',
+        'totals',
+        'nearFirstPage',
+        'lowClickRate'
+    ]
+} as const;
+
+export const CmoSeoSuggestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'article',
+                'page_change',
+                'landing_page'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'audit',
+                'cuso'
+            ]
+        },
+        title: {
+            type: 'string'
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        why: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        newText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        draft: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    sourceUrl: {
+                        type: 'string'
+                    },
+                    quote: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'text',
+                    'sourceUrl',
+                    'quote'
+                ]
+            }
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoEvidence'
+            }
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'open',
+                'done',
+                'verified',
+                'dismissed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        doneAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        verifiedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'source',
+        'title',
+        'keyword',
+        'pageUrl',
+        'why',
+        'body',
+        'newText',
+        'draft',
+        'sources',
+        'evidence',
+        'status',
+        'createdAt',
+        'doneAt',
+        'verifiedAt'
+    ]
+} as const;
+
+export const CmoSeoEvidenceSchema = {
+    type: 'object',
+    properties: {
+        metric: {
+            type: 'string',
+            enum: [
+                'searchVolume',
+                'difficulty',
+                'intent',
+                'position',
+                'clicks',
+                'impressions',
+                'ctr',
+                'auditIssue'
+            ]
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        value: {
+            type: 'string'
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'keyword_research',
+                'search_console',
+                'weekly_audit'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'metric',
+        'keyword',
+        'pageUrl',
+        'value',
+        'source',
+        'observedAt'
+    ]
+} as const;
+
+export const CmoKeywordSearchSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string'
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        ideas: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoKeywordIdea'
+            }
+        }
+    },
+    required: [
+        'topic',
+        'countryCode',
+        'languageCode',
+        'observedAt',
+        'ideas'
+    ]
+} as const;
+
+export const CmoKeywordIdeaSchema = {
+    type: 'object',
+    properties: {
+        editorial: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        measuredAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        keyword: {
+            type: 'string'
+        },
+        searchVolume: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        difficulty: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        intent: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'informational',
+                'navigational',
+                'commercial',
+                'transactional',
+                null
+            ]
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        positionSource: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'search_console',
+                'weekly_audit',
+                null
+            ]
+        }
+    },
+    required: [
+        'keyword',
+        'searchVolume',
+        'difficulty',
+        'intent',
+        'position',
+        'positionSource'
+    ]
+} as const;
+
+export const CmoKeywordSearchRequestSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string',
+            minLength: 2,
+            maxLength: 80
+        }
+    },
+    required: [
+        'topic'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CmoSeoSuggestionStatusRequestSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'open',
+                'done',
+                'dismissed'
+            ]
+        }
+    },
+    required: [
+        'status'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CmoLandingPageLiveSchema = {
+    type: 'object',
+    properties: {
+        page: {
+            $ref: '#/components/schemas/CmoSeoSuggestion'
+        },
+        adsUpdated: {
+            type: 'integer'
+        },
+        adsLaunched: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'page',
+        'adsUpdated',
+        'adsLaunched'
+    ]
+} as const;
+
+export const CmoLandingPageLiveRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            maxLength: 500,
+            format: 'uri'
+        }
+    },
+    required: [
+        'url'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CmoPresenterPhotoSchema = {
+    type: 'object',
+    properties: {
+        photo: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4200000
+        },
+        consent: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'photo',
+        'consent'
+    ]
+} as const;
+
+export const CmoAdBudgetStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        queued: {
+            type: 'boolean',
+            description: 'Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.'
+        }
+    },
+    required: [
+        'turnId',
+        'queued'
+    ]
+} as const;
+
 export const CmoAdBudgetRequestSchema = {
     type: 'object',
     properties: {
@@ -51230,6 +60119,184 @@ export const CmoTopUpCheckoutSchema = {
     },
     required: [
         'url'
+    ]
+} as const;
+
+export const CmoDraftApproveSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CmoDraftRevision'
+        },
+        {
+            type: 'object',
+            properties: {
+                tikTokSettings: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/TikTokPostSettings'
+                        },
+                        {
+                            description: 'A TikTok video only: who sees it, what viewers may do, and the owner\'s confirmation of this video (`previewConsent`) and of TikTok\'s Music Usage Confirmation. Required for TikTok, which posts the video at once.'
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} as const;
+
+export const CmoDraftRevisionSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            description: 'The draft\'s revision as shown; a changed draft is refused.'
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const CmoTikTokCreatorSchema = {
+    type: 'object',
+    properties: {
+        creator_nickname: {
+            type: 'string'
+        },
+        privacy_level_options: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The audiences TikTok allows now. Empty: no post is possible right now.'
+        },
+        comment_disabled: {
+            type: 'boolean'
+        },
+        duet_disabled: {
+            type: 'boolean'
+        },
+        stitch_disabled: {
+            type: 'boolean'
+        },
+        max_video_post_duration_sec: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'creator_nickname',
+        'privacy_level_options',
+        'comment_disabled',
+        'duet_disabled',
+        'stitch_disabled',
+        'max_video_post_duration_sec'
+    ]
+} as const;
+
+export const CmoDraftEditSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CmoDraftRevision'
+        },
+        {
+            type: 'object',
+            properties: {
+                text: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 25000
+                }
+            },
+            required: [
+                'text'
+            ]
+        }
+    ]
+} as const;
+
+export const CmoBrandFixStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        queued: {
+            type: 'boolean',
+            description: 'Cuso is busy: the fix is kept on its section and starts when his current turn ends.'
+        }
+    },
+    required: [
+        'turnId',
+        'queued'
+    ]
+} as const;
+
+export const CmoBrandFixRequestSchema = {
+    type: 'object',
+    properties: {
+        section: {
+            type: 'string',
+            enum: [
+                'company',
+                'offer',
+                'problems',
+                'customers',
+                'buyers',
+                'value',
+                'pricing',
+                'positioning',
+                'competition',
+                'sales',
+                'marketing',
+                'content',
+                'proof',
+                'reputation',
+                'momentum',
+                'opportunities'
+            ]
+        },
+        note: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400,
+            description: 'What is true instead, in the owner\'s words.'
+        }
+    },
+    required: [
+        'section',
+        'note'
+    ]
+} as const;
+
+export const CmoSocialConnectionFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'choose'
+            ],
+            description: '`choose`: the sign-in reaches several accounts; finalize again with the owner\'s pick.'
+        },
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountChoice'
+            }
+        }
+    },
+    required: [
+        'state',
+        'choices'
     ]
 } as const;
 
@@ -51514,6 +60581,12 @@ export const SokoBotStateSchema = {
                         'null'
                     ]
                 },
+                avatarCode: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
                 versionId: {
                     type: [
                         'string',
@@ -51645,6 +60718,12 @@ export const SharedSokoBotSummarySchema = {
                 'null'
             ]
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         status: {
             $ref: '#/components/schemas/SokoBotStatus'
         },
@@ -51713,13 +60792,45 @@ export const SokoBotActivitySchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        id: {
+            type: 'string'
+        },
+        userId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [
         'status',
         'activeTurnId',
         'lastTurnAt',
-        'lastActivityAt'
+        'lastActivityAt',
+        'id',
+        'userId',
+        'avatarSeed',
+        'avatarImageUrl',
+        'avatarCode'
     ]
 } as const;
 
@@ -51738,12 +60849,12 @@ export const CreateSokoBotRequestSchema = {
             ],
             maxLength: 200
         },
-        avatarId: {
+        avatarCode: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid'
+            maxLength: 120
         },
         personalityTone: {
             type: [
@@ -51962,31 +61073,6 @@ export const ResolveSokoBotDecisionRequestSchema = {
         'resolution'
     ],
     additionalProperties: false
-} as const;
-
-export const SokoBotAvatarSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        imageUrl: {
-            type: 'string'
-        },
-        subject: {
-            type: 'string'
-        },
-        background: {
-            type: 'string'
-        }
-    },
-    required: [
-        'id',
-        'imageUrl',
-        'subject',
-        'background'
-    ]
 } as const;
 
 export const SokoBotIntegrationsSchema = {
@@ -52511,6 +61597,12 @@ export const SokoBotTeamSchema = {
                                 ]
                             },
                             avatarImageUrl: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            avatarCode: {
                                 type: [
                                     'string',
                                     'null'
@@ -53156,12 +62248,12 @@ export const CreateScopedSokoBotRequestSchema = {
             ],
             maxLength: 200
         },
-        avatarId: {
+        avatarCode: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid'
+            maxLength: 120
         },
         personalityTone: {
             type: [
@@ -53216,6 +62308,325 @@ export const SokoBotScopeSchema = {
         'personal',
         'project',
         'workspace'
+    ]
+} as const;
+
+export const SokoBotSecretSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            example: 'VERCEL_TOKEN'
+        },
+        shellAccess: {
+            type: 'boolean',
+            description: 'Whether shell commands get this key as an env variable'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'shellAccess',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SaveSokoBotSecretRequestSchema = {
+    type: 'object',
+    properties: {
+        value: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 8000,
+            description: 'The key. Required for a new name; leave out to keep the saved value.'
+        },
+        shellAccess: {
+            type: 'boolean'
+        }
+    }
+} as const;
+
+export const SokoBotSandboxSetupSchema = {
+    type: 'object',
+    properties: {
+        commands: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 500
+            },
+            maxItems: 10,
+            example: [
+                'npm install -g vercel'
+            ]
+        }
+    },
+    required: [
+        'commands'
+    ]
+} as const;
+
+export const SokoBotMcpServerSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            example: 'Linear'
+        },
+        url: {
+            type: 'string',
+            example: 'https://mcp.linear.app/mcp'
+        },
+        authKind: {
+            type: 'string',
+            example: 'header'
+        },
+        tools: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotMcpTool'
+            }
+        },
+        toolsRefreshedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'url',
+        'authKind',
+        'tools',
+        'toolsRefreshedAt',
+        'lastError',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotMcpToolSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'search_issues'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        inputSchema: {},
+        readOnly: {
+            type: 'boolean',
+            description: 'Reads when true; changes things when false'
+        },
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'name',
+        'description',
+        'readOnly',
+        'enabled'
+    ]
+} as const;
+
+export const AddedSokoBotMcpServerSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SokoBotMcpServer'
+        },
+        {
+            type: 'object',
+            properties: {
+                authorizationUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    description: 'The server\'s sign-in page to send the owner to; null when no sign-in is needed'
+                }
+            },
+            required: [
+                'authorizationUrl'
+            ]
+        }
+    ]
+} as const;
+
+export const AddSokoBotMcpServerRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            pattern: '^[A-Za-z0-9][A-Za-z0-9 ._-]{0,39}$',
+            example: 'Linear'
+        },
+        url: {
+            type: 'string',
+            maxLength: 2000,
+            example: 'https://mcp.linear.app/mcp'
+        },
+        auth: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'none'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'oauth'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'bearer'
+                            ]
+                        },
+                        token: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 8000
+                        }
+                    },
+                    required: [
+                        'type',
+                        'token'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'header'
+                            ]
+                        },
+                        name: {
+                            type: 'string',
+                            pattern: '^[A-Za-z0-9-]{1,64}$'
+                        },
+                        value: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 8000
+                        }
+                    },
+                    required: [
+                        'type',
+                        'name',
+                        'value'
+                    ]
+                }
+            ]
+        }
+    },
+    required: [
+        'name',
+        'url',
+        'auth'
+    ]
+} as const;
+
+export const SokoBotMcpSignInSchema = {
+    type: 'object',
+    properties: {
+        authorizationUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'authorizationUrl'
+    ]
+} as const;
+
+export const UpdateSokoBotMcpToolRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        enabled: {
+            type: 'boolean'
+        },
+        readOnly: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'name'
     ]
 } as const;
 
@@ -53885,6 +63296,82 @@ export const TaskListItemSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        workspaceTags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [
+                            'manual',
+                            'jev'
+                        ]
+                    },
+                    taskTopicId: {
+                        $ref: '#/components/schemas/TaskTagId'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
+        workspaceTagSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
         number: {
             type: [
                 'integer',
@@ -53970,6 +63457,25 @@ export const TaskListItemSchema = {
             description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
             example: '2026-11-20'
         },
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.',
+            example: null
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Order among the parent\'s sub-tasks, ascending. Null when parentTaskId is null.',
+            example: null
+        },
+        subtaskProgress: {
+            $ref: '#/components/schemas/TaskSubtaskProgress'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -54006,6 +63512,19 @@ export const TaskListItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
             description: 'When the Task last changed status, or its creation time if it never did.'
+        },
+        hasUnansweredMention: {
+            type: 'boolean',
+            example: false,
+            description: 'True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.'
+        },
+        openSubtasks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskOpenSubtask'
+            },
+            example: [],
+            description: 'The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.'
         }
     },
     required: [
@@ -54042,12 +63561,42 @@ export const TaskListItemSchema = {
         'pendingVendorGrantId',
         'runAt',
         'dueOn',
+        'parentTaskId',
+        'position',
+        'subtaskProgress',
         'scheduleId',
         'archivedAt',
         'workspace',
         'jobsCount',
         'commentsCount',
         'statusSince'
+    ]
+} as const;
+
+export const TaskOpenSubtaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        }
+    },
+    required: [
+        'id',
+        'identifier',
+        'name',
+        'status'
     ]
 } as const;
 
@@ -54118,6 +63667,39 @@ export const TaskActivitySummarySchema = {
     ]
 } as const;
 
+export const TaskViewPreferenceSchema = {
+    type: 'object',
+    properties: {
+        query: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Tasks page query string the person last chose in this workspace, without the leading `?`. Empty when they cleared every filter. Null when they never chose one.',
+            example: 'status=READY&sort=priority'
+        }
+    },
+    required: [
+        'query'
+    ]
+} as const;
+
+export const TaskViewPreferenceWriteSchema = {
+    type: 'object',
+    properties: {
+        query: {
+            type: 'string',
+            maxLength: 1000,
+            pattern: '^[A-Za-z0-9\\-._~%+=&*]*$',
+            description: 'The Tasks page query string to restore, URL-encoded, without the leading `?`. Web owns its keys.',
+            example: 'status=READY&sort=priority'
+        }
+    },
+    required: [
+        'query'
+    ]
+} as const;
+
 export const TaskTagSuggestionSchema = {
     type: 'object',
     properties: {
@@ -54125,6 +63707,44 @@ export const TaskTagSuggestionSchema = {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/TaskTagId'
+            },
+            maxItems: 5
+        },
+        workspaceSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    },
+                    autoApply: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName',
+                    'autoApply'
+                ]
             },
             maxItems: 5
         },
@@ -54538,6 +64158,11 @@ export const TaskScheduleSeoMonitorSchema = {
         pageCount: {
             type: 'integer',
             minimum: 0
+        },
+        auditId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The saved audit the monitor owner can open to review a full audit Run.'
         }
     },
     required: [
@@ -54966,6 +64591,17 @@ export const CreateTaskScheduleRunRequestSchema = {
             minimum: 0,
             description: 'Task Schedule revision observed by the caller',
             example: 3
+        },
+        searchConsolePropertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        allowLimitedAudit: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
         }
     },
     required: [
@@ -55155,8 +64791,6 @@ export const UserWritableTaskLinkRelationSchema = {
         'related',
         'blocks',
         'blocked_by',
-        'parent',
-        'child',
         'duplicate'
     ],
     example: 'blocked_by'
@@ -55189,6 +64823,21 @@ export const TaskParticipantsSchema = {
     },
     required: [
         'participants'
+    ]
+} as const;
+
+export const TaskFollowersSchema = {
+    type: 'object',
+    properties: {
+        followers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskFollower'
+            }
+        }
+    },
+    required: [
+        'followers'
     ]
 } as const;
 
@@ -55257,6 +64906,387 @@ export const TaskSellerReceiptSchema = {
     ]
 } as const;
 
+export const SeoTaskIndexingReceiptSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        assessmentSaved: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'available',
+                'not_connected',
+                'needs_property',
+                'unavailable'
+            ]
+        },
+        pages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SeoTaskIndexedPage'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'receiptHash',
+        'checkedAt',
+        'status',
+        'pages'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        verdict: {
+            type: 'string',
+            enum: [
+                'PASS',
+                'PARTIAL',
+                'FAIL',
+                'NEUTRAL',
+                'VERDICT_UNSPECIFIED'
+            ]
+        },
+        coverageState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        robotsTxtState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        lastCrawlTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        googleCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        userCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        indexingState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        pageFetchState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        }
+    },
+    required: [
+        'pageUrl',
+        'verdict',
+        'coverageState',
+        'robotsTxtState',
+        'lastCrawlTime',
+        'googleCanonical',
+        'userCanonical',
+        'indexingState',
+        'pageFetchState'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        }
+    },
+    required: [
+        'expectedContext'
+    ],
+    additionalProperties: false
+} as const;
+
+export const TaskWorkerContextSchema = {
+    type: 'object',
+    properties: {
+        ownerId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 128
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'ownerId',
+        'organizationId',
+        'workspaceId'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingResultAcknowledgmentSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'receiptHash'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingResultRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        },
+        assessments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexAssessment'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'expectedContext',
+        'receiptHash',
+        'assessments'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexAssessmentSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        },
+        publicEvidenceAvailable: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskRelatedPagesReceiptSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        inspectionPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'auditPageUrl',
+        'inspectionPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskRelatedPagesRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        seedPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        relatedPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'expectedContext',
+        'seedPageUrls',
+        'relatedPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SendTaskToChatRequestSchema = {
     type: 'object',
     properties: {
@@ -55308,6 +65338,28 @@ export const TaskWorkspaceSchema = {
         'workspaceId',
         'organizationId'
     ]
+} as const;
+
+export const MoveTaskRequestSchema = {
+    type: 'object',
+    properties: {
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one goes under. A different Task attaches it or moves it to that parent, with its own sub-tasks. null detaches it, and it keeps its project. Omitted or equal to the current parent keeps the parent.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        afterTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The sibling sub-task this one goes directly after, or null to make it first. Omitted keeps the order, or puts it last under a new parent.',
+            example: '01960001-0001-7001-8001-000000000003'
+        }
+    }
 } as const;
 
 export const TaskEventsPaginationMetadataSchema = {
@@ -55491,35 +65543,6 @@ export const MasumiTaskPaymentSourceSchema = {
         'smartContractAddress',
         'policyId'
     ]
-} as const;
-
-export const TaskWorkerContextSchema = {
-    type: 'object',
-    properties: {
-        ownerId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 128
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1,
-            maxLength: 128
-        },
-        workspaceId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'ownerId',
-        'organizationId',
-        'workspaceId'
-    ],
-    additionalProperties: false
 } as const;
 
 export const TaskFilesSchema = {
@@ -57260,6 +67283,56 @@ export const CreateVendorLogoUploadRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const WorkspaceAdDataConsentSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        shareForImprovement: {
+            type: 'boolean'
+        },
+        allowTraining: {
+            type: 'boolean'
+        },
+        decidedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        policyVersion: {
+            type: 'string'
+        }
+    },
+    required: [
+        'workspaceId',
+        'shareForImprovement',
+        'allowTraining',
+        'decidedAt',
+        'policyVersion'
+    ]
+} as const;
+
+export const WorkspaceAdDataConsentWriteSchema = {
+    type: 'object',
+    properties: {
+        shareForImprovement: {
+            type: 'boolean'
+        },
+        allowTraining: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'shareForImprovement',
+        'allowTraining'
     ]
 } as const;
 

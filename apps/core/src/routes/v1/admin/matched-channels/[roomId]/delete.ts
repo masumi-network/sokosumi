@@ -6,6 +6,7 @@ import { empty } from "@/helpers/response";
 import { publishChatMembershipRevokedToUsers } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { recordMembershipPublishFailures } from "@/routes/v1/chats/rooms/channel-membership";
 import { adminMatchedChannelRoomParamsSchema } from "@/schemas/admin.schema";
 
 const route = createRoute({
@@ -77,18 +78,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     if (deleted.memberIds.length > 0) {
-      try {
-        await publishChatMembershipRevokedToUsers(
+      const [revokeResult] = await Promise.allSettled([
+        publishChatMembershipRevokedToUsers(
           deleted.id,
           deleted.memberIds,
           "removed",
-        );
-      } catch (error) {
-        console.error(
-          "Failed to publish chat membership revoke after matched delete",
-          error,
-        );
-      }
+        ),
+      ]);
+      recordMembershipPublishFailures(
+        { operation: "admin_matched_channel_delete", roomId: deleted.id },
+        [["membership_revoked", revokeResult]],
+      );
     }
 
     return empty(c);

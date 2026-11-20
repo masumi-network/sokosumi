@@ -1,10 +1,5 @@
 import { TaskLinkRelation } from "@sokosumi/core-client";
-import {
-  OctagonMinus,
-  SquareMinus,
-  SquareMousePointer,
-  SquarePlus,
-} from "lucide-react";
+import { OctagonMinus, SquareMinus, SquareMousePointer } from "lucide-react";
 import type { useTranslations } from "next-intl";
 
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
@@ -17,51 +12,53 @@ export function buildTaskPickerOptions(
     {
       id: "related",
       label: tDetailActions("relations.related"),
+      title: tDetailActions("linkPicker.related.title"),
+      description: tDetailActions("linkPicker.related.description"),
       relation: TaskLinkRelation.RELATED,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.RELATED),
     },
     {
-      id: "subtask",
-      label: tDetailActions("relations.subtask"),
-      relation: TaskLinkRelation.CHILD,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.PARENT),
-    },
-    {
       id: "blocks",
       label: tDetailActions("relations.blocks"),
+      title: tDetailActions("linkPicker.blocks.title"),
+      description: tDetailActions("linkPicker.blocks.description"),
       relation: TaskLinkRelation.BLOCKS,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKS),
     },
     {
       id: "blocked-by",
       label: tDetailActions("relations.blockedBy"),
+      title: tDetailActions("linkPicker.blockedBy.title"),
+      description: tDetailActions("linkPicker.blockedBy.description"),
       relation: TaskLinkRelation.BLOCKED_BY,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKED_BY),
     },
     {
       id: "duplicate",
       label: tDetailActions("relations.duplicate"),
+      title: tDetailActions("linkPicker.duplicate.title"),
+      description: tDetailActions("linkPicker.duplicate.description"),
       relation: TaskLinkRelation.DUPLICATE,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.DUPLICATE),
     },
   ];
 }
 
+/** A relation for a new Task; it never opens the picker, so needs no title. */
+export type CreateRelatedOption = Omit<
+  TaskLinkActionOption,
+  "title" | "description"
+>;
+
 export function buildCreateRelatedOptions(
   tDetailActions: ReturnType<typeof useTranslations>,
-): TaskLinkActionOption[] {
+): CreateRelatedOption[] {
   return [
     {
       id: "related",
       label: tDetailActions("relations.related"),
       relation: TaskLinkRelation.RELATED,
       icon: SquareMousePointer,
-    },
-    {
-      id: "add-subtask",
-      label: tDetailActions("relations.addSubtask"),
-      relation: TaskLinkRelation.PARENT,
-      icon: SquarePlus,
     },
     {
       id: "blocks",

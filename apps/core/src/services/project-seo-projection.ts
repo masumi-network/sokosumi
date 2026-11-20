@@ -9,7 +9,6 @@ import type {
 } from "@sokosumi/database";
 import { internalServerError } from "@/helpers/error";
 import {
-  type PublicSeoPayload,
   publicSeoPayloadSchema,
   seoPayloadCoverage,
 } from "@/helpers/project-seo-report";
@@ -21,7 +20,17 @@ import {
   saveSeoKeywordSchema,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
-
+import { applySeoActionTaskVisibility } from "./project-seo-action-task-visibility";
+import {
+  actionVerifiedAt,
+  latestDate,
+} from "./project-seo-action-verification";
+import { checkIdentity, issueIdentity } from "./project-seo-check-identity";
+import {
+  indexAuditFindings,
+  newestIndexStatus,
+  withIndexIssueCounts,
+} from "./project-seo-index-projection";
 import {
   observedSeoKeyword,
   savedSeoKeyword,
@@ -41,6 +50,13 @@ import {
   normalizeSeoUrl,
   SEO_RESULT_LIMIT,
 } from "./project-seo-store";
+import { SeoAuditDecisions } from "./seo-audit-decisions";
+import { landingEngagementChange } from "./seo-landing-engagement";
+import type { PrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
+import {
+  type DecisionObservation,
+  projectSeoReviewHistory,
+} from "./seo-recommendation-history";
 
 interface ProjectionInput {
   sharing?: "organization" | "personal";
@@ -64,6 +80,8 @@ interface ProjectionInput {
   pages: ProjectSeoPage[];
   scopes: ProjectSeoScope[];
   observations: ProjectSeoObservation[];
+  reviewHistory?: DecisionObservation[];
+  privateReviews?: PrivateRecommendationReviews;
   /** True when the evidence or the metrics load reached its own row cap. */
   historyLimited: boolean;
   /** True when the evidence load (checks and page changes) reached its row cap: an older check can be cut. */
@@ -85,85 +103,10 @@ const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 /** A Task in one of these states does no work on its action any more. */
 const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
 
-function checkIdentity(
-  source: PublicSeoPayload,
-  check: { pageUrl: string; rowId: string; device: string | null },
-) {
-  return key(
-    normalizeSeoUrl(check.pageUrl),
-    check.rowId,
-    check.device,
-    source.countryCode,
-    source.languageCode,
-    source.rulebookVersion,
-  );
-}
-
-/** One issue across checks: a later check that finds the same row again replaces it, also under a newer rulebook. */
-function issueIdentity(
-  source: PublicSeoPayload,
-  check: { pageUrl: string; rowId: string; device: string | null },
-) {
-  return key(
-    normalizeSeoUrl(check.pageUrl),
-    check.rowId,
-    check.device,
-    source.countryCode,
-    source.languageCode,
-  );
-}
-
-function verifiedAction(
-  input: ProjectionInput,
-  source: PublicSeoPayload,
-  action: PublicSeoPayload["actions"][number],
-  taskId: string,
-): boolean {
-  const task = input.tasks.find((item) => item.id === taskId);
-  if (
-    task?.status !== "COMPLETED" ||
-    !task.completedAt ||
-    !action.findingIds.length
-  )
-    return false;
-  const referenced = action.findingIds.map((id) =>
-    source.findings.find((finding) => finding.id === id),
-  );
-  if (referenced.some((finding) => !finding?.device)) return false;
-  return referenced.every((finding) => {
-    if (!finding?.device) return false;
-    for (const observation of input.observations) {
-      if (
-        observation.ownerId ||
-        observation.kind === "metrics" ||
-        observation.observedAt <= task.completedAt! ||
-        observation.createdAt <= task.completedAt!
-      )
-        continue;
-      const parsed = publicSeoPayloadSchema.safeParse(observation.payload);
-      if (!parsed.success) continue;
-      const data = parsed.data;
-      if (
-        data.countryCode !== source.countryCode ||
-        data.languageCode !== source.languageCode ||
-        data.rulebookVersion !== source.rulebookVersion
-      )
-        continue;
-      const check = data.checks.find(
-        (row) =>
-          normalizeSeoUrl(row.pageUrl) === normalizeSeoUrl(finding.pageUrl) &&
-          row.rowId === finding.rowId &&
-          row.device === finding.device,
-      );
-      if (check) return check.result === "pass";
-    }
-    return false;
-  });
-}
-
 /** Current views are projections. Historical observations and human choices remain separate. */
 export function projectSeoProjection(
   input: ProjectionInput,
+  now = new Date(),
 ): ProjectSeoWorkspace {
   const { project, scope, query } = input;
   const selectedIds = new Set(scope.pageIds),
@@ -205,20 +148,34 @@ export function projectSeoProjection(
   const taskStatuses = new Map(
     input.tasks.map((task) => [task.id, task.status]),
   );
+  const actionTasks = input.actionTasks.filter((link) =>
+    taskStatuses.has(link.taskId),
+  );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
   let strategy: ProjectSeoWorkspace["strategy"] = null;
+  const decisions = new SeoAuditDecisions(
+    selectedUrls,
+    actionTasks,
+    taskStatuses,
+    now,
+    input.tasks,
+    input.privateReviews,
+  );
+  projectSeoReviewHistory(decisions, input, selectedIds);
   const searchSources: SearchEvidenceSource[] = [];
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   const metricRows: SeoMetricsProjection = {
     metrics,
-    timeline,
+    collections: new Map(),
     searchSources,
     indexSources,
     seenGroups: seenMetricGroups,
     landingPages: null,
+    landingSources: [],
   };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
+    if (row.kind === "index_triage") continue;
     if (row.kind === "page_change") {
       if (!matchesSeoPeriod(row.observedAt, query)) continue;
       const event = seoPageChangePayloadSchema.parse(row.payload);
@@ -236,7 +193,8 @@ export function projectSeoProjection(
       continue;
     }
     if (row.kind === "metrics") {
-      projectSeoMetricsRow(row, query, selectedUrls, metricRows);
+      if (input.privateMetricsAllowed)
+        projectSeoMetricsRow(row, query, selectedUrls, metricRows);
       continue;
     }
     const parsed = publicSeoPayloadSchema.safeParse(row.payload);
@@ -296,18 +254,40 @@ export function projectSeoProjection(
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
     // Rows come newest first, so the first strategy is the newest site audit's.
-    if (data.strategy && !strategy)
+    if (data.strategy && !strategy) {
+      const {
+        purposeOpportunity,
+        demandByIntent,
+        missingDemandByIntent,
+        ...site
+      } = data.strategy;
+      const groups = site.groups.filter(
+        (group) =>
+          !group.pageUrl || selectedUrls.has(normalizeSeoUrl(group.pageUrl)),
+      );
+      const wholeReport = data.pageUrls.every((url) =>
+        selectedUrls.has(normalizeSeoUrl(url)),
+      );
       strategy = {
-        ...data.strategy,
-        groups: data.strategy.groups.filter(
-          (group) =>
-            !group.pageUrl || selectedUrls.has(normalizeSeoUrl(group.pageUrl)),
-        ),
+        ...site,
+        groups,
+        ...(purposeOpportunity &&
+          selectedUrls.has(purposeOpportunity.pageUrl) &&
+          groups.some(
+            (group) =>
+              group.pageUrl &&
+              normalizeSeoUrl(group.pageUrl) === purposeOpportunity.pageUrl &&
+              group.lead === purposeOpportunity.keyword &&
+              group.reach === purposeOpportunity.reach,
+          ) && { purposeOpportunity }),
+        ...(wholeReport && demandByIntent && { demandByIntent }),
+        ...(wholeReport && missingDemandByIntent && { missingDemandByIntent }),
         observationId: row.id,
         observedAt: row.observedAt.toISOString(),
         countryCode: data.countryCode || null,
         languageCode: data.languageCode || null,
       };
+    }
     observations.push({
       id: row.id,
       kind: row.kind,
@@ -476,6 +456,23 @@ export function projectSeoProjection(
             finding &&
             passedLater(checkIdentity(data, finding), finding.device),
         );
+      // The newest check of each finding passes: the issue is gone, also while its Task is still open.
+      const verifiedAt = !link
+        ? null
+        : solved
+          ? latestDate(
+              fixed.flatMap((finding) => {
+                const latest =
+                  finding && latestChecked.get(checkIdentity(data, finding));
+                return latest ? [latest.observedAt] : [];
+              }),
+            )
+          : actionVerifiedAt(
+              input.tasks.find((task) => task.id === link.taskId),
+              input.observations,
+              data,
+              item,
+            );
       const action: ProjectSeoWorkspace["actions"][number] = {
         ...item,
         observationId: row.id,
@@ -485,12 +482,12 @@ export function projectSeoProjection(
         taskId: link?.taskId ?? null,
         status: !link
           ? "recommended"
-          : // The newest check of each finding passes: the issue is gone, also while its Task is still open.
-            solved || verifiedAction(input, data, item, link.taskId)
+          : verifiedAt
             ? "verified"
             : taskStatus === "COMPLETED"
               ? "implemented"
               : "task_created",
+        ...(verifiedAt ? { verifiedAt: verifiedAt.toISOString() } : {}),
       };
       actions.push(action);
       fixWork.set(action, {
@@ -607,11 +604,12 @@ export function projectSeoProjection(
       });
   const search = projectSearchEvidence(
     searchSources,
-    input.actionTasks,
+    actionTasks,
     taskStatuses,
   );
-  actions.push(...search.actions);
-  for (const link of input.actionTasks) {
+  actions.push(...decisions.actions, ...search.actions);
+  applySeoActionTaskVisibility(actions, input.actionTasks, input.tasks);
+  for (const link of actionTasks) {
     const observation =
       scopedPublicSources.get(link.observationId) ??
       searchSources.find((source) => source.row.id === link.observationId)?.row;
@@ -666,8 +664,15 @@ export function projectSeoProjection(
         status: analysis.status,
         detail: "The requested scope is frozen for this analysis.",
       });
+  timeline.push(...metricRows.collections.values());
   timeline.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
   const editable = !project.closedAt && !project.closingAt;
+  const indexing = indexAuditFindings(
+    input.privateMetricsAllowed ? input.observations : [],
+    [...scopedPublicSources.values()],
+    selectedUrls,
+    query,
+  );
   return projectSeoWorkspaceSchema.parse({
     sharing: input.sharing ?? "personal",
     projectId: project.auditId ? (project.projectId ?? null) : project.id,
@@ -684,7 +689,7 @@ export function projectSeoProjection(
     },
     pages: input.pages,
     scopes: input.scopes,
-    observations,
+    observations: withIndexIssueCounts(observations, indexing.counts),
     history: {
       limit: SEO_RESULT_LIMIT,
       limited: input.historyLimited,
@@ -692,14 +697,20 @@ export function projectSeoProjection(
     },
     keywords,
     competitors,
-    findings,
+    findings: [...findings, ...indexing.findings],
     actions,
     metrics,
     searchQueries: search.searchQueries,
     searchBreakdown: search.searchBreakdown,
     landingPages: metricRows.landingPages,
+    landingEngagementChange: landingEngagementChange(
+      metricRows.landingSources,
+      query,
+    ),
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
+    indexTriage: indexing.triage,
     strategy,
+    ...decisions.workspaceEvidence,
     metricsStatus: !metrics.length
       ? "unavailable"
       : metrics.some((metric) => metric.coverage !== "complete")
@@ -708,7 +719,7 @@ export function projectSeoProjection(
     timeline: timeline.filter((item) =>
       matchesSeoPeriod(new Date(item.at), query),
     ),
-    runs,
+    runs: withIndexIssueCounts(runs, indexing.counts),
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>
       overlaps(monitor.pageIds),
@@ -732,19 +743,4 @@ export function projectSeoProjection(
         editable && input.privateMetricsAllowed && scope.pageIds.length > 0,
     },
   });
-}
-
-/** The newest verdict per selected page; observations arrive newest first. */
-function newestIndexStatus(
-  sources: Array<{ at: Date; pages: SeoIndexedPage[] }>,
-  selectedUrls: Set<string>,
-): ProjectSeoWorkspace["indexStatus"] {
-  const pages = new Map<string, SeoIndexedPage & { checkedAt: string }>();
-  for (const source of sources)
-    for (const page of source.pages) {
-      const url = normalizeSeoUrl(page.pageUrl);
-      if (selectedUrls.has(url) && !pages.has(url))
-        pages.set(url, { ...page, checkedAt: source.at.toISOString() });
-    }
-  return pages.size ? { pages: [...pages.values()] } : null;
 }

@@ -30,6 +30,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
       handler({ ...args, session: { user: { id: "user_1" } } }),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   grantDeveloperCoworkerEarlyAccessAction,
   revokeDeveloperCoworkerEarlyAccessAction,
@@ -106,12 +107,14 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
   });
 
   it("maps service failures through toCoreApiActionError", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-    createForCoworkerMock.mockRejectedValue(
-      new CoreApiRequestError("Core backend timeout", { status: 503 }),
+    const errorCalls = expectConsole(
+      "error",
+      "Failed to grant developer coworker early access",
     );
+    const error = new CoreApiRequestError("Core backend timeout", {
+      status: 503,
+    });
+    createForCoworkerMock.mockRejectedValue(error);
 
     try {
       const result = await grantDeveloperCoworkerEarlyAccessAction({
@@ -120,6 +123,7 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
         targetValue: "acme-corp",
       });
 
+      expect(errorCalls[0]?.[1]).toBe(error);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error).toMatchObject({
@@ -128,7 +132,6 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
         });
       }
     } finally {
-      consoleError.mockRestore();
     }
   });
 });

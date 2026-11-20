@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "@hono/zod-openapi";
+import type { Prisma } from "@sokosumi/database";
 import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
@@ -15,14 +16,16 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
+import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
+import { aiGatewayBudgetScopeFromBody } from "@/lib/ai-gateway-budget-error";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
   actionInputHash,
 } from "@/lib/soko-bot/action-receipts";
-import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -34,6 +37,10 @@ import {
   sanitizePersistedValue,
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
+import {
+  logRunnerDiagnostic,
+  type RunnerDiagnostic,
+} from "@/lib/soko-bot/runner-log-events";
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
@@ -56,8 +63,13 @@ import {
   sokoBotMaxSteps,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { modelUserMessage } from "@/lib/soko-bot/turn-model-context";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
-import { withTurnSkills } from "@/services/chat-message-skills.service";
+import {
+  type SokoBotSandboxShell,
+  sandboxShellFor,
+  sandboxShellNote,
+} from "@/services/soko-bot-secrets.service";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /**
@@ -139,11 +151,14 @@ async function authorizeTurn(claims: TurnTokenClaims) {
 }
 
 export interface SandboxTurnStart
-  extends Omit<PreparedTurn, "inferenceRegion"> {
+  extends Omit<PreparedTurn, "inferenceRegion" | "meetingPrep"> {
   message: string;
   deadlineAt: string;
+  budgetMs: number;
   maxSteps: number;
   background: boolean;
+  /** The owner's setup commands and allowed keys, when this turn has a shell. */
+  shell?: SokoBotSandboxShell;
 }
 
 /** What the runner needs to run the loop; records the turn as started once. */
@@ -170,17 +185,27 @@ export async function startSandboxTurn(
       deadlineAt: true,
       createdAt: true,
       parentTurnId: true,
+      sokoBotId: true,
     },
   });
   await announceTurn(logFor(claims), stored.userMessage);
-  const { inferenceRegion: _region, ...turn } = prepared;
+  const {
+    inferenceRegion: _region,
+    meetingPrep: _meetingPrep,
+    ...turn
+  } = prepared;
+  const shell = await sandboxShellFor(stored.sokoBotId, turn.capabilities);
+  const shellNote = shell ? sandboxShellNote(shell) : null;
+  const message = await modelUserMessage(prepared, stored.userMessage);
   return {
     ...turn,
-    message: await withActiveBackgroundRuns(
-      claims.turnId,
-      await withTurnSkills(claims.turnId, stored.userMessage),
-    ),
+    message: shellNote ? `${message}\n\n${shellNote}` : message,
+    ...(shell ? { shell } : {}),
     deadlineAt: stored.deadlineAt.toISOString(),
+    budgetMs: Math.max(
+      30_000,
+      stored.deadlineAt.getTime() - (await databaseNow()).getTime() - 20_000,
+    ),
     maxSteps: sokoBotMaxSteps(
       stored.deadlineAt.getTime() - stored.createdAt.getTime(),
     ),
@@ -307,8 +332,14 @@ async function markUntrusted(
   log: RuntimeEventLog,
   source: string,
 ): Promise<void> {
+  // One event per source: a write to an MCP server checks that nothing but
+  // that server has put outside text into the turn (ADR 0074).
   const already = await prisma.sokoBotRuntimeEvent.findFirst({
-    where: { turnId: log.turnId, type: WEB_TAINT_EVENT },
+    where: {
+      turnId: log.turnId,
+      type: WEB_TAINT_EVENT,
+      data: { path: ["source"], equals: source },
+    },
     select: { id: true },
   });
   if (!already) await log.append(runtimeEvent(WEB_TAINT_EVENT, { source }));
@@ -531,6 +562,14 @@ function gatewayStreamParts(
   return parts;
 }
 
+function gatewayBudgetScopeFromResponse(text: string) {
+  try {
+    return aiGatewayBudgetScopeFromBody(JSON.parse(text));
+  } catch {
+    // Non-JSON upstream failures are passed through to the SDK.
+  }
+}
+
 /**
  * One model call from the runner. Core owns the Gateway key and the EU
  * routing policy: only the turn's version model, only the Gateway protocol
@@ -618,12 +657,17 @@ export async function proxySandboxModelCall(
       { cause: error },
     );
   }
-  if (!upstream.ok)
+  if (!upstream.ok) {
+    const budgetScope = gatewayBudgetScopeFromResponse(text);
+    if (budgetScope) {
+      await reportAiGatewayBudgetFailure(budgetScope, purpose, apiKey);
+    }
     return {
       status: upstream.status,
       body: text,
       contentType: upstream.headers.get("content-type") ?? "application/json",
     };
+  }
 
   const parts = gatewayStreamParts(text);
   if (!parts) throw badGateway("Unreadable model response");
@@ -661,27 +705,40 @@ export async function proxySandboxModelCall(
  * first stops any VM still holding the bot's workspace, so the order here
  * cannot race it.
  */
-async function settleAndStop(log: RuntimeEventLog): Promise<void> {
-  await closeTurn(log, log.turnId);
+async function settleAndStop(
+  log: RuntimeEventLog,
+  launchLeaseToken: string | undefined,
+): Promise<void> {
+  await closeTurn(log, launchLeaseToken);
   await stopTurnSandbox(log.turnId);
+}
+
+/**
+ * One model step's reasoning summary, kept on the turn as it arrives so the
+ * chat shows it while the bot works. It is the provider's own summary, never
+ * raw chain of thought; the event projection redacts and bounds it before it
+ * is stored.
+ */
+export async function recordSandboxReasoning(
+  claims: TurnTokenClaims,
+  text: string,
+): Promise<void> {
+  await authorizeTurn(claims);
+  const summary = text.trim();
+  if (!summary) return;
+  await logFor(claims).append(
+    runtimeEvent("reasoning.completed", { text: summary }),
+  );
 }
 
 /** The loop finished: build the owner's answer and settle. */
 export async function completeSandboxTurn(
   claims: TurnTokenClaims,
-  input: { text: string; finishReason: string; reasoning?: string },
+  input: { text: string; finishReason: string },
 ): Promise<void> {
   const authorized = await authorizeTurn(claims);
   const log = logFor(claims);
   try {
-    // The provider's own summary, never raw chain of thought. The event
-    // projection redacts and bounds it before it is stored.
-    const reasoning = input.reasoning?.trim();
-    if (reasoning) {
-      await log.append(
-        runtimeEvent("reasoning.completed", { text: reasoning }),
-      );
-    }
     await finishTurn({
       log,
       turnId: claims.turnId,
@@ -699,13 +756,18 @@ export async function completeSandboxTurn(
       message: error instanceof Error ? error.message : "Could not finish",
     });
   }
-  await settleAndStop(log);
+  await settleAndStop(log, claims.reconciliationLeaseToken);
 }
 
-/** The loop failed inside the sandbox. */
+/**
+ * The loop failed inside the sandbox. A runner's `diagnostic` reaches Core's
+ * drain once per turn: the report that claims the live turn's
+ * `runnerDiagnosticAt` logs it, before the sandbox is stopped.
+ */
 export async function failSandboxTurn(
   claims: TurnTokenClaims,
   error: { code: string; message: string },
+  diagnostic?: RunnerDiagnostic,
 ): Promise<void> {
   // A turn that was cancelled or expired meanwhile is settled elsewhere.
   await authorizeTurn(claims);
@@ -725,11 +787,52 @@ export async function failSandboxTurn(
   }
   // A runner that died after its answer reached Core changes nothing: the
   // outcome already recorded stands, and only its settling is finished here.
-  await log
-    .appendUnless(runtimeEvent("turn.failed", { ...error }), [
-      "turn.completed",
-      "turn.failed",
-    ])
-    .catch(() => undefined);
-  await settleAndStop(log);
+  const failure = runtimeEvent("turn.failed", { ...error });
+  // Not turn.cancelled: deadline cleanup appends it too, without the owner
+  // asking, and an expired turn keeps its failure. An owner's cancellation
+  // always commits the row first, so the row below decides it.
+  const outcomes = ["turn.completed", "turn.failed"];
+  // Authorization passed before the lock, so a cancellation can commit in
+  // between. Writing the row waits for a cancellation in flight; one that
+  // committed first leaves the turn to settle CANCELLED.
+  const live = async (tx: Prisma.TransactionClient) => {
+    const { count } = await tx.sokoBotTurn.updateMany({
+      where: {
+        id: claims.turnId,
+        status: { in: ["STARTING", "RUNNING"] },
+        cancellationRequestedAt: null,
+      },
+      data: { updatedAt: new Date() },
+    });
+    return count === 1;
+  };
+  // The diagnostic's claim commits with the failure, so the report that
+  // failed the turn owns it before anyone can settle the turn. The claim is
+  // on the turn's row, which outlives the session's events, and holds only
+  // while the turn is live and not being cancelled.
+  let claimed = false;
+  const liveAndClaim = async (tx: Prisma.TransactionClient) => {
+    if (!(await live(tx))) return false;
+    const { count } = await tx.sokoBotTurn.updateMany({
+      where: { id: claims.turnId, runnerDiagnosticAt: null },
+      data: { runnerDiagnosticAt: new Date() },
+    });
+    claimed = count === 1;
+    return true;
+  };
+  const failed = await log
+    .appendUnless(failure, outcomes, diagnostic ? liveAndClaim : live)
+    .catch(() => {
+      // A claim that broke the write must not keep the turn from failing.
+      claimed = false;
+      return diagnostic
+        ? log.appendUnless(failure, outcomes, live).catch(() => false)
+        : false;
+    });
+  if (failed && claimed && diagnostic)
+    logRunnerDiagnostic(
+      { turnId: claims.turnId, sessionId: claims.sessionId },
+      diagnostic,
+    );
+  await settleAndStop(log, claims.reconciliationLeaseToken);
 }

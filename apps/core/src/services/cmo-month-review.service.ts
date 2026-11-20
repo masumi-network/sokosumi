@@ -9,7 +9,9 @@ import {
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 
+import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
 import {
   evaluateWithJev,
   type JevAnswer,
@@ -298,6 +300,9 @@ async function madePieces(
   const made = calendar.filter(
     (entry) =>
       entry.status !== "skipped" &&
+      // A talking video is read once, on its own entry: its posts on other
+      // networks would count its pillar again.
+      !entry.videoOf &&
       (isMarketingFilePiece(entry)
         ? Boolean(entry.fileId)
         : Boolean(entry.draft)),
@@ -524,14 +529,14 @@ export function cmoRewriteMessage(input: {
     : [];
   return [
     `Background run: rewrite pieces in ${input.businessName}'s month`,
-    "An evaluator read every piece you made. The pieces below miss their pillar, their network's writing skill or the brand's voice. Rewrite each one's words to fix what its line says, following your production skill and the writing skills below. Change only what a piece's line names: keep its other sentences, its facts from the Brand Brain and the plan's offer, and its labelled lines as they are.",
+    "An evaluator read every piece you made. The pieces below miss their pillar, their network's writing skill or the brand's voice. Rewrite each one's words to fix what its line says, following your production skill and the writing skills below. Change only what a piece's line names: keep its other sentences, its facts from the Brand Brain and the strategy's offer, and its labelled lines as they are.",
     ...(off.length > 0
       ? [
           "",
-          "These pillars are off the plan:",
+          "These pillars are off the strategy:",
           ...off.map(
             (share) =>
-              `- ${share.name}: plan ${share.planned}%, made ${share.made}% (${share.pieces} pieces)`,
+              `- ${share.name}: planned ${share.planned}%, made ${share.made}% (${share.pieces} pieces)`,
           ),
           "A piece off its pillar must be plainly about its pillar from the first line.",
         ]
@@ -592,23 +597,31 @@ export async function advanceCmoMonthReview(input: {
     facts: input.facts,
     pieces: made,
   });
-  console.info("CMO month review", {
-    marketingStrategyId: version.id,
-    round,
-    made: made.length,
-    read: Object.keys(read.writing).length,
-    offSkill: Object.values(read.writing).filter(
-      (w) => !w.followsSkill || w.problems.length > 0,
-    ).length,
-    offVoice: Object.values(read.writing).filter((w) => !w.soundsLikeBrand)
-      .length,
-    costUsd: read.costUsd,
-  });
-  await recordSokoBotCheckUsage({
+  // Production runs in the cron or after a response, so its own event.
+  createCoreLogger({
+    operation: "cmo_month_review",
+    marketingStrategy: { id: version.id },
+    cmoMonthReview: {
+      round,
+      made: made.length,
+      read: Object.keys(read.writing).length,
+      offSkill: Object.values(read.writing).filter(
+        (w) => !w.followsSkill || w.problems.length > 0,
+      ).length,
+      offVoice: Object.values(read.writing).filter((w) => !w.soundsLikeBrand)
+        .length,
+      costUsd: read.costUsd,
+    },
+  }).emit();
+  const charge = await recordSokoBotCheckUsage({
     sokoBotId: input.sokoBotId,
     key: `cmo-review:${version.id}:${round}`,
     costUsd: read.costUsd,
   });
+  // After the charge committed, like a turn's (SOKD-246).
+  if (charge.chargedCents > 0n && charge.cusoProjectId) {
+    await notifyCusoLowCreditsAfterCharge(charge.cusoProjectId);
+  }
   if (
     Object.keys(read.pieces).length === 0 &&
     Object.keys(read.writing).length === 0

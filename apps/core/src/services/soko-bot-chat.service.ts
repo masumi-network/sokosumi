@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import {
+  CMO_SOKO_BOT_VERSION_IDS,
   composeSokoBotIntroduction,
   isSokoBotSilentAnswer,
 } from "@sokosumi/soko-bot";
@@ -15,8 +16,14 @@ import {
   SOKO_BOT_OWNER_NAME_SELECT,
   sokoBotPersonaOf,
 } from "@/helpers/soko-bot-owner";
+import {
+  AI_BUDGET_EXCEEDED,
+  AI_BUDGET_EXCEEDED_MESSAGE,
+} from "@/lib/ai-gateway-budget";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { cmoCapabilityLabel } from "@/lib/soko-bot/cmo-step-labels";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
 import { holdsSokoBotMention } from "@/services/chat-room-mention-state";
@@ -50,7 +57,13 @@ const CAPABILITY_LABELS: Record<string, string> = {
   list_social_comments: "Reading comments",
   read_social_profile: "Reading a social profile",
   read_writing_skill: "Reading a writing skill",
+  find_style_references: "Looking for a picture style",
+  write_month_pieces: "Writing the month",
   handle_social_comment: "Replying to a comment",
+  read_seo: "Reading the SEO numbers",
+  research_keywords: "Researching keywords",
+  check_search_rankings: "Asking the SEO specialist",
+  save_seo_suggestions: "Saving SEO suggestions",
   web_fetch: "Reading a web page",
   bash: "Running a command",
   workspace_read: "Reading a file",
@@ -70,6 +83,7 @@ interface ChatLinkedTurn {
   id: string;
   status: string;
   finalAnswer: string | null;
+  errorKind: string | null;
   errorDetail: string | null;
   startedAt: Date | null;
   createdAt: Date;
@@ -90,29 +104,44 @@ async function publishRealtime(
 }
 
 /**
+ * One line of a reply's Thought. No kind is the provider's reasoning
+ * summary; a step is a tool the bot used; a note is Core's own remark.
+ */
+interface ThoughtStep {
+  text: string;
+  kind?: "step" | "note";
+}
+
+/**
  * What the chat shows as the bot's Thought: the provider's reasoning summary
  * first, then the tools it used. The summary can mention the owner's mail or
- * memory, so a teammate asking sees only the tool steps.
+ * memory, so a teammate asking sees only the tool steps. Cuso is his
+ * Project's shared bot and holds nobody's mail: everyone who works with him
+ * sees his summary, and his tools read in CMO's words.
  */
 function thoughtSteps(turn: {
   requestedByUserId: string | null;
+  versionId: string | null;
   sokoBot: { userId: string | null };
   askedByUserId: string | null;
   events: { type: string; toolName: string | null; summary: string | null }[];
-}): string[] {
+}): ThoughtStep[] {
+  const cuso = CMO_SOKO_BOT_VERSION_IDS.includes(turn.versionId ?? "");
   const ownerAsked =
     turn.askedByUserId === null ||
     turn.askedByUserId === sokoBotActingUserId(turn);
-  const summaries = ownerAsked
-    ? turn.events.flatMap((event) =>
-        event.type === "reasoning.completed" && event.summary
-          ? [event.summary]
-          : [],
-      )
-    : [];
-  const tools = turn.events.flatMap((event) =>
+  const summaries =
+    ownerAsked || cuso
+      ? turn.events.flatMap((event) =>
+          event.type === "reasoning.completed" && event.summary
+            ? [{ text: event.summary }]
+            : [],
+        )
+      : [];
+  const label = cuso ? cmoCapabilityLabel : sokoBotCapabilityLabel;
+  const tools = turn.events.flatMap((event): ThoughtStep[] =>
     event.type === "actions.requested"
-      ? [sokoBotCapabilityLabel(event.toolName)]
+      ? [{ text: label(event.toolName), kind: "step" }]
       : [],
   );
   return [...summaries, ...tools];
@@ -124,7 +153,7 @@ async function loadChatLinkedTurn(
 ): Promise<
   | (ChatLinkedTurn & {
       mention: { id: string; messageId: string; roomId: string } | null;
-      steps: string[];
+      steps: ThoughtStep[];
       pendingDecisionIds: string[];
       taskIds: string[];
     })
@@ -137,6 +166,7 @@ async function loadChatLinkedTurn(
       status: true,
       finalAnswer: true,
       chainDepth: true,
+      errorKind: true,
       errorDetail: true,
       startedAt: true,
       createdAt: true,
@@ -151,6 +181,7 @@ async function loadChatLinkedTurn(
         },
       },
       requestedByUserId: true,
+      versionId: true,
       sokoBot: { select: { userId: true } },
       askedByUserId: true,
       events: {
@@ -215,9 +246,9 @@ export const ANSWERED_DIRECTLY = "Answered directly, without using any tools.";
 const lastProgressPublishAt = new Map<string, number>();
 
 /**
- * Mirror tool progress into the room's Thought placeholder so the chat shows
- * "Creating a Task…" beats live. Only Core-projected labels, never model
- * reasoning. Throttled per message.
+ * Mirror the turn's progress into the room's Thought placeholder so the chat
+ * shows "Creating a Task…" beats and the reasoning summary live (see
+ * `thoughtSteps` for who sees the summary). Throttled per message.
  */
 export async function publishSokoBotChatProgress(
   turnId: string,
@@ -253,7 +284,7 @@ export async function publishSokoBotChatProgress(
           in_reply_to_message_id: mention.messageId,
           mention_id: mention.id,
           streaming: true,
-          reasoning: turn.steps.map((text) => ({ type: "reasoning", text })),
+          reasoning: turn.steps.map((step) => ({ type: "reasoning", ...step })),
           thought_timing_ms: {
             start: (turn.startedAt ?? turn.createdAt).getTime(),
           },
@@ -349,6 +380,8 @@ export async function postSokoBotOwnerNotice(input: {
   content: string;
   key: string;
   mentionUserId?: string | null;
+  /** Push the owner's Direct row unless they turned that push off. */
+  osBannerDefaultOn?: boolean;
 }): Promise<{ messageId: string } | null> {
   const bot = await prisma.sokoBot.findFirst({
     where: { id: input.sokoBotId, archivedAt: null },
@@ -393,6 +426,7 @@ export async function postSokoBotOwnerNotice(input: {
   await emitChatMessageNotifications({
     messageId: message.id,
     mentionedUserIds: room.mentionUserId === null ? [] : [room.mentionUserId],
+    ...(input.osBannerDefaultOn ? { osBannerDefaultOn: true } : {}),
   });
   return { messageId: message.id };
 }
@@ -472,8 +506,6 @@ export async function persistSokoBotChatTurn(
     return;
   }
   const attemptAt = await readReplyAttemptAt(responseMessageId, tx);
-  const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
-  const endedAtMs = (turn.completedAt ?? new Date()).getTime();
 
   if (succeeded) {
     const claimed = await tx.chatRoomMention.updateMany({
@@ -483,6 +515,8 @@ export async function persistSokoBotChatTurn(
     // The transition timestamp is the response's unread clock. Losing or
     // repeated finalizers must preserve both that clock and the response.
     if (claimed.count !== 1) return;
+    const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
+    const endedAtMs = (turn.completedAt ?? (await databaseNow(tx))).getTime();
     const snapshots = await collectTurnResultSnapshots(turn.id, tx);
     await tx.chatRoomMessage.update({
       where: { id: responseMessageId },
@@ -500,8 +534,8 @@ export async function persistSokoBotChatTurn(
           // and tools when there are any, otherwise a plain note.
           reasoning: (turn.steps.length > 0
             ? turn.steps
-            : [ANSWERED_DIRECTLY]
-          ).map((text) => ({ type: "reasoning", text })),
+            : [{ text: ANSWERED_DIRECTLY, kind: "note" as const }]
+          ).map((step) => ({ type: "reasoning", ...step })),
           thought_timing_ms: { start: startedAtMs, end: endedAtMs },
           soko_bot: {
             turn_id: turn.id,
@@ -521,10 +555,18 @@ export async function persistSokoBotChatTurn(
   const error =
     turn.status === "CANCELLED"
       ? "Soko Bot turn was cancelled"
-      : (turn.errorDetail ?? "Soko Bot could not answer");
+      : turn.errorKind === AI_BUDGET_EXCEEDED
+        ? AI_BUDGET_EXCEEDED_MESSAGE
+        : "Soko Bot could not answer";
+  const mentionFailure =
+    turn.status === "CANCELLED"
+      ? { kind: "turn_cancelled" }
+      : turn.errorKind === AI_BUDGET_EXCEEDED
+        ? { kind: AI_BUDGET_EXCEEDED, message: AI_BUDGET_EXCEEDED_MESSAGE }
+        : null;
   const claimed = await tx.chatRoomMention.updateMany({
     where: { id: mention.id, status: { in: ["pending", "sent"] } },
-    data: { status: "failed", error: error.slice(0, 500) },
+    data: { status: "failed", error },
   });
   if (claimed.count !== 1) return;
   await tx.chatRoomMessage.update({
@@ -535,6 +577,7 @@ export async function persistSokoBotChatTurn(
         in_reply_to_message_id: mention.messageId,
         mention_id: mention.id,
         mention_failed: true,
+        ...(mentionFailure && { mention_failure: mentionFailure }),
         soko_bot: { turn_id: turn.id, ...attemptAt },
       },
     },

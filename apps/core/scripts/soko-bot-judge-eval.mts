@@ -22,6 +22,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { gateway, generateText, Output } from "ai";
 import { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 
 import prisma from "@/lib/db/prisma";
 import {
@@ -103,7 +104,7 @@ async function judge(model: string, caseId: string): Promise<JudgeCall> {
       output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
       instructions: SOKO_BOT_JUDGE_RUBRIC,
       prompt: JSON.stringify(payloads.get(caseId)),
-    });
+    }).catch(rethrowAiGatewayFailure);
     const metadata = routingSchema.parse(result.providerMetadata);
     const regions = metadata.gateway.routing.modelAttempts
       .flatMap((attempt) => attempt.providerAttempts)

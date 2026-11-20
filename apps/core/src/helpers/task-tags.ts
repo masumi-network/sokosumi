@@ -45,6 +45,17 @@ interface StoredTaskTags {
   rejectedTags?: string[];
 }
 
+export function dismissTaskTopics(
+  { manualTags = [], rejectedTags = [] }: StoredTaskTags,
+  dismissedIds: readonly z.infer<typeof taskTagIdSchema>[] = [],
+) {
+  const dismissed = new Set<string>(dismissedIds);
+  return {
+    manualTags: manualTags.filter((id) => !dismissed.has(id)),
+    rejectedTags: [...new Set([...rejectedTags, ...dismissed])],
+  };
+}
+
 function knownTags(ids: string[] = []) {
   return [...new Set(ids)].filter(
     (id): id is keyof typeof TASK_TAG_VOCABULARY =>

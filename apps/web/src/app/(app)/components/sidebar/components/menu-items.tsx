@@ -2,8 +2,10 @@
 
 import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
+  Binoculars,
   Bot,
   CalendarDays,
+  Clapperboard,
   FolderKanban,
   HardDrive,
   House,
@@ -16,7 +18,6 @@ import {
   Share2,
   Users,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -26,6 +27,7 @@ import {
   type SVGProps,
   useState,
 } from "react";
+import { projectPageSection } from "@/app/components/project-scope/project-scope-href";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import {
   useIsUnknownScopeProject,
@@ -33,6 +35,8 @@ import {
 } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
+import { useNavPathname } from "@/components/navigation-progress.client";
+import { RestingIntentLink } from "@/components/resting-intent-link";
 import { Collapsible } from "@/components/ui/collapsible";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -70,8 +74,11 @@ interface MenuItemConfig {
   tile?: ReactNode;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
-  /** Current only on `href` itself, not on the pages under it. */
-  exact?: true | undefined;
+  /**
+   * A resting hover loads the page's content, not only its shell. Only for a
+   * page whose reads are private-cached, or the prefetch renders for nothing.
+   */
+  prefetchContent?: true | undefined;
 }
 
 /** The headings the nav's destinations sit under, in the order they show. */
@@ -116,6 +123,7 @@ function ScopedMenuItems({
   const hasProjectPage = projectId !== null && !isUnknownProject;
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
+  const navPathname = useNavPathname();
   const { isMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
 
@@ -128,18 +136,7 @@ function ScopedMenuItems({
       Icon: House,
       group: "work",
       desktopOnly: true,
-    },
-    // Under Home: Home answers what needs you, Projects browses the work.
-    // Projects stays while a project is selected, so the list is always one
-    // click away; the selected project's own page follows it as Overview.
-    {
-      key: "projects",
-      href: "/projects",
-      label: t("projects"),
-      Icon: FolderKanban,
-      group: "work",
-      // Inside a project, Overview is the current row, not the list.
-      exact: hasProjectPage || undefined,
+      prefetchContent: true,
     },
     ...(hasProjectPage
       ? [
@@ -156,6 +153,7 @@ function ScopedMenuItems({
               />
             ) : undefined,
             group: "work",
+            prefetchContent: true,
           } satisfies NavDestination,
         ]
       : []),
@@ -166,6 +164,7 @@ function ScopedMenuItems({
       Icon: Bot,
       feature: AnnouncedFeature.AGENTS,
       group: "work",
+      prefetchContent: true,
     },
     {
       key: "task-manager",
@@ -174,6 +173,7 @@ function ScopedMenuItems({
       Icon: ListTodo,
       feature: AnnouncedFeature.TASKS,
       group: "work",
+      prefetchContent: true,
     },
     {
       key: "schedules",
@@ -182,6 +182,7 @@ function ScopedMenuItems({
       Icon: Repeat,
       feature: AnnouncedFeature.SCHEDULES,
       group: "work",
+      prefetchContent: true,
     },
     // Every dated feature is a filter on this one page.
     {
@@ -190,6 +191,7 @@ function ScopedMenuItems({
       label: t("calendar"),
       Icon: CalendarDays,
       group: "work",
+      prefetchContent: true,
     },
     // Workspace-wide like Files, so it is not scoped to the reader's project.
     {
@@ -208,6 +210,16 @@ function ScopedMenuItems({
       Icon: ImagePlus,
       feature: AnnouncedFeature.CONTENT_STUDIO,
       group: "marketing",
+      prefetchContent: true,
+    },
+    // Talking videos, scoped by `?projectId=` like the studio beside it.
+    {
+      key: "tiktok-studio",
+      href: "/tiktok-studio",
+      label: t("tiktokStudio"),
+      Icon: Clapperboard,
+      group: "marketing",
+      prefetchContent: true,
     },
     // Social scheduling is public and follows the studio's project scope.
     {
@@ -217,6 +229,7 @@ function ScopedMenuItems({
       Icon: Share2,
       feature: AnnouncedFeature.SOCIAL,
       group: "marketing",
+      prefetchContent: true,
     },
     {
       key: "seo",
@@ -224,6 +237,7 @@ function ScopedMenuItems({
       label: t("seo"),
       Icon: SearchCheck,
       group: "marketing",
+      prefetchContent: true,
     },
     {
       key: "ads",
@@ -231,6 +245,15 @@ function ScopedMenuItems({
       label: t("ads"),
       Icon: Megaphone,
       feature: AnnouncedFeature.SOCIAL,
+      group: "marketing",
+      prefetchContent: true,
+    },
+    // A project's competitors and its weekly check, scoped like Ads.
+    {
+      key: "competitors",
+      href: "/competitors",
+      label: t("competitors"),
+      Icon: Binoculars,
       group: "marketing",
     },
     ...(newsletterEnabled
@@ -266,16 +289,23 @@ function ScopedMenuItems({
     Icon,
     tile,
     feature,
-    exact,
+    prefetchContent,
   }: MenuItemConfig) {
-    const isActive = exact ? pathname === href : isPathActive(pathname, href);
+    // A click that heads for another project's page keeps the mark on
+    // Overview: on arrival this row is that project's.
+    const headsForProject =
+      key === "overview" && projectPageSection(navPathname) !== null;
+    const isActive = headsForProject || isPathActive(navPathname, href);
 
     return (
       <SidebarMenuItem key={key}>
         <SidebarMenuButton asChild isActive={isActive}>
           <SheetClose asChild>
-            <Link
+            <RestingIntentLink
               href={hrefFor(href)}
+              // The list on screen needs no prefetch of its own content. A
+              // task detail page still marks Tasks active, so match exactly.
+              prefetchContent={prefetchContent === true && pathname !== href}
               onClick={() => feature && markFeatureSeen(feature)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
@@ -299,7 +329,7 @@ function ScopedMenuItems({
                   <span className="min-w-0 truncate">{label}</span>
                 )}
               </span>
-            </Link>
+            </RestingIntentLink>
           </SheetClose>
         </SidebarMenuButton>
       </SidebarMenuItem>

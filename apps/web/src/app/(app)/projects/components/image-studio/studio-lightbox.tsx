@@ -1,9 +1,12 @@
 "use client";
 
-import type { StudioLogoPosition } from "@sokosumi/core-client";
+import type {
+  SetStudioAssetFeedbackData,
+  StudioLogoPosition,
+} from "@sokosumi/core-client";
 import { Download, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,9 +23,11 @@ import { cn } from "@/lib/utils";
 import { resolveModel, supportsVariation } from "./catalog";
 import { StudioAdPreview } from "./studio-ad-preview";
 import type { StudioBatchDownloadReview } from "./studio-batch";
+import { StudioBatchCompareButton } from "./studio-batch-compare";
 import { StudioBatchHeadlines } from "./studio-batch-headlines";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioAssetMenu, StudioRating } from "./studio-rating";
 import {
   assetContentUrl,
   assetFileExtension,
@@ -30,6 +35,7 @@ import {
   isVideoAsset,
   type StudioAsset,
   type StudioCatalog,
+  type StudioJob,
   type StudioLabels,
 } from "./types";
 
@@ -53,6 +59,11 @@ export function StudioLightbox({
   defaultLogoPosition,
   onAnimate,
   onClose,
+  onCompare,
+  onRate,
+  onHide,
+  onViewed,
+  ratingBusyIds = [],
   onDownloadBatch,
   downloadingBatch,
   headlineForAsset,
@@ -71,8 +82,10 @@ export function StudioLightbox({
   onCaptionSuggestionResolve,
   onUndoCaption,
   siblings,
+  jobs = [],
 }: {
   assets: StudioAsset[];
+  jobs?: readonly StudioJob[];
   catalog: StudioCatalog;
   /** What each version was debited, in credits; absent when unknown. */
   creditsByAssetId: Record<string, number>;
@@ -84,6 +97,14 @@ export function StudioLightbox({
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
+  onCompare?: (asset: StudioAsset) => void;
+  onRate?: (
+    asset: StudioAsset,
+    input: SetStudioAssetFeedbackData["body"],
+  ) => void;
+  onHide?: (asset: StudioAsset) => void;
+  onViewed?: (asset: StudioAsset) => void;
+  ratingBusyIds?: string[];
   onDownloadBatch?: (
     asset: StudioAsset,
     logo?: StudioLogoPosition,
@@ -129,6 +150,18 @@ export function StudioLightbox({
     position: StudioLogoPosition | undefined;
   }>();
 
+  const viewed = useRef(new Set<string>());
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      for (const asset of assets) {
+        if (viewed.current.has(asset.id)) continue;
+        viewed.current.add(asset.id);
+        onViewed?.(asset);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [assets, onViewed]);
+
   if (assets.length === 0) return null;
 
   if (single) {
@@ -148,6 +181,26 @@ export function StudioLightbox({
         activeSrc={url}
         aside={
           <>
+            {onRate || onHide ? (
+              <div className="mb-4 flex items-start justify-between gap-2">
+                {onRate ? (
+                  <StudioRating
+                    asset={single}
+                    busy={ratingBusyIds.includes(single.id)}
+                    details
+                    onRate={onRate}
+                  />
+                ) : (
+                  <span />
+                )}
+                {onHide ? (
+                  <StudioAssetMenu
+                    busy={ratingBusyIds.includes(single.id)}
+                    onHide={() => onHide(single)}
+                  />
+                ) : null}
+              </div>
+            ) : null}
             <Metadata
               asset={single}
               catalog={catalog}
@@ -227,9 +280,20 @@ export function StudioLightbox({
               {writingCaption ? labels.writingCaption : null}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {onCompare && single.batchId && !isVideoAsset(single) ? (
+                <StudioBatchCompareButton
+                  asset={single}
+                  // Siblings of the preview below: each keyed by the asset,
+                  // apart from each other.
+                  key={`compare:${single.id}`}
+                  labels={labels}
+                  onCompare={onCompare}
+                />
+              ) : null}
               {isVideoAsset(single) ? null : (
                 <StudioAdPreview
                   asset={single}
+                  jobs={jobs}
                   caption={caption}
                   headline={headlineForAsset?.(single)}
                   savingHeadline={savingHeadline}
@@ -238,7 +302,7 @@ export function StudioLightbox({
                       ? (headline) => onHeadlineChange(single, headline)
                       : undefined
                   }
-                  key={single.id}
+                  key={`preview:${single.id}`}
                   labels={labels}
                   logoPosition={logoPosition}
                   onLogoPositionChange={changeLogoPosition}
@@ -339,6 +403,7 @@ export function StudioLightbox({
                       downloading={downloadingBatch}
                       headlineForAsset={headlineForAsset}
                       savingHeadline={savingHeadline}
+                      jobs={jobs}
                       key={logoScope}
                       labels={labels}
                       onDownload={(review) =>
@@ -363,6 +428,7 @@ export function StudioLightbox({
           src: assetContentUrl(asset),
           alt: asset.prompt,
           downloadFilename: `v${asset.version}.${assetFileExtension(asset)}`,
+          downloadSrc: assetContentUrl(asset, { download: true }),
           isVideo: isVideoAsset(asset),
         }))}
         onActiveSrcChange={(src) => {
@@ -418,6 +484,16 @@ export function StudioLightbox({
             >
               <ImagePane asset={asset} labels={labels} />
               <div className="border-border min-w-0 border-t p-3">
+                {onRate ? (
+                  <div className="mb-4">
+                    <StudioRating
+                      asset={asset}
+                      busy={ratingBusyIds.includes(asset.id)}
+                      details
+                      onRate={onRate}
+                    />
+                  </div>
+                ) : null}
                 <Metadata
                   asset={asset}
                   catalog={catalog}

@@ -6,6 +6,13 @@ import type {
   TurnClassification,
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
+import { databaseNow } from "@/lib/db/database-now";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationClassifierContext } from "./evaluation-dispatch";
@@ -23,7 +30,7 @@ import { JEV_PROVIDER_OPTIONS, SOKO_BOT_JEV_MODEL } from "./jev";
  */
 export const SOKO_BOT_ROUTE_MODEL = SOKO_BOT_JEV_MODEL;
 const CLASSIFIER_VERSION = "soko-bot-classifier-jev-seo-v2";
-const PRESET_VERSION = "soko-bot-system-route-v1";
+export const PRESET_VERSION = "soko-bot-system-route-v1";
 /**
  * Jev answers in ~350 ms but an occasional call hangs; two short attempts
  * recover that inside the old single 8 s budget.
@@ -171,7 +178,8 @@ export interface ClassifierUsage {
 }
 
 export interface ClassificationResult {
-  classification: TurnClassification;
+  classification: TurnClassification &
+    Pick<PresetRoute, "systemKey" | "meetingPrepSlot">;
   model: string | null;
   version: string;
   latencyMs: number;
@@ -181,6 +189,9 @@ export interface ClassificationResult {
 
 /** A route Core chose itself for a turn whose prompt it wrote. */
 export interface PresetRoute {
+  systemKey?: "meeting-prep";
+  /** Original slot for a meeting brief rebuilt from its calendar evidence. */
+  meetingPrepSlot?: string;
   route: SokoBotRoute;
   writeScope?: NonNullable<TurnClassification["writeScope"]>;
   reason: string;
@@ -204,6 +215,10 @@ export function presetClassificationResult(
   return {
     classification: {
       ...baseClassification(preset.route, message, preset.reason, 1),
+      ...(preset.systemKey ? { systemKey: preset.systemKey } : {}),
+      ...(preset.meetingPrepSlot
+        ? { meetingPrepSlot: preset.meetingPrepSlot }
+        : {}),
       ...(preset.writeScope ? { writeScope: preset.writeScope } : {}),
     },
     model: null,
@@ -270,7 +285,7 @@ const evaluateWithJev: RouteEvaluator = async ({
     abortSignal,
     maxRetries: 0,
     providerOptions: JEV_PROVIDER_OPTIONS,
-  });
+  }).catch(rethrowAiGatewayFailure);
   return {
     answers: result.answers,
     usage: result.usage,
@@ -542,7 +557,9 @@ export class JevTurnClassifier implements TurnClassifier {
           abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
         });
       } catch (error) {
-        if (attempt >= MAX_ATTEMPTS) throw error;
+        if (error instanceof AiGatewayBudgetError || attempt >= MAX_ATTEMPTS) {
+          throw error;
+        }
       }
     }
   }
@@ -554,16 +571,6 @@ export class JevTurnClassifier implements TurnClassifier {
     context = evaluationClassifierContext(context);
     const startedAt = performance.now();
     const elapsed = () => Math.round(performance.now() - startedAt);
-    const authorizedTaskIds = context.taskIds;
-    const pending = (context.pendingIntents ?? [])
-      .filter((intent) => Date.parse(intent.expiresAt) > Date.now())
-      .map((intent) => ({
-        ...intent,
-        targetIds: (intent.targetIds ?? []).filter((id) =>
-          authorizedTaskIds.includes(id),
-        ),
-      }));
-
     if (!message.trim()) {
       return {
         classification: baseClassification(
@@ -578,6 +585,19 @@ export class JevTurnClassifier implements TurnClassifier {
         failed: false,
         usage: null,
       };
+    }
+
+    let pending = context.pendingIntents ?? [];
+    if (pending.length > 0) {
+      const now = (await databaseNow()).getTime();
+      pending = pending
+        .filter((intent) => Date.parse(intent.expiresAt) > now)
+        .map((intent) => ({
+          ...intent,
+          targetIds: (intent.targetIds ?? []).filter((id) =>
+            context.taskIds.includes(id),
+          ),
+        }));
     }
 
     let usage: ClassifierUsage | null = null;
@@ -613,10 +633,19 @@ export class JevTurnClassifier implements TurnClassifier {
       // Fail closed, but never silently: a broken classifier turns every
       // request into a clarification and looks like a prompt problem. The
       // message itself is never logged.
-      console.warn("Soko Bot classifier failed", {
-        model: SOKO_BOT_ROUTE_MODEL,
-        error: error instanceof Error ? error.name : "unknown",
-      });
+      recordCoreWarning(
+        { operation: "soko_bot_classifier" },
+        {
+          message:
+            "The Soko Bot classifier failed, so the request became a clarification",
+          why: "The routing model call failed, or its answer did not parse",
+          fix: "If it repeats, check the AI gateway and the classifier's model: meanwhile every request is answered with reads only.",
+        },
+        {
+          model: SOKO_BOT_ROUTE_MODEL,
+          failure: messageSafeErrorFields(error),
+        },
+      );
       return {
         classification: baseClassification(
           "CLARIFY",

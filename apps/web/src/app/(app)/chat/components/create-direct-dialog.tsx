@@ -2,7 +2,13 @@
 
 import { Loader2, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import {
   createDirectRoomAction,
@@ -35,7 +41,12 @@ import {
   MembersRosterLoadFailed,
 } from "./room-draft-shared";
 
-export function CreateDirectDialog() {
+interface CreateDirectDialogProps {
+  /** Opens the dialog in place of the sidebar's `+`. */
+  trigger?: ReactNode;
+}
+
+export function CreateDirectDialog({ trigger }: CreateDirectDialogProps = {}) {
   const t = useTranslations("App.Channels");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const rosterScrollRef = useRef<HTMLDivElement | null>(null);
@@ -55,6 +66,7 @@ export function CreateDirectDialog() {
               key: `self:${roster.currentUserId}`,
               id: roster.currentUserId,
               name: t("SelfDirect.messageYourself"),
+              initialsName: roster.currentUserName,
               detail: `${t("SelfDirect.you")} · ${roster.currentUserName}`,
               image: roster.currentUserImage,
               kind: "self" as const,
@@ -207,13 +219,15 @@ export function CreateDirectDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label={t("Draft.title")}
-          className={SIDEBAR_ICON_ACTION_CLASS}
-        >
-          <Plus className="size-4 md:size-3.5" aria-hidden />
-        </button>
+        {trigger ?? (
+          <button
+            type="button"
+            aria-label={t("Draft.title")}
+            className={SIDEBAR_ICON_ACTION_CLASS}
+          >
+            <Plus className="size-4 md:size-3.5" aria-hidden />
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-none sm:max-w-lg">
         <DialogHeader className="shrink-0 gap-1">
@@ -237,7 +251,7 @@ export function CreateDirectDialog() {
               <Avatar className="size-5">
                 <AvatarImage src={target.image ?? undefined} alt="" />
                 <AvatarFallback className="text-2xs">
-                  {getInitials(target.name)}
+                  {getInitials(target.initialsName ?? target.name)}
                 </AvatarFallback>
               </Avatar>
               <span className="flex min-w-0 items-center gap-1">

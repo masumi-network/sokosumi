@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   afterAll,
   beforeAll,
@@ -17,13 +18,18 @@ import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
-import { addProjectSeoPage } from "./project-seo.service";
+import {
+  addProjectSeoPage,
+  getProjectSeoWorkspace,
+} from "./project-seo.service";
 import { createProjectSeoMonitor } from "./project-seo-monitor.service";
 import {
   requestProjectSeoAnalysis,
   requestProjectSeoAnalysisInTransaction,
 } from "./project-seo-operations.service";
-import { restoreTaskRecord } from "./task-domain.service";
+import { createSeoAudit } from "./seo-audit.service";
+import { setSeoAuditArchived } from "./seo-audit-archive";
+import { restoreTaskRecord } from "./task-domain-archive";
 import { taskScheduleReleaseService } from "./task-schedule-runs.service";
 
 vi.mock("@/lib/ably/publish", async (importOriginal) => ({
@@ -130,6 +136,109 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
     await prisma.coworker.deleteMany({ where: { vendorId } });
     await prisma.vendor.delete({ where: { id: vendorId } });
   });
+  it("prevents reopening an archived check and restores its analysis history", async () => {
+    const saved = await createSeoAudit(actor, {
+      name: "One-off check",
+      firstPage: {
+        url: "https://example.test/one-off",
+        relationship: "primary",
+      },
+    });
+    const id = saved.auditId!;
+    const savedActor: SeoActor = { ...actor, owner: { kind: "audit", id } };
+    const start = () =>
+      requestProjectSeoAnalysis(savedActor, {
+        ...request(),
+        pageIds: [saved.pages[0].id],
+      });
+    const run = await start();
+    await expect(setSeoAuditArchived(actor, id, true)).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_ACTIVE_CHECK },
+    });
+    const taskId = run.taskId!;
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "COMPLETED" },
+    });
+    await setSeoAuditArchived(actor, id, true);
+    await expect(start()).rejects.toMatchObject({ status: 404 });
+    await expect(
+      prisma.$transaction((tx) =>
+        applyGuardedTaskStatusUpdate({
+          tx,
+          taskId,
+          expectedStatus: "COMPLETED",
+          eventStatus: "READY",
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(
+      await prisma.task.findUnique({ where: { id: taskId } }),
+    ).toMatchObject({ status: "COMPLETED", archivedAt: expect.any(Date) });
+    await setSeoAuditArchived(actor, id, false);
+    expect((await getProjectSeoWorkspace(savedActor)).analyses).toMatchObject([
+      { id: run.id, taskId },
+    ]);
+  });
+
+  it("protects a paused monitor until it ends and ignores schedules for other audits", async () => {
+    const saved = await createSeoAudit(actor, {
+      name: "Paused checks",
+      firstPage: {
+        url: "https://example.test/paused",
+        relationship: "primary",
+      },
+    });
+    const id = saved.auditId!;
+    const vars = {
+      isAuthenticated: true,
+      authContext: {
+        actor: "user" as const,
+        userId,
+        organizationId: null,
+        role: "user",
+      },
+      workspaceContext: { workspaceId, userId, organizationId: null },
+    };
+    const rule = {
+      expr: "0 9 * * *",
+      timezone: "UTC",
+      endsMode: "AFTER" as const,
+      targetRunCount: 2,
+    };
+    await createProjectSeoMonitor(vars, actor, {
+      operationId: randomUUID(),
+      rule,
+      analysis: request(),
+    });
+    const monitor = await createProjectSeoMonitor(
+      vars,
+      { ...actor, owner: { kind: "audit", id } },
+      {
+        operationId: randomUUID(),
+        rule,
+        analysis: { ...request(), pageIds: [saved.pages[0].id] },
+      },
+    );
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { state: "PAUSED", nextRunAt: null },
+    });
+    await expect(setSeoAuditArchived(actor, id, true)).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_RESUMABLE_MONITOR },
+    });
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { state: "ENDED" },
+    });
+    await setSeoAuditArchived(actor, id, true);
+    expect(
+      await prisma.taskSchedule.findUnique({ where: { id: monitor.id } }),
+    ).toMatchObject({ state: "ENDED" });
+  });
+
   it("rejects a different kind and page while an audit Task is active", async () => {
     await requestProjectSeoAnalysis(actor, request());
     await expect(

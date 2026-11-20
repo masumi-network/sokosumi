@@ -1,14 +1,15 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
-
 import { ChatMobileBottomNav } from "@/app/chat/components/chat-mobile-bottom-nav";
 import { chatMobileTabBarClearance } from "@/app/chat/components/chat-mobile-tab-registry";
+import { useChromePathname } from "@/app/chat/components/room-cache-provider";
 import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
 import { shouldShowMobileBottomNav } from "@/app/components/mobile-app-chrome";
 import { ChatControlListBridge } from "@/components/chat/chat-control-list-bridge";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
@@ -35,7 +36,7 @@ export function AppMobileChrome({
         below sits after the last item in main's scroll overflow. Chat shells
         use an explicit height + their own min-h-0 chain for inner scroll.
       */}
-      <div className="flex flex-1 flex-col">{children}</div>
+      <SearchablePageContent sidebar>{children}</SearchablePageContent>
       <Suspense fallback={null}>
         <AppMobileBottomChrome />
       </Suspense>
@@ -44,7 +45,7 @@ export function AppMobileChrome({
 }
 
 function AppMobileBottomChrome(): React.ReactElement | null {
-  const pathname = usePathname();
+  const pathname = useChromePathname();
   const searchParams = useSearchParams();
   const showBottomNav = shouldShowMobileBottomNav(pathname, searchParams);
   const isApple = useIsApplePlatform();

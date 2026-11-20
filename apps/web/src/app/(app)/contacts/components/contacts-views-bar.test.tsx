@@ -95,3 +95,14 @@ describe("ContactsPresetTabs and ContactsViewMenus", () => {
     expect(props.onOrganizationChange).toHaveBeenCalledWith(null);
   });
 });
+
+describe("ContactsPresetTabs", () => {
+  it("keeps Archived out of the tabs; it lives in the More actions menu", () => {
+    render(<ContactsPresetTabs view="all" onViewChange={vi.fn()} />);
+    expect(screen.getAllByRole("radio").map((tab) => tab.textContent)).toEqual([
+      "presets.all",
+      "presets.mine",
+      "presets.recent",
+    ]);
+  });
+});

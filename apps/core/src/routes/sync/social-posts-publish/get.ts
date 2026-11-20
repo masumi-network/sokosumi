@@ -18,8 +18,9 @@ export default function mount(app: Hono) {
           shouldContinue: context.shouldContinue,
         });
 
-        console.info("[sync/social-posts-publish] Completed sync", result);
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

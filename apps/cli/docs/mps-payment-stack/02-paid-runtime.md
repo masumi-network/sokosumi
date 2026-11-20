@@ -2,9 +2,9 @@
 
 [PROPOSED] Status: Planned. Owner: coordinator. Implementation and validation remain pending.
 
-[PROPOSED] Planning PR title: `docs(cli): plan the MPS paid Task lifecycle`. Later implementation title: `feat(coworkers): execute and settle MPS paid Tasks`.
+[VERIFIED: GitHub PR read, 2026-11-17] This brief merged on 2026-09-30 as [#5464](https://github.com/masumi-network/sokosumi/pull/5464) (documentation only). The payment code is still unbuilt.
 
-[PROPOSED] Branch: `sok-1132-mps-paid-runtime`. Base and dependency: PR 1, `sok-1132-mps-seller-authorization`. Its seller binding and customer approval contract must be accepted first.
+[PROPOSED] Seller binding and customer approval in [seller authorization](01-seller-authorization.md) must be accepted first.
 
 ## Baseline evidence
 

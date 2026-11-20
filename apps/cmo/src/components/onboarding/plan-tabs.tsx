@@ -1,10 +1,22 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ArrowRight, CalendarDays, Repeat, Sparkles, Sun } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Film,
+  Image,
+  Images,
+  Info,
+  PenLine,
+  Repeat,
+  Sun,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { formatDay, planWeeks } from "../../lib/calendar";
+import { formatMedia } from "../../lib/channels";
+import { monthLabel } from "../../lib/strategy";
 import { brandStyle, Section } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
@@ -17,8 +29,8 @@ import {
   Improvements,
   MeasureFunnel,
   OfferLadder,
+  stageLabel,
 } from "../strategy-core";
-import { Funnel } from "../strategy-funnel";
 import {
   APPROACHES,
   ChannelPlan,
@@ -38,7 +50,7 @@ export type ConnectMeasurement = (
 export type PlanTab = "plan" | "month" | "results";
 
 export const TABS: { id: PlanTab; label: string }[] = [
-  { id: "plan", label: "Three moves" },
+  { id: "plan", label: "Your funnel" },
   { id: "month", label: "Your month" },
   { id: "results", label: "How we know it works" },
 ];
@@ -55,9 +67,10 @@ interface PlanPanelProps {
 }
 
 /**
- * Three moves (each stage's channels and what it measures), what stops
- * people buying, the mix of posts, the other plans Cuso weighed, the
- * topics and where he works; the rest sits under "Everything in the plan".
+ * The funnel (each stage's step, goal and channels), where the posts show
+ * up, what stops people buying, the mix of posts, the other plans Cuso
+ * weighed, the topics and where he works; the rest sits under "Everything in
+ * the plan".
  */
 export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
   const stages = strategy.funnel ?? [];
@@ -72,15 +85,21 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
   return (
     <div className="bb">
       {stages.length > 0 ? (
-        <Section title="Three moves" wide>
-          {stages.some((stage) => (stage.plays ?? []).length > 0) ? (
-            <FunnelPlan
-              stages={stages}
-              improvements={strategy.improvements ?? []}
-            />
-          ) : (
-            <Funnel stages={stages} />
-          )}
+        <Section title="Your funnel" wide>
+          <p className="note">
+            How strangers become customers, and what I do at each step.
+          </p>
+          <FunnelPlan
+            stages={stages}
+            improvements={strategy.improvements ?? []}
+          />
+        </Section>
+      ) : null}
+      {strategy.calendar.length > 0 ? (
+        <Section title="Where it shows up" wide>
+          <div style={brandStyle(overview)}>
+            <PhoneFeeds overview={overview} strategy={strategy} />
+          </div>
         </Section>
       ) : null}
       {barrier ? (
@@ -108,7 +127,7 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
         <div className="ob-alts">
           <p>
             I also looked at {alternatives.length} other{" "}
-            {alternatives.length === 1 ? "plan" : "plans"}.{" "}
+            {alternatives.length === 1 ? "strategy" : "strategies"}.{" "}
             <button
               type="button"
               className="button button-ghost button-small"
@@ -148,16 +167,15 @@ function Everything({ overview, strategy }: PlanPanelProps) {
     !strategy.ladder &&
     !strategy.why &&
     improvements.length === 0 &&
-    beforeAfter.length === 0 &&
-    strategy.calendar.length === 0
+    beforeAfter.length === 0
   ) {
     return null;
   }
   return (
     <details className="ob-more">
-      <summary>Everything in the plan</summary>
+      <summary>Everything in the strategy</summary>
       {strategy.why ? (
-        <Section title="Why this plan">
+        <Section title="Why this strategy">
           <p>{strategy.why}</p>
         </Section>
       ) : null}
@@ -169,13 +187,6 @@ function Everything({ overview, strategy }: PlanPanelProps) {
       {beforeAfter.length > 0 ? (
         <Section title="Before and after" wide>
           <BeforeAfter rows={beforeAfter} />
-        </Section>
-      ) : null}
-      {strategy.calendar.length > 0 ? (
-        <Section title="Where it shows up" wide>
-          <div style={brandStyle(overview)}>
-            <PhoneFeeds overview={overview} strategy={strategy} />
-          </div>
         </Section>
       ) : null}
       {improvements.length > 0 ? (
@@ -194,10 +205,68 @@ function Everything({ overview, strategy }: PlanPanelProps) {
 interface MonthPanelProps {
   strategy: Strategy;
   onOpen: (entry: Entry) => void;
+  /** Before approval: the pieces are topics, made once the plan is approved. */
+  pending?: boolean;
+}
+
+const MEDIA = {
+  video: { icon: Film, label: "Video" },
+  images: { icon: Images, label: "Several images" },
+  image: { icon: Image, label: "Image" },
+} as const;
+
+/** One piece on the calendar: channel, time, its media, title and pillar. */
+function EntryButton({
+  entry,
+  day,
+  pending,
+  onOpen,
+}: {
+  entry: Entry;
+  /** Shows the date too (Up first). */
+  day?: boolean;
+  pending: boolean;
+  onOpen: (entry: Entry) => void;
+}) {
+  const media = formatMedia(entry.channel, entry.format);
+  const Media = media ? MEDIA[media].icon : null;
+  return (
+    <button
+      type="button"
+      className={
+        pending && entry.status === "idea" ? "ob-entry pending" : "ob-entry"
+      }
+      onClick={() => onOpen(entry)}
+    >
+      <span className="ob-entry-meta">
+        <ChannelIcon channel={entry.channel} size={12} />
+        {day
+          ? `${formatDay(entry.date, { weekday: "short", day: "numeric", month: "short" })}${entry.time ? ` ${entry.time}` : ""}`
+          : (entry.time ?? "")}
+        {Media && media ? (
+          <Media
+            size={12}
+            className="ob-entry-media"
+            aria-label={MEDIA[media].label}
+          />
+        ) : null}
+      </span>
+      <span className="ob-entry-title">
+        {withoutLabel(entry.hook ?? entry.title)}
+      </span>
+      {entry.pillar ? (
+        <span className="ob-entry-pillar">{entry.pillar}</span>
+      ) : null}
+    </button>
+  );
 }
 
 /** What goes out first, then every day of the plan. */
-export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
+export function MonthPanel({
+  strategy,
+  onOpen,
+  pending = false,
+}: MonthPanelProps) {
   const weeks = useMemo(
     () => planWeeks(strategy.calendar),
     [strategy.calendar],
@@ -222,32 +291,50 @@ export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
         .slice(0, UP_FIRST),
     [strategy.calendar],
   );
+  const counts = useMemo(() => {
+    const media = strategy.calendar.map((entry) =>
+      formatMedia(entry.channel, entry.format),
+    );
+    return {
+      pictures: media.filter((kind) => kind === "image" || kind === "images")
+        .length,
+      videos: media.filter((kind) => kind === "video").length,
+    };
+  }, [strategy.calendar]);
   return (
     <div className="ob-month">
+      {pending ? (
+        <div className="ob-month-pending">
+          <Info size={16} aria-hidden="true" />
+          <p>
+            <b>These are the topics.</b> Once you approve, I write every post
+            and make its pictures and videos.
+          </p>
+          <p className="ob-month-counts num">
+            {[
+              monthLabel(strategy.calendar),
+              counts.pictures > 0 ? `${counts.pictures} with pictures` : "",
+              counts.videos > 0
+                ? `${counts.videos} ${counts.videos === 1 ? "video" : "videos"}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+      ) : null}
       {first.length > 0 ? (
         <div className="ob-upfirst">
           <h2>Up first</h2>
           <ul>
             {first.map((entry) => (
               <li key={entry.id}>
-                <button
-                  type="button"
-                  className="ob-entry"
-                  onClick={() => onOpen(entry)}
-                >
-                  <span className="ob-entry-meta">
-                    <ChannelIcon channel={entry.channel} size={12} />
-                    {formatDay(entry.date, {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                    })}
-                    {entry.time ? ` ${entry.time}` : ""}
-                  </span>
-                  <span className="ob-entry-title">
-                    {withoutLabel(entry.hook ?? entry.title)}
-                  </span>
-                </button>
+                <EntryButton
+                  entry={entry}
+                  day
+                  pending={pending}
+                  onOpen={onOpen}
+                />
               </li>
             ))}
           </ul>
@@ -289,20 +376,12 @@ export function MonthPanel({ strategy, onOpen }: MonthPanelProps) {
                       </span>
                     </span>
                     {entries.map((entry) => (
-                      <button
+                      <EntryButton
                         key={entry.id}
-                        type="button"
-                        className="ob-entry"
-                        onClick={() => onOpen(entry)}
-                      >
-                        <span className="ob-entry-meta">
-                          <ChannelIcon channel={entry.channel} size={12} />
-                          {entry.time ?? ""}
-                        </span>
-                        <span className="ob-entry-title">
-                          {withoutLabel(entry.hook ?? entry.title)}
-                        </span>
-                      </button>
+                        entry={entry}
+                        pending={pending}
+                        onOpen={onOpen}
+                      />
                     ))}
                   </div>
                 );
@@ -332,42 +411,56 @@ function measureLine(measure: Measure): string {
 /** What Cuso does on his own schedule; it matches his daily, weekly and monthly runs. */
 const RHYTHM = [
   {
-    icon: Sparkles,
-    when: "Once you subscribe",
-    what: [
-      "Makes the whole month at once: every post, picture, video, ad, article and newsletter",
-      "Schedules it all on your connected accounts",
-      "You can change any piece, any time, by telling him",
-    ],
+    icon: PenLine,
+    when: "Once you approve",
+    does: "I make the whole month",
+    detail:
+      "Every post, picture, video and article, scheduled on your accounts.",
   },
   {
     icon: Sun,
     when: "Every day",
-    what: [
-      "Replies to new comments on your Instagram, Facebook and YouTube posts, in your voice; complaints and anything sensitive come to you",
-      "Checks the news: holidays, competitors, your market. When something matters, he changes a post",
-      "Tells you in one line what went out, what he answered and what's next",
-    ],
+    does: "I keep it running",
+    detail:
+      "I answer comments in your voice, watch the news and send you one line on what went out.",
   },
   {
     icon: Repeat,
     when: "Every Monday",
-    what: [
-      "Checks last week's real numbers, never guesses",
-      "Moves effort to what worked and drops what didn't",
-      "Sends you each change; you can undo any of them",
-    ],
+    does: "I check the numbers",
+    detail: "Real numbers only. More of what works, less of what doesn't.",
   },
   {
     icon: CalendarDays,
     when: "Every month",
-    what: [
-      "Writes next month's plan from what worked",
-      "Re-reads your site for news, prices and launches",
-      "Keeps your goal unless you change it",
-    ],
+    does: "I plan the next month",
+    detail: "From what worked, toward the same goal.",
   },
 ];
+
+/** How Cuso works, as four steps on a line, with the owner in control. */
+function HowItWorks() {
+  return (
+    <div className="ob-how">
+      <ol className="ob-rhythm">
+        {RHYTHM.map(({ icon: Icon, when, does, detail }) => (
+          <li key={when}>
+            <span className="ob-rhythm-icon" aria-hidden="true">
+              <Icon size={16} />
+            </span>
+            <span className="ob-rhythm-when">{when}</span>
+            <b>{does}</b>
+            <span className="note">{detail}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="note">
+        You stay in control: change, pause or undo any post by telling me.
+        Complaints and anything sensitive come to you.
+      </p>
+    </div>
+  );
+}
 
 /**
  * How the founder will know the plan works: the numbers Cuso tracks at each
@@ -390,6 +483,10 @@ export function ResultsPanel({
   const tracking = measurement?.tracking ?? [];
   return (
     <div className="bb">
+      <Section title="How it works" wide>
+        <HowItWorks />
+      </Section>
+
       <Section title="The outcome that matters">
         <p className="bb-big">{outcomeLine(strategy)}</p>
         {objective?.target ? (
@@ -409,7 +506,7 @@ export function ResultsPanel({
           <ol className="ob-metrics">
             {stages.map((stage) => (
               <li key={stage.stage}>
-                <span className="note">{stage.name}</span>
+                <span className="note">{stageLabel(stage.stage)}</span>
                 <b>{stage.metric}</b>
                 {stage.target ? (
                   <span className="note">{stage.target}</span>
@@ -430,24 +527,6 @@ export function ResultsPanel({
           sources={overview.measurement}
           onConnect={onConnectMeasurement}
         />
-      </Section>
-
-      <Section title="What I do" wide>
-        <div className="ob-rhythm">
-          {RHYTHM.map(({ icon: Icon, when, what }) => (
-            <div key={when} className="ob-rhythm-card">
-              <p className="ob-rhythm-when">
-                <Icon size={16} aria-hidden="true" />
-                {when}
-              </p>
-              <ul>
-                {what.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
       </Section>
 
       {rules.length > 0 ? (

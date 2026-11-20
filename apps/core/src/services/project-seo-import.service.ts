@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-import { isOwnedTaskFileUrl, isVercelBlobPublicHost } from "@sokosumi/utils";
+import {
+  isOwnedTaskFileUrl,
+  isVercelBlobPublicHost,
+  seoReportFileFormat,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import {
@@ -9,9 +13,17 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { jsonInput } from "@/helpers/prisma-json";
+import {
+  failedPageRuns,
+  failedSeoSpecialists,
+  reportObject,
+  SEO_REPORT_IMPORT_REJECTED,
+} from "@/helpers/project-seo-public-report";
 import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
+  skippedPages,
 } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -84,8 +96,7 @@ async function requireSourceFile(
     !file ||
     file.status !== "READY" ||
     file.uploadedByCoworkerId !== task.assigneeId ||
-    file.name !== `seo-report-${task.id}.json` ||
-    file.mimeType !== "application/json" ||
+    seoReportFileFormat(task.id, file.name, file.mimeType) !== "json" ||
     !file.fileUrl ||
     !isOwnedTaskFileUrl(file.fileUrl, task.id) ||
     !isVercelBlobPublicHost(new URL(file.fileUrl).hostname) ||
@@ -208,7 +219,16 @@ export async function importProjectSeoAudit(
       });
       pageIds.push(page.id);
     }
-    const data: Prisma.InputJsonObject = payload;
+    const reportPayload =
+      analysis && payload.kind === "audit_full"
+        ? {
+            ...payload,
+            ...(reportObject(raw)?.kind === "site" && {
+              pageRunFailures: failedPageRuns(skippedPages(raw)),
+            }),
+            specialistFailures: failedSeoSpecialists(raw),
+          }
+        : payload;
     const observation = await tx.projectSeoObservation.create({
       data: {
         ...seoOwnerData(actor),
@@ -220,7 +240,7 @@ export async function importProjectSeoAudit(
         pageIds,
         scopeVersion: analysis?.scopeVersion ?? 0,
         artifactHash,
-        payload: data,
+        payload: jsonInput(reportPayload),
         observedAt: new Date(payload.observedAt),
       },
     });
@@ -250,7 +270,7 @@ export async function reconcileProjectSeoTaskFile(
         kind: "audit" as const,
         id: analysis.auditId,
         root: await prisma.seoAudit.findUnique({
-          where: { id: analysis.auditId },
+          where: { id: analysis.auditId, deletedAt: null, archivedAt: null },
           select: { workspaceId: true },
         }),
       }
@@ -301,12 +321,47 @@ export async function reconcileProjectSeoTaskFile(
       throw error;
     // A concurrent valid report may have completed this analysis while this file was read.
     await prisma.projectSeoAnalysis.updateMany({
-      where: { id: analysis.id, status: { not: "completed" } },
+      where: {
+        id: analysis.id,
+        status: { not: "completed" },
+        ...(analysis.auditId && {
+          audit: { deletedAt: null, archivedAt: null },
+        }),
+      },
       data: {
         status: "failed",
-        failureReason:
-          "The source report or its current authority could not be validated",
+        failureReason: SEO_REPORT_IMPORT_REJECTED,
       },
     });
   }
+}
+
+export const SEO_TASK_ENDED_WITHOUT_RESULT =
+  "The Task failed or was canceled before a result was imported";
+
+/**
+ * An analysis follows its Task: one still requested whose Task failed or was
+ * canceled is failed too. Runs every minute, so it also settles rows left
+ * behind before it existed.
+ */
+export async function failSeoAnalysesOfEndedTasks(): Promise<number> {
+  const open = await prisma.projectSeoAnalysis.findMany({
+    where: { status: "requested", taskId: { not: null } },
+    select: { taskId: true },
+  });
+  const taskIds = open.flatMap((row) => (row.taskId ? [row.taskId] : []));
+  if (taskIds.length === 0) return 0;
+  const ended = await prisma.task.findMany({
+    where: { id: { in: taskIds }, status: { in: ["FAILED", "CANCELED"] } },
+    select: { id: true },
+  });
+  if (ended.length === 0) return 0;
+  const { count } = await prisma.projectSeoAnalysis.updateMany({
+    where: {
+      status: "requested",
+      taskId: { in: ended.map((task) => task.id) },
+    },
+    data: { status: "failed", failureReason: SEO_TASK_ENDED_WITHOUT_RESULT },
+  });
+  return count;
 }

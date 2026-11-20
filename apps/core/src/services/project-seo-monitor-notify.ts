@@ -124,6 +124,16 @@ export async function notifySeoMonitorWorse(
     // Two files of one Run notify at the same time: the second waits on the lock and then finds the first one's row.
     if (
       !(await hasCalendarWorkspaceAccess(tx, task.workspaceId, ownerId)) ||
+      (owner.owner.kind === "audit" &&
+        !(await tx.seoAudit.findFirst({
+          where: {
+            id: owner.owner.id,
+            workspaceId: task.workspaceId,
+            deletedAt: null,
+            archivedAt: null,
+          },
+          select: { id: true },
+        }))) ||
       (await sent(tx))
     ) {
       return;

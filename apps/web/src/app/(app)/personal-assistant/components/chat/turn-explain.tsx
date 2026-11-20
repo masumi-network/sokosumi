@@ -90,8 +90,6 @@ function prettyInput(input: string): string {
 }
 
 function summarizeResult(call: ChatToolCall): string | null {
-  if (call.errorKind)
-    return `${call.errorKind}${call.errorDetail ? `: ${call.errorDetail}` : ""}`;
   const result = call.result;
   if (result === null || result === undefined) return null;
   if (typeof result === "string") return result;
@@ -297,8 +295,9 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                   </ChainRow>
                 );
               }
-              const result = item.call ? summarizeResult(item.call) : null;
               const failed = item.call?.status === "FAILED";
+              const result =
+                item.call && !failed ? summarizeResult(item.call) : null;
               return (
                 <ChainRow key={item.key} label={t("called")} tone="accent">
                   <span className="font-medium">
@@ -309,7 +308,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                       {prettyInput(item.input)}
                     </pre>
                   ) : null}
-                  {result ? (
+                  {failed || result ? (
                     <p
                       className={cn(
                         "mt-1 text-xs",
@@ -318,24 +317,16 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                           : "text-muted-foreground",
                       )}
                     >
-                      {failed ? t("failed") : t("result")}: {result}
+                      {failed ? t("failed") : `${t("result")}: ${result}`}
                     </p>
                   ) : null}
                   <Raw
                     label={t("rawInput")}
                     value={item.call?.input ?? item.input}
                   />
-                  <Raw
-                    label={t("rawResult")}
-                    value={
-                      item.call?.errorDetail
-                        ? {
-                            errorKind: item.call.errorKind,
-                            errorDetail: item.call.errorDetail,
-                          }
-                        : item.call?.result
-                    }
-                  />
+                  {!failed ? (
+                    <Raw label={t("rawResult")} value={item.call?.result} />
+                  ) : null}
                 </ChainRow>
               );
             })}

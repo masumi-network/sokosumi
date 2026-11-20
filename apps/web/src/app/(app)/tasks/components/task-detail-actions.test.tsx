@@ -1,5 +1,7 @@
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -20,12 +22,14 @@ import {
   TaskDetailStatusProvider,
   useOptimisticTaskStatus,
 } from "@/app/tasks/components/task-detail-optimistic";
-import {
-  TaskDetailLinksProvider,
-  TaskParentLine,
-} from "@/app/tasks/components/task-detail-optimistic-links";
+import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import {
+  MAX_SUBTASK_DEPTH,
+  SUBTASK_LIST_LIMIT,
+  type SubtaskRow,
+} from "@/app/tasks/utils/task-subtask-row";
 import {
   type CreateTaskResult,
   createTaskAndLink,
@@ -35,6 +39,7 @@ import {
 } from "@/lib/actions/task/action";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 import { mapVisibleTaskLinks } from "./task-detail-api-types";
+import { taskSubtasksQueryKey } from "./use-task-subtasks";
 
 const {
   pushMock,
@@ -114,10 +119,12 @@ vi.mock("next-intl", () => ({
     (_namespace?: string) => (key: string, values?: Record<string, string>) => {
       const translations: Record<string, string> = {
         moveToWorkspace: "Move to workspace",
-        markAs: "Mark as",
+        linkToTask: "Link to task",
+        "linkPicker.related.title": "Link as related",
+        "linkPicker.related.description":
+          "Pick a task. Each task lists the other under Related.",
         createRelated: "Create related",
         removeRelated: "Remove related",
-        removeParent: "Remove parent",
         removeRelatedSuccess: "Related task removed",
         removeRelatedError: "Failed to remove related task",
         taskPickerLoading: "Loading tasks...",
@@ -127,11 +134,8 @@ vi.mock("next-intl", () => ({
         "relations.related": "Related",
         "relations.blocks": "Blocking",
         "relations.blockedBy": "Blocked by",
-        "relations.subtask": "Sub-task",
         "relations.duplicate": "Duplicate",
-        "relations.addSubtask": "Add sub-task",
         taskPickerSearchPlaceholder: "Search tasks...",
-        taskPickerDescription: "Choose a task to link with the current task.",
         taskPickerEmpty: "No tasks found.",
         createRelatedDialogTitle: `Create ${values?.relation ?? ""}`.trim(),
       };
@@ -154,11 +158,22 @@ vi.mock("@/hooks/use-mobile", () => ({
 vi.mock("@/components/ui/command", () => ({
   CommandDialog: ({
     open,
+    title,
+    description,
     children,
   }: {
     open: boolean;
+    title?: string;
+    description?: string;
     children: ReactNode;
-  }) => (open ? <div>{children}</div> : null),
+  }) =>
+    open ? (
+      <div>
+        <h2>{title}</h2>
+        <p>{description}</p>
+        {children}
+      </div>
+    ) : null,
   CommandInput: ({
     placeholder,
     value,
@@ -174,6 +189,7 @@ vi.mock("@/components/ui/command", () => ({
       onChange={(event) => onValueChange?.(event.target.value)}
     />
   ),
+  Command: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   CommandList: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   CommandGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
@@ -392,6 +408,16 @@ vi.mock("@/lib/actions/task/action", () => ({
   deleteTaskLink: vi.fn(),
 }));
 
+const { createSubtaskMock, setTaskParentMock } = vi.hoisted(() => ({
+  createSubtaskMock: vi.fn(),
+  setTaskParentMock: vi.fn(),
+}));
+vi.mock("@/lib/actions/task/subtask-action", () => ({
+  createSubtask: createSubtaskMock,
+  moveSubtask: vi.fn(),
+  setTaskParent: setTaskParentMock,
+}));
+
 vi.mock("@/lib/clients/core.browser.client", () => {
   class TestCoreApiRequestError extends Error {
     status?: number;
@@ -566,7 +592,12 @@ function createTaskAndLinkSuccess(input: {
 }
 
 function buildTaskListItem(
-  overrides?: Partial<{ id: string; name: string; status: TaskStatus }>,
+  overrides?: Partial<{
+    id: string;
+    name: string;
+    status: TaskStatus;
+    parentTaskId: string | null;
+  }>,
 ) {
   return {
     id: "task-2",
@@ -595,13 +626,7 @@ const labels = {
   archive: "Archive",
   archiveError: "Archive error",
   reopenToReady: "Reopen to Ready",
-  reopenToReadyTitle: "Reopen task",
-  reopenToReadyDescription:
-    "Add a comment so your coworker knows what to do next.",
-  reopenToReadyCommentLabel: "Comment",
-  reopenToReadyCommentPlaceholder: "Describe what still needs to be done…",
   reopenToReadyCommentRequired: "A comment is required to reopen this task",
-  reopenToReadyConfirm: "Reopen to Ready",
   cancel: "Cancel",
   share: "Share",
   startWorking: "Start working",
@@ -690,7 +715,7 @@ const removableTaskLinks = [
     note: null,
     peerTask: {
       id: "task-subtask",
-      name: "Sub-task",
+      name: "Child task",
       status: TaskStatus.READY,
       archivedAt: null,
       identifier: null,
@@ -720,28 +745,33 @@ const coworkerOptions = [
   }),
 ];
 
+/** The app's query cache; the sub-task checklist reads and writes it. */
+let queryClient = new QueryClient();
+
 function renderActionsElement(
   props?: Partial<ComponentProps<typeof TaskDetailActions>>,
 ) {
   return (
-    <TaskDetailActions
-      taskId="task-1"
-      share={null}
-      status={TaskStatus.READY}
-      jobsCount={0}
-      taskLinks={[]}
-      coworkerOptions={coworkerOptions}
-      agentNameById={new Map()}
-      defaultAssigneeId="coworker-1"
-      actionsMenuLabel={actionsMenuLabel}
-      labels={labels}
-      organizations={sampleOrganizations}
-      personalWorkspaceLabel={personalWorkspaceLabel}
-      isReadOnly={false}
-      isTaskOwner
-      taskOwnerId="owner-1"
-      {...props}
-    />
+    <QueryClientProvider client={queryClient}>
+      <TaskDetailActions
+        taskId="task-1"
+        share={null}
+        status={TaskStatus.READY}
+        jobsCount={0}
+        taskLinks={[]}
+        coworkerOptions={coworkerOptions}
+        agentNameById={new Map()}
+        defaultAssigneeId="coworker-1"
+        actionsMenuLabel={actionsMenuLabel}
+        labels={labels}
+        organizations={sampleOrganizations}
+        personalWorkspaceLabel={personalWorkspaceLabel}
+        isReadOnly={false}
+        isTaskOwner
+        taskOwnerId="owner-1"
+        {...props}
+      />
+    </QueryClientProvider>
   );
 }
 
@@ -758,8 +788,6 @@ function renderWithRelatedList(
           {
             related: "Related",
             blocks: "Blocking",
-            parent: "Sub-task",
-            child: "Parent task",
           } as ComponentProps<typeof TaskRelatedTasks>["relationLabels"]
         }
         statusLabels={
@@ -779,6 +807,7 @@ function renderActions(
 describe("TaskDetailActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = new QueryClient();
     createRelatedVisibilityMock.current = undefined;
     isMobileMock.mockReturnValue(false);
     browserCoreClientMock.getTasks.mockReset();
@@ -1026,6 +1055,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("shows the task again on the board when the archive fails", async () => {
+    expectConsole("error", "Failed to archive task");
     const user = userEvent.setup();
     archiveMock.mockRejectedValueOnce(new Error("nope"));
     renderActions({ organizations: undefined });
@@ -1225,17 +1255,15 @@ describe("TaskDetailActions", () => {
       screen.getByRole("menuitem", { name: labels.reopenToReady }),
     );
 
-    expect(
-      screen.getByRole("heading", { name: labels.reopenToReadyTitle }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "title" })).toBeInTheDocument();
 
     const confirmButton = screen.getByRole("button", {
-      name: labels.reopenToReadyConfirm,
+      name: "confirm",
     });
     expect(confirmButton).toBeDisabled();
 
     await user.type(
-      screen.getByLabelText(labels.reopenToReadyCommentLabel),
+      screen.getByLabelText("commentLabel"),
       "Please continue from the last draft",
     );
     expect(confirmButton).toBeEnabled();
@@ -1277,16 +1305,58 @@ describe("TaskDetailActions", () => {
     await user.click(
       screen.getByRole("menuitem", { name: labels.reopenToReady }),
     );
-    await user.type(
-      screen.getByLabelText(labels.reopenToReadyCommentLabel),
-      "Please continue",
-    );
-    await user.click(
-      screen.getByRole("button", { name: labels.reopenToReadyConfirm }),
-    );
+    await user.type(screen.getByLabelText("commentLabel"), "Please continue");
+    await user.click(screen.getByRole("button", { name: "confirm" }));
 
     expect(screen.getByText(`panel ${TaskStatus.READY}`)).toBeInTheDocument();
     await act(async () => answer(taskStatusSuccess()));
+  });
+
+  it("parks a Coworker's canceled Task as a Draft with no comment", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce(taskStatusSuccess());
+    renderActions({
+      status: TaskStatus.CANCELED,
+      defaultAssigneeId: "cow-1",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    );
+    await user.click(screen.getByRole("button", { name: "reopenAsDraft" }));
+
+    await waitFor(() =>
+      expect(setTaskStatusFromDrag).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.DRAFT,
+      }),
+    );
+  });
+
+  it("reopens a person's completed Task to Ready in one click", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce(taskStatusSuccess());
+    renderActions({
+      status: TaskStatus.COMPLETED,
+      defaultAssigneeId: null,
+      assigneeKind: "human",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    );
+
+    expect(screen.queryByRole("heading", { name: "title" })).toBeNull();
+    await waitFor(() =>
+      expect(setTaskStatusFromDrag).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.READY,
+      }),
+    );
   });
 
   it("offers reopen-to-ready for completed tasks", async () => {
@@ -1575,7 +1645,7 @@ describe("TaskDetailActions", () => {
     renderActions();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Link to task" }));
     await user.click(screen.getAllByRole("menuitem", { name: "Related" })[0]);
 
     await waitFor(() => {
@@ -1585,6 +1655,13 @@ describe("TaskDetailActions", () => {
         limit: 20,
       });
     });
+
+    expect(
+      await screen.findByRole("heading", { name: "Link as related" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Pick a task. Each task lists the other under Related."),
+    ).toBeVisible();
 
     expect(
       await screen.findByRole("button", { name: "Alpha task" }),
@@ -1634,7 +1711,7 @@ describe("TaskDetailActions", () => {
     renderActions();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Link to task" }));
     await user.click(screen.getAllByRole("menuitem", { name: "Related" })[0]);
 
     const searchInput = await screen.findByRole("textbox", {
@@ -1665,6 +1742,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("closes the picker and lists the linked task before the link answer", async () => {
+    expectConsole("error", "Failed to create task link");
     const user = userEvent.setup();
     const deferred = createDeferred<{
       taskId: string;
@@ -1695,7 +1773,7 @@ describe("TaskDetailActions", () => {
     renderWithRelatedList();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Link to task" }));
     await user.click(screen.getAllByRole("menuitem", { name: "Related" })[0]);
     await user.click(await screen.findByRole("button", { name: "Alpha task" }));
 
@@ -1723,68 +1801,8 @@ describe("TaskDetailActions", () => {
     expect(toast.error).toHaveBeenCalled();
   });
 
-  it("shows a new parent in place of the old one before the link answer", async () => {
-    const user = userEvent.setup();
-    const deferred = createDeferred<never>();
-    browserCoreClientMock.getTasks.mockResolvedValue({
-      data: [buildTaskListItem()],
-      meta: {
-        pagination: { cursor: null, limit: 20, total: 1, nextCursor: null },
-      },
-    });
-    vi.mocked(createTaskLink).mockReturnValueOnce(deferred.promise);
-
-    renderWithRelatedList({ taskLinks: [...defaultTaskLinks] });
-    expect(screen.getByRole("link", { name: "Parent task" })).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
-    await user.click(screen.getAllByRole("menuitem", { name: "Sub-task" })[0]);
-    await user.click(await screen.findByRole("button", { name: "Alpha task" }));
-
-    const parents = await screen.findByRole("group", { name: "Parent task" });
-    await waitFor(() => {
-      expect(
-        within(parents).getByRole("link", { name: "Alpha task" }),
-      ).toBeInTheDocument();
-    });
-    expect(
-      within(parents).queryByRole("link", { name: "Parent task" }),
-    ).not.toBeInTheDocument();
-
-    await act(async () => deferred.reject(new Error("link failed")));
-  });
-
-  it("keeps the parent when the picked task already has a link", async () => {
-    const user = userEvent.setup();
-    const deferred = createDeferred<never>();
-    browserCoreClientMock.getTasks.mockResolvedValue({
-      data: [buildTaskListItem({ id: "task-related", name: "Related task" })],
-      meta: {
-        pagination: { cursor: null, limit: 20, total: 1, nextCursor: null },
-      },
-    });
-    const createTaskLinkMock = vi.mocked(createTaskLink);
-    createTaskLinkMock.mockReturnValueOnce(deferred.promise);
-
-    renderWithRelatedList({
-      taskLinks: [...defaultTaskLinks, ...removableTaskLinks],
-    });
-
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
-    await user.click(screen.getAllByRole("menuitem", { name: "Sub-task" })[0]);
-    await user.click(
-      await screen.findByRole("button", { name: "Related task" }),
-    );
-
-    await waitFor(() => expect(createTaskLinkMock).toHaveBeenCalled());
-    expect(screen.getByRole("link", { name: "Parent task" })).toBeVisible();
-
-    await act(async () => deferred.reject(new Error("link failed")));
-  });
-
   it("takes a removed link off the list before the answer and puts it back on failure", async () => {
+    expectConsole("error", "Failed to remove related task link");
     const user = userEvent.setup();
     const deferred = createDeferred<never>();
     vi.mocked(deleteTaskLink).mockReturnValueOnce(deferred.promise);
@@ -1805,34 +1823,6 @@ describe("TaskDetailActions", () => {
 
     await act(async () => deferred.reject(new Error("remove failed")));
     expect(screen.getByRole("link", { name: "Related task" })).toBeVisible();
-  });
-
-  it("takes the parent line away before the remove parent answer", async () => {
-    const user = userEvent.setup();
-    const deferred = createDeferred<never>();
-    vi.mocked(deleteTaskLink).mockReturnValueOnce(deferred.promise);
-    const [parent] = mapVisibleTaskLinks([...defaultTaskLinks]).filter(
-      (link) => link.relation === TaskLinkRelation.CHILD,
-    );
-
-    render(
-      <TaskDetailLinksProvider>
-        {renderActionsElement({ taskLinks: [...defaultTaskLinks] })}
-        <TaskParentLine parent={parent} href="/tasks/parent">
-          cloned from parent
-        </TaskParentLine>
-      </TaskDetailLinksProvider>,
-    );
-
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Remove parent" }));
-
-    await waitFor(() => {
-      expect(screen.queryByText("cloned from parent")).not.toBeInTheDocument();
-    });
-
-    await act(async () => deferred.reject(new Error("remove failed")));
-    expect(screen.getByText("cloned from parent")).toBeVisible();
   });
 
   it("appends more task options when load more is selected", async () => {
@@ -1869,7 +1859,7 @@ describe("TaskDetailActions", () => {
     renderActions();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Link to task" }));
     await user.click(screen.getAllByRole("menuitem", { name: "Related" })[0]);
 
     expect(
@@ -1898,7 +1888,7 @@ describe("TaskDetailActions", () => {
     renderActions();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Link to task" }));
     await user.click(screen.getAllByRole("menuitem", { name: "Related" })[0]);
 
     expect(await screen.findByText("Failed to load tasks")).toBeInTheDocument();
@@ -1920,9 +1910,7 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Add sub-task" }),
-    );
+    await user.click(await screen.findByRole("menuitem", { name: "Blocking" }));
     await user.click(
       await screen.findByRole("button", { name: "Submit related task" }),
     );
@@ -1935,7 +1923,7 @@ describe("TaskDetailActions", () => {
         assigneeSokoBotId: null,
         assigneeUserId: null,
         status: TaskStatus.READY,
-        relation: TaskLinkRelation.PARENT,
+        relation: TaskLinkRelation.BLOCKS,
         context: {
           brand: { enabled: true, source: "default", custom: null },
           briefingEnabled: true,
@@ -1964,9 +1952,7 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Add sub-task" }),
-    );
+    await user.click(await screen.findByRole("menuitem", { name: "Blocking" }));
     await user.click(
       await screen.findByRole("button", { name: "Submit related task" }),
     );
@@ -2002,9 +1988,7 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Add sub-task" }),
-    );
+    await user.click(await screen.findByRole("menuitem", { name: "Blocking" }));
 
     expect(screen.getByTestId("design-md-picker")).toHaveTextContent(
       "DESIGN.md",
@@ -2022,7 +2006,7 @@ describe("TaskDetailActions", () => {
         assigneeSokoBotId: null,
         assigneeUserId: null,
         status: TaskStatus.READY,
-        relation: TaskLinkRelation.PARENT,
+        relation: TaskLinkRelation.BLOCKS,
         context: {
           brand: { enabled: true, source: "default", custom: null },
           briefingEnabled: true,
@@ -2052,9 +2036,7 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Add sub-task" }),
-    );
+    await user.click(await screen.findByRole("menuitem", { name: "Blocking" }));
 
     expect(screen.getByText("user-1")).toBeInTheDocument();
 
@@ -2072,75 +2054,7 @@ describe("TaskDetailActions", () => {
     });
   });
 
-  it("shows remove parent when the task has a parent link", async () => {
-    const user = userEvent.setup();
-    const deleteTaskLinkMock = vi.mocked(deleteTaskLink);
-    deleteTaskLinkMock.mockResolvedValue({
-      taskId: "task-1",
-      linkId: "link-parent",
-      relatedTaskId: "task-parent",
-    });
-
-    renderActions({
-      taskLinks: [...defaultTaskLinks],
-    });
-
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Remove parent" }));
-
-    await waitFor(() => {
-      expect(deleteTaskLinkMock).toHaveBeenCalledWith({
-        taskId: "task-1",
-        linkId: "link-parent",
-      });
-    });
-  });
-
-  it("remove parent deletes every child-relation link when multiple exist", async () => {
-    const user = userEvent.setup();
-    const deleteTaskLinkMock = vi.mocked(deleteTaskLink);
-    deleteTaskLinkMock.mockResolvedValue({
-      taskId: "task-1",
-      linkId: "link-parent",
-      relatedTaskId: "task-parent",
-    });
-
-    const secondParentLink = {
-      id: "link-parent-2",
-      createdAt: new Date("2024-01-02T00:00:00.000Z"),
-      updatedAt: new Date("2024-01-02T00:00:00.000Z"),
-      relation: TaskLinkRelation.CHILD,
-      note: null,
-      peerTask: {
-        id: "task-parent-2",
-        name: "Other parent",
-        status: TaskStatus.READY,
-        archivedAt: null,
-        identifier: null,
-      },
-    } as const;
-
-    renderActions({
-      taskLinks: [...defaultTaskLinks, secondParentLink],
-    });
-
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Remove parent" }));
-
-    await waitFor(() => {
-      expect(deleteTaskLinkMock).toHaveBeenCalledTimes(2);
-      expect(deleteTaskLinkMock).toHaveBeenNthCalledWith(1, {
-        taskId: "task-1",
-        linkId: "link-parent",
-      });
-      expect(deleteTaskLinkMock).toHaveBeenNthCalledWith(2, {
-        taskId: "task-1",
-        linkId: "link-parent-2",
-      });
-    });
-  });
-
-  it("shows remove related only for non-parent visible links", async () => {
+  it("lets a parent link left from before sub-tasks be removed as related", async () => {
     const user = userEvent.setup();
 
     renderActions({
@@ -2148,36 +2062,23 @@ describe("TaskDetailActions", () => {
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-
-    expect(
-      screen.getByRole("menuitem", { name: "Remove related" }),
-    ).toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: "Remove related" }));
     expect(
       screen.getByRole("menuitem", { name: "Related task" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: "Blocked task" }),
+      screen.getByRole("menuitem", { name: "Parent task" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("menuitem", { name: "Sub-task" }).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.queryByRole("menuitem", { name: "Parent task" }),
-    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Archived duplicate" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: "Remove parent" }),
-    ).toBeInTheDocument();
   });
 
   it("hides remove related when there are no removable links", async () => {
     const user = userEvent.setup();
 
     renderActions({
-      taskLinks: [...defaultTaskLinks],
+      taskLinks: [removableTaskLinks[3]],
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
@@ -2215,6 +2116,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("shows an error toast when removing a related link fails", async () => {
+    expectConsole("error", "Failed to remove related task link");
     const user = userEvent.setup();
     const deleteTaskLinkMock = vi.mocked(deleteTaskLink);
     deleteTaskLinkMock.mockRejectedValue(new Error("remove failed"));
@@ -2240,9 +2142,7 @@ describe("TaskDetailActions", () => {
 
   it("renders grouped separators for status, relation, workspace, and archive sections", async () => {
     const user = userEvent.setup();
-    renderActions({
-      taskLinks: [...defaultTaskLinks],
-    });
+    renderActions();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
@@ -2284,7 +2184,7 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     expect(screen.queryByRole("menuitem", { name: "Related" })).toBeNull();
 
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Link to task" }));
     await user.click(screen.getByRole("menuitem", { name: "Related" }));
 
     await waitFor(() => {
@@ -2312,7 +2212,7 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     expect(screen.queryByRole("menuitem", { name: "Related" })).toBeNull();
 
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Link to task" }));
     await user.click(screen.getByRole("menuitem", { name: "Related" }));
 
     await waitFor(() => {
@@ -2336,10 +2236,10 @@ describe("TaskDetailActions", () => {
     renderActions();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    expect(screen.queryByRole("menuitem", { name: "Add sub-task" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Blocking" })).toBeNull();
 
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
-    await user.click(screen.getByRole("menuitem", { name: "Add sub-task" }));
+    await user.click(screen.getByRole("menuitem", { name: "Blocking" }));
     await user.click(
       await screen.findByRole("button", { name: "Submit related task" }),
     );
@@ -2352,7 +2252,7 @@ describe("TaskDetailActions", () => {
         assigneeSokoBotId: null,
         assigneeUserId: null,
         status: TaskStatus.READY,
-        relation: TaskLinkRelation.PARENT,
+        relation: TaskLinkRelation.BLOCKS,
         context: {
           brand: { enabled: true, source: "default", custom: null },
           briefingEnabled: true,
@@ -2403,7 +2303,7 @@ describe("TaskDetailActions", () => {
     });
 
     await user.click(actionsButton);
-    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Link to task" }));
 
     expect(
       screen.getByRole("menuitem", { name: "Related" }),
@@ -2618,6 +2518,423 @@ describe("TaskDetailActions", () => {
       expect(
         screen.queryByRole("menuitem", { name: "sendToChat.menuItem" }),
       ).toBeNull();
+    });
+  });
+  describe("sub-tasks", () => {
+    function listTasks(...tasks: ReturnType<typeof buildTaskListItem>[]) {
+      browserCoreClientMock.getTasks.mockResolvedValue({
+        data: tasks,
+        meta: {
+          pagination: {
+            cursor: null,
+            limit: 20,
+            total: tasks.length,
+            nextCursor: null,
+          },
+        },
+      });
+    }
+
+    beforeEach(() => {
+      createSubtaskMock.mockReset();
+      setTaskParentMock.mockReset().mockResolvedValue({
+        ok: true,
+        value: { taskId: "task-1" },
+      });
+    });
+
+    /** A cached checklist of `parentTaskId`, as the sub-task section leaves it. */
+    function cacheSubtasks(parentTaskId: string, ids: string[]) {
+      queryClient.setQueryData<SubtaskRow[]>(
+        taskSubtasksQueryKey(parentTaskId),
+        ids.map((id) => ({
+          id,
+          identifier: null,
+          name: id,
+          status: TaskStatus.READY,
+          assignee: null,
+          dueOn: null,
+          subtaskProgress: { completed: 0, total: 0 },
+        })),
+      );
+    }
+
+    function isStale(parentTaskId: string) {
+      return queryClient.getQueryState(taskSubtasksQueryKey(parentTaskId))
+        ?.isInvalidated;
+    }
+
+    it("reads the old and the new parent's checklists again after a move, not this page's", async () => {
+      const user = userEvent.setup();
+      listTasks(buildTaskListItem({ id: "task-new", name: "New parent" }));
+      for (const id of ["task-1", "task-parent", "task-new", "task-other"])
+        cacheSubtasks(id, []);
+      renderActions({
+        parentTaskId: "task-parent",
+        ancestorIds: ["task-parent"],
+      });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "moveUnder" }));
+      await user.click(
+        await screen.findByRole("button", { name: "New parent" }),
+      );
+
+      await waitFor(() => expect(isStale("task-new")).toBe(true));
+      expect(isStale("task-parent")).toBe(true);
+      // The action re-renders this page with newer rows.
+      expect(isStale("task-1")).toBe(false);
+      expect(isStale("task-other")).toBe(false);
+    });
+
+    it("reads this page's and a picked Task's old parent's checklists again after Add existing", async () => {
+      const user = userEvent.setup();
+      listTasks(
+        buildTaskListItem({
+          id: "task-other",
+          name: "Other task",
+          parentTaskId: "task-old",
+        }),
+      );
+      for (const id of ["task-1", "task-old"]) cacheSubtasks(id, []);
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "addExisting" }));
+      await user.click(
+        await screen.findByRole("button", { name: "Other task" }),
+      );
+
+      await waitFor(() => expect(isStale("task-old")).toBe(true));
+      // This page's list gains the row; its re-render may not replace a
+      // cache stamped by the client clock.
+      expect(isStale("task-1")).toBe(true);
+    });
+
+    it("reads the old parent's checklist again after Remove from parent, not this page's", async () => {
+      const user = userEvent.setup();
+      for (const id of ["task-1", "task-parent"]) cacheSubtasks(id, []);
+      renderActions({ parentTaskId: "task-parent" });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(
+        screen.getByRole("menuitem", { name: "removeFromParent" }),
+      );
+
+      await waitFor(() => expect(isStale("task-parent")).toBe(true));
+      expect(isStale("task-1")).toBe(false);
+    });
+
+    it("keeps the picker open while the move runs and closes it on success", async () => {
+      const user = userEvent.setup();
+      const answer = Promise.withResolvers<{
+        ok: true;
+        value: { taskId: string };
+      }>();
+      setTaskParentMock.mockReturnValue(answer.promise);
+      listTasks(buildTaskListItem({ id: "task-new", name: "New parent" }));
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "moveUnder" }));
+      await user.click(
+        await screen.findByRole("button", { name: "New parent" }),
+      );
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "New parent" }),
+        ).toBeDisabled(),
+      );
+      await act(async () =>
+        answer.resolve({ ok: true, value: { taskId: "task-1" } }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: "New parent" })).toBeNull(),
+      );
+    });
+
+    it("opens the picker with an empty search after a pick", async () => {
+      const user = userEvent.setup();
+      listTasks(buildTaskListItem({ id: "task-other", name: "Other task" }));
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "addExisting" }));
+      await user.type(
+        screen.getByRole("textbox", { name: "Search tasks..." }),
+        "Oth",
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Other task" }),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("textbox", { name: "Search tasks..." }),
+        ).toBeNull(),
+      );
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "addExisting" }));
+
+      expect(
+        screen.getByRole("textbox", { name: "Search tasks..." }),
+      ).toHaveValue("");
+    });
+
+    it("does not offer this Task's own sub-tasks to Add existing or Move under", async () => {
+      const user = userEvent.setup();
+      cacheSubtasks("task-1", ["task-child"]);
+      listTasks(
+        buildTaskListItem({ id: "task-child", name: "Its child" }),
+        buildTaskListItem({ id: "task-other", name: "Other task" }),
+      );
+
+      for (const item of ["addExisting", "moveUnder"]) {
+        const { unmount } = renderActions();
+        await user.click(
+          screen.getByRole("button", { name: actionsMenuLabel }),
+        );
+        await user.click(screen.getByRole("menuitem", { name: item }));
+        await screen.findByRole("button", { name: "Other task" });
+
+        expect(screen.queryByRole("button", { name: "Its child" })).toBeNull();
+        unmount();
+      }
+    });
+
+    it("offers no new sub-task once the checklist is past its first page", async () => {
+      const user = userEvent.setup();
+      cacheSubtasks(
+        "task-1",
+        Array.from({ length: SUBTASK_LIST_LIMIT }, (_, index) => `t${index}`),
+      );
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "add" })).toBeNull();
+      expect(
+        screen.getByRole("menuitem", { name: "addExisting" }),
+      ).toBeInTheDocument();
+    });
+
+    it("adds a picked Task as a sub-task and does not offer an ancestor", async () => {
+      const user = userEvent.setup();
+      listTasks(
+        buildTaskListItem({ id: "task-root", name: "Root task" }),
+        buildTaskListItem({ id: "task-other", name: "Other task" }),
+      );
+      renderActions({ parentTaskId: "task-root", ancestorIds: ["task-root"] });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "addExisting" }));
+      const other = await screen.findByRole("button", { name: "Other task" });
+
+      expect(browserCoreClientMock.getTasks).toHaveBeenCalledWith(
+        expect.objectContaining({ includeSubtasks: "true" }),
+      );
+      expect(screen.queryByRole("button", { name: "Root task" })).toBeNull();
+      await user.click(other);
+      await waitFor(() =>
+        expect(setTaskParentMock).toHaveBeenCalledWith({
+          taskId: "task-other",
+          parentTaskId: "task-1",
+        }),
+      );
+    });
+
+    it("moves the Task under a picked Task and does not offer its own parent", async () => {
+      const user = userEvent.setup();
+      listTasks(
+        buildTaskListItem({ id: "task-parent", name: "Current parent" }),
+        buildTaskListItem({ id: "task-new", name: "New parent" }),
+      );
+      renderActions({
+        parentTaskId: "task-parent",
+        ancestorIds: ["task-parent"],
+      });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "moveUnder" }));
+      const newParent = await screen.findByRole("button", {
+        name: "New parent",
+      });
+
+      expect(
+        screen.queryByRole("button", { name: "Current parent" }),
+      ).toBeNull();
+      await user.click(newParent);
+      await waitFor(() =>
+        expect(setTaskParentMock).toHaveBeenCalledWith({
+          taskId: "task-1",
+          parentTaskId: "task-new",
+        }),
+      );
+    });
+
+    it("shows Core's refusal of a move", async () => {
+      const user = userEvent.setup();
+      listTasks(buildTaskListItem({ id: "task-child", name: "Its child" }));
+      setTaskParentMock.mockResolvedValue({
+        ok: false,
+        error: { code: "UNPROCESSABLE", message: "That would be a cycle." },
+      });
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "moveUnder" }));
+      await user.click(
+        await screen.findByRole("button", { name: "Its child" }),
+      );
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("moveError", {
+          description: "That would be a cycle.",
+        }),
+      );
+      // The picker stays open for another pick.
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Its child" })).toBeEnabled(),
+      );
+    });
+
+    it("shows Try again later, not the raw text, on the move toast for a failure that is not Core's refusal", async () => {
+      const user = userEvent.setup();
+      listTasks(buildTaskListItem({ id: "task-new", name: "New parent" }));
+      setTaskParentMock.mockResolvedValue({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "fetch failed" },
+      });
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "moveUnder" }));
+      await user.click(
+        await screen.findByRole("button", { name: "New parent" }),
+      );
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("moveError", {
+          description: "serverErrorDescription",
+        }),
+      );
+    });
+
+    it("removes a sub-task from its parent, and offers that only to a sub-task", async () => {
+      const user = userEvent.setup();
+      const { unmount } = renderActions();
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      expect(
+        screen.queryByRole("menuitem", { name: "removeFromParent" }),
+      ).toBeNull();
+      unmount();
+
+      renderActions({ parentTaskId: "task-parent" });
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(
+        screen.getByRole("menuitem", { name: "removeFromParent" }),
+      );
+
+      await waitFor(() =>
+        expect(setTaskParentMock).toHaveBeenCalledWith({
+          taskId: "task-1",
+          parentTaskId: null,
+        }),
+      );
+    });
+
+    it("creates a sub-task from the dialog", async () => {
+      const user = userEvent.setup();
+      createSubtaskMock.mockResolvedValue({ ok: true, value: {} });
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "add" }));
+      await user.type(
+        screen.getByRole("textbox", { name: "name" }),
+        "Draft it",
+      );
+      await user.click(screen.getByRole("button", { name: "create" }));
+
+      await waitFor(() =>
+        expect(createSubtaskMock).toHaveBeenCalledWith({
+          parentTaskId: "task-1",
+          name: "Draft it",
+          description: null,
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+          dueOn: null,
+        }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
+      );
+    });
+
+    it("keeps the draft when Core refuses a new sub-task", async () => {
+      const user = userEvent.setup();
+      createSubtaskMock.mockResolvedValue({
+        ok: false,
+        error: { code: "UNPROCESSABLE", message: "Too deep." },
+      });
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "add" }));
+      await user.type(
+        screen.getByRole("textbox", { name: "name" }),
+        "Draft it",
+      );
+      await user.click(screen.getByRole("button", { name: "create" }));
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("createError", {
+          description: "Too deep.",
+        }),
+      );
+      expect(screen.getByRole("textbox", { name: "name" })).toHaveValue(
+        "Draft it",
+      );
+    });
+
+    it("reads the checklist again and returns focus to the menu after a new sub-task", async () => {
+      const user = userEvent.setup();
+      createSubtaskMock.mockResolvedValue({ ok: true, value: {} });
+      cacheSubtasks("task-1", []);
+      renderActions();
+      const trigger = screen.getByRole("button", { name: actionsMenuLabel });
+
+      await user.click(trigger);
+      await user.click(screen.getByRole("menuitem", { name: "add" }));
+      await user.type(screen.getByRole("textbox", { name: "name" }), "Do it");
+      await user.click(screen.getByRole("button", { name: "create" }));
+
+      await waitFor(() =>
+        expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
+      );
+      // No toggle is in flight, so the read cannot undo one.
+      expect(isStale("task-1")).toBe(true);
+      await waitFor(() => expect(trigger).toHaveFocus());
+    });
+
+    it("offers no new sub-task at the deepest level", async () => {
+      const user = userEvent.setup();
+      const ancestorIds = Array.from(
+        { length: MAX_SUBTASK_DEPTH },
+        (_, level) => `task-level-${level}`,
+      );
+      renderActions({ parentTaskId: ancestorIds.at(-1), ancestorIds });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "add" })).toBeNull();
+      expect(
+        screen.queryByRole("menuitem", { name: "addExisting" }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("menuitem", { name: "moveUnder" }),
+      ).toBeInTheDocument();
     });
   });
 });

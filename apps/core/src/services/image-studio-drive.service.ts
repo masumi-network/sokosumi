@@ -6,12 +6,15 @@ import {
 
 import prisma from "@/lib/db/prisma";
 import { drivePut } from "@/lib/drive-blob";
+import { recordCoreWarning } from "@/lib/evlog";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   activateDriveUploadResource,
   reserveDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
+import { recordStudioAdEvent } from "@/services/image-studio-events.service";
 
 /**
  * Where every studio image and video lands in Files: one folder per Drive,
@@ -222,6 +225,7 @@ export async function ensureStudioAssetDriveFile(input: {
  * name is keyed by the job, so a later attach reuses this file.
  */
 export async function publishStudioAssetToFiles(input: {
+  assetId: string;
   jobId: string;
   workspaceId: string;
   organizationId: string | null;
@@ -231,15 +235,34 @@ export async function publishStudioAssetToFiles(input: {
   contentType: string;
 }): Promise<void> {
   try {
-    await writeStudioDriveFile({
+    const file = await writeStudioDriveFile({
       ...input,
       name: studioAssetFileName(input.prompt, input.jobId, input.contentType),
     });
+    if (file) {
+      await recordStudioAdEvent({
+        workspaceId: input.workspaceId,
+        assetId: input.assetId,
+        userId: input.userId,
+        type: "copied_to_files",
+        meta: { pathname: file.pathname },
+      });
+    }
   } catch (error) {
-    console.warn("[image-studio] could not add the asset to Files", {
-      jobId: input.jobId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // The file name is made from the prompt, which the error can quote.
+    recordCoreWarning(
+      {
+        operation: "image_job_settle",
+        imageJobs: [
+          { id: input.jobId, failure: messageSafeErrorFields(error) },
+        ],
+      },
+      {
+        message: "Could not add a generated image to Files",
+        why: "Writing the image into the Content Studio folder failed",
+        fix: "The image stays in the studio; attaching it anywhere adds it to Files again.",
+      },
+    );
   }
 }
 
@@ -317,11 +340,71 @@ export async function moveLegacyStudioFolderTasks(
         where: { id: task.id },
         data: { updatedAt: new Date() },
       });
-      console.warn("[image-studio] could not move a folder Task to Files", {
-        taskId: task.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // The error can name the person's files, so no cause.
+      recordCoreWarning(
+        {
+          operation: "image_studio_legacy_folder_move",
+          tasks: [{ id: task.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not move an old studio folder Task to Files",
+          why: "Copying its files into the Content Studio folder failed",
+          fix: "The Task is kept and the next image-jobs sync tries the others first, then this one again.",
+        },
+      );
     }
   }
   return { moved, failed };
+}
+
+/** Facebook takes a Reel of 3 to 90 seconds. */
+const REEL_SECONDS = { min: 3, max: 90 };
+
+/**
+ * What Content Studio made the post's video as: a talking video (a generated
+ * presenter, labelled AI-made where the network can), and whether it is a
+ * vertical short video a network shows as a Reel (a video's asset holds no
+ * size, so its job's ratio or the still it animates says). Core names a video's copy
+ * in Files itself (`studioAssetFileName`): the Content Studio folder, and the
+ * job id's last eight hex digits before the extension.
+ */
+export async function studioVideoOfMedia(
+  projectId: string,
+  media: readonly { pathname: string; name: string; kind: string }[],
+): Promise<{ talking: boolean; reel: boolean }> {
+  const suffixes = media.flatMap((item) => {
+    if (item.kind !== "video") return [];
+    if (!item.pathname.includes(`/${IMAGE_STUDIO_DRIVE_FOLDER}/`)) return [];
+    const match = /-([0-9a-f]{8})\.[a-z0-9]+$/.exec(item.name);
+    return match?.[1] ? [match[1]] : [];
+  });
+  if (suffixes.length === 0) return { talking: false, reel: false };
+  const rows = await prisma.$queryRaw<
+    { talking: boolean; vertical: boolean; seconds: number | null }[]
+  >`
+    select job.kind = 'TALKING_VIDEO' as talking,
+      (
+        job.settings->>'aspectRatio' = '9:16'
+        or exists (
+          select 1 from project_image_asset still
+          where still.id = any(job."referenceAssetIds")
+            and still.height > still.width
+        )
+      ) as vertical,
+      asset."durationSeconds" as seconds
+    from project_image_job job
+    join project_image_asset asset on asset."jobId" = job.id
+    where job."projectId" = ${projectId}::uuid
+      and asset."mediaType" = 'VIDEO'
+      and right(replace(job.id::text, '-', ''), 8) = any(${suffixes})`;
+  return {
+    talking: rows.some((row) => row.talking),
+    reel: rows.some(
+      (row) =>
+        row.vertical &&
+        row.seconds !== null &&
+        row.seconds >= REEL_SECONDS.min &&
+        row.seconds <= REEL_SECONDS.max,
+    ),
+  };
 }

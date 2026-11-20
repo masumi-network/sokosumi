@@ -57,7 +57,7 @@ export function ownerDirectReader(
 /** The owner's Directs: this organization's and the org-free personal ones. */
 export function ownerDirectWhere(
   authorized: AuthorizedSokoBotRuntime,
-  scope: Prisma.ChatRoomWhereInput,
+  scope: { organizationId: string | null },
 ): Prisma.ChatRoomWhereInput {
   return {
     kind: "direct",

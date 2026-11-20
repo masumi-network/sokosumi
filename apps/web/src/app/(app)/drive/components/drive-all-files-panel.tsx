@@ -13,7 +13,6 @@ import {
   Search,
   SlidersHorizontal,
   Trash2,
-  X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -37,6 +36,7 @@ import {
 } from "@/app/drive/components/drive-folder-nav";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
+import { PageSearchField } from "@/components/page-search-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +50,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import { Input } from "@/components/ui/input";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {
@@ -771,40 +770,27 @@ export function DriveAllFilesPanel({
           setAppliedQuery(query);
         }}
       >
-        <div className="relative min-w-0 flex-1">
-          <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-          <Input
-            type="search"
-            enterKeyHint="search"
-            value={query}
-            placeholder={t("searchPlaceholder")}
-            aria-label={t("searchLabel")}
-            maxLength={1000}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              debouncedSearch(event.target.value);
-            }}
-            // The browser's own clear control is inconsistent and hidden in
-            // some engines; ours is always the same and always there.
-            className="h-11 w-full pl-8 pr-9 @2xl:h-10 [&::-webkit-search-cancel-button]:hidden"
-            data-testid="drive-all-files-search"
-          />
-          {query ? (
-            <button
-              type="button"
-              aria-label={t("searchClear")}
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 focus-visible:outline-none focus-visible:ring-2"
-              onClick={() => {
-                debouncedSearch.cancel();
-                setQuery("");
-                setAppliedQuery("");
-              }}
-              data-testid="drive-all-files-search-clear"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          ) : null}
-        </div>
+        <PageSearchField
+          className="min-w-0 flex-1"
+          enterKeyHint="search"
+          value={query}
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchLabel")}
+          clearLabel={t("searchClear")}
+          maxLength={1000}
+          data-testid="drive-all-files-search"
+          // The browser's own clear control is inconsistent and hidden in
+          // some engines; ours is always the same and always there.
+          onValueChange={(next) => {
+            setQuery(next);
+            if (!next) {
+              debouncedSearch.cancel();
+              setAppliedQuery("");
+            } else {
+              debouncedSearch(next);
+            }
+          }}
+        />
 
         <div className="flex items-center gap-2">
           {/* Enter submits on a phone; the button stays where there is room. */}

@@ -2,6 +2,8 @@
 
 import type {
   ProjectSocialConnection,
+  SocialAccountChoice,
+  SocialAccountChoices,
   SocialQueueSlots,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
@@ -54,8 +56,10 @@ import {
 import {
   type ComposioConnectionStage,
   useComposioConnection,
+  type ZernioSignIn,
 } from "@/lib/composio/use-composio-connection";
 import { cn } from "@/lib/utils";
+import { SocialAccountChoiceDialog } from "./social-account-choice-dialog";
 import { ProjectSocialQueueSlots } from "./social-posts/project-social-queue-slots";
 import type { SocialReconnection } from "./social-posts/social-reconnection";
 
@@ -85,6 +89,22 @@ interface Feedback {
 }
 
 type OAuthAction = "connect" | "reconnect" | "replace";
+
+/** A sign-in that reached several accounts and waits for the person's pick. */
+interface PendingChoice {
+  action: OAuthAction;
+  socialConnectionId?: string;
+  provider: ProjectSocialConnection["provider"];
+  connectionId: string;
+  signIn: ZernioSignIn;
+  choices: SocialAccountChoice[];
+}
+
+function isAccountChoices(
+  value: ProjectSocialConnection | SocialAccountChoices,
+): value is SocialAccountChoices {
+  return "choices" in value;
+}
 
 const STATUS_TRANSLATION_KEYS: Record<
   ProjectSocialConnection["status"],
@@ -181,6 +201,10 @@ export function ProjectSocialAccounts({
   >(null);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
+  const [pendingChoice, setPendingChoice] = useState<PendingChoice | null>(
+    null,
+  );
+  const [choosing, setChoosing] = useState(false);
   const [refreshing, startRefresh] = useTransition();
   const isBusy = pendingAction !== null || refreshing;
 
@@ -237,7 +261,10 @@ export function ProjectSocialAccounts({
                 : error.kind ===
                     CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED
                   ? t("errors.facebookPage")
-                  : fallback,
+                  : error.kind ===
+                      CORE_API_ERROR_KINDS.SOCIAL_YOUTUBE_CHANNEL_REQUIRED
+                    ? t("errors.youtubeChannel")
+                    : fallback,
     });
   }
 
@@ -251,6 +278,10 @@ export function ProjectSocialAccounts({
       connections.find((connection) => connection.id === socialConnectionId)
         ?.provider;
     if (!targetProvider || !isProviderEnabled(targetProvider)) return;
+    // What the popup brought back, kept for a second finalize with the pick.
+    const lastSignIn: {
+      current: { connectionId: string; signIn: ZernioSignIn } | null;
+    } = { current: null };
     const outcome = await connect({
       onStart: () => {
         setFeedback(null);
@@ -261,13 +292,29 @@ export function ProjectSocialAccounts({
         initiateProjectSocialConnection({
           projectId,
           action,
+          accountChoice: true,
+          // Zernio returns to this origin; Composio ignores the address.
+          ...(targetProvider === "tiktok" || targetProvider === "linkedin"
+            ? {
+                callbackUrl: new URL("/zernio/callback", window.location.origin)
+                  .href,
+              }
+            : {}),
           ...(provider ? { provider } : {}),
           ...(action !== "connect" && socialConnectionId
             ? { socialConnectionId }
             : {}),
         }),
-      finalize: (connectionId) =>
-        finalizeProjectSocialConnection({ projectId, connectionId }),
+      finalize: (connectionId, signIn) => {
+        lastSignIn.current = { connectionId, signIn };
+        return finalizeProjectSocialConnection({
+          projectId,
+          connectionId,
+          ...signIn,
+          // Core asks only when the sign-in reaches several accounts.
+          offerChoice: true,
+        });
+      },
     });
 
     if (outcome.kind === "in_flight") {
@@ -280,14 +327,21 @@ export function ProjectSocialAccounts({
     }
 
     if (outcome.kind === "connected") {
-      showFeedback({
-        kind: "success",
-        message: t("success.connected", {
-          account: accountName(outcome.value, t("unknownHandle")),
-        }),
-      });
-      if (action === "reconnect" || reconnections) {
-        onReconnected?.(outcome.value, socialConnectionId);
+      const signIn = lastSignIn.current;
+      if (!isAccountChoices(outcome.value)) {
+        showConnected(outcome.value, action, socialConnectionId);
+      } else if (signIn && isMountedRef.current) {
+        // The pick finishes the connection; the busy state stays until then.
+        setPendingChoice({
+          action,
+          socialConnectionId,
+          provider: targetProvider,
+          ...signIn,
+          choices: outcome.value.choices,
+        });
+        return;
+      } else {
+        showFeedback({ kind: "error", message: t("errors.finalize") });
       }
     } else if (outcome.kind === "timeout") {
       showFeedback({ kind: "error", message: t("errors.timeout") });
@@ -299,6 +353,57 @@ export function ProjectSocialAccounts({
     if (action === "replace" || outcome.kind === "connected") {
       refreshAccounts();
     }
+    finishAction();
+  }
+
+  function showConnected(
+    connection: ProjectSocialConnection,
+    action: OAuthAction,
+    socialConnectionId?: string,
+  ): void {
+    showFeedback({
+      kind: "success",
+      message: t("success.connected", {
+        account: accountName(connection, t("unknownHandle")),
+      }),
+    });
+    if (action === "reconnect" || reconnections) {
+      onReconnected?.(connection, socialConnectionId);
+    }
+  }
+
+  async function handleChoose(accountChoiceId: string): Promise<void> {
+    const choice = pendingChoice;
+    if (!choice || choosing) return;
+    setChoosing(true);
+    try {
+      const result = await finalizeProjectSocialConnection({
+        projectId,
+        connectionId: choice.connectionId,
+        ...choice.signIn,
+        accountChoiceId,
+        offerChoice: true,
+      });
+      if (!result.ok) {
+        showActionError(result.error, t("errors.finalize"));
+      } else if (isAccountChoices(result.value)) {
+        showFeedback({ kind: "error", message: t("errors.finalize") });
+      } else {
+        showConnected(result.value, choice.action, choice.socialConnectionId);
+      }
+    } catch {
+      showFeedback({ kind: "error", message: t("errors.finalize") });
+    } finally {
+      endChoice();
+    }
+  }
+
+  /** Nothing was kept for a sign-in nobody finished picking for. */
+  function endChoice(): void {
+    if (!isMountedRef.current) return;
+    setChoosing(false);
+    setPendingChoice(null);
+    refreshAccounts();
     finishAction();
   }
 
@@ -594,19 +699,7 @@ export function ProjectSocialAccounts({
                       className={cn("size-4", comingSoon && "grayscale")}
                       aria-hidden
                     />
-                    {id === "linkedin" && !comingSoon ? (
-                      <span className="flex flex-col">
-                        {name}
-                        <span
-                          className="text-muted-foreground text-xs"
-                          data-testid="linkedin-personal-only"
-                        >
-                          {t("linkedinPersonalOnly")}
-                        </span>
-                      </span>
-                    ) : (
-                      name
-                    )}
+                    {name}
                     {comingSoon ? (
                       <Badge variant="secondary" className="ms-auto">
                         {t("comingSoon")}
@@ -683,7 +776,7 @@ export function ProjectSocialAccounts({
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
-                    {connection.provider === "linkedin" ? (
+                    {connection.personalProfile ? (
                       <span data-testid="linkedin-personal-profile">
                         {t("personalProfile")}
                       </span>
@@ -827,6 +920,21 @@ export function ProjectSocialAccounts({
         <ProjectSocialQueueSlots
           projectId={projectId}
           queueSlots={queueSlots}
+        />
+      ) : null}
+
+      {pendingChoice ? (
+        <SocialAccountChoiceDialog
+          choices={pendingChoice.choices}
+          provider={
+            SOCIAL_PROVIDERS.find(({ id }) => id === pendingChoice.provider)
+              ?.name ?? pendingChoice.provider
+          }
+          isConnecting={choosing}
+          onChoose={(accountChoiceId) => {
+            void handleChoose(accountChoiceId);
+          }}
+          onCancel={endChoice}
         />
       ) : null}
 

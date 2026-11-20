@@ -1,11 +1,12 @@
 "use client";
 
 import type {
-  DataRoomQuestion,
   DataRoomTreeRow,
   DataRoomView,
+  DataRoomViewerQuestion,
 } from "@sokosumi/core-client";
 import {
+  Building2,
   ChevronRight,
   Download,
   File,
@@ -27,6 +28,7 @@ import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { fileTitle, isTeamFileName } from "@/lib/team-file";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { RoomCompany } from "./room-company";
 import { RoomMark } from "./room-mark";
 import { RoomPdf } from "./room-pdf";
 
@@ -37,7 +39,10 @@ const IMAGE_TYPES = new Set([
   "image/webp",
 ]);
 
-/** A signed-in viewer's room: the numbered index, the Welcome page or one file beside it. */
+/** The Company page's place in the index, beside file paths. */
+const COMPANY: unique symbol = Symbol("company");
+
+/** A signed-in viewer's room: the numbered index, the Welcome page, the Company page or one file beside it. */
 export function RoomViewer({
   token,
   room,
@@ -49,7 +54,9 @@ export function RoomViewer({
   const router = useRouter();
   const base = `/share/rooms/${encodeURIComponent(token)}`;
   /** The open file's path; null is the Welcome page. */
-  const [openPath, setOpenPath] = useState<string | null>(null);
+  const [openPath, setOpenPath] = useState<string | null | typeof COMPANY>(
+    null,
+  );
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const open = room.rows.find((row) => row.path === openPath) ?? null;
   const visible = room.rows.filter((row) =>
@@ -68,6 +75,18 @@ export function RoomViewer({
   function openFile(path: string) {
     setExpanded((previous) => new Set([...previous, ...ancestorsOf(path)]));
     setOpenPath(path);
+  }
+
+  /** Shows a folder in the index, open at its first document. */
+  function openFolder(path: string) {
+    const first = room.rows.find(
+      (row) => row.kind === "file" && row.path.startsWith(`${path}/`),
+    );
+    if (first) openFile(first.path);
+    else
+      setExpanded(
+        (previous) => new Set([...previous, ...ancestorsOf(path), path]),
+      );
   }
 
   return (
@@ -117,6 +136,25 @@ export function RoomViewer({
                   {t("welcome")}
                 </button>
               </li>
+              {room.company ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setOpenPath(COMPANY)}
+                    aria-current={openPath === COMPANY || undefined}
+                    className={cn(
+                      "flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm",
+                      openPath === COMPANY ? "bg-muted" : "hover:bg-quinary",
+                    )}
+                  >
+                    <Building2
+                      aria-hidden
+                      className="text-muted-foreground size-4 shrink-0"
+                    />
+                    {t("Company.title")}
+                  </button>
+                </li>
+              ) : null}
               {visible.map((row) => (
                 <RoomRow
                   key={row.path}
@@ -140,6 +178,12 @@ export function RoomViewer({
                 row={open}
                 allowDownload={room.allowDownload}
                 watermark={room.watermark}
+              />
+            ) : openPath === COMPANY && room.company ? (
+              <RoomCompany
+                company={room.company}
+                rows={room.rows}
+                onOpenFolder={openFolder}
               />
             ) : (
               <RoomWelcome base={base} room={room} onOpenFile={openFile} />
@@ -172,6 +216,11 @@ function RoomWelcome({
   const files = room.rows.filter((row) => row.kind === "file");
   const folders = room.rows.length - files.length;
   const first = files[0];
+  const { questions, status, retry } = useRoomQuestions(`${base}/questions`);
+  const shared = questions.flatMap((question) => {
+    const row = room.rows.find((r) => r.path === question.path);
+    return question.shared && question.answer && row ? [{ question, row }] : [];
+  });
 
   return (
     <article className="grid max-w-2xl gap-5 rounded-lg border p-5 md:p-6">
@@ -207,6 +256,45 @@ function RoomWelcome({
           </Button>
         ) : null}
       </div>
+      <p role="status" className="sr-only">
+        {status === "loading" ? t("sharedLoading") : ""}
+      </p>
+      {status === "failed" ? (
+        <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+          <p
+            role="alert"
+            className="text-muted-foreground min-w-0 flex-1 text-sm"
+          >
+            {t("sharedFailed")}
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={retry}>
+            {t("retry")}
+          </Button>
+        </div>
+      ) : shared.length > 0 ? (
+        <section className="grid gap-3 border-t pt-4">
+          <h3 className="text-sm font-medium">{t("sharedTitle")}</h3>
+          <ul className="grid gap-4">
+            {shared.map(({ question, row }) => (
+              <li key={question.id} className="grid gap-1 text-sm">
+                <button
+                  type="button"
+                  onClick={() => onOpenFile(row.path)}
+                  className="text-muted-foreground hover:text-foreground inline-flex min-h-6 min-w-0 items-center gap-1.5 justify-self-start text-left text-xs underline-offset-4 hover:underline"
+                >
+                  <File aria-hidden className="size-3.5 shrink-0" />
+                  <span className="tabular-nums">{row.number}</span>
+                  <span className="truncate">{fileTitle(row.name)}</span>
+                </button>
+                <p className="font-medium">{question.body}</p>
+                <p className="text-muted-foreground whitespace-pre-line">
+                  {question.answer}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </article>
   );
 }
@@ -344,23 +432,12 @@ function RoomQuestions({
 }) {
   const t = useTranslations("Share.Room");
   const questionId = useId();
-  const [questions, setQuestions] = useState<DataRoomQuestion[]>([]);
+  const { questions, setQuestions } = useRoomQuestions(
+    `${base}/questions?resourceId=${encodeURIComponent(resourceId)}`,
+  );
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let current = true;
-    fetch(`${base}/questions?resourceId=${encodeURIComponent(resourceId)}`)
-      .then((response) => (response.ok ? response.json() : []))
-      .then((loaded: DataRoomQuestion[]) => {
-        if (current) setQuestions(loaded);
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [base, resourceId]);
 
   return (
     <div className="grid gap-3 border-t pt-4">
@@ -369,6 +446,11 @@ function RoomQuestions({
         <ul className="grid gap-3">
           {questions.map((question) => (
             <li key={question.id} className="grid gap-1 text-sm">
+              {question.shared ? (
+                <p className="text-muted-foreground text-xs">
+                  {t("sharedNote")}
+                </p>
+              ) : null}
               <p>{question.body}</p>
               <p className="text-muted-foreground">
                 {question.answer ?? t("awaitingAnswer")}
@@ -391,7 +473,7 @@ function RoomQuestions({
               body: JSON.stringify({ resourceId, body }),
             });
             if (!response.ok) throw new Error("ask failed");
-            const asked = (await response.json()) as DataRoomQuestion;
+            const asked = (await response.json()) as DataRoomViewerQuestion;
             setQuestions((previous) => [asked, ...previous]);
             setBody("");
           } catch {
@@ -426,4 +508,44 @@ function RoomQuestions({
       </form>
     </div>
   );
+}
+
+/**
+ * The viewer's own questions and the room's shared answers at `url`, with
+ * whether they are still loading or failed to, and a way to load them again.
+ */
+function useRoomQuestions(url: string) {
+  const [questions, setQuestions] = useState<DataRoomViewerQuestion[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "failed">(
+    "loading",
+  );
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let current = true;
+    fetch(url, attempt > 0 ? { cache: "no-store" } : undefined)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Questions ${response.status}`);
+        return response.json();
+      })
+      .then((loaded: DataRoomViewerQuestion[]) => {
+        if (!current) return;
+        setQuestions(loaded);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (current) setStatus("failed");
+      });
+    return () => {
+      current = false;
+    };
+  }, [url, attempt]);
+  return {
+    questions,
+    setQuestions,
+    status,
+    retry: () => {
+      setStatus("loading");
+      setAttempt((count) => count + 1);
+    },
+  };
 }

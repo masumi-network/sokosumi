@@ -440,7 +440,8 @@ export async function executeTool(
 
   if (
     input.capability === "generate_image" ||
-    input.capability === "generate_video"
+    input.capability === "generate_video" ||
+    input.capability === "generate_talking_video"
   ) {
     try {
       if (input.capability === "generate_image")
@@ -449,8 +450,14 @@ export async function executeTool(
           input.input,
           input.toolCallId,
         );
-      else
+      else if (input.capability === "generate_video")
         await runtime.checkVideoRequest(
+          authorized,
+          input.input,
+          input.toolCallId,
+        );
+      else
+        await runtime.checkTalkingVideoRequest(
           authorized,
           input.input,
           input.toolCallId,
@@ -519,7 +526,7 @@ export async function executeTool(
           ? externalActionReceipt(input.capability, result)
           : {}),
         status: "COMPLETED",
-        result: persistedToolResult(result ?? null),
+        result: persistedToolResult(result ?? null, input.capability),
       },
     });
     return result;
@@ -542,11 +549,15 @@ export async function executeTool(
         // A rolled-back local attempt is not an enduring semantic
         // reservation, and neither is an effect refused before it was sent.
         ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
-        disposition: ACTION_CAPABILITIES.has(input.capability)
-          ? EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) && !refusedUnsent
-            ? "UNKNOWN"
-            : "REJECTED"
-          : undefined,
+        ...(ACTION_CAPABILITIES.has(input.capability)
+          ? {
+              disposition:
+                EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) &&
+                !refusedUnsent
+                  ? "UNKNOWN"
+                  : "REJECTED",
+            }
+          : {}),
         errorKind: error instanceof Error ? error.name : "unknown",
         errorDetail: persistedErrorDetail(error),
       },

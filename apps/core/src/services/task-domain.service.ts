@@ -8,18 +8,14 @@ import {
   TaskVisibility,
   VendorGrantStatus,
 } from "@sokosumi/database";
-import {
-  canArchiveTaskStatus,
-  getTaskCannotArchiveMessage,
-  hasAssigneeValue,
-  isTaskEditableStatus,
-} from "@sokosumi/utils";
+import { hasAssigneeValue, isTaskEditableStatus } from "@sokosumi/utils";
 import {
   requireTaskAssignableCoworker,
   requireTaskAssignableUser,
   requireTaskWriteAccess,
   type TaskAssigner,
 } from "@/helpers/access-control";
+import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import {
   badRequest,
   conflict,
@@ -35,6 +31,13 @@ import {
 } from "@/helpers/soko-bot-task-assign";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
+import { TASK_MOVED_TO_PROJECT_COMMENT } from "@/helpers/task-reopen-instructions";
+import {
+  newSubtaskPosition,
+  requireNotSubtask,
+  requireSubtaskParent,
+  requireSubtreeCanChangeProject,
+} from "@/helpers/task-subtasks";
 import {
   buildSokoBotScopeTaskWhere,
   sokoBotSharedScopeOf,
@@ -47,16 +50,14 @@ import {
   throwGrantAccessError,
 } from "@/helpers/vendor-grants";
 import { creatorFields } from "@/helpers/work-creator";
-import {
-  requireSeoTaskReactivation,
-  SEO_INACTIVE_TASK_STATUSES,
-} from "./project-seo-analysis-concurrency";
+import { archiveTaskRecord } from "./task-domain-archive";
 import {
   requireAssigneeForExecutableStatus,
   requireAssigneeXor,
   requireNoHumanAssigneeOnPrivateTask,
   taskAssigner,
 } from "./task-domain-assignee-guards";
+import { eventActorFields } from "./task-domain-event-actor";
 
 export { requireNoHumanAssigneeOnPrivateTask };
 
@@ -96,9 +97,16 @@ export interface CreateTaskDomainInput {
     | typeof TaskStatus.READY;
   /** Set together with QUEUED: the one time the Task moves to Ready. */
   runAt?: Date | null;
+  /** The day the Task should be done by, at 00:00 UTC. */
+  dueOn?: Date | null;
   channel?: Channel;
   /** Server-reserved effect identity, committed with this operation. */
   effectEventId?: string;
+  /**
+   * Makes the Task a sub-task of `taskId`, directly after `afterTaskId` or
+   * last. Project and visibility come from the parent.
+   */
+  parent?: { taskId: string; afterTaskId?: string | null };
 }
 
 export interface UpdateTaskDomainInput {
@@ -192,29 +200,6 @@ export async function requireTaskReferences(
   }
 }
 
-function eventActorFields(actor: TaskDomainActor) {
-  switch (actor.kind) {
-    case "user":
-      return {
-        userId: actor.userId,
-        coworkerId: null,
-        sokoBotId: null,
-      };
-    case "coworker":
-      return {
-        userId: null,
-        coworkerId: actor.coworkerId,
-        sokoBotId: null,
-      };
-    case "soko_bot":
-      return {
-        userId: null,
-        coworkerId: null,
-        sokoBotId: actor.sokoBotId,
-      };
-  }
-}
-
 async function resolvePendingGrant(
   input: CreateTaskDomainInput,
   tx: Prisma.TransactionClient,
@@ -274,10 +259,28 @@ export async function createTaskForActor(
   );
   if (input.ownerId === null && !(await isSharedSokoBotActor(input.actor, tx)))
     throw badRequest("Only a shared Soko Bot makes a Task without an Owner");
-  const visibility =
-    input.visibility === "PRIVATE" &&
-    input.organizationId != null &&
-    !(await isSharedSokoBotActor(input.actor, tx))
+  const parent = input.parent
+    ? await requireSubtaskParent(tx, {
+        parentTaskId: input.parent.taskId,
+        workspaceId: input.workspaceId,
+        ownerId: input.ownerId,
+      })
+    : null;
+  if (parent) {
+    if (input.projectId !== undefined && input.projectId !== parent.projectId)
+      throw unprocessableEntity("A sub-task stays in its parent's project");
+    if (
+      input.visibility !== undefined &&
+      input.visibility !== parent.visibility
+    )
+      throw unprocessableEntity("A sub-task has its parent's visibility");
+  }
+  const projectId = parent ? parent.projectId : (input.projectId ?? null);
+  const visibility = parent
+    ? parent.visibility
+    : input.visibility === "PRIVATE" &&
+        input.organizationId != null &&
+        !(await isSharedSokoBotActor(input.actor, tx))
       ? TaskVisibility.PRIVATE
       : TaskVisibility.PUBLIC;
 
@@ -290,7 +293,8 @@ export async function createTaskForActor(
   await requireTaskReferences(
     {
       ...input,
-      assignedTask: { visibility, projectId: input.projectId ?? null },
+      projectId,
+      assignedTask: { visibility, projectId },
     },
     tx,
   );
@@ -325,7 +329,17 @@ export async function createTaskForActor(
       ownerId: input.ownerId,
       organizationId: input.organizationId,
       workspaceId: input.workspaceId,
-      projectId: input.projectId ?? null,
+      projectId,
+      ...(parent
+        ? {
+            parentTaskId: parent.id,
+            position: await newSubtaskPosition(
+              tx,
+              parent.id,
+              input.parent?.afterTaskId,
+            ),
+          }
+        : {}),
       name: input.name,
       description,
       assigneeId: assigneeId ?? null,
@@ -334,10 +348,11 @@ export async function createTaskForActor(
       ...creatorFields(input.actor),
       status,
       visibility,
-      priority: input.priority,
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       runAt: input.runAt ?? null,
+      dueOn: input.dueOn ?? null,
       events: {
         create: taskCreationEvents({
           status,
@@ -460,108 +475,25 @@ async function requireMutableTask(
   return task;
 }
 
-/** Shared archive mutation after the caller has established archive access. */
-export async function archiveTaskRecord(
+/**
+ * Locks a Project change in the order a sub-task create, PATCH and move take:
+ * the Workspace, both Projects, then the Task before its sub-tasks, top-down
+ * as an archive locks them. The update renumbers in the new Project and keys
+ * the old one, so a Task lock taken first deadlocks with a sub-task create.
+ */
+async function lockProjectChange(
   tx: Prisma.TransactionClient,
-  task: Task,
-  options: {
-    expectedUpdatedAt?: Date;
-    actor?: TaskDomainActor;
-    effectEventId?: string;
-  } = {},
+  task: Pick<Task, "id" | "workspaceId" | "projectId">,
+  projectId: string | null | undefined,
 ): Promise<void> {
-  if (!canArchiveTaskStatus(task.status))
-    throw unprocessableEntity(getTaskCannotArchiveMessage(task.status));
-  // A generated Task is independent of its recurring parent (ADR 0041).
-  // The bot must not cancel a future one-off run as a side effect of archive.
   if (
-    options.actor?.kind === "soko_bot" &&
-    task.runAt &&
-    task.runAt > new Date()
-  ) {
-    throw unprocessableEntity(
-      "Remove the future Run at before archiving this Task",
-    );
-  }
-  if (
-    options.expectedUpdatedAt &&
-    task.updatedAt.getTime() !== options.expectedUpdatedAt.getTime()
+    !(await lockCalendarScope(tx, task.workspaceId, [
+      task.projectId,
+      projectId,
+    ])) ||
+    !(await lockTaskRows(tx, [task.id]))
   )
     throw conflict("Task changed; read it again");
-  const result = await tx.task.updateMany({
-    where: {
-      id: task.id,
-      archivedAt: null,
-      status: task.status,
-      updatedAt: task.updatedAt,
-    },
-    data: { archivedAt: new Date() },
-  });
-  if (result.count !== 1)
-    throw conflict("Task was modified concurrently; retry archive");
-  if (options.effectEventId && options.actor) {
-    await tx.taskEvent.create({
-      data: {
-        id: options.effectEventId,
-        taskId: task.id,
-        comment: "Task archived",
-        ...eventActorFields(options.actor),
-      },
-    });
-  }
-}
-
-/** Statuses that come back unchanged; nothing runs from them. */
-const RESTORE_KEEPS_STATUS: readonly TaskStatus[] = [
-  TaskStatus.DRAFT,
-  TaskStatus.CANCELED,
-  TaskStatus.COMPLETED,
-  TaskStatus.FAILED,
-];
-
-/**
- * Brings an archived Task back onto the board after the caller has
- * established manage access. A Task that was waiting to run (Queued, Ready,
- * waiting for a vendor grant) comes back as a Draft without its Run at, so
- * restoring never starts work or spends credits on its own. Notifications
- * marked read at archive stay read.
- */
-export async function restoreTaskRecord(
-  tx: Prisma.TransactionClient,
-  task: Task,
-  actor: TaskDomainActor,
-): Promise<void> {
-  if (!SEO_INACTIVE_TASK_STATUSES.includes(task.status))
-    await requireSeoTaskReactivation(tx, task.id);
-  const keepStatus = RESTORE_KEEPS_STATUS.includes(task.status);
-  const result = await tx.task.updateMany({
-    where: {
-      id: task.id,
-      archivedAt: { not: null },
-      updatedAt: task.updatedAt,
-    },
-    data: {
-      archivedAt: null,
-      ...(keepStatus
-        ? {}
-        : {
-            status: TaskStatus.DRAFT,
-            runAt: null,
-            pendingVendorGrantId: null,
-            grantResumeStatus: null,
-          }),
-    },
-  });
-  if (result.count !== 1)
-    throw conflict("Task was modified concurrently; retry restore");
-  await tx.taskEvent.create({
-    data: {
-      taskId: task.id,
-      comment: "Task restored",
-      ...(keepStatus ? {} : { status: TaskStatus.DRAFT }),
-      ...eventActorFields(actor),
-    },
-  });
 }
 
 /**
@@ -579,9 +511,10 @@ export async function updateTaskForActor(
       );
     }
   }
+  const { projectId, status } = input;
   const projectMoveOnly =
     input.actor.kind === "soko_bot" &&
-    input.projectId !== undefined &&
+    projectId !== undefined &&
     input.name === undefined &&
     input.description === undefined &&
     input.status === undefined &&
@@ -599,28 +532,33 @@ export async function updateTaskForActor(
   }
   if (projectMoveOnly && !input.archive) {
     const task = await findActorTask(input, tx);
-    await requireSeoTaskExecutionUnchanged(tx, task, {
-      projectId: input.projectId,
-    });
+    await requireSeoTaskExecutionUnchanged(tx, task, { projectId });
     if (
       input.expectedUpdatedAt &&
       task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
     )
       throw conflict("Task changed; read it again");
-    await requireProjectInWorkspace(input.projectId, task.workspaceId, tx);
+    await requireProjectInWorkspace(projectId, task.workspaceId, tx);
+    if (projectId !== task.projectId) {
+      requireNotSubtask(task);
+      await lockProjectChange(tx, task, projectId);
+      await requireSubtreeCanChangeProject(tx, task.id);
+    }
     return tx.task.update({
       where: { id: task.id, updatedAt: task.updatedAt },
       data: {
-        projectId: input.projectId,
-        events: input.effectEventId
+        projectId,
+        ...(input.effectEventId
           ? {
-              create: {
-                id: input.effectEventId,
-                comment: "Task moved to a project",
-                ...eventActorFields(input.actor),
+              events: {
+                create: {
+                  id: input.effectEventId,
+                  comment: TASK_MOVED_TO_PROJECT_COMMENT,
+                  ...eventActorFields(input.actor),
+                },
               },
             }
-          : undefined,
+          : {}),
       },
     });
   }
@@ -704,6 +642,13 @@ export async function updateTaskForActor(
     projectId: input.projectId,
     ...(assigneeWrite ?? {}),
   });
+  if (input.projectId !== undefined && input.projectId !== task.projectId) {
+    // A sub-task keeps its parent's Project; the trigger would refuse it as a 500.
+    requireNotSubtask(task);
+    await lockProjectChange(tx, task, input.projectId);
+    await requireSubtreeCanChangeProject(tx, task.id);
+  }
+  const changedStatus = status !== undefined && status !== task.status;
   return tx.task.update({
     where: {
       id: task.id,
@@ -712,30 +657,29 @@ export async function updateTaskForActor(
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
     },
     data: {
-      name: input.name,
-      description: input.description,
-      projectId: input.projectId,
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.description !== undefined
+        ? { description: input.description }
+        : {}),
+      ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(assigneeWrite ?? {}),
-      status: input.status,
+      ...(status !== undefined ? { status } : {}),
       // Record a status event only for a real transition; a Soko Bot
       // re-assignment that keeps DRAFT must not spam the task timeline.
-      events:
-        input.effectEventId ||
-        (input.status !== undefined && input.status !== task.status)
-          ? {
+      ...(input.effectEventId || changedStatus
+        ? {
+            events: {
               create: {
-                id: input.effectEventId,
-                status: input.status !== task.status ? input.status : undefined,
-                comment:
-                  input.effectEventId &&
-                  (input.status === undefined || input.status === task.status)
-                    ? "Task updated"
-                    : undefined,
+                ...(input.effectEventId !== undefined
+                  ? { id: input.effectEventId }
+                  : {}),
+                ...(changedStatus ? { status } : { comment: "Task updated" }),
                 channel: input.channel ?? Channel.SOKOSUMI,
                 ...eventActorFields(input.actor),
               },
-            }
-          : undefined,
+            },
+          }
+        : {}),
     },
   });
 }

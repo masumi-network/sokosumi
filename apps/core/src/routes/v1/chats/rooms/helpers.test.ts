@@ -741,6 +741,49 @@ describe("mapChatRoomMessage quote", () => {
     expect(mapped.metadata).toEqual({ soko_bot: { turn_id: "turn-1" } });
   });
 
+  it("rewrites an old failure quote in the quote and in public metadata", () => {
+    const quote = {
+      messageId: "550e8400-e29b-41d4-a716-446655440004",
+      authorName: "Assistant",
+      snippet:
+        'Background run "Review" ran out of time before it could report. (Raw provider diagnostic)',
+    };
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      senderSokoBotId: null,
+      content: "What should I do next?",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: { quote },
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+      },
+      senderCoworker: null,
+      senderSokoBot: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      pins: [],
+      threadReplyCount: 0,
+    });
+    expect(mapped.quote?.snippet).toBe(
+      'Background run "Review" ran out of time before it could report.',
+    );
+    expect(JSON.stringify(mapped.metadata)).not.toContain(
+      "Raw provider diagnostic",
+    );
+  });
+
   it("soft-parses legacy quotes without attachment", () => {
     const quote = {
       messageId: "550e8400-e29b-41d4-a716-446655440004",

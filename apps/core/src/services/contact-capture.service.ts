@@ -19,6 +19,7 @@ import {
   normalizeContactChannelValue,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import {
   type CaptureCandidate,
   type ExtractContext,
@@ -59,7 +60,13 @@ import {
   type XFollower,
 } from "@/lib/contacts/x-followers";
 import prisma from "@/lib/db/prisma";
-import { createCoreLogger } from "@/lib/evlog";
+import {
+  type CoreError,
+  createCoreLogger,
+  emitCoreError,
+  emitCoreWarning,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   runIntegrationTool,
   SokoBotIntegrationError,
@@ -242,7 +249,31 @@ export interface CaptureStats {
   skipped: SkipCounts;
   backfillsCompleted: number;
   unsupported: string[];
-  errors: string[];
+  /** Content-free: provider errors and contact writes can quote mail or addresses. */
+  errors: CaptureFailure[];
+}
+
+interface CaptureFailure {
+  integrationId?: string;
+  provider?: string;
+  source?: string;
+  failure: ReturnType<typeof messageSafeErrorFields>;
+}
+
+/**
+ * One error event per failure the run survives, with that item's context.
+ * Capture only runs in its cron, so the event is standalone. The error can
+ * quote a mail, a message or a contact, so it carries no cause, only
+ * `failure`.
+ */
+function emitCaptureError(
+  context: Record<string, unknown>,
+  error: Omit<CoreError, "cause">,
+  cause: unknown,
+) {
+  emitCoreError({ operation: "contact_capture", ...context }, error, {
+    failure: messageSafeErrorFields(cause),
+  });
 }
 
 function emptyStats(): CaptureStats {
@@ -534,10 +565,15 @@ export class ContactCaptureService {
             usd: this.limits.companyUsdPerWorkspace,
             shouldContinue,
           }).catch((error: unknown) => {
-            console.error("Company lookup failed", {
-              workspaceId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
+            emitCaptureError(
+              { workspace: { id: workspaceId } },
+              {
+                message: "Could not look up the companies of captured contacts",
+                why: "The company lookup step threw",
+                fix: "Capture is unaffected; the next contact capture run looks them up again.",
+              },
+              error,
+            );
             return companies;
           }),
         );
@@ -548,19 +584,31 @@ export class ContactCaptureService {
             limit: this.limits.embeddingsPerWorkspace,
             shouldContinue,
           }).catch((error: unknown) => {
-            console.error("Contact search embedding failed", {
-              workspaceId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
+            if (!(error instanceof AiGatewayBudgetError)) {
+              emitCaptureError(
+                { workspace: { id: workspaceId } },
+                {
+                  message: "Could not update contact search for a workspace",
+                  why: "The embedding step threw",
+                  fix: "Search keeps its old entries; the next contact capture run embeds the changed contacts.",
+                },
+                error,
+              );
+            }
             return { embedded: 0, costUsd: 0, failed: true };
           }),
         );
     } catch (error) {
-      stats.errors.push(error instanceof Error ? error.message : "unknown");
-      console.error("Contact capture failed", {
-        workspaceId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      stats.errors.push({ failure: messageSafeErrorFields(error) });
+      emitCaptureError(
+        { workspace: { id: workspaceId } },
+        {
+          message: "Contact capture stopped early for a workspace",
+          why: "A capture step threw outside any one integration",
+          fix: "The next contact capture run continues from the saved cursors. If it repeats, look up the error name and code under failure.",
+        },
+        error,
+      );
     } finally {
       log.set({
         workspace: { id: workspaceId },
@@ -723,13 +771,27 @@ export class ContactCaptureService {
           continue;
         }
         lastError = error instanceof Error ? error.message : "unknown";
-        stats.errors.push(`${row.provider}:${source}: ${lastError}`);
-        console.error("Contact capture source failed", {
+        const failure = {
           integrationId: row.id,
           provider: row.provider,
           source,
-          error: lastError,
+        };
+        stats.errors.push({
+          ...failure,
+          failure: messageSafeErrorFields(error),
         });
+        emitCaptureError(
+          {
+            workspace: { id: row.sokoBot.workspaceId },
+            contactCaptureSource: failure,
+          },
+          {
+            message: "Could not read a contact capture source",
+            why: "Reading the source from its provider failed",
+            fix: "The source keeps its cursor and the next contact capture run reads it again; its last error is on the capture state.",
+          },
+          error,
+        );
       }
     }
     const sources = PROVIDER_SOURCES[row.provider] ?? [];
@@ -1095,10 +1157,18 @@ export class ContactCaptureService {
       });
     } catch (error) {
       stats.failed += 1;
-      console.error("Contact capture write failed", {
-        integrationId: context.row.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      emitCaptureError(
+        {
+          workspace: { id: actor.workspaceId },
+          contactCaptureIntegration: { id: context.row.id },
+        },
+        {
+          message: "Could not save a captured contact",
+          why: "The contact write transaction failed",
+          fix: "The contact is skipped this run and captured again when it next appears. If it repeats, look up the error name and code under failure.",
+        },
+        error,
+      );
       return;
     }
     if (result.created) stats.created += 1;
@@ -1122,9 +1192,19 @@ export class ContactCaptureService {
       stats.merged += 1;
     } catch (error) {
       stats.mergeSuggestions += 1;
-      console.warn("Contact capture merge skipped", {
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      emitCoreWarning(
+        {
+          operation: "contact_capture",
+          workspace: { id: actor.workspaceId },
+          contactCaptureIntegration: { id: context.row.id },
+        },
+        {
+          message: "Suggested a contact merge instead of merging",
+          why: "The verified merge transaction failed",
+          fix: "Nothing is lost: the merge stays a suggestion the user can accept.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     }
   }
 
