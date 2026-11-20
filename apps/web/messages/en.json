@@ -13204,6 +13204,8 @@
         "savedActions": "Saved audit actions",
         "title": "Strategic planning",
         "paint": "Improve {device} loading speed",
+        "retestMobile": "Retest mobile loading",
+        "retestDesktop": "Retest desktop loading",
         "labLcp": "The largest item appeared after {seconds} s in the test.",
         "trace": "Find the largest image or text block. Check what delays it.",
         "retest": "Rerun the same {device} test and compare times.",
@@ -13301,12 +13303,10 @@
         "limited": "Showing a selection of Google’s returned results."
       },
       "reportFiles": {
-        "noQueryRecommendations": "Search Console returned no query rows for these pages and dates. This check has no query-based recommendations.",
         "recommendations": "Recommendations from this check",
         "recoverSearch": "Recover Search Console results",
         "recoverSearchFailed": "Could not recover Search Console results. Try again.",
         "crawlDetails": "Crawl details",
-        "performanceScope": "Page evidence below covers the audited URLs.",
         "topClickedPages": "Top pages by search clicks",
         "propertyPerformance": "Web search performance for the entire property",
         "propertyTotalsFailed": "Some property performance data could not be loaded. Try again.",
@@ -13317,7 +13317,6 @@
         "auditedUrls": "Audited URLs",
         "googleCanonical": "Measured Google canonical URL: {url}",
         "canonicalUnverified": "The audit measured the submitted URL. Its canonical URL is unverified.",
-        "withSearchConsole": "Reports and Search Console",
         "missingSearchConsole": "No Search Console results are available for this check.",
         "period": "{from} to {to}",
         "matchedHistory": "Compared with the same weekdays last year",
@@ -13328,6 +13327,7 @@
           "monitor": "The comparison with last year did not confirm the recent change. Monitor the next comparable period.",
           "insufficient_history": "There is too little comparable history to confirm the recent change."
         },
+        "thisPeriod": "This period",
         "previousPeriod": "Previous period",
         "title": "Report files",
         "run": "Check",
@@ -13349,7 +13349,9 @@
         "marketsChecked": "Market comparison checked",
         "importHelp": "Import this report to add its findings to your SEO results.",
         "recoverPageSpeed": "Read page speed from the saved report",
-        "speedChecked": "Read page speed from the saved report"
+        "speedChecked": "Read page speed from the saved report",
+        "noPageMetrics": "No page performance figures were saved for this check.",
+        "consoleResults": "Search Console results"
       },
       "timeline": {
         "statuses": {
@@ -13857,6 +13859,8 @@
         "askHow": "Draft a plan",
         "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
         "draftFix": "Ask the agent for a fix",
+        "reviewEvidence": "Review {count, plural, one {# audit action} other {# audit actions}}",
+        "connectedSearch": "Search Console is connected",
         "statisticsMissing": "Statistics are not set up",
         "demand": {
           "title": "Checked keywords with the most searches",
@@ -14182,6 +14186,7 @@
         "clicks": "Clicks",
         "impressions": "Times shown",
         "addresses": "Other addresses",
+        "propertyPages": "All pages in this property",
         "site": "Whole site",
         "selected": "Selected pages",
         "sort": "Order pages by",

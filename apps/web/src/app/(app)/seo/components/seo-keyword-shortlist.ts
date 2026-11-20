@@ -87,10 +87,11 @@ export function assessKeywordIdeas(
 }
 
 export function priorityFirst(a?: IdeaAssessment, b?: IdeaAssessment) {
-  if (a?.reason !== "priority" || b?.reason !== "priority")
-    return Number(b?.reason === "priority") - Number(a?.reason === "priority");
+  const priority =
+    Number(b?.reason === "priority") - Number(a?.reason === "priority");
+  if (priority || !a || !b) return priority;
   return (
-    (b.extra ?? 0) - (a.extra ?? 0) ||
+    (b.extra ?? -1) - (a.extra ?? -1) ||
     (b.lift ?? 0) - (a.lift ?? 0) ||
     a.order - b.order
   );

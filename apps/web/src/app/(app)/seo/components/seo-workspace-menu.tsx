@@ -2,6 +2,7 @@
 
 import {
   Archive,
+  ChartNoAxesCombined,
   Lightbulb,
   ListPlus,
   MoreHorizontal,
@@ -23,13 +24,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SeoReportFileSelection } from "./seo-report-files";
 import { useArchiveSeoAudit } from "./use-archive-seo-audit";
+import type { SeoReportFileProps } from "./use-seo-report-files";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 interface SeoArchiveAuditDialogProps {
@@ -98,11 +107,20 @@ function SeoArchiveAuditDialog({
 export function SeoWorkspaceMenu({
   model,
   unavailable,
+  versions,
 }: {
-  model: SeoWorkspaceModel;
+  versions: SeoReportFileProps["versions"];
+  model: SeoReportFileProps["model"] & Pick<SeoWorkspaceModel, "setDialog">;
   unavailable: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const [showResults, setShowResults] = useState(false);
+  const consoleVersions = versions.filter(
+    (v) =>
+      v.kind === "audit_full" ||
+      model.data.auditSearchConsole?.some((e) => e.taskId === v.taskId) ||
+      model.data.auditSearchConsoleRetryTaskIds?.includes(v.taskId),
+  );
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const manageTrigger = useRef<HTMLButtonElement>(null);
   const { auditId, auditName, projectId } = model.data;
@@ -126,7 +144,7 @@ export function SeoWorkspaceMenu({
         <DropdownMenuContent
           align="end"
           onCloseAutoFocus={(event) => {
-            if (confirmingArchive) event.preventDefault();
+            if (confirmingArchive || showResults) event.preventDefault();
           }}
         >
           {model.data.availableActions.canEdit ? (
@@ -138,6 +156,15 @@ export function SeoWorkspaceMenu({
               {t("brief.title")}
             </DropdownMenuItem>
           ) : null}
+          {consoleVersions.length > 0 && (
+            <DropdownMenuItem
+              disabled={unavailable}
+              onSelect={() => setShowResults(true)}
+            >
+              <ChartNoAxesCombined aria-hidden />
+              {t("reportFiles.consoleResults")}
+            </DropdownMenuItem>
+          )}
           {model.data.availableActions.canSyncMetrics ? (
             <DropdownMenuItem
               disabled={unavailable}
@@ -190,6 +217,32 @@ export function SeoWorkspaceMenu({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+      {showResults && consoleVersions.length > 0 && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setShowResults(false);
+          }}
+        >
+          <DialogContent
+            aria-describedby={undefined}
+            className="max-h-[85dvh] grid-cols-1 overflow-y-auto"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              manageTrigger.current?.focus();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{t("reportFiles.consoleResults")}</DialogTitle>
+            </DialogHeader>
+            <SeoReportFileSelection
+              model={model}
+              versions={consoleVersions}
+              view="console"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
       {confirmingArchive && auditId ? (
         <SeoArchiveAuditDialog
           auditId={auditId}

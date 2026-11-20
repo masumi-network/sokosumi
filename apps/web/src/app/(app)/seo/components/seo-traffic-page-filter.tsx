@@ -17,11 +17,13 @@ type Scope = (typeof scopes)[number];
 export function SeoTrafficPageFilter({
   scope,
   onScope,
+  propertyId,
   options,
   selected,
   onApply,
 }: {
   scope: Scope;
+  propertyId?: string | null;
   onScope: (scope: Scope) => void;
   options: string[];
   selected: string[];
@@ -42,7 +44,12 @@ export function SeoTrafficPageFilter({
           value={scope}
           options={scopes.map((value) => ({
             value,
-            label: t(`siteTraffic.${value}`),
+            label:
+              value === "site" &&
+              propertyId &&
+              !propertyId.startsWith("sc-domain:")
+                ? t("siteTraffic.propertyPages")
+                : t(`siteTraffic.${value}`),
           }))}
           onValueChange={(v) => onScope(v === "selected" ? "selected" : "site")}
         />

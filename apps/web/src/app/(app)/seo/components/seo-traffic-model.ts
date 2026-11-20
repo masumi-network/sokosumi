@@ -4,6 +4,8 @@ import type {
   SeoSiteTrafficReport,
 } from "@sokosumi/core-client";
 import { seoSearchSiteHost } from "@sokosumi/utils";
+import { z } from "zod";
+import { SEO_MAX_PAGES } from "./seo-form-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export type SeoTrafficChannel = ProjectSeoMetric["channel"];
@@ -138,4 +140,25 @@ export function seoTrafficPageOptions(
     )
     .map((page) => page.id);
   return { selected, options, selectedIds };
+}
+
+const savedUrls = z
+  .array(z.url({ protocol: /^https?$/ }).max(4096))
+  .min(1)
+  .max(SEO_MAX_PAGES);
+
+export function readTrafficPages(key: string) {
+  try {
+    const value = window.sessionStorage.getItem(key);
+    return value ? savedUrls.parse(JSON.parse(value)) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+export function saveTrafficPages(key: string, urls: string[]) {
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(urls));
+  } catch {
+    // The in-memory filter still works when browser storage is unavailable.
+  }
 }

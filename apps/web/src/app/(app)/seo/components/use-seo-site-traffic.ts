@@ -118,6 +118,7 @@ export function useSeoSiteTraffic(
     },
   });
   return {
+    propertyId: choice.propertyId,
     query,
     available,
     tooMany,

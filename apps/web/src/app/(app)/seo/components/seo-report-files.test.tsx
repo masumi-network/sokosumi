@@ -20,6 +20,7 @@ import {
   seoTestStrategy,
   seoTestWorkspace,
 } from "./seo-test-fixture";
+import { SeoWorkspaceMenu } from "./seo-workspace-menu";
 
 const { getTaskById, execute, viewer } = vi.hoisted(() => ({
   getTaskById: vi.fn(),
@@ -214,11 +215,22 @@ function openRuns(
       queryFn: async () => data,
       enabled: false,
     });
+    const versions = seoReportVersions(workspace, { from: null, to: null });
+    const model = {
+      data: workspace,
+      pending: false,
+      execute,
+      setDialog: vi.fn(),
+    };
     return (
-      <SeoReportFiles
-        versions={seoReportVersions(workspace, { from: null, to: null })}
-        model={{ data: workspace, pending: false, execute }}
-      />
+      <>
+        <SeoReportFiles versions={versions} model={model} />
+        <SeoWorkspaceMenu
+          versions={versions}
+          model={model}
+          unavailable={false}
+        />
+      </>
     );
   }
   render(
@@ -251,19 +263,24 @@ function task(id: string, files: TaskFile[]) {
   };
 }
 
+async function openConsole(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Manage SEO" }));
+  await user.click(
+    await screen.findByRole("menuitem", { name: "Search Console results" }),
+  );
+  return within(
+    await screen.findByRole("dialog", { name: "Search Console results" }),
+  );
+}
+
 describe("SEO report file versions", () => {
   it("keeps Search Console evidence with its run, including a measured zero and missing impressions", async () => {
     getTaskById.mockImplementation(async (id: string) => task(id, []));
     const user = openRuns(false, true);
-    await user.click(
-      screen.getByRole("button", { name: "Reports and Search Console" }),
-    );
+    await openConsole(user);
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByText("Crawl details"));
-    await user.click(dialog.getByText("Sampled public pages"));
-    expect(
-      dialog.getByRole("link", { name: "https://example.com/newer-report" }),
-    ).toBeVisible();
+    expect(dialog.queryByText("Crawl details")).toBeNull();
+    expect(getTaskById).not.toHaveBeenCalled();
     const evidence = within(
       dialog.getByRole("region", { name: "Search Console" }),
     );
@@ -273,7 +290,12 @@ describe("SEO report file versions", () => {
       }),
     ).toBeVisible();
     expect(evidence.getByText("sc-domain:example.com")).toBeVisible();
-    expect(evidence.getByText("2026-10-01 to 2026-10-28")).toBeVisible();
+    expect(
+      evidence.getByRole("columnheader", {
+        name: /This period.*Oct 1.*28, 2026/,
+      }),
+    ).toBeVisible();
+    await user.click(evidence.getByText("Audited URLs"));
     expect(evidence.getByText("https://example.com/shop")).toBeVisible();
     expect(evidence.getByText("https://example.com/blog")).toBeVisible();
     expect(
@@ -302,7 +324,7 @@ describe("SEO report file versions", () => {
     ).toBeVisible();
     expect(
       evidence.getByRole("columnheader", {
-        name: /Previous period.*2026-09-03 to 2026-09-30/,
+        name: /Previous period.*Sep 3.*30, 2026/,
       }),
     ).toBeVisible();
     expect(
@@ -333,16 +355,6 @@ describe("SEO report file versions", () => {
     ).toBeVisible();
     await user.click(dialog.getByRole("combobox", { name: "Check" }));
     await user.click(await screen.findByRole("option", { name: /Full audit/ }));
-    expect(dialog.getByText("Internal links and indexing")).not.toBeVisible();
-    await user.click(dialog.getByText("Crawl details"));
-    expect(dialog.getByText("Internal links and indexing")).toBeVisible();
-    await user.click(dialog.getByText("Sampled public pages"));
-    expect(
-      dialog.queryByRole("link", { name: "https://example.com/newer-report" }),
-    ).toBeNull();
-    expect(
-      dialog.getByRole("link", { name: "https://example.com/shop" }),
-    ).toBeVisible();
     expect(dialog.queryByText("sc-domain:example.com")).toBeNull();
     expect(dialog.queryByText("Review the shop snippet")).toBeNull();
     expect(
@@ -353,12 +365,35 @@ describe("SEO report file versions", () => {
     expect(dialog.queryByText("876,543")).toBeNull();
   });
 
+  it("opens scoped crawl evidence from files without repeating saved Search Console results", async () => {
+    getTaskById.mockImplementation(async (id: string) => task(id, []));
+    const user = openRuns(false, true);
+    await user.click(screen.getByRole("button", { name: "Report files" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.queryByText("sc-domain:example.com")).toBeNull();
+    await user.click(dialog.getByText("Crawl details"));
+    await user.click(dialog.getByText("Sampled public pages"));
+    expect(
+      dialog.getByRole("link", { name: "https://example.com/newer-report" }),
+    ).toBeVisible();
+    await user.click(dialog.getByRole("combobox", { name: "Check" }));
+    await user.click(await screen.findByRole("option", { name: /Full audit/ }));
+    expect(dialog.getByText("Internal links and indexing")).not.toBeVisible();
+    await user.click(dialog.getByText("Crawl details"));
+    expect(dialog.getByText("Internal links and indexing")).toBeVisible();
+    await user.click(dialog.getByText("Sampled public pages"));
+    expect(
+      dialog.queryByRole("link", { name: "https://example.com/newer-report" }),
+    ).toBeNull();
+    expect(
+      dialog.getByRole("link", { name: "https://example.com/shop" }),
+    ).toBeVisible();
+  });
+
   it("keeps saved results readable when property recovery has expired", async () => {
     getTaskById.mockImplementation(async (id: string) => task(id, []));
     const user = openRuns(false, true, [], undefined, true);
-    await user.click(
-      screen.getByRole("button", { name: "Reports and Search Console" }),
-    );
+    await openConsole(user);
     const dialog = within(await screen.findByRole("dialog"));
     expect(
       dialog.getByText(/outside Search Console’s data retention/),
@@ -418,9 +453,7 @@ describe("SEO report file versions", () => {
         }),
       );
       vi.stubGlobal("fetch", fetch);
-      await user.click(
-        screen.getByRole("button", { name: "Reports and Search Console" }),
-      );
+      await openConsole(user);
       const dialog = within(await screen.findByRole("dialog"));
       expect(fetch).not.toHaveBeenCalled();
       await user.click(
@@ -507,9 +540,7 @@ describe("SEO report file versions", () => {
     vi.stubGlobal("fetch", fetch);
     getTaskById.mockImplementation(async (id: string) => task(id, []));
     const user = openRuns(false, true, ["older"]);
-    await user.click(
-      screen.getByRole("button", { name: "Reports and Search Console" }),
-    );
+    await openConsole(user);
     expect(
       screen.queryByRole("button", { name: "Recover Search Console results" }),
     ).toBeNull();
@@ -544,12 +575,7 @@ describe("SEO report file versions", () => {
     expect(screen.getAllByText("2026-09-01 to 2026-09-28")[0]).toBeVisible();
     await user.click(screen.getByText("Page performance is unverified."));
     expect(pageTable).toBeVisible();
-    expect(
-      screen.getByText(
-        "Search Console returned no query rows for these pages and dates. This check has no query-based recommendations.",
-      ),
-    ).toBeVisible();
-    await user.click(screen.getByText("Search Console queries"));
+    expect(screen.queryByText("Search Console queries")).toBeNull();
     expect(
       screen.getByText("Search Console returned no query rows"),
     ).toBeVisible();

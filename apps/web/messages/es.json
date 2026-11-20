@@ -13204,6 +13204,8 @@
         "savedActions": "Acciones guardadas de la auditoría",
         "title": "Planificación estratégica",
         "paint": "Mejorar la velocidad de carga ({device})",
+        "retestMobile": "Volver a medir la carga en móviles",
+        "retestDesktop": "Volver a medir la carga en ordenadores",
         "labLcp": "En la prueba, el mayor elemento apareció tras {seconds} s.",
         "trace": "Busca la imagen o el bloque de texto más grande. Comprueba qué retrasa su aparición.",
         "retest": "Repite la misma prueba ({device}) y compara los tiempos.",
@@ -13301,12 +13303,10 @@
         "limited": "Se muestra una selección de los resultados que devolvió Google."
       },
       "reportFiles": {
-        "noQueryRecommendations": "Search Console no devolvió consultas para estas páginas y fechas. Esta comprobación no tiene recomendaciones basadas en consultas.",
         "recommendations": "Recomendaciones de esta comprobación",
         "recoverSearch": "Recuperar resultados de Search Console",
         "recoverSearchFailed": "No se pudieron recuperar los resultados de Search Console. Vuelve a intentarlo.",
         "crawlDetails": "Detalles del rastreo",
-        "performanceScope": "Los datos de página que siguen corresponden a las URL auditadas.",
         "topClickedPages": "Páginas con más clics en la búsqueda",
         "propertyPerformance": "Rendimiento en la búsqueda web de toda la propiedad",
         "propertyTotalsFailed": "No se pudieron cargar todos los datos de la propiedad. Vuelve a intentarlo.",
@@ -13317,7 +13317,6 @@
         "auditedUrls": "URLs auditadas",
         "googleCanonical": "URL canónica de Google medida: {url}",
         "canonicalUnverified": "Se midió la URL enviada. No se verificó la URL canónica.",
-        "withSearchConsole": "Informes y Search Console",
         "missingSearchConsole": "No hay resultados de Search Console disponibles para esta comprobación.",
         "period": "Del {from} al {to}",
         "matchedHistory": "Comparación con los mismos días de la semana del año anterior",
@@ -13328,6 +13327,7 @@
           "monitor": "La comparación anual no confirmó el cambio reciente. Observa el próximo período comparable.",
           "insufficient_history": "El historial comparable no basta para confirmar el cambio reciente."
         },
+        "thisPeriod": "Este periodo",
         "previousPeriod": "Periodo anterior",
         "title": "Archivos del informe",
         "run": "Comprobación",
@@ -13349,7 +13349,9 @@
         "marketsChecked": "Comparación de mercados comprobada",
         "importHelp": "Importa este informe para añadir sus hallazgos a tus resultados de SEO.",
         "recoverPageSpeed": "Leer el rendimiento de página del informe guardado",
-        "speedChecked": "Se leyó el rendimiento de página del informe guardado"
+        "speedChecked": "Se leyó el rendimiento de página del informe guardado",
+        "noPageMetrics": "No se guardaron datos de rendimiento de las páginas para esta comprobación.",
+        "consoleResults": "Resultados de Search Console"
       },
       "timeline": {
         "statuses": {
@@ -13857,6 +13859,8 @@
         "askHow": "Preparar un plan",
         "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
         "draftFix": "Pedir una corrección al agente",
+        "reviewEvidence": "Ver {count, plural, one {# acción de la auditoría} other {# acciones de la auditoría}}",
+        "connectedSearch": "Search Console está conectado",
         "statisticsMissing": "Las estadísticas no están configuradas",
         "demand": {
           "title": "Palabras clave comprobadas con más búsquedas",
@@ -14182,6 +14186,7 @@
         "clicks": "Clics",
         "impressions": "Apariciones",
         "addresses": "Otras direcciones",
+        "propertyPages": "Todas las páginas de esta propiedad",
         "site": "Todo el sitio",
         "selected": "Páginas seleccionadas",
         "sort": "Ordenar páginas por",

@@ -45,7 +45,9 @@ it("prioritizes slow mobile lab paint once, including when a saved device-specif
       ],
     },
   ];
-  expect(seoWorklistEvidence(data, undefined, [], t)).toHaveLength(0);
+  expect(seoWorklistEvidence(data, undefined, [], t)).toMatchObject([
+    { bucket: "suggestions", title: "Retest mobile loading", url: pageUrl },
+  ]);
   data.observations[0].checklistBreakdown = {
     passed: 0,
     flagged: 0,

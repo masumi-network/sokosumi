@@ -27,6 +27,14 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
   const unverified =
     evidence.measuredPages.length > 0 &&
     evidence.measuredPages.every((page) => page.basis === "unverified");
+  const hasPageMetrics = auditMetrics.some(
+    ([key]) => evidence[key] != null || previous?.[key] != null,
+  );
+  const columnPeriod = (value: Pick<Evidence, "from" | "to">) =>
+    format.dateTimeRange(new Date(value.from), new Date(value.to), {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    });
   const pageTable = (
     <table className="w-full text-left text-sm">
       <caption className="pb-2 text-start font-medium">
@@ -35,14 +43,24 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
       <thead>
         <tr>
           <td />
-          <th scope="col" className="text-right font-medium">
-            {period(evidence)}
+          <th
+            scope="col"
+            className="pb-2 ps-2 text-right align-top font-medium"
+          >
+            {report("reportFiles.thisPeriod")}
+            <span className="block ps-2 text-xs font-normal text-muted-foreground">
+              {columnPeriod(evidence)}
+            </span>
           </th>
           {previous && (
-            <th scope="col" className="text-right font-medium">
+            <th
+              scope="col"
+              className="pb-2 ps-2 text-right align-top font-medium"
+            >
               {report("reportFiles.previousPeriod")}
-              <br />
-              {period(previous)}
+              <span className="block ps-2 text-xs font-normal text-muted-foreground">
+                {columnPeriod(previous)}
+              </span>
             </th>
           )}
         </tr>
@@ -53,11 +71,11 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
             <th scope="row" className="py-1 text-start font-normal">
               {report(`metrics.${label}`)}
             </th>
-            <td className="text-right tabular-nums">
+            <td className="ps-2 text-right tabular-nums">
               {number(evidence[key], key)}
             </td>
             {previous && (
-              <td className="text-right tabular-nums">
+              <td className="ps-2 text-right tabular-nums">
                 {number(previous[key], key)}
               </td>
             )}
@@ -72,12 +90,13 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
       aria-labelledby={heading}
       className="min-w-0 space-y-3 border-y py-3 text-sm"
     >
-      <h3 id={heading} className="font-semibold">
+      <h3 id={heading} className="sr-only">
         {report("statistics.search_console")}
       </h3>
-      {!propertyTotals && (unverified || Boolean(topClickedPages?.length)) && (
-        <p className="text-muted-foreground">{period(evidence)}</p>
-      )}
+      {!propertyTotals &&
+        (!hasPageMetrics || unverified || Boolean(topClickedPages?.length)) && (
+          <p className="text-muted-foreground">{period(evidence)}</p>
+        )}
       <SeoPropertyPerformance evidence={evidence} />
       {topClickedPages && topClickedPages.length > 0 && (
         <table className="w-full text-sm">
@@ -115,16 +134,20 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
         </table>
       )}
       <SeoPropertyPageDiscovery report={evidence} />
-      <p className="text-muted-foreground">
-        {report("reportFiles.performanceScope")}
-      </p>
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
         <dt>{report("statistics.property")}</dt>
         <dd className="break-all">{evidence.propertyId}</dd>
         <dt>{report("coverage")}</dt>
         <dd>{report(`coverageStatus.${evidence.coverage}`)}</dd>
-        <dt>{report("reportFiles.auditedUrls")}</dt>
-        <dd>
+      </dl>
+      {evidence.measuredPages.length > 0 && (
+        <details
+          key={evidence.taskId + "-urls"}
+          className="rounded-md border px-3"
+        >
+          <SeoFoldSummary className="min-h-10 font-medium">
+            {report("reportFiles.auditedUrls")}
+          </SeoFoldSummary>
           <ul className="space-y-2">
             {evidence.measuredPages.map(({ pageUrl, measuredUrl, basis }) => (
               <li className="break-all" key={pageUrl}>
@@ -144,9 +167,13 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
               </li>
             ))}
           </ul>
-        </dd>
-      </dl>
-      {unverified ? (
+        </details>
+      )}
+      {!hasPageMetrics ? (
+        <p className="text-muted-foreground">
+          {report("reportFiles.noPageMetrics")}
+        </p>
+      ) : unverified ? (
         <details key={evidence.taskId}>
           <SeoFoldSummary>
             {report("reportFiles.unverifiedPagePerformance")}
@@ -176,9 +203,6 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
             {report(`reportFiles.historyDecision.${evidence.history.decision}`)}
           </p>
         </section>
-      )}
-      {queries && queries.rows.length === 0 && (
-        <p>{report("reportFiles.noQueryRecommendations")}</p>
       )}
       {evidence.opportunities?.length > 0 && (
         <section aria-labelledby={recommendations} className="space-y-2">
@@ -215,13 +239,9 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
           </ul>
         </section>
       )}
-      <details>
-        <SeoFoldSummary>{report("queries.title")}</SeoFoldSummary>
-        {!queries ? (
-          <p>{report("queries.notLoaded")}</p>
-        ) : !queries.rows.length ? (
-          <p>{report("queries.empty")}</p>
-        ) : (
+      {queries?.rows.length ? (
+        <details key={evidence.taskId + "-queries"}>
+          <SeoFoldSummary>{report("queries.title")}</SeoFoldSummary>
           <ul className="divide-y">
             {queries.rows.map((row) => (
               <li
@@ -234,7 +254,7 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
                   {auditMetrics.map(([key, label]) => (
                     <div className="contents" key={key}>
                       <dt>{report(`metrics.${label}`)}</dt>
-                      <dd className="text-right tabular-nums">
+                      <dd className="ps-2 text-right tabular-nums">
                         {number(row[key], key)}
                       </dd>
                     </div>
@@ -243,11 +263,15 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
               </li>
             ))}
           </ul>
-        )}
-        {queries?.truncated && (
-          <p>{report("queries.truncated", { count: queries.rows.length })}</p>
-        )}
-      </details>
+          {queries.truncated && (
+            <p>{report("queries.truncated", { count: queries.rows.length })}</p>
+          )}
+        </details>
+      ) : (
+        <p className="text-muted-foreground">
+          {report(queries ? "queries.empty" : "queries.notLoaded")}
+        </p>
+      )}
     </section>
   );
 }

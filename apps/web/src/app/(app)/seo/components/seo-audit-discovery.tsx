@@ -67,89 +67,95 @@ export function SeoDiscoveryActions({
 export function SeoAuditDiscovery({ evidence }: { evidence: Evidence }) {
   const t = useSeoResultTranslations("App.Seo.discovery");
   return (
-    <section className="space-y-2" lang="en">
-      <h4 className="font-medium">{t("heading")}</h4>
-      <p>
-        {t(evidence.status, {
-          count: evidence.sitemaps.length,
-          date: day(evidence.checkedAt),
-        })}
-      </p>
-      {evidence.sitemaps.length > 0 && (
-        <details>
-          <SeoFoldSummary>{t("files")}</SeoFoldSummary>
-          <ul className="space-y-2">
-            {evidence.sitemaps.map((s) => (
-              <li key={s.path}>
-                <p className="break-all">{s.path}</p>
-                {s.pending && <p>{t("pending")}</p>}
-                <p>
-                  {t("counts", {
-                    errors: s.errors ?? "?",
-                    warnings: s.warnings ?? "?",
-                  })}
-                </p>
-                {s.webUrls !== null && (
-                  <p>{t("webUrls", { count: s.webUrls })}</p>
-                )}
-                {s.submittedAt && (
-                  <p>{t("submitted", { date: day(s.submittedAt) })}</p>
-                )}
-                {s.downloadedAt && (
-                  <p>{t("read", { date: day(s.downloadedAt) })}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-      <details>
-        <SeoFoldSummary>
-          {t("inspections", { count: evidence.inspections.length })}
-        </SeoFoldSummary>
-        <ul className="space-y-2">
-          {evidence.inspections.map((p) => (
-            <li key={p.page}>
-              <p className="break-all">{p.page}</p>
-              <p>{p.reason ?? p.verdict}</p>
-              {p.canonical && (
-                <p className="break-all">
-                  {t("canonical", { url: p.canonical })}
-                </p>
-              )}
-              {p.reportedSitemaps?.length ? (
-                <div>
-                  {t("reportedSitemaps")}
-                  <ul>
-                    {p.reportedSitemaps.map((url) => (
-                      <li className="break-all" key={url}>
-                        {url}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {p.referringPages?.length ? (
-                <div>
-                  {t("referringPages")}
-                  <ul>
-                    {p.referringPages.map((url) => (
-                      <li className="break-all" key={url}>
-                        {url}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {p.crawledAt && (
-                <p>{t("crawl", { date: p.crawledAt.slice(0, 10) })}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </details>
-      <SeoDiscoveryActions evidence={evidence} />
-    </section>
+    <details className="rounded-md border px-3" lang="en">
+      <SeoFoldSummary className="min-h-10 font-medium">
+        {t("heading")}
+      </SeoFoldSummary>
+      <div className="space-y-3 pb-3">
+        <p>
+          {t(evidence.status, {
+            count: evidence.sitemaps.length,
+            date: day(evidence.checkedAt),
+          })}
+        </p>
+        {evidence.sitemaps.length > 0 && (
+          <details>
+            <SeoFoldSummary>{t("files")}</SeoFoldSummary>
+            <ul className="space-y-2">
+              {evidence.sitemaps.map((s) => (
+                <li key={s.path}>
+                  <p className="break-all">{s.path}</p>
+                  {s.pending && <p>{t("pending")}</p>}
+                  <p>
+                    {t("counts", {
+                      errors: s.errors ?? "?",
+                      warnings: s.warnings ?? "?",
+                    })}
+                  </p>
+                  {s.webUrls !== null && (
+                    <p>{t("webUrls", { count: s.webUrls })}</p>
+                  )}
+                  {s.submittedAt && (
+                    <p>{t("submitted", { date: day(s.submittedAt) })}</p>
+                  )}
+                  {s.downloadedAt && (
+                    <p>{t("read", { date: day(s.downloadedAt) })}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {evidence.inspections.length > 0 && (
+          <details>
+            <SeoFoldSummary>
+              {t("inspections", { count: evidence.inspections.length })}
+            </SeoFoldSummary>
+            <ul className="space-y-2">
+              {evidence.inspections.map((p) => (
+                <li key={p.page}>
+                  <p className="break-all">{p.page}</p>
+                  <p>{p.reason ?? p.verdict}</p>
+                  {p.canonical && (
+                    <p className="break-all">
+                      {t("canonical", { url: p.canonical })}
+                    </p>
+                  )}
+                  {p.reportedSitemaps?.length ? (
+                    <div>
+                      {t("reportedSitemaps")}
+                      <ul>
+                        {p.reportedSitemaps.map((url) => (
+                          <li className="break-all" key={url}>
+                            {url}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {p.referringPages?.length ? (
+                    <div>
+                      {t("referringPages")}
+                      <ul>
+                        {p.referringPages.map((url) => (
+                          <li className="break-all" key={url}>
+                            {url}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {p.crawledAt && (
+                    <p>{t("crawl", { date: p.crawledAt.slice(0, 10) })}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <SeoDiscoveryActions evidence={evidence} />
+      </div>
+    </details>
   );
 }
 

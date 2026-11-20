@@ -13204,6 +13204,8 @@
         "savedActions": "Gespeicherte Audit-Maßnahmen",
         "title": "Strategische Planung",
         "paint": "Ladezeit verbessern ({device})",
+        "retestMobile": "Ladezeit auf Mobilgeräten erneut testen",
+        "retestDesktop": "Ladezeit auf dem Desktop erneut testen",
         "labLcp": "Das größte Element wurde im Test nach {seconds} s sichtbar.",
         "trace": "Suche das größte Bild oder Textfeld. Prüfe, was seine Anzeige verzögert.",
         "retest": "Wiederhole denselben Test ({device}) und vergleiche die Zeiten.",
@@ -13301,12 +13303,10 @@
         "limited": "Eine Auswahl der von Google gelieferten Ergebnisse wird angezeigt."
       },
       "reportFiles": {
-        "noQueryRecommendations": "Die Search Console hat für diese Seiten und diesen Zeitraum keine Suchanfragen zurückgegeben. Für diese Prüfung gibt es daher keine Empfehlungen aus Suchanfragen.",
         "recommendations": "Empfehlungen aus dieser Prüfung",
         "recoverSearch": "Search Console-Ergebnisse abrufen",
         "recoverSearchFailed": "Die Search Console-Ergebnisse konnten nicht abgerufen werden. Versuche es erneut.",
         "crawlDetails": "Crawl-Details",
-        "performanceScope": "Die folgenden Seitendaten beziehen sich auf die geprüften URLs.",
         "topClickedPages": "Seiten mit den meisten Suchklicks",
         "propertyPerformance": "Websuche für die gesamte Property",
         "propertyTotalsFailed": "Ein Teil der Suchdaten konnte nicht geladen werden. Bitte erneut versuchen.",
@@ -13317,7 +13317,6 @@
         "auditedUrls": "Geprüfte URLs",
         "googleCanonical": "Gemessene kanonische Google-URL: {url}",
         "canonicalUnverified": "Eingereichte URL gemessen. Die kanonische URL wurde nicht bestätigt.",
-        "withSearchConsole": "Berichte und Search Console",
         "missingSearchConsole": "Für diese Prüfung sind keine Search Console-Ergebnisse verfügbar.",
         "period": "{from} bis {to}",
         "matchedHistory": "Vergleich mit denselben Wochentagen im Vorjahr",
@@ -13328,6 +13327,7 @@
           "monitor": "Der Vorjahresvergleich bestätigt die letzte Änderung nicht. Beobachten Sie den nächsten vergleichbaren Zeitraum.",
           "insufficient_history": "Die Vergleichsdaten reichen nicht aus, um die letzte Änderung zu bestätigen."
         },
+        "thisPeriod": "Dieser Zeitraum",
         "previousPeriod": "Vorheriger Zeitraum",
         "title": "Berichtsdateien",
         "run": "Prüfung",
@@ -13349,7 +13349,9 @@
         "marketsChecked": "Marktvergleich geprüft",
         "importHelp": "Importiere diesen Bericht, um seine Befunde zu deinen SEO-Ergebnissen hinzuzufügen.",
         "recoverPageSpeed": "Lade Seitenleistung aus dem gespeicherten Bericht",
-        "speedChecked": "Seitenleistung aus dem Bericht geladen"
+        "speedChecked": "Seitenleistung aus dem Bericht geladen",
+        "noPageMetrics": "Für diese Prüfung wurden keine Leistungsdaten zu den Seiten gespeichert.",
+        "consoleResults": "Search Console-Ergebnisse"
       },
       "timeline": {
         "statuses": {
@@ -13857,6 +13859,8 @@
         "askHow": "Plan entwerfen",
         "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
         "draftFix": "Agent um Korrektur bitten",
+        "reviewEvidence": "{count, plural, one {# Maßnahme ansehen} other {# Maßnahmen ansehen}}",
+        "connectedSearch": "Search Console ist verbunden",
         "statisticsMissing": "Statistiken sind nicht eingerichtet",
         "demand": {
           "title": "Geprüfte Keywords mit den meisten Suchen",
@@ -14182,6 +14186,7 @@
         "clicks": "Klicks",
         "impressions": "Einblendungen",
         "addresses": "Weitere Adressen",
+        "propertyPages": "Alle Seiten dieser Property",
         "site": "Gesamte Website",
         "selected": "Ausgewählte Seiten",
         "sort": "Seiten sortieren nach",

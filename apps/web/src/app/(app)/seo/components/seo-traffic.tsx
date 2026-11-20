@@ -2,7 +2,7 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import useIsClient from "@/hooks/use-is-client";
 import { SeoAiAssistants } from "./seo-ai-assistants";
 import { SeoBreakdown } from "./seo-breakdown";
 import { SeoExportMenu } from "./seo-export-menu";
@@ -35,7 +36,12 @@ import {
 } from "./seo-shared";
 import { SeoSiteTrafficReportView } from "./seo-site-traffic";
 import { seoQueryPeriod } from "./seo-statistics-model";
-import { seoKeyEvents, seoTrafficPageOptions } from "./seo-traffic-model";
+import {
+  readTrafficPages,
+  saveTrafficPages,
+  seoKeyEvents,
+  seoTrafficPageOptions,
+} from "./seo-traffic-model";
 import { SeoTrafficPageFilter } from "./seo-traffic-page-filter";
 import { useSeoSiteTraffic } from "./use-seo-site-traffic";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -43,20 +49,25 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 const trafficScopes = ["site", "selected"] as const;
 
 export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
+  const storageKey = JSON.stringify([
+    "seo-traffic-pages",
+    model.setupScopeKey,
+    model.data.projectId,
+    model.data.websiteUrl,
+    model.filters.pageId,
+    model.filters.scopeId,
+  ]);
   return (
-    <SeoTrafficContent
-      key={JSON.stringify([
-        model.data.auditId,
-        model.data.projectId,
-        model.data.websiteUrl,
-        model.filters.pageId,
-        model.filters.scopeId,
-      ])}
-      model={model}
-    />
+    <SeoTrafficContent key={storageKey} storageKey={storageKey} model={model} />
   );
 }
-function SeoTrafficContent({ model }: { model: SeoWorkspaceModel }) {
+function SeoTrafficContent({
+  model,
+  storageKey,
+}: {
+  model: SeoWorkspaceModel;
+  storageKey: string;
+}) {
   const t = useTranslations("App.Seo");
   const [choice, setChoice] = useQueryState(
     "trafficScope",
@@ -68,18 +79,27 @@ function SeoTrafficContent({ model }: { model: SeoWorkspaceModel }) {
       ? "selected"
       : "site");
   const [urls, setUrls] = useState<string[]>();
+  const client = useIsClient();
+  const previous = useMemo(
+    () => (client ? readTrafficPages(storageKey) : undefined),
+    [client, storageKey],
+  );
+  function applyPages(pages: string[]) {
+    setUrls(pages);
+    saveTrafficPages(storageKey, pages);
+  }
   const whole = useSeoSiteTraffic(model, "site");
   const { selected, options, selectedIds } = seoTrafficPageOptions(
     model.data,
     seoSiteUrl(model.data),
     whole.query.data?.pages ?? [],
-    urls,
+    urls ?? previous,
   );
   const selection = useSeoSiteTraffic(
     model,
     "selected",
     selected,
-    scope === "selected",
+    scope === "selected" && client,
     selectedIds,
   );
   const { query, available, pending, tooMany, canChooseScope, retry } =
@@ -114,7 +134,8 @@ function SeoTrafficContent({ model }: { model: SeoWorkspaceModel }) {
             onScope={(v) => void setChoice(v)}
             options={options}
             selected={selected}
-            onApply={setUrls}
+            propertyId={whole.propertyId}
+            onApply={applyPages}
           />
           {hasReport ? (
             <SeoSiteTrafficReportView key={scope + live.site} report={live} />

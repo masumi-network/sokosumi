@@ -16,11 +16,13 @@ export function SeoStrategicPlanning({ model }: { model: SeoWorkspaceModel }) {
   const locale = useLocale();
   const strategy = model.data.strategy;
   const priorities =
-    model.brief?.data?.priorities?.filter(
-      (p) =>
-        model.data.scope.pageIds.includes(p.pageId) &&
-        (!model.filters.pageId || p.pageId === model.filters.pageId),
-    ) ?? [];
+    model.filters.from || model.filters.to
+      ? []
+      : (model.brief?.data?.priorities?.filter(
+          (p) =>
+            model.data.scope.pageIds.includes(p.pageId) &&
+            (!model.filters.pageId || p.pageId === model.filters.pageId),
+        ) ?? []);
   const verdict =
     strategy && seoStrategyKey(SEO_STRATEGY_VERDICTS, strategy.verdict);
   const lead = strategy && seoStrategyReason(strategy).lead;

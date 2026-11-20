@@ -64,7 +64,6 @@ export function seoWorklistEvidence(
       ) ||
       measurement.field.status !== "not_checked" ||
       lab.status !== "measured" ||
-      !lab.pageSpeed ||
       lab.median.lcp == null ||
       lab.median.lcp <= GOOD_LAB_LCP_MS
     )
@@ -84,7 +83,7 @@ export function seoWorklistEvidence(
         f.rowId === "EX-14" &&
         f.evidence.some((line) => PUBLIC_FIELD_SKIP.test(line)),
     );
-    if (!skipped && !slowFinding) continue;
+    const confirmed = Boolean(lab.pageSpeed && (skipped || slowFinding));
     const insight = lab.pageSpeed?.insights.find(
       (i) => i.id === "lcp-breakdown-insight",
     );
@@ -106,9 +105,19 @@ export function seoWorklistEvidence(
     )
       continue;
     add(
-      t("planning.paint", { device: t(`breakdown.devices.${device}`) }),
+      confirmed
+        ? t("planning.paint", { device: t(`breakdown.devices.${device}`) })
+        : t(
+            device === "mobile"
+              ? "planning.retestMobile"
+              : "planning.retestDesktop",
+          ),
       pageUrl,
-      lab.median.lcp > POOR_LCP_MS ? "high" : "low",
+      !confirmed
+        ? "suggestions"
+        : lab.median.lcp > POOR_LCP_MS
+          ? "high"
+          : "low",
       [
         t("planning.labLcp", { seconds: lab.median.lcp / 1000 }),
         ...(insight ? [insight.detail, insight.action] : [t("planning.trace")]),

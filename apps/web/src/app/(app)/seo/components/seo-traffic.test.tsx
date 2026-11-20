@@ -148,6 +148,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 afterEach(() => {
+  sessionStorage.clear();
   cleanup();
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
@@ -230,7 +231,8 @@ it("loads the whole website when the workspace also tracks a different domain an
   expect(body.pageIds).not.toContain(extra[0].id);
 });
 it("opens traffic for the current website and narrows it to the selected page and its verified URL", async () => {
-  renderTraffic(seoTestWorkspace(), "&to=2024-03-01", true);
+  const workspace = seoTestWorkspace();
+  renderTraffic(workspace, "&to=2024-03-01", true);
   const user = userEvent.setup();
   const filter = await screen.findByRole("combobox", {
     name: "Traffic filter",
@@ -294,6 +296,10 @@ it("opens traffic for the current website and narrows it to the selected page an
     pageUrls: ["https://example.com/about"],
     includeDaily: true,
   });
+  cleanup();
+  renderTraffic(workspace, "&to=2024-03-01&trafficScope=selected", true);
+  expect(await screen.findByText("12", { selector: "dd" })).toBeVisible();
+  expect(within(daily()).getByRole("table")).toHaveTextContent("12");
 });
 
 it("keeps a property covering both a tracked and a discovered page in a mixed selection", async () => {

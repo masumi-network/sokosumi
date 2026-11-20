@@ -635,9 +635,7 @@ describe("SEO audit first run", () => {
     }
     expect(screen.queryByRole("dialog")).toBeNull();
     await user.click(screen.getByRole("button", { name: copy.monitor.create }));
-    expect(
-      await screen.findByRole("menuitem", { name: copy.monitor.create }),
-    ).toBeVisible();
+    expect(await screen.findByRole("dialog")).toBeVisible();
     await user.keyboard("{Escape}");
   });
 
@@ -707,7 +705,7 @@ describe("SEO audit first run", () => {
     );
     if (!row) throw new Error("no statistics banner");
     expect(
-      within(row).getByRole("heading", { name: copy.agent.statisticsMissing }),
+      within(row).getByRole("heading", { name: copy.agent.connectedSearch }),
     ).toBeVisible();
     // The banner is the first thing on the tab: it stands over the result.
     expect(
@@ -932,9 +930,7 @@ describe("SEO audit first run", () => {
     ).toBeVisible();
     expect(screen.queryByTestId("seo-setup")).toBeNull();
     await user.click(screen.getByRole("button", { name: copy.monitor.create }));
-    expect(
-      await screen.findByRole("menuitem", { name: copy.monitor.create }),
-    ).toBeVisible();
+    expect(await screen.findByRole("dialog")).toBeVisible();
     await user.keyboard("{Escape}");
     view.unmount();
     workspace.runs.push(run("2026-11-10T09:00:00Z", 6));
@@ -1263,7 +1259,8 @@ describe("SEO audit first run", () => {
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       /^No check yet\. Run one to find issues\.$/,
     );
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    expect(screen.queryByRole("button", { name: copy.runAnalysis })).toBeNull();
+    await user.click(screen.getByRole("button", { name: copy.runFullAudit }));
     expect(await screen.findByRole("dialog")).toBeVisible();
   });
 });

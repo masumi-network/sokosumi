@@ -94,3 +94,14 @@ it("includes measured zeros in the median and keeps audit order for tied priorit
       ),
   ).toEqual(ordered);
 });
+
+it("ranks other ideas by estimated extra clicks in both views", () => {
+  const { ideas } = keywordGroups([
+    { ...idea("small", 1, 2), conversion: "low" },
+    { ...idea("large", 1, 20), conversion: "low" },
+  ]);
+  const review = assessKeywordIdeas(ideas);
+  expect(
+    priorityFirst(review.get("small"), review.get("large")),
+  ).toBeGreaterThan(0);
+});

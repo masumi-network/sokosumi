@@ -1870,7 +1870,9 @@ describe("SEO workspace integration", () => {
       within(details).queryByRole("button", { name: "Show all" }),
     ).toBeNull();
     // The details of the day in view link the check's results.
-    await user.click(screen.getByRole("button", { name: /^Details of / }));
+    await user.click(
+      screen.getByRole("button", { name: /^Jan 3/, pressed: true }),
+    );
     expect(
       within(await screen.findByRole("dialog"))
         .getAllByRole("link", { name: /View results$/ })
@@ -2804,16 +2806,21 @@ describe("SEO workspace integration", () => {
       screen.queryByText("Show the check from Jan 3", { ignore: "[hidden]" }),
     ).toBeNull();
     // The way for the keyboard: the footer opens the details of the day in view, and focus comes back to it.
-    const footerDetails = screen.getByRole("button", {
-      name: "Details of Jan 5",
+    const selectedDay = screen.getByRole("button", {
+      name: /^Jan 5/,
+      pressed: true,
     });
-    expect(footerDetails.closest("footer")).toContainElement(
-      screen.getByRole("button", { name: "Other dates" }),
-    );
-    await user.click(footerDetails);
+    const footer = screen
+      .getByRole("button", { name: "Other dates" })
+      .closest("footer")!;
+    expect(
+      within(footer).queryByRole("button", { name: /Details/ }),
+    ).toBeNull();
+    selectedDay.focus();
+    await user.keyboard("{Enter}");
     expect(await screen.findByRole("dialog")).toBeVisible();
     await user.keyboard("{Escape}");
-    await waitFor(() => expect(footerDetails).toHaveFocus());
+    await waitFor(() => expect(selectedDay).toHaveFocus());
     // A stop not in view says what a press does: to the keyboard as its description, and in its card.
     expect(
       screen.getByRole("button", { name: /^Jan 3/ }),
@@ -2826,7 +2833,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
-  it("opens every event of a range set in the calendar from the footer", async () => {
+  it("opens every event of a custom range from the range label", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.findings = [];
@@ -2855,7 +2862,9 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=health&from=2026-01-01");
-    await user.click(await screen.findByRole("button", { name: "Details" }));
+    await user.click(
+      await screen.findByRole("button", { name: /^Showing Jan 1/ }),
+    );
     const dialog = await screen.findByRole("dialog");
     expect(
       within(dialog).getByRole("heading", { name: "Details" }),
@@ -2915,7 +2924,9 @@ describe("SEO workspace integration", () => {
         }) !== null,
       ).toBe(!onTimeline);
       if (onTimeline)
-        fireEvent.click(screen.getByRole("button", { name: /^Details of / }));
+        fireEvent.click(
+          screen.getByRole("button", { name: /^Jan 3/, pressed: true }),
+        );
       expect(
         screen.getByText(
           onTimeline
@@ -5804,11 +5815,6 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
     );
-    await user.click(
-      await screen.findByRole("menuitem", {
-        name: messages.App.Seo.monitor.create,
-      }),
-    );
     const dialog = screen.getByRole("dialog");
     // The schedule repeats the full audit, the check of the run button.
     const summary = within(within(dialog).getByTestId("seo-analysis-summary"));
@@ -5892,7 +5898,6 @@ describe("SEO workspace integration", () => {
   });
 
   it("offers no schedule while the dates are wrong: the form could not open and would open later unasked", async () => {
-    const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
@@ -5900,14 +5905,9 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace, "?tab=traffic&from=2026-02-01&to=2026-01-01");
     await readConnectedGoogle();
-    await user.click(
-      screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
-    );
     expect(
-      await screen.findByRole("menuitem", {
-        name: messages.App.Seo.monitor.create,
-      }),
-    ).toHaveAttribute("aria-disabled", "true");
+      screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
+    ).toBeDisabled();
   });
 
   it.each([false, undefined])(
@@ -5953,11 +5953,6 @@ describe("SEO workspace integration", () => {
     await readConnectedGoogle();
     await user.click(
       screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", {
-        name: messages.App.Seo.monitor.create,
-      }),
     );
     const dialog = screen.getByRole("dialog");
     // Without paid search data the schedule form opens with a page check. Its fields are folded.

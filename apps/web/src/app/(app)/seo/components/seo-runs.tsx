@@ -17,7 +17,6 @@ import {
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoReportFiles } from "./seo-report-files";
-import { seoReportVersions } from "./seo-report-files-model";
 import { SeoRunCalendar } from "./seo-run-calendar";
 import { SeoRunDayDialog, SeoRunDayHover } from "./seo-run-day";
 import {
@@ -27,6 +26,7 @@ import {
 } from "./seo-runs-model";
 import { seoRunProgress } from "./seo-setup-model";
 import { seoStops } from "./seo-timeline-model";
+import type { SeoReportFileProps } from "./use-seo-report-files";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const MINUTE_MS = 60_000;
@@ -51,12 +51,14 @@ export function SeoRuns({
   model,
   shown,
   runButton,
+  versions,
 }: {
   model: SeoWorkspaceModel;
   /** The workspace decides once whether the line shows: it holds the date filter then. */
   shown: boolean;
   /** The run of the page; none on the Agent tab while its setup card leads. */
   runButton?: ReactNode;
+  versions: SeoReportFileProps["versions"];
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -117,10 +119,6 @@ export function SeoRuns({
     else if (inner.right > outer.right)
       bar.scrollLeft += inner.right - outer.right;
   }, [pickedDay]);
-  const versions =
-    model.invalidDates || model.updating
-      ? []
-      : seoReportVersions(model.data, model.filters);
   const showReports =
     versions.length > 0 ||
     (model.updating &&
@@ -264,6 +262,20 @@ export function SeoRuns({
                       ref={entry.newest ? newestRef : undefined}
                       type="button"
                       aria-pressed={entry.selected}
+                      aria-haspopup={
+                        entry.selected &&
+                        hasDetails &&
+                        detailsStop === entry.day
+                          ? "dialog"
+                          : undefined
+                      }
+                      aria-description={
+                        entry.selected &&
+                        hasDetails &&
+                        detailsStop === entry.day
+                          ? t("runs.detailsOf", { day: dayOf(entry.at) })
+                          : undefined
+                      }
                       // The hint says what a press does: the page as it was on that day. A stop with a card shows it in the
                       // card; the keyboard, which opens no card, hears it as the description.
                       title={
@@ -276,7 +288,16 @@ export function SeoRuns({
                       }
                       // The run in view is bright with a bright neutral dot; the others are muted. No accent: it is a fill only.
                       className={STOP_BUTTON_CLASS}
-                      onClick={() => {
+                      onClick={(event) => {
+                        if (
+                          entry.selected &&
+                          hasDetails &&
+                          detailsStop === entry.day
+                        ) {
+                          returnTo.current = event.currentTarget;
+                          openDetails(entry.day);
+                          return;
+                        }
                         void model.setFilters({
                           from: null,
                           to: entry.newest ? null : entry.day,
@@ -393,7 +414,22 @@ export function SeoRuns({
               </span>
             ) : ranged ? (
               <span className="content-in">
-                {rangeText} {latest}
+                {hasDetails && detailsStop === WHOLE ? (
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    className="hit-area focus-visible:ring-ring rounded-sm underline underline-offset-4 focus-visible:ring-2"
+                    onClick={(event) => {
+                      returnTo.current = event.currentTarget;
+                      openDetails(WHOLE);
+                    }}
+                  >
+                    {rangeText}
+                  </button>
+                ) : (
+                  rangeText
+                )}{" "}
+                {latest}
               </span>
             ) : null}
           </p>
@@ -416,25 +452,6 @@ export function SeoRuns({
                 {t("runs.dates")}
               </button>
             </SeoRunCalendar>
-            {/* The details of the day in view: the way to them for the keyboard and on a touch screen, where a stop
-              opens no card. */}
-            {detailsStop && hasDetails ? (
-              <button
-                type="button"
-                aria-label={
-                  detailsStop !== WHOLE && inView
-                    ? t("runs.detailsOf", { day: dayOf(inView.at) })
-                    : undefined
-                }
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area ms-auto rounded-sm text-xs underline underline-offset-4 transition-colors outline-none focus-visible:ring-2"
-                onClick={(event) => {
-                  returnTo.current = event.currentTarget;
-                  openDetails(detailsStop);
-                }}
-              >
-                {t("runs.details")}
-              </button>
-            ) : null}
           </footer>
         ) : null}
       </div>

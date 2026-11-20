@@ -54,6 +54,7 @@ import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoRankings } from "./seo-rankings";
+import { seoReportVersions } from "./seo-report-files-model";
 import { SeoRunButton } from "./seo-run-button";
 import { SeoRuns } from "./seo-runs";
 import { seoRunDays, seoRunsRow } from "./seo-runs-model";
@@ -156,6 +157,10 @@ export function SeoWorkspace({
     model.dialog === "keyword" ||
     model.dialog === "edit_keyword" ||
     model.dialog === "competitor";
+  const versions =
+    model.invalidDates || model.updating
+      ? []
+      : seoReportVersions(model.data, model.filters);
   const unavailable = model.loadingScope || model.invalidDates;
   const loadStatus = seoLoadErrorStatus(model.result.error);
   if (
@@ -298,6 +303,7 @@ export function SeoWorkspace({
         </div>
         <div className="col-start-2 row-start-2 flex flex-nowrap gap-2">
           <SeoWorkspaceMenu
+            versions={versions}
             key={model.viewerKey}
             model={model}
             unavailable={unavailable}
@@ -373,6 +379,7 @@ export function SeoWorkspace({
         className="gap-4"
       >
         <SeoRuns
+          versions={versions}
           model={model}
           shown={runsRow}
           runButton={
