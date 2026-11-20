@@ -1,4 +1,6 @@
-"use client";
+import { SiteDisclosures } from "../site-disclosures";
+
+("use client");
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
@@ -830,6 +832,7 @@ export function SettingsPage({
           </form>
         </div>
       </section>
+      <SiteDisclosures />
       <section className="card">
         <h3>Stop this {AGENT_NAME}</h3>
         <p className="muted">
