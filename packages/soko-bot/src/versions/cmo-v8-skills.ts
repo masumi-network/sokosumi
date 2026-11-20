@@ -38,10 +38,28 @@ const PATCH_RULE =
 const CORRECTION_RULE = `${PATCH_RULE} A correction (an owner's no, a Brand Brain fix, "that's wrong, we sell X") is true everywhere: before you save, read every place the strategy states the old reading (the idea, summary, goals, focus, offer, each pillar and its why, each funnel stage's goal and plays, each question under questions, ads.suggest, the campaigns, and each calendar entry's title, brief, why, story and claim) and change each one that rests on it. Save it in small parts so each call stays short: first part patch with the strategy fields you change, then the calendar entries you change, at most 8 entries a call, until every one is in. Leave alone what does not rest on it. Never name what the owner rejected, not even to say it is out ("not caps"): the strategy review names every field and title that still does.`;
 
 /** `base` is cmo-v5's every-network strategy skill. */
+/**
+ * A story on every LinkedIn piece, each story in two pieces at most, met
+ * NMKR's 56 LinkedIn posts a month with a handful of stories: four of
+ * thirty cmo-v8 strategy turns ended without a calendar, asking the owner
+ * for 28 stories or a lower cadence. Each piece argues its own claim and
+ * opens on a fact, so a story is asked only of a piece built on proof.
+ */
+const STORIES_BEFORE =
+  "Every LinkedIn piece, and any other piece built on proof, also has story:";
+const STORIES_AFTER =
+  "Every piece built on proof (a social-proof piece), and any LinkedIn piece the Brand Brain has a real moment for, also has story:";
+const STORY_REVIEW_BEFORE =
+  "The strategy review refuses a LinkedIn piece without one.";
+const STORY_REVIEW_AFTER =
+  "The strategy review refuses a social-proof piece without one. A LinkedIn piece without a story argues its claim from a product fact, a price or a decision the Brand Brain records.";
+
 export function claimsStrategy(base: SokoBotSkill): SokoBotSkill {
   return revised(base, CMO_CLAIMS_STRATEGY_SKILL, [
     [TITLES_RULE, CLAIMS_RULE],
     [PATCH_RULE, CORRECTION_RULE],
+    [STORIES_BEFORE, STORIES_AFTER],
+    [STORY_REVIEW_BEFORE, STORY_REVIEW_AFTER],
   ]);
 }
 

@@ -1904,6 +1904,29 @@ describe("claims", () => {
   });
 });
 
+// cmo-v8: NMKR's 56 LinkedIn posts a month met a handful of stories, and
+// four strategy turns ended without a calendar.
+describe("stories on a cmo-v8 calendar", () => {
+  it("are asked only of proof pieces", () => {
+    const strategy = plan({
+      calendar: [
+        { ...entry("s1", "linkedin", "post"), claim: "A point" },
+        {
+          ...entry("s2", "x", "post"),
+          approach: "social-proof",
+          claim: "Another point",
+        },
+      ],
+    } as Partial<MarketingStrategyPlan>);
+    const stories = (claims: boolean) =>
+      cmoPlanProblems(strategy, { claims }).find((problem) =>
+        problem.includes("have no story"),
+      );
+    expect(stories(true)).toContain("(s2)");
+    expect(stories(false)).toContain("(s1, s2)");
+  });
+});
+
 // cmo-v8: told the repeats, Cuso fixed a few and left the rest.
 describe("cmoDistinctClaims", () => {
   const entry = (id: string, date: string, claim: string) => ({

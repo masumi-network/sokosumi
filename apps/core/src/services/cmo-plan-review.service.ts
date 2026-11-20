@@ -244,7 +244,7 @@ export function cmoPlanProblems(
     if (options.weekly)
       problems.push(...roleProblems(strategy.channels, pieces, weeks));
     problems.push(...crowdedNetworks(pieces));
-    problems.push(...storyProblems(pieces));
+    problems.push(...storyProblems(pieces, options.claims === true));
     if (options.claims) problems.push(...claimProblems(pieces));
     problems.push(...repeatedTitles(pieces));
     const videos = pieces.filter(isVideoFormat).length;
@@ -1050,10 +1050,15 @@ function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
  * LinkedIn rewards one real story, and proof without one is a vague "a
  * reviewer liked it"; a month without them read as generic tips.
  */
-function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
+function storyProblems(
+  pieces: MarketingStrategyPlan["calendar"],
+  /** cmo-v8: a LinkedIn piece argues its own claim; only proof needs a story. */
+  proofOnly = false,
+): string[] {
   const missing = pieces.filter(
     (entry) =>
-      (entry.channel === "linkedin" || entry.approach === "social-proof") &&
+      ((!proofOnly && entry.channel === "linkedin") ||
+        entry.approach === "social-proof") &&
       !entry.story,
   );
   if (missing.length === 0) return [];

@@ -808,7 +808,7 @@ async function startStrategyTurn(
               (savesWeekly ? PLAN_SAVE_WEEKLY : PLAN_SAVE_TWO_CALLS).replaceAll(
                 "campaignId, and story for each LinkedIn piece",
                 rules.claims
-                  ? "campaignId, claim, and story for each LinkedIn piece"
+                  ? "campaignId, claim, and story for each social-proof piece"
                   : "campaignId, and story for each LinkedIn piece",
               ),
             ],
