@@ -465,8 +465,8 @@ export function TasksViewFilters({
             return (
               <li
                 key={chip.id}
-                // Never narrower than its label: the line scrolls instead.
-                className="bg-muted text-foreground inline-flex min-h-8 max-w-64 shrink-0 items-center rounded-full ps-3 text-sm"
+                // As wide as its whole label: the line scrolls instead.
+                className="bg-muted text-foreground inline-flex min-h-8 shrink-0 items-center rounded-full ps-3 text-sm"
               >
                 {chip.id === "tag" && filters.tag && (
                   <span className="me-1.5 flex">
@@ -474,8 +474,7 @@ export function TasksViewFilters({
                       ?.mark ?? <TaskTagDot id={filters.tag} />}
                   </span>
                 )}
-                {/* Only a very long name is cut; the title keeps it whole. */}
-                <span className="truncate" title={name}>
+                <span className="whitespace-nowrap" title={name}>
                   {name}
                 </span>
                 <ChipRemoveButton
