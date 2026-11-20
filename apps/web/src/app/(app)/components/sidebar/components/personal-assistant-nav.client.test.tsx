@@ -429,11 +429,29 @@ describe("PersonalAssistantNav live status", () => {
     expect(direct).not.toHaveTextContent("Presence.online");
 
     recovered = true;
-    document.dispatchEvent(new Event("visibilitychange"));
-    await waitFor(() =>
-      expect(screen.getByRole("link", { name: /Mo/ })).toHaveAccessibleName(
-        /ready/,
-      ),
+    const row = screen.getByRole("link", { name: /Mo/ });
+    // Observe mutations so a passive-effect lag between the sidebar row and
+    // the Direct avatar fails deterministically instead of racing `waitFor`.
+    const directTextsWhenReady: string[] = [];
+    const observer = new MutationObserver(() => {
+      if (/ready/.test(row.textContent ?? "")) {
+        directTextsWhenReady.push(direct.textContent ?? "");
+      }
+    });
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+    try {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await waitFor(() => expect(row).toHaveAccessibleName(/ready/));
+    } finally {
+      observer.disconnect();
+    }
+    expect(directTextsWhenReady.length).toBeGreaterThan(0);
+    expect(directTextsWhenReady).not.toContainEqual(
+      expect.stringContaining("ERROR"),
     );
     expect(direct).toHaveTextContent("Presence.online");
     expect(direct).not.toHaveTextContent("ERROR");
