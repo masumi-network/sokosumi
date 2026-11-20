@@ -8,10 +8,11 @@ import {
   liveSanitizeChannelSlug,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,47 +33,42 @@ export function MatchedChannelsHub() {
   const router = useRouter();
 
   const [listStatus, setListStatus] = useState<ListStatus>("active");
-  const [channels, setChannels] = useState<AdminMatchedChannelOption[]>([]);
-  const [isLoadingChannels, setIsLoadingChannels] = useState(true);
   const [channelName, setChannelName] = useState("");
   const [nameDirty, setNameDirty] = useState(false);
   const [channelSlug, setChannelSlug] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoadingChannels(true);
-    void listAdminMatchedChannelsAction({
-      input: { status: listStatus },
-    })
-      .then((result) => {
-        if (cancelled) {
-          return;
-        }
-        setIsLoadingChannels(false);
-        if (!result.ok) {
-          toast.error(result.error.message ?? t("listError"));
-          setChannels([]);
-          return;
-        }
-        setChannels(result.value);
-      })
-      // A server action rejects instead of answering with a result when the
-      // POST comes back as something other than RSC. The spinner has to stop
-      // here too, or the panel loads forever.
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-        setIsLoadingChannels(false);
+  const channelsQuery = useQuery({
+    queryKey: ["admin", "matched-channels", listStatus],
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<AdminMatchedChannelOption[]> => {
+      let result: Awaited<ReturnType<typeof listAdminMatchedChannelsAction>>;
+      try {
+        result = await listAdminMatchedChannelsAction({
+          input: { status: listStatus },
+        });
+      } catch {
+        // A server action rejects instead of answering with a result when the
+        // POST comes back as something other than RSC. The spinner has to stop
+        // here too, or the panel loads forever.
         toast.error(t("listError"));
-        setChannels([]);
-      });
+        return [];
+      }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [listStatus, t]);
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("listError"));
+        return [];
+      }
+
+      return result.value;
+    },
+  });
+
+  const channels = channelsQuery.data ?? [];
+  const isLoadingChannels = channelsQuery.isPending;
 
   function handleSlugChange(raw: string) {
     const slug = liveSanitizeChannelSlug(raw).slice(0, CHANNEL_SLUG_MAX_LENGTH);

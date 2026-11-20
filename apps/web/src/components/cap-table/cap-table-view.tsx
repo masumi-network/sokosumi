@@ -1,8 +1,8 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { PieChart } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,11 +20,6 @@ const SEGMENT_CLASSES = [
   "bg-chart-5",
 ];
 
-type LoadState =
-  | { status: "loading" }
-  | { status: "ready"; capTable: CapTable }
-  | { status: "failed" };
-
 /**
  * A `*.captable.json` file read from `url` and shown as a cap table.
  *
@@ -33,42 +28,34 @@ type LoadState =
  */
 export function CapTableFileView({ url }: { url: string }) {
   const t = useTranslations("Components.CapTableView");
-  const [state, setState] = useState<LoadState>({ status: "loading" });
+  const capTableQuery = useQuery({
+    queryKey: ["cap-table-file", url],
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }): Promise<CapTable> => {
+      const response = await fetch(url, { signal });
+      if (!response.ok) throw new Error("Failed to fetch cap table");
+      const json: unknown = await response.json();
+      const capTable = parseCapTable(json);
+      if (!capTable) throw new Error("Invalid cap table");
+      return capTable;
+    },
+  });
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ status: "loading" });
-    fetch(url, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to fetch cap table");
-        return response.json();
-      })
-      .then((json: unknown) => {
-        const capTable = parseCapTable(json);
-        setState(
-          capTable ? { status: "ready", capTable } : { status: "failed" },
-        );
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setState({ status: "failed" });
-      });
-    return () => controller.abort();
-  }, [url]);
-
-  if (state.status === "loading")
+  if (capTableQuery.isPending)
     return (
       <div role="status" aria-label={t("loading")}>
         <Skeleton className="h-80 w-full rounded-xl" />
       </div>
     );
-  if (state.status === "failed")
+  if (capTableQuery.isError)
     return (
       <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
         <PieChart aria-hidden className="text-muted-foreground size-9" />
         <p className="text-muted-foreground text-sm">{t("failed")}</p>
       </div>
     );
-  return <CapTableView capTable={state.capTable} />;
+  return <CapTableView capTable={capTableQuery.data} />;
 }
 
 export function CapTableView({ capTable }: { capTable: CapTable }) {

@@ -1,7 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { render as rtlRender, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { OAuthAuthorizedClients } from "./authorized-clients";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 const mockGetConsents = vi.fn();
 const mockPublicClient = vi.fn();

@@ -1,6 +1,17 @@
 import type { DataRoomTreeRow, DataRoomView } from "@sokosumi/core-client";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render as rtlRender,
+  screen,
+} from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>

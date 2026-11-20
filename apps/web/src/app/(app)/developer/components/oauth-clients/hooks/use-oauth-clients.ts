@@ -4,8 +4,9 @@ import {
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,
 } from "@sokosumi/utils";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
@@ -21,40 +22,64 @@ import type {
 } from "../types";
 import { inferOAuthApplicationType } from "../utils";
 
+const OAUTH_CLIENTS_QUERY_KEY = ["developer", "oauth-clients"] as const;
+
 export function useOAuthClients(): UseOAuthClientsReturn {
   const t = useTranslations("App.Account.OAuthClients");
-  const [clients, setClients] = useState<OAuthClientRecord[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isManualInitialRefresh, setIsManualInitialRefresh] = useState(false);
+
+  const clientsQuery = useQuery({
+    queryKey: OAUTH_CLIENTS_QUERY_KEY,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<OAuthClientRecord[]> => {
+      let result: Awaited<ReturnType<typeof authClient.oauth2.getClients>>;
+      try {
+        result = await authClient.oauth2.getClients();
+      } catch {
+        const errorMessage = t("Messages.loadError");
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      if (result.error) {
+        const errorMessage = result.error.message ?? t("Messages.loadError");
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      return result.data ?? [];
+    },
+  });
+
+  const clients = clientsQuery.data ?? [];
+  const isInitialLoading = clientsQuery.isPending || isManualInitialRefresh;
+  const error = clientsQuery.isFetching
+    ? null
+    : clientsQuery.isError
+      ? clientsQuery.error instanceof Error
+        ? clientsQuery.error.message
+        : t("Messages.loadError")
+      : null;
+
+  const { refetch: refetchClients } = clientsQuery;
 
   const refresh = useCallback(
     async (isInitial = false) => {
       if (isInitial) {
-        setIsInitialLoading(true);
+        setIsManualInitialRefresh(true);
       }
-      setError(null);
-
       try {
-        const result = await authClient.oauth2.getClients();
-        if (result.error) {
-          const errorMessage = result.error.message ?? t("Messages.loadError");
-          setError(errorMessage);
-          toast.error(errorMessage);
-          return;
-        }
-
-        setClients(result.data ?? []);
-      } catch {
-        const errorMessage = t("Messages.loadError");
-        setError(errorMessage);
-        toast.error(errorMessage);
+        await refetchClients();
       } finally {
         if (isInitial) {
-          setIsInitialLoading(false);
+          setIsManualInitialRefresh(false);
         }
       }
     },
-    [t],
+    [refetchClients],
   );
 
   const create = useCallback(
@@ -256,10 +281,6 @@ export function useOAuthClients(): UseOAuthClientsReturn {
     },
     [refresh, t],
   );
-
-  useEffect(() => {
-    void refresh(true);
-  }, [refresh]);
 
   return {
     clients,

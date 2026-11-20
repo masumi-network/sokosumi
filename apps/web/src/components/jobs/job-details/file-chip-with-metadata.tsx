@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { FileChip, type FileChipProps } from "@/components/ui/file-chip";
 import {
@@ -15,11 +15,6 @@ interface FileHeadMetadata {
   size?: number;
 }
 
-interface FileHeadMetadataState {
-  url: string;
-  metadata?: FileHeadMetadata;
-}
-
 function parseContentLength(value: string | null): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
@@ -27,54 +22,37 @@ function parseContentLength(value: string | null): number | undefined {
   return parsed;
 }
 
-function useFileHeadMetadata(url: string) {
-  const [metadataState, setMetadataState] = useState<FileHeadMetadataState>();
-  const currentUrlMetadata =
-    metadataState?.url === url ? metadataState.metadata : undefined;
-
-  useEffect(() => {
-    const abortController = new AbortController();
-    let cancelled = false;
-
-    async function fetchMetadata() {
+function useFileHeadMetadata(url: string): FileHeadMetadata | undefined {
+  const { data } = useQuery({
+    queryKey: ["file-head-metadata", url],
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }): Promise<FileHeadMetadata | null> => {
       try {
         const response = await fetch(url, {
           method: "HEAD",
-          signal: abortController.signal,
+          signal,
         });
-        if (cancelled) return;
 
         if (!response.ok) {
-          setMetadataState({ url });
-          return;
+          return null;
         }
 
-        setMetadataState({
-          url,
-          metadata: {
-            contentType: response.headers.get("content-type") ?? undefined,
-            fileName: parseContentDispositionFilename(
-              response.headers.get("content-disposition"),
-            ),
-            size: parseContentLength(response.headers.get("content-length")),
-          },
-        });
+        return {
+          contentType: response.headers.get("content-type") ?? undefined,
+          fileName: parseContentDispositionFilename(
+            response.headers.get("content-disposition"),
+          ),
+          size: parseContentLength(response.headers.get("content-length")),
+        };
       } catch {
-        if (!cancelled) {
-          setMetadataState({ url });
-        }
+        return null;
       }
-    }
+    },
+  });
 
-    void fetchMetadata();
-
-    return () => {
-      cancelled = true;
-      abortController.abort();
-    };
-  }, [url]);
-
-  return currentUrlMetadata;
+  return data ?? undefined;
 }
 
 export function FileChipWithMetadata({

@@ -1,16 +1,11 @@
 "use client";
 
 import type { Account } from "@sokosumi/utils";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ReauthDialog } from "@/components/auth/reauth-dialog";
 import { Button } from "@/components/ui/button";
@@ -61,9 +56,7 @@ export function PasskeySettings({
   const t = useTranslations("App.Account.Passkeys");
   const formatter = useFormatter();
   const router = useRouter();
-  const [passkeys, setPasskeys] = useState<PasskeyRecord[]>([]);
-  const [hasPasskeyLoadError, setHasPasskeyLoadError] = useState(false);
-  const [isLoadingPasskeys, setIsLoadingPasskeys] = useState(true);
+  const [isRetryingLoad, setIsRetryingLoad] = useState(false);
   const [isAddingPasskey, setIsAddingPasskey] = useState(false);
   const [editingPasskeyId, setEditingPasskeyId] = useState<string | null>(null);
   const [passkeyNameDraft, setPasskeyNameDraft] = useState("");
@@ -76,78 +69,47 @@ export function PasskeySettings({
 
   const reauthGate = useReauthGate({ accounts });
 
-  const fetchPasskeys = useCallback(async (): Promise<
-    null | PasskeyRecord[]
-  > => {
-    try {
+  const passkeysQuery = useQuery({
+    queryKey: ["account", "passkeys"],
+    queryFn: async (): Promise<PasskeyRecord[]> => {
       const result = await authClient.passkey.listUserPasskeys();
 
       if (result.error) {
-        return null;
+        throw new Error(result.error.message || "Failed to load passkeys");
       }
 
       return result.data ?? [];
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const applyPasskeysResult = useCallback(
-    (nextPasskeys: null | PasskeyRecord[]) => {
-      if (nextPasskeys === null) {
-        setHasPasskeyLoadError(true);
-        return false;
-      }
-
-      setPasskeys(nextPasskeys);
-      setHasPasskeyLoadError(false);
-      return true;
     },
-    [],
-  );
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+  });
+
+  const passkeys = passkeysQuery.data ?? [];
+  const hasPasskeyLoadError = passkeysQuery.isError;
+  const isLoadingPasskeys = passkeysQuery.isPending || isRetryingLoad;
+
+  const { refetch: refetchPasskeys } = passkeysQuery;
 
   const reloadPasskeys = useCallback(
     async (options?: { showLoadingState?: boolean }) => {
       const showLoadingState = options?.showLoadingState !== false;
       if (showLoadingState) {
-        setIsLoadingPasskeys(true);
+        setIsRetryingLoad(true);
       }
 
       try {
-        const nextPasskeys = await fetchPasskeys();
-        return applyPasskeysResult(nextPasskeys);
+        const result = await refetchPasskeys();
+        return !result.isError;
       } finally {
         if (showLoadingState) {
-          setIsLoadingPasskeys(false);
+          setIsRetryingLoad(false);
         }
       }
     },
-    [applyPasskeysResult, fetchPasskeys],
+    [refetchPasskeys],
   );
-
-  useEffect(() => {
-    let isActive = true;
-
-    void fetchPasskeys()
-      .then((nextPasskeys) => {
-        if (!isActive) {
-          return;
-        }
-
-        applyPasskeysResult(nextPasskeys);
-      })
-      .finally(() => {
-        if (!isActive) {
-          return;
-        }
-
-        setIsLoadingPasskeys(false);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [applyPasskeysResult, fetchPasskeys]);
 
   const sortedPasskeys = useMemo(() => {
     return [...passkeys].sort(

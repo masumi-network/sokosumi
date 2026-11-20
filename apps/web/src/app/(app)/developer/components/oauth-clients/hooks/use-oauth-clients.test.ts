@@ -1,5 +1,14 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  renderHook as rtlRenderHook,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function renderHook<Result>(callback: () => Result) {
+  return rtlRenderHook(callback, { wrapper: TestQueryProvider });
+}
 
 const getClientsMock = vi.fn();
 const createClientMock = vi.fn();

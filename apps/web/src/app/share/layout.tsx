@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
+import QueryProvider from "@/contexts/query-provider";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { SHARE_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { readRouteSession } from "@/lib/auth/route-session";
@@ -25,14 +26,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function ShareLayout({ children }: ShareLayoutProps) {
   return (
-    <ClientMessageBoundary paths={SHARE_MESSAGE_PATHS}>
-      <div className="flex w-full flex-col overflow-clip">
-        <Suspense fallback={null}>
-          <ShareImpersonationBanner />
-        </Suspense>
-        {children}
-      </div>
-    </ClientMessageBoundary>
+    <QueryProvider>
+      <ClientMessageBoundary paths={SHARE_MESSAGE_PATHS}>
+        <div className="flex w-full flex-col overflow-clip">
+          <Suspense fallback={null}>
+            <ShareImpersonationBanner />
+          </Suspense>
+          {children}
+        </div>
+      </ClientMessageBoundary>
+    </QueryProvider>
   );
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
@@ -16,42 +17,78 @@ import type {
 } from "../types";
 import { getToggleActionText } from "../utils";
 
+const API_KEYS_QUERY_KEY = ["developer", "api-keys"] as const;
+
 export function useApiKeys(): UseApiKeysReturn {
   const t = useTranslations("App.Account.ApiKeys");
-  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isManualInitialRefresh, setIsManualInitialRefresh] = useState(false);
+  const [optimisticEnabled, setOptimisticEnabled] = useState<
+    Record<string, boolean>
+  >({});
   // Keys with a toggle on the wire. A second click on one is dropped until
   // the first has its answer, so two requests for one key cannot cross.
   const updatingKeyIds = useRef(new Set<string>());
 
-  const refresh = useCallback(
-    async (isInitial = false) => {
-      if (isInitial) {
-        setIsInitialLoading(true);
-      }
-      setError(null);
-
+  const apiKeysQuery = useQuery({
+    queryKey: API_KEYS_QUERY_KEY,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<ApiKeyRecord[]> => {
       try {
         const result = await authClient.apiKey.list();
         if (result.data) {
-          setApiKeys(result.data.apiKeys);
-        } else {
-          const errorMessage = t("Messages.loadError");
-          setError(errorMessage);
-          toast.error(errorMessage);
+          return result.data.apiKeys;
         }
-      } catch {
         const errorMessage = t("Messages.loadError");
-        setError(errorMessage);
         toast.error(errorMessage);
+        throw new Error(errorMessage);
+      } catch (err) {
+        if (err instanceof Error && err.message === t("Messages.loadError")) {
+          throw err;
+        }
+        const errorMessage = t("Messages.loadError");
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+    },
+  });
+
+  const apiKeys = useMemo(
+    () =>
+      (apiKeysQuery.data ?? []).map((key) =>
+        key.id in optimisticEnabled
+          ? { ...key, enabled: optimisticEnabled[key.id] }
+          : key,
+      ),
+    [apiKeysQuery.data, optimisticEnabled],
+  );
+  const isInitialLoading = apiKeysQuery.isPending || isManualInitialRefresh;
+  const error = apiKeysQuery.isFetching
+    ? null
+    : apiKeysQuery.isError
+      ? apiKeysQuery.error instanceof Error
+        ? apiKeysQuery.error.message
+        : t("Messages.loadError")
+      : null;
+
+  const { refetch: refetchApiKeys } = apiKeysQuery;
+
+  const refresh = useCallback(
+    async (isInitial = false) => {
+      if (isInitial) {
+        setIsManualInitialRefresh(true);
+      }
+      try {
+        await refetchApiKeys();
       } finally {
         if (isInitial) {
-          setIsInitialLoading(false);
+          setIsManualInitialRefresh(false);
         }
       }
     },
-    [t],
+    [refetchApiKeys],
   );
 
   const create = useCallback(
@@ -103,11 +140,15 @@ export function useApiKeys(): UseApiKeysReturn {
       }
       updatingKeyIds.current.add(data.keyId);
       const setEnabled = (enabled: boolean) =>
-        setApiKeys((keys) =>
-          keys.map((key) =>
-            key.id === data.keyId ? { ...key, enabled } : key,
-          ),
-        );
+        setOptimisticEnabled((current) => ({
+          ...current,
+          [data.keyId]: enabled,
+        }));
+      const clearOptimistic = () =>
+        setOptimisticEnabled((current) => {
+          const { [data.keyId]: _dropped, ...rest } = current;
+          return rest;
+        });
       // Show the new status at once; a failure puts the old one back.
       setEnabled(data.enabled);
       try {
@@ -120,14 +161,15 @@ export function useApiKeys(): UseApiKeysReturn {
           const action = getToggleActionText(!data.enabled);
           toast.success(t("Messages.updateSuccess", { action }));
           await refresh();
+          clearOptimistic();
           return true;
         } else {
-          setEnabled(!data.enabled);
+          clearOptimistic();
           toast.error(result.error?.message ?? t("Messages.updateError"));
           return false;
         }
       } catch {
-        setEnabled(!data.enabled);
+        clearOptimistic();
         toast.error(t("Messages.updateError"));
         return false;
       } finally {
@@ -159,10 +201,6 @@ export function useApiKeys(): UseApiKeysReturn {
     },
     [refresh, t],
   );
-
-  useEffect(() => {
-    refresh(true);
-  }, [refresh]);
 
   return {
     apiKeys,

@@ -1,7 +1,18 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 vi.mock("next/image", () => ({
   __esModule: true,

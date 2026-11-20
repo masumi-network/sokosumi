@@ -1,9 +1,15 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { render, waitFor } from "@testing-library/react";
+import { render as rtlRender, waitFor } from "@testing-library/react";
 import DOMPurify from "dompurify";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ResolverSVGIcon } from "@/components/agents/resolver-svg-icon";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 vi.mock("dompurify", () => ({
   __esModule: true,

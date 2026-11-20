@@ -1,8 +1,14 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { PasskeySettings } from "./passkey-settings";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 const mockAddPasskey = vi.fn();
 const mockDeletePasskey = vi.fn();

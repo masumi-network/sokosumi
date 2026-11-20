@@ -1,11 +1,65 @@
+import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import Image from "next/image";
-import { type CSSProperties, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
 
 // Timeout for SVG fetch requests (5 seconds)
 const SVG_FETCH_TIMEOUT_MS = 5000;
+
+async function fetchSvgOrNull(
+  url: string,
+  signal: AbortSignal,
+): Promise<string | null> {
+  try {
+    const resp = await fetch(url, {
+      mode: "cors",
+      credentials: "omit",
+      signal,
+    });
+
+    // Quick header-based detection
+    const contentType = resp.headers.get("content-type")?.toLowerCase() ?? "";
+    const text = await resp.text();
+    const looksLikeSvg = /<svg[\s>]/i.test(text);
+
+    if (contentType.includes("image/svg+xml") || looksLikeSvg) {
+      return text;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeAndColorize(svg: string): string {
+  const sanitized = DOMPurify.sanitize(svg, {
+    USE_PROFILES: { svg: true },
+    KEEP_CONTENT: true,
+    IN_PLACE: false,
+  });
+
+  let s = sanitized.replace(
+    /\s(fill|stroke)=("|')([^"']*)\2/gi,
+    (match: string, attr: string, quote: string, value: string): string => {
+      if (value.trim().toLowerCase() !== "none") {
+        return ` ${attr}="currentColor"`;
+      }
+      return match;
+    },
+  );
+
+  s = s.replace(/<svg\b([^>]*)>/i, (match: string, attrs: string): string => {
+    const cleaned = String(attrs).replace(
+      /\s(width|height)=("|')[^"']*\2/gi,
+      "",
+    );
+    return `<svg${cleaned} preserveAspectRatio="xMidYMid meet">`;
+  });
+
+  return s;
+}
 
 interface ResolverSVGIconProps {
   svgUrl: string | null;
@@ -22,104 +76,36 @@ export function ResolverSVGIcon({
   size = 24,
   style,
 }: ResolverSVGIconProps) {
-  const [svgState, setSvgState] = useState<{
-    url: string;
-    markup: string;
-  } | null>(null);
+  const { data: svgMarkup } = useQuery({
+    queryKey: ["resolver-svg-icon", svgUrl],
+    enabled: Boolean(svgUrl),
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }): Promise<string | null> => {
+      if (!svgUrl) return null;
 
-  useEffect(() => {
-    if (!svgUrl) return;
+      const controller = new AbortController();
+      const onAbort = () => controller.abort();
+      signal.addEventListener("abort", onAbort, { once: true });
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        SVG_FETCH_TIMEOUT_MS,
+      );
 
-    let isMounted = true;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      SVG_FETCH_TIMEOUT_MS,
-    );
-
-    async function fetchSvgOrNull(url: string): Promise<string | null> {
       try {
-        const resp = await fetch(url, {
-          mode: "cors",
-          credentials: "omit",
-          signal: controller.signal,
-        });
-
-        // Quick header-based detection
-        const contentType =
-          resp.headers.get("content-type")?.toLowerCase() ?? "";
-        const text = await resp.text();
-        const looksLikeSvg = /<svg[\s>]/i.test(text);
-
-        if (contentType.includes("image/svg+xml") || looksLikeSvg) {
-          return text;
-        }
-        return null;
-      } catch {
-        return null;
+        const svg = await fetchSvgOrNull(svgUrl, controller.signal);
+        return svg ? sanitizeAndColorize(svg) : null;
+      } finally {
+        clearTimeout(timeoutId);
+        signal.removeEventListener("abort", onAbort);
       }
-    }
-
-    function sanitizeAndColorize(svg: string): string {
-      const sanitized = DOMPurify.sanitize(svg, {
-        USE_PROFILES: { svg: true },
-        KEEP_CONTENT: true,
-        IN_PLACE: false,
-      });
-
-      let s = sanitized.replace(
-        /\s(fill|stroke)=("|')([^"']*)\2/gi,
-        (match: string, attr: string, quote: string, value: string): string => {
-          if (value.trim().toLowerCase() !== "none") {
-            return ` ${attr}="currentColor"`;
-          }
-          return match;
-        },
-      );
-
-      s = s.replace(
-        /<svg\b([^>]*)>/i,
-        (match: string, attrs: string): string => {
-          const cleaned = String(attrs).replace(
-            /\s(width|height)=("|')[^"']*\2/gi,
-            "",
-          );
-          return `<svg${cleaned} preserveAspectRatio="xMidYMid meet">`;
-        },
-      );
-
-      return s;
-    }
-
-    fetchSvgOrNull(svgUrl)
-      .then((svg) => {
-        if (!isMounted) return;
-        if (svgUrl && svg) {
-          setSvgState({ url: svgUrl, markup: sanitizeAndColorize(svg) });
-        } else {
-          setSvgState(null);
-        }
-      })
-      .catch((error) => {
-        // Silently fail for aborted requests, log others
-        if (!isMounted) return;
-        if (error.name !== "AbortError") {
-          console.warn("Failed to load SVG icon:", error);
-        }
-        setSvgState(null);
-      });
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [svgUrl]);
+    },
+  });
 
   if (svgUrl) {
     // Inline SVG path
-    const shouldRenderInline = svgState && svgState.url === svgUrl;
-    if (shouldRenderInline) {
+    if (svgMarkup) {
       return (
         <span
           className={cn("inline-block shrink-0", className)}
@@ -127,7 +113,7 @@ export function ResolverSVGIcon({
           aria-label={alt || undefined}
           aria-hidden={alt ? undefined : true}
           style={style}
-          dangerouslySetInnerHTML={{ __html: svgState.markup }}
+          dangerouslySetInnerHTML={{ __html: svgMarkup }}
         />
       );
     }

@@ -1,5 +1,6 @@
 "use client";
 import type { ContactMapPlace } from "@sokosumi/core-client";
+import { useQuery } from "@tanstack/react-query";
 import { geoNaturalEarth1, geoPath } from "d3-geo";
 import { select } from "d3-selection";
 import {
@@ -14,7 +15,6 @@ import { useTranslations } from "next-intl";
 import {
   type RefCallback,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -158,16 +158,16 @@ function useMapZoom() {
 
 /** The sharper outline once the map is zoomed in far enough. */
 function useOutline(zoomedIn: boolean): Outline {
-  const [outline, setOutline] = useState(COARSE);
-  useEffect(() => {
-    if (!zoomedIn || outline !== COARSE) return;
-    let live = true;
-    void loadFine().then((loaded) => live && setOutline(loaded));
-    return () => {
-      live = false;
-    };
-  }, [zoomedIn, outline]);
-  return outline;
+  const { data } = useQuery({
+    queryKey: ["contacts-map", "fine-outline"],
+    queryFn: loadFine,
+    enabled: zoomedIn,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+  return data ?? COARSE;
 }
 
 function contactCount(places: readonly ContactMapPlace[]): number {
