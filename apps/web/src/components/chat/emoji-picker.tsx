@@ -2,7 +2,7 @@
 
 import { SmilePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useEmojiPickerMaxHeight } from "@/hooks/use-emoji-picker-max-height";
 import { useFrequentlyUsedEmojis } from "@/hooks/use-frequently-used-emojis";
 import { cn } from "@/lib/utils";
@@ -186,9 +187,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
     });
   }
 
-  useEffect(() => {
-    focusSearch();
-  }, []);
+  useFocusWhen(searchInputRef, true, { deferToFrame: true });
 
   function handleScrollToSection(sectionId: NavTargetId) {
     if (sectionId === SEARCH_NAV_ID) {

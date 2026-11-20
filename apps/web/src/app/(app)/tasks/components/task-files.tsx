@@ -7,11 +7,10 @@ import type {
 } from "@sokosumi/core-client";
 import { DownloadIcon, FileIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useLayoutEffect, useState } from "react";
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Button } from "@/components/ui/button";
-import { useActivityResetState } from "@/hooks/effects/use-activity-reset-state";
 import { useFilesArchiveDownload } from "@/hooks/effects/use-files-archive-download";
 import type { ArchiveFile } from "@/lib/files-archive";
 
@@ -57,8 +56,11 @@ function TaskFilesContent({
   downloadAllName,
   className,
 }: TaskFilesProps) {
+  const [expanded, setExpanded] = useState(false);
   // Next retains inactive routes in Activity; reset when hidden, not on refresh.
-  const [expanded, setExpanded] = useActivityResetState(false);
+  useLayoutEffect(() => {
+    return () => setExpanded(false);
+  }, []);
   const contentId = useId();
   const isExpandable = files.length > 3;
   const visibleFiles = expanded ? files : files.slice(0, 3);

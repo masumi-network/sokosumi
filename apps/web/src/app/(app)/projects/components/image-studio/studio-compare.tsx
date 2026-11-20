@@ -15,8 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAbortControllers } from "@/hooks/effects/use-abort-controller";
-import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   getStudioComparePair,
   saveStudioPairwisePick,
@@ -62,9 +61,16 @@ export function StudioCompare({
   const [saving, setSaving] = useState<Outcome | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
   const busy = useRef(false);
-  const advanceTimeout = useScheduledTimeout();
-  const operations = useAbortControllers();
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const active = useRef(true);
+  useMountEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    };
+  });
 
   const query = useQuery({
     queryKey: ["studio-compare", projectId, batchId],
@@ -80,13 +86,8 @@ export function StudioCompare({
   const pair = query.data?.pair;
 
   async function loadNext() {
-    const op = operations.create();
-    try {
-      const result = await query.refetch();
-      if (!op.signal.aborted && !result.isError) setPicked(null);
-    } finally {
-      operations.release(op);
-    }
+    const result = await query.refetch();
+    if (active.current && !result.isError) setPicked(null);
   }
 
   async function handlePick(outcome: Outcome) {
@@ -95,7 +96,6 @@ export function StudioCompare({
     dialogRef.current?.focus();
     setSaving(outcome);
     setSaveFailed(false);
-    const op = operations.create();
     try {
       const result = await saveStudioPairwisePick({
         projectId,
@@ -104,7 +104,7 @@ export function StudioCompare({
         otherAssetId: pair.b.id,
         outcome,
       });
-      if (op.signal.aborted) return;
+      if (!active.current) return;
       if (!result.ok) {
         setSaveFailed(true);
         return;
@@ -113,13 +113,12 @@ export function StudioCompare({
       void queryClient.invalidateQueries({
         queryKey: ["studio-model-scoreboard", projectId],
       });
-      advanceTimeout.schedule(() => void loadNext(), 1200);
+      advanceTimer.current = setTimeout(() => void loadNext(), 1200);
     } catch {
-      if (!op.signal.aborted) setSaveFailed(true);
+      if (active.current) setSaveFailed(true);
     } finally {
-      operations.release(op);
       busy.current = false;
-      if (!op.signal.aborted) setSaving(null);
+      if (active.current) setSaving(null);
     }
   }
 

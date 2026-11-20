@@ -1,10 +1,8 @@
 "use client";
 
 import { isDesignMdJobInProgress } from "@sokosumi/masumi/tools";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useAbortControllers } from "@/hooks/effects/use-abort-controller";
-import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import {
   finalizeDesignMdGeneration,
   pollDesignMdGeneration,
@@ -70,39 +68,45 @@ export function useDesignMdGeneration({
       errorMessage: null,
       status: "idle",
     });
-  const pollTimeout = useScheduledTimeout();
-  const operations = useAbortControllers();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const clearPollTimeout = useCallback(() => {
+    if (!timeoutRef.current) return;
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }, []);
+
+  const safeSetState = useCallback((nextState: DesignMdGenerationState) => {
+    if (mountedRef.current) setState(nextState);
+  }, []);
 
   const completeGeneration = useCallback(
-    (designMd: PersistedDesignMd, signal: AbortSignal) => {
+    (designMd: PersistedDesignMd) => {
       onCompleted?.(designMd);
-      if (!signal.aborted) {
-        setState({ errorMessage: null, status: "completed" });
-      }
+      safeSetState({ errorMessage: null, status: "completed" });
       inFlightRef.current = false;
       onSettled?.();
     },
-    [onCompleted, onSettled],
+    [onCompleted, onSettled, safeSetState],
   );
 
   const failGeneration = useCallback(
-    (message: string, signal: AbortSignal) => {
-      pollTimeout.cancel();
-      if (!signal.aborted) {
-        setState({ errorMessage: message, status: "failed" });
-      }
+    (message: string) => {
+      clearPollTimeout();
+      safeSetState({ errorMessage: message, status: "failed" });
       inFlightRef.current = false;
       onSettled?.();
     },
-    [onSettled, pollTimeout],
+    [clearPollTimeout, onSettled, safeSetState],
   );
 
   const pollUntilDone = useCallback(
     (jobId: string, jobToken: string) => {
-      pollTimeout.schedule(async () => {
-        const op = operations.create();
-        setState({ errorMessage: null, status: "polling" });
+      clearPollTimeout();
+      timeoutRef.current = setTimeout(async () => {
+        safeSetState({ errorMessage: null, status: "polling" });
 
         try {
           const pollResult = await pollDesignMdGeneration({
@@ -114,7 +118,6 @@ export function useDesignMdGeneration({
           if (!pollResult.ok) {
             failGeneration(
               pollResult.error.message ?? messages.generationFailed,
-              op.signal,
             );
             return;
           }
@@ -124,21 +127,16 @@ export function useDesignMdGeneration({
               pollResult.value.error ??
                 pollResult.value.message ??
                 messages.generationFailed,
-              op.signal,
             );
             return;
           }
 
           if (isDesignMdJobInProgress(pollResult.value)) {
-            if (!op.signal.aborted) {
-              pollUntilDone(jobId, jobToken);
-            }
+            pollUntilDone(jobId, jobToken);
             return;
           }
 
-          if (!op.signal.aborted) {
-            setState({ errorMessage: null, status: "finalizing" });
-          }
+          safeSetState({ errorMessage: null, status: "finalizing" });
           const finalizeResult = await finalizeDesignMdGeneration({
             jobId,
             jobToken,
@@ -146,32 +144,26 @@ export function useDesignMdGeneration({
           });
 
           if (!finalizeResult.ok) {
-            failGeneration(
-              finalizeResult.error.message ?? messages.saveFailed,
-              op.signal,
-            );
+            failGeneration(finalizeResult.error.message ?? messages.saveFailed);
             return;
           }
 
-          completeGeneration(finalizeResult.value, op.signal);
+          completeGeneration(finalizeResult.value);
         } catch (error) {
           failGeneration(
             getUnknownErrorMessage(error, messages.generationFailed),
-            op.signal,
           );
-        } finally {
-          operations.release(op);
         }
       }, pollIntervalMs);
     },
     [
+      clearPollTimeout,
       completeGeneration,
       failGeneration,
       messages,
-      operations,
       owner,
       pollIntervalMs,
-      pollTimeout,
+      safeSetState,
     ],
   );
 
@@ -179,10 +171,9 @@ export function useDesignMdGeneration({
     async ({ force, url }: GenerateDesignMdInput) => {
       if (inFlightRef.current) return;
 
-      pollTimeout.cancel();
+      clearPollTimeout();
       inFlightRef.current = true;
-      setState({ errorMessage: null, status: "starting" });
-      const op = operations.create();
+      safeSetState({ errorMessage: null, status: "starting" });
 
       try {
         const startResult = await startDesignMdGeneration({
@@ -192,47 +183,37 @@ export function useDesignMdGeneration({
         });
 
         if (!startResult.ok) {
-          failGeneration(
-            startResult.error.message ?? messages.startFailed,
-            op.signal,
-          );
+          failGeneration(startResult.error.message ?? messages.startFailed);
           return;
         }
 
         if (startResult.value.kind === "completed") {
-          completeGeneration(startResult.value.data, op.signal);
+          completeGeneration(startResult.value.data);
           return;
         }
 
-        if (!op.signal.aborted) {
-          setState({ errorMessage: null, status: "polling" });
-        }
+        safeSetState({ errorMessage: null, status: "polling" });
         onJobStarted?.({
           jobId: startResult.value.jobId,
           jobToken: startResult.value.jobToken,
           url,
         });
-        if (!op.signal.aborted) {
-          pollUntilDone(startResult.value.jobId, startResult.value.jobToken);
-        }
+        pollUntilDone(startResult.value.jobId, startResult.value.jobToken);
       } catch (error) {
         failGeneration(
           getUnknownErrorMessage(error, messages.generationFailed),
-          op.signal,
         );
-      } finally {
-        operations.release(op);
       }
     },
     [
+      clearPollTimeout,
       completeGeneration,
       failGeneration,
       messages,
       onJobStarted,
-      operations,
       owner,
-      pollTimeout,
       pollUntilDone,
+      safeSetState,
     ],
   );
 
@@ -241,17 +222,24 @@ export function useDesignMdGeneration({
     (job: { jobId: string; jobToken: string }) => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
-      setState({ errorMessage: null, status: "polling" });
+      safeSetState({ errorMessage: null, status: "polling" });
       pollUntilDone(job.jobId, job.jobToken);
     },
-    [pollUntilDone],
+    [pollUntilDone, safeSetState],
   );
 
   const reset = useCallback(() => {
-    pollTimeout.cancel();
+    clearPollTimeout();
     inFlightRef.current = false;
-    setState({ errorMessage: null, status: "idle" });
-  }, [pollTimeout]);
+    safeSetState({ errorMessage: null, status: "idle" });
+  }, [clearPollTimeout, safeSetState]);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      clearPollTimeout();
+    };
+  }, [clearPollTimeout]);
 
   return {
     errorMessage,

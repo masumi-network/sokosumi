@@ -18,7 +18,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useResetScopeDialogsOnUnmount } from "@/hooks/effects/use-project-scope-dialogs";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
 import { ProjectScopeReason } from "./project-scope-required";
@@ -30,6 +30,7 @@ import {
 import {
   getScopeCreateOpener,
   openScopeCreate,
+  resetScopeDialogs,
   selectCreatedProject,
   selectProjectScope,
   setScopeCreateOpen,
@@ -59,7 +60,7 @@ export function SidebarScopeMobileChip() {
   const clearScope = useClearScope(chipRef);
 
   // The store outlives this chip, as when the reader leaves the app shell.
-  useResetScopeDialogsOnUnmount();
+  useMountEffect(() => resetScopeDialogs);
 
   return (
     <>

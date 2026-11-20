@@ -18,7 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { cn } from "@/lib/utils";
 
 import { fetchChatSkills } from "./fetch-chat-skills";
@@ -101,10 +101,7 @@ function SkillPickerPanel({
   const [debouncedQuery] = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useMountEffect(() => {
-    const frame = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  });
+  useFocusWhen(inputRef, true, { deferToFrame: true });
 
   const { data, isPending, isError, isPlaceholderData } = useQuery({
     queryKey: ["chat-skills", debouncedQuery],

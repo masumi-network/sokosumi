@@ -7,10 +7,8 @@ import {
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  PurchaseTracker,
-  resetFiredPurchaseSessionIdsForTests,
-} from "@/components/billing/purchase-tracker";
+import { PurchaseTracker } from "@/components/billing/purchase-tracker";
+import { resetFiredPurchaseSessionIdsForTests } from "@/hooks/effects/use-track-purchase";
 import {
   applyConsentMode,
   CONSENT_COOKIE,
