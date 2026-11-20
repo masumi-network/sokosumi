@@ -6370,6 +6370,25 @@ export type StudioProductIdentity = {
     name: string;
 };
 
+export type StudioAgentBrandContext = {
+    brand?: {
+        positioning: string;
+        tone: string;
+        audience: Array<string>;
+        keyMessages: Array<string>;
+        do: Array<string>;
+        dont: Array<string>;
+    };
+    strategy?: {
+        month: string;
+        approved: boolean;
+        goals: Array<string>;
+        themes: Array<string>;
+    };
+    colors?: Array<string>;
+    fonts?: Array<string>;
+};
+
 export type StudioAgentAdHeadline = {
     headline: StudioAdHeadline;
     approvedLines: Array<string>;
@@ -50994,6 +51013,79 @@ export type ListStudioAgentProductsResponses = {
 };
 
 export type ListStudioAgentProductsResponse = ListStudioAgentProductsResponses[keyof ListStudioAgentProductsResponses];
+
+export type ReadStudioAgentBrandContextData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/image-studio-agent/brand-context';
+};
+
+export type ReadStudioAgentBrandContextErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReadStudioAgentBrandContextError = ReadStudioAgentBrandContextErrors[keyof ReadStudioAgentBrandContextErrors];
+
+export type ReadStudioAgentBrandContextResponses = {
+    /**
+     * Brand and strategy reference copy for the authorized project
+     */
+    200: {
+        data: StudioAgentBrandContext;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReadStudioAgentBrandContextResponse = ReadStudioAgentBrandContextResponses[keyof ReadStudioAgentBrandContextResponses];
 
 export type ReadStudioAgentAdHeadlineData = {
     body?: never;

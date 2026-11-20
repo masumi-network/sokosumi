@@ -22323,6 +22323,114 @@ export const StudioProductIdentitySchema = {
     ]
 } as const;
 
+export const StudioAgentBrandContextSchema = {
+    type: 'object',
+    properties: {
+        brand: {
+            type: 'object',
+            properties: {
+                positioning: {
+                    type: 'string',
+                    maxLength: 180
+                },
+                tone: {
+                    type: 'string',
+                    maxLength: 180
+                },
+                audience: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                },
+                keyMessages: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                },
+                do: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                },
+                dont: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                }
+            },
+            required: [
+                'positioning',
+                'tone',
+                'audience',
+                'keyMessages',
+                'do',
+                'dont'
+            ]
+        },
+        strategy: {
+            type: 'object',
+            properties: {
+                month: {
+                    type: 'string'
+                },
+                approved: {
+                    type: 'boolean'
+                },
+                goals: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                },
+                themes: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                }
+            },
+            required: [
+                'month',
+                'approved',
+                'goals',
+                'themes'
+            ]
+        },
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 180
+            },
+            maxItems: 3
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 180
+            },
+            maxItems: 3
+        }
+    }
+} as const;
+
 export const StudioAgentAdHeadlineSchema = {
     type: 'object',
     properties: {
