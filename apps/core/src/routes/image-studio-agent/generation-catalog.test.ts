@@ -249,7 +249,13 @@ describe("agent catalog and generation HTTP contract", () => {
       prompt: "A fox icon",
       idempotencyKey: "vector-job",
     };
-    expect(createImageJobRequestSchema.safeParse(input).success).toBe(false);
+    // Public create no longer takes modelId; the browser never chooses Recraft.
+    const publicParse = createImageJobRequestSchema.safeParse(input);
+    expect(publicParse.success).toBe(true);
+    expect(publicParse.data).not.toHaveProperty("modelId");
+    expect(getImageCatalog().models.map((model) => model.id)).not.toContain(
+      "recraft-v4-1-text-to-vector",
+    );
     createJob.mockResolvedValueOnce({ id: "job-id", status: "QUEUED" });
     const response = await app.request("/generations", {
       method: "POST",
