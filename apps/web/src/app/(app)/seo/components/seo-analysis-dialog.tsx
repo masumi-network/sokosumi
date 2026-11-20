@@ -383,6 +383,11 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
+          {full && (
+            <p className="text-sm">
+              {t("analysis.publicLinkScope", { limit: SEO_MAX_PAGES })}
+            </p>
+          )}
           {full ? (
             <div className="flex items-start gap-2">
               <Checkbox

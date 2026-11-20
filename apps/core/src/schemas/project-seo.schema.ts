@@ -48,7 +48,6 @@ import {
 import { seoAuditPerformanceSchema } from "./seo-audit-performance.schema";
 import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
 import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
-
 import {
   SEO_MAX_PAGES,
   seoBriefAction,
@@ -57,6 +56,7 @@ import {
   seoScopeSchema,
   seoUrlSchema,
 } from "./seo-page.schema";
+import { workspaceSiteEvidenceFields } from "./seo-site-evidence.schema";
 
 export {
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -698,6 +698,7 @@ export const projectSeoWorkspaceSchema = z
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** Private indexing assessment for the current viewer's audit and selected pages. */
     indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
+    ...workspaceSiteEvidenceFields,
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     landingEngagementChange: seoLandingEngagementChange.optional(),

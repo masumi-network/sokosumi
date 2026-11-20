@@ -99,6 +99,11 @@ export async function requireSeoTaskIndexingContext(
     integration,
     selectedProperty,
     searchConsoleAccess,
+    includeDiscoverySources:
+      analysis.request !== null &&
+      typeof analysis.request === "object" &&
+      !Array.isArray(analysis.request) &&
+      analysis.request.inspectRelated === true,
     contextFingerprint,
   };
 }

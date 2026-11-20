@@ -16,6 +16,7 @@ import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoAuditSearchConsole } from "./seo-audit-search-console";
 import { SeoConsoleExports } from "./seo-console-exports";
 import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SeoSiteEvidence } from "./seo-site-evidence";
 import {
   type SeoReportFileProps,
   useSeoReportFiles,
@@ -68,6 +69,7 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
     importReport,
     recoverMarkets,
     evidence,
+    siteEvidence,
     fullAudit,
     recoverSearch,
     recovering,
@@ -95,6 +97,7 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
           {t("reportFiles.historyLimit")}
         </p>
       )}
+      {siteEvidence && <SeoSiteEvidence evidence={siteEvidence} />}
       {evidence ? (
         <>
           <SeoAuditSearchConsole evidence={evidence} />

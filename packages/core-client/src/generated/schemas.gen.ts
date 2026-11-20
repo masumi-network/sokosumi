@@ -44924,6 +44924,23 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        siteEvidence: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoSiteEvidence'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        auditSiteEvidence: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoSiteEvidence'
+            },
+            maxItems: 20
+        },
         strategy: {
             anyOf: [
                 {
@@ -48224,6 +48241,207 @@ export const ProjectSeoIndexAssessedPageSchema = {
         'evidence',
         'taskId',
         'checkedAt'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoSiteEvidenceSchema = {
+    type: 'object',
+    properties: {
+        taskId: {
+            type: 'string'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sampledPages: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            maxItems: 10
+        },
+        complete: {
+            type: 'boolean'
+        },
+        targets: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    targetUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    donorUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    contentDonorUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    sitemapUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 100
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'fix_link',
+                            'review_redirect',
+                            'strengthen_links',
+                            'review',
+                            'observed'
+                        ]
+                    },
+                    action: {
+                        type: 'string'
+                    },
+                    httpStatus: {
+                        type: 'integer'
+                    },
+                    finalUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    googleReferringPages: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    googleSitemapUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    googleReason: {
+                        type: 'string'
+                    },
+                    googleCheckedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    trend: {
+                        type: 'object',
+                        properties: {
+                            previousAt: {
+                                type: 'string',
+                                format: 'date-time',
+                                example: '2021-01-01T00:00:00.000Z'
+                            },
+                            previousCount: {
+                                type: 'integer'
+                            },
+                            currentCount: {
+                                type: 'integer'
+                            },
+                            decline: {
+                                type: 'object',
+                                properties: {
+                                    points: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                at: {
+                                                    type: 'string',
+                                                    format: 'date-time',
+                                                    example: '2021-01-01T00:00:00.000Z'
+                                                },
+                                                count: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'at',
+                                                'count'
+                                            ],
+                                            additionalProperties: false
+                                        }
+                                    },
+                                    missingDonorUrls: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 4096,
+                                            format: 'uri'
+                                        },
+                                        minItems: 1,
+                                        maxItems: 3
+                                    }
+                                },
+                                required: [
+                                    'points',
+                                    'missingDonorUrls'
+                                ],
+                                additionalProperties: false
+                            }
+                        },
+                        required: [
+                            'previousAt',
+                            'previousCount',
+                            'currentCount'
+                        ],
+                        additionalProperties: false
+                    }
+                },
+                required: [
+                    'targetUrl',
+                    'donorUrls',
+                    'contentDonorUrls',
+                    'sitemapUrls',
+                    'status',
+                    'action'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'taskId',
+        'auditPageUrl',
+        'observedAt',
+        'sampledPages',
+        'complete',
+        'targets'
     ],
     additionalProperties: false
 } as const;
@@ -66476,6 +66694,107 @@ export const SeoTaskRelatedPagesReceiptSchema = {
 export const SeoTaskRelatedPagesRequestSchema = {
     type: 'object',
     properties: {
+        siteEvidence: {
+            type: 'object',
+            properties: {
+                version: {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                complete: {
+                    type: 'boolean'
+                },
+                sampledPages: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    maxItems: 10
+                },
+                observations: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            sourceUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            targetUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            sourceKind: {
+                                type: 'string',
+                                enum: [
+                                    'link',
+                                    'sitemap'
+                                ]
+                            },
+                            location: {
+                                type: 'string',
+                                enum: [
+                                    'content',
+                                    'template',
+                                    'body',
+                                    'sitemap'
+                                ]
+                            }
+                        },
+                        required: [
+                            'sourceUrl',
+                            'targetUrl',
+                            'sourceKind',
+                            'location'
+                        ],
+                        additionalProperties: false
+                    },
+                    maxItems: 100
+                },
+                responses: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            pageUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            status: {
+                                type: 'integer',
+                                minimum: 100,
+                                maximum: 599
+                            },
+                            finalUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            }
+                        },
+                        required: [
+                            'pageUrl',
+                            'status'
+                        ],
+                        additionalProperties: false
+                    },
+                    maxItems: 10
+                }
+            },
+            required: [
+                'version',
+                'complete',
+                'sampledPages',
+                'observations'
+            ],
+            additionalProperties: false
+        },
         expectedContext: {
             $ref: '#/components/schemas/TaskWorkerContext'
         },

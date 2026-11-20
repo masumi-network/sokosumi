@@ -11836,6 +11836,8 @@ export type ProjectSeoWorkspace = {
     landingPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
+    siteEvidence?: ProjectSeoSiteEvidence | null;
+    auditSiteEvidence?: Array<ProjectSeoSiteEvidence>;
     strategy?: ProjectSeoStrategy | null;
     landingEngagementChange?: {
         propertyId: string;
@@ -12430,6 +12432,40 @@ export type ProjectSeoIndexAssessedPage = {
     checkedAt: Date;
     googleReturnedUnknown?: true;
     auditPageUrl?: string;
+};
+
+export type ProjectSeoSiteEvidence = {
+    taskId: string;
+    auditPageUrl: string;
+    observedAt: Date;
+    sampledPages: Array<string>;
+    complete: boolean;
+    targets: Array<{
+        targetUrl: string;
+        donorUrls: Array<string>;
+        contentDonorUrls: Array<string>;
+        sitemapUrls: Array<string>;
+        status: 'fix_link' | 'review_redirect' | 'strengthen_links' | 'review' | 'observed';
+        action: string;
+        httpStatus?: number;
+        finalUrl?: string;
+        googleReferringPages?: Array<string>;
+        googleSitemapUrls?: Array<string>;
+        googleReason?: string;
+        googleCheckedAt?: Date;
+        trend?: {
+            previousAt: Date;
+            previousCount: number;
+            currentCount: number;
+            decline?: {
+                points: Array<{
+                    at: Date;
+                    count: number;
+                }>;
+                missingDonorUrls: Array<string>;
+            };
+        };
+    }>;
 };
 
 export type ProjectSeoStrategy = {
@@ -16628,6 +16664,22 @@ export type SeoTaskRelatedPagesReceipt = {
 };
 
 export type SeoTaskRelatedPagesRequest = {
+    siteEvidence?: {
+        version: 1;
+        complete: boolean;
+        sampledPages: Array<string>;
+        observations: Array<{
+            sourceUrl: string;
+            targetUrl: string;
+            sourceKind: 'link' | 'sitemap';
+            location: 'content' | 'template' | 'body' | 'sitemap';
+        }>;
+        responses?: Array<{
+            pageUrl: string;
+            status: number;
+            finalUrl?: string;
+        }>;
+    };
     expectedContext: TaskWorkerContext;
     seedPageUrls: Array<string>;
     relatedPageUrls: Array<string>;

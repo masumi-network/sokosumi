@@ -3,7 +3,9 @@ import { conflict } from "@/helpers/error";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   originalSeoAuditPacket,
+  publicSeoRedirectOrigin,
   selectSeoRelatedPages,
+  validateSeoSiteEvidence,
 } from "@/lib/seo/related-page-selection";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { storedSeoFullAuditPriceSchema } from "@/schemas/seo-audit-price.schema";
@@ -11,6 +13,7 @@ import {
   type SeoTaskRelatedPagesRequest,
   seoRelatedIndexingSelectionSchema,
 } from "@/schemas/seo-task-pages.schema";
+import { seoOwnerData, sha256 } from "./project-seo-store";
 import { seoAuditInspectionPages } from "./seo-audit-related-pages";
 import { requireSeoTaskAuditContext } from "./seo-task-audit-context";
 
@@ -27,12 +30,8 @@ export function freezeSeoTaskRelatedIndexing(
   input: SeoTaskRelatedPagesRequest,
 ) {
   return serializableTransaction(async (tx) => {
-    const { analysis, task, pageUrls } = await requireSeoTaskAuditContext(
-      auth,
-      taskId,
-      input.expectedContext,
-      tx,
-    );
+    const { actor, analysis, task, pageUrls } =
+      await requireSeoTaskAuditContext(auth, taskId, input.expectedContext, tx);
     if (task.status !== "RUNNING")
       throw conflict("Related indexing checks require a running audit Task");
     const original = originalSeoAuditPacket(analysis.request);
@@ -65,9 +64,22 @@ export function freezeSeoTaskRelatedIndexing(
         auditPageUrl: pageUrls[0]!,
         inspectionPageUrls: seoAuditInspectionPages(analysis.request, pageUrls),
       };
-    const inspectionPageUrls = selectSeoRelatedPages(
+    const publicOrigin = publicSeoRedirectOrigin(
+      pageUrls[0]!,
+      input.siteEvidence,
+      stored.searchConsoleAccess,
+    );
+    const publicTargets = selectSeoRelatedPages(
       input.seedPageUrls,
       input.relatedPageUrls,
+      stored.searchConsoleAccess,
+      publicOrigin,
+    );
+    const inspectionPageUrls = selectSeoRelatedPages(
+      input.seedPageUrls,
+      input.relatedPageUrls.filter(
+        (url) => new URL(url).origin !== publicOrigin,
+      ),
       stored.searchConsoleAccess,
     );
     if (
@@ -79,6 +91,35 @@ export function freezeSeoTaskRelatedIndexing(
     const relatedPageUrls = inspectionPageUrls.filter(
       (url) => !pageUrls.includes(url),
     );
+    if (input.siteEvidence) {
+      validateSeoSiteEvidence(
+        input.siteEvidence,
+        publicTargets,
+        stored.searchConsoleAccess,
+        publicOrigin,
+      );
+      const payload = {
+        auditPageUrl: pageUrls[0]!,
+        targetUrls: publicTargets,
+        evidence: input.siteEvidence,
+      };
+      await tx.projectSeoObservation.create({
+        data: {
+          ...seoOwnerData(actor),
+          sourceKey: `task-site-evidence:${taskId}`,
+          source: "seo_worker",
+          kind: "site_evidence",
+          sourceTaskId: taskId,
+          ownerId: actor.userId,
+          visibility: "PRIVATE",
+          pageIds: analysis.pageIds,
+          scopeVersion: analysis.scopeVersion,
+          artifactHash: sha256(JSON.stringify(payload)),
+          observedAt: new Date(),
+          payload,
+        },
+      });
+    }
     await tx.projectSeoAnalysis.update({
       where: { id: analysis.id },
       data: {

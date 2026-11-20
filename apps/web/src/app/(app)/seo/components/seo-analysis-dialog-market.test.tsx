@@ -139,6 +139,11 @@ describe("SEO check defaults", () => {
       dialog = showDialog(workspace());
     const summary = within(dialog).getByTestId("seo-analysis-summary");
     expect(within(summary).getByText("Full audit")).toBeVisible();
+    expect(
+      within(dialog).getByText(
+        messages.App.Seo.analysis.publicLinkScope.replaceAll("{limit}", "10"),
+      ),
+    ).toBeVisible();
     // One line: the market of the saved keyword, by name, and the one keyword a full audit takes. Both
     // devices are the default and go unsaid.
     expect(summary).toHaveTextContent(

@@ -4650,6 +4650,26 @@ const projectSeoIndexTriageSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoSiteEvidenceSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    data.targets = data.targets.map((item: any) => {
+        if (item.googleCheckedAt) {
+            item.googleCheckedAt = new Date(item.googleCheckedAt);
+        }
+        if (item.trend) {
+            item.trend.previousAt = new Date(item.trend.previousAt);
+            if (item.trend.decline) {
+                item.trend.decline.points = item.trend.decline.points.map((item: any) => {
+                    item.at = new Date(item.at);
+                    return item;
+                });
+            }
+        }
+        return item;
+    });
+    return data;
+};
+
 const projectSeoStrategySchemaResponseTransformer = (data: any) => {
     if (data.markets) {
         data.markets.hosts = data.markets.hosts.map((item: any) => {
@@ -4744,6 +4764,12 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     }
     if (data.indexTriage) {
         data.indexTriage = projectSeoIndexTriageSchemaResponseTransformer(data.indexTriage);
+    }
+    if (data.siteEvidence) {
+        data.siteEvidence = projectSeoSiteEvidenceSchemaResponseTransformer(data.siteEvidence);
+    }
+    if (data.auditSiteEvidence) {
+        data.auditSiteEvidence = data.auditSiteEvidence.map((item: any) => projectSeoSiteEvidenceSchemaResponseTransformer(item));
     }
     if (data.strategy) {
         data.strategy = projectSeoStrategySchemaResponseTransformer(data.strategy);

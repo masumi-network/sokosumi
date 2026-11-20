@@ -203,6 +203,11 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
       [401, 403, 404].includes(files.error.status ?? 0));
   return {
     taskId,
+    siteEvidence:
+      model.data.auditSiteEvidence?.find((entry) => entry?.taskId === taskId) ??
+      (model.data.siteEvidence?.taskId === taskId
+        ? model.data.siteEvidence
+        : null),
     evidence: model.data.auditSearchConsole?.find(
       (entry) => entry.taskId === taskId,
     ),

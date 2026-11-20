@@ -3,6 +3,7 @@ import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoConsoleExportActions } from "./seo-console-export-actions";
 import { SeoFoldSummary } from "./seo-shared";
+import { SeoSiteEvidence } from "./seo-site-evidence";
 
 type Evidence = NonNullable<
   NonNullable<ProjectSeoWorkspace["auditSearchConsole"]>[number]["discovery"]
@@ -165,13 +166,17 @@ export function SeoCurrentDiscoveryActions({
         row.taskId === latest.sourceTaskId &&
         row.pageUrls.every((url) => urls.has(url)),
     );
-  return result ? (
+  const site = workspace.siteEvidence;
+  return (
     <>
-      {result.discovery && <SeoDiscoveryActions evidence={result.discovery} />}
-      <SeoConsoleExportActions
-        owner={seoWorkspaceOwner(workspace)}
-        taskId={result.taskId}
-      />
+      {site && <SeoSiteEvidence evidence={site} />}
+      {result?.discovery && <SeoDiscoveryActions evidence={result.discovery} />}
+      {result && (
+        <SeoConsoleExportActions
+          owner={seoWorkspaceOwner(workspace)}
+          taskId={result.taskId}
+        />
+      )}
     </>
-  ) : null;
+  );
 }
