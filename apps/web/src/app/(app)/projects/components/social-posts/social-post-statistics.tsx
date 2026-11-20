@@ -38,7 +38,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
-import { useIsMountedRef } from "@/hooks/effects/use-is-mounted-ref";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   recycleProjectSocialAccountPost,
   refreshProjectSocialAccountStatistics,
@@ -354,10 +354,16 @@ export function SocialPostStatistics(
     : [];
   const consistency = query.data?.pages[0]?.consistency;
   const enqueueingRef = useRef(false);
-  const mountedRef = useIsMountedRef();
+  const mountedRef = useRef(false);
   const autoRequestedIdsRef = useRef(new Set<string>());
   const [enqueueingId, setEnqueueingId] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
+  useMountEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  });
 
   async function enqueueRefresh(
     targets: Account[],

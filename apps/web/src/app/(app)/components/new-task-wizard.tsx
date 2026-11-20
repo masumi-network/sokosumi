@@ -1,7 +1,8 @@
 "use client";
 
-import { hashKey, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 import { toast } from "sonner";
 
 import { loadNewTaskWizardOptions } from "@/app/tasks/actions";
@@ -11,7 +12,6 @@ import {
   type NewTaskCopyPrefill,
   useCreateTaskModal,
 } from "@/app/tasks/components/create-task-modal";
-import { useQueryErrorReport } from "@/hooks/effects/use-query-error-report";
 
 type NewTaskWizardData = Awaited<ReturnType<typeof loadNewTaskWizardOptions>>;
 
@@ -74,31 +74,21 @@ function NewTaskWizardModal({
 }: Pick<NewTaskWizardProps, "instance" | "defaultProjectId">) {
   const { handleClose } = useCreateTaskModal();
   const tTasksErrors = useTranslations("App.Tasks.Errors");
-  const queryKey = [
-    "new-task-wizard-options",
-    instance,
-    defaultProjectId,
-  ] as const;
-  const query = useQuery({
+  const { data: options, isError } = useQuery({
     // Keyed per open so the lists always belong to the current workspace.
-    queryKey,
+    queryKey: ["new-task-wizard-options", instance, defaultProjectId],
     queryFn: () => loadNewTaskWizardOptions(defaultProjectId),
     select: toWizardOptions,
     gcTime: 0,
     refetchOnWindowFocus: false,
     retry: false,
   });
-  const options = query.data;
 
-  useQueryErrorReport(
-    hashKey(queryKey),
-    query.error,
-    query.errorUpdateCount,
-    () => {
-      toast.error(tTasksErrors("loadCreateTask"));
-      handleClose();
-    },
-  );
+  useEffect(() => {
+    if (!isError) return;
+    toast.error(tTasksErrors("loadCreateTask"));
+    handleClose();
+  }, [handleClose, isError, tTasksErrors]);
 
   return (
     <CreateTaskModal

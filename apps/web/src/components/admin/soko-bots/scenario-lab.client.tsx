@@ -19,7 +19,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
-import { useIsMountedRef } from "@/hooks/effects/use-is-mounted-ref";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
@@ -316,7 +316,13 @@ export function ScenarioLab({
   // One at a time: turns share the bot's session lock, so this is the run the
   // whole page is waiting on rather than one of several.
   const [live, setLive] = useState<LiveRun | null>(null);
-  const mountedRef = useIsMountedRef();
+  const mountedRef = useRef(false);
+  useMountEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  });
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;

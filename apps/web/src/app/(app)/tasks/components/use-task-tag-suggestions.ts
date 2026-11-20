@@ -1,8 +1,7 @@
 "use client";
 
 import type { TaskTagSuggestion } from "@sokosumi/core-client";
-import { useEffect, useRef, useState } from "react";
-import { useLatestRef } from "@/hooks/effects/use-latest-ref";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useTaskTagCatalog } from "./task-tag-catalog";
 
@@ -66,20 +65,10 @@ export function useTaskTagSuggestions({
     words.join("").length >= MIN_CHARACTERS &&
     name.length <= 300 &&
     description.length <= 8000;
-  const [generationState, setGenerationState] = useState({
-    wordKey,
-    eligible,
-    count: 1,
-  });
-  let generationCount = generationState.count;
-  if (
-    generationState.wordKey !== wordKey ||
-    generationState.eligible !== eligible
-  ) {
-    generationCount = generationState.count + 1;
-    setGenerationState({ wordKey, eligible, count: generationCount });
-  }
-  const generation = useLatestRef(generationCount);
+  const generation = useRef(0);
+  useLayoutEffect(() => {
+    generation.current += 1;
+  }, [wordKey, eligible]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [request, setRequest] = useState<{
     key: string;
@@ -101,14 +90,10 @@ export function useTaskTagSuggestions({
   const current = eligible
     ? suggestions.find((suggestion) => suggestion.wordKey === wordKey)
     : undefined;
-  const [lastShownState, setLastShownState] = useState<Suggestion | undefined>(
-    current,
-  );
-  const effectiveLastShown = current ?? lastShownState;
-  if (current && lastShownState !== current) {
-    setLastShownState(current);
-  }
-  const lastShown = useLatestRef(effectiveLastShown);
+  const lastShown = useRef<Suggestion | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (current) lastShown.current = current;
+  }, [current]);
   const shouldRequest = eligible && !current && request?.key !== wordKey;
   const tags = [...new Set(current?.tags ?? [])].slice(0, 5);
 

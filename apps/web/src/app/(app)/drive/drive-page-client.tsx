@@ -14,7 +14,7 @@ import {
   postDriveTasksCopy,
 } from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { hashKey, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronRight,
@@ -133,7 +133,6 @@ import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
-import { useQueryErrorReport } from "@/hooks/effects/use-query-error-report";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import {
@@ -564,30 +563,25 @@ function DrivePageWorkspace({
    * destinations and the folder actions read, and what an upload invalidates,
    * so it stays — it just stopped being a second list on the page.
    */
-  const driveItemsQueryOptions = getDriveItemsQueryOptions({
-    store: driveStore,
-    folder: currentFolder,
-    search: debouncedSearchQuery,
-    ...filesSortQuery,
-  });
   const driveItemsQuery = useQuery({
-    ...driveItemsQueryOptions,
+    ...getDriveItemsQueryOptions({
+      store: driveStore,
+      folder: currentFolder,
+      search: debouncedSearchQuery,
+      ...filesSortQuery,
+    }),
     enabled: isWorkspaceView && !isTasksView,
   });
   // The catalog renders its own skeleton, so the Workspace tab never uses this.
   const loading = isTasksView ? tasksLoading : false;
 
-  useQueryErrorReport(
-    hashKey(driveItemsQueryOptions.queryKey),
-    driveItemsQuery.error,
-    driveItemsQuery.errorUpdateCount,
-    driveItemsQuery.isEnabled
-      ? (error) => {
-          console.error("Failed to load Drive items", error);
-          toast.error(t("loadFilesError"));
-        }
-      : undefined,
-  );
+  useEffect(() => {
+    if (!driveItemsQuery.isError) {
+      return;
+    }
+    console.error("Failed to load Drive items", driveItemsQuery.error);
+    toast.error(t("loadFilesError"));
+  }, [driveItemsQuery.error, driveItemsQuery.isError, t]);
 
   async function refreshDriveItems() {
     await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
