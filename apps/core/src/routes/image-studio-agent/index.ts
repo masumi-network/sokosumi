@@ -47,8 +47,17 @@ import { authorizeAgentGrant as authorize } from "./authorize";
 
 const app = new Hono();
 const createAgentImageJobSchema = createImageJobRequestSchema
-  .omit({ exportHeadline: true, useProductCutout: true })
-  .extend({ catalogProductId: z.string().uuid().optional() });
+  .omit({
+    exportHeadline: true,
+    useProductCutout: true,
+    letterExistingBackdrop: true,
+  })
+  .extend({
+    catalogProductId: z.string().uuid().optional(),
+    modelId: z
+      .enum(["gemini-pro", "ideogram-v3", "recraft-v4-1-text-to-vector"])
+      .default("gemini-pro"),
+  });
 
 /**
  * Confirm the grant's user still has access to the grant's project.
@@ -81,7 +90,7 @@ app.get("/options", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
   await ensureImageCatalogFresh();
-  return c.json({ ok: true, catalog: getImageCatalog() });
+  return c.json({ ok: true, catalog: getImageCatalog("agent") });
 });
 
 app.get("/versions", async (c) => {

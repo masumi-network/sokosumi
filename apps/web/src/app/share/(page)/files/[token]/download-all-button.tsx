@@ -2,7 +2,7 @@
 
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useFilesArchiveDownload } from "@/hooks/use-files-archive-download";
+import { useFilesArchiveDownload } from "@/hooks/effects/use-files-archive-download";
 import { FOLDER_ARCHIVE_MAX_FILES } from "@/lib/files-archive";
 import { sharedFolderArchiveFiles } from "./share-download";
 

@@ -64,6 +64,7 @@ import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { taskWorkerContextSchema } from "@/schemas/task-worker-context.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
+import { collectSeoAuditPerformance } from "@/services/seo-audit-performance";
 import {
   requiredSeoAuditStartCheck,
   verifySeoAuditStart,
@@ -242,11 +243,15 @@ function mountTaskEventRoute(
       }
       let cents: bigint | undefined;
       let transactionId: string | null = null;
+      let approvedAuditCompletion = false;
       const recordAuditCost = await prepareAuditSettlement(
         tx,
         task,
         body,
         isAgent && mode === "seo-settlement",
+        () => {
+          approvedAuditCompletion = true;
+        },
       );
       let eventStatus: TaskStatus | null = status ?? null;
       let chargedMasumiPayment = false;
@@ -398,6 +403,7 @@ function mountTaskEventRoute(
         taskPaymentClaimId,
         pausedForInsufficientBalance,
         charged: transactionId !== null,
+        approvedAuditCompletion,
       };
     };
     const commitEvent = (checkedStart?: string) =>
@@ -433,6 +439,29 @@ function mountTaskEventRoute(
       pausedForInsufficientBalance,
       charged,
     } = transactionResult;
+
+    // Retry the original page and date selection at settlement if Google was unavailable at start.
+    if (
+      (event.status === TaskStatus.RUNNING && first.auditStart) ||
+      (event.status === TaskStatus.COMPLETED &&
+        transactionResult.approvedAuditCompletion)
+    ) {
+      waitUntil(
+        runAsBackgroundWork(() => collectSeoAuditPerformance(taskId)).catch(
+          (error) => {
+            emitCoreWarning(
+              { operation: "seo_audit_performance", taskId },
+              {
+                message:
+                  "Could not collect the audit’s Search Console performance",
+                why: "The approved statistics collection did not finish.",
+                details: { failure: messageSafeErrorFields(error) },
+              },
+            );
+          },
+        ),
+      );
+    }
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
       waitUntil(

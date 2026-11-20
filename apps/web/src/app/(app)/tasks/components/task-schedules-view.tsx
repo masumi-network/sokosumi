@@ -36,7 +36,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";

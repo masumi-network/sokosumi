@@ -303,7 +303,9 @@ export function SeoRuns({
                           lang="en"
                           className="text-muted-foreground text-xs font-normal"
                         >
-                          {report("pages.issues", { count: entry.issues })}
+                          {report("summary.issuesInCheck", {
+                            count: entry.issues,
+                          })}
                         </span>
                       )}
                       {entry.scheduled ? (

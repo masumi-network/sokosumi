@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -26,41 +26,38 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import type { DeleteApiKeyDialogProps, DeleteApiKeyFormData } from "./types";
-import {
-  DEFAULT_DELETE_FORM_VALUES,
-  deleteApiKeySchema,
-  validateConfirmationName,
-} from "./utils";
+import type {
+  ApiKeyRecord,
+  DeleteApiKeyDialogProps,
+  DeleteApiKeyFormData,
+} from "./types";
+import { deleteApiKeySchema, validateConfirmationName } from "./utils";
 
-export function DeleteApiKeyDialog({
+interface DeleteApiKeyFormProps {
+  apiKey: ApiKeyRecord;
+  onOpenChange: DeleteApiKeyDialogProps["onOpenChange"];
+  onSuccess: DeleteApiKeyDialogProps["onSuccess"];
+  deleteApiKey: DeleteApiKeyDialogProps["deleteApiKey"];
+}
+
+function DeleteApiKeyForm({
   apiKey,
-  open,
   onOpenChange,
   onSuccess,
   deleteApiKey,
-}: DeleteApiKeyDialogProps) {
+}: DeleteApiKeyFormProps) {
   const t = useTranslations("App.Account.ApiKeys");
-
   const schema = deleteApiKeySchema(t);
 
   const form = useForm<DeleteApiKeyFormData>({
     resolver: zodResolver(schema),
-    defaultValues: DEFAULT_DELETE_FORM_VALUES,
+    defaultValues: {
+      keyId: apiKey.id,
+      confirmName: "",
+    },
   });
 
-  useEffect(() => {
-    if (apiKey) {
-      form.reset({
-        keyId: apiKey.id,
-        confirmName: "",
-      });
-    }
-  }, [apiKey, form]);
-
   const onSubmit = async (values: DeleteApiKeyFormData) => {
-    if (!apiKey) return;
-
     const validation = validateConfirmationName(
       apiKey.name ?? "",
       values.confirmName,
@@ -81,25 +78,66 @@ export function DeleteApiKeyDialog({
     }
   };
 
-  const handleOpenChange = (open: boolean) => {
-    onOpenChange(open);
-    if (!open) {
-      form.reset();
-    }
-  };
-
   const confirmName = useWatch({
     control: form.control,
     name: "confirmName",
   });
   const canDelete = useMemo(() => {
-    return confirmName === apiKey?.name;
-  }, [confirmName, apiKey]);
+    return confirmName === apiKey.name;
+  }, [confirmName, apiKey.name]);
 
   const { isSubmitting } = form.formState;
 
   return (
-    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="confirmName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {t("DeleteDialog.confirmLabelPrefix")}{" "}
+                <strong>{apiKey.name}</strong>{" "}
+                {t("DeleteDialog.confirmLabelSuffix")}
+              </FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isSubmitting}>
+            {t("DeleteDialog.cancelButton")}
+          </AlertDialogCancel>
+          <Button
+            type="submit"
+            variant="destructive"
+            disabled={!canDelete}
+            loading={isSubmitting}
+          >
+            {t("DeleteDialog.deleteButton")}
+          </Button>
+        </AlertDialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+export function DeleteApiKeyDialog({
+  apiKey,
+  open,
+  onOpenChange,
+  onSuccess,
+  deleteApiKey,
+}: DeleteApiKeyDialogProps) {
+  const t = useTranslations("App.Account.ApiKeys");
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t("DeleteDialog.title")}</AlertDialogTitle>
@@ -109,41 +147,13 @@ export function DeleteApiKeyDialog({
         </AlertDialogHeader>
 
         {apiKey && (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="confirmName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t("DeleteDialog.confirmLabelPrefix")}{" "}
-                      <strong>{apiKey.name}</strong>{" "}
-                      {t("DeleteDialog.confirmLabelSuffix")}
-                    </FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isSubmitting}>
-                  {t("DeleteDialog.cancelButton")}
-                </AlertDialogCancel>
-                <Button
-                  type="submit"
-                  variant="destructive"
-                  disabled={!canDelete}
-                  loading={isSubmitting}
-                >
-                  {t("DeleteDialog.deleteButton")}
-                </Button>
-              </AlertDialogFooter>
-            </form>
-          </Form>
+          <DeleteApiKeyForm
+            key={`${apiKey.id}-${open ? "open" : "closed"}`}
+            apiKey={apiKey}
+            onOpenChange={onOpenChange}
+            onSuccess={onSuccess}
+            deleteApiKey={deleteApiKey}
+          />
         )}
       </AlertDialogContent>
     </AlertDialog>

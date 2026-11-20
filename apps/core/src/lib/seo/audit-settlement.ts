@@ -5,6 +5,7 @@ import {
   seoCostPlusPriceSchema,
   seoFullAuditCostSchema,
 } from "@/schemas/seo-audit-price.schema";
+import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
 
 const MICRO_USD_PER_USD = 1_000_000n;
 const CREDITS_PER_USD = 100n;
@@ -69,6 +70,7 @@ export async function prepareAuditSettlement(
   task: BillingTask,
   body: AuditPayment,
   boundWorker: boolean,
+  onApprovedCompletion?: () => void,
 ) {
   if (
     !body.fullAuditCost &&
@@ -82,6 +84,13 @@ export async function prepareAuditSettlement(
     select: { id: true, kind: true, request: true },
   });
   const request = analysis?.request;
+  if (
+    body.status === "COMPLETED" &&
+    analysis?.kind === "audit_full" &&
+    storedSeoAuditSearchConsoleSchema.safeParse(request).data
+      ?.searchConsoleAccess
+  )
+    onApprovedCompletion?.();
   const packet =
     request && typeof request === "object" && !Array.isArray(request)
       ? request

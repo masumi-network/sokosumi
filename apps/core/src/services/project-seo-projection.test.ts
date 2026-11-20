@@ -226,6 +226,7 @@ describe("stored SEO workspace projections", () => {
     payload.findings.push(
       { ...issue, id: "other-page", pageUrl: "https://other.example/" },
       { ...issue, id: "note", severity: "note" },
+      { ...issue, id: "fragment", pageUrl: `${issue.pageUrl}#details` },
       // The same rule fails on the other device: still one issue on the page.
       {
         ...issue,
@@ -248,6 +249,86 @@ describe("stored SEO workspace projections", () => {
       "2026-11-01T12:00:00.000Z": 1,
       "2026-11-02T12:00:00.000Z": 0,
     });
+  });
+
+  it("keeps the issue when a diagnostic precedes it on the same row and device", () => {
+    const input = fixture();
+    const payload = parsePublicSeoArtifact(legacyReport());
+    const [issue] = payload.findings;
+    payload.findings.unshift({ ...issue, id: "measurement", severity: "note" });
+    const audit = observation(input, payload, "2026-11-01T12:00:00Z");
+    input.observations = [audit];
+
+    const view = projectSeoProjection(input);
+    expect(view.runs?.[0].issues).toBe(1);
+    expect(view.findings.map((item) => item.id)).toContain(
+      `${audit.id}:${issue.id}`,
+    );
+  });
+
+  it.each([
+    { checked: 0, skipped: 2, failed: 0 },
+    { checked: 1, skipped: 0, failed: 1 },
+    {
+      checked: 1,
+      skipped: 0,
+      failed: 0,
+      modules: { notRequested: 0, failed: 1 },
+    },
+  ])(
+    "keeps an incomplete zero unknown in the timeline, including outside the period",
+    (coverage) => {
+      const input = fixture();
+      const payload = parsePublicSeoArtifact(legacyReport());
+      payload.checks = [];
+      payload.coverage = coverage;
+      payload.findings = [];
+      input.observations = [
+        observation(input, payload, "2026-11-01T12:00:00Z"),
+      ];
+      input.query = { from: "2026-11-02" };
+      expect(projectSeoProjection(input).runs?.[0].issues).toBeNull();
+    },
+  );
+
+  it("counts a private index issue even when the audit measured no public checks", () => {
+    const input = fixture();
+    const payload = parsePublicSeoArtifact(legacyReport());
+    payload.checks = [];
+    payload.coverage = { checked: 0, skipped: 1, failed: 0 };
+    payload.findings = [];
+    const audit = observation(input, payload, "2026-11-01T12:00:00Z");
+    const taskId = randomUUID();
+    audit.sourceTaskId = taskId;
+    input.observations = [
+      audit,
+      {
+        ...audit,
+        id: randomUUID(),
+        kind: "index_triage",
+        source: "seo_worker",
+        ownerId: randomUUID(),
+        payload: {
+          version: 1,
+          taskId,
+          receiptHash: "a".repeat(64),
+          checkedAt: now.toISOString(),
+          assessments: [
+            {
+              pageUrl: SEO_TEST_PAGE,
+              status: "issue",
+              report: true,
+              reason: "Missing from search",
+              suggestedFix: null,
+              evidence: [],
+            },
+          ],
+        },
+      },
+    ];
+    const view = projectSeoProjection(input);
+    expect(view.runs?.[0].issues).toBe(1);
+    expect(view.findings).toHaveLength(1);
   });
 
   it("lists every run outside the period, with the time its request took", () => {
@@ -3079,4 +3160,324 @@ it("imports one page's additional experiment only with its separate public page 
       source.map((s) => ({ ...s, record: source[0]!.record })),
     ).strategyDecisions,
   ).toBeUndefined();
+});
+
+describe("scoped checklist and research coverage", () => {
+  it("counts only the selected page, preserves blocked rows in the denominator and binds duplicate row ids to their own page", () => {
+    const input = fixture();
+    const run = (url: string, result: string, reason: string) => ({
+      ...legacyReport(),
+      request: { url },
+      checklist: [
+        { row: "SPEED", device: "mobile", result },
+        { row: "STRUCT", device: "mobile", result: "pass" },
+      ],
+      couldNotSee: [{ item: "SPEED on mobile", reason }],
+    });
+    const payload = parsePublicSeoArtifact({
+      ...siteStrategyReport(),
+      explorationStatus: { status: "ran", reason: "published" },
+      pages: [
+        run(SEO_TEST_PAGE, "blocked", "Renderer unavailable"),
+        run(SEO_TEST_SECOND_PAGE, "not checked", "Second page only"),
+      ],
+    });
+    input.observations = [observation(input, payload, now.toISOString())];
+    const { observations, timeline } = projectSeoProjection(input);
+    expect(observations[0].coverage).toEqual({
+      checked: 1,
+      skipped: 0,
+      failed: 1,
+    });
+    expect(timeline[0].detail).toContain(
+      "1 checked, 0 not checked, 1 unavailable",
+    );
+    const details = observations[0].checklistBreakdown;
+    expect(details).toMatchObject({
+      passed: 1,
+      flagged: 0,
+      gaps: [
+        { rowId: "SPEED", device: "mobile", reason: "Renderer unavailable" },
+      ],
+    });
+    expect(
+      details?.research.every(
+        (r) => r.scope === "page" && r.pageUrl === SEO_TEST_PAGE,
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(details)).not.toContain("Second page only");
+  });
+
+  it("keeps research while marking the split unknown for an audit with aggregate counts only", () => {
+    const input = fixture();
+    const payload = parsePublicSeoArtifact(legacyReport());
+    payload.checks = [];
+    payload.coverage = { checked: 4, skipped: 2, failed: 0 };
+    delete payload.researchCoverage;
+    input.observations = [observation(input, payload, now.toISOString())];
+    const row = projectSeoProjection(input).observations[0];
+    expect(row.coverage).toEqual(payload.coverage);
+    expect(row.checklistBreakdown).toMatchObject({
+      passed: null,
+      flagged: null,
+      gaps: [],
+    });
+    expect(row.checklistBreakdown?.research.length).toBeGreaterThan(0);
+    payload.pageUrls.push(SEO_TEST_SECOND_PAGE);
+    input.observations = [observation(input, payload, now.toISOString())];
+    const scoped = projectSeoProjection(input).observations[0];
+    expect(scoped.coverage.checked).toBe(0);
+    expect(scoped.checklistBreakdown).toMatchObject({
+      passed: null,
+      flagged: null,
+    });
+  });
+
+  it("recovers historical page notes and reports retained research evidence without guessing absent stages", () => {
+    const input = fixture();
+    const legacy = parsePublicSeoArtifact({
+      ...legacyReport(),
+      checklist: [{ row: "SPEED", device: "mobile", result: "not checked" }],
+      couldNotSee: [{ item: "SPEED on mobile", reason: "Old render timeout" }],
+    });
+    delete legacy.researchCoverage;
+    delete legacy.checks[0].reason;
+    input.observations = [observation(input, legacy, now.toISOString())];
+    const details =
+      projectSeoProjection(input).observations[0].checklistBreakdown;
+    expect(details?.gaps[0].reason).toBe("Old render timeout");
+    expect(details?.research[0].stages.map((s) => s.status)).toEqual([
+      "unknown",
+      "unknown",
+      "unknown",
+    ]);
+  });
+  it("shows interrupted exploration as partial and honors explicit historical copy-withheld evidence", () => {
+    const input = fixture();
+    const payload = parsePublicSeoArtifact({
+      ...legacyReport(),
+      explorationStatus: { status: "ran", reason: "deadline" },
+    });
+    input.observations = [observation(input, payload, now.toISOString())];
+    expect(
+      projectSeoProjection(input).observations[0].checklistBreakdown
+        ?.research[0].stages,
+    ).toContainEqual({
+      name: "exploration",
+      status: "partial",
+      reason: "The audit reached its time limit.",
+    });
+    delete payload.researchCoverage;
+    payload.notes = [
+      "Seasonal keyword research: The captured page could not be used as public evidence for seasonal keyword research.",
+    ];
+    payload.keywords[0].editorial = {
+      models: ["gemini"],
+      record: "a".repeat(64),
+    };
+    expect(
+      projectSeoProjection(input).observations[0].checklistBreakdown
+        ?.research[0].stages,
+    ).toEqual([
+      expect.objectContaining({ name: "seasonal", status: "skipped" }),
+      expect.objectContaining({
+        name: "editorial",
+        status: "unknown",
+        reason: expect.stringContaining("editorial research"),
+      }),
+      { name: "exploration", status: "unknown" },
+    ]);
+  });
+});
+
+it("retains an empty ranked idea list only for the selected audit page", () => {
+  const input = fixture();
+  const page = legacyReport();
+  const empty = {
+    ...page,
+    rankingData: { ...page.rankingData, gaps: [] },
+    keywordOpportunities: {
+      list: [],
+      editorialResearch: {
+        status: "complete",
+        proposed: 0,
+        checked: 0,
+        qualified: 0,
+      },
+    },
+  };
+  for (const selected of [true, false]) {
+    const site = {
+      ...siteStrategyReport(),
+      pages: [
+        {
+          ...empty,
+          request: { url: selected ? SEO_TEST_PAGE : SEO_TEST_SECOND_PAGE },
+        },
+        {
+          ...page,
+          request: { url: selected ? SEO_TEST_SECOND_PAGE : SEO_TEST_PAGE },
+        },
+      ],
+    };
+    input.observations = [
+      observation(input, parsePublicSeoArtifact(site), now.toISOString()),
+    ];
+    const workspace = projectSeoProjection(input);
+    const marker = workspace.observations[0].checklistBreakdown?.research.some(
+      (record) => record.rankedKeywordIdeas,
+    );
+    expect(marker).toBe(selected);
+  }
+});
+
+it("shows only verified same-site regional versions for the standalone audited page", () => {
+  const input = fixture();
+  const page = legacyReport();
+  const verified = {
+    country: "CH",
+    language: "de",
+    url: "https://www.example.test/de-ch",
+  };
+  const report = {
+    ...page,
+    header: {
+      ...page.header,
+      finalUrl: { desktop: "https://www.example.test/page" },
+    },
+    pageMarketEvidence: {
+      comparisonNote:
+        "This page audit did not measure competitor visibility by country and language.",
+      regionalVersions: [
+        verified,
+        { ...verified, url: "https://other.test/page" },
+        { ...verified, url: "https://www.example.test/private/area" },
+      ],
+    },
+  };
+  const read = (raw: unknown) => {
+    input.observations = [
+      observation(input, parsePublicSeoArtifact(raw), now.toISOString()),
+    ];
+    return projectSeoProjection(input).observations[0];
+  };
+  expect(read(report).pageMarketEvidence).toEqual({
+    regionalVersions: [verified],
+  });
+  expect(read(page).pageMarketEvidence).toBeUndefined();
+  expect(
+    read({ ...siteStrategyReport(), pages: [report, page] }).pageMarketEvidence,
+  ).toBeUndefined();
+});
+
+it("returns site market evidence only for a scope covering the audited pages", () => {
+  const input = fixture();
+  const second = {
+    ...input.pages[0],
+    url: SEO_TEST_SECOND_PAGE,
+    id: randomUUID(),
+  };
+  const pages = [...input.pages, second];
+  const scope = { ...input.scope, pages, pageIds: pages.map((p) => p.id) };
+  const base = siteStrategyReport();
+  const report = legacyReport();
+  const payload = parsePublicSeoArtifact({
+    ...base,
+    pages: [report, { ...report, request: { url: second.url } }],
+    strategy: {
+      ...base.strategy,
+      markets: undefined,
+      marketNote: "the start page's Run found no Market",
+    },
+  });
+  const row = observation({ ...input, scope }, payload, now.toISOString());
+  const read = (selection: Input["scope"], stored = row) =>
+    projectSeoProjection({
+      ...input,
+      pages,
+      scope: selection,
+      observations: [stored],
+    }).strategy;
+  expect(read(scope)?.marketNote).toBe("missing_baseline");
+  expect(read(input.scope)?.marketNote).toBeUndefined();
+  expect(
+    read(scope, {
+      ...row,
+      payload: {
+        ...payload,
+        strategy: {
+          ...payload.strategy,
+          marketNote: "invalid",
+          markets: { rows: "broken" },
+        },
+      },
+    }),
+  ).toMatchObject({ verdict: base.strategy.verdict });
+});
+
+it("projects an unknown visitor check and each Google Trends row, excluding unknown child fields", () => {
+  const current = fixture();
+  const firstScreen = {
+    probe: "desktop_first_screen",
+    label: "Download for macOS",
+    state: "unknown",
+    reason: "The saved viewport did not show the control.",
+    record: "a".repeat(64),
+  };
+  const row = {
+    keyword: "macbook battery health",
+    peakMonths: ["April", "March", "May"],
+    seasonal: true,
+    trend: "falling",
+    change: 0.39,
+    status: "read",
+    note: "Relative interest.",
+  };
+  const failed = {
+    ...row,
+    keyword: "Akku prüfen",
+    status: "failed",
+    peakMonths: [],
+    seasonal: null,
+    trend: "not determined",
+    change: null,
+    note: "private-provider-sentinel",
+  };
+  const base = legacyReport();
+  const report = parsePublicSeoArtifact({
+    ...base,
+    strategyInvestigation: { ...firstScreen, extra: "drop" },
+    trends: {
+      keywords: [{ ...row, extra: "drop" }, failed],
+      note: "Relative interest.",
+    },
+  });
+  expect(JSON.stringify(report)).not.toContain("private-provider-sentinel");
+  // Previously imported reports can still contain the provider detail on disk.
+  const retained = structuredClone(report);
+  retained.researchCoverage![0]!.trends!.keywords[1]!.note = failed.note;
+  current.observations.push(observation(current, retained, now.toISOString()));
+  const [research] =
+    projectSeoProjection(current).observations[0]!.checklistBreakdown!.research;
+  expect(research?.trends?.keywords).toEqual([
+    row,
+    {
+      ...failed,
+      note: "The Google Trends request did not return usable data.",
+    },
+  ]);
+  expect(research?.firstScreen).toEqual(firstScreen);
+  expect(
+    parsePublicSeoArtifact({
+      ...base,
+      strategyInvestigation: { ...firstScreen, record: "unbound" },
+    }).researchCoverage?.[0]?.firstScreen,
+  ).toBeUndefined();
+  expect(() =>
+    parsePublicSeoArtifact({
+      ...base,
+      searchConsole: {},
+      strategyInvestigation: firstScreen,
+    }),
+  ).toThrow();
 });

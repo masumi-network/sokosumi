@@ -11,6 +11,7 @@ import {
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { SETUP_ASSISTANT_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { pickMessages } from "@/i18n/pick-messages";
@@ -47,6 +48,28 @@ function lastCode(onChange: ReturnType<typeof vi.fn>): string {
   return onChange.mock.calls.at(-1)?.[0] as string;
 }
 
+function ControlledStudio({
+  initialCode,
+  onChange,
+  compact,
+}: {
+  initialCode: string;
+  onChange?: (code: string) => void;
+  compact?: boolean;
+}) {
+  const [code, setCode] = useState(initialCode);
+  return (
+    <AvatarStudio
+      code={code}
+      compact={compact}
+      onChange={(next) => {
+        setCode(next);
+        onChange?.(next);
+      }}
+    />
+  );
+}
+
 describe("AvatarStudio", () => {
   it("names every control with setup's messages, not raw keys", () => {
     // `/setup/assistant` hands the client only its own bag; a key outside it
@@ -57,24 +80,21 @@ describe("AvatarStudio", () => {
         messages={pickMessages(en, SETUP_ASSISTANT_MESSAGE_PATHS)}
         onError={() => {}}
       >
-        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />
+        <AvatarStudio code={formatAvatarCode(fox)} onChange={vi.fn()} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("radio", { name: "Idle" })).toBeTruthy();
     expect(document.body.textContent).not.toContain("App.SokoBot");
   });
 
-  it("opens on the code it is given and reports it", () => {
+  it("opens on the code it is given without firing onChange until edited", () => {
     const onChange = vi.fn();
     render(
       withIntl(
-        <AvatarStudio
-          initialCode={formatAvatarCode(fox)}
-          onChange={onChange}
-        />,
+        <AvatarStudio code={formatAvatarCode(fox)} onChange={onChange} />,
       ),
     );
-    expect(lastCode(onChange)).toBe(formatAvatarCode(fox));
+    expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByTestId("preview")).toHaveAttribute(
       "data-code",
       formatAvatarCode(fox),
@@ -84,7 +104,7 @@ describe("AvatarStudio", () => {
   it("disables the backgrounds the animal cannot be read on", () => {
     render(
       withIntl(
-        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />,
+        <AvatarStudio code={formatAvatarCode(fox)} onChange={vi.fn()} />,
       ),
     );
     const row = within(screen.getByRole("radiogroup", { name: "Background" }));
@@ -104,11 +124,7 @@ describe("AvatarStudio", () => {
       (a) => featureOptions(a).mouth.length === 1,
     );
     expect(plain).toBeTruthy();
-    render(
-      withIntl(
-        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />,
-      ),
-    );
+    render(withIntl(<ControlledStudio initialCode={formatAvatarCode(fox)} />));
     await user.click(
       screen.getByRole("button", {
         name: en.App.SokoBot.AvatarStudio.animals[
@@ -126,7 +142,7 @@ describe("AvatarStudio", () => {
     const onChange = vi.fn();
     render(
       withIntl(
-        <AvatarStudio
+        <ControlledStudio
           initialCode={formatAvatarCode(fox)}
           onChange={onChange}
         />,
@@ -148,7 +164,7 @@ describe("AvatarStudio", () => {
       withIntl(
         <AvatarStudio
           compact
-          initialCode={formatAvatarCode(fox)}
+          code={formatAvatarCode(fox)}
           onChange={vi.fn()}
         />,
       ),
@@ -177,10 +193,7 @@ describe("AvatarStudio", () => {
     const onChange = vi.fn();
     render(
       withIntl(
-        <AvatarStudio
-          initialCode={formatAvatarCode(fox)}
-          onChange={onChange}
-        />,
+        <AvatarStudio code={formatAvatarCode(fox)} onChange={onChange} />,
       ),
     );
     const calls = onChange.mock.calls.length;

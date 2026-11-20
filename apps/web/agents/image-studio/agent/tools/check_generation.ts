@@ -20,11 +20,14 @@ export default defineTool({
       settings: job.settings,
       error: job.error,
       version,
-      guidance: job.retryMayDuplicateCharge
-        ? "This submission was never confirmed by the provider. Do not start another generation to compensate. Tell the person it may already have been charged and let them decide."
-        : job.status === "QUEUED" || job.status === "RUNNING"
-          ? "Still working. Generation takes time; do not promise when it will finish."
-          : null,
+      guidance:
+        job.failureReason === "invalid_vector_image"
+          ? "Tell the person why the artwork could not be delivered. Do not start another generation."
+          : job.retryMayDuplicateCharge
+            ? "This submission was never confirmed by the provider. Do not start another generation to compensate. Tell the person it may already have been charged and let them decide."
+            : job.status === "QUEUED" || job.status === "RUNNING"
+              ? "Still working. Generation takes time; do not promise when it will finish."
+              : null,
     };
   },
 });

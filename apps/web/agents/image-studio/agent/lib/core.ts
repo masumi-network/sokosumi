@@ -1,4 +1,5 @@
 import {
+  type ProjectImageJob,
   type ProjectImageStudioCatalog,
   readStudioAgentAdHeadline,
   readStudioAgentBrandContext,
@@ -557,6 +558,7 @@ export async function readGeneration(
     model: string;
     settings: unknown;
     error: string | null;
+    failureReason: ProjectImageJob["failureReason"];
     retryMayDuplicateCharge: boolean;
   };
   version: {

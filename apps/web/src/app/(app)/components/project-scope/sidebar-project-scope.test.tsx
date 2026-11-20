@@ -21,7 +21,9 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => mocks.isMobile }));
+vi.mock("@/hooks/effects/use-mobile", () => ({
+  useIsMobile: () => mocks.isMobile,
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: {

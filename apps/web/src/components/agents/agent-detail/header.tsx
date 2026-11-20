@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useNewTaskOpener } from "@/app/components/new-task-button.client";
 import {
   AgentActionButtons,
   AgentActionButtonsSkeleton,
@@ -11,6 +12,7 @@ import {
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { BackLink } from "@/components/back-link";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getAgentName,
@@ -18,6 +20,7 @@ import {
   getFullAgentAuthorName,
 } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
+import { cn } from "@/lib/utils";
 
 interface AgentDetailHeaderProps {
   agent: CoreAgentDto;
@@ -25,6 +28,32 @@ interface AgentDetailHeaderProps {
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
+}
+
+/** Opens New task with this agent @-mentioned in the prompt. The reader picks
+ * the coworker, reviews the cost and submits; nothing runs from here. */
+function StartTaskButton({
+  agentId,
+  className,
+}: {
+  agentId: string;
+  className?: string;
+}) {
+  const t = useTranslations("Components.Agents.ActionButtons");
+  const openNewTask = useNewTaskOpener({ prompt: `@${agentId} ` });
+  if (!openNewTask) return null;
+  return (
+    <Button
+      type="button"
+      variant="primary"
+      size="sm"
+      className={cn("h-10 md:h-8", className)}
+      onClick={openNewTask}
+    >
+      <Plus aria-hidden />
+      {t("startTask")}
+    </Button>
+  );
 }
 
 function AgentDetailHeader({
@@ -54,6 +83,7 @@ function AgentDetailHeader({
             showBackButton={false}
             showCloseButton={showCloseButton}
             onClose={onClose}
+            trailingActions={<StartTaskButton agentId={agent.id} />}
           />
         </div>
       </div>
@@ -104,6 +134,8 @@ function AgentDetailHeader({
                 {getFullAgentAuthorName(agent)}
               </p>
             </div>
+            {/* Phones hide the action row above; the button lives here. */}
+            <StartTaskButton agentId={agent.id} className="w-full md:hidden" />
           </div>
         </div>
       </div>

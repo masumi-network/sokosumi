@@ -41,11 +41,13 @@ import { acknowledgeSeoReview } from "@/services/seo-action-reviews";
 import { latestSeoSearchConsoleProperty } from "@/services/seo-connections.service";
 import { createSeoBrandTermsRouter } from "./brand-terms";
 import { createSeoBriefRouter } from "./brief";
+import { createSeoConsoleExportsRouter } from "./console-exports";
 import { createSeoPageChangesRouter } from "./page-changes";
 import { createSeoStatisticsRouter } from "./statistics";
 
 export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
   const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
+  app.route("/console-exports", createSeoConsoleExportsRouter(ownerKind));
   const responses = {
     200: jsonSuccessResponse(
       projectSeoWorkspaceSchema,
@@ -87,7 +89,7 @@ export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
       const workspace = await getProjectSeoWorkspace(
         actor,
         c.req.valid("query"),
-        { includePrivateReviews: true },
+        { includePrivateReviews: true, includeAuditPerformance: true },
       );
       // A shared statistics snapshot can belong to another member. Only this user's selected property guides setup.
       return ok(c, {

@@ -12,6 +12,13 @@ export const seoUrlSchema = z
     const url = new URL(value);
     return !url.username && !url.password;
   }, "Page URLs cannot contain credentials");
+export const seoAuditFinalUrls = z
+  .object({
+    mobile: seoUrlSchema.nullable().optional(),
+    desktop: seoUrlSchema.nullable().optional(),
+  })
+  .optional()
+  .catch(undefined);
 export const seoBriefAction = z.enum([
   "sign up",
   "buy",

@@ -7,7 +7,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock("@/hooks/use-load-when-visible", () => ({
+vi.mock("@/hooks/effects/use-load-when-visible", () => ({
   useLoadWhenVisible: vi.fn(),
 }));
 

@@ -11,7 +11,7 @@ import { shouldShowMobileBottomNav } from "@/app/components/mobile-app-chrome";
 import { ChatControlListBridge } from "@/components/chat/chat-control-list-bridge";
 import { SearchablePageContent } from "@/components/searchable-page-content";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
+import { useChatUnreadDocumentTitle } from "@/hooks/effects/use-chat-unread-document-title";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";

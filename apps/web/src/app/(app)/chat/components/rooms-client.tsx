@@ -167,8 +167,8 @@ import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
   chatRoomMessageIdEnvelopeAction,
   tombstoneChatRoomMessage,
@@ -492,7 +492,11 @@ function RetainedRoomsClient({
           messages: mergeRoomMessages(pendingRef.current, confirmed.messages),
         };
         const next = typeof update === "function" ? update(current) : update;
-        const shells = next.messages.filter(isOutboundLocalMessage);
+        const shells = next.messages.filter(
+          (message) =>
+            isOutboundLocalMessage(message) &&
+            isTopLevelChatRoomMessage(message),
+        );
         pendingRef.current = shells;
         setPending(shells);
         return next;
@@ -679,6 +683,12 @@ function RoomView({
   const transcript = retained?.entry.transcript ?? localTranscript;
   const setTranscript = retained?.setTranscript ?? setLocalTranscript;
   const messagesState = transcript.messages;
+  // Defense in depth: never render thread replies in the main room timeline,
+  // even if stale state still holds a leaked reply from before this fix.
+  const topLevelRoomMessages = useMemo(
+    () => filterTopLevelChatRoomMessages(messagesState),
+    [messagesState],
+  );
   const setMessagesState = useCallback(
     (update: SetStateAction<ChatRoomMessage[]>) => {
       setTranscript((current) =>
@@ -746,6 +756,7 @@ function RoomView({
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
   // room switch must drop the prior timeline so skeleton shows and hydrate
   // cannot merge room A into room B (or show A under B's header).
+  let effectiveDeferredHistoryPending = deferredHistoryPending;
   if (selectedRoomId !== syncedHistoryRoomId) {
     setSyncedHistoryRoomId(selectedRoomId);
     historicalThreadRef.current = false;
@@ -760,6 +771,7 @@ function RoomView({
       setTranscript(emptyRoomTranscript());
       setMessageLoadFailedState(false);
       setDeferredHistoryPending(true);
+      effectiveDeferredHistoryPending = true;
     }
     if (rosterPromise != null) {
       setDeferredRoster(null);
@@ -772,6 +784,7 @@ function RoomView({
     // already sets pending; initial mount seeds deferredHistoryPending.
     if (messagesPromise == null) {
       setDeferredHistoryPending(false);
+      effectiveDeferredHistoryPending = false;
       setMessageLoadFailedState(messageLoadFailed);
     }
   }
@@ -854,14 +867,17 @@ function RoomView({
   }
   // The transcript waits for both, so it opens on the divider rather than
   // jumping to it. Latched: nothing later puts the skeleton back.
+  const firstTopLevelUnreadMessage = unreadWindow
+    ? filterTopLevelChatRoomMessages(unreadWindow.messages)[0]
+    : undefined;
   const [openingAtUnread, setOpeningAtUnread] = useState(opensAtUnread);
   if (
     openingAtUnread &&
     unreadWindow !== undefined &&
     !messagesPending &&
-    (!unreadWindow?.messages.length ||
-      messagesState.some(
-        (message) => message.id === unreadWindow.messages[0]?.id,
+    (!firstTopLevelUnreadMessage ||
+      topLevelRoomMessages.some(
+        (message) => message.id === firstTopLevelUnreadMessage.id,
       ))
   ) {
     setOpeningAtUnread(false);
@@ -936,7 +952,7 @@ function RoomView({
   } = useRoomMessageMutations({
     getSelectedRoomId: () => selectedRoom?.id,
     isStillSelectedRoom,
-    messagesState,
+    messagesState: topLevelRoomMessages,
     setMessagesState,
     setThreadMessages,
     threadParentMessage,
@@ -1015,7 +1031,6 @@ function RoomView({
     }
     scrollToBottom();
   }, [messagesPending, opensAtUnread, scrollToBottom]);
-  const syncedRoomIdRef = useRef<string | null>(null);
   // Async handlers must stop when their room surface is replaced.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
@@ -1527,13 +1542,6 @@ function RoomView({
     [streamOverlayMessages],
   );
 
-  // Defense in depth: never render thread replies in the main room timeline,
-  // even if stale state still holds a leaked reply from before this fix.
-  const topLevelRoomMessages = useMemo(
-    () => filterTopLevelChatRoomMessages(messagesState),
-    [messagesState],
-  );
-
   const mentionRetrySourceMessages = useMemo(() => {
     const rows = [...topLevelRoomMessages, ...threadMessages];
     if (threadParentMessage) {
@@ -1541,15 +1549,6 @@ function RoomView({
     }
     return rows;
   }, [threadMessages, threadParentMessage, topLevelRoomMessages]);
-
-  // Purge leaked thread replies from room state so consumers of messagesState
-  // (pending-mention poll, search props) never see them after a prior leak.
-  useEffect(() => {
-    if (topLevelRoomMessages.length === messagesState.length) {
-      return;
-    }
-    setMessagesState(topLevelRoomMessages);
-  }, [messagesState, topLevelRoomMessages]);
 
   const reactionViewer = useMemo(
     () => ({
@@ -1848,47 +1847,56 @@ function RoomView({
     return { mentionedCoworkerIds, mentionedSokoBotIds, mentionedUserIds };
   }
 
-  useEffect(() => {
-    if (retained) return;
-    // Deferred promise owns the first page until hydrate completes.
-    if (deferredHistoryPending) {
-      syncedRoomIdRef.current = selectedRoomId;
-      return;
-    }
-
-    // Progressive open keeps messagesPromise after hydrate; props stay empty.
-    // Do not re-apply prop messages / messageLoadFailed or we wipe hydrate
-    // and clobber failed:true from the hydrator.
-    if (messagesPromise != null) {
-      syncedRoomIdRef.current = selectedRoomId;
-      return;
-    }
-
-    const isChannelSwitch = syncedRoomIdRef.current !== selectedRoomId;
-    syncedRoomIdRef.current = selectedRoomId;
-
-    // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
-    // merge so client-loaded older pages are not wiped by the latest page.
-    const page = { messages, nextCursor: messagesNextCursor };
-    if (isChannelSwitch) {
-      setTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
-    } else {
-      setTranscript((current) => mergeRoomHeadPage(current, page));
-    }
-    setMessageLoadFailedState(messageLoadFailed);
-    setThreadParentMessage((current) =>
-      current
-        ? (messages.find((message) => message.id === current.id) ?? current)
-        : current,
-    );
-  }, [
-    deferredHistoryPending,
+  const [syncedPropSnapshot, setSyncedPropSnapshot] = useState(() => ({
+    deferredHistoryPending: effectiveDeferredHistoryPending,
     messageLoadFailed,
     messages,
     messagesNextCursor,
     messagesPromise,
     selectedRoomId,
-  ]);
+  }));
+  if (
+    !retained &&
+    (syncedPropSnapshot.deferredHistoryPending !==
+      effectiveDeferredHistoryPending ||
+      syncedPropSnapshot.messageLoadFailed !== messageLoadFailed ||
+      syncedPropSnapshot.messages !== messages ||
+      syncedPropSnapshot.messagesNextCursor !== messagesNextCursor ||
+      syncedPropSnapshot.messagesPromise !== messagesPromise ||
+      syncedPropSnapshot.selectedRoomId !== selectedRoomId)
+  ) {
+    const isChannelSwitch =
+      syncedPropSnapshot.selectedRoomId !== selectedRoomId;
+    setSyncedPropSnapshot({
+      deferredHistoryPending: effectiveDeferredHistoryPending,
+      messageLoadFailed,
+      messages,
+      messagesNextCursor,
+      messagesPromise,
+      selectedRoomId,
+    });
+
+    // Deferred promise owns the first page until hydrate completes, and
+    // progressive open keeps messagesPromise after hydrate while props stay
+    // empty — do not re-apply prop messages / messageLoadFailed or we wipe
+    // hydrate and clobber failed:true from the hydrator.
+    if (!effectiveDeferredHistoryPending && messagesPromise == null) {
+      // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
+      // merge so client-loaded older pages are not wiped by the latest page.
+      const page = { messages, nextCursor: messagesNextCursor };
+      if (isChannelSwitch) {
+        setLocalTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
+      } else {
+        setLocalTranscript((current) => mergeRoomHeadPage(current, page));
+      }
+      setMessageLoadFailedState(messageLoadFailed);
+      setThreadParentMessage((current) =>
+        current
+          ? (messages.find((message) => message.id === current.id) ?? current)
+          : current,
+      );
+    }
+  }
 
   // A Look clears the thread's unread everywhere at once: the header count
   // and the parent's reply bar drop it without waiting for the re-read, which

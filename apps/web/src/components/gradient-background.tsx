@@ -2,10 +2,13 @@
 
 import { useRef } from "react";
 
+import {
+  matchesMediaQuery,
+  REDUCED_MOTION_MEDIA_QUERY,
+} from "@/hooks/effects/use-media-query";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const GRADIENT_COLOR_TOKENS = [
   "--gradient-1",
   "--gradient-2",
@@ -108,7 +111,7 @@ export function GradientBackground({ className }: { className?: string }) {
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     const uniform = (name: string) => gl.getUniformLocation(program, name);
 
-    const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
+    const reducedMotion = matchesMediaQuery(REDUCED_MOTION_MEDIA_QUERY);
     let frame = 0;
     let visible = true;
     let colorsStale = true;

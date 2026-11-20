@@ -466,6 +466,40 @@ describe("private SEO indexing projection", () => {
     ).toEqual([]);
   });
 
+  it.each([
+    ["note", 1],
+    ["major", 0],
+  ] as const)(
+    "counts a private index issue beside a public %s",
+    (severity, expected) => {
+      const audit = auditRow();
+      audit.payload = {
+        ...(audit.payload as object),
+        findings: [
+          {
+            id: "index-check",
+            rowId: "AC-20",
+            pageUrl: PAGE,
+            device: null,
+            title: "Indexing",
+            severity,
+            evidence: [],
+            sourceRef: "report",
+            observedAt: CHECKED_AT,
+          },
+        ],
+      };
+      const result = indexAuditFindings(
+        [issueRow()],
+        [audit],
+        new Set([PAGE]),
+        {},
+      );
+      expect(result.findings).toHaveLength(expected);
+      expect(result.counts.get(audit.id) ?? 0).toBe(expected);
+    },
+  );
+
   it("does not carry an older Console fault into a new audit or another audit date", () => {
     const old = auditRow();
     const newer = {

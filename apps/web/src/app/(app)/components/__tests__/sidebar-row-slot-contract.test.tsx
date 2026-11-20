@@ -42,7 +42,7 @@ vi.mock("next-intl", () => ({
   useNow: () => new Date(),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
+vi.mock("@/hooks/effects/use-mobile", () => ({ useIsMobile: () => false }));
 
 vi.mock("@/app/chat/components/browse-channels-dialog", () => ({
   BrowseChannelsDialog: () => null,

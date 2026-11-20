@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { useMediaQuery } from "@/hooks/effects/use-media-query";
 import {
   reportRouteError,
   shouldReportRouteError,
@@ -29,19 +30,19 @@ body{color:#000;background:#fff;margin:0;font-family:system-ui,"Segoe UI",Roboto
 @media (prefers-color-scheme:dark){.actions a{border-color:#333}}
 `;
 
-function applyStoredThemeToBody() {
-  try {
-    const theme = localStorage.getItem("theme");
-    const isDark =
-      theme === "dark" ||
-      (theme !== "light" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches);
+const subscribeNoop = () => () => {};
 
-    document.body.style.background = isDark ? "#0c0c0c" : "#fff";
-    document.body.style.color = isDark ? "#fff" : "#000";
+function readStoredTheme(): string | null | undefined {
+  try {
+    return localStorage.getItem("theme");
   } catch {
     // localStorage may be unavailable
+    return undefined;
   }
+}
+
+function getServerStoredTheme(): undefined {
+  return undefined;
 }
 
 export default function GlobalError({
@@ -52,10 +53,12 @@ export default function GlobalError({
   reset: () => void;
 }) {
   const [shouldReload, setShouldReload] = useState(false);
-
-  useLayoutEffect(() => {
-    applyStoredThemeToBody();
-  }, []);
+  const storedTheme = useSyncExternalStore(
+    subscribeNoop,
+    readStoredTheme,
+    getServerStoredTheme,
+  );
+  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
 
   useEffect(() => {
     const message = error?.message ?? "";
@@ -72,9 +75,19 @@ export default function GlobalError({
     return null;
   }
 
+  let bodyStyle: { background: string; color: string } | undefined;
+  if (storedTheme !== undefined) {
+    const isDark =
+      storedTheme === "dark" || (storedTheme !== "light" && prefersDark);
+    bodyStyle = {
+      background: isDark ? "#0c0c0c" : "#fff",
+      color: isDark ? "#fff" : "#000",
+    };
+  }
+
   return (
     <html lang="en">
-      <body>
+      <body style={bodyStyle}>
         <style dangerouslySetInnerHTML={{ __html: nextErrorBodyStyles }} />
         <div className="page">
           <div className="card">

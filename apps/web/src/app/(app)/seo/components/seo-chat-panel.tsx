@@ -2,7 +2,7 @@
 
 import { RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -214,17 +214,17 @@ export function SeoChatPanel({ model }: { model: SeoWorkspaceModel }) {
 function SeoChatSheet({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const chat = useSeoChat(model);
-  const { chatDraft, setChatDraft } = model;
+  const { chatDraft } = model;
   const { setQuestion, sending } = chat;
+  const [consumedDraftId, setConsumedDraftId] = useState<number | null>(null);
   // A send in flight clears the input when it lands; the draft waits for it and keeps
   // any unsent text the user typed.
-  useEffect(() => {
-    if (!chatDraft || sending) return;
+  if (chatDraft && !sending && chatDraft.id !== consumedDraftId) {
+    setConsumedDraftId(chatDraft.id);
     setQuestion((typed) =>
-      typed.trim() ? `${typed.trimEnd()}\n\n${chatDraft}` : chatDraft,
+      typed.trim() ? `${typed.trimEnd()}\n\n${chatDraft.text}` : chatDraft.text,
     );
-    setChatDraft(null);
-  }, [chatDraft, sending, setChatDraft, setQuestion]);
+  }
   return (
     <Sheet open={model.chatOpen} onOpenChange={model.setChatOpen}>
       <SheetContent

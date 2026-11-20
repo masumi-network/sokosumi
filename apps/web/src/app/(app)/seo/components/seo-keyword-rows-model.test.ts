@@ -7,7 +7,10 @@ import {
   keywordReadFailed,
   keywordSummary,
   seoDifficultyBand,
+  workspaceKeywordGroups,
 } from "./seo-keyword-rows-model";
+
+import { seoTestObservation, seoTestWorkspace } from "./seo-test-fixture";
 
 type Keyword = ProjectSeoWorkspace["keywords"][number];
 
@@ -497,4 +500,120 @@ it("mixes recommendations after grouping ideas, including ideas from older audit
   expect(keywordGroups(ideas).ideas.map((group) => group.lead.keyword)).toEqual(
     ["both", "easy one", "goal one", "easy two", "goal two", "unknown fit"],
   );
+});
+
+it("preserves each broad audit's ranking across shared keywords and keeps earlier ideas after the latest audit", () => {
+  const current = {
+    observationId: "latest",
+    observedAt: new Date("2026-11-02T00:00:00Z"),
+    source: "opportunity",
+  };
+  const { ideas, checked } = keywordGroups([
+    row({
+      ...current,
+      keyword: "runner up",
+      ideaRank: 2,
+      conversion: "high",
+      difficulty: 1,
+    }),
+    row({
+      ...current,
+      keyword: "best idea",
+      ideaRank: 1,
+      position: 5,
+      positionStatus: "ranked",
+      saved: true,
+    }),
+    row({ ...current, keyword: "excluded gap", source: "gap", ideaRank: null }),
+    row({
+      ...current,
+      keyword: "other page",
+      pageUrl: "https://example.com/other",
+      observedAt: new Date("2026-11-01T23:59:58Z"),
+      ideaRank: 1,
+    }),
+    row({
+      ...current,
+      keyword: "older idea",
+      observationId: "old",
+      observedAt: new Date("2026-10-01T00:00:00Z"),
+      ideaRank: 1,
+    }),
+    row({ keyword: "historic gap", source: "gap" }),
+  ]);
+  expect(ideas.map((group) => group.lead.keyword)).toEqual([
+    "best idea",
+    "other page",
+    "runner up",
+    "older idea",
+    "historic gap",
+  ]);
+  expect(checked.map((group) => group.lead.keyword)).toEqual(["best idea"]);
+});
+
+it("caps the selected broad view at fifty distinct ideas across pages and audits and applies search before the cap", () => {
+  const latest = {
+    source: "opportunity",
+    observationId: "new",
+    observedAt: new Date("2026-11-10T00:00:00Z"),
+  };
+  const rows = ["a", "b"].flatMap((page) =>
+    Array.from({ length: 30 }, (_, i) =>
+      row({
+        ...latest,
+        keyword: i === 0 ? "shared query" : page + " idea " + i,
+        pageUrl: "https://example.com/" + page,
+        ideaRank: i + 1,
+      }),
+    ),
+  );
+  const old = row({
+    ...latest,
+    keyword: "old query",
+    observationId: "old",
+    observedAt: new Date("2026-10-10T00:00:00Z"),
+    ideaRank: 1,
+  });
+  const all = [old, ...rows];
+  const { ideas } = keywordGroups(all);
+  expect(ideas).toHaveLength(50);
+  expect(
+    ideas.filter((group) => group.lead.keyword === "shared query"),
+  ).toHaveLength(1);
+  expect(ideas[0].lead.pageUrl).toBe("https://example.com/a");
+  expect(ideas.some((group) => group.lead.keyword === "old query")).toBe(false);
+  expect(
+    keywordGroups(all.toReversed()).ideas.map((group) => group.lead.id),
+  ).toEqual(ideas.map((group) => group.lead.id));
+  expect(
+    keywordGroups(all.filter((item) => item.keyword === "b idea 29")).ideas[0]
+      .lead.keyword,
+  ).toBe("b idea 29");
+  const legacy = Array.from({ length: 51 }, (_, i) =>
+    row({ source: "gap", keyword: "historic " + i }),
+  );
+  expect(keywordGroups(legacy).ideas).toHaveLength(51);
+  const workspace = seoTestWorkspace();
+  workspace.keywords = legacy;
+  workspace.observations = [
+    {
+      ...seoTestObservation(workspace),
+      kind: "audit_full",
+      checklistBreakdown: {
+        passed: 0,
+        flagged: 0,
+        gaps: [],
+        research: [
+          {
+            scope: "page",
+            pageUrl: "https://example.com/",
+            stages: [],
+            rankedKeywordIdeas: true,
+          },
+        ],
+      },
+    },
+  ];
+  expect(workspaceKeywordGroups(workspace).ideas).toHaveLength(50);
+  expect(workspaceKeywordGroups(workspace, [legacy[50]]).ideas).toHaveLength(1);
 });

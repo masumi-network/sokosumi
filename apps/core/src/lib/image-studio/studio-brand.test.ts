@@ -408,6 +408,7 @@ describe("loadStudioBrand", () => {
 
     const brand = await loadStudioBrand("project-1");
     expect(brand.designMd).toHaveLength(1600);
+    expect(brand.designColors).toEqual(["#a33421"]);
     const prompt = applyStudioBrandPrompt("Launch ad", brand);
     expect(prompt).toContain("Brand colors: #a33421\nBrand fonts: Inter");
     expect(prompt).toMatch(/Brief:\nLaunch ad$/);

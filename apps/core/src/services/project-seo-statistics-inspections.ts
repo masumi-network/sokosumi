@@ -1,5 +1,11 @@
 import { SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
+import { inspectionDiscoverySources } from "@/lib/seo/audit-sitemaps";
+import {
+  gscInspectionArguments,
+  normalizeGscInspection,
+} from "@/lib/seo/native-gsc-inspection";
+import { unwrapNativeStatistics } from "@/lib/seo/native-statistics";
 import type { SeoActor, SeoIndexedPage } from "@/schemas/project-seo.schema";
 import {
   type NativeSeoMetrics,
@@ -10,6 +16,21 @@ import type { SeoStatisticsIntegration } from "./seo-connections.service";
 
 export const SEO_STATISTICS_FRESH_MS = 24 * 60 * 60 * 1000;
 export const SEO_STATISTICS_RETRY_MS = 60 * 60 * 1000;
+
+export async function inspectStatisticsPage(
+  property: string,
+  page: string,
+  sources:
+    | Map<string, ReturnType<typeof inspectionDiscoverySources>>
+    | undefined,
+  read: (args: Record<string, unknown>) => Promise<unknown>,
+) {
+  const raw = await read(gscInspectionArguments(property, page));
+  const payload = unwrapNativeStatistics(raw, ["inspectionResult"]);
+  const result = normalizeGscInspection(page, payload);
+  sources?.set(page, inspectionDiscoverySources(payload));
+  return result;
+}
 
 export function inspectionCacheKey(
   actor: SeoActor,
@@ -61,9 +82,38 @@ export async function collectStatisticsInspections(
   pageUrls: string[],
   inspect: (url: string) => Promise<SeoIndexedPage>,
   exactReport?: NativeSeoMetrics,
+  discoverySources?: Map<string, ReturnType<typeof inspectionDiscoverySources>>,
 ) {
   const entries = await Promise.all(
     pageUrls.map(async (url) => {
+      if (discoverySources) {
+        // Dashboard inspections exclude private referring URLs. A consenting audit needs its own read.
+        const retained = exactReport?.auditDiscovery?.inspections.find(
+          (p) => p.page === url,
+        );
+        const page = exactReport?.indexedPages?.find((p) => p.pageUrl === url);
+        if (retained && page) {
+          discoverySources.set(url, {
+            reportedSitemaps: retained.reportedSitemaps,
+            referringPages: retained.referringPages,
+          });
+          return { url, page, checkedAt: retained.checkedAt, read: false };
+        }
+        const attempt = exactReport?.inspectionCache?.checkedAt[url];
+        if (
+          !page &&
+          attempt &&
+          Date.now() - Date.parse(attempt) < SEO_STATISTICS_RETRY_MS
+        )
+          return { url, page: undefined, checkedAt: attempt, read: false };
+        const checkedAt = new Date().toISOString();
+        return {
+          url,
+          page: await inspect(url).catch(() => undefined),
+          checkedAt,
+          read: true,
+        };
+      }
       const row = await prisma.projectSeoObservation.findFirst({
         where: {
           ...seoOwnerWhere(actor),

@@ -42,6 +42,10 @@ import {
 } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  matchesMediaQuery,
+  REDUCED_MOTION_MEDIA_QUERY,
+} from "@/hooks/effects/use-media-query";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
@@ -131,10 +135,10 @@ function ScheduleRow({
   const row = useRef<HTMLLIElement>(null);
   useEffect(() => {
     if (!focused) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reduceMotion = matchesMediaQuery(REDUCED_MOTION_MEDIA_QUERY);
     row.current?.scrollIntoView({
       block: "center",
-      behavior: reduce.matches ? "auto" : "smooth",
+      behavior: reduceMotion ? "auto" : "smooth",
     });
     row.current?.focus({ preventScroll: true });
   }, [focused]);

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { MODE_DRAWS, type OrbState, resolvePreset } from "thinking-orbs";
 
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { cn } from "@/lib/utils";
 
 /** Brand primary: fallback when the CSS variable can't be resolved. */
@@ -30,6 +31,7 @@ export function ThinkingOrb({
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const reduceMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -42,9 +44,6 @@ export function ThinkingOrb({
     canvas.height = paintSize * dpr;
 
     const { mode, speed, opts } = resolvePreset(state, paintSize);
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
 
     const paint = (seconds: number) => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -69,7 +68,7 @@ export function ThinkingOrb({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [size, state]);
+  }, [reduceMotion, size, state]);
 
   return (
     <canvas

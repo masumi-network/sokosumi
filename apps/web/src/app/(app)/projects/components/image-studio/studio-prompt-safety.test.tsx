@@ -20,7 +20,6 @@ function Harness({
 }) {
   const [prompt, setPrompt] = useState("");
   const [target, setTarget] = useState<StudioTarget>({
-    modelIds: ["model-a"],
     settings: {
       aspectRatio: "1:1",
       resolution: "1K",

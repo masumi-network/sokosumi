@@ -7,6 +7,7 @@ const openCoworkerRoomMock = vi.fn();
 const handleOpenWithMock = vi.fn();
 
 vi.mock("next-intl", () => ({
+  useFormatter: () => ({ number: (value: number) => String(value) }),
   useTranslations: (namespace: string) => {
     const maps: Record<
       string,

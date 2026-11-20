@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/hooks/use-keyboard-open", () => ({
+vi.mock("@/hooks/effects/use-keyboard-open", () => ({
   useKeyboardOpen: () => false,
 }));
 

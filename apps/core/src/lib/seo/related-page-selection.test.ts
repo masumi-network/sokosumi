@@ -75,6 +75,74 @@ describe("related-page trust boundary", () => {
   ])("rejects an out-of-scope or private candidate: %s", (candidate) => {
     expect(() => selectSeoRelatedPages([seed], [candidate])).toThrow();
   });
+  it("keeps the private www alias on save and replay only under frozen domain access", () => {
+    const access = {
+      propertyId: "sc-domain:example.test",
+      connectionVersion: "a".repeat(64),
+    };
+    const alias = "https://www.example.test/guide";
+    for (const [first, next] of [
+      [seed, alias],
+      [alias, seed],
+    ] as const) {
+      const packet = { inspectRelated: true, pageUrls: [first] };
+      const saved = {
+        ...packet,
+        searchConsoleAccess: access,
+        relatedIndexingSelection: {
+          version: 1,
+          seedPageUrls: [first],
+          relatedPageUrls: [next],
+        },
+      };
+      expect(selectSeoRelatedPages([first], [next], access)).toEqual([
+        first,
+        next,
+      ]);
+      expect(originalSeoAuditPacket(saved)).toEqual(packet);
+      expect(seoAuditInspectionPages(saved, [first])).toEqual([first, next]);
+      for (const invalid of [
+        null,
+        {},
+        { ...access, connectionVersion: "invalid" },
+        { ...access, propertyId: "https://example.test/" },
+        { ...access, propertyId: "sc-domain:elsewhere.test" },
+      ]) {
+        expect(() =>
+          originalSeoAuditPacket({ ...saved, searchConsoleAccess: invalid }),
+        ).toThrow();
+        expect(() =>
+          seoAuditInspectionPages({ ...saved, searchConsoleAccess: invalid }, [
+            first,
+          ]),
+        ).toThrow();
+      }
+    }
+    expect(
+      selectSeoRelatedPages([seed.replace("https:", "http:")], [alias], access),
+    ).toEqual([seed.replace("https:", "http:"), alias]);
+    expect(() =>
+      selectSeoRelatedPages(
+        ["https://shop.example.test/start"],
+        ["https://www.shop.example.test/p"],
+        access,
+      ),
+    ).toThrow();
+    for (const forbidden of [
+      "https://shop.example.test/p",
+      "https://www.example.test:444/p",
+      "https://www.example.test/private.pdf",
+      "https://www.example.test/settings",
+      "https://www.example.test/p?session=x",
+      "https://www.example.test.evil.test/p",
+      "http://www.example.test/p",
+    ]) {
+      expect(() =>
+        selectSeoRelatedPages([seed], [forbidden], access),
+      ).toThrow();
+    }
+    expect(() => selectSeoRelatedPages([seed, alias], [], access)).toThrow();
+  });
   it("rejects localhost and IP audit scopes before discovery", () => {
     expect(() =>
       selectSeoRelatedPages(["https://127.0.0.1/start"], []),

@@ -24,6 +24,7 @@ import {
   shouldRetrySeoLoad,
 } from "@/app/seo/seo-load-error-model";
 import { type SeoTab, seoTab } from "@/app/seo/seo-query";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { mutateSeo } from "@/lib/actions/seo/action";
 import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
@@ -103,7 +104,12 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const owner = seoWorkspaceOwner(initialData);
   const [chatOpen, setChatOpen] = useState(false);
   // A question another tab prepared; the chat shows it for the user to review and send.
-  const [chatDraft, setChatDraft] = useState<string | null>(null);
+  const [chatDraft, setChatDraft] = useState<{
+    id: number;
+    text: string;
+    identity: string;
+  } | null>(null);
+  const nextChatDraftId = useRef(0);
   const [urlFilters, setUrlFilters] = useQueryStates({
     tab: parseAsSeoTab.withDefault("agent"),
     pageId: parseAsString,
@@ -119,13 +125,21 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     urlFilters.tab === "traffic"
       ? urlFilters
       : { ...urlFilters, searchType: null, channel: null };
-  const setFilters: typeof setUrlFilters = (values, options) =>
-    setUrlFilters(
+  const setFilters: typeof setUrlFilters = (values, options) => {
+    if (
+      typeof values !== "function" &&
+      values?.tab &&
+      values.tab !== "actions"
+    ) {
+      setShownAction(null);
+    }
+    return setUrlFilters(
       typeof values !== "function" && values?.tab && values.tab !== "traffic"
         ? { ...values, searchType: null, channel: null }
         : values,
       options,
     );
+  };
   const query = new URLSearchParams();
   for (const key of [
     "pageId",
@@ -154,10 +168,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const waitingForSession =
     initialIdentity === null && query.toString() === initialQuery.current;
   // A read without the viewer is refused (409); after a save, the read waits for the session.
-  const viewerId = useRef(session?.user.id);
-  useEffect(() => {
-    viewerId.current = session?.user.id;
-  });
+  const viewerId = useLatestRef(session?.user.id);
   async function refetchForViewer() {
     if (viewerId.current) await result.refetch();
   }
@@ -510,12 +521,41 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   }
   // The lead of the Agent tab opens its action on the Actions tab, in the list with the other actions.
   const [shownAction, setShownAction] = useState<string | null>(null);
+  const [prevTab, setPrevTab] = useState(filters.tab);
+  if (prevTab !== filters.tab) {
+    setPrevTab(filters.tab);
+    if (prevTab === "actions" && shownAction !== null) {
+      setShownAction(null);
+    }
+  } else if (
+    filters.tab === "actions" &&
+    shownAction !== null &&
+    !data.actions.some((action) => seoActionKey(action) === shownAction)
+  ) {
+    // Clear the request when the action leaves the list (even if it was the last action and the list unmounts).
+    setShownAction(null);
+  }
   function showAction(key: string) {
     setShownAction(key);
     void setFilters({ tab: "actions" });
   }
+  const chatIdentity = JSON.stringify([
+    session?.session.activeOrganizationId,
+    session?.user.id,
+    data.auditId,
+  ]);
+  if (chatDraft && chatDraft.identity !== chatIdentity) {
+    setChatDraft(null);
+  }
   function openChat(draft?: string) {
-    if (draft) setChatDraft(draft);
+    if (draft) {
+      nextChatDraftId.current += 1;
+      setChatDraft({
+        id: nextChatDraftId.current,
+        text: draft,
+        identity: chatIdentity,
+      });
+    }
     setChatOpen(true);
   }
   const filteredKeywords = data.keywords.filter((row) =>

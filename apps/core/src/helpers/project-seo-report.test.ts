@@ -270,6 +270,36 @@ describe("public SEO report trust boundary", () => {
     );
   });
 
+  it("retains the worker order up to fifty per page and excludes raw gaps from broad recommendations", () => {
+    const fixture = legacyReport();
+    const list = Array.from({ length: 51 }, (_, i) => ({
+      ...fixture.keywordOpportunities.list[0],
+      keyword: "idea " + i,
+    }));
+    const status = {
+      status: "complete",
+      proposed: 3,
+      checked: 3,
+      qualified: 2,
+    };
+    const parse = (editorialResearch?: typeof status) =>
+      parsePublicSeoArtifact({
+        ...fixture,
+        keywordOpportunities: {
+          list,
+          ...(editorialResearch && { editorialResearch }),
+        },
+      }).keywords;
+    const broad = parse(status);
+    const ranked = broad.filter((row) => row.source === "opportunity");
+    expect(ranked).toHaveLength(50);
+    expect(ranked.at(-1)).toMatchObject({ keyword: "idea 49", ideaRank: 50 });
+    expect(broad.find((row) => row.source === "gap")?.ideaRank).toBeNull();
+    expect(
+      parse().find((row) => row.source === "opportunity"),
+    ).not.toHaveProperty("ideaRank");
+  });
+
   it("keeps the model origins and DataForSEO receipt with the measured keyword idea", () => {
     const fixture = legacyReport();
     const editorial = { models: ["gemini", "codex"], record: "a".repeat(64) };
@@ -908,4 +938,54 @@ it("rejects owner-only Bing evidence in a full page or a nested site result befo
       "Only public SEO evidence",
     );
   }
+});
+
+it("uses only exact public sitemap roots from the first page of a delivered audit", () => {
+  const url = new URL("/maps/index.xml", SEO_TEST_PAGE).href;
+  const page = { ...legacyReport(), publicSitemaps: [url] };
+  expect(parsePublicSeoArtifact(page).publicSitemaps).toEqual([url]);
+  const site = {
+    ...siteStrategyReport(),
+    pages: [
+      page,
+      {
+        ...legacyReport(),
+        publicSitemaps: [new URL("/other.xml", SEO_TEST_PAGE).href],
+      },
+    ],
+  };
+  expect(parsePublicSeoArtifact(site).publicSitemaps).toEqual([url]);
+  for (const value of [
+    [url + "?session=abc"],
+    ["https://foreign.test/sitemap.xml"],
+    [new URL("/admin/map.xml", SEO_TEST_PAGE).href],
+  ]) {
+    expect(
+      parsePublicSeoArtifact({ ...page, publicSitemaps: value }).publicSitemaps,
+    ).toBeUndefined();
+  }
+});
+
+it("accepts a www homepage root only when the delivery reports the verified mobile final URL", () => {
+  const page = legacyReport(),
+    home = "https://example.test/",
+    twin = "https://www.example.test/";
+  const input = {
+    ...page,
+    request: { ...page.request, url: home },
+    publicSitemaps: [twin + "map.xml"],
+  };
+  expect(parsePublicSeoArtifact(input).publicSitemaps).toBeUndefined();
+  expect(
+    parsePublicSeoArtifact({
+      ...input,
+      header: { ...page.header, finalUrl: { mobile: twin } },
+    }).publicSitemaps,
+  ).toEqual(input.publicSitemaps);
+  expect(
+    parsePublicSeoArtifact({
+      ...input,
+      header: { ...page.header, finalUrl: { mobile: twin + "pricing" } },
+    }).publicSitemaps,
+  ).toBeUndefined();
 });
