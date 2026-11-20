@@ -16,7 +16,6 @@ import {
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { auditClickHistoryFromSearchAnalytics } from "@/lib/seo/audit-click-history";
-import { auditPerformancePage } from "@/lib/seo/audit-performance-pages";
 import {
   GSC_LIST_SITEMAPS,
   type inspectionDiscoverySources,
@@ -58,6 +57,7 @@ import {
   unwrapNativeStatistics,
   withinSearchConsoleRetention,
 } from "@/lib/seo/native-statistics";
+import { retainTrafficPageScope } from "@/lib/seo/traffic-page-aliases";
 import {
   SEO_KEYWORD_SERIES_MAX_COUNTRIES,
   SEO_KEYWORD_SERIES_MAX_KEYWORDS,
@@ -88,7 +88,9 @@ import {
 import { withAutomaticSeoStatistics } from "./project-seo-statistics-cache";
 import {
   applyStatisticsInspections,
+  auditPerformancePages,
   collectStatisticsInspections,
+  dashboardInspectionUpdate,
   inspectionCacheKey,
   inspectStatisticsPage,
 } from "./project-seo-statistics-inspections";
@@ -425,35 +427,35 @@ export async function syncProjectSeoStatistics(
           collectionHooks,
         );
       }
-      if (cached && !audit) {
-        const inspections = await collectIndexedPages();
-        const updated = {
-          ...cached,
-          collectedAt: cached.collectedAt ?? cached.observedAt,
-          observedAt: new Date().toISOString(),
-        };
-        applyStatisticsInspections(updated, inspections);
-        return retain(updated, collectionHooks);
-      }
+      const inspections =
+        input.provider === "search_console"
+          ? await collectIndexedPages()
+          : null;
+      const { aliases, refreshed } = dashboardInspectionUpdate(
+        input.propertyId,
+        pageUrls,
+        audit ? null : inspections,
+        cached,
+      );
+      if (refreshed) return retain(refreshed, collectionHooks);
       const tool = await toolFor(
         integration,
         input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
       );
-      const inspections = audit ? await collectIndexedPages() : null;
-      const measuredPages = inspections
-        ? pageUrls.map((url) =>
-            auditPerformancePage(
+      const measuredPages =
+        audit && inspections
+          ? await auditPerformancePages(
+              actor,
               input.propertyId,
-              url,
-              inspections.indexedPages.find((p) => p.pageUrl === url),
-            ),
-          )
-        : null;
+              pageUrls,
+              inspections,
+            )
+          : null;
       const query: NativeStatisticsQuery = {
         ...input,
         pageUrls: measuredPages
           ? [...new Set(measuredPages.map((page) => page.measuredUrl))]
-          : pageUrls,
+          : [...new Set(pageUrls.map((url) => aliases[url] ?? url))],
       };
       const build =
         input.provider === "ga4"
@@ -589,7 +591,6 @@ export async function syncProjectSeoStatistics(
         previous,
         byCountry,
         byDevice,
-        indexed,
         landing,
       ] = await Promise.allSettled([
         collect(false),
@@ -599,9 +600,6 @@ export async function syncProjectSeoStatistics(
         collectPrevious(),
         collectBreakdown("country"),
         collectBreakdown("device"),
-        input.provider === "search_console" && !audit
-          ? collectIndexedPages()
-          : null,
         collectLandingPages(
           query,
           landingPlan,
@@ -692,8 +690,10 @@ export async function syncProjectSeoStatistics(
         else if (device) metrics.devices = device.split;
         if (byCountry.status === "rejected" || byDevice.status === "rejected")
           metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
-        if (indexed.status === "rejected") throw indexed.reason;
-        if (indexed.value) applyStatisticsInspections(metrics, indexed.value);
+        if (!audit && inspections) {
+          applyStatisticsInspections(metrics, inspections);
+          retainTrafficPageScope(metrics, pageUrls, aliases);
+        }
         if (tracked.leftOut.length)
           metrics.notes.push(
             seoStatisticsKeywordsLeftOutNote(

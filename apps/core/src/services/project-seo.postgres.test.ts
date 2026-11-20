@@ -33,6 +33,7 @@ import {
 import { type NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { seoAuditSearchConsoleAccessSchema } from "@/schemas/seo-task-indexing.schema";
+import { expectCoreLog } from "@/test/core-log";
 import {
   focusedRankingsReport,
   focusedReport,
@@ -968,6 +969,7 @@ describe.skipIf(!enabled)(
         expect((await refused.json()).kind).toBe("seo_gsc_property");
         expect(await runCounts()).toEqual(beforeManual);
         read.mockRejectedValueOnce(new Error("private upstream failure"));
+        expectCoreLog("warn", "Search Console verification failed");
         const unavailable = await manualRun();
         expect(unavailable.status).toBe(409);
         const problem = await unavailable.json();

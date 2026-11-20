@@ -266,7 +266,30 @@ export function gscSearchAnalyticsArguments(
     operator === "equals"
       ? query.pageUrls[0]!
       : `^(?:${[...new Set(query.pageUrls)].map(escapeRegex).join("|")})$`;
-  if (expression.length > 4096)
+  return gscPageFilterArguments(
+    query,
+    dimensions,
+    rowLimit,
+    0,
+    operator,
+    expression,
+  );
+}
+
+const GSC_FILTER_EXPRESSION_LIMIT = 4096;
+
+export function gscPageFilterArguments(
+  query: Pick<
+    NativeStatisticsQuery,
+    "propertyId" | "from" | "to" | "searchType"
+  >,
+  dimensions: string[],
+  rowLimit: number,
+  start: number,
+  operator: "includingRegex" | "equals",
+  expression: string,
+) {
+  if (expression.length > GSC_FILTER_EXPRESSION_LIMIT)
     throw new Error("Select fewer pages for this Search Console query");
   return {
     site_url: query.propertyId,
@@ -282,7 +305,7 @@ export function gscSearchAnalyticsArguments(
       },
     ],
     row_limit: rowLimit,
-    start_row: 0,
+    start_row: start,
   };
 }
 

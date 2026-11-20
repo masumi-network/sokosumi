@@ -9117,6 +9117,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             alsoOn?: Array<string>;
             videoOf?: string;
             story?: string;
+            claim?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -9177,6 +9178,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 alsoOn?: Array<string>;
                 videoOf?: string;
                 story?: string;
+                claim?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
                 fileId?: string;
@@ -9443,6 +9445,7 @@ export type MarketingStrategyRequest = {
             alsoOn?: Array<string>;
             videoOf?: string;
             story?: string;
+            claim?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -9503,6 +9506,7 @@ export type MarketingStrategyRequest = {
                 alsoOn?: Array<string>;
                 videoOf?: string;
                 story?: string;
+                claim?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
                 fileId?: string;
@@ -11237,6 +11241,7 @@ export type SocialPost = {
         alsoOn?: Array<string>;
         videoOf?: string;
         story?: string;
+        claim?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -12999,6 +13004,38 @@ export type SyncProjectSeoStatisticsRequest = {
     automatic?: boolean;
 };
 
+export type SeoSiteTrafficReport = {
+    site: string;
+    propertyId: string;
+    from: string;
+    to: string;
+    totals: {
+        clicks: number;
+        impressions: number;
+    } | null;
+    limited: boolean;
+    pages: Array<{
+        clicks: number;
+        impressions: number;
+        url: string;
+        submitted: Array<string>;
+        variants: Array<{
+            clicks: number;
+            impressions: number;
+            url: string;
+        }>;
+    }>;
+};
+
+export type SeoSiteTrafficInput = {
+    propertyId: string;
+    scope: 'site' | 'selected';
+    pageIds: Array<string>;
+    from: string;
+    to: string;
+    searchType: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
+};
+
 export type RecordProjectSeoPageChangeRequest = {
     pageIds: Array<string>;
     occurredAt: Date;
@@ -14728,6 +14765,7 @@ export type CmoPlan = {
         alsoOn?: Array<string>;
         videoOf?: string;
         story?: string;
+        claim?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
         fileId?: string;
@@ -14788,6 +14826,7 @@ export type CmoPlan = {
             alsoOn?: Array<string>;
             videoOf?: string;
             story?: string;
+            claim?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -80412,6 +80451,117 @@ export type SyncProjectSeoStatisticsResponses = {
 
 export type SyncProjectSeoStatisticsResponse = SyncProjectSeoStatisticsResponses[keyof SyncProjectSeoStatisticsResponses];
 
+export type ReadProjectSiteTrafficData = {
+    body: SeoSiteTrafficInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/statistics/traffic';
+};
+
+export type ReadProjectSiteTrafficErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Website unavailable
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Connection changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Traffic unavailable
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReadProjectSiteTrafficError = ReadProjectSiteTrafficErrors[keyof ReadProjectSiteTrafficErrors];
+
+export type ReadProjectSiteTrafficResponses = {
+    /**
+     * Private Search Console traffic for the open website
+     */
+    200: {
+        data: SeoSiteTrafficReport;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReadProjectSiteTrafficResponse = ReadProjectSiteTrafficResponses[keyof ReadProjectSiteTrafficResponses];
+
 export type RecordProjectSeoPageChangeData = {
     body: RecordProjectSeoPageChangeRequest;
     headers?: {
@@ -83514,6 +83664,117 @@ export type SyncSeoAuditStatisticsResponses = {
 };
 
 export type SyncSeoAuditStatisticsResponse = SyncSeoAuditStatisticsResponses[keyof SyncSeoAuditStatisticsResponses];
+
+export type ReadAuditSiteTrafficData = {
+    body: SeoSiteTrafficInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/statistics/traffic';
+};
+
+export type ReadAuditSiteTrafficErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Website unavailable
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Connection changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Traffic unavailable
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReadAuditSiteTrafficError = ReadAuditSiteTrafficErrors[keyof ReadAuditSiteTrafficErrors];
+
+export type ReadAuditSiteTrafficResponses = {
+    /**
+     * Private Search Console traffic for the open website
+     */
+    200: {
+        data: SeoSiteTrafficReport;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReadAuditSiteTrafficResponse = ReadAuditSiteTrafficResponses[keyof ReadAuditSiteTrafficResponses];
 
 export type RecordSeoAuditPageChangeData = {
     body: RecordProjectSeoPageChangeRequest;

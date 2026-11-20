@@ -13242,6 +13242,7 @@
         "inspections": "Inspected URLs in this audit ({count})"
       },
       "reportFiles": {
+        "noQueryRecommendations": "Search Console returned no query rows for these pages and dates. This check has no query-based recommendations.",
         "recommendations": "Recommendations from this check",
         "recoverSearch": "Recover Search Console results",
         "recoverSearchFailed": "Could not recover Search Console results. Try again.",
@@ -14097,6 +14098,21 @@
         "tests": "Checklist verdicts",
         "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
         "testsAll": "Every test gave a result"
+      },
+      "siteTraffic": {
+        "scope": "Search Console scope",
+        "site": "Whole site",
+        "selected": "Selected pages",
+        "sort": "Order pages by",
+        "more": "Show more pages",
+        "submitted": "Submitted URL",
+        "counts": "{clicks, plural, one {# click} other {# clicks}} · {impressions, plural, one {# impression} other {# impressions}}",
+        "noRows": "Google returned no page rows for this selection.",
+        "limited": "The list is limited to the pages retrieved. The total covers the full selection.",
+        "loading": "Loading Search Console traffic.",
+        "failed": "Could not read traffic for this selection.",
+        "unavailable": "Live traffic requires a matching Search Console property for this website.",
+        "saved": "Saved measurements for selected pages"
       },
       "traffic": {
         "periodInsight": {

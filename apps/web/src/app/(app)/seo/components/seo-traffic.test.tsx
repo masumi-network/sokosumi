@@ -40,6 +40,7 @@ function renderTraffic(
   workspace: ProjectSeoWorkspace,
   searchParams = "",
   searchConnected = false,
+  searchConsoleStatus?: Promise<Response>,
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0 } },
@@ -49,6 +50,39 @@ function renderTraffic(
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
       const url = new URL(input, "https://web.test");
+      if (
+        searchConsoleStatus &&
+        url.pathname.endsWith("/connections/search_console")
+      )
+        return searchConsoleStatus;
+      if (url.pathname.endsWith("/statistics/traffic")) {
+        const { scope, from, to } = JSON.parse(String(init?.body));
+        const site = scope === "site";
+        const home = {
+          url: "https://www.example.com/",
+          clicks: 3,
+          impressions: 78,
+        };
+        const about = {
+          url: "https://example.com/about",
+          clicks: 6,
+          impressions: 12,
+        };
+        return Response.json({
+          site: "example.com",
+          propertyId: "sc-domain:example.com",
+          from,
+          to,
+          limited: false,
+          totals: site
+            ? { clicks: 9, impressions: 90 }
+            : { clicks: 3, impressions: 78 },
+          pages: [
+            { ...home, submitted: ["https://example.com/"], variants: [home] },
+            ...(site ? [{ ...about, submitted: [], variants: [about] }] : []),
+          ],
+        });
+      }
       if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
         return Response.json(null);
       if (searchConnected && url.pathname.includes("/connections/")) {
@@ -65,7 +99,10 @@ function renderTraffic(
           provider: "search_console",
           status: "available",
           reason: null,
-          properties: [{ id: "sc-domain:example.com", name: "example.com" }],
+          properties: [
+            { id: "sc-domain:second-site.test", name: "second-site.test" },
+            { id: "sc-domain:example.com", name: "example.com" },
+          ],
         });
       return Response.json(workspace);
     }),
@@ -97,7 +134,93 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it("loads the whole website when the workspace also tracks a different domain and more than ten pages", async () => {
+  const workspace = seoTestWorkspace();
+  const home = workspace.pages[0];
+  const extra = Array.from({ length: 12 }, (_, i) => ({
+    ...home,
+    id: crypto.randomUUID(),
+    url: i === 0 ? "https://second-site.test/" : home.url + i,
+  }));
+  workspace.pages.push(...extra);
+  workspace.scope.pageIds.push(...extra.map((page) => page.id));
+  renderTraffic(workspace, "", true);
+  expect(await screen.findByText("90", { selector: "dd" })).toBeVisible();
+  const call = vi
+    .mocked(fetch)
+    .mock.calls.find(([url]) => String(url).endsWith("/statistics/traffic"));
+  const body = JSON.parse(String(call?.[1]?.body));
+  expect(body.propertyId).toBe("sc-domain:example.com");
+  expect(body.pageIds).toHaveLength(10);
+  expect(body.pageIds).not.toContain(extra[0].id);
+});
+it("opens traffic for the current website and narrows it to the selected page and its verified URL", async () => {
+  renderTraffic(seoTestWorkspace(), "&to=2024-03-01", true);
+  const user = userEvent.setup();
+  expect(
+    screen.getByRole("button", { name: "Whole site", pressed: true }),
+  ).toBeVisible();
+  const report = (
+    await screen.findByRole("heading", { name: "example.com", level: 2 })
+  ).closest("section")!;
+  expect(within(report).getByText("90")).toBeVisible();
+  expect(report.querySelector("summary")?.textContent).toContain("/about");
+  await user.click(
+    within(report).getByRole("combobox", { name: "Order pages by" }),
+  );
+  await user.click(screen.getByRole("option", { name: "Search impressions" }));
+  expect(report.querySelector("summary")?.textContent).toContain(
+    "www.example.com",
+  );
+  await user.click(screen.getByRole("button", { name: "Selected pages" }));
+  const selected = (await screen.findByText("78", { selector: "dd" })).closest(
+    "section",
+  )!;
+  expect(within(selected).queryByText("https://example.com/about")).toBeNull();
+  await user.click(selected.querySelector("summary")!);
+  expect(
+    within(selected).getByRole("link", { name: "https://www.example.com/" }),
+  ).toBeVisible();
+  expect(
+    within(selected).getByRole("link", { name: "https://example.com/" }),
+  ).toBeVisible();
+  const calls = vi
+    .mocked(fetch)
+    .mock.calls.filter(([url]) => String(url).endsWith("/statistics/traffic"))
+    .map(([, init]) => JSON.parse(String(init?.body)));
+  expect(calls[0]).toMatchObject({ from: "2023-12-03", to: "2024-03-01" });
+  expect(calls.map(({ scope, propertyId }) => [scope, propertyId])).toEqual([
+    ["site", "sc-domain:example.com"],
+    ["selected", "sc-domain:example.com"],
+  ]);
+});
+
 describe("SEO Traffic search type", () => {
+  it("keeps an unfinished or failed connection check distinct from a disconnected account", async () => {
+    const response = Promise.withResolvers<Response>();
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [
+      {
+        ...seoTestMetric(),
+        source: "ga4",
+        key: "sessions",
+        propertyId: "properties/1",
+      },
+    ];
+    renderTraffic(workspace, "", false, response.promise);
+    const section = screen
+      .getByRole("heading", { name: "Search Console queries" })
+      .closest("section");
+    if (!section) throw new Error("Missing search queries section");
+    const queries = within(section);
+    expect(queries.queryByText("Search Console is not connected")).toBeNull();
+    response.resolve(new Response(null, { status: 503 }));
+    expect(
+      await queries.findByText("Could not check this connection. Try again."),
+    ).toBeVisible();
+    expect(queries.getByRole("button", { name: "Try again" })).toBeVisible();
+  });
+
   it("shows a scoped Search Console investigation only for complete matched weeks from the personal workspace", async () => {
     const workspace = seoTestWorkspace();
     workspace.sharing = "personal";

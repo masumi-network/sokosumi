@@ -1,6 +1,8 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
   Table,
@@ -14,6 +16,7 @@ import { SeoAiAssistants } from "./seo-ai-assistants";
 import { SeoBreakdown } from "./seo-breakdown";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoTopPagesExport } from "./seo-export-model";
+import { SEO_MAX_PAGES } from "./seo-form-model";
 import { SeoQueryFilter } from "./seo-keywords";
 import { SeoLandingEngagement } from "./seo-landing-engagement";
 import { SeoMeasurements } from "./seo-measurements";
@@ -27,27 +30,89 @@ import {
   SeoPeriod,
   SeoSection,
 } from "./seo-shared";
+import { SeoSiteTrafficReportView } from "./seo-site-traffic";
 import { seoQueryPeriod } from "./seo-statistics-model";
 import { seoKeyEvents } from "./seo-traffic-model";
+import { useSeoSiteTraffic } from "./use-seo-site-traffic";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** What Google measured for the selected pages: totals and trend, the searches behind them, and each page's share. */
+const trafficScopes = ["site", "selected"] as const;
+
 export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
+  const t = useTranslations("App.Seo");
+  const [choice, setChoice] = useQueryState(
+    "trafficScope",
+    parseAsStringLiteral(trafficScopes),
+  );
+  const scope =
+    choice ??
+    (model.filters.pageId || model.filters.scopeId || model.filters.channel
+      ? "selected"
+      : "site");
+  const { query, available, pending, tooMany } = useSeoSiteTraffic(
+    model,
+    scope,
+  );
+  return (
+    <div className="space-y-6">
+      <SeoSearchTypeFilter model={model} />
+      <div
+        role="group"
+        aria-label={t("siteTraffic.scope")}
+        className="flex flex-wrap gap-2"
+      >
+        {trafficScopes.map((value) => (
+          <Button
+            key={value}
+            variant={value === scope ? "secondary" : "outline"}
+            aria-pressed={value === scope}
+            onClick={() => void setChoice(value)}
+          >
+            {t(`siteTraffic.${value}`)}
+          </Button>
+        ))}
+      </div>
+      {available && query.data && !query.isError ? (
+        <SeoSiteTrafficReportView
+          key={scope + query.data.site}
+          report={query.data}
+        />
+      ) : available && query.isError ? (
+        <div role="status">
+          {t("siteTraffic.failed")}{" "}
+          <Button variant="outline" onClick={() => void query.refetch()}>
+            {t("retry")}
+          </Button>
+        </div>
+      ) : (
+        <p role="status">
+          {tooMany
+            ? t("selectPagesLimit", { count: SEO_MAX_PAGES })
+            : t(
+                pending || available
+                  ? "siteTraffic.loading"
+                  : "siteTraffic.unavailable",
+              )}
+        </p>
+      )}
+      <section aria-label={t("siteTraffic.saved")} className="space-y-4">
+        <h2 className="font-semibold">{t("siteTraffic.saved")}</h2>
+        <SeoSelectedTraffic model={model} />
+      </section>
+    </div>
+  );
+}
+
+function SeoSelectedTraffic({ model }: { model: SeoWorkspaceModel }) {
   // Nothing measured yet: one card says what to connect. A second empty card would ask for the same account.
   if (
     !model.data.metrics.length &&
     !model.data.searchQueries &&
     !model.data.landingEngagementChange
   )
-    return (
-      <div className="space-y-6">
-        <SeoSearchTypeFilter model={model} />
-        <SeoMeasurements model={model} />
-      </div>
-    );
+    return <SeoMeasurements model={model} />;
   return (
     <div className="stagger space-y-6">
-      <SeoSearchTypeFilter model={model} />
       <SeoMeasurements model={model} />
       {model.data.landingEngagementChange && (
         <SeoLandingEngagement change={model.data.landingEngagementChange} />

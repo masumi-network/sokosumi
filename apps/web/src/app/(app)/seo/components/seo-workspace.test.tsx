@@ -6115,6 +6115,18 @@ describe("SEO workspace integration", () => {
         const url = new URL(input, "https://web.test");
         if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
           return statistics(JSON.parse(String(init.body)));
+        if (url.pathname.endsWith("/statistics/traffic")) {
+          const { propertyId, from, to } = JSON.parse(String(init?.body));
+          return Response.json({
+            propertyId,
+            from,
+            to,
+            site: "example.com",
+            totals: null,
+            pages: [],
+            limited: false,
+          });
+        }
         if (url.pathname.includes("/connections/")) {
           const provider = url.pathname.split("/").at(-1);
           return Response.json({

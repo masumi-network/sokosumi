@@ -16,6 +16,7 @@ import type {
   SaveProjectSeoCompetitorRequest,
   SaveProjectSeoKeywordRequest,
   SeoConsoleExportInput,
+  SeoSiteTrafficInput,
   SyncProjectSeoStatisticsData,
   UpdateProjectSeoScopeRequest,
 } from "@sokosumi/core-client";
@@ -43,6 +44,8 @@ import {
   listProjectSeoStatisticsProperties,
   listSeoAuditStatisticsProperties,
   listSeoAudits,
+  readAuditSiteTraffic,
+  readProjectSiteTraffic,
   recordProjectSeoPageChange,
   recordSeoAuditPageChange,
   requestProjectSeoAnalysis,
@@ -69,6 +72,17 @@ export type SeoWorkspaceQuery = NonNullable<
 >;
 
 export const seoServiceNoRedirect = {
+  async siteTraffic(owner: SeoOwner, body: SeoSiteTrafficInput) {
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        (owner.kind === "audit"
+          ? readAuditSiteTraffic
+          : readProjectSiteTraffic)({ client, path: { id: owner.id }, body }),
+      "Failed to read website traffic",
+    );
+    return response.data;
+  },
   async consoleExports(
     owner: SeoOwner,
     taskId: string,
