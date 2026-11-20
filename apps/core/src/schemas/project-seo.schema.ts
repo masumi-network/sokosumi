@@ -144,6 +144,7 @@ export const importSeoAuditSchema = z
   .object({
     taskId: z.string().min(1).max(128),
     fileId: z.string().min(1).max(128),
+    recoverMarkets: z.boolean().optional(),
   })
   .strict()
   .openapi("ImportProjectSeoAuditRequest");

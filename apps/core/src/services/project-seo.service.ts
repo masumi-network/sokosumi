@@ -2,6 +2,7 @@ import type { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
+import { reportObject } from "@/helpers/project-seo-public-report";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
@@ -566,6 +567,18 @@ export async function getProjectSeoWorkspace(
   ]);
   const taskIds = [
     ...new Set([
+      ...observations.flatMap((row) => {
+        const strategy = reportObject(reportObject(row.payload)?.strategy);
+        return row.kind === "audit_full" &&
+          row.source === "seo_coworker" &&
+          row.sourceTaskId &&
+          row.sourceFileId &&
+          strategy &&
+          strategy.markets == null &&
+          strategy.marketNote == null
+          ? [row.sourceTaskId]
+          : [];
+      }),
       ...actionTasks.map((item) => item.taskId),
       ...analyses.flatMap((item) => (item.taskId ? [item.taskId] : [])),
     ]),
@@ -579,6 +592,11 @@ export async function getProjectSeoWorkspace(
         select: {
           id: true,
           status: true,
+          ownerId: true,
+          projectId: true,
+          assigneeId: true,
+          visibility: true,
+          archivedAt: true,
           events: {
             where: { status: "COMPLETED" },
             orderBy: { createdAt: "desc" },
@@ -642,6 +660,24 @@ export async function getProjectSeoWorkspace(
     analyses,
     actionTasks,
     tasks,
+    marketRecoveryTaskIds: new Set(
+      taskRows
+        .filter(
+          (task) =>
+            task.status === "COMPLETED" &&
+            task.visibility === "PUBLIC" &&
+            task.ownerId === actor.userId &&
+            task.assigneeId &&
+            (task.projectId === null ||
+              (actor.owner.kind === "project" &&
+                task.projectId === actor.owner.id)) &&
+            !task.archivedAt &&
+            !analyses.some(
+              (a) => a.taskId === task.id && a.requestedBy !== actor.userId,
+            ),
+        )
+        .map((task) => task.id),
+    ),
     privateMetricsAllowed,
     analysisDispatchEnabled: executor !== null,
     canUsePaidSearchData: executor?.canUsePaidSearchData === true,
@@ -687,6 +723,7 @@ export async function getProjectSeoWorkspace(
             ? [a.taskId]
             : [],
         ),
+        new Set(scope.pages.map((page) => page.url)),
       ))),
     ...(topicQueries && { privateTopicQueries: topicQueries }),
     actions,

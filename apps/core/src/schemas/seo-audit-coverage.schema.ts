@@ -4,6 +4,18 @@ import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 
 export const seoDeviceSchema = z.enum(["mobile", "desktop"]);
 
+export const storedSeoChecklist = z
+  .array(
+    z.object({
+      rowId: z.string().max(20_000),
+      reason: z.string().max(1200).optional(),
+      pageUrl: seoUrlSchema,
+      device: seoDeviceSchema,
+      result: z.enum(["pass", "fired", "blocked", "not_checked"]),
+    }),
+  )
+  .max(10000);
+
 const researchStage = z.object({
   name: z.enum(["seasonal", "editorial", "exploration"]),
   status: z.enum(["completed", "partial", "skipped", "no_finding", "unknown"]),
@@ -32,6 +44,19 @@ export const seoChecklistBreakdown = z.object({
   research: z.array(seoResearchCoverage),
 });
 
+/** Only regional versions verified from the standalone page's public capture. */
+export const seoPageMarketEvidence = z.object({
+  regionalVersions: z
+    .array(
+      z.object({
+        country: z.string().regex(/^[A-Z]{2}$/),
+        language: z.string().regex(/^[a-z]{2}$/),
+        url: seoUrlSchema,
+      }),
+    )
+    .max(20),
+});
+
 export const seoModuleCoverageSchema = z.object({
   notRequested: z.number().int().nonnegative(),
   failed: z.number().int().nonnegative(),
@@ -55,6 +80,7 @@ export const seoObservationSchema = z
     /** Critical, major and minor findings this run saved for the selected pages. */
     issues: z.number().int().nonnegative(),
     checklistBreakdown: seoChecklistBreakdown.optional(),
+    pageMarketEvidence: seoPageMarketEvidence.optional(),
     coverage: z.object({
       checked: z.number().int(),
       skipped: z.number().int(),

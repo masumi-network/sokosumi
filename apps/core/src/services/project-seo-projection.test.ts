@@ -3249,3 +3249,87 @@ it("retains an empty ranked idea list only for the selected audit page", () => {
     expect(marker).toBe(selected);
   }
 });
+
+it("shows only verified same-site regional versions for the standalone audited page", () => {
+  const input = fixture();
+  const page = legacyReport();
+  const verified = {
+    country: "CH",
+    language: "de",
+    url: "https://www.example.test/de-ch",
+  };
+  const report = {
+    ...page,
+    header: {
+      ...page.header,
+      finalUrl: { desktop: "https://www.example.test/page" },
+    },
+    pageMarketEvidence: {
+      comparisonNote:
+        "This page audit did not measure competitor visibility by country and language.",
+      regionalVersions: [
+        verified,
+        { ...verified, url: "https://other.test/page" },
+        { ...verified, url: "https://www.example.test/private/area" },
+      ],
+    },
+  };
+  const read = (raw: unknown) => {
+    input.observations = [
+      observation(input, parsePublicSeoArtifact(raw), now.toISOString()),
+    ];
+    return projectSeoProjection(input).observations[0];
+  };
+  expect(read(report).pageMarketEvidence).toEqual({
+    regionalVersions: [verified],
+  });
+  expect(read(page).pageMarketEvidence).toBeUndefined();
+  expect(
+    read({ ...siteStrategyReport(), pages: [report, page] }).pageMarketEvidence,
+  ).toBeUndefined();
+});
+
+it("returns site market evidence only for a scope covering the audited pages", () => {
+  const input = fixture();
+  const second = {
+    ...input.pages[0],
+    url: SEO_TEST_SECOND_PAGE,
+    id: randomUUID(),
+  };
+  const pages = [...input.pages, second];
+  const scope = { ...input.scope, pages, pageIds: pages.map((p) => p.id) };
+  const base = siteStrategyReport();
+  const report = legacyReport();
+  const payload = parsePublicSeoArtifact({
+    ...base,
+    pages: [report, { ...report, request: { url: second.url } }],
+    strategy: {
+      ...base.strategy,
+      markets: undefined,
+      marketNote: "the start page's Run found no Market",
+    },
+  });
+  const row = observation({ ...input, scope }, payload, now.toISOString());
+  const read = (selection: Input["scope"], stored = row) =>
+    projectSeoProjection({
+      ...input,
+      pages,
+      scope: selection,
+      observations: [stored],
+    }).strategy;
+  expect(read(scope)?.marketNote).toBe("missing_baseline");
+  expect(read(input.scope)?.marketNote).toBeUndefined();
+  expect(
+    read(scope, {
+      ...row,
+      payload: {
+        ...payload,
+        strategy: {
+          ...payload.strategy,
+          marketNote: "invalid",
+          markets: { rows: "broken" },
+        },
+      },
+    }),
+  ).toMatchObject({ verdict: base.strategy.verdict });
+});

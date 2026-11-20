@@ -4641,6 +4641,12 @@ const projectSeoIndexTriageSchemaResponseTransformer = (data: any) => {
 };
 
 const projectSeoStrategySchemaResponseTransformer = (data: any) => {
+    if (data.markets) {
+        data.markets.hosts = data.markets.hosts.map((item: any) => {
+            item.fetchedAt = new Date(item.fetchedAt);
+            return item;
+        });
+    }
     data.observedAt = new Date(data.observedAt);
     return data;
 };

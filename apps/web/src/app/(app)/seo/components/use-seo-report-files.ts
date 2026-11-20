@@ -97,6 +97,17 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
       );
     },
   });
+  const strategy = model.data.strategy;
+  const marketFileId =
+    strategy?.marketRecoveryFileId &&
+    model.data.observations.some(
+      (obs) =>
+        obs.id === strategy.observationId &&
+        obs.sourceTaskId === taskId &&
+        obs.kind === "audit_full",
+    )
+      ? strategy.marketRecoveryFileId
+      : undefined;
   const files = useQuery({
     queryKey: [
       "seo-report-files",
@@ -105,6 +116,7 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
       projectId,
       taskId,
       version.canRecover,
+      marketFileId,
     ],
     enabled: Boolean(userId),
     gcTime: 0,
@@ -122,6 +134,12 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
       if (task.id !== taskId) throw new Error("Unexpected report Task");
       return {
         links: seoTaskReportFiles(task),
+        marketFile:
+          marketFileId &&
+          seoTaskReportFiles({
+            ...task,
+            files: task.files.filter((file) => file.id === marketFileId),
+          }).find((file) => file.format === "json"),
         canImport: Boolean(
           userId &&
             !task.archivedAt &&
@@ -163,6 +181,22 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
             t("imported"),
           )
       : null;
+  const marketFile = files.data?.marketFile;
+  const recoverMarkets =
+    !files.isError &&
+    !version.canRecover &&
+    model.data.availableActions.canEdit &&
+    files.data?.canImport &&
+    marketFile
+      ? () =>
+          model.execute(
+            {
+              kind: "import_audit",
+              body: { taskId, fileId: marketFile.id, recoverMarkets: true },
+            },
+            t("marketsChecked"),
+          )
+      : null;
   const accessUnavailable =
     (!loadingSession && !userId) ||
     (files.error instanceof CoreApiRequestError &&
@@ -187,5 +221,6 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
     retry: accessUnavailable ? null : files.refetch,
     refreshing: files.isFetching,
     importReport,
+    recoverMarkets,
   };
 }

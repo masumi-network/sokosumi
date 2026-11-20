@@ -45582,6 +45582,63 @@ export const ProjectSeoWorkspaceSchema = {
                             'decision'
                         ]
                     },
+                    countries: {
+                        type: 'object',
+                        properties: {
+                            rowLimit: {
+                                type: 'integer',
+                                exclusiveMinimum: 0,
+                                maximum: 250
+                            },
+                            truncated: {
+                                type: 'boolean'
+                            },
+                            rows: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        key: {
+                                            type: 'string',
+                                            pattern: '^(?:[A-Z]{2,3}|desktop|mobile|tablet)$'
+                                        },
+                                        clicks: {
+                                            type: 'number',
+                                            minimum: 0
+                                        },
+                                        impressions: {
+                                            type: 'number',
+                                            minimum: 0
+                                        },
+                                        ctr: {
+                                            type: 'number',
+                                            minimum: 0,
+                                            maximum: 1
+                                        },
+                                        averagePosition: {
+                                            type: 'number',
+                                            minimum: 1
+                                        }
+                                    },
+                                    required: [
+                                        'key',
+                                        'clicks',
+                                        'impressions',
+                                        'ctr',
+                                        'averagePosition'
+                                    ],
+                                    additionalProperties: false
+                                },
+                                maxItems: 250
+                            }
+                        },
+                        required: [
+                            'rowLimit',
+                            'truncated',
+                            'rows'
+                        ],
+                        additionalProperties: false
+                    },
                     queries: {
                         type: [
                             'object',
@@ -45986,6 +46043,41 @@ export const ProjectSeoObservationSchema = {
                 'flagged',
                 'gaps',
                 'research'
+            ]
+        },
+        pageMarketEvidence: {
+            type: 'object',
+            properties: {
+                regionalVersions: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            country: {
+                                type: 'string',
+                                pattern: '^[A-Z]{2}$'
+                            },
+                            language: {
+                                type: 'string',
+                                pattern: '^[a-z]{2}$'
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            }
+                        },
+                        required: [
+                            'country',
+                            'language',
+                            'url'
+                        ]
+                    },
+                    maxItems: 20
+                }
+            },
+            required: [
+                'regionalVersions'
             ]
         },
         coverage: {
@@ -47620,6 +47712,157 @@ export const ProjectSeoIndexAssessedPageSchema = {
 export const ProjectSeoStrategySchema = {
     type: 'object',
     properties: {
+        markets: {
+            type: 'object',
+            properties: {
+                rows: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            country: {
+                                type: 'string',
+                                pattern: '^[A-Z]{2}$'
+                            },
+                            language: {
+                                type: 'string',
+                                pattern: '^[a-z]{2,3}$'
+                            },
+                            start: {
+                                type: 'boolean'
+                            },
+                            rivals: {
+                                type: 'integer',
+                                minimum: 0,
+                                maximum: 3
+                            },
+                            of: {
+                                type: 'integer',
+                                minimum: 1,
+                                maximum: 3
+                            },
+                            share: {
+                                type: 'number',
+                                minimum: 0,
+                                maximum: 1
+                            },
+                            etv: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            ownShare: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ],
+                                minimum: 0,
+                                maximum: 1
+                            },
+                            hasLanguage: {
+                                type: 'boolean'
+                            },
+                            regionVersion: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                pattern: '^[a-z]{2,3}-[A-Z]{2}$'
+                            },
+                            candidate: {
+                                type: 'boolean'
+                            }
+                        },
+                        required: [
+                            'country',
+                            'language',
+                            'start',
+                            'rivals',
+                            'of',
+                            'share',
+                            'etv',
+                            'ownShare',
+                            'hasLanguage',
+                            'regionVersion',
+                            'candidate'
+                        ]
+                    },
+                    maxItems: 100
+                },
+                outside: {
+                    type: [
+                        'number',
+                        'null'
+                    ],
+                    minimum: 0,
+                    maximum: 1
+                },
+                siteVisits: {
+                    type: 'boolean'
+                },
+                hosts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            host: {
+                                type: 'string',
+                                maxLength: 253,
+                                pattern: '^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/i'
+                            },
+                            role: {
+                                type: 'string',
+                                enum: [
+                                    'site',
+                                    'product'
+                                ]
+                            },
+                            etv: {
+                                type: [
+                                    'integer',
+                                    'null'
+                                ],
+                                minimum: 0
+                            },
+                            fetchedAt: {
+                                type: 'string',
+                                format: 'date-time'
+                            },
+                            unavailable: {
+                                type: 'boolean'
+                            }
+                        },
+                        required: [
+                            'host',
+                            'role',
+                            'etv',
+                            'fetchedAt',
+                            'unavailable'
+                        ]
+                    },
+                    minItems: 2,
+                    maxItems: 4
+                }
+            },
+            required: [
+                'rows',
+                'outside',
+                'siteVisits',
+                'hosts'
+            ]
+        },
+        marketNote: {
+            type: 'string',
+            enum: [
+                'local_business',
+                'missing_baseline',
+                'time_limit',
+                'budget_limit',
+                'read_error',
+                'unverified_competitors',
+                'strategy_unavailable',
+                'unavailable'
+            ]
+        },
         verdict: {
             type: 'string',
             maxLength: 100
@@ -48150,6 +48393,11 @@ export const ProjectSeoStrategySchema = {
                 ]
             },
             maxItems: 10
+        },
+        marketRecoveryFileId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
         },
         observationId: {
             type: 'string',
@@ -49053,6 +49301,9 @@ export const ImportProjectSeoAuditRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 128
+        },
+        recoverMarkets: {
+            type: 'boolean'
         }
     },
     required: [

@@ -348,6 +348,24 @@ describe("SEO report archiving", () => {
 });
 
 describe("SEO workspace integration", () => {
+  it("opens market evidence in standalone Rankings with no keyword rows", async () => {
+    const workspace = { ...seoTestCheckedAudit(), projectId: null };
+    workspace.observations[0].pageMarketEvidence = {
+      regionalVersions: [
+        { country: "DE", language: "de", url: "https://example.com/de/" },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace, "?tab=rankings");
+    const markets = within(
+      await screen.findByRole("region", { name: "Markets to investigate" }),
+    );
+    expect(markets.getByText("Germany · German")).toBeVisible();
+  });
+
   it("offers report files for earlier imported runs without an analysis in the current window", async () => {
     const workspace = seoTestWorkspace();
     const history = seoTestObservation(workspace);

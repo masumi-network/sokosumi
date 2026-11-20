@@ -64,6 +64,7 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
     retry,
     refreshing,
     importReport,
+    recoverMarkets,
     evidence,
     fullAudit,
     recoverSearch,
@@ -115,6 +116,21 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
               {t("reportFiles.recoverSearchFailed")}
             </p>
           )}
+        </div>
+      )}
+      {recoverMarkets && (
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-sm">
+            {t("reportFiles.recoverMarketsHelp")}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            loading={model.pending}
+            onClick={() => void recoverMarkets()}
+          >
+            {t("reportFiles.recoverMarkets")}
+          </Button>
         </div>
       )}
       {importReport ? (

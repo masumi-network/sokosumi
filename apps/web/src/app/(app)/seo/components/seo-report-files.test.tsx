@@ -17,6 +17,7 @@ import {
   SEO_TEST_PROJECT,
   seoTestMetric,
   seoTestObservation,
+  seoTestStrategy,
   seoTestWorkspace,
 } from "./seo-test-fixture";
 
@@ -71,6 +72,7 @@ function openRuns(
   sameMinute = false,
   withEvidence = false,
   eligible: string[] = [],
+  marketFile?: string,
 ) {
   const data = seoTestWorkspace();
   data.observations = [
@@ -102,6 +104,14 @@ function openRuns(
       ),
     },
   ];
+  if (marketFile) {
+    data.observations[0].kind = "audit_full";
+    data.strategy = {
+      ...seoTestStrategy(),
+      observationId: data.observations[0].id,
+      marketRecoveryFileId: marketFile,
+    };
+  }
   if (withEvidence) {
     data.metrics = [{ ...seoTestMetric(), value: 876543 }];
     data.auditSearchConsole = [
@@ -419,6 +429,26 @@ describe("SEO report file versions", () => {
       "newer",
       "older",
     ]);
+  });
+
+  it("restores market data from the exact original JSON for a completed audit", async () => {
+    const source = reportFile("newer", "data.json", "application/json");
+    const later = reportFile("newer", "json", "application/json", {
+      createdAt: new Date(10),
+    });
+    getTaskById.mockResolvedValue(task("newer", [later, source]));
+    const user = openRuns(false, false, [], source.id);
+    await user.click(screen.getByRole("button", { name: "Report files" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Recover market comparison" }),
+    );
+    expect(execute).toHaveBeenCalledWith(
+      {
+        kind: "import_audit",
+        body: { taskId: "newer", fileId: source.id, recoverMarkets: true },
+      },
+      "Market comparison checked",
+    );
   });
 
   it("uses the archived Task read and omits unfinished, unrelated and untrusted attachments", async () => {

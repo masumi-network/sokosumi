@@ -11955,6 +11955,17 @@ export type ProjectSeoWorkspace = {
             clicks: number | null;
             decision: 'investigate_loss' | 'investigate_growth' | 'monitor' | 'insufficient_history';
         };
+        countries?: {
+            rowLimit: number;
+            truncated: boolean;
+            rows: Array<{
+                key: string;
+                clicks: number;
+                impressions: number;
+                ctr: number;
+                averagePosition: number;
+            }>;
+        };
         queries: {
             rows: Array<{
                 query: string;
@@ -12026,6 +12037,13 @@ export type ProjectSeoObservation = {
                 status: 'completed' | 'partial' | 'skipped' | 'no_finding' | 'unknown';
                 reason?: string;
             }>;
+        }>;
+    };
+    pageMarketEvidence?: {
+        regionalVersions: Array<{
+            country: string;
+            language: string;
+            url: string;
         }>;
     };
     coverage: {
@@ -12324,6 +12342,31 @@ export type ProjectSeoIndexAssessedPage = {
 };
 
 export type ProjectSeoStrategy = {
+    markets?: {
+        rows: Array<{
+            country: string;
+            language: string;
+            start: boolean;
+            rivals: number;
+            of: number;
+            share: number;
+            etv: number;
+            ownShare: number | null;
+            hasLanguage: boolean;
+            regionVersion: string | null;
+            candidate: boolean;
+        }>;
+        outside: number | null;
+        siteVisits: boolean;
+        hosts: Array<{
+            host: string;
+            role: 'site' | 'product';
+            etv: number | null;
+            fetchedAt: Date;
+            unavailable: boolean;
+        }>;
+    };
+    marketNote?: 'local_business' | 'missing_baseline' | 'time_limit' | 'budget_limit' | 'read_error' | 'unverified_competitors' | 'strategy_unavailable' | 'unavailable';
     verdict: string;
     why: string;
     purpose?: 'sales' | 'traffic';
@@ -12415,6 +12458,7 @@ export type ProjectSeoStrategy = {
             volume: number;
         }> | null;
     }>;
+    marketRecoveryFileId?: string;
     observationId: string;
     observedAt: Date;
     countryCode: string | null;
@@ -12592,6 +12636,7 @@ export type UpdateProjectSeoScopeRequest = CreateProjectSeoScopeRequest & {
 export type ImportProjectSeoAuditRequest = {
     taskId: string;
     fileId: string;
+    recoverMarkets?: boolean;
 };
 
 export type RequestProjectSeoAnalysisRequest = {

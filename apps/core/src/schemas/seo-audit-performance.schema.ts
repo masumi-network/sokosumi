@@ -1,6 +1,9 @@
 import { z } from "@hono/zod-openapi";
 import { seoActionSchema } from "./project-seo-action.schema";
-import { seoSearchQueryRowSchema } from "./project-seo-traffic.schema";
+import {
+  seoPositionedSearchBreakdownSchema,
+  seoSearchQueryRowSchema,
+} from "./project-seo-traffic.schema";
 import { SEO_MAX_PAGES, seoUrlSchema } from "./seo-page.schema";
 
 export const AUDIT_PERFORMANCE_KIND = "audit_search_performance";
@@ -49,6 +52,7 @@ export const seoAuditPerformanceSchema = periodTotals.extend({
   ),
   previous: periodTotals.nullable(),
   history: auditClickHistorySchema.optional(),
+  countries: seoPositionedSearchBreakdownSchema.optional(),
   queries: z
     .object({
       rows: z.array(seoSearchQueryRowSchema).max(AUDIT_QUERY_PREVIEW_LIMIT),

@@ -29,6 +29,7 @@ export async function readAuditPerformanceSummaries(
   actor: SeoActor,
   taskIds: string[],
   retryCandidates: string[] = [],
+  selectedUrls?: ReadonlySet<string>,
 ) {
   const retry = new Set(retryCandidates);
   if (actor.sokoBotId || !taskIds.length)
@@ -76,6 +77,17 @@ export async function readAuditPerformanceSummaries(
           evidence,
         })),
         coverage: data.coverage,
+        ...((data.searchType ?? "web") === "web" &&
+          data.countries &&
+          data.pageUrls.length > 0 &&
+          data.pageUrls.every((url) => selectedUrls?.has(url)) &&
+          data.auditMeasuredPages.length > 0 &&
+          data.auditMeasuredPages.every(
+            (page) => page.basis !== "unverified",
+          ) &&
+          data.countries.rows.every((row) => /^[A-Z]{2,3}$/.test(row.key)) && {
+            countries: data.countries,
+          }),
         ...(data.auditClickHistory && { history: data.auditClickHistory }),
         ...totals(data),
         previous: earlier

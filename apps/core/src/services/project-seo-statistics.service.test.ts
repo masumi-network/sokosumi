@@ -1122,7 +1122,15 @@ describe("Search Console query rows", () => {
       owner,
       ["audit-task"],
       ["audit-task"],
+      new Set([state.pageUrl, canonical]),
     );
+    const partialScope = await readAuditPerformanceSummaries(
+      owner,
+      ["audit-task"],
+      [],
+      new Set([state.pageUrl]),
+    );
+    expect(partialScope.auditSearchConsole[0]).not.toHaveProperty("countries");
     expect(reports.auditSearchConsoleRetryTaskIds).toEqual([]);
     const [report] = reports.auditSearchConsole;
     expect(report).toMatchObject({
@@ -1130,6 +1138,10 @@ describe("Search Console query rows", () => {
       to: "2026-01-07",
       clicks: 1,
       impressions: 9,
+      countries: {
+        truncated: false,
+        rows: [{ key: "DE", clicks: 1, impressions: 9 }],
+      },
       previous: { from: "2025-07-12", to: "2025-10-09" },
       opportunities: [
         { title: 'Strengthen the page for "charging"', pageUrl: canonical },

@@ -85,6 +85,11 @@ export function createSeoStatisticsSyncRouter(ownerKind: "project" | "audit") {
             actor,
             [input.auditTaskId],
             [input.auditTaskId],
+            new Set(
+              workspace.pages
+                .filter((page) => workspace.scope.pageIds.includes(page.id))
+                .map((page) => page.url),
+            ),
           );
           workspace.auditSearchConsoleRetryTaskIds = [
             ...new Set([

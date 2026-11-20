@@ -17,7 +17,12 @@ import {
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
-import { seoResearchCoverage } from "@/schemas/seo-audit-coverage.schema";
+import {
+  seoPageMarketEvidence,
+  seoResearchCoverage,
+  storedSeoChecklist,
+} from "@/schemas/seo-audit-coverage.schema";
+import { seoAuditFinalUrls } from "@/schemas/seo-page.schema";
 import * as seoDecisions from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import {
@@ -51,6 +56,7 @@ import {
   seoArticleDates,
   seoTopicLaunch,
 } from "./seo-content-history";
+import { readPageMarketEvidence } from "./seo-page-market-evidence";
 import {
   readReviewSources,
   seoReviewSource,
@@ -120,17 +126,8 @@ const publicSeoPayload = z.object({
   languageCode: z.string().max(20),
   rulebookVersion: text,
   researchCoverage: z.array(seoResearchCoverage).max(11).optional(),
-  checks: z
-    .array(
-      z.object({
-        rowId: text,
-        reason: z.string().max(1200).optional(),
-        pageUrl: seoUrlSchema,
-        device: seoDeviceSchema,
-        result: z.enum(["pass", "fired", "blocked", "not_checked"]),
-      }),
-    )
-    .max(10000),
+  pageMarketEvidence: seoPageMarketEvidence.optional(),
+  checks: storedSeoChecklist,
   keywords: z.array(keyword).max(5000),
   competitors: z.array(competitor).max(1000),
   findings: z.array(finding).max(5000),
@@ -328,13 +325,7 @@ const legacy = z.object({
   rulebookVersion: text,
   header: z.object({
     capturedAt: observedAt,
-    finalUrl: z
-      .object({
-        mobile: seoUrlSchema.nullable().optional(),
-        desktop: seoUrlSchema.nullable().optional(),
-      })
-      .optional()
-      .catch(undefined),
+    finalUrl: seoAuditFinalUrls,
     market: z.object({ country: text, language: text }).nullable(),
     focusKeywords: z
       .array(
@@ -501,7 +492,11 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     if (!site.success)
       throw badRequest("The site report does not match its supported format");
     const pages = site.data.pages.map(parsePublicSeoArtifact),
-      { strategy: _firstPageStrategy, ...first } = pages[0],
+      {
+        strategy: _firstPageStrategy,
+        pageMarketEvidence: _standaloneMarkets,
+        ...first
+      } = pages[0],
       pageUrls = pages.flatMap((page) => page.pageUrls),
       { strategy, note } = publicSeoStrategy(raw, pageUrls),
       siteFindings = publicSiteFindings(raw, pageUrls, first.observedAt);
@@ -697,6 +692,11 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     kind: "audit_full",
     requestId: null,
     pageUrls: [pageUrl],
+    pageMarketEvidence: readPageMarketEvidence(
+      object(raw)?.pageMarketEvidence,
+      pageUrl,
+      Object.values(result.header.finalUrl ?? {}),
+    ),
     reviewSources: ranks,
     articleDates: articleDates(raw, pageUrl, at),
     observedAt: at,
