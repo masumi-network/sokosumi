@@ -53,7 +53,7 @@ Before reaching for an effect, read React's [You Might Not Need an Effect](https
 - **Resetting state on prop change**: pass a `key` to remount the subtree cleanly.
 - **Data loading**: use `@tanstack/react-query` (or Server Components / loaders) instead of `fetch` + `setState` in an effect.
 - **External store subscriptions**: use `useSyncExternalStore` for browser state (`matchMedia`, `visualViewport`, `localStorage`, hydration checks).
-- **Latest callback or prop inside an effect**: use `useEffectEvent` (allowed everywhere) instead of syncing refs.
+- **Latest callback or prop inside an effect**: use `useEffectEvent` only when called from inside an effect (or code an effect runs, like a subscription it set up) — never during render, from an event handler, a timer started outside an effect, or a callback passed to a child or library. For event handlers, timers, and library callbacks, use `useLatestRef` from `src/hooks/effects/`.
 
 When you genuinely need to synchronize with an external system, call an existing named hook from `src/hooks/effects/` (or add one there — one job per hook, covered by a Vitest behaviour test, and never taking a general effect-callback parameter). Tests, test fixtures, and Web's vendored `src/components/ui/**` are exempt.
 
