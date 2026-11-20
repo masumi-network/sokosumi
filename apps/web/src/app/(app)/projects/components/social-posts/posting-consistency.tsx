@@ -1,8 +1,9 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useScrollToEnd } from "@/hooks/effects/use-scroll-to-end";
 import { cn } from "@/lib/utils";
 import {
   type ActivityDay,
@@ -46,11 +47,7 @@ export function PostingConsistency({
   const totals = activityTotals(days);
   const streaks = postingStreaks(days);
   const weeks = contributionCalendar(days);
-  useEffect(() => {
-    const node = scroller.current;
-    if (!node) return;
-    node.scrollLeft = node.scrollWidth;
-  }, [weeks.length]);
+  useScrollToEnd(scroller, weeks.length, { axis: "horizontal" });
   const monthStarts = calendarMonthStarts(weeks);
   const max = activityMax(filled, mode);
 

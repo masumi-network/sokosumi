@@ -8,6 +8,7 @@ import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
+import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -329,11 +330,10 @@ export function CmoApp({
     overview.botStatus === "RUNNING"
       ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
       : null;
-  useEffect(() => {
-    if (view === "chat" && threadLength > 0) {
-      end.current?.scrollIntoView({ block: "end" });
-    }
-  }, [threadLength, view, working]);
+  useScrollIntoViewWhen(end, view === "chat" && threadLength > 0, {
+    block: "end",
+    resetKey: `${threadLength}:${working === null ? "idle" : `busy:${working}`}`,
+  });
 
   const compose = useCallback(
     (text: string) => {

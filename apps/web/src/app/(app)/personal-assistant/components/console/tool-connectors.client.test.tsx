@@ -518,4 +518,34 @@ describe("ToolConnectors", () => {
       vi.useRealTimers();
     }
   });
+
+  it("does not scroll again on an identical catalog refetch with a newer dataUpdatedAt", async () => {
+    const client = new QueryClient();
+    const scrollSpy = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollSpy;
+
+    renderConnectors([], "slack", false, undefined, client);
+
+    await screen.findByRole("button", { name: "Connect slack" });
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    expect(scrollSpy).toHaveBeenLastCalledWith({ block: "center" });
+
+    const queryKey = ["soko-bot-integration-catalog", "slack"];
+    const firstState = client.getQueryState(queryKey);
+    const firstData = firstState?.data;
+    const firstUpdatedAt = firstState?.dataUpdatedAt ?? 0;
+
+    scrollSpy.mockClear();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await act(async () => {
+      await client.refetchQueries({ queryKey });
+    });
+    await screen.findByRole("button", { name: "Connect slack" });
+
+    const nextState = client.getQueryState(queryKey);
+    expect(searchCatalog).toHaveBeenCalledTimes(2);
+    expect(nextState?.data).toBe(firstData);
+    expect(nextState?.dataUpdatedAt).toBeGreaterThan(firstUpdatedAt);
+    expect(scrollSpy).not.toHaveBeenCalled();
+  });
 });
