@@ -167,8 +167,8 @@ import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
   chatRoomMessageIdEnvelopeAction,
   tombstoneChatRoomMessage,

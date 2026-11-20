@@ -27,7 +27,7 @@ import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
-import { useIntentPrefetch } from "@/hooks/use-intent-prefetch";
+import { useIntentPrefetch } from "@/hooks/effects/use-intent-prefetch";
 import { markPageOnScreen } from "@/lib/navigation/navigation-start";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { shouldUseCoworkerRoomStream } from "./room-helpers";

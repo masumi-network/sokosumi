@@ -24,7 +24,7 @@ vi.mock("next-intl", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-clipboard", () => ({
+vi.mock("@/hooks/effects/use-clipboard", () => ({
   copyTextWithToast: (...args: unknown[]) => copyTextWithToastMock(...args),
 }));
 

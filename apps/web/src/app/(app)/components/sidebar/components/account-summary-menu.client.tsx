@@ -11,7 +11,7 @@ import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useSelfPresence } from "@/hooks/use-self-presence";
+import { useSelfPresence } from "@/hooks/effects/use-self-presence";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 

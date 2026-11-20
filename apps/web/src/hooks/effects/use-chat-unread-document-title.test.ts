@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
+import { useChatUnreadDocumentTitle } from "@/hooks/effects/use-chat-unread-document-title";
 
 function getDocumentTitleDescriptor(): {
   descriptor: PropertyDescriptor & {

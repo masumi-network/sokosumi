@@ -10,7 +10,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { PageSearchHint } from "@/components/page-search-field";
 import { Input } from "@/components/ui/input";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { usePageSearchShortcut } from "@/hooks/use-page-search-shortcut";
+import { usePageSearchShortcut } from "@/hooks/effects/use-page-search-shortcut";
 import { jobMatchesQuery, type SearchableJob } from "@/lib/job/job-search";
 import { cn } from "@/lib/utils";
 

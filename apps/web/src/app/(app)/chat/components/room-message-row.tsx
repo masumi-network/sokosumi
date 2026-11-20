@@ -136,7 +136,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
 import {
   recordEmojiUse,
   useFrequentlyUsedEmojis,
