@@ -6,11 +6,17 @@ import {
 } from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { capabilityGrants } from "@/lib/ably/ably-capability-map";
+import { authorizeAbly } from "@/lib/ably/authorize.client";
+import { registerAblyChatRoomScope } from "@/lib/ably/chat-room-auth-scope.client";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
-import { capabilityGrants } from "./ably-capability-map";
-import { authorizeAbly } from "./authorize.client";
-import { registerAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import {
   applyTypingEvent,
   EMPTY_TYPING_SET,
@@ -19,9 +25,12 @@ import {
   sameTypistIds,
   type TypingSet,
   type TypingState,
-} from "./room-typing-model";
-import { safeDetachChannel, safeSubscribeChannel } from "./safe-detach-channel";
-import { chatTypingEventDataSchema } from "./schema";
+} from "@/lib/ably/room-typing-model";
+import {
+  safeDetachChannel,
+  safeSubscribeChannel,
+} from "@/lib/ably/safe-detach-channel";
+import { chatTypingEventDataSchema } from "@/lib/ably/schema";
 
 const CHAT_TYPING_EVENT_NAME = "chat_typing";
 
@@ -32,9 +41,9 @@ const CHAT_TYPING_EVENT_NAME = "chat_typing";
  */
 const TYPING_SWEEP_TICK_MS = 1_000;
 
-export interface RoomTyping {
-  /** Live typists in this room, in the order they started. Never includes you. */
-  typistIds: readonly string[];
+export const EMPTY_TYPIST_IDS: readonly string[] = [];
+
+export interface RoomTypingActions {
   /**
    * Call after a genuine composer input event — a keystroke or a paste.
    * Never call it for a restored Draft: that is what keeps opening a room you
@@ -45,27 +54,126 @@ export interface RoomTyping {
   handleStopTyping: () => void;
 }
 
+export interface RoomTyping extends RoomTypingActions {
+  /** Live typists in this room, in the order they started. Never includes you. */
+  typistIds: readonly string[];
+}
+
+export interface RoomTypingSnapshot {
+  roomId: string | null;
+  typistIds: readonly string[];
+}
+
+const EMPTY_ROOM_TYPING_SNAPSHOT: RoomTypingSnapshot = {
+  roomId: null,
+  typistIds: EMPTY_TYPIST_IDS,
+};
+
+export interface RoomTypingStore extends RoomTypingActions {
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => RoomTypingSnapshot;
+  getServerSnapshot: () => RoomTypingSnapshot;
+  setTypistIds: (roomId: string | null, next: readonly string[]) => void;
+  setActions: (actions: RoomTypingActions | null) => void;
+}
+
+export function createRoomTypingStore(): RoomTypingStore {
+  let snapshot: RoomTypingSnapshot = EMPTY_ROOM_TYPING_SNAPSHOT;
+  let actions: RoomTypingActions | null = null;
+  const listeners = new Set<() => void>();
+
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot() {
+      return snapshot;
+    },
+    getServerSnapshot() {
+      return EMPTY_ROOM_TYPING_SNAPSHOT;
+    },
+    setTypistIds(roomId, next) {
+      if (
+        snapshot.roomId === roomId &&
+        sameTypistIds(snapshot.typistIds, next)
+      ) {
+        return;
+      }
+      snapshot = {
+        roomId,
+        typistIds: next.length === 0 ? EMPTY_TYPIST_IDS : next,
+      };
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+    setActions(next) {
+      actions = next;
+    },
+    handleComposerChange(composerHasText) {
+      actions?.handleComposerChange(composerHasText);
+    },
+    handleStopTyping() {
+      actions?.handleStopTyping();
+    },
+  };
+}
+
 /**
- * Typing for one room (ADR-0033): publish on the room's typing channel, read
- * everyone else's off it, and expire a typist who goes quiet.
+ * Sync one room's typing channel (ADR-0033) into an external store: publish on
+ * the room's typing channel, read everyone else's off it, and expire a typist
+ * who goes quiet.
  *
  * Attach and publish are both gated on the token capability. A token minted
  * before this shipped grants neither, and attaching without a grant produces
  * capability-denied unhandled rejections (SOKOSUMI-R0), so a missing grant
  * means the room simply shows nobody rather than throwing.
  */
-export function useRoomTyping(
+export function useRoomTypingSync(
   roomId: string | null | undefined,
   selfUserId: string | null | undefined,
-): RoomTyping {
+  store: RoomTypingStore,
+): void {
   const ably = useAbly();
-  const [typistIds, setTypistIds] = useState<readonly string[]>([]);
   const publishRef = useRef<((state: TypingState) => boolean) | null>(null);
   const startedPublishedAtMsRef = useRef<number | null>(null);
 
+  const handleComposerChange = useCallback((composerHasText: boolean) => {
+    const nowMs = Date.now();
+    const action = nextTypingPublishAction({
+      composerHasText,
+      startedPublishedAtMs: startedPublishedAtMsRef.current,
+      nowMs,
+    });
+    if (action === "none") {
+      return;
+    }
+    if (action === "start") {
+      // Only open a throttle window if the room actually heard us.
+      if (publishRef.current?.("started")) {
+        startedPublishedAtMsRef.current = nowMs;
+      }
+      return;
+    }
+    startedPublishedAtMsRef.current = null;
+    publishRef.current?.("stopped");
+  }, []);
+
+  const handleStopTyping = useCallback(() => {
+    if (startedPublishedAtMsRef.current == null) {
+      return;
+    }
+    startedPublishedAtMsRef.current = null;
+    publishRef.current?.("stopped");
+  }, []);
+
   useEffect(() => {
     if (!roomId || !selfUserId) {
-      setTypistIds([]);
+      store.setTypistIds(null, EMPTY_TYPIST_IDS);
+      store.setActions(null);
       return;
     }
 
@@ -85,7 +193,8 @@ export function useRoomTyping(
     let syncInFlight = false;
     let syncQueued = false;
 
-    setTypistIds([]);
+    store.setTypistIds(activeRoomId, EMPTY_TYPIST_IDS);
+    store.setActions({ handleComposerChange, handleStopTyping });
     startedPublishedAtMsRef.current = null;
 
     function recompute() {
@@ -93,9 +202,7 @@ export function useRoomTyping(
         return;
       }
       const next = liveTypistIds(set, Date.now());
-      setTypistIds((previous) =>
-        sameTypistIds(previous, next) ? previous : next,
-      );
+      store.setTypistIds(activeRoomId, next);
     }
 
     function handleMessage(message: Ably.Message) {
@@ -175,7 +282,7 @@ export function useRoomTyping(
         intervalId = undefined;
       }
       if (!cancelled) {
-        setTypistIds([]);
+        store.setTypistIds(activeRoomId, EMPTY_TYPIST_IDS);
       }
     }
 
@@ -247,38 +354,32 @@ export function useRoomTyping(
       }
       publishRef.current = null;
       startedPublishedAtMsRef.current = null;
+      store.setActions(null);
       tearDown();
     };
-  }, [ably, roomId, selfUserId]);
+  }, [ably, handleComposerChange, handleStopTyping, roomId, selfUserId, store]);
+}
 
-  const handleComposerChange = useCallback((composerHasText: boolean) => {
-    const nowMs = Date.now();
-    const action = nextTypingPublishAction({
-      composerHasText,
-      startedPublishedAtMs: startedPublishedAtMsRef.current,
-      nowMs,
-    });
-    if (action === "none") {
-      return;
-    }
-    if (action === "start") {
-      // Only open a throttle window if the room actually heard us.
-      if (publishRef.current?.("started")) {
-        startedPublishedAtMsRef.current = nowMs;
-      }
-      return;
-    }
-    startedPublishedAtMsRef.current = null;
-    publishRef.current?.("stopped");
-  }, []);
+/** Typing for one room (ADR-0033): publish and observe live typists. */
+export function useRoomTyping(
+  roomId: string | null | undefined,
+  selfUserId: string | null | undefined,
+): RoomTyping {
+  const [store] = useState(createRoomTypingStore);
+  useRoomTypingSync(roomId, selfUserId, store);
+  const snapshot = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
+  );
+  const typistIds =
+    roomId && snapshot.roomId === roomId
+      ? snapshot.typistIds
+      : EMPTY_TYPIST_IDS;
 
-  const handleStopTyping = useCallback(() => {
-    if (startedPublishedAtMsRef.current == null) {
-      return;
-    }
-    startedPublishedAtMsRef.current = null;
-    publishRef.current?.("stopped");
-  }, []);
-
-  return { typistIds, handleComposerChange, handleStopTyping };
+  return {
+    typistIds,
+    handleComposerChange: store.handleComposerChange,
+    handleStopTyping: store.handleStopTyping,
+  };
 }

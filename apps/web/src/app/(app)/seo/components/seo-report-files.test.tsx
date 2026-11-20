@@ -159,7 +159,7 @@ function openRuns(
             why: "This query received 0 clicks for the measured page.",
             pageUrl: "https://www.example.com/shop",
             expectedEffect: "Compare the next period.",
-            evidence: [],
+            evidence: ["5 impressions for this query in Search Console."],
           },
         ],
         coverage: "partial",
@@ -311,6 +311,12 @@ describe("SEO report file versions", () => {
     const recommendations = within(
       evidence.getByRole("region", { name: "Recommendations from this check" }),
     );
+    await user.click(recommendations.getByText("Evidence"));
+    expect(
+      recommendations.getByText(
+        "5 impressions for this query in Search Console.",
+      ),
+    ).toBeVisible();
     expect(recommendations.getByText("Review the shop snippet")).toBeVisible();
     expect(
       recommendations.getByText(
@@ -538,6 +544,11 @@ describe("SEO report file versions", () => {
     expect(screen.getAllByText("2026-09-01 to 2026-09-28")[0]).toBeVisible();
     await user.click(screen.getByText("Page performance is unverified."));
     expect(pageTable).toBeVisible();
+    expect(
+      screen.getByText(
+        "Search Console returned no query rows for these pages and dates. This check has no query-based recommendations.",
+      ),
+    ).toBeVisible();
     await user.click(screen.getByText("Search Console queries"));
     expect(
       screen.getByText("Search Console returned no query rows"),

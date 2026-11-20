@@ -4,21 +4,19 @@ import {
   createContext,
   type ReactNode,
   use,
-  useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { sameTypistIds } from "@/lib/ably/room-typing-model";
-import { useRoomTyping } from "@/lib/ably/use-room-typing";
-
-interface RoomTypingActions {
-  handleComposerChange: (composerHasText: boolean) => void;
-  handleStopTyping: () => void;
-}
+import {
+  createRoomTypingStore,
+  EMPTY_TYPIST_IDS,
+  type RoomTypingActions,
+  type RoomTypingStore,
+  useRoomTypingSync,
+} from "@/hooks/effects/use-room-typing";
 
 export interface RoomTypingContextValue extends RoomTypingActions {
   /** False outside a provider — the Thread composer, tests, coworker DMs. */
@@ -28,7 +26,7 @@ export interface RoomTypingContextValue extends RoomTypingActions {
 
 const INERT: RoomTypingContextValue = {
   enabled: false,
-  typistIds: [],
+  typistIds: EMPTY_TYPIST_IDS,
   handleComposerChange: () => {},
   handleStopTyping: () => {},
 };
@@ -36,36 +34,19 @@ const INERT: RoomTypingContextValue = {
 const RoomTypingContext = createContext<RoomTypingContextValue | null>(null);
 
 /**
- * Ably island: the only place that touches the realtime client. Reports state
- * up and hands its actions to the provider's ref.
+ * Ably island: the only place that touches the realtime client. Syncs typing
+ * state and actions into the provider's external store.
  */
 function RoomTypingIsland({
   roomId,
   currentUserId,
-  actionsRef,
-  onTypistsChange,
+  store,
 }: {
   roomId: string;
   currentUserId: string;
-  actionsRef: { current: RoomTypingActions | null };
-  onTypistsChange: (typistIds: readonly string[]) => void;
+  store: RoomTypingStore;
 }) {
-  const { typistIds, handleComposerChange, handleStopTyping } = useRoomTyping(
-    roomId,
-    currentUserId,
-  );
-
-  useEffect(() => {
-    onTypistsChange(typistIds);
-  }, [onTypistsChange, typistIds]);
-
-  useEffect(() => {
-    actionsRef.current = { handleComposerChange, handleStopTyping };
-    return () => {
-      actionsRef.current = null;
-    };
-  }, [actionsRef, handleComposerChange, handleStopTyping]);
-
+  useRoomTypingSync(roomId, currentUserId, store);
   return null;
 }
 
@@ -93,37 +74,25 @@ export function RoomTypingProvider({
   currentUserId,
   children,
 }: RoomTypingProviderProps) {
-  const [typistIds, setTypistIds] = useState<readonly string[]>([]);
-  const actionsRef = useRef<RoomTypingActions | null>(null);
-
-  /**
-   * Keep the previous array when the people are the same. The island reports
-   * upward from an effect keyed on the list it was handed, so swallowing an
-   * equal-but-new array is what stops report → setState → re-render → report
-   * from spinning forever.
-   */
-  const handleTypistsChange = useCallback((next: readonly string[]) => {
-    setTypistIds((previous) =>
-      sameTypistIds(previous, next) ? previous : next,
-    );
-  }, []);
-
-  const handleComposerChange = useCallback((composerHasText: boolean) => {
-    actionsRef.current?.handleComposerChange(composerHasText);
-  }, []);
-
-  const handleStopTyping = useCallback(() => {
-    actionsRef.current?.handleStopTyping();
-  }, []);
+  const [store] = useState(createRoomTypingStore);
+  const snapshot = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
+  );
+  const typistIds =
+    currentUserId && snapshot.roomId === roomId
+      ? snapshot.typistIds
+      : EMPTY_TYPIST_IDS;
 
   const value = useMemo<RoomTypingContextValue>(
     () => ({
       enabled: true,
       typistIds,
-      handleComposerChange,
-      handleStopTyping,
+      handleComposerChange: store.handleComposerChange,
+      handleStopTyping: store.handleStopTyping,
     }),
-    [typistIds, handleComposerChange, handleStopTyping],
+    [typistIds, store],
   );
 
   return (
@@ -134,8 +103,7 @@ export function RoomTypingProvider({
           <RoomTypingIsland
             roomId={roomId}
             currentUserId={currentUserId}
-            actionsRef={actionsRef}
-            onTypistsChange={handleTypistsChange}
+            store={store}
           />
         </LazyAblyProvider>
       ) : null}

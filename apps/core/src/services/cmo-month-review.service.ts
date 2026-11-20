@@ -23,6 +23,7 @@ import {
 } from "@/services/cmo-plan-review.service";
 import { isMarketingFilePiece } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { otherClaimArgued } from "@/services/social-posts.service";
 import { recordSokoBotCheckUsage } from "@/services/soko-bot-billing.service";
 
 /**
@@ -60,6 +61,8 @@ export const cmoMonthReviewSchema = z.object({
     .default({}),
   /** The rewrite run this review started, by its client turn id. */
   rewriteRunId: z.string().optional(),
+  /** How many of the month's styled pictures took each kind of print. */
+  pictureKinds: z.record(z.string(), z.number()).optional(),
 });
 export type CmoMonthReview = z.infer<typeof cmoMonthReviewSchema>;
 
@@ -327,6 +330,73 @@ async function madePieces(
   return pieces.filter((piece) => piece !== null);
 }
 
+/**
+ * cmo-v8: each made piece whose words argue another piece's claim rather
+ * than its own gets that as a problem, so the rewrite run gives it its own
+ * point. A month without claims costs nothing.
+ */
+async function claimProblems(
+  made: CmoMadePiece[],
+  calendar: readonly CmoCalendarEntry[],
+): Promise<{ flagged: number; costUsd: number }> {
+  const claimOf = new Map(
+    calendar.flatMap((entry) =>
+      entry.claim?.trim() && entry.status !== "skipped"
+        ? [[entry.id, entry.claim.trim()] as const]
+        : [],
+    ),
+  );
+  const claims = [...claimOf.values()];
+  const claimed = made.filter((piece) => claimOf.has(piece.id));
+  let flagged = 0;
+  let costUsd = 0;
+  // A few at a time: a month of 171 pieces would otherwise wait on each.
+  for (let start = 0; start < claimed.length; start += CLAIM_BATCH) {
+    const batch = claimed.slice(start, start + CLAIM_BATCH);
+    const results = await Promise.all(
+      batch.map((piece) =>
+        otherClaimArgued(piece.text, claimOf.get(piece.id) ?? null, claims),
+      ),
+    );
+    batch.forEach((piece, index) => {
+      const argued = results[index];
+      costUsd += argued?.costUsd ?? 0;
+      if (!argued?.problem) return;
+      flagged += 1;
+      piece.problems = [
+        ...piece.problems,
+        argued.problem.replace(/^Rewrite the post: it /, ""),
+      ];
+    });
+  }
+  return { flagged, costUsd };
+}
+
+const CLAIM_BATCH = 10;
+
+/** How many styled pictures of the month took each kind of print. */
+export async function cmoPictureKindMix(
+  calendar: readonly CmoCalendarEntry[],
+): Promise<Record<string, number>> {
+  const ids = calendar.flatMap((entry) =>
+    entry.status !== "skipped" && entry.styleReferenceId
+      ? [entry.styleReferenceId]
+      : [],
+  );
+  if (ids.length === 0) return {};
+  const rows = await prisma.referenceImage.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: { id: true, kind: true },
+  });
+  const kindOf = new Map(rows.map((row) => [row.id, row.kind]));
+  const mix: Record<string, number> = {};
+  for (const id of ids) {
+    const kind = kindOf.get(id);
+    if (kind) mix[kind] = (mix[kind] ?? 0) + 1;
+  }
+  return mix;
+}
+
 function passes(
   answers: ReadonlyMap<string, JevAnswer>,
   key: string,
@@ -591,6 +661,8 @@ export async function advanceCmoMonthReview(input: {
   const round = before ? 2 : 1;
   const made = await madePieces(version, strategy.calendar);
   if (made.length === 0) return;
+  const argued = await claimProblems(made, strategy.calendar);
+  const pictureKinds = await cmoPictureKindMix(strategy.calendar);
   const read = await readCmoMonth({
     pillars: strategy.pillars,
     voice: input.voice,
@@ -610,13 +682,15 @@ export async function advanceCmoMonthReview(input: {
       ).length,
       offVoice: Object.values(read.writing).filter((w) => !w.soundsLikeBrand)
         .length,
-      costUsd: read.costUsd,
+      arguesAnotherClaim: argued.flagged,
+      pictureKinds,
+      costUsd: read.costUsd + argued.costUsd,
     },
   }).emit();
   const charge = await recordSokoBotCheckUsage({
     sokoBotId: input.sokoBotId,
     key: `cmo-review:${version.id}:${round}`,
-    costUsd: read.costUsd,
+    costUsd: read.costUsd + argued.costUsd,
   });
   // After the charge committed, like a turn's (SOKD-246).
   if (charge.chargedCents > 0n && charge.cusoProjectId) {
@@ -633,6 +707,7 @@ export async function advanceCmoMonthReview(input: {
     pieces: read.pieces,
     writing: read.writing,
     ...(before?.rewriteRunId ? { rewriteRunId: before.rewriteRunId } : {}),
+    pictureKinds,
   };
   const rewrite = before ? [] : cmoPiecesToRewrite(strategy, review, now);
   const runId =

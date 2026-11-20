@@ -33651,6 +33651,11 @@ export const MarketingStrategySchema = {
                                         minLength: 1,
                                         maxLength: 400
                                     },
+                                    claim: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
                                     imageFileId: {
                                         type: 'string',
                                         maxLength: 100
@@ -34015,6 +34020,11 @@ export const MarketingStrategySchema = {
                                                 maxLength: 64
                                             },
                                             story: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 400
+                                            },
+                                            claim: {
                                                 type: 'string',
                                                 minLength: 1,
                                                 maxLength: 400
@@ -35545,6 +35555,11 @@ export const MarketingStrategyRequestSchema = {
                                 minLength: 1,
                                 maxLength: 400
                             },
+                            claim: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
                             imageFileId: {
                                 type: 'string',
                                 maxLength: 100
@@ -35909,6 +35924,11 @@ export const MarketingStrategyRequestSchema = {
                                         maxLength: 64
                                     },
                                     story: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    claim: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
@@ -42298,6 +42318,11 @@ export const SocialPostSchema = {
                     maxLength: 64
                 },
                 story: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                claim: {
                     type: 'string',
                     minLength: 1,
                     maxLength: 400
@@ -51648,6 +51673,175 @@ export const SyncProjectSeoStatisticsRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SeoSiteTrafficReportSchema = {
+    type: 'object',
+    properties: {
+        site: {
+            type: 'string'
+        },
+        propertyId: {
+            type: 'string'
+        },
+        from: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        totals: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                clicks: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                impressions: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'clicks',
+                'impressions'
+            ]
+        },
+        limited: {
+            type: 'boolean'
+        },
+        pages: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    clicks: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    impressions: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    url: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    submitted: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        }
+                    },
+                    variants: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                clicks: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                impressions: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                url: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                }
+                            },
+                            required: [
+                                'clicks',
+                                'impressions',
+                                'url'
+                            ]
+                        }
+                    }
+                },
+                required: [
+                    'clicks',
+                    'impressions',
+                    'url',
+                    'submitted',
+                    'variants'
+                ]
+            }
+        }
+    },
+    required: [
+        'site',
+        'propertyId',
+        'from',
+        'to',
+        'totals',
+        'limited',
+        'pages'
+    ]
+} as const;
+
+export const SeoSiteTrafficInputSchema = {
+    type: 'object',
+    properties: {
+        propertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'site',
+                'selected'
+            ]
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        from: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        searchType: {
+            type: 'string',
+            enum: [
+                'web',
+                'image',
+                'video',
+                'news',
+                'discover',
+                'googleNews'
+            ]
+        }
+    },
+    required: [
+        'propertyId',
+        'scope',
+        'pageIds',
+        'from',
+        'to',
+        'searchType'
+    ],
+    additionalProperties: false
+} as const;
+
 export const RecordProjectSeoPageChangeRequestSchema = {
     type: 'object',
     properties: {
@@ -59874,6 +60068,11 @@ export const CmoPlanSchema = {
                         minLength: 1,
                         maxLength: 400
                     },
+                    claim: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
                     imageFileId: {
                         type: 'string',
                         maxLength: 100
@@ -60238,6 +60437,11 @@ export const CmoPlanSchema = {
                                 maxLength: 64
                             },
                             story: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            claim: {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400

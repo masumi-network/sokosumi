@@ -141,8 +141,13 @@ export function strategyChecks(
     });
   }
   if (brand.websiteOnly) checks.push(...websiteOnlyChecks(strategy));
-  if (brand.focus) checks.push(focusCheck(brand.focus, strategy));
+  // cmo-v8's claims are compared by meaning: the runner checks them.
+  if (brand.focus && brand.focus !== "claims")
+    checks.push(focusCheck(brand.focus, strategy));
   if (options.everyNetwork) checks.push(firstStrategyAdsCheck(strategy));
+  // The claims case is scored on its claims; every other strategy case
+  // holds the plan to the skill's rules.
+  if (brand.focus === "claims") return { strategy, checks };
   const problems = [
     ...cmoPlanRuleProblems(strategy),
     ...cmoPlanProblems(strategy, options),
@@ -201,7 +206,7 @@ function websiteOnlyChecks(strategy: MarketingStrategyPlan): ScenarioCheck[] {
  * TikTok fed by the month's talking videos. NMKR's month broke all three.
  */
 function focusCheck(
-  focus: NonNullable<CmoEvalBrand["focus"]>,
+  focus: Exclude<CmoEvalBrand["focus"], "claims" | undefined>,
   strategy: MarketingStrategyPlan,
 ): ScenarioCheck {
   if (focus === "top-volume") {

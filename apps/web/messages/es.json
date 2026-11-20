@@ -13263,6 +13263,7 @@
         "limited": "Se muestra una selección de los resultados que devolvió Google."
       },
       "reportFiles": {
+        "noQueryRecommendations": "Search Console no devolvió consultas para estas páginas y fechas. Esta comprobación no tiene recomendaciones basadas en consultas.",
         "recommendations": "Recomendaciones de esta comprobación",
         "recoverSearch": "Recuperar resultados de Search Console",
         "recoverSearchFailed": "No se pudieron recuperar los resultados de Search Console. Vuelve a intentarlo.",
@@ -14128,6 +14129,21 @@
         "tests": "Resultados de la lista de comprobación",
         "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
         "testsAll": "Todas las pruebas tienen resultado"
+      },
+      "siteTraffic": {
+        "scope": "Alcance de Search Console",
+        "site": "Todo el sitio",
+        "selected": "Páginas seleccionadas",
+        "sort": "Ordenar páginas por",
+        "more": "Mostrar más páginas",
+        "submitted": "URL enviada",
+        "counts": "{clicks, plural, one {# clic} other {# clics}} · {impressions, plural, one {# impresión} other {# impresiones}}",
+        "noRows": "Google no ha devuelto páginas para esta selección.",
+        "limited": "La lista solo muestra las páginas obtenidas. El total abarca toda la selección.",
+        "loading": "Cargando el tráfico de Search Console.",
+        "failed": "No se pudo consultar el tráfico de esta selección.",
+        "unavailable": "Los datos actuales requieren una propiedad de Search Console que corresponda a este sitio.",
+        "saved": "Mediciones guardadas para las páginas seleccionadas"
       },
       "traffic": {
         "periodInsight": {

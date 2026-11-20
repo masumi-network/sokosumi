@@ -4,6 +4,7 @@ import type {
   SocialPostStatus,
 } from "@sokosumi/database";
 import {
+  LINKEDIN_HOOK_RULE,
   type SocialPostPlanning,
   socialPostPlanningSchema,
 } from "@sokosumi/soko-bot";
@@ -64,12 +65,13 @@ import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { EmbedTexts } from "@/lib/embeddings";
-import { findRepeats } from "@/lib/repeats";
+import { findRepeats, similarities } from "@/lib/repeats";
 import {
   socialPostFormattingError,
   stackedCaveatsProblem,
   tagOwnLinks,
 } from "@/lib/social-post-writing";
+import { evaluateWithJev } from "@/lib/soko-bot/jev";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
@@ -727,6 +729,153 @@ export async function ownMessageProblem(
     problem: repeated
       ? `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`
       : null,
+    costUsd,
+  };
+}
+
+const OPENING_REFUSAL = "Rewrite the post's first line";
+const MAX_OPENING_REFUSALS = 2;
+
+/**
+ * Below this Jev reads the opening as a miss. LINKEDIN_HOOK_RULE's labelled
+ * lines split cleanly at 0.35, but on NMKR's real month advice lines ("A
+ * token mint does not finish a launch.") scored 0.36 to 0.45 and failed the
+ * month review.
+ */
+const OPENING_PASS = 0.45;
+
+/**
+ * The line a LinkedIn reader decides on before "see more". Two lines once let
+ * a flat first line pass on the result Cuso moved to the second, which Jev's
+ * month review then failed.
+ */
+export function linkedInOpening(text: string): string {
+  return (
+    text
+      .trim()
+      .split(/\n+/)
+      .find((line) => line.trim())
+      ?.trim()
+      .slice(0, 160) ?? ""
+  );
+}
+
+/**
+ * cmo-v8: a LinkedIn post in a month opens on a result, a number, a named
+ * customer or a surprising decision. cal.com's month (2026-11-20) failed
+ * Jev's hook rule on 2 of 2 runs with openings that gave advice.
+ */
+export async function linkedInOpeningProblem(
+  input: { postId: string; workspaceId: string; text: string },
+  evaluate: typeof evaluateWithJev = evaluateWithJev,
+  embed?: EmbedTexts,
+): Promise<{ problem: string | null; costUsd: number }> {
+  const post = await prisma.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true, provider: true },
+  });
+  if (!post?.marketingStrategyId || post.provider.toLowerCase() !== "linkedin")
+    return { problem: null, costUsd: 0 };
+  // A post's opening is held up twice at most: on NMKR's one-pillar month
+  // the same posts came back again and again, and the month never finished.
+  const [{ refused } = { refused: 0 }] = await prisma.$queryRaw<
+    { refused: number }[]
+  >`
+    SELECT count(*)::int AS refused FROM "soko_bot_tool_call"
+    WHERE "capability" = 'update_social_post' AND "status" = 'FAILED'
+      AND "input"->>'postId' = ${input.postId}
+      AND "errorDetail" LIKE ${`%${OPENING_REFUSAL}%`}
+  `.catch(() => [{ refused: 0 }]);
+  if (refused >= MAX_OPENING_REFUSALS) return { problem: null, costUsd: 0 };
+  const opening = linkedInOpening(input.text);
+  // One proof as five posts' first line (NMKR's month opened on Book.io's
+  // 130,000 NFTs again and again) reads as one post.
+  const others = await prisma.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      provider: post.provider,
+      status: { not: "CANCELED" },
+    },
+    select: { text: true, planning: true },
+  });
+  const openings = others.flatMap((other) => {
+    const planning = other.planning as { title?: unknown; brief?: unknown };
+    return other.text === planning?.title || other.text === planning?.brief
+      ? []
+      : [linkedInOpening(other.text)];
+  });
+  const { repeats, costUsd: compared } = await findRepeats(
+    [...openings, opening],
+    "title",
+    embed,
+  );
+  const echoed = openings[repeats.at(-1) ?? -1];
+  if (echoed)
+    return {
+      problem: `${OPENING_REFUSAL}: it opens like another LinkedIn post of the month ("${echoed}"). Open with another true fact from the piece: its own result, number, customer or decision.`,
+      costUsd: compared,
+    };
+  try {
+    const { answers, costUsd } = await evaluate({
+      state: { opening },
+      questions: {
+        hook: {
+          type: "boolean",
+          instructions: `Does this LinkedIn post's opening line follow this rule? ${LINKEDIN_HOOK_RULE}`,
+        },
+      },
+      timeoutMs: 15_000,
+    });
+    const answer = answers.get("hook");
+    const passed =
+      answer?.type !== "boolean" || answer.probability >= OPENING_PASS;
+    return {
+      problem: passed
+        ? null
+        : `${OPENING_REFUSAL}: "${opening}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a price or another number from the business, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
+      costUsd: costUsd + compared,
+    };
+  } catch {
+    // A quality check: when Jev does not answer, the post is not held up.
+    return { problem: null, costUsd: 0 };
+  }
+}
+
+/**
+ * How much closer to another piece's claim than to its own a post must be
+ * to argue that one instead (cmo-v8), and how close at least.
+ */
+export const CLAIM_MARGIN = 0.15;
+export const CLAIM_FLOOR = 0.6;
+
+/**
+ * A post whose words argue another piece's claim rather than its own: the
+ * same point in other words, which a word-by-word compare misses.
+ */
+export async function otherClaimArgued(
+  text: string,
+  own: string | null,
+  claims: readonly string[],
+  embed?: EmbedTexts,
+): Promise<{ problem: string | null; costUsd: number }> {
+  const theirs = [...new Set(claims)].filter((claim) => claim !== own);
+  if (!own || theirs.length === 0) return { problem: null, costUsd: 0 };
+  const { scores, costUsd } = await similarities(text, [own, ...theirs], embed);
+  if (!scores) return { problem: null, costUsd };
+  const [ownScore = 0, ...others] = scores;
+  const best = others.reduce(
+    (top, score, index) => (score > top.score ? { score, index } : top),
+    { score: 0, index: -1 },
+  );
+  const claim = theirs[best.index];
+  return {
+    problem:
+      claim &&
+      best.score >= CLAIM_FLOOR &&
+      best.score >= ownScore + CLAIM_MARGIN
+        ? `Rewrite the post: it argues another piece's claim ("${claim}"), not its own ("${own}"). Make the post argue its own claim.`
+        : null,
     costUsd,
   };
 }

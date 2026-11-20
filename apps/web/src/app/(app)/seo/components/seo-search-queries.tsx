@@ -39,7 +39,7 @@ import {
 } from "./seo-shared";
 import { savedSeoStatistics, seoQueryPeriod } from "./seo-statistics-model";
 import { seoSearchTypeHasQueries } from "./seo-traffic-model";
-import { useSearchConsoleConnected } from "./use-seo-connection";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Fewer queries than this read faster as rows than as position buckets. */
@@ -106,8 +106,20 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   const canSync = model.data.availableActions.canSyncMetrics;
   // Only the empty card asks: a connected account with nothing synced is not "not connected".
   const hasQueries = seoSearchTypeHasQueries(model.filters.searchType);
-  const connected = useSearchConsoleConnected(hasQueries && !source && !saved);
-  const empty = saved ? "notLoaded" : connected ? "notSynced" : "notConnected";
+  const connection = useSeoConnectionStatus(
+    "search_console",
+    hasQueries && !source && !saved,
+  ).status;
+  const status = connection.isError ? undefined : connection.data?.status;
+  const empty = saved
+    ? "notLoaded"
+    : status === "connected"
+      ? "notSynced"
+      : status === "not_connected"
+        ? "notConnected"
+        : null;
+  const checkFailed = connection.isError || status === "unavailable";
+
   const [brandView, setBrandView] = useState<SeoBrandView>("all");
   const rows = sortQueryRows(
     seoBrandRows(model.filteredQueries, model.data.brandTerms ?? [], brandView),
@@ -164,7 +176,35 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
           title={t("traffic.noQueryData")}
           body={t("traffic.noQueryDataBody")}
         />
-      ) : !source ? (
+      ) : !source && !empty ? (
+        <SeoEmpty
+          title={t("statistics.search_console")}
+          body={
+            checkFailed
+              ? t("connections.loadFailed")
+              : status === "needs_reconnect"
+                ? t("connections.needsReconnect", {
+                    provider: t("statistics.search_console"),
+                  })
+                : status === "pending"
+                  ? t("connections.pending")
+                  : t("loading")
+          }
+        >
+          {checkFailed ? (
+            <Button variant="outline" onClick={() => void connection.refetch()}>
+              {t("retry")}
+            </Button>
+          ) : canSync && status ? (
+            <Button
+              variant="outline"
+              onClick={() => model.openStatistics("search_console")}
+            >
+              {t("manageStatistics")}
+            </Button>
+          ) : null}
+        </SeoEmpty>
+      ) : !source && empty ? (
         <SeoEmpty
           title={t(`queries.${empty}`)}
           body={t(`queries.${empty}Body`)}
@@ -179,8 +219,12 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
               variant="outline"
               onClick={() => model.openStatistics("search_console")}
             >
-              {connected ? <Settings2 /> : <Plug />}
-              {t(connected ? "manageStatistics" : "queries.connect")}
+              {empty === "notConnected" ? <Plug /> : <Settings2 />}
+              {t(
+                empty === "notConnected"
+                  ? "queries.connect"
+                  : "manageStatistics",
+              )}
             </Button>
           ) : null}
         </SeoEmpty>

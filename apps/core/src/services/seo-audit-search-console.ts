@@ -4,6 +4,8 @@ import { HTTPException } from "hono/http-exception";
 import { getComposio } from "@/clients/composio.client";
 import { conflict } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   GSC_INSPECT_TOOL,
   gscInspectionArguments,
@@ -85,11 +87,24 @@ async function needsReconnect(actor: SeoActor) {
 async function checkedRead<T>(
   actor: SeoActor,
   integration: SeoStatisticsIntegration,
+  stage:
+    | "list_tools"
+    | "list_properties"
+    | "search_analytics"
+    | "url_inspection",
   read: () => Promise<T>,
 ): Promise<T> {
   try {
     return await read();
-  } catch {
+  } catch (error) {
+    recordCoreWarning(
+      { operation: "seo_audit_search_console" },
+      {
+        message: "Search Console verification failed before the audit started.",
+        why: "A required read failed or its response could not be validated.",
+      },
+      { stage, failure: messageSafeErrorFields(error) },
+    );
     await recordSeoConnectionFailure(actor, "search_console", integration);
     if (await needsReconnect(actor)) throw reconnect();
     throw unavailable();
@@ -120,10 +135,10 @@ export async function checkAuditSearchConsole(
   )
     throw unavailable();
   const pageUrls = pages.map((page) => page.url);
-  const tools = await checkedRead(actor, integration, () =>
+  const tools = await checkedRead(actor, integration, "list_tools", () =>
     listIntegrationTools(integration, { limit: 100 }),
   );
-  const choices = await checkedRead(actor, integration, () =>
+  const choices = await checkedRead(actor, integration, "list_properties", () =>
     propertyChoices(integration, "search_console", tools),
   );
   const matching = choices.properties.filter(({ id }) =>
@@ -161,7 +176,7 @@ export async function checkAuditSearchConsole(
     to: day,
     channel: "organic",
   };
-  await checkedRead(actor, integration, async () => {
+  await checkedRead(actor, integration, "search_analytics", async () => {
     const payload = unwrapNativeStatistics(
       await readNativeSeoTool(
         integration,
@@ -178,7 +193,8 @@ export async function checkAuditSearchConsole(
     )
       throw new Error("Unsupported Search Analytics response");
     normalizeGscStatistics(query, payload, null, now.toISOString());
-    // The private worker also needs URL Inspection. A valid unknown verdict confirms access.
+  });
+  await checkedRead(actor, integration, "url_inspection", async () => {
     const inspection = await readNativeSeoTool(
       integration,
       GSC_INSPECT_TOOL,

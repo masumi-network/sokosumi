@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { OrgPresenceStore } from "@/hooks/effects/use-org-presence-map";
 
 const lazyAblyProviderMock = vi.fn(
   ({ children }: { children: React.ReactNode }) => (
@@ -18,9 +20,25 @@ vi.mock("@/lib/ably/use-org-presence-publisher", () => ({
 
 const stableLiveMap = new Map([["user_live", "online" as const]]);
 
-vi.mock("@/lib/ably/use-org-presence-map", () => ({
-  useOrgPresenceMap: vi.fn(() => stableLiveMap),
-}));
+vi.mock("@/hooks/effects/use-org-presence-map", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/hooks/effects/use-org-presence-map")
+    >();
+  return {
+    ...actual,
+    useOrgPresenceMapSync: vi.fn(
+      (organizationId: string | null | undefined, store: OrgPresenceStore) => {
+        useEffect(() => {
+          store.setPresenceMap(
+            organizationId ?? null,
+            organizationId ? stableLiveMap : actual.EMPTY_ORG_PRESENCE_MAP,
+          );
+        }, [organizationId, store]);
+      },
+    ),
+  };
+});
 
 import {
   OrgPresenceProvider,

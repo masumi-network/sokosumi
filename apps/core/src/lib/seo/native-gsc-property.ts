@@ -19,7 +19,10 @@ export function gscPropertyCovers(property: string, urls: string[]): boolean {
 const sitesSchema = z.object({
   siteEntry: z
     .array(
-      z.object({ siteUrl: z.string().max(500), permissionLevel: z.string() }),
+      z.object({
+        siteUrl: z.string().max(500),
+        permissionLevel: z.string().nullish(),
+      }),
     )
     .max(1000)
     .default([]),
@@ -37,10 +40,11 @@ export function readableGscProperties(
     ...new Set(
       sitesSchema
         .parse(payload)
-        .siteEntry.filter(({ permissionLevel }) =>
-          ["siteOwner", "siteFullUser", "siteRestrictedUser"].includes(
-            permissionLevel,
-          ),
+        .siteEntry.filter(
+          ({ permissionLevel }) =>
+            permissionLevel === "siteOwner" ||
+            permissionLevel === "siteFullUser" ||
+            permissionLevel === "siteRestrictedUser",
         )
         .map(({ siteUrl }) => siteUrl),
     ),

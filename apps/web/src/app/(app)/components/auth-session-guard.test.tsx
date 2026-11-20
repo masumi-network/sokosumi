@@ -12,7 +12,7 @@ import {
 } from "@/lib/ably/realtime-singleton.client";
 import { authClient } from "@/lib/auth/auth.client";
 
-const replaceMock = vi.fn();
+let replaceMock: ReturnType<typeof vi.spyOn>;
 const { RealtimeMock } = vi.hoisted(() => ({
   RealtimeMock: vi.fn(function Realtime(
     this: { close: ReturnType<typeof vi.fn> },
@@ -25,12 +25,6 @@ const { RealtimeMock } = vi.hoisted(() => ({
 
 vi.mock("ably", () => ({ default: { Realtime: RealtimeMock } }));
 vi.mock("ably/push", () => ({ default: {} }));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    replace: replaceMock,
-  }),
-}));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
@@ -106,7 +100,9 @@ async function retireRealtimeClient() {
 
 describe("AuthSessionGuard", () => {
   beforeEach(() => {
-    replaceMock.mockReset();
+    replaceMock = vi
+      .spyOn(window.location, "replace")
+      .mockImplementation(() => {});
     vi.mocked(authClient.getSession).mockReset();
     globalThis.__sokosumiAblyRealtimeClient = undefined;
     discardRetiredAblyRealtimeClient();
@@ -148,6 +144,35 @@ describe("AuthSessionGuard", () => {
       expect(replaceMock).toHaveBeenCalledWith(
         "/signin?returnUrl=%2Fagents%3Fview%3Dgrid",
       );
+    });
+  });
+
+  it("retries the sign-in redirect on tab return, not immediate refocus, when beforeunload cancels navigation", async () => {
+    vi.mocked(authClient.getSession).mockResolvedValue(missingSession);
+
+    render(<AuthSessionGuard />);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledTimes(1);
+    });
+
+    // Dismissing a beforeunload prompt refocuses the window; do not immediately
+    // re-prompt so the reader can still reach their editor.
+    window.dispatchEvent(new Event("focus"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(replaceMock).toHaveBeenCalledTimes(1);
+
+    // Returning to the tab retries the expiry redirect.
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledTimes(2);
     });
   });
 

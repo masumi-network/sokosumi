@@ -1,11 +1,18 @@
 import { SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { auditPerformancePage } from "@/lib/seo/audit-performance-pages";
 import { inspectionDiscoverySources } from "@/lib/seo/audit-sitemaps";
 import {
   gscInspectionArguments,
   normalizeGscInspection,
 } from "@/lib/seo/native-gsc-inspection";
 import { unwrapNativeStatistics } from "@/lib/seo/native-statistics";
+import {
+  trafficPageAliases,
+  trafficPageAliasesChanged,
+} from "@/lib/seo/traffic-page-aliases";
 import type { SeoActor, SeoIndexedPage } from "@/schemas/project-seo.schema";
 import {
   type NativeSeoMetrics,
@@ -25,11 +32,27 @@ export async function inspectStatisticsPage(
     | undefined,
   read: (args: Record<string, unknown>) => Promise<unknown>,
 ) {
-  const raw = await read(gscInspectionArguments(property, page));
-  const payload = unwrapNativeStatistics(raw, ["inspectionResult"]);
-  const result = normalizeGscInspection(page, payload);
-  sources?.set(page, inspectionDiscoverySources(payload));
-  return result;
+  try {
+    const raw = await read(gscInspectionArguments(property, page));
+    const payload = unwrapNativeStatistics(raw, ["inspectionResult"]);
+    const result = normalizeGscInspection(page, payload);
+    sources?.set(page, inspectionDiscoverySources(payload));
+    return result;
+  } catch (error) {
+    if (sources)
+      recordCoreWarning(
+        { operation: "seo_audit_search_console" },
+        {
+          message: "Audit URL Inspection returned no usable result.",
+          why: "The inspection request failed or its response could not be validated.",
+        },
+        {
+          stage: "performance_url_inspection",
+          failure: messageSafeErrorFields(error),
+        },
+      );
+    throw error;
+  }
 }
 
 export function inspectionCacheKey(
@@ -71,7 +94,71 @@ function priorAttempt(data: NativeSeoMetrics, url: string) {
 export function inspectionsDue(data: NativeSeoMetrics) {
   return (
     data.provider === "search_console" &&
-    data.pageUrls.some((url) => !priorAttempt(data, url))
+    (data.pageUrls.some((url) => !priorAttempt(data, url)) ||
+      trafficPageAliasesChanged(
+        data,
+        trafficPageAliases(
+          data.propertyId,
+          data.pageUrls,
+          data.indexedPages ?? [],
+        ),
+      ))
+  );
+}
+
+async function dashboardInspectionAttempt(
+  actor: SeoActor,
+  key: string,
+  url: string,
+) {
+  const row = await prisma.projectSeoObservation.findFirst({
+    where: {
+      ...seoOwnerWhere(actor),
+      ownerId: actor.userId,
+      kind: "metrics",
+      source: "search_console",
+      observedAt: { gte: new Date(Date.now() - SEO_STATISTICS_FRESH_MS) },
+      AND: [
+        { payload: { path: ["inspectionCache", "key"], equals: key } },
+        {
+          payload: {
+            path: ["inspectionCache", "readUrls"],
+            array_contains: [url],
+          },
+        },
+      ],
+    },
+    select: { payload: true },
+    orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+  });
+  const saved = nativeSeoMetricsSchema.safeParse(row?.payload);
+  return saved.success &&
+    saved.data.inspectionCache?.key === key &&
+    saved.data.inspectionCache.readUrls.includes(url)
+    ? saved.data
+    : undefined;
+}
+
+/** An audit still needs its own discovery read. A fresh inspection on the same account can identify the URL for performance. */
+export async function auditPerformancePages(
+  actor: SeoActor,
+  property: string,
+  pageUrls: string[],
+  inspections: Awaited<ReturnType<typeof collectStatisticsInspections>>,
+) {
+  return Promise.all(
+    pageUrls.map(async (url) => {
+      let page = inspections.indexedPages.find((item) => item.pageUrl === url);
+      if (!page) {
+        const saved = await dashboardInspectionAttempt(
+          actor,
+          inspections.inspectionCache.key,
+          url,
+        );
+        if (saved) page = priorAttempt(saved, url)?.page;
+      }
+      return auditPerformancePage(property, url, page);
+    }),
   );
 }
 
@@ -114,37 +201,7 @@ export async function collectStatisticsInspections(
           read: true,
         };
       }
-      const row = await prisma.projectSeoObservation.findFirst({
-        where: {
-          ...seoOwnerWhere(actor),
-          ownerId: actor.userId,
-          kind: "metrics",
-          source: "search_console",
-          observedAt: { gte: new Date(Date.now() - SEO_STATISTICS_FRESH_MS) },
-          AND: [
-            { payload: { path: ["inspectionCache", "key"], equals: key } },
-            {
-              payload: {
-                path: ["inspectionCache", "readUrls"],
-                array_contains: [url],
-              },
-            },
-          ],
-        },
-        select: { payload: true },
-        orderBy: [
-          { observedAt: "desc" },
-          { createdAt: "desc" },
-          { id: "desc" },
-        ],
-      });
-      const saved = nativeSeoMetricsSchema.safeParse(row?.payload);
-      const savedAttempt =
-        saved.success &&
-        saved.data.inspectionCache?.key === key &&
-        saved.data.inspectionCache.readUrls.includes(url)
-          ? saved.data
-          : undefined;
+      const savedAttempt = await dashboardInspectionAttempt(actor, key, url);
       // An older report can supply its own pages after the account and report fingerprint matched.
       const newest =
         exactReport &&
@@ -170,6 +227,27 @@ export async function collectStatisticsInspections(
       ),
     },
   };
+}
+
+/** A newly verified alias changes the Google page filter, so the cached totals must be collected again. */
+export function dashboardInspectionUpdate(
+  property: string,
+  pageUrls: string[],
+  inspections: Awaited<ReturnType<typeof collectStatisticsInspections>> | null,
+  cached?: NativeSeoMetrics,
+) {
+  const aliases = inspections
+    ? trafficPageAliases(property, pageUrls, inspections.indexedPages)
+    : {};
+  if (!inspections || !cached || trafficPageAliasesChanged(cached, aliases))
+    return { aliases, refreshed: null };
+  const refreshed = {
+    ...cached,
+    collectedAt: cached.collectedAt ?? cached.observedAt,
+    observedAt: new Date().toISOString(),
+  };
+  applyStatisticsInspections(refreshed, inspections);
+  return { aliases, refreshed };
 }
 
 export function applyStatisticsInspections(

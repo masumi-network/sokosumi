@@ -32,6 +32,8 @@ export const nativeSeoMetricsSchema = z
     provider: z.enum(["ga4", "search_console"]),
     propertyId: z.string().min(1).max(500),
     pageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
+    /** Dashboard pages whose Search Analytics filter used a verified www alias. Older snapshots measured the selected URLs. */
+    trafficPageAliases: z.record(seoUrlSchema, seoUrlSchema).optional(),
     channel: seoTrafficChannelSchema,
     /** Search Console search type. Absent on web search reads and on older observations. */
     searchType: seoSearchTypeSchema.optional(),

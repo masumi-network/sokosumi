@@ -1,4 +1,3 @@
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { UNAUTHENTICATED_ERROR_DIGEST } from "@/lib/auth/errors";
@@ -14,8 +13,6 @@ export function useUnAuthenticatedErrorHandler(
   isUnAuthenticatedError: boolean;
   renderIfAuthenticated: (component: React.ReactNode) => React.ReactNode;
 } {
-  const router = useRouter();
-
   // Use error.name instead of instanceof due to serialization issues across server-client boundary
   //
   // The name only survives in development. A production build masks a server
@@ -33,9 +30,9 @@ export function useUnAuthenticatedErrorHandler(
         (error as UnAuthenticatedError).redirectUrl ??
         window.location.pathname + window.location.search;
       const returnUrl = encodeURIComponent(redirectUrl);
-      router.push(`/signin?returnUrl=${returnUrl}`);
+      window.location.assign(`/signin?returnUrl=${returnUrl}`);
     }
-  }, [isUnAuthenticatedError, error, router]);
+  }, [isUnAuthenticatedError, error]);
 
   const renderIfAuthenticated = (component: React.ReactNode) => {
     return isUnAuthenticatedError ? null : component;
