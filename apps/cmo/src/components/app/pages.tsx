@@ -1,6 +1,4 @@
-import { SiteDisclosures } from "../site-disclosures";
-
-("use client");
+"use client";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
@@ -31,6 +29,7 @@ import { ChannelIcon } from "../channel-icon";
 import { LocalDay } from "../local-day";
 import { BrandStep } from "../onboarding/brand-step";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
+import { SiteDisclosures } from "../site-disclosures";
 import { StartOver } from "../start-over";
 import { StatusDisc, StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
