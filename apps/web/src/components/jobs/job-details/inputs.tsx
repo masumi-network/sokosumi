@@ -139,7 +139,9 @@ function renderInputValue(
   if (isOption(type) && values && values.length > 0) {
     if (typeof value === "number") {
       return (
-        <span className="break-all">{mapIndexToLabel(value, values)}</span>
+        <span className="wrap-break-word">
+          {mapIndexToLabel(value, values)}
+        </span>
       );
     }
 
@@ -153,24 +155,24 @@ function renderInputValue(
             v < values.length,
         )
         .map((index) => mapIndexToLabel(index, values));
-      return <span className="break-all">{labels.join(", ")}</span>;
+      return <span className="wrap-break-word">{labels.join(", ")}</span>;
     }
 
     if (typeof value === "string") {
-      return <span className="break-all">{value}</span>;
+      return <span className="wrap-break-word">{value}</span>;
     }
   }
 
   if (type === InputType.BOOLEAN && typeof value === "boolean") {
     return (
-      <span className="break-all">
+      <span className="wrap-break-word">
         {value ? booleanLabels.yes : booleanLabels.no}
       </span>
     );
   }
 
   return (
-    <span className="break-all">
+    <span className="wrap-break-word">
       {typeof value === "object" ? JSON.stringify(value) : String(value)}
     </span>
   );
@@ -319,7 +321,7 @@ function JobDetailsInputsInner({
                       <span className="text-muted-foreground text-sm font-medium">
                         {label}
                       </span>
-                      <div className="break-all">
+                      <div className="wrap-break-word">
                         {renderInputValue(value, type, values, {
                           yes: t("yes"),
                           no: t("no"),

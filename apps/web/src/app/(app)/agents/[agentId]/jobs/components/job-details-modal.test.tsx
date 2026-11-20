@@ -63,6 +63,14 @@ describe("JobDetailsModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps its own width above the small breakpoint", async () => {
+    renderWithPanesWidth(ONE_PANE);
+
+    // The shared dialog caps itself at `sm:max-w-lg`, which clipped the
+    // job's Properties column on a tablet.
+    expect(await screen.findByRole("dialog")).toHaveClass("sm:max-w-3xl");
+  });
+
   it("does not render modal content when the right pane fits", async () => {
     renderWithPanesWidth(TWO_PANES);
 

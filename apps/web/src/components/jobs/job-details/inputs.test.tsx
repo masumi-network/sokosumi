@@ -118,6 +118,34 @@ describe("JobDetailsInputs", () => {
     expect(markdownValues[2]).toHaveTextContent("Readonly with `inline code`");
   });
 
+  it("wraps long input values between words, not inside them", () => {
+    const input = JSON.stringify({
+      question: "Which agencies in Switzerland are the strongest prospects?",
+      tone: 1,
+    });
+    const inputSchema = JSON.stringify({
+      input_data: [
+        { id: "question", type: "text", name: "Question", data: {} },
+        {
+          id: "tone",
+          type: "option",
+          name: "Tone",
+          data: { values: ["Formal", "Casual"] },
+        },
+      ],
+    });
+
+    const { container } = render(
+      <JobDetailsInputs input={input} inputSchema={inputSchema} />,
+    );
+
+    expect(container.querySelector(".break-all")).toBeNull();
+    expect(screen.getByTestId("markdown-mock").parentElement).toHaveClass(
+      "wrap-break-word",
+    );
+    expect(screen.getByText("Casual")).toHaveClass("wrap-break-word");
+  });
+
   it("renders schema defaults for missing text and textarea values", () => {
     const input = JSON.stringify({});
 
