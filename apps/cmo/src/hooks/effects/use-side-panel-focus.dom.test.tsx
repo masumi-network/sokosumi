@@ -5,9 +5,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useFocusWithRestore } from "./use-focus-with-restore";
+import { useSidePanelFocus } from "./use-side-panel-focus";
 
-describe("useFocusWithRestore (CMO)", () => {
+describe("useSidePanelFocus (CMO)", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -25,7 +25,7 @@ describe("useFocusWithRestore (CMO)", () => {
     vi.restoreAllMocks();
   });
 
-  it("focuses the target on mount and restores focus to the opener with preventScroll on unmount", async () => {
+  it("focuses the side panel on mount and restores focus to the opener with preventScroll on unmount", async () => {
     const opener = document.createElement("button");
     document.body.append(opener);
     opener.focus();
@@ -34,7 +34,7 @@ describe("useFocusWithRestore (CMO)", () => {
     function Sheet({ tick }: { tick: number }) {
       void tick;
       const sheetRef = useRef<HTMLElement>(null);
-      useFocusWithRestore(sheetRef);
+      useSidePanelFocus(sheetRef);
       return (
         <aside ref={sheetRef} tabIndex={-1}>
           Panel
@@ -66,7 +66,7 @@ describe("useFocusWithRestore (CMO)", () => {
 
     function Sheet() {
       const sheetRef = useRef<HTMLElement>(null);
-      useFocusWithRestore(sheetRef);
+      useSidePanelFocus(sheetRef);
       return (
         <aside ref={sheetRef} tabIndex={-1}>
           Panel

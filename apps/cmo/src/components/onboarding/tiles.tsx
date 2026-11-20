@@ -3,7 +3,7 @@
 import { ChevronRight, X } from "lucide-react";
 import { type ReactNode, useRef } from "react";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
-import { useFocusWithRestore } from "../../hooks/effects/use-focus-with-restore";
+import { useSidePanelFocus } from "../../hooks/effects/use-side-panel-focus";
 
 interface GoalBlockProps {
   label: string;
@@ -104,7 +104,7 @@ export function SidePanel({
 }: SidePanelProps) {
   const sheet = useRef<HTMLElement>(null);
   // The sheet takes the focus it was opened for, and gives it back.
-  useFocusWithRestore(sheet);
+  useSidePanelFocus(sheet);
   useEventListener("window", "keydown", (event) => {
     if (event.key !== "Escape") return;
     onClose();

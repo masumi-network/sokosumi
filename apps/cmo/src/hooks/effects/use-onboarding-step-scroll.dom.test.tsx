@@ -5,9 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useScrollWindowToTop } from "./use-scroll-window-to-top";
+import type { OnboardingStep } from "../../components/onboarding/step";
+import { useOnboardingStepScroll } from "./use-onboarding-step-scroll";
 
-describe("useScrollWindowToTop (CMO)", () => {
+describe("useOnboardingStepScroll (CMO)", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -25,12 +26,12 @@ describe("useScrollWindowToTop (CMO)", () => {
     vi.restoreAllMocks();
   });
 
-  it("scrolls the window to (0, 0) on mount and whenever trigger changes", async () => {
+  it("scrolls the window to (0, 0) on mount and whenever the onboarding step changes", async () => {
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 
-    function Probe({ step, note }: { step: string; note?: string }) {
+    function Probe({ step, note }: { step: OnboardingStep; note?: string }) {
       void note;
-      useScrollWindowToTop(step);
+      useOnboardingStepScroll(step);
       return null;
     }
 
@@ -38,7 +39,7 @@ describe("useScrollWindowToTop (CMO)", () => {
     expect(scrollTo).toHaveBeenCalledTimes(1);
     expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
 
-    // Unrelated re-render with unchanged trigger does not scroll again.
+    // Unrelated re-render with unchanged step does not scroll again.
     await act(async () => root.render(<Probe step="site" note="same" />));
     expect(scrollTo).toHaveBeenCalledTimes(1);
 
@@ -51,7 +52,7 @@ describe("useScrollWindowToTop (CMO)", () => {
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 
     function Probe() {
-      useScrollWindowToTop("plan");
+      useOnboardingStepScroll("plan");
       return <span>ok</span>;
     }
 

@@ -1,5 +1,4 @@
-import { type InputHTMLAttributes, type RefObject, useRef } from "react";
-import { useFocusWhen } from "../hooks/effects/use-focus-when";
+import type { InputHTMLAttributes } from "react";
 
 interface FormFieldProps
   extends Omit<
@@ -64,25 +63,4 @@ export function FormAlert({ message }: { message?: string }) {
       {message}
     </p>
   ) : null;
-}
-
-/**
- * For a `useActionState` form that remounts with `key={attempt}`, because a
- * form resets after its action: remounting shows the kept values and reads
- * out a repeated alert again. After a failed submit, focus moves to the
- * first field to fix, which reads out its error, or else to the form's
- * alert; the remount would otherwise drop focus to the page.
- */
-export function useFocusFirstInvalid(
-  attempt: number,
-): RefObject<HTMLFormElement | null> {
-  const formRef = useRef<HTMLFormElement>(null);
-  useFocusWhen(
-    () =>
-      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
-      formRef.current?.querySelector<HTMLElement>('[role="alert"]'),
-    attempt !== 0,
-    { resetKey: attempt },
-  );
-  return formRef;
 }

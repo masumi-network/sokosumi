@@ -3,9 +3,9 @@ import { Activity, useRef } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { useFocusAtEndOnMount } from "./use-focus-at-end-on-mount";
+import { useMessageEditComposerFocus } from "./use-message-edit-composer-focus";
 
-describe("useFocusAtEndOnMount", () => {
+describe("useMessageEditComposerFocus", () => {
   it("calls focusAtEnd once on mount and skips unrelated re-renders", () => {
     const focusAtEnd = vi.fn();
     const ref = { current: { focusAtEnd } };
@@ -13,7 +13,7 @@ describe("useFocusAtEndOnMount", () => {
     const { rerender } = renderHook(
       ({ tick }: { tick: number }) => {
         void tick;
-        useFocusAtEndOnMount(ref);
+        useMessageEditComposerFocus(ref);
       },
       { initialProps: { tick: 0 } },
     );
@@ -30,7 +30,7 @@ describe("useFocusAtEndOnMount", () => {
     function Probe({ ready }: { ready: boolean }) {
       const ref = useRef<{ focusAtEnd: () => void } | null>(null);
       ref.current = ready ? { focusAtEnd } : null;
-      useFocusAtEndOnMount(ref);
+      useMessageEditComposerFocus(ref);
       return null;
     }
 
@@ -57,7 +57,7 @@ describe("useFocusAtEndOnMount", () => {
   it("does not throw during SSR", () => {
     function Probe() {
       const ref = useRef<{ focusAtEnd: () => void } | null>(null);
-      useFocusAtEndOnMount(ref);
+      useMessageEditComposerFocus(ref);
       return <span>ok</span>;
     }
 
