@@ -5,7 +5,8 @@ import { avatarStateOf } from "@sokosumi/soko-bot";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense, use } from "react";
+import { browser } from "react-dom";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
@@ -230,8 +231,27 @@ function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
   );
 }
 
-/** "Active 2h ago", narrow, in the reader's locale; ticks once a minute. */
-function LastActive({ at }: { at: Date }) {
+/**
+ * "Active 2h ago", narrow, in the reader's locale; ticks once a minute. The
+ * server sends the time of day instead ("Active 9:34 PM"): its clock and the
+ * browser's differ by the load, so a relative label from each would not
+ * hydrate (React #418), and a date as well would not fit the row.
+ */
+export function LastActive({ at }: { at: Date }) {
+  const t = useTranslations("App.Sidebar.Content.SokoBot");
+  const formatter = useFormatter();
+
+  return (
+    <Suspense
+      fallback={t("activeAgo", { time: formatter.dateTime(at, "time") })}
+    >
+      <LastActiveRelative at={at} />
+    </Suspense>
+  );
+}
+
+function LastActiveRelative({ at }: { at: Date }) {
+  use(browser());
   const t = useTranslations("App.Sidebar.Content.SokoBot");
   const formatter = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
