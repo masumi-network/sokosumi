@@ -36,7 +36,7 @@ const MESSAGES: Record<string, string> = {
     "This removes the project's DESIGN.md file.",
   "brandCard.removeDialog.cancel": "Cancel",
   "brandCard.websiteInvalid": "Enter a website like example.com.",
-  "brandCard.websiteLabel": "Generate brand context from this website.",
+  "brandCard.websiteLabel": "Project website",
   "errors.brand": "Couldn't update project brand context",
   "errors.update": "Failed to update project",
 };
@@ -330,7 +330,7 @@ describe("ProjectBrandCard", () => {
     });
 
     const field = screen.getByRole("textbox", {
-      name: "Generate brand context from this website.",
+      name: "Project website",
     });
     expect(field).toHaveValue("https://bad.invalid/");
 
@@ -367,6 +367,29 @@ describe("ProjectBrandCard", () => {
     expect(generateMock).toHaveBeenCalledWith({
       force: true,
       url: "https://example.com/",
+    });
+  });
+
+  it("follows a refreshed saved website while the field is untouched", async () => {
+    const user = userEvent.setup();
+    const view = renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://old.example/",
+    });
+
+    view.rerenderWithWebsite("https://new.example/");
+    expect(
+      screen.getByRole("textbox", { name: "Project website" }),
+    ).toHaveValue("https://new.example/");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(generateMock).toHaveBeenCalledWith({
+      force: true,
+      url: "https://new.example/",
     });
   });
 

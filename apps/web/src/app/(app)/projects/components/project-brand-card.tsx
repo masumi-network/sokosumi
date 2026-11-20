@@ -192,9 +192,11 @@ export function ProjectBrandCard({
   );
   const hasWebsite = Boolean(websiteUrl);
   const tWebsite = useTranslations("App.Projects.Wizard.name");
-  // Prefilled with the saved website, so a website generation could not use
-  // can be corrected right here instead of in Edit.
-  const [website, setWebsite] = useState(websiteUrl ?? "");
+  // Shows the saved website until someone types, so a website generation
+  // could not use can be corrected right here instead of in Edit. Without a
+  // draft the field follows the prop, so a refresh never leaves a stale URL.
+  const [websiteDraft, setWebsiteDraft] = useState<string | null>(null);
+  const website = websiteDraft ?? websiteUrl ?? "";
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [isSavingWebsite, startSaveWebsite] = useTransition();
   const menuBusy =
@@ -381,7 +383,7 @@ export function ProjectBrandCard({
                 placeholder={tWebsite("websitePlaceholder")}
                 value={website}
                 onChange={(event) => {
-                  setWebsite(event.target.value);
+                  setWebsiteDraft(event.target.value);
                   setWebsiteError(null);
                 }}
                 disabled={isSavingWebsite}
