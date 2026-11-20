@@ -747,10 +747,18 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "CANCELLED",
       starts: false,
     },
+    // A production run moves the month on when it ends.
     {
       clientTurnId: "cmo:production:bot_1:1",
       status: "COMPLETED",
+      starts: true,
+      parentTurnId: "parent-1",
+    },
+    {
+      clientTurnId: "cmo:production:bot_1:1",
+      status: "CANCELLED",
       starts: false,
+      parentTurnId: "parent-1",
     },
     { clientTurnId: null, status: "COMPLETED", starts: false },
     // A chat with Cuso held the bot: a fix asked meanwhile may start now.

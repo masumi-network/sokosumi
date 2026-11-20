@@ -8,6 +8,7 @@ import {
 import { PrismaRaw } from "@sokosumi/database/client";
 import {
   applyVersionCapabilities,
+  CMO_PRODUCTION_TURN_PREFIX,
   capabilitiesForClassification,
   composeSokoBotVersionNotice,
   createEmptySokoBotMemory,
@@ -1823,12 +1824,14 @@ export class SokoBotControlPlane {
       });
       if (settled.count === 0) return false;
       // Once any foreground turn of Cuso ends, his first plan or the next
-      // fix the owner asked for meanwhile may start (one turn per bot). A
-      // turn the owner stopped starts nothing.
+      // fix the owner asked for meanwhile may start (one turn per bot); once
+      // a production run ends, the month's next one. A turn the owner
+      // stopped starts nothing.
       if (
         settledStatus !== "CANCELLED" &&
         (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
           turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
+          turn.clientTurnId?.startsWith(CMO_PRODUCTION_TURN_PREFIX) ||
           (turn.parentTurnId === null &&
             turn.versionId !== undefined &&
             getSokoBotVersion(turn.versionId).profile === "cmo"))
