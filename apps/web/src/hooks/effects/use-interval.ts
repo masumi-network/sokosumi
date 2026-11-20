@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 
 export interface UseIntervalOptions {
   /** Call `callback` immediately when the interval starts or resumes. */
@@ -18,12 +18,17 @@ export function useInterval(
 ): void {
   const onTick = useEffectEvent(callback);
   const immediate = options?.immediate ?? false;
+  const activeRef = useRef(false);
 
   useEffect(() => {
-    if (delayMs === null) return;
-    if (immediate) {
+    if (delayMs === null) {
+      activeRef.current = false;
+      return;
+    }
+    if (immediate && !activeRef.current) {
       onTick();
     }
+    activeRef.current = true;
     const id = setInterval(() => {
       onTick();
     }, delayMs);

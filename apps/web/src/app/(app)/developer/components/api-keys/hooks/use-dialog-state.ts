@@ -1,8 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
-
-import { useTimeout } from "@/hooks/effects/use-timeout";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ApiKeyRecord, DialogState } from "../types";
 import { DIALOG_CLEANUP_TIMEOUT } from "../utils";
@@ -10,43 +8,57 @@ import { DIALOG_CLEANUP_TIMEOUT } from "../utils";
 export function useDialogState(): DialogState {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
-  const [clearCreateGeneration, setClearCreateGeneration] = useState(0);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [keyToDelete, setKeyToDelete] = useState<ApiKeyRecord | null>(null);
-  const [clearDeleteGeneration, setClearDeleteGeneration] = useState(0);
 
-  const setCreateOpen = useCallback((open: boolean) => {
-    setCreateDialogOpen(open);
-    if (!open) {
-      setClearCreateGeneration((generation) => generation + 1);
+  const dialogTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearDialogStateWithDelay = useCallback(() => {
+    if (dialogTimeoutRef.current) {
+      clearTimeout(dialogTimeoutRef.current);
     }
+
+    dialogTimeoutRef.current = setTimeout(() => {
+      setCreatedKey(null);
+      dialogTimeoutRef.current = null;
+    }, DIALOG_CLEANUP_TIMEOUT);
   }, []);
+
+  const setCreateOpen = useCallback(
+    (open: boolean) => {
+      setCreateDialogOpen(open);
+      if (!open) {
+        clearDialogStateWithDelay();
+      }
+    },
+    [clearDialogStateWithDelay],
+  );
 
   const setDeleteOpen = useCallback((open: boolean) => {
     setDeleteDialogOpen(open);
     if (!open) {
-      setClearDeleteGeneration((generation) => generation + 1);
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+      deleteTimeoutRef.current = setTimeout(() => {
+        setKeyToDelete(null);
+        deleteTimeoutRef.current = null;
+      }, DIALOG_CLEANUP_TIMEOUT);
     }
   }, []);
 
-  useTimeout(
-    () => {
-      setCreatedKey(null);
-      setClearCreateGeneration(0);
-    },
-    clearCreateGeneration > 0 ? DIALOG_CLEANUP_TIMEOUT : null,
-    clearCreateGeneration,
-  );
-
-  useTimeout(
-    () => {
-      setKeyToDelete(null);
-      setClearDeleteGeneration(0);
-    },
-    clearDeleteGeneration > 0 ? DIALOG_CLEANUP_TIMEOUT : null,
-    clearDeleteGeneration,
-  );
+  useEffect(() => {
+    return () => {
+      if (dialogTimeoutRef.current) {
+        clearTimeout(dialogTimeoutRef.current);
+      }
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     createDialog: {

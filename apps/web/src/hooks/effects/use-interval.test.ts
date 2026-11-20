@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useInterval } from "./use-interval";
@@ -97,6 +98,29 @@ describe("useInterval", () => {
       ({ delayMs }: { delayMs: number | null }) =>
         useInterval(callback, delayMs, { immediate: true }),
       { initialProps: { delayMs: 1_000 as number | null } },
+    );
+
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(callback).toHaveBeenCalledTimes(2);
+
+    rerender({ delayMs: null });
+    rerender({ delayMs: 1_000 });
+    expect(callback).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not fire immediate twice on a StrictMode mount", () => {
+    const callback = vi.fn();
+    const { rerender } = renderHook(
+      ({ delayMs }: { delayMs: number | null }) =>
+        useInterval(callback, delayMs, { immediate: true }),
+      {
+        initialProps: { delayMs: 1_000 as number | null },
+        wrapper: StrictMode,
+      },
     );
 
     expect(callback).toHaveBeenCalledTimes(1);

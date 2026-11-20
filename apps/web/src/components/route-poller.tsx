@@ -1,9 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
-
-import { useInterval } from "@/hooks/effects/use-interval";
+import { useEffect, useRef, useTransition } from "react";
 
 /**
  * Asks the route for fresh data every `everyMs` while it is mounted. Mount it
@@ -18,21 +16,21 @@ export function RoutePoller({
   everyMs: number;
   times?: number;
 }) {
-  const askedRef = useRef(0);
-  const [askedCount, setAskedCount] = useState(0);
+  const asked = useRef(0);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  useInterval(
-    () => {
+  useEffect(() => {
+    if (isPending) return;
+
+    const id = setInterval(() => {
       if (document.visibilityState === "hidden") return;
-      if (askedRef.current >= times) return;
-      askedRef.current += 1;
-      setAskedCount(askedRef.current);
+      if (asked.current >= times) return clearInterval(id);
+      asked.current += 1;
       startTransition(() => router.refresh());
-    },
-    isPending || askedCount >= times ? null : everyMs,
-  );
+    }, everyMs);
+    return () => clearInterval(id);
+  }, [everyMs, isPending, router, times]);
 
   return null;
 }

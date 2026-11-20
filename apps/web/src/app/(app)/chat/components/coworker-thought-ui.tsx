@@ -6,9 +6,14 @@
  * Tokens remapped to Sokosumi semantic colors.
  */
 
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
-import { useInterval } from "@/hooks/effects/use-interval";
 import { cn } from "@/lib/utils";
 
 /** Live timer: tenths under 10s, then whole seconds (`10s`, `1m 15s`). */
@@ -32,7 +37,11 @@ export function formatBeautifulElapsed(elapsedMs: number): string {
  */
 function useLiveElapsedMs(startedAtMs: number): number {
   const [now, setNow] = useState(startedAtMs);
-  useInterval(() => setNow(Date.now()), 100, { immediate: true });
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(id);
+  }, [startedAtMs]);
   return Math.max(0, now - startedAtMs);
 }
 

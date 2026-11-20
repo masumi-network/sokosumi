@@ -40,6 +40,7 @@ import {
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -135,7 +136,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
-import { useTimeout } from "@/hooks/effects/use-timeout";
 import {
   recordEmojiUse,
   useFrequentlyUsedEmojis,
@@ -1982,25 +1982,12 @@ function MessageTimeOrOutboundStatus({
   outboundContentLength?: number;
 }) {
   const t = useTranslations("App.Channels");
-  const createdAtKey =
-    createdAt instanceof Date ? createdAt.getTime() : createdAt;
-  const pendingKey = outboundStatus === "pending" ? createdAtKey : null;
-  const sentKey = showSentTick ? createdAtKey : null;
-  const [spinnerForKey, setSpinnerForKey] = useState<string | number | null>(
-    null,
+  const [sentFading, setSentFading] = useState(false);
+  const [showPendingSpinner, setShowPendingSpinner] = useState(() =>
+    outboundStatus === "pending"
+      ? shouldShowOutboundPendingSpinner(createdAt)
+      : false,
   );
-  const [fadedForKey, setFadedForKey] = useState<string | number | null>(null);
-  if (pendingKey === null && spinnerForKey !== null) {
-    setSpinnerForKey(null);
-  }
-  if (sentKey === null && fadedForKey !== null) {
-    setFadedForKey(null);
-  }
-  const showPendingSpinner =
-    outboundStatus === "pending" &&
-    (shouldShowOutboundPendingSpinner(createdAt) ||
-      spinnerForKey === pendingKey);
-  const sentFading = sentKey !== null && fadedForKey === sentKey;
   const isGutter = !reserveHeaderWidth;
   const markClass = reserveHeaderWidth
     ? OUTBOUND_HEADER_MARK_CLASS
@@ -2008,22 +1995,42 @@ function MessageTimeOrOutboundStatus({
   // Smaller icon in the narrow continuation gutter.
   const iconClass = reserveHeaderWidth ? "size-3" : "size-2.5";
 
-  useTimeout(
-    () => setSpinnerForKey(pendingKey),
-    pendingKey !== null && !showPendingSpinner
-      ? Math.max(
-          0,
-          OUTBOUND_PENDING_SPINNER_DELAY_MS - outboundPendingAgeMs(createdAt),
-        )
-      : null,
-    pendingKey,
-  );
+  useEffect(() => {
+    if (outboundStatus !== "pending") {
+      setShowPendingSpinner(false);
+      return;
+    }
+    if (shouldShowOutboundPendingSpinner(createdAt)) {
+      setShowPendingSpinner(true);
+      return;
+    }
+    setShowPendingSpinner(false);
+    const remainingMs =
+      OUTBOUND_PENDING_SPINNER_DELAY_MS - outboundPendingAgeMs(createdAt);
+    const timeoutId = window.setTimeout(
+      () => {
+        setShowPendingSpinner(true);
+      },
+      Math.max(0, remainingMs),
+    );
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [outboundStatus, createdAt]);
 
-  useTimeout(
-    () => setFadedForKey(sentKey),
-    sentKey !== null && !sentFading ? OUTBOUND_SENT_TICK_MS / 2 : null,
-    sentKey,
-  );
+  useEffect(() => {
+    if (!showSentTick) {
+      setSentFading(false);
+      return;
+    }
+    setSentFading(false);
+    const fadeAt = window.setTimeout(() => {
+      setSentFading(true);
+    }, OUTBOUND_SENT_TICK_MS / 2);
+    return () => {
+      window.clearTimeout(fadeAt);
+    };
+  }, [showSentTick, createdAt]);
 
   if (outboundStatus === "pending") {
     if (!showPendingSpinner) {

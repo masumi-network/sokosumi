@@ -1,9 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-
-import { useInterval } from "@/hooks/effects/use-interval";
+import { useEffect, useState } from "react";
 
 const COOLDOWN_SECONDS = 30;
 
@@ -34,7 +32,16 @@ export function ResendCodeButton({
   const left = secondsLeft(sentAt, now);
 
   // Synchronizes with the clock until the wait is over.
-  useInterval(() => setNow(Date.now()), left > 0 ? 1000 : null);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (secondsLeft(sentAt, current) === 0) {
+        clearInterval(timer);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [sentAt]);
 
   return (
     <button
