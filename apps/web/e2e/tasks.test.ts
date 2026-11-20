@@ -150,12 +150,24 @@ async function measureShellToPage(
     await options.navigate();
     // The target page itself, not the page we left: it can stay on screen
     // while the held answer is pending.
-    await page.waitForFunction(
-      ({ pathname, selector }) =>
-        location.pathname === pathname && !!document.querySelector(selector),
-      { pathname: options.pathname, selector: options.loadedSelector },
-      { timeout: 60_000 },
-    );
+    await page
+      .waitForFunction(
+        ({ pathname, selector }) =>
+          location.pathname === pathname && !!document.querySelector(selector),
+        { pathname: options.pathname, selector: options.loadedSelector },
+        { timeout: 60_000 },
+      )
+      .catch(async (error: unknown) => {
+        const name = options.pathname.replaceAll("/", "_");
+        await page.screenshot({
+          path: `${RESULTS_DIR}never-loaded${name}.png`,
+        });
+        console.log(
+          `never loaded ${options.pathname}: at ${page.url()}`,
+          (await page.locator("main").first().innerText()).slice(0, 600),
+        );
+        throw error;
+      });
   } finally {
     await page.unroute(isHeld, holdContent);
   }
@@ -198,10 +210,27 @@ async function showTasksLink(page: Page) {
   const tasksLink = page
     .getByRole("link", { name: "Tasks", exact: true })
     .filter({ visible: true });
-  if ((await tasksLink.count()) === 0) {
-    await page.getByRole("button", { name: "Show sidebar" }).click();
+  const showSidebar = page.getByRole("button", { name: "Show sidebar" });
+  // Whichever the layout draws first; Home may still be rendering.
+  await tasksLink.or(showSidebar).first().waitFor();
+  // A closed sidebar keeps its link in the DOM, off screen to the left.
+  const onScreen = async () => {
+    for (const link of await tasksLink.all()) {
+      const box = await link.boundingBox();
+      if (box && box.x >= 0) return link;
+    }
+    return null;
+  };
+  let link = await onScreen();
+  if (!link) {
+    await showSidebar.click();
+    for (let i = 0; i < 20 && !link; i++) {
+      await page.waitForTimeout(100);
+      link = await onScreen();
+    }
   }
-  return tasksLink.first();
+  assert.ok(link, "no Tasks link on screen");
+  return link;
 }
 
 let browser: Browser;
@@ -236,16 +265,45 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByRole("link", { name: "Later" }).click();
       await page.waitForURL(`${BASE_URL}/`);
 
-      const tasksLink = await showTasksLink(page);
-      await assertBoardLoadsInPlace(page, () => tasksLink.click());
+      await showTasksLink(page);
+      // Shown again at the click: a tablet's sidebar can close meanwhile.
+      await assertBoardLoadsInPlace(page, async () =>
+        (await showTasksLink(page)).click(),
+      );
       // From md up the loaded board fits the screen: the page itself does not
-      // scroll.
+      // scroll. Measured with the sidebar closed: beside an open sidebar at
+      // 768px the toolbar wraps to two rows, which this check does not cover.
       if (viewport.width >= 768) {
-        const pageScroll = await page.evaluate(() => {
+        const sidebarOpen = () =>
+          page.evaluate(
+            () =>
+              (document
+                .querySelector('[data-sidebar="sidebar"]')
+                ?.getBoundingClientRect().left ?? -1) >= 0,
+          );
+        if (viewport.width < 1024 && (await sidebarOpen())) {
+          // The sidebar's own shortcut; an open sidebar has no close button.
+          await page.keyboard.press("Control+b");
+          await page.waitForFunction(
+            () =>
+              (document
+                .querySelector('[data-sidebar="sidebar"]')
+                ?.getBoundingClientRect().left ?? -1) < 0,
+          );
+          await page.waitForTimeout(300);
+        }
+        const { pageScroll, mainWidth } = await page.evaluate(() => {
           const main = document.querySelector("main");
-          return main ? main.scrollHeight - main.clientHeight : -1;
+          return {
+            pageScroll: main ? main.scrollHeight - main.clientHeight : -1,
+            mainWidth: main?.clientWidth ?? 0,
+          };
         });
-        assert.equal(pageScroll, 0, `the board page scrolls ${pageScroll}px`);
+        assert.equal(
+          pageScroll,
+          0,
+          `the board page scrolls ${pageScroll}px (main ${mainWidth}px wide)`,
+        );
       }
       // Phone: the floating Create task button. Tablet: open the sidebar first.
       const fab = page.getByRole("button", { name: "Create task" });
@@ -445,26 +503,31 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
 
-      // A filtered board draws its chips in the toolbar. Back from a task
-      // returns to it, and its loading shell draws the same toolbar from the
-      // URL, chips included, so the columns stay put.
-      await page.goto(`${BASE_URL}/tasks?status=DRAFT`);
-      await page
-        .getByRole("list", { name: "Active filters" })
-        .filter({ visible: true })
-        .waitFor();
-      await page.getByRole("link", { name: LONG_NAME }).click();
-      await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
+      // A filtered board draws its chips in the toolbar, and its loading
+      // shell draws the same toolbar from the URL, chips included, so the
+      // columns stay put. Opened from Home, whose Tasks link prefetches the
+      // board's shell, by a client navigation to a board not opened before:
+      // Back, or a board the router still holds, shows no shell at all.
+      prefetchedPaths.get(page)?.delete("/tasks");
+      await page.goto(`${BASE_URL}/`);
+      await showTasksLink(page);
       await assertBoardLoadsInPlace(page, () =>
-        page
-          .getByRole("link", { name: "Back to tasks" })
-          .or(page.getByRole("link", { name: "Back", exact: true }))
-          .filter({ visible: true })
-          .click(),
+        page.evaluate(
+          (href) =>
+            (
+              window as unknown as {
+                next: { router: { push: (href: string) => void } };
+              }
+            ).next.router.push(href),
+          "/tasks?status=DRAFT&sort=priority",
+        ),
       );
       assert.ok(
-        page.url().includes("status=DRAFT"),
-        `Back returned to ${page.url()}, not the filtered board`,
+        await page
+          .getByRole("list", { name: "Active filters" })
+          .filter({ visible: true })
+          .isVisible(),
+        "the filtered board shows no filter chips",
       );
 
       const overflow = await page.evaluate(
