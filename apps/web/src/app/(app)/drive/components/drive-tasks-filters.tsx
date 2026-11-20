@@ -5,7 +5,6 @@ import {
   getProjectsById,
   getTasksById,
 } from "@sokosumi/core-client";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Bot, FolderKanban, ListCheck } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
@@ -17,6 +16,10 @@ import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
+import {
+  useScopedInfiniteQuery,
+  useScopedQuery,
+} from "@/queries/scoped-queries";
 
 interface DriveTasksProjectFilterOption {
   id: string;
@@ -125,19 +128,17 @@ export function DriveTasksFilters({
   const viewerId = session?.user?.id ?? null;
   const store = driveStoreForActiveWorkspace(activeOrganizationId);
   const canLoadStore = !(store.scope === "org" && !activeOrganizationId);
+  const workspaceScope = [activeOrganizationId, viewerId] as const;
+  const tasksStoreScope = [
+    store.scope,
+    store.scope === "org" ? activeOrganizationId : null,
+    viewerId,
+  ] as const;
 
-  const coworkersQuery = useQuery({
-    queryKey: [
-      "drive",
-      "tasks-filters",
-      "coworkers",
-      viewerId,
-      activeOrganizationId,
-    ],
+  const coworkersQuery = useScopedQuery({
+    scope: workspaceScope,
+    queryKey: ["drive", "tasks-filters", "coworkers"],
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       const response = await getCoworkers({
         client: getBrowserCoreClient(),
@@ -151,22 +152,12 @@ export function DriveTasksFilters({
     },
   });
 
-  const projectsQuery = useInfiniteQuery({
-    queryKey: [
-      "drive",
-      "tasks-filters",
-      "projects",
-      viewerId,
-      store.scope,
-      activeOrganizationId,
-      assigneeId,
-    ],
+  const projectsQuery = useScopedInfiniteQuery({
+    scope: tasksStoreScope,
+    queryKey: ["drive", "tasks-filters", "projects", assigneeId],
     enabled: canLoadStore,
     initialPageParam: undefined as string | undefined,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
     queryFn: ({ pageParam, signal }) =>
       fetchDriveTasksPage({
         scope: store.scope,
@@ -200,19 +191,11 @@ export function DriveTasksFilters({
     projectId !== "null" &&
     !projects.some((project) => project.id === projectId);
 
-  const selectedProjectQuery = useQuery({
-    queryKey: [
-      "drive",
-      "project-name",
-      viewerId,
-      activeOrganizationId,
-      projectId,
-    ],
+  const selectedProjectQuery = useScopedQuery({
+    scope: workspaceScope,
+    queryKey: ["drive", "project-name", projectId],
     enabled: needsSelectedProjectFetch,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       if (!projectId) return null;
       const response = await getProjectsById({
@@ -232,23 +215,12 @@ export function DriveTasksFilters({
         ? (selectedProjectQuery.data ?? null)
         : null;
 
-  const tasksQuery = useInfiniteQuery({
-    queryKey: [
-      "drive",
-      "tasks-filters",
-      "tasks",
-      viewerId,
-      store.scope,
-      activeOrganizationId,
-      projectId,
-      assigneeId,
-    ],
+  const tasksQuery = useScopedInfiniteQuery({
+    scope: tasksStoreScope,
+    queryKey: ["drive", "tasks-filters", "tasks", projectId, assigneeId],
     enabled: Boolean(projectId) && canLoadStore,
     initialPageParam: undefined as string | undefined,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
     queryFn: ({ pageParam, signal }) =>
       fetchDriveTasksPage({
         scope: store.scope,
@@ -285,13 +257,11 @@ export function DriveTasksFilters({
     Boolean(projectId) &&
     !tasks.some((task) => task.id === taskId);
 
-  const selectedTaskQuery = useQuery({
-    queryKey: ["drive", "task-name", viewerId, activeOrganizationId, taskId],
+  const selectedTaskQuery = useScopedQuery({
+    scope: workspaceScope,
+    queryKey: ["drive", "task-name", taskId],
     enabled: needsSelectedTaskFetch,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       if (!taskId) return null;
       const response = await getTasksById({

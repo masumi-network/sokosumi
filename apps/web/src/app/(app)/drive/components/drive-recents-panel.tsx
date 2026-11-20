@@ -2,7 +2,7 @@
 
 import type { DriveItem, DriveRecentsItem } from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Copy,
   Download,
@@ -58,6 +58,12 @@ import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
 import { fetchDriveRecentsPage } from "@/lib/utils/drive-recents-list.client";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import {
+  buildScopedQueryKey,
+  useScopedInfiniteQuery,
+} from "@/queries/scoped-queries";
+
+const DRIVE_RECENTS_QUERY_KEY = ["drive", "recents"] as const;
 
 function handleDownload(fileUrl: string, fileName: string) {
   const link = document.createElement("a");
@@ -148,56 +154,51 @@ export function DriveRecentsPanel({
   const isFiltered = trimmedSearchQuery.length > 0 || tagFilterKey.length > 0;
   const canLoad = !(driveStore.scope === "org" && !activeOrganizationId);
 
-  const recentsQueryKey = [
-    "drive",
-    "recents",
-    viewerId,
+  const recentsScope = [
     driveStore.scope,
     driveStore.scope === "org" ? activeOrganizationId : null,
-    trimmedSearchQuery,
-    tagFilterKey,
-    reloadToken,
+    viewerId,
   ] as const;
-  const recentsKeyString = JSON.stringify(recentsQueryKey);
-  const activeRecentsKeyRef = useRef<string | null>(null);
-  activeRecentsKeyRef.current = canLoad ? recentsKeyString : null;
+  const scopedRecentsPrefix = buildScopedQueryKey(
+    recentsScope,
+    DRIVE_RECENTS_QUERY_KEY,
+  );
+  const isFetchNextPageErrorRef = useRef(false);
 
-  const recentsQuery = useInfiniteQuery({
-    queryKey: recentsQueryKey,
+  const recentsQuery = useScopedInfiniteQuery({
+    scope: recentsScope,
+    queryKey: [
+      ...DRIVE_RECENTS_QUERY_KEY,
+      trimmedSearchQuery,
+      tagFilterKey,
+      reloadToken,
+    ] as const,
     enabled: canLoad,
     initialPageParam: undefined as string | undefined,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: async ({ pageParam, signal }) => {
-      const keyAtStart = recentsKeyString;
-      try {
-        return await fetchDriveRecentsPage({
-          scope: driveStore.scope,
-          ...(driveStore.scope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
-          ...(pageParam ? { cursor: pageParam } : {}),
-          ...(trimmedSearchQuery ? { q: trimmedSearchQuery } : {}),
-          ...(tagFilterKey ? { tagLabelIds: tagFilterKey.split(",") } : {}),
-          signal,
-        });
-      } catch (error) {
-        if (!signal.aborted && activeRecentsKeyRef.current === keyAtStart) {
-          if (pageParam) {
-            console.error("Failed to load more Drive recents", error);
-            toast.error(t("loadMoreRecentsError"));
-          } else {
-            console.error("Failed to load Drive recents", error);
-            toast.error(t("loadRecentsError"));
-          }
-        }
-        throw error;
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveRecentsPage({
+        scope: driveStore.scope,
+        ...(driveStore.scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(trimmedSearchQuery ? { q: trimmedSearchQuery } : {}),
+        ...(tagFilterKey ? { tagLabelIds: tagFilterKey.split(",") } : {}),
+        signal,
+      }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    onError: (error) => {
+      if (isFetchNextPageErrorRef.current) {
+        console.error("Failed to load more Drive recents", error);
+        toast.error(t("loadMoreRecentsError"));
+      } else {
+        console.error("Failed to load Drive recents", error);
+        toast.error(t("loadRecentsError"));
       }
     },
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
+  isFetchNextPageErrorRef.current = recentsQuery.isFetchNextPageError;
 
   const items = useMemo(() => {
     const pages = recentsQuery.data?.pages ?? [];
@@ -225,13 +226,13 @@ export function DriveRecentsPanel({
   );
 
   async function handleRenameConfirm(item: DriveItem, newName: string) {
-    await queryClient.cancelQueries({ queryKey: recentsQueryKey });
+    await queryClient.cancelQueries({ queryKey: scopedRecentsPrefix });
     await onRenameFile(item, newName);
     setEditingPathname(null);
     setEditingName("");
     onItemsChanged();
-    await queryClient.cancelQueries({ queryKey: recentsQueryKey });
-    await recentsQuery.refetch();
+    await queryClient.cancelQueries({ queryKey: scopedRecentsPrefix });
+    await queryClient.invalidateQueries({ queryKey: scopedRecentsPrefix });
   }
 
   if (loading) {

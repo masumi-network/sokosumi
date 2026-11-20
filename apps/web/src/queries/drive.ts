@@ -13,46 +13,36 @@ export const DRIVE_ORGANIZATION_NAME_QUERY_KEY = [
   "organization-name",
 ] as const;
 
-export function getDriveOrganizationNameQueryKey(params: {
-  userId: string | null;
-  activeOrganizationId: string | null;
-}) {
+export function getDriveStoreScope(
+  store: { scope: "me" } | { scope: "org"; organizationId?: string | null },
+  viewerId: string | null,
+) {
   return [
-    ...DRIVE_ORGANIZATION_NAME_QUERY_KEY,
-    params.userId,
-    params.activeOrganizationId,
+    store.scope,
+    store.scope === "org" ? (store.organizationId ?? null) : null,
+    viewerId,
   ] as const;
 }
 
-export function getDriveOrganizationNameQueryOptions(params: {
+export async function fetchDriveOrganizationName(params: {
   userId: string | null;
   activeOrganizationId: string | null;
-}) {
-  return queryOptions({
-    queryKey: getDriveOrganizationNameQueryKey(params),
-    enabled: Boolean(params.userId && params.activeOrganizationId),
-    staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: async () => {
-      if (!params.userId || !params.activeOrganizationId) {
-        return null;
-      }
-      const response = await getUsersByIdOrganizations({
-        client: getBrowserCoreClient(),
-        path: { id: params.userId },
-      });
-      if (response.error || !response.data) {
-        throw response.error ?? new Error("Failed to load organizations");
-      }
-      const orgs = response.data.data ?? [];
-      const activeOrg = orgs.find(
-        (org) => org.id === params.activeOrganizationId,
-      );
-      return activeOrg?.name ?? null;
-    },
+  signal?: AbortSignal;
+}): Promise<string | null> {
+  if (!params.userId || !params.activeOrganizationId) {
+    return null;
+  }
+  const response = await getUsersByIdOrganizations({
+    client: getBrowserCoreClient(),
+    path: { id: params.userId },
+    ...(params.signal ? { signal: params.signal } : {}),
   });
+  if (response.error || !response.data) {
+    throw response.error ?? new Error("Failed to load organizations");
+  }
+  const orgs = response.data.data ?? [];
+  const activeOrg = orgs.find((org) => org.id === params.activeOrganizationId);
+  return activeOrg?.name ?? null;
 }
 
 export function getDriveItemsQueryKey(params: {
@@ -61,7 +51,6 @@ export function getDriveItemsQueryKey(params: {
   search: string;
   sortBy?: FilesSortBy;
   sortOrder?: FilesSortOrder;
-  viewerId?: string | null;
 }) {
   return [
     ...DRIVE_ITEMS_QUERY_KEY,
@@ -70,8 +59,27 @@ export function getDriveItemsQueryKey(params: {
     params.search.trim(),
     params.sortBy ?? null,
     params.sortOrder ?? null,
-    ...(params.viewerId !== undefined ? [params.viewerId] : []),
   ] as const;
+}
+
+export function fetchDriveItems(
+  params: {
+    store: DriveWorkspaceStore;
+    folder: string;
+    search: string;
+    sortBy?: FilesSortBy;
+    sortOrder?: FilesSortOrder;
+  },
+  signal?: AbortSignal,
+) {
+  return listDriveItems({
+    ...params.store,
+    ...(params.folder ? { folder: params.folder } : {}),
+    ...(params.search.trim() ? { q: params.search.trim() } : {}),
+    ...(params.sortBy ? { sortBy: params.sortBy } : {}),
+    ...(params.sortOrder ? { sortOrder: params.sortOrder } : {}),
+    signal,
+  });
 }
 
 export function getDriveItemsQueryOptions(params: {
@@ -80,19 +88,10 @@ export function getDriveItemsQueryOptions(params: {
   search: string;
   sortBy?: FilesSortBy;
   sortOrder?: FilesSortOrder;
-  viewerId?: string | null;
 }) {
   return queryOptions({
     queryKey: getDriveItemsQueryKey(params),
     refetchOnWindowFocus: false,
-    queryFn: ({ signal }) =>
-      listDriveItems({
-        ...params.store,
-        ...(params.folder ? { folder: params.folder } : {}),
-        ...(params.search.trim() ? { q: params.search.trim() } : {}),
-        ...(params.sortBy ? { sortBy: params.sortBy } : {}),
-        ...(params.sortOrder ? { sortOrder: params.sortOrder } : {}),
-        signal,
-      }),
+    queryFn: ({ signal }) => fetchDriveItems(params, signal),
   });
 }

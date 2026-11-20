@@ -2,7 +2,6 @@
 
 import type { DriveFile } from "@sokosumi/core-client";
 import { isDriveFolderMarkerName } from "@sokosumi/utils";
-import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
   ChevronRight,
@@ -34,9 +33,13 @@ import {
 } from "@/lib/utils/drive-file-list.client";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {
-  getDriveItemsQueryOptions,
-  getDriveOrganizationNameQueryOptions,
+  DRIVE_ORGANIZATION_NAME_QUERY_KEY,
+  fetchDriveItems,
+  fetchDriveOrganizationName,
+  getDriveItemsQueryKey,
+  getDriveStoreScope,
 } from "@/queries/drive";
+import { useScopedQuery } from "@/queries/scoped-queries";
 
 interface DriveFilePickerProps {
   open: boolean;
@@ -76,25 +79,37 @@ function DriveFilePickerWorkspace({
     debouncedSetSearchQuery(value);
   }
 
-  const itemsQuery = useQuery({
-    ...getDriveItemsQueryOptions({
+  const itemsQuery = useScopedQuery({
+    scope: getDriveStoreScope(driveStore, viewerId),
+    queryKey: getDriveItemsQueryKey({
       store: driveStore,
       folder: currentFolder,
       search: debouncedSearchQuery,
-      viewerId,
     }),
     enabled: open,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
+    queryFn: ({ signal }) =>
+      fetchDriveItems(
+        {
+          store: driveStore,
+          folder: currentFolder,
+          search: debouncedSearchQuery,
+        },
+        signal,
+      ),
   });
 
-  const organizationNameQuery = useQuery({
-    ...getDriveOrganizationNameQueryOptions({
-      userId: viewerId,
-      activeOrganizationId,
-    }),
+  const organizationNameQuery = useScopedQuery({
+    scope: [activeOrganizationId, viewerId] as const,
+    queryKey: DRIVE_ORGANIZATION_NAME_QUERY_KEY,
     enabled: open && Boolean(activeOrganizationId && viewerId),
+    staleTime: 0,
+    queryFn: ({ signal }) =>
+      fetchDriveOrganizationName({
+        userId: viewerId,
+        activeOrganizationId,
+        signal,
+      }),
   });
 
   const organizationName = organizationNameQuery.data ?? null;

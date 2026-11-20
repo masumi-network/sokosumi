@@ -1,10 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  fetchDriveOrganizationName,
   getDriveItemsQueryKey,
   getDriveItemsQueryOptions,
-  getDriveOrganizationNameQueryKey,
-  getDriveOrganizationNameQueryOptions,
+  getDriveStoreScope,
 } from "@/queries/drive";
 
 const listDriveItemsMock = vi.fn();
@@ -93,7 +93,20 @@ describe("getDriveItemsQueryOptions", () => {
   });
 });
 
-describe("getDriveOrganizationNameQueryOptions", () => {
+describe("getDriveStoreScope", () => {
+  it("matches personal and organization store scopes with the viewer id", () => {
+    expect(getDriveStoreScope({ scope: "me" }, "user_1")).toEqual([
+      "me",
+      null,
+      "user_1",
+    ]);
+    expect(
+      getDriveStoreScope({ scope: "org", organizationId: "org_b" }, "user_1"),
+    ).toEqual(["org", "org_b", "user_1"]);
+  });
+});
+
+describe("fetchDriveOrganizationName", () => {
   beforeEach(() => {
     getUsersByIdOrganizationsMock.mockReset();
   });
@@ -107,56 +120,41 @@ describe("getDriveOrganizationNameQueryOptions", () => {
         ],
       },
     });
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
 
-    const options = getDriveOrganizationNameQueryOptions({
-      userId: "user_1",
-      activeOrganizationId: "org_b",
-    });
-
-    expect(options.queryKey).toEqual(
-      getDriveOrganizationNameQueryKey({
+    await expect(
+      fetchDriveOrganizationName({
         userId: "user_1",
         activeOrganizationId: "org_b",
       }),
-    );
-    expect(options.enabled).toBe(true);
-    await expect(queryClient.fetchQuery(options)).resolves.toBe("Org B");
+    ).resolves.toBe("Org B");
   });
 
-  it("disables the query when userId or activeOrganizationId is missing", () => {
-    expect(
-      getDriveOrganizationNameQueryOptions({
+  it("returns null without fetching when userId or activeOrganizationId is missing", async () => {
+    await expect(
+      fetchDriveOrganizationName({
         userId: "user_1",
         activeOrganizationId: null,
-      }).enabled,
-    ).toBe(false);
-    expect(
-      getDriveOrganizationNameQueryOptions({
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      fetchDriveOrganizationName({
         userId: null,
         activeOrganizationId: "org_a",
-      }).enabled,
-    ).toBe(false);
+      }),
+    ).resolves.toBeNull();
+    expect(getUsersByIdOrganizationsMock).not.toHaveBeenCalled();
   });
 
-  it("throws on error responses instead of caching null", async () => {
+  it("throws on error responses instead of resolving null", async () => {
     getUsersByIdOrganizationsMock.mockResolvedValue({
       error: new Error("upstream unavailable"),
     });
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
 
-    const options = getDriveOrganizationNameQueryOptions({
-      userId: "user_1",
-      activeOrganizationId: "org_b",
-    });
-
-    await expect(queryClient.fetchQuery(options)).rejects.toThrow(
-      "upstream unavailable",
-    );
-    expect(queryClient.getQueryData(options.queryKey)).toBeUndefined();
+    await expect(
+      fetchDriveOrganizationName({
+        userId: "user_1",
+        activeOrganizationId: "org_b",
+      }),
+    ).rejects.toThrow("upstream unavailable");
   });
 });

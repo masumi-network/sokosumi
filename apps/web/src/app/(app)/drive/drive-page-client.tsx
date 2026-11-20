@@ -13,11 +13,7 @@ import {
   postDriveTasksCopy,
 } from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronRight,
@@ -170,9 +166,17 @@ import {
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {
   DRIVE_ITEMS_QUERY_KEY,
-  getDriveItemsQueryOptions,
-  getDriveOrganizationNameQueryOptions,
+  DRIVE_ORGANIZATION_NAME_QUERY_KEY,
+  fetchDriveItems,
+  fetchDriveOrganizationName,
+  getDriveItemsQueryKey,
+  getDriveStoreScope,
 } from "@/queries/drive";
+import {
+  buildScopedQueryKey,
+  useScopedInfiniteQuery,
+  useScopedQuery,
+} from "@/queries/scoped-queries";
 
 const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
 const filesSortOrderParser = parseAsStringLiteral([...FILES_SORT_ORDER_VALUES]);
@@ -536,12 +540,24 @@ function DrivePageWorkspace({
     viewerIdRef.current = viewerIdFromSession;
   }
   const viewerId = viewerIdRef.current;
-  const organizationNameQuery = useQuery(
-    getDriveOrganizationNameQueryOptions({
-      userId: viewerId,
-      activeOrganizationId,
-    }),
+  const workspaceScope = [activeOrganizationId, viewerId] as const;
+  const driveItemsScope = getDriveStoreScope(driveStore, viewerId);
+  const scopedDriveItemsPrefix = buildScopedQueryKey(
+    driveItemsScope,
+    DRIVE_ITEMS_QUERY_KEY,
   );
+  const organizationNameQuery = useScopedQuery({
+    scope: workspaceScope,
+    queryKey: DRIVE_ORGANIZATION_NAME_QUERY_KEY,
+    enabled: Boolean(viewerId && activeOrganizationId),
+    staleTime: 0,
+    queryFn: ({ signal }) =>
+      fetchDriveOrganizationName({
+        userId: viewerId,
+        activeOrganizationId,
+        signal,
+      }),
+  });
   const organizationName = organizationNameQuery.data ?? null;
 
   const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
@@ -563,44 +579,34 @@ function DrivePageWorkspace({
    * so it stays — it just stopped being a second list on the page.
    */
   const driveItemsEnabled = isWorkspaceView && !isTasksView;
-  const driveItemsQueryOptions = getDriveItemsQueryOptions({
-    store: driveStore,
-    folder: currentFolder,
-    search: debouncedSearchQuery,
-    ...filesSortQuery,
-    viewerId,
-  });
-  const driveItemsKeyString = JSON.stringify(driveItemsQueryOptions.queryKey);
-  const activeDriveItemsKeyRef = useRef<string | null>(null);
-  activeDriveItemsKeyRef.current = driveItemsEnabled
-    ? driveItemsKeyString
-    : null;
-  useQuery({
-    ...driveItemsQueryOptions,
-    retry: false,
-    networkMode: "always",
-    queryFn: async (context) => {
-      const keyAtStart = driveItemsKeyString;
-      try {
-        const queryFn = driveItemsQueryOptions.queryFn;
-        return typeof queryFn === "function" ? await queryFn(context) : [];
-      } catch (error) {
-        if (
-          !context.signal.aborted &&
-          activeDriveItemsKeyRef.current === keyAtStart
-        ) {
-          console.error("Failed to load Drive items", error);
-          toast.error(t("loadFilesError"));
-        }
-        throw error;
-      }
-    },
+  useScopedQuery({
+    scope: driveItemsScope,
+    queryKey: getDriveItemsQueryKey({
+      store: driveStore,
+      folder: currentFolder,
+      search: debouncedSearchQuery,
+      ...filesSortQuery,
+    }),
     enabled: driveItemsEnabled,
+    queryFn: ({ signal }) =>
+      fetchDriveItems(
+        {
+          store: driveStore,
+          folder: currentFolder,
+          search: debouncedSearchQuery,
+          ...filesSortQuery,
+        },
+        signal,
+      ),
+    onError: (error) => {
+      console.error("Failed to load Drive items", error);
+      toast.error(t("loadFilesError"));
+    },
   });
 
   async function refreshDriveItems() {
-    await queryClient.cancelQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
-    await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
+    await queryClient.cancelQueries({ queryKey: scopedDriveItemsPrefix });
+    await queryClient.invalidateQueries({ queryKey: scopedDriveItemsPrefix });
     /**
      * And the catalog, which is the list a reader on this tab is looking at.
      *
@@ -618,66 +624,58 @@ function DrivePageWorkspace({
 
   const canLoadTasks =
     isTasksView && !(scope === "org" && !activeOrganizationId);
-  const tasksQueryKey = [
-    "drive",
-    "tasks",
-    viewerId,
+  const tasksScope = [
     scope,
     scope === "org" ? activeOrganizationId : null,
-    isTasksSearchActive ? debouncedSearchQuery.trim() : "",
-    isTasksSearchActive ? null : projectIdParam,
-    isTasksSearchActive ? null : taskIdParam,
-    assigneeIdParam,
-    filesSortQuery.sortBy ?? null,
-    filesSortQuery.sortOrder ?? null,
+    viewerId,
   ] as const;
-  const tasksKeyString = JSON.stringify(tasksQueryKey);
-  const activeTasksKeyRef = useRef<string | null>(null);
-  activeTasksKeyRef.current = canLoadTasks ? tasksKeyString : null;
+  const isTasksFetchNextPageErrorRef = useRef(false);
 
-  const tasksQuery = useInfiniteQuery({
-    queryKey: tasksQueryKey,
+  const tasksQuery = useScopedInfiniteQuery({
+    scope: tasksScope,
+    queryKey: [
+      "drive",
+      "tasks",
+      isTasksSearchActive ? debouncedSearchQuery.trim() : "",
+      isTasksSearchActive ? null : projectIdParam,
+      isTasksSearchActive ? null : taskIdParam,
+      assigneeIdParam,
+      filesSortQuery.sortBy ?? null,
+      filesSortQuery.sortOrder ?? null,
+    ] as const,
     enabled: canLoadTasks,
     initialPageParam: undefined as string | undefined,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: async ({ pageParam, signal }) => {
-      const keyAtStart = tasksKeyString;
-      try {
-        return await fetchDriveTasksPage({
-          scope,
-          ...(scope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
-          ...(isTasksSearchActive
-            ? { q: debouncedSearchQuery.trim() }
-            : taskIdParam
-              ? { taskId: taskIdParam }
-              : projectIdParam
-                ? { projectId: projectIdParam }
-                : {}),
-          ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
-          ...filesSortQuery,
-          ...(pageParam ? { cursor: pageParam } : {}),
-          signal,
-        });
-      } catch (err) {
-        if (!signal.aborted && activeTasksKeyRef.current === keyAtStart) {
-          if (pageParam) {
-            console.error("Failed to load more tasks", err);
-            toast.error(t("loadMoreTasksError"));
-          } else {
-            console.error("Failed to load tasks", err);
-            toast.error(t("loadTasksError"));
-          }
-        }
-        throw err;
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveTasksPage({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(isTasksSearchActive
+          ? { q: debouncedSearchQuery.trim() }
+          : taskIdParam
+            ? { taskId: taskIdParam }
+            : projectIdParam
+              ? { projectId: projectIdParam }
+              : {}),
+        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
+        ...filesSortQuery,
+        ...(pageParam ? { cursor: pageParam } : {}),
+        signal,
+      }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    onError: (err) => {
+      if (isTasksFetchNextPageErrorRef.current) {
+        console.error("Failed to load more tasks", err);
+        toast.error(t("loadMoreTasksError"));
+      } else {
+        console.error("Failed to load tasks", err);
+        toast.error(t("loadTasksError"));
       }
     },
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
+  isTasksFetchNextPageErrorRef.current = tasksQuery.isFetchNextPageError;
 
   const tasksItems = useMemo(
     () => (tasksQuery.data?.pages ?? []).flatMap((page) => page.items),
@@ -710,35 +708,23 @@ function DrivePageWorkspace({
     !projectNameCache.has(projectIdParam ?? "") &&
     !listedProject;
 
-  const missingProjectNameQuery = useQuery({
-    queryKey: [
-      "drive",
-      "project-name",
-      viewerId,
-      activeOrganizationId,
-      projectIdParam,
-    ],
+  const missingProjectNameQuery = useScopedQuery({
+    scope: workspaceScope,
+    queryKey: ["drive", "project-name", projectIdParam],
     enabled: needsProjectNameFetch,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       if (!projectIdParam) return null;
-      try {
-        const response = await getProjectsById({
-          client: getBrowserCoreClient(),
-          path: { id: projectIdParam },
-          signal,
-          throwOnError: true,
-        });
-        return response.data?.data?.name ?? null;
-      } catch (err) {
-        if (!signal.aborted) {
-          console.error("Failed to fetch missing names", err);
-        }
-        throw err;
-      }
+      const response = await getProjectsById({
+        client: getBrowserCoreClient(),
+        path: { id: projectIdParam },
+        signal,
+        throwOnError: true,
+      });
+      return response.data?.data?.name ?? null;
+    },
+    onError: (err) => {
+      console.error("Failed to fetch missing names", err);
     },
   });
 
@@ -751,35 +737,23 @@ function DrivePageWorkspace({
     !taskNameCache.has(taskIdParam ?? "") &&
     !listedTask;
 
-  const missingTaskNameQuery = useQuery({
-    queryKey: [
-      "drive",
-      "task-name",
-      viewerId,
-      activeOrganizationId,
-      taskIdParam,
-    ],
+  const missingTaskNameQuery = useScopedQuery({
+    scope: workspaceScope,
+    queryKey: ["drive", "task-name", taskIdParam],
     enabled: needsTaskNameFetch,
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       if (!taskIdParam) return null;
-      try {
-        const response = await getTasksById({
-          client: getBrowserCoreClient(),
-          path: { id: taskIdParam },
-          signal,
-          throwOnError: true,
-        });
-        return response.data?.data?.name ?? null;
-      } catch (err) {
-        if (!signal.aborted) {
-          console.error("Failed to fetch missing names", err);
-        }
-        throw err;
-      }
+      const response = await getTasksById({
+        client: getBrowserCoreClient(),
+        path: { id: taskIdParam },
+        signal,
+        throwOnError: true,
+      });
+      return response.data?.data?.name ?? null;
+    },
+    onError: (err) => {
+      console.error("Failed to fetch missing names", err);
     },
   });
 
@@ -902,6 +876,7 @@ function DrivePageWorkspace({
     }
 
     try {
+      await queryClient.cancelQueries({ queryKey: scopedDriveItemsPrefix });
       if (item.type === "file") {
         await patchDriveFilesRename({
           client: getBrowserCoreClient(),
@@ -964,7 +939,7 @@ function DrivePageWorkspace({
     }
 
     try {
-      await queryClient.cancelQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
+      await queryClient.cancelQueries({ queryKey: scopedDriveItemsPrefix });
       if (itemToDelete.type === "file") {
         await deleteDriveFilesDelete({
           client: getBrowserCoreClient(),
@@ -1120,6 +1095,7 @@ function DrivePageWorkspace({
 
     setCreatingFolder(true);
     try {
+      await queryClient.cancelQueries({ queryKey: scopedDriveItemsPrefix });
       const targetFolder = snapshotFolder ?? currentFolder;
       const result = await postDriveFolders({
         client: getBrowserCoreClient(),
@@ -1259,6 +1235,7 @@ function DrivePageWorkspace({
       if (filesToMove.length === 0) return;
       setMovingItem(true);
       try {
+        await queryClient.cancelQueries({ queryKey: scopedDriveItemsPrefix });
         await moveFiles(selectedDestination);
         setMoveDialogOpen(false);
         setFilesToMove([]);
@@ -1273,6 +1250,7 @@ function DrivePageWorkspace({
 
     setMovingItem(true);
     try {
+      await queryClient.cancelQueries({ queryKey: scopedDriveItemsPrefix });
       await patchDriveFilesMove({
         client: getBrowserCoreClient(),
         body: {
@@ -1317,6 +1295,7 @@ function DrivePageWorkspace({
 
     setCopying(true);
     try {
+      await queryClient.cancelQueries({ queryKey: scopedDriveItemsPrefix });
       await postDriveTasksCopy({
         client: getBrowserCoreClient(),
         body: {

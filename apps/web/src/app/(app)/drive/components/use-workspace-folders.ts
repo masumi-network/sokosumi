@@ -1,11 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/auth.client";
 import {
   type FileStore,
   fetchWorkspaceFolders,
 } from "@/lib/utils/file-search.client";
+import { getDriveStoreScope } from "@/queries/drive";
+import { useScopedQuery } from "@/queries/scoped-queries";
 
 /**
  * Every folder path in a store, loaded again on each `reloadToken`.
@@ -24,37 +25,18 @@ export function useWorkspaceFolders(
 ): string[] {
   const { data: session } = useSession();
   const viewerId = session?.user?.id ?? null;
-  const organizationId =
-    store.scope === "org" ? (store.organizationId ?? null) : null;
 
-  const foldersQuery = useQuery({
+  const foldersQuery = useScopedQuery({
+    scope: getDriveStoreScope(store, viewerId),
     queryKey: [
       "drive",
       "workspace-folders",
-      viewerId,
-      store.scope,
-      organizationId,
       // `reloadToken` is a signal, not an input: the files under the store
       // changed, so the folders they sit in may have too.
       reloadToken,
     ],
     queryFn: ({ signal }) => fetchWorkspaceFolders({ store, signal }),
-    placeholderData: (previousData, previousQuery) => {
-      const previousKey = previousQuery?.queryKey;
-      if (
-        previousKey &&
-        previousKey[2] === viewerId &&
-        previousKey[3] === store.scope &&
-        previousKey[4] === organizationId
-      ) {
-        return previousData;
-      }
-      return undefined;
-    },
     staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
   });
 
   return foldersQuery.isError ? [] : (foldersQuery.data ?? []);
