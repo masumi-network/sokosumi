@@ -323,6 +323,26 @@
         "!src/lib/composio/use-composio-oauth-popup.ts"
       ],
       "plugins": ["../../biome-plugins/no-direct-effects.grit"]
+    },
+    {
+      "includes": [
+        "src/**",
+        "!src/hooks/effects/**",
+        "!src/components/ui/**",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/__tests__/**",
+        "!src/test/**",
+        "!src/test-fixtures/**",
+        "!**/fixtures/**",
+        "!**/*-fixture.*",
+        "!**/*-fixtures.*",
+        "!**/*.fixture.*",
+        "!**/*.fixtures.*",
+        "!**/fixtures.*",
+        "!**/fixture-*.*"
+      ],
+      "plugins": ["../../biome-plugins/no-effect-aliases.grit"]
     }
   ]
 }

@@ -24,13 +24,13 @@ Use Effects only to **synchronize with external systems** (browser APIs, network
 
 ## Named hooks in `src/hooks/effects/`
 
-Direct calls to `useEffect`, `useLayoutEffect`, and `useMountEffect` are banned in product code outside `src/hooks/effects/` (enforced by Biome; see [Effects in Web UI conventions](../../../docs/agents/web-ui.md#effects) and [ADR-0075](../../../docs/adr/0075-effects-live-only-in-named-hooks.md)). Do not introduce new `useMountEffect` calls—existing call sites are being migrated out so the general wrapper can be deleted.
+Direct calls to `useEffect`, `useLayoutEffect`, and `useMountEffect` are banned in product code outside `src/hooks/effects/` (enforced by Biome; see [Effects in Web UI conventions](../../../../docs/agents/web-ui.md#effects) and [ADR-0075](../../../../docs/adr/0075-effects-live-only-in-named-hooks.md)). Do not introduce new `useMountEffect` calls—existing call sites are being migrated out so the general wrapper can be deleted.
 
 Prefer **conditional mounting** over guarding inside an effect: don’t mount the child until preconditions are met, then call a single-purpose named hook from `src/hooks/effects/` (for example `useIsMobile`, `useKeyboardOpen`, `useClipboard`, `useLoadWhenVisible`) or add a new tested hook there that takes no general effect callback.
 
 ## Do use Effects for (or prefer alternatives)
 
-- **Named external sync** — Put genuine external synchronization (DOM listeners, observers, third-party widgets) in a named, tested hook under `src/hooks/effects/` (see [docs/agents/web-ui.md#effects](../../../docs/agents/web-ui.md#effects)).
+- **Named external sync** — Put genuine external synchronization (DOM listeners, observers, third-party widgets) in a named, tested hook under `src/hooks/effects/` (see [docs/agents/web-ui.md#effects](../../../../docs/agents/web-ui.md#effects)).
 - Subscribing to external stores (prefer `useSyncExternalStore` when applicable).
 - Reading the latest callback or prop inside an effect without re-running it (`useEffectEvent`, allowed everywhere).
 - Fetching that must stay in sync with props — use `@tanstack/react-query` instead of a manual effect.

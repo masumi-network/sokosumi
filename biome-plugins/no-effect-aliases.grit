@@ -1,0 +1,102 @@
+language js
+
+// Indirections around effect hooks (import aliases, namespace/computed members,
+// destructuring, local aliases, and renamed re-exports) are never grandfathered
+// in baselined or clean files (ADR-0075).
+or {
+  JsNamedImportSpecifier() as $spec where {
+    $spec <: r"^(?:[\"'](?:useEffect|useLayoutEffect|useMountEffect)[\"']|(?:useEffect|useLayoutEffect|useMountEffect))\s+as\s+\S+$",
+    $program <: contains JsImport() as $imp where {
+      not $imp <: r"^import\s+type\b",
+      $imp <: contains $mod where {
+        $mod <: r"^[\"'](?:react|.*/use-mount-effect)[\"']$"
+      },
+      $imp <: contains $spec
+    }
+  },
+  JsExportNamedSpecifier() as $spec where {
+    $spec <: r"^(?:[\"'](?:useEffect|useLayoutEffect|useMountEffect)[\"']|(?:useEffect|useLayoutEffect|useMountEffect))\s+as\s+\S+$"
+  },
+  JsExportNamedFromSpecifier() as $spec where {
+    $spec <: r"^(?:[\"'](?:useEffect|useLayoutEffect|useMountEffect)[\"']|(?:useEffect|useLayoutEffect|useMountEffect))\s+as\s+\S+$"
+  },
+  `React.useEffect?.($args)`,
+  `React.useLayoutEffect?.($args)`,
+  `React.useMountEffect?.($args)`,
+  `React["useEffect"]($args)`,
+  `React["useLayoutEffect"]($args)`,
+  `React["useMountEffect"]($args)`,
+  `React['useEffect']($args)`,
+  `React['useLayoutEffect']($args)`,
+  `React['useMountEffect']($args)`,
+  `React["useEffect"]?.($args)`,
+  `React["useLayoutEffect"]?.($args)`,
+  `React["useMountEffect"]?.($args)`,
+  `React['useEffect']?.($args)`,
+  `React['useLayoutEffect']?.($args)`,
+  `React['useMountEffect']?.($args)`,
+  or {
+    `$ns.useEffect($args)` where { not $ns <: `React` },
+    `$ns.useLayoutEffect($args)` where { not $ns <: `React` },
+    `$ns.useMountEffect($args)` where { not $ns <: `React` },
+    `$ns.useEffect?.($args)` where { not $ns <: `React` },
+    `$ns.useLayoutEffect?.($args)` where { not $ns <: `React` },
+    `$ns.useMountEffect?.($args)` where { not $ns <: `React` },
+    `$ns["useEffect"]($args)` where { not $ns <: `React` },
+    `$ns["useLayoutEffect"]($args)` where { not $ns <: `React` },
+    `$ns["useMountEffect"]($args)` where { not $ns <: `React` },
+    `$ns['useEffect']($args)` where { not $ns <: `React` },
+    `$ns['useLayoutEffect']($args)` where { not $ns <: `React` },
+    `$ns['useMountEffect']($args)` where { not $ns <: `React` },
+    `$ns["useEffect"]?.($args)` where { not $ns <: `React` },
+    `$ns["useLayoutEffect"]?.($args)` where { not $ns <: `React` },
+    `$ns["useMountEffect"]?.($args)` where { not $ns <: `React` },
+    `$ns['useEffect']?.($args)` where { not $ns <: `React` },
+    `$ns['useLayoutEffect']?.($args)` where { not $ns <: `React` },
+    `$ns['useMountEffect']?.($args)` where { not $ns <: `React` },
+    `$id = $ns.useEffect`,
+    `$id = $ns.useLayoutEffect`,
+    `$id = $ns.useMountEffect`,
+    `$id = $ns["useEffect"]`,
+    `$id = $ns["useLayoutEffect"]`,
+    `$id = $ns["useMountEffect"]`,
+    `$id = $ns['useEffect']`,
+    `$id = $ns['useLayoutEffect']`,
+    `$id = $ns['useMountEffect']`,
+    `$pat = $ns` where {
+      $pat <: r"^\{[\s\S]*\b(?:useEffect|useLayoutEffect|useMountEffect)\b[\s\S]*\}$"
+    }
+  } where {
+    $program <: contains JsImport() as $imp where {
+      not $imp <: r"^import\s+type\b",
+      $imp <: contains $mod where {
+        $mod <: r"^[\"'](?:react|.*/use-mount-effect)[\"']$"
+      },
+      $imp <: contains or {
+        JsNamespaceImportSpecifier(local_name=$ns),
+        JsDefaultImportSpecifier(local_name=$ns),
+        `import * as $ns from $_`,
+        `import $ns from $_`
+      }
+    }
+  },
+  or {
+    `$id = useEffect`,
+    `$id = useLayoutEffect`,
+    `$id = useMountEffect`
+  } where {
+    $program <: contains JsImport() as $imp where {
+      not $imp <: r"^import\s+type\b",
+      $imp <: contains $mod where {
+        $mod <: r"^[\"'](?:react|.*/use-mount-effect)[\"']$"
+      },
+      $imp <: contains or {
+        `useEffect`,
+        `useLayoutEffect`,
+        `useMountEffect`
+      }
+    }
+  }
+} as $match where {
+  register_diagnostic(span=$match, message="Effects live only in src/hooks/effects/. Compute during render, use an event handler, reset with key, or call a named hook from that folder. See docs/agents/web-ui.md#effects.", severity="error")
+}
