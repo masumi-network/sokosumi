@@ -16293,6 +16293,9 @@ export type CreateTaskScheduleRequest = {
      * Idempotency key, scoped to the active workspace. A retry with the same key and body returns the schedule the first request made; the same key with a different body or creator is a 409 schedule_operation_conflict.
      */
     operationId?: string;
+    /**
+     * Each {date} becomes the Run's date (YYYY-MM-DD) in the rule's time zone in the Task's name.
+     */
     name: string;
     description?: string | null;
     projectId?: string | null;
@@ -16345,6 +16348,9 @@ export type UpdateTaskScheduleRequest = {
      * Revision observed by the caller; a newer one is a 409
      */
     expectedRevision: number;
+    /**
+     * Each {date} becomes the Run's date (YYYY-MM-DD) in the rule's time zone in the Task's name.
+     */
     name?: string;
     description?: string | null;
     projectId?: string | null;

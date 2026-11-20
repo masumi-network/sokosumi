@@ -272,7 +272,7 @@ describe("TaskScheduleDialog", () => {
 
     expect(screen.getByLabelText("name")).toHaveValue("Daily digest {date}");
     // The next 09:00 run is today or tomorrow, by the machine's time zone.
-    expect(screen.getByTestId("schedule-name-preview")).toHaveTextContent(
+    expect(screen.getByRole("status")).toHaveTextContent(
       /^preview: Daily digest 2026-10-0[12]$/,
     );
 
@@ -280,6 +280,41 @@ describe("TaskScheduleDialog", () => {
     await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
     expect(createTaskScheduleMock).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Daily digest {date}" }),
+    );
+  });
+
+  it("adds {date} from the keyboard and keeps focus on the name", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    const name = screen.getByLabelText("name");
+    const status = screen.getByRole("status");
+    expect(name).toHaveAttribute("aria-describedby", status.id);
+    expect(status).toHaveTextContent("hint");
+
+    await user.type(name, "Daily digest");
+    screen.getByRole("button", { name: "add" }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(name).toHaveFocus();
+    expect(name).toHaveValue("Daily digest {date}");
+    // The same live region now reads out the next Task's name.
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toHaveTextContent(/^preview: Daily digest 2026-10-0[12]$/);
+  });
+
+  it("previews an edited schedule's next Run where Core planned it, moves included", async () => {
+    // The rule says Monday 14 January; that Run was moved to Tuesday.
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        name: "Weekly report {date}",
+        nextRunAt: new Date("2030-01-15T07:30:00.000Z"),
+      },
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "preview: Weekly report 2030-01-15",
     );
   });
 

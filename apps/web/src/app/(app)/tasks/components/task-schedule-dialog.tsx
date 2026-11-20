@@ -181,6 +181,8 @@ function TaskScheduleDialogForm({
   const tWhen = useTranslations("App.Tasks.Schedules.Dialog.When");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const descriptionId = useId();
+  const nameHelpId = useId();
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const privateDescriptionId = useId();
   const copiedAssigneeId = copyOf ? taskScheduleAssigneeId(copyOf) : null;
   const blueprint: TaskScheduleBlueprintPrefill =
@@ -396,8 +398,10 @@ function TaskScheduleDialogForm({
 
           <div className="space-y-4 border-t px-6 py-5 md:px-8">
             <input
+              ref={nameInputRef}
               type="text"
               aria-label={t("name")}
+              aria-describedby={nameHelpId}
               placeholder={tNewTask("namePlaceholder")}
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -405,14 +409,25 @@ function TaskScheduleDialogForm({
               className="placeholder:text-muted-foreground w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight shadow-none outline-none"
             />
             <ScheduleNameDate
+              id={nameHelpId}
               name={name}
-              nextRunAt={summary.nextRunAt}
+              // Editing only the blueprint: Core's next Run, which a move or
+              // skip may have shifted. A changed rule: its first new Run.
+              nextRunAt={
+                schedule && !whenChanged
+                  ? schedule.nextRunAt
+                    ? new Date(schedule.nextRunAt)
+                    : undefined
+                  : summary.nextRunAt
+              }
               timezone={when.timezone}
-              onAddDate={() =>
+              onAddDate={() => {
+                // The button goes away once the name holds {date}.
+                nameInputRef.current?.focus();
                 setName((current) =>
                   `${current.trimEnd()} ${SCHEDULE_TASK_NAME_DATE_TOKEN}`.trimStart(),
-                )
-              }
+                );
+              }}
             />
             <FileUpload
               label={tNewTask("uploadFile")}
@@ -618,14 +633,17 @@ function TaskScheduleDialogForm({
 
 /**
  * Under the schedule's name: how to put each Run's date in its Task's name,
- * or, once the name holds `{date}`, the next Task's name.
+ * or, once the name holds `{date}`, the next Task's name. One polite status
+ * region holds both, so the change is read out.
  */
 function ScheduleNameDate({
+  id,
   name,
   nextRunAt,
   timezone,
   onAddDate,
 }: {
+  id: string;
   name: string;
   nextRunAt: Date | undefined;
   timezone: string;
@@ -633,26 +651,24 @@ function ScheduleNameDate({
 }) {
   const t = useTranslations("App.Tasks.Schedules.Dialog.NameDate");
   const token = SCHEDULE_TASK_NAME_DATE_TOKEN;
-  if (!name.includes(token)) {
-    return (
-      <div className="text-muted-foreground -mt-2 flex flex-wrap items-center gap-x-2 text-sm">
-        <span>{t("hint", { token })}</span>
+  const hasDate = name.includes(token);
+  let text: string;
+  if (!hasDate) text = t("hint", { token });
+  else if (nextRunAt)
+    text = t("preview", {
+      taskName: fillScheduleTaskName(name.trim(), nextRunAt, timezone),
+    });
+  else text = t("noNext", { token });
+  return (
+    <div className="text-muted-foreground -mt-2 flex flex-wrap items-center gap-x-2 text-sm">
+      <p id={id} role="status" className="min-w-0 text-pretty wrap-anywhere">
+        {text}
+      </p>
+      {hasDate ? null : (
         <Button type="button" variant="ghost" size="sm" onClick={onAddDate}>
           {t("add")}
         </Button>
-      </div>
-    );
-  }
-  return (
-    <p
-      className="text-muted-foreground -mt-2 text-sm text-pretty"
-      data-testid="schedule-name-preview"
-    >
-      {nextRunAt
-        ? t("preview", {
-            taskName: fillScheduleTaskName(name.trim(), nextRunAt, timezone),
-          })
-        : t("noNext", { token })}
-    </p>
+      )}
+    </div>
   );
 }

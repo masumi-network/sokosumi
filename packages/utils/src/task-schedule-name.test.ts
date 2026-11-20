@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { fillScheduleTaskName } from "./task-schedule-name.js";
+import {
+  fillScheduleTaskName,
+  scheduleTaskNameLength,
+} from "./task-schedule-name.js";
 
 describe("fillScheduleTaskName", () => {
   it("puts the run's date in the schedule's time zone", () => {
@@ -21,6 +24,16 @@ describe("fillScheduleTaskName", () => {
     expect(fillScheduleTaskName("Weekly report", runAt, "UTC")).toBe(
       "Weekly report",
     );
+  });
+
+  it("writes a zero-padded YYYY-MM-DD in any locale", () => {
+    const runAt = new Date("0987-02-03T12:00:00Z");
+    expect(fillScheduleTaskName("{date}", runAt, "UTC")).toBe("0987-02-03");
+  });
+
+  it("measures the name a Run's Task gets", () => {
+    expect(scheduleTaskNameLength("Report")).toBe(6);
+    expect(scheduleTaskNameLength("Report {date} {date}")).toBe(28);
   });
 
   it("falls back to UTC for an unknown time zone", () => {

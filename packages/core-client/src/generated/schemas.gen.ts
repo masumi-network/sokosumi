@@ -65277,7 +65277,8 @@ export const CreateTaskScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 10000,
-            example: 'Weekly report'
+            description: 'Each {date} becomes the Run\'s date (YYYY-MM-DD) in the rule\'s time zone in the Task\'s name.',
+            example: 'Weekly report {date}'
         },
         description: {
             type: [
@@ -65413,7 +65414,8 @@ export const UpdateTaskScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 10000,
-            example: 'Weekly report'
+            description: 'Each {date} becomes the Run\'s date (YYYY-MM-DD) in the rule\'s time zone in the Task\'s name.',
+            example: 'Weekly report {date}'
         },
         description: {
             type: [

@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { TaskScheduleEndsMode, TaskScheduleRunState } from "@sokosumi/database";
+import { scheduleTaskNameLength } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -123,7 +124,15 @@ const taskScheduleNameSchema = z
   .trim()
   .min(1)
   .max(LIMITS.NAME_MAX_LENGTH)
-  .openapi({ example: "Weekly report" });
+  .refine(
+    (name) => scheduleTaskNameLength(name) <= LIMITS.NAME_MAX_LENGTH,
+    "The Task name with each {date} filled in is too long",
+  )
+  .openapi({
+    description:
+      "Each {date} becomes the Run's date (YYYY-MM-DD) in the rule's time zone in the Task's name.",
+    example: "Weekly report {date}",
+  });
 
 const taskScheduleAssigneeFields = {
   assigneeId: z.string().min(1).nullish().openapi({

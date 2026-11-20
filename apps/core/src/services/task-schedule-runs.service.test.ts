@@ -36,8 +36,11 @@ vi.mock("@/helpers/task-notifications", () => ({
   notifyTaskHumanAssignee: vi.fn(),
 }));
 
-const { TASK_SCHEDULE_RELEASE_BATCH_SIZE, taskScheduleReleaseService } =
-  await import("./task-schedule-runs.service");
+const {
+  TASK_SCHEDULE_RELEASE_BATCH_SIZE,
+  releaseManualTaskScheduleRun,
+  taskScheduleReleaseService,
+} = await import("./task-schedule-runs.service");
 
 const NOW = new Date("2030-01-07T09:30:00.000Z");
 const MONDAY_9 = new Date("2030-01-07T09:00:00.000Z");
@@ -285,6 +288,37 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       "Weekly report 2029-12-31",
       "Weekly report 2030-01-07",
     ]);
+  });
+
+  it("cuts a saved name whose filled {date}s pass the Task name limit", async () => {
+    // Saved before the limit counted filled dates: 9,996 characters.
+    const schedule = seedTaskSchedule({
+      name: "{date}".repeat(1666),
+      nextRunAt: MONDAY_9,
+    });
+    seedRun(schedule, MONDAY_9);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks[0]?.name).toHaveLength(10_000);
+  });
+
+  it("names a Run now Task after the day it runs, not the next planned Run", async () => {
+    const schedule = seedTaskSchedule({
+      name: "Report {date}",
+      nextRunAt: NEXT_MONDAY_9,
+    });
+
+    const { task } = (await taskScheduleTestPrisma.$transaction((tx) =>
+      releaseManualTaskScheduleRun(tx as never, schedule, NOW, {
+        actorUserId: OWNER_ID,
+        actorCoworkerId: null,
+      }),
+    )) as Awaited<ReturnType<typeof releaseManualTaskScheduleRun>>;
+
+    expect(
+      taskScheduleTestDb.tasks.find((row) => row.id === task.id)?.name,
+    ).toBe("Report 2030-01-07");
   });
 
   it("keeps planning Runs across the calendar horizon", async () => {

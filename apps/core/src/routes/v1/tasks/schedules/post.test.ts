@@ -257,6 +257,17 @@ describe("POST /tasks/schedules", () => {
       });
     });
 
+    it("rejects a name whose Tasks would pass the name limit once {date} is filled", async () => {
+      // 9,600 characters as saved, 16,000 once each {date} is a date.
+      const response = await post({
+        name: "{date}".repeat(1600),
+        rule: WEEKLY_RULE,
+      });
+
+      expect(response.status).toBe(422);
+      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+    });
+
     it("rejects more than one assignee", async () => {
       const response = await post({
         name: "Weekly report",

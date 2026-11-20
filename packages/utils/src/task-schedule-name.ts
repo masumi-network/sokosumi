@@ -1,9 +1,25 @@
 /** The token a Task Schedule name can hold for its Run's date. */
 export const SCHEDULE_TASK_NAME_DATE_TOKEN = "{date}";
 
+/** A date is always YYYY-MM-DD: ten characters. */
+const DATE_LENGTH = 10;
+
 function isoDate(at: Date, timeZone: string): string {
-  // en-CA formats a date as YYYY-MM-DD.
-  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(at);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    })
+      .formatToParts(at)
+      .map((part) => [part.type, part.value]),
+  );
+  return [
+    parts.year.padStart(4, "0"),
+    parts.month.padStart(2, "0"),
+    parts.day.padStart(2, "0"),
+  ].join("-");
 }
 
 /**
@@ -24,4 +40,12 @@ export function fillScheduleTaskName(
     date = isoDate(runAt, "UTC");
   }
   return name.replaceAll(SCHEDULE_TASK_NAME_DATE_TOKEN, date);
+}
+
+/** How long the Task name made from this schedule name is, whatever the date. */
+export function scheduleTaskNameLength(name: string): number {
+  const tokens = name.split(SCHEDULE_TASK_NAME_DATE_TOKEN).length - 1;
+  return (
+    name.length + tokens * (DATE_LENGTH - SCHEDULE_TASK_NAME_DATE_TOKEN.length)
+  );
 }
