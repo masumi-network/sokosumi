@@ -8171,6 +8171,7 @@ export type BrandBrain = {
             note?: string;
             corrected?: boolean;
         }>;
+        promiseByOwner?: boolean;
     } | null;
     /**
      * When the essentials were last saved.
@@ -8582,6 +8583,7 @@ export type BrandBrainRequest = {
             note?: string;
             corrected?: boolean;
         }>;
+        promiseByOwner?: boolean;
     };
 };
 
@@ -13881,6 +13883,7 @@ export type CmoOverview = {
             note?: string;
             corrected?: boolean;
         }>;
+        promiseByOwner?: boolean;
     } | null;
     brandBrainUpdatedAt: Date | null;
     brandBrainConfirmedAt: Date | null;

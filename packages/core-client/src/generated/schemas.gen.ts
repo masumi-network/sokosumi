@@ -29054,6 +29054,9 @@ export const BrandBrainSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        promiseByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -31342,6 +31345,9 @@ export const BrandBrainRequestSchema = {
                     },
                     maxItems: 6,
                     default: []
+                },
+                promiseByOwner: {
+                    type: 'boolean'
                 }
             },
             required: [
@@ -55128,6 +55134,9 @@ export const CmoOverviewSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        promiseByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [

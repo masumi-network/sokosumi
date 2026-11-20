@@ -12,4 +12,5 @@
 - It's recognisably their business, with sources for what Cuso found.
 - The pages and pictures are their own site's, each page linking to it.
 - A correction lands in the right section and sticks.
+- A promise they rewrite reads as theirs, without the site named as its source.
 - Competitors are real and relevant.

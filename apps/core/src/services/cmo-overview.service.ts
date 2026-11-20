@@ -1,7 +1,7 @@
 import {
-  type BrandBrain,
   type MarketingStrategyPlan,
   SOKO_BOT_CMO_RHYTHMS,
+  type StoredBrandBrainBody,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
@@ -158,7 +158,7 @@ export interface CmoOverview {
   subscriptionActive: boolean;
   /** This member may approve the strategy. */
   viewerCanApprove: boolean;
-  brandBrain: BrandBrain | null;
+  brandBrain: StoredBrandBrainBody | null;
   /** The newest Marketing strategy version's plan: what the owner reviews. */
   strategy: MarketingStrategyPlan | null;
   /**
