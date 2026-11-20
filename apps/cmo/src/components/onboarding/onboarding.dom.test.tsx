@@ -573,10 +573,10 @@ it("fits the plan to an edit the founder made before Looks like us", async () =>
   expect(onCorrect).not.toHaveBeenCalled();
 });
 
-it("says a waiting fix will reach the plan, and lets the founder approve", async () => {
+it("says a waiting fix follows the strategy, how long, and lets the founder approve", async () => {
   await openSell(writingPlan({ fixed: false }));
   expect(container.querySelector("aside")?.textContent).toContain(
-    "Cuso will fix this and update your strategy.",
+    "Cuso is writing your strategy now. He makes this fix as soon as he is done, usually within 15 minutes",
   );
   expect(button("Looks like us").disabled).toBe(false);
 });

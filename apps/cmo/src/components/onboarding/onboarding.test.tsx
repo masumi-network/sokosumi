@@ -16,7 +16,7 @@ import {
 import { Onboarding } from "../onboarding";
 import { feedScreens } from "../phone-feeds";
 import { showcaseEntries } from "../showcases";
-import { BrandStep } from "./brand-step";
+import { BrandStep, fixWaitNote } from "./brand-step";
 import {
   LaunchStep,
   optionalChannels,
@@ -1066,5 +1066,34 @@ describe("strategy helpers the screens build on", () => {
     expect(groups.get("linkedin")?.map((entry) => entry.id)).toEqual(["a"]);
     expect(groups.get("x")?.map((entry) => entry.id)).toEqual(["b"]);
     expect(groups.get("newsletter")?.map((entry) => entry.id)).toEqual(["c"]);
+  });
+});
+
+describe("how long a correction waits", () => {
+  it("says the strategy comes first, and how long, while Cuso writes it", () => {
+    expect(
+      fixWaitNote(
+        draft({
+          botStatus: "RUNNING",
+          work: work("strategy", { change: null }),
+        }),
+      ),
+    ).toBe(
+      "Cuso is writing your strategy now. He makes this fix as soon as he is done, usually within 15 minutes, and updates the strategy to match.",
+    );
+  });
+
+  it("promises a quick fix otherwise", () => {
+    expect(fixWaitNote(draft({ work: null }))).toBe(
+      "Cuso will fix this and update your strategy.",
+    );
+    expect(
+      fixWaitNote(
+        draft({
+          botStatus: "RUNNING",
+          work: work("strategy", { change: "patch" }),
+        }),
+      ),
+    ).toBe("Cuso will fix this and update your strategy.");
   });
 });
