@@ -119,23 +119,26 @@ export function TasksPageSkeletonHost() {
   );
 
   return (
-    <div className="w-full">
-      <TasksLoadingView
-        viewMode={viewMode}
-        compact={density === "compact"}
-        labels={labels}
-        toolbar={
-          // Reading the URL suspends while Next prerenders a static shell;
-          // a request-time render and a client navigation draw it at once.
-          <Suspense fallback={null}>
+    // The toolbar reads the URL, which suspends while Next prerenders a
+    // static shell. The whole shell waits with it: a static shell draws no
+    // board rather than columns without their toolbar, which would drop when
+    // the toolbar arrives. A request-time render and a client navigation
+    // draw it at once.
+    <Suspense fallback={null}>
+      <div className="w-full">
+        <TasksLoadingView
+          viewMode={viewMode}
+          compact={density === "compact"}
+          labels={labels}
+          toolbar={
             <TasksToolbarShell
               viewMode={viewMode}
               density={density}
               labels={labels}
             />
-          </Suspense>
-        }
-      />
-    </div>
+          }
+        />
+      </div>
+    </Suspense>
   );
 }

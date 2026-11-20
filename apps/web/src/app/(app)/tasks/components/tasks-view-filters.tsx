@@ -38,6 +38,7 @@ import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
 import { TaskTagDot } from "./task-tag-colors";
+import { TasksFilterChipStrip } from "./tasks-filter-chip-strip";
 import { replaceTasksQuery, useTasksSearchParams } from "./tasks-search-params";
 import {
   getTasksView,
@@ -53,7 +54,10 @@ import {
  */
 export function focusToolbarControl(toolbar: Element | null | undefined) {
   const buttons = Array.from(toolbar?.querySelectorAll("button") ?? []).filter(
-    (button) => !button.closest("ul") && button.offsetParent !== null,
+    (button) =>
+      !button.closest("ul") &&
+      !button.hasAttribute("data-chip-strip-scroll") &&
+      button.offsetParent !== null,
   );
   (
     buttons.find((button) => button.closest(`[${FILTERS_MENU_ATTRIBUTE}]`)) ??
@@ -440,7 +444,10 @@ export function TasksViewFilters({
     // is active, because those are what a reader changes most. Chips follow
     // on the switcher's line. The Filters menu holds the rest and sits at the right
     // edge, with the view options menu after it.
-    <div className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2">
+    <div
+      data-tasks-toolbar
+      className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2"
+    >
       {userId ? (
         <TasksViewSwitcher
           value={currentView}
@@ -452,20 +459,17 @@ export function TasksViewFilters({
         />
       ) : null}
       {chips.length > 0 ? (
-        // One line beside the switcher: chips shrink and then scroll instead
-        // of wrapping, so the toolbar is as tall with filters as without and
-        // the loading shell holds the board where it lands. The padding keeps
-        // focus rings inside the scroll box.
-        <ul
-          aria-label={t("activeFilters")}
-          className="-m-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-1 [scrollbar-width:none] scroll-edge-x"
+        <TasksFilterChipStrip
+          label={t("activeFilters")}
+          itemsKey={chips.map((chip) => `${chip.id}:${chip.value}`).join("|")}
         >
           {chips.map((chip) => {
             const name = t("chip", { label: chip.label, value: chip.value });
             return (
               <li
                 key={chip.id}
-                className="bg-muted text-foreground inline-flex min-h-8 min-w-0 items-center rounded-full ps-3 text-sm"
+                // Never narrower than its label: the line scrolls instead.
+                className="bg-muted text-foreground inline-flex min-h-8 max-w-64 shrink-0 items-center rounded-full ps-3 text-sm"
               >
                 {chip.id === "tag" && filters.tag && (
                   <span className="me-1.5 flex">
@@ -473,12 +477,16 @@ export function TasksViewFilters({
                       ?.mark ?? <TaskTagDot id={filters.tag} />}
                   </span>
                 )}
-                <span className="truncate">{name}</span>
+                {/* Only a very long name is cut; the title keeps it whole. */}
+                <span className="truncate" title={name}>
+                  {name}
+                </span>
                 <ChipRemoveButton
                   aria-label={t("removeFilter", { filter: name })}
                   onClick={(event) => {
-                    const toolbar =
-                      event.currentTarget.closest("ul")?.parentElement;
+                    const toolbar = event.currentTarget.closest(
+                      "[data-tasks-toolbar]",
+                    );
                     handleFilterChange(chip.clear);
                     focusToolbarControl(toolbar);
                   }}
@@ -486,11 +494,14 @@ export function TasksViewFilters({
               </li>
             );
           })}
-        </ul>
+        </TasksFilterChipStrip>
       ) : null}
       <PageSearchActions>
         <PageQuerySearchField
           inHeader
+          // Narrower beside the chips on a tablet-wide toolbar, so a chip
+          // keeps room for its whole label.
+          className="@2xl/page-toolbar:w-40 @4xl/page-toolbar:w-64"
           maxLength={TASK_SEARCH_MAX_LENGTH}
           placeholder={tPage("searchPlaceholder")}
         />
