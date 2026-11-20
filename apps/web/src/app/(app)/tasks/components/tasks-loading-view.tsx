@@ -1,12 +1,17 @@
 import { Ellipsis } from "lucide-react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
-import { TASK_CARD_DENSITY_CLASS } from "@/app/tasks/constants";
+import {
+  TASK_CARD_DENSITY_CLASS,
+  TASKS_BOARD_MIN_HEIGHT_CLASS,
+} from "@/app/tasks/constants";
 import {
   COLUMN_STATUS_COLORS,
   KANBAN_COLUMNS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { Button } from "@/components/ui/button";
+import { SEGMENTED_CONTROL_CLASS_NAME } from "@/components/ui/segmented-control-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
@@ -77,17 +82,43 @@ export function TasksLoadingView({
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div className="flex flex-row items-center justify-end gap-3">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="hit-area"
-            aria-label={labels.display.button}
-            disabled
+      {/* The board's toolbar at its real sizes (`TasksViewFilters`): the view
+          switcher, then search, Filters and view options, which wrap under
+          it on a narrow page. A shorter row here drops the board when it
+          loads: 8px from md, 56px on a phone. */}
+      <div className="flex items-start gap-2">
+        <div className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <div
+            aria-hidden
+            data-testid="tasks-view-switcher-skeleton"
+            className={SEGMENTED_CONTROL_CLASS_NAME}
           >
-            <Ellipsis className="size-4" aria-hidden />
-          </Button>
+            <Skeleton className="h-8 w-11" />
+            <Skeleton className="h-8 w-10 sm:w-24" />
+            <Skeleton className="h-8 w-10 lg:w-24" />
+            <Skeleton className="h-8 w-10 lg:w-24" />
+          </div>
+          <PageSearchActions>
+            <div
+              aria-hidden
+              className="w-full min-w-[min(9rem,100%)] flex-1 basis-36 sm:max-w-sm @2xl/page-toolbar:w-64 @2xl/page-toolbar:flex-none"
+            >
+              <Skeleton
+                data-testid="tasks-search-skeleton"
+                className="h-10 w-full @2xl/page-toolbar:h-8"
+              />
+            </div>
+            <Skeleton aria-hidden className="h-8 w-10 sm:w-22" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="hit-area"
+              aria-label={labels.display.button}
+              disabled
+            >
+              <Ellipsis className="size-4" aria-hidden />
+            </Button>
+          </PageSearchActions>
         </div>
       </div>
 
@@ -125,7 +156,12 @@ function TasksBoardLoading({
   compact: boolean;
 }) {
   return (
-    <div className="-mx-2 flex size-full min-h-[calc(100dvh-8.5rem)] min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
+    <div
+      className={cn(
+        "-mx-2 flex size-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar",
+        TASKS_BOARD_MIN_HEIGHT_CLASS,
+      )}
+    >
       {KANBAN_COLUMNS.map((column, index) => {
         const cardCount = BOARD_SKELETON_CARD_COUNTS[index] ?? 1;
 

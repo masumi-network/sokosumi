@@ -100,8 +100,55 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByRole("link", { name: "Later" }).click();
       await page.waitForURL(`${BASE_URL}/`);
 
+      // A cold board load on a slow line shows the skeleton first. Record where
+      // the first column starts on every frame: it must not move when the
+      // board replaces the skeleton.
+      const cdp = await context.newCDPSession(page);
+      await cdp.send("Network.emulateNetworkConditions", {
+        offline: false,
+        latency: 400,
+        downloadThroughput: 1_500_000 / 8,
+        uploadThroughput: 750_000 / 8,
+      });
+      await page.addInitScript(() => {
+        const tops: number[] = [];
+        (window as unknown as { __columnTops: number[] }).__columnTops = tops;
+        const tick = () => {
+          const column = document.querySelector("main section");
+          const top = column
+            ? Math.round(column.getBoundingClientRect().top)
+            : 0;
+          if (top > 0 && tops.at(-1) !== top) tops.push(top);
+          if (tops.length < 20 && performance.now() < 30_000)
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
       await page.goto(`${BASE_URL}/tasks`);
       await page.getByRole("heading", { name: "Backlog" }).waitFor();
+      await page.getByRole("radiogroup", { name: "Tasks view" }).waitFor();
+      await cdp.send("Network.emulateNetworkConditions", {
+        offline: false,
+        latency: 0,
+        downloadThroughput: -1,
+        uploadThroughput: -1,
+      });
+      const columnTops = await page.evaluate(
+        () => (window as unknown as { __columnTops: number[] }).__columnTops,
+      );
+      assert.equal(
+        new Set(columnTops).size,
+        1,
+        `the board's columns move while it loads (top ${columnTops.join(" -> ")}px)`,
+      );
+      // From md up the board fits the screen: the page itself does not scroll.
+      if (viewport.width >= 768) {
+        const pageScroll = await page.evaluate(() => {
+          const main = document.querySelector("main");
+          return main ? main.scrollHeight - main.clientHeight : 0;
+        });
+        assert.equal(pageScroll, 0, `the board page scrolls ${pageScroll}px`);
+      }
       // Phone: the floating Create task button. Tablet: open the sidebar first.
       const fab = page.getByRole("button", { name: "Create task" });
       const showSidebar = page.getByRole("button", { name: "Show sidebar" });

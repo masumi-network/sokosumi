@@ -4,6 +4,8 @@ import {
   TASKS_LOADING_DEFAULT_LABELS,
   TasksLoadingView,
 } from "@/app/tasks/components/tasks-loading-view";
+import { TASKS_BOARD_MIN_HEIGHT_CLASS } from "@/app/tasks/constants";
+import { SEGMENTED_CONTROL_CLASS_NAME } from "@/components/ui/segmented-control-classes";
 
 describe("TasksLoadingView", () => {
   it("renders board columns by default", () => {
@@ -56,6 +58,36 @@ describe("TasksLoadingView", () => {
     expect(listShell).toHaveClass("rounded-xl", "p-2", "md:border", "md:p-0");
     expect(listShell).not.toHaveClass("border");
     expect(listShell).not.toHaveClass("-mx-4");
+  });
+
+  it("draws the board toolbar's rows at their real heights, so the board does not drop when it loads", () => {
+    const { container } = render(
+      <TasksLoadingView labels={TASKS_LOADING_DEFAULT_LABELS} />,
+    );
+
+    const toolbar = container.querySelector(".\\@container\\/page-toolbar");
+    expect(toolbar).toBeTruthy();
+    // The view switcher: a 40px segmented control of four 32px items.
+    const switcher = screen.getByTestId("tasks-view-switcher-skeleton");
+    expect(switcher).toHaveClass(...SEGMENTED_CONTROL_CLASS_NAME.split(" "));
+    expect(switcher.children).toHaveLength(4);
+    for (const item of switcher.children) expect(item).toHaveClass("h-8");
+    // Search, Filters and view options wrap together under it, as on the board.
+    const search = screen.getByTestId("tasks-search-skeleton");
+    expect(search).toHaveClass("h-10", "@2xl/page-toolbar:h-8");
+    expect(search.closest(".ms-auto")).toContainElement(
+      screen.getByRole("button", { name: "View options" }),
+    );
+  });
+
+  it("gives the board the height it has once loaded", () => {
+    const { container } = render(
+      <TasksLoadingView labels={TASKS_LOADING_DEFAULT_LABELS} />,
+    );
+
+    expect(container.querySelector(".overflow-x-auto")).toHaveClass(
+      TASKS_BOARD_MIN_HEIGHT_CLASS,
+    );
   });
 
   it("renders card and row placeholders for every list item, like TaskListView", () => {
