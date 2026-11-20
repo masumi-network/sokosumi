@@ -12,7 +12,7 @@ import {
   SokoBotSetupSteps,
 } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
 
@@ -45,9 +45,7 @@ export function AssistantConnectStep({
 
   // The Picture step's Create button held focus and is gone, so start this
   // step at its heading, as the earlier steps do.
-  useMountEffect(() => {
-    headingRef.current?.focus();
-  });
+  useFocusWhen(headingRef, true);
 
   async function handleConnect(provider: string) {
     setBusy(provider);

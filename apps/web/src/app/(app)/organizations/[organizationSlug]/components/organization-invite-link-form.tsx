@@ -3,12 +3,13 @@
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { createOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
 
 const COPIED_RESET_MS = 2000;
@@ -48,35 +49,21 @@ export function OrganizationInviteLinkForm({
   const [maxUses, setMaxUses] = useState(String(MIN_MAX_USES));
   const [loading, setLoading] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
-  const copiedResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-
-  useEffect(() => {
-    return () => {
-      if (copiedResetTimeoutRef.current !== null) {
-        clearTimeout(copiedResetTimeoutRef.current);
-      }
-    };
-  }, []);
+  const copiedResetTimeout = useScheduledTimeout();
 
   const handleCopyCreatedLink = useCallback(
     async (url: string) => {
       try {
         await navigator.clipboard.writeText(url);
         setCopiedUrl(url);
-        if (copiedResetTimeoutRef.current !== null) {
-          clearTimeout(copiedResetTimeoutRef.current);
-        }
-        copiedResetTimeoutRef.current = setTimeout(() => {
-          copiedResetTimeoutRef.current = null;
+        copiedResetTimeout.schedule(() => {
           setCopiedUrl(null);
         }, COPIED_RESET_MS);
       } catch {
         toast.error(t("copyError"));
       }
     },
-    [t],
+    [copiedResetTimeout, t],
   );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

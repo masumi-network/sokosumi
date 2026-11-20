@@ -19,6 +19,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   judgeSokoBotLabTurnAction,
@@ -707,10 +708,10 @@ function ScenarioRow({
   // A Run all works through twenty-two scenarios; without this the one being
   // run is usually somewhere off-screen.
   const isLive = live !== null;
-  useEffect(() => {
-    if (!isLive) return;
-    rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [isLive]);
+  useScrollIntoViewWhen(rowRef, isLive, {
+    block: "nearest",
+    behavior: "smooth",
+  });
 
   return (
     <li ref={rowRef} className="px-4 py-3">
