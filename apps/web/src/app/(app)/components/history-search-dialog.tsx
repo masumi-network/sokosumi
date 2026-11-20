@@ -11,7 +11,7 @@ import { Copy, FileText, ListTodo, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
-  GoToSearchGroups,
+  GoToSearchList,
   type GoToSearchState,
 } from "@/app/components/go-to-search-groups";
 import {
@@ -36,7 +36,6 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList,
 } from "@/components/ui/command";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -220,23 +219,23 @@ export function HistorySearchDialog({
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList ref={listRef} style={{ maxHeight: listMaxHeight }}>
-        <GoToSearchGroups
-          query={query}
-          labels={labels}
-          onSelect={closeAndGo}
-          renderStatus={(goTo) => (
-            <SearchStatus
-              searching={searching}
-              nothingFound={nothingFound}
-              hasHistory={history.length > 0}
-              error={error}
-              goTo={goTo}
-              labels={labels}
-            />
-          )}
-        />
-
+      <GoToSearchList
+        query={query}
+        labels={labels}
+        onSelect={closeAndGo}
+        listRef={listRef}
+        listStyle={{ maxHeight: listMaxHeight }}
+        renderStatus={(goTo) => (
+          <SearchStatus
+            searching={searching}
+            nothingFound={nothingFound}
+            hasHistory={history.length > 0}
+            error={error}
+            goTo={goTo}
+            labels={labels}
+          />
+        )}
+      >
         <TagSearchGroups
           tags={tags}
           tagsState={tagsState}
@@ -316,7 +315,7 @@ export function HistorySearchDialog({
             </CommandItem>
           </CommandGroup>
         ) : null}
-      </CommandList>
+      </GoToSearchList>
     </CommandDialog>
   );
 }

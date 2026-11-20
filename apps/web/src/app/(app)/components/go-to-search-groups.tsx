@@ -1,12 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
 import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { ChannelKindGlyph } from "@/components/chat/channel-discoverability-icon";
 import { useLiveChatRoomsRead } from "@/components/chat/use-live-chat-rooms";
-import { CommandGroup, CommandItem } from "@/components/ui/command";
+import {
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 const GO_TO_LIMIT = 5;
 
@@ -24,22 +28,30 @@ const IDLE_GO_TO: GoToSearchState = {
 };
 
 /**
- * Projects and channels whose name matches, so Search can jump to them.
- * Mounted with the open dialog, so it also renders the dialog's one status
- * region. Both lists come from the reader's own access (Core's project
- * search, the reader's room memberships).
+ * Search's result list, led by the Projects and channels whose name matches
+ * so Search can jump to them; the dialog's other groups follow as children.
+ * Mounted with the open dialog. It renders the dialog's one status region
+ * just above the list, since a listbox may hold only options and groups.
+ * Both lists come from the reader's own access (Core's project search, the
+ * reader's room memberships).
  */
-export function GoToSearchGroups({
+export function GoToSearchList({
   query,
   labels,
   onSelect,
   renderStatus,
+  listRef,
+  listStyle,
+  children,
 }: {
   query: string;
   labels: { projectsGroup: string; channelsGroup: string };
   onSelect: (href: string) => void;
   /** The dialog's status line, told whether these reads are still out. */
   renderStatus: (state: GoToSearchState) => ReactNode;
+  listRef: (list: HTMLDivElement | null) => void;
+  listStyle: CSSProperties;
+  children: ReactNode;
 }) {
   const needle = query.trim().toLowerCase();
   const typed = needle.length > 0;
@@ -74,45 +86,48 @@ export function GoToSearchGroups({
             }
           : IDLE_GO_TO,
       )}
-      {projects.length > 0 ? (
-        <CommandGroup heading={labels.projectsGroup}>
-          {projects.map((project) => (
-            <CommandItem
-              key={project.id}
-              value={`project:${project.id}`}
-              onSelect={() => onSelect(`/projects/${project.id}`)}
-            >
-              {/* Decorative: its initial would repeat the name. */}
-              <span aria-hidden className="contents">
-                <ProjectAvatar
-                  name={project.name}
-                  logo={project.logo}
-                  className="size-4 rounded-sm [&_[data-slot=avatar-fallback]]:rounded-sm"
-                  fallbackClassName="text-2xs"
+      <CommandList ref={listRef} style={listStyle}>
+        {projects.length > 0 ? (
+          <CommandGroup heading={labels.projectsGroup}>
+            {projects.map((project) => (
+              <CommandItem
+                key={project.id}
+                value={`project:${project.id}`}
+                onSelect={() => onSelect(`/projects/${project.id}`)}
+              >
+                {/* Decorative: its initial would repeat the name. */}
+                <span aria-hidden className="contents">
+                  <ProjectAvatar
+                    name={project.name}
+                    logo={project.logo}
+                    className="size-4 rounded-sm [&_[data-slot=avatar-fallback]]:rounded-sm"
+                    fallbackClassName="text-2xs"
+                  />
+                </span>
+                <span className="truncate">{project.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
+        {channels.length > 0 ? (
+          <CommandGroup heading={labels.channelsGroup}>
+            {channels.map((room) => (
+              <CommandItem
+                key={room.id}
+                value={`channel:${room.id}`}
+                onSelect={() => onSelect(chatRoomHref(room.id))}
+              >
+                <ChannelKindGlyph
+                  discoverability={room.discoverability}
+                  className="size-4"
                 />
-              </span>
-              <span className="truncate">{project.name}</span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      ) : null}
-      {channels.length > 0 ? (
-        <CommandGroup heading={labels.channelsGroup}>
-          {channels.map((room) => (
-            <CommandItem
-              key={room.id}
-              value={`channel:${room.id}`}
-              onSelect={() => onSelect(chatRoomHref(room.id))}
-            >
-              <ChannelKindGlyph
-                discoverability={room.discoverability}
-                className="size-4"
-              />
-              <span className="truncate">{room.name}</span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      ) : null}
+                <span className="truncate">{room.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
+        {children}
+      </CommandList>
     </>
   );
 }

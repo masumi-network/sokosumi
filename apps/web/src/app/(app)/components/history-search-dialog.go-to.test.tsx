@@ -247,5 +247,7 @@ describe("HistorySearchDialog Projects and Channels groups", () => {
 
     expect(screen.getByRole("status")).toBe(status);
     expect(status).toHaveTextContent("Loading...");
+    // A listbox may hold only options and groups (axe aria-required-children).
+    expect(status.closest('[role="listbox"]')).toBeNull();
   });
 });
