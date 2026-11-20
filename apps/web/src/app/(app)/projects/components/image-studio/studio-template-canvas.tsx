@@ -2,7 +2,7 @@
 
 import { Pause, Play } from "lucide-react";
 import Image from "next/image";
-import { type PointerEvent, useLayoutEffect, useRef, useState } from "react";
+import { type PointerEvent, useRef, useState } from "react";
 
 import {
   usePageListSearch,
@@ -13,10 +13,14 @@ import { useAnimationFrame } from "@/hooks/effects/use-animation-frame";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
+import {
+  applyStudioWallTransform,
+  useStudioWallPaint,
+} from "@/hooks/effects/use-studio-wall-paint";
 import { STUDIO_EMPTY_ADS } from "./studio-empty-ads";
 import { TemplateButton } from "./studio-template-picker";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
-import { buildStudioWall, getStudioWallTransform } from "./studio-wall-layout";
+import { buildStudioWall } from "./studio-wall-layout";
 import type { StudioLabels } from "./types";
 
 const DRAG_THRESHOLD = 6;
@@ -67,32 +71,21 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
   const [wall, setWall] = useState(() =>
     buildStudioWall({ width: 0, height: 0 }),
   );
-  const wallRef = useRef(wall);
+  const wallRef = useStudioWallPaint(rowRef, columnsRef, offset, wall);
   const drag = useRef<Drag | null>(null);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
   const reduceMotion = usePrefersReducedMotion();
 
-  function paint() {
-    const current = wallRef.current;
-    const { x, columnY } = getStudioWallTransform(current, offset.current);
-    if (rowRef.current)
-      rowRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
-    columnsRef.current.forEach((column, index) => {
-      if (column)
-        column.style.transform = `translate3d(0, ${columnY[index % current.columns.length]}px, 0)`;
-    });
-  }
-
-  useLayoutEffect(() => {
-    wallRef.current = wall;
-    paint();
-  }, [wall]);
-
   function pan(x: number, y: number) {
     offset.current.x += x;
     offset.current.y += y;
-    paint();
+    applyStudioWallTransform(
+      rowRef.current,
+      columnsRef.current,
+      wallRef.current,
+      offset.current,
+    );
   }
 
   useAnimationFrame(!reduceMotion, (deltaSeconds) => {

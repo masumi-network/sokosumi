@@ -49,6 +49,7 @@ import {
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -1297,13 +1298,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
     publishActiveFormats();
   }, [onActiveFormatsChange, publishActiveFormats]);
 
-  useEffect(() => {
-    if (!isOpen || !listRef.current) return;
-    const activeItem = listRef.current.querySelector(
-      `[data-index="${activeIndex}"]`,
-    );
-    activeItem?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex, isOpen]);
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
+    isOpen,
+    { block: "nearest", resetKey: activeIndex },
+  );
 
   // Capture-phase listener: contentEditable arrow keys are more reliable
   // here than React's delegated onKeyDown alone.

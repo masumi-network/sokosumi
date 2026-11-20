@@ -33,7 +33,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useTrackView } from "@/hooks/effects/use-track-view";
 import { purchaseCredits } from "@/lib/actions/credits/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CreditsErrorCode } from "@/lib/actions/errors/error-codes/credits";
@@ -123,9 +123,7 @@ export default function CreditsForm({
     },
   });
 
-  useMountEffect(() => {
-    fireGTMEvent.viewCredits();
-  });
+  useTrackView("view_credits");
 
   const { setValue } = form;
   const credits = useWatch({

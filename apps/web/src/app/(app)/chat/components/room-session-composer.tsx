@@ -26,7 +26,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
   type ComposeDraft,
   clearComposeDraft,
@@ -36,6 +35,7 @@ import {
   type MentionRecordEntry,
   resolveSelectedMentionKeys,
 } from "@/components/ui/mention-textarea-utils";
+import { usePersistComposeDraft } from "@/hooks/effects/use-compose-draft";
 import {
   type ChatRoomMessageLink,
   parseChatRoomMessageLink,

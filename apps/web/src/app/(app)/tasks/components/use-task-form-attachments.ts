@@ -2,7 +2,8 @@
 
 import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
 import type { Dispatch, SetStateAction } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useAbortControllers } from "@/hooks/effects/use-abort-controller";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
   extractTaskAttachmentUrls,
@@ -24,26 +25,18 @@ export function useTaskFormAttachments(
   onUploadingChangeRef.current = onUploadingChange;
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
-  const activeUploadControllersRef = useRef(new Set<AbortController>());
+  const uploadControllers = useAbortControllers();
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(description),
     [description],
   );
-  const abortActiveUploads = useCallback(() => {
-    for (const controller of activeUploadControllersRef.current) {
-      controller.abort();
-    }
-    activeUploadControllersRef.current.clear();
-  }, []);
-
-  useEffect(() => abortActiveUploads, [abortActiveUploads]);
+  const abortActiveUploads = uploadControllers.abortAll;
 
   const handleAttachFiles = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
 
-      const controller = new AbortController();
-      activeUploadControllersRef.current.add(controller);
+      const controller = uploadControllers.create();
       const wasUploading = uploadingCountRef.current > 0;
       uploadingCountRef.current += 1;
       setUploadingAttachmentsCount((count) => count + 1);
@@ -80,7 +73,7 @@ export function useTaskFormAttachments(
       } catch {
         // Error toast is handled by uploadComposeAttachments.
       } finally {
-        activeUploadControllersRef.current.delete(controller);
+        uploadControllers.release(controller);
         setPendingUploadFiles([]);
         uploadingCountRef.current = Math.max(0, uploadingCountRef.current - 1);
         setUploadingAttachmentsCount((count) => count - 1);
@@ -89,7 +82,12 @@ export function useTaskFormAttachments(
         }
       }
     },
-    [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
+    [
+      labels.uploadFileError,
+      labels.uploadingFile,
+      labels.uploadingFiles,
+      uploadControllers,
+    ],
   );
 
   const handleRemoveAttachment = useCallback((url: string) => {

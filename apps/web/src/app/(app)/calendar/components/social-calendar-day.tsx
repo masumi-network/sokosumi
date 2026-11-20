@@ -11,11 +11,12 @@ import {
 } from "date-fns";
 import { Plus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { Temporal } from "temporal-polyfill";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { Button } from "@/components/ui/button";
+import { useCalendarWeekRowLabel } from "@/hooks/effects/use-calendar-week-row-label";
 import { cn } from "@/lib/utils";
 import { isoWeekOfRow } from "./iso-week";
 import {
@@ -188,9 +189,7 @@ export function SocialWeekNumberSlot() {
     row && row.firstElementChild === host ? host?.dataset.date : undefined;
   const week = rowStartKey ? isoWeekOfRow(rowStartKey) : null;
   const label = week === null ? null : t("weekNumber", { week });
-  useEffect(() => {
-    if (row && label) row.setAttribute("aria-label", label);
-  }, [row, label]);
+  useCalendarWeekRowLabel(row, label);
   return (
     <>
       {anchor}

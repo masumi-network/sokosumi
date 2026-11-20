@@ -3,10 +3,9 @@
 import { makeUserTasksChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { useDebouncedCallback } from "use-debounce";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import { taskEventDataSchema } from "@/lib/ably/schema";
@@ -21,16 +20,7 @@ function TaskStatusRealtimeListenerBody({
   taskId,
 }: TaskStatusRealtimeListenerProps) {
   const router = useRouter();
-  const refreshRoute = useDebouncedCallback(
-    () => router.refresh(),
-    TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
-  );
-
-  useEffect(() => {
-    return () => {
-      refreshRoute.cancel();
-    };
-  }, [refreshRoute]);
+  const refreshTimeout = useScheduledTimeout();
 
   useChannel(
     makeUserTasksChannelName(userId, getRealtimeChannelEnvironment()),
@@ -49,7 +39,10 @@ function TaskStatusRealtimeListenerBody({
         return;
       }
 
-      refreshRoute();
+      refreshTimeout.schedule(
+        () => router.refresh(),
+        TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
+      );
     },
   );
 

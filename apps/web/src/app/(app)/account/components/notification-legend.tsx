@@ -7,7 +7,6 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -19,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { cn } from "@/lib/utils";
 import { CELL_TRACK, CHANNEL_ICON } from "./notification-cells";
 import {
@@ -103,28 +103,20 @@ function ChannelExplainer({
   // back when it goes, and giving back what was never taken is how a hover
   // ends up dragging the focus ring across the page.
   const heldFocus = useRef(false);
-  const closing = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimeout = useScheduledTimeout();
 
   const holdOpen = () => {
-    if (closing.current) {
-      clearTimeout(closing.current);
-      closing.current = null;
-    }
+    closeTimeout.cancel();
   };
 
   const closeSoon = () => {
-    holdOpen();
-    closing.current = setTimeout(() => {
+    closeTimeout.schedule(() => {
       // The pointer's claim on the panel ends with the panel. This close is
       // ours rather than Radix's, so `onOpenChange` never runs and `onClose`
       // clears pointer ownership in the shared scope.
       onClose();
     }, CLOSE_DELAY_MS);
   };
-
-  // Nothing else stops the timer. A reader who leaves the name and then leaves
-  // the page has a close waiting on a component that is gone.
-  useEffect(() => holdOpen, []);
 
   return (
     <Popover

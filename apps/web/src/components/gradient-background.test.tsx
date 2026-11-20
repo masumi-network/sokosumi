@@ -3,11 +3,8 @@ import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  cssColorToRgb,
-  GradientBackground,
-  gradientLoopAt,
-} from "./gradient-background";
+import { cssColorToRgb, gradientLoopAt } from "@/lib/gradient-background";
+import { GradientBackground } from "./gradient-background";
 
 function createMockWebGLContext() {
   return {

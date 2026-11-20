@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
 import { useMediaQuery } from "@/hooks/effects/use-media-query";
-import {
-  reportRouteError,
-  shouldReportRouteError,
-} from "@/lib/sentry/report-route-error";
-import {
-  hasDeploymentRefreshGuard,
-  isStaleDeploymentError,
-  performDeploymentRefresh,
-} from "@/lib/utils/deployment-refresh";
+import { useGlobalRouteError } from "@/hooks/effects/use-report-route-error";
+import { shouldReportRouteError } from "@/lib/sentry/report-route-error";
+import { isStaleDeploymentError } from "@/lib/utils/deployment-refresh";
 
 const nextErrorBodyStyles = `
 body{color:#000;background:#fff;margin:0;font-family:system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -52,24 +46,13 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const [shouldReload, setShouldReload] = useState(false);
+  const shouldReload = useGlobalRouteError(error);
   const storedTheme = useSyncExternalStore(
     subscribeNoop,
     readStoredTheme,
     getServerStoredTheme,
   );
   const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
-
-  useEffect(() => {
-    const message = error?.message ?? "";
-    if (isStaleDeploymentError(message) && !hasDeploymentRefreshGuard()) {
-      performDeploymentRefresh();
-      return;
-    }
-    reportRouteError(error);
-    const id = setTimeout(() => setShouldReload(true), 0);
-    return () => clearTimeout(id);
-  }, [error]);
 
   if (!shouldReload && isStaleDeploymentError(error?.message ?? "")) {
     return null;
