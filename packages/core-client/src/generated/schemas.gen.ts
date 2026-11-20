@@ -17795,6 +17795,16 @@ export const DataRoomSchema = {
                 }
             ]
         },
+        company: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DataRoomCompany'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         logoFileId: {
             anyOf: [
                 {
@@ -17844,6 +17854,7 @@ export const DataRoomSchema = {
         'token',
         'title',
         'welcomeNote',
+        'company',
         'logoFileId',
         'allowedDomains',
         'expiresAt',
@@ -17853,6 +17864,111 @@ export const DataRoomSchema = {
         'createdByUserId',
         'createdAt'
     ]
+} as const;
+
+export const DataRoomCompanySchema = {
+    type: 'object',
+    properties: {
+        legalName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        legalForm: {
+            type: 'string',
+            maxLength: 200
+        },
+        jurisdiction: {
+            type: 'string',
+            maxLength: 300
+        },
+        registrationAuthority: {
+            type: 'string',
+            maxLength: 300
+        },
+        registrationNumber: {
+            type: 'string',
+            maxLength: 100
+        },
+        incorporated: {
+            type: 'string',
+            maxLength: 200,
+            description: 'When it was formed, as the owner writes it, e.g. "2 November 2026".'
+        },
+        registeredOffice: {
+            type: 'string',
+            maxLength: 1000
+        },
+        registeredAgent: {
+            type: 'string',
+            maxLength: 300
+        },
+        businessAddress: {
+            type: 'string',
+            maxLength: 1000
+        },
+        contactEmail: {
+            type: 'string',
+            maxLength: 320
+        },
+        euRepresentative: {
+            $ref: '#/components/schemas/DataRoomCompanyRepresentative'
+        },
+        ukRepresentative: {
+            $ref: '#/components/schemas/DataRoomCompanyRepresentative'
+        },
+        vatId: {
+            type: 'string',
+            maxLength: 50
+        },
+        ein: {
+            type: 'string',
+            maxLength: 20
+        },
+        authorizedShares: {
+            type: 'string',
+            maxLength: 300
+        },
+        parValue: {
+            type: 'string',
+            maxLength: 50
+        },
+        websites: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 300
+            },
+            maxItems: 10
+        },
+        formationPath: {
+            type: 'string',
+            maxLength: 1000,
+            description: 'Folder of the formation documents, relative to the room, e.g. "Legal/Formation".'
+        }
+    },
+    required: [
+        'legalName'
+    ]
+} as const;
+
+export const DataRoomCompanyRepresentativeSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 200
+        },
+        email: {
+            type: 'string',
+            maxLength: 320
+        },
+        address: {
+            type: 'string',
+            maxLength: 1000
+        }
+    },
+    description: 'GDPR Art. 27 representative in the EU.'
 } as const;
 
 export const CreateDataRoomRequestSchema = {
@@ -18252,6 +18368,17 @@ export const UpdateDataRoomRequestSchema = {
                     type: 'null'
                 }
             ]
+        },
+        company: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DataRoomCompany'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The room\'s Company page; null removes it.'
         },
         logoFileId: {
             anyOf: [
@@ -52002,6 +52129,16 @@ export const DataRoomViewSchema = {
                 }
             ]
         },
+        company: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DataRoomCompany'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         hasLogo: {
             type: 'boolean'
         },
@@ -52051,6 +52188,7 @@ export const DataRoomViewSchema = {
         'state',
         'title',
         'welcomeNote',
+        'company',
         'hasLogo',
         'allowDownload',
         'watermark',

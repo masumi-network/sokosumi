@@ -37,6 +37,7 @@ const room: DataRoomView = {
   state: "in",
   title: "Seed Round 2026",
   welcomeNote: "Thanks for looking.\nStart with the deck.",
+  company: null,
   hasLogo: false,
   allowDownload: true,
   watermark: false,
@@ -129,6 +130,68 @@ describe("RoomViewer", () => {
         .getByRole("button", { name: /Introduction/ })
         .getAttribute("aria-expanded"),
     ).toBe("true");
+  });
+
+  it("has no Company page when the owner gave no company details", () => {
+    render(<RoomViewer token="tok" room={room} />);
+    expect(screen.queryByRole("button", { name: "Company.title" })).toBeNull();
+  });
+
+  it("shows the company's details, only the filled ones, and opens the formation folder", () => {
+    render(
+      <RoomViewer
+        token="tok"
+        room={{
+          ...room,
+          company: {
+            legalName: "Sumico, Inc.",
+            jurisdiction: "State of Delaware, USA",
+            contactEmail: "legal@sumico.io",
+            euRepresentative: {
+              name: "Phil Isenmann",
+              email: "phil@utxoag.com",
+            },
+            websites: ["www.cmo.xyz"],
+            formationPath: "Legal/Formation",
+          },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Company.title" }));
+
+    expect(screen.getByText("Sumico, Inc.")).toBeDefined();
+    expect(screen.getByText("State of Delaware, USA")).toBeDefined();
+    expect(
+      screen
+        .getByRole("link", { name: "legal@sumico.io" })
+        .getAttribute("href"),
+    ).toBe("mailto:legal@sumico.io");
+    expect(screen.getByText("Phil Isenmann")).toBeDefined();
+    expect(
+      screen.getByRole("link", { name: "www.cmo.xyz" }).getAttribute("href"),
+    ).toBe("https://www.cmo.xyz");
+    expect(screen.queryByText("Company.vatId")).toBeNull();
+    expect(screen.queryByText("Company.ukRepresentative")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /2\.1\s*Formation/ }));
+    expect(
+      screen.getByText("pdf /share/rooms/tok/files/id-Bylaws.pdf"),
+    ).toBeDefined();
+  });
+
+  it("leaves out the formation link when the viewer cannot see that folder", () => {
+    render(
+      <RoomViewer
+        token="tok"
+        room={{
+          ...room,
+          company: { legalName: "Sumico, Inc.", formationPath: "Board" },
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Company.title" }));
+    expect(screen.queryByText("Company.formation")).toBeNull();
   });
 
   it("lists the answers the owner shared on the Welcome page and opens their document", async () => {

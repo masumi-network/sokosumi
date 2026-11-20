@@ -10671,6 +10671,7 @@
           "activity": "Aktivität",
           "questions": "Fragen",
           "contents": "Inhalt",
+          "company": "Unternehmen",
           "settings": "Einstellungen"
         },
         "Colleagues": {
@@ -10751,6 +10752,48 @@
           "save": "Reihenfolge speichern",
           "saved": "Reihenfolge gespeichert",
           "saveFailed": "Reihenfolge konnte nicht gespeichert werden"
+        },
+        "Company": {
+          "intro": "Die rechtlichen Angaben des Unternehmens auf der Unternehmensseite des Raums. Besucher können sie lesen, aber nicht ändern. Lass den Firmennamen leer, um die Seite auszublenden.",
+          "sections": {
+            "company": "Unternehmen",
+            "addresses": "Adressen und Kontakt",
+            "euRepresentative": "EU-Vertreter (DSGVO Art. 27)",
+            "ukRepresentative": "UK-Vertreter",
+            "taxAndShares": "Steuern und Aktien"
+          },
+          "fields": {
+            "legalName": "Firmenname",
+            "legalForm": "Rechtsform",
+            "jurisdiction": "Rechtsordnung",
+            "registrationAuthority": "Registerbehörde",
+            "registrationNumber": "Registernummer",
+            "incorporated": "Gründungsdatum",
+            "registeredOffice": "Eingetragener Sitz",
+            "registeredAgent": "Registered Agent",
+            "businessAddress": "Geschäftsadresse",
+            "contactEmail": "E-Mail für Rechtliches",
+            "websites": "Websites",
+            "eu": {
+              "name": "Name",
+              "email": "E-Mail",
+              "address": "Postanschrift"
+            },
+            "uk": {
+              "name": "Name",
+              "email": "E-Mail",
+              "address": "Postanschrift"
+            },
+            "vatId": "USt-IdNr.",
+            "ein": "EIN",
+            "authorizedShares": "Genehmigte Aktien",
+            "parValue": "Nennwert",
+            "formation": "Gründungsunterlagen"
+          },
+          "noFolder": "Kein Ordner",
+          "save": "Unternehmensangaben speichern",
+          "saved": "Unternehmensangaben gespeichert",
+          "saveFailed": "Unternehmensangaben konnten nicht gespeichert werden"
         },
         "Settings": {
           "titleLabel": "Titel",
@@ -14340,7 +14383,28 @@
       "sharedNote": "Für alle im Datenraum beantwortet",
       "sharedLoading": "Für alle geteilte Antworten werden geladen…",
       "sharedFailed": "Die für alle geteilten Antworten konnten nicht geladen werden. Prüf deine Verbindung und versuch es noch einmal.",
-      "retry": "Noch einmal versuchen"
+      "retry": "Noch einmal versuchen",
+      "Company": {
+        "title": "Unternehmen",
+        "legalName": "Firmenname",
+        "legalForm": "Rechtsform",
+        "jurisdiction": "Rechtsordnung",
+        "registrationAuthority": "Registerbehörde",
+        "registrationNumber": "Registernummer",
+        "incorporated": "Gegründet",
+        "registeredOffice": "Eingetragener Sitz",
+        "registeredAgent": "Registered Agent",
+        "businessAddress": "Geschäftsadresse",
+        "contactEmail": "Rechtlicher Kontakt",
+        "euRepresentative": "EU-Vertreter (DSGVO Art. 27)",
+        "ukRepresentative": "UK-Vertreter",
+        "vatId": "USt-IdNr.",
+        "ein": "EIN",
+        "authorizedShares": "Genehmigte Aktien",
+        "parValue": "Nennwert",
+        "websites": "{count, plural, one {Website} other {Websites}}",
+        "formation": "Gründungsunterlagen"
+      }
     }
   },
   "NotFound": {
