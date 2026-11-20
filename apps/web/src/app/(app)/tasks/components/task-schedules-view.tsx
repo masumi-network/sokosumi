@@ -276,21 +276,24 @@ export function TaskSchedulesView({
             onValueChange={setQuery}
           />
 
-          <ListGridViewSwitch
-            value={viewMode}
-            data-testid="schedules-view-mode-switch"
-            onChange={(next) => {
-              setViewMode(next);
-              document.cookie = serializeSchedulesViewModeCookie(next);
-            }}
-            labels={{ list: t("viewList"), grid: t("viewGrid") }}
-          />
-          {canCreate ? (
-            <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-              <Plus className="size-4" aria-hidden />
-              {t("newSchedule")}
-            </Button>
-          ) : null}
+          {/* Phone: search takes its row; view switch and create share the next. */}
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
+            <ListGridViewSwitch
+              value={viewMode}
+              data-testid="schedules-view-mode-switch"
+              onChange={(next) => {
+                setViewMode(next);
+                document.cookie = serializeSchedulesViewModeCookie(next);
+              }}
+              labels={{ list: t("viewList"), grid: t("viewGrid") }}
+            />
+            {canCreate ? (
+              <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+                <Plus className="size-4" aria-hidden />
+                {t("newSchedule")}
+              </Button>
+            ) : null}
+          </div>
         </PageSearchActions>
       </div>
 
