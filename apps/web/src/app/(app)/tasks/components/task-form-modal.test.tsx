@@ -1,8 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { Activity, StrictMode } from "react";
 import { createPortal } from "react-dom";
 import { describe, expect, it, vi } from "vitest";
 
-import { isTaskFormPortalEventTarget, TaskFormModal } from "./task-form-modal";
+import {
+  isTaskFormPortalEventTarget,
+  TaskFormModal,
+  TaskFormModalHeaderStart,
+} from "./task-form-modal";
 
 describe("isTaskFormPortalEventTarget", () => {
   it("ignores clicks inside a task-form portal", () => {
@@ -58,5 +63,87 @@ describe("TaskFormModal", () => {
     expect(
       screen.getByRole("heading", { name: "What should Elena do?" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders, updates, and clears TaskFormModalHeaderStart across rerenders, StrictMode, and Activity reveal", () => {
+    const onBack = vi.fn();
+
+    function ModalHarness({
+      showBack,
+      disabled = false,
+    }: {
+      showBack: boolean;
+      disabled?: boolean;
+    }) {
+      return (
+        <TaskFormModal
+          open
+          onOpenChange={vi.fn()}
+          title="Create task"
+          cancelLabel="Cancel"
+        >
+          {showBack ? (
+            <TaskFormModalHeaderStart>
+              <button type="button" disabled={disabled} onClick={onBack}>
+                Back
+              </button>
+            </TaskFormModalHeaderStart>
+          ) : null}
+          <div>Body</div>
+        </TaskFormModal>
+      );
+    }
+
+    const { rerender } = render(
+      <StrictMode>
+        <Activity mode="visible">
+          <ModalHarness showBack />
+        </Activity>
+      </StrictMode>,
+    );
+
+    const backButton = screen.getByRole("button", { name: "Back" });
+    expect(backButton).toBeEnabled();
+    fireEvent.click(backButton);
+    expect(onBack).toHaveBeenCalledTimes(1);
+
+    // Updating children updates the header slot without unmounting the modal.
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <ModalHarness showBack disabled />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
+
+    // Hiding and revealing Activity restores the header start control cleanly.
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <ModalHarness showBack />
+        </Activity>
+      </StrictMode>,
+    );
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <ModalHarness showBack />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
+
+    // Unmounting TaskFormModalHeaderStart removes it from the header slot.
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <ModalHarness showBack={false} />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Back" }),
+    ).not.toBeInTheDocument();
   });
 });

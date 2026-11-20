@@ -16,7 +16,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,7 +29,12 @@ import {
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
-import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import {
+  getArchivedTaskIdsVersion,
+  getServerArchivedTaskIdsVersion,
+  isTaskArchived,
+  subscribeArchivedTaskIds,
+} from "@/app/tasks/utils/archived-task-ids";
 import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
 import { buildPendingTask } from "@/app/tasks/utils/pending-created-task";
 import {
@@ -76,6 +80,7 @@ interface PendingBoardReopen {
   previousStatusSince: string | undefined;
   desiredStatus: TaskStatus;
   moveVersion: number;
+  resetEpoch: number;
 }
 
 const hydrationStore = (() => {
@@ -157,7 +162,14 @@ export function useTasksViewModel({
   const [density, setDensity] = useState<TasksDensity>(
     defaultDensity ?? "normal",
   );
-  const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
+  const archivedVersion = useSyncExternalStore(
+    subscribeArchivedTaskIds,
+    getArchivedTaskIdsVersion,
+    getServerArchivedTaskIdsVersion,
+  );
+  const [items, setItems] = useState<TaskWithCoworker[]>(() =>
+    tasks.filter((task) => !isTaskArchived(task.id)),
+  );
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
   >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
@@ -171,6 +183,10 @@ export function useTasksViewModel({
   const [loadingColumnIds, setLoadingColumnIds] = useState<Set<KanbanColumnId>>(
     () => new Set(),
   );
+  const [pendingMoveTaskIds, setPendingMoveTaskIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const [resetEpoch, setResetEpoch] = useState(0);
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const [activeDragRect, setActiveDragRect] = useState<{
     width: number;
@@ -187,34 +203,9 @@ export function useTasksViewModel({
   );
   const [_isPending, startTransition] = useTransition();
   const moveVersionRef = useRef(0);
-  const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-  // Drag, merge and paging keep reading `items`: a pending row is display only.
-  const itemsWithPending = usePendingCreatedTasks(
-    items,
-    useCallback(
-      (input) => buildPendingTask(input, { coworkerOptions, projectOptions }),
-      [coworkerOptions, projectOptions],
-    ),
+  const pendingMoveVersionByTaskIdRef = useRef(
+    new Map<string, { moveVersion: number; resetEpoch: number }>(),
   );
-  // A pending row has no confirmed tags. Core supplies the matching row on save.
-  // Needs me shows only Tasks that wait for a person, and a new Task does not.
-  // Mentions shows only Tasks with a mention, and a new Task has none.
-  const shownItems =
-    routeFilters.search ||
-    routeFilters.tag ||
-    routeFilters.needsMe ||
-    routeFilters.mentions
-      ? items
-      : itemsWithPending;
-  const columnCursorByIdRef = useRef(columnCursorById);
-  columnCursorByIdRef.current = columnCursorById;
-  // Every setListCursor / setIsLoadingListMore call writes these refs directly.
-  const listCursorRef = useRef(listCursor);
-  const isLoadingListMoreRef = useRef(isLoadingListMore);
-  const loadingColumnIdsRef = useRef(loadingColumnIds);
-  loadingColumnIdsRef.current = loadingColumnIds;
   const refreshRoute = useRefreshWhenShown(() => router.refresh());
 
   const serverTasksFiltersResetKey = useMemo(
@@ -229,80 +220,84 @@ export function useTasksViewModel({
 
   const isTaskPaginationInSync =
     routeTasksFiltersResetKey === serverTasksFiltersResetKey;
-  const previousTasksFiltersResetKeyRef = useRef(serverTasksFiltersResetKey);
-  const previousDefaultViewModeRef = useRef(defaultViewMode);
-  const handleEventUpdate = (_data: TaskEventData) => {
-    refreshRoute();
-  };
-
-  useLayoutEffect(() => {
-    if (
-      previousTasksFiltersResetKeyRef.current === serverTasksFiltersResetKey
-    ) {
-      return;
-    }
-
-    previousTasksFiltersResetKeyRef.current = serverTasksFiltersResetKey;
-    moveVersionRef.current = 0;
-    pendingMoveVersionByTaskIdRef.current.clear();
-
-    itemsRef.current = tasks;
-    setItems(tasks);
-    setColumnCursorById(
-      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-    );
-    setColumnHiddenById(initialColumnHiddenCountById);
-    setListCursor(initialListNextCursor);
-    listCursorRef.current = initialListNextCursor;
-    setLoadingColumnIds(new Set());
-    setIsLoadingListMore(false);
-    isLoadingListMoreRef.current = false;
-  }, [
-    columns,
-    initialColumnNextCursorById,
-    initialListNextCursor,
+  const [prevFiltersKey, setPrevFiltersKey] = useState(
     serverTasksFiltersResetKey,
-    tasks,
-  ]);
-
-  useLayoutEffect(() => {
-    if (previousDefaultViewModeRef.current === defaultViewMode) {
-      return;
-    }
-
-    previousDefaultViewModeRef.current = defaultViewMode;
-    moveVersionRef.current = 0;
-    pendingMoveVersionByTaskIdRef.current.clear();
-    setViewMode(defaultViewMode ?? "board");
-
-    itemsRef.current = tasks;
-    setItems(tasks);
-    setColumnCursorById(
-      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-    );
-    setColumnHiddenById(initialColumnHiddenCountById);
-    setListCursor(initialListNextCursor);
-    listCursorRef.current = initialListNextCursor;
-    setLoadingColumnIds(new Set());
-    setIsLoadingListMore(false);
-    isLoadingListMoreRef.current = false;
-  }, [
+  );
+  const [prevDefaultViewMode, setPrevDefaultViewMode] =
+    useState(defaultViewMode);
+  const [prevSyncInputs, setPrevSyncInputs] = useState(() => ({
     columns,
     defaultViewMode,
+    search: initialFilters.search,
+    tag: initialFilters.tag,
     initialColumnNextCursorById,
     initialListNextCursor,
     tasks,
-  ]);
+    archivedVersion,
+  }));
 
-  // Before paint: the commit that brings new rows also drops a pending row,
-  // and the board must not show a frame without either.
-  useLayoutEffect(() => {
+  const filtersChanged = prevFiltersKey !== serverTasksFiltersResetKey;
+  const defaultViewModeChanged = prevDefaultViewMode !== defaultViewMode;
+  const syncInputsChanged =
+    prevSyncInputs.columns !== columns ||
+    prevSyncInputs.defaultViewMode !== defaultViewMode ||
+    prevSyncInputs.search !== initialFilters.search ||
+    prevSyncInputs.tag !== initialFilters.tag ||
+    prevSyncInputs.initialColumnNextCursorById !==
+      initialColumnNextCursorById ||
+    prevSyncInputs.initialListNextCursor !== initialListNextCursor ||
+    prevSyncInputs.tasks !== tasks ||
+    prevSyncInputs.archivedVersion !== archivedVersion;
+
+  let currentViewMode = viewMode;
+  let currentItems = items;
+  let currentColumnCursorById = columnCursorById;
+  let currentColumnHiddenById = columnHiddenById;
+  let currentListCursor = listCursor;
+  let currentLoadingColumnIds = loadingColumnIds;
+  let currentIsLoadingListMore = isLoadingListMore;
+  let currentPendingMoveTaskIds = pendingMoveTaskIds;
+  let currentResetEpoch = resetEpoch;
+
+  if (filtersChanged || defaultViewModeChanged || syncInputsChanged) {
+    let shouldResetPagination = false;
+
+    if (filtersChanged || defaultViewModeChanged) {
+      if (filtersChanged) {
+        setPrevFiltersKey(serverTasksFiltersResetKey);
+      }
+      if (defaultViewModeChanged) {
+        setPrevDefaultViewMode(defaultViewMode);
+        currentViewMode = defaultViewMode ?? "board";
+        setViewMode(currentViewMode);
+      }
+      currentResetEpoch = resetEpoch + 1;
+      setResetEpoch(currentResetEpoch);
+      currentPendingMoveTaskIds = new Set();
+      setPendingMoveTaskIds(currentPendingMoveTaskIds);
+      currentItems = tasks;
+      shouldResetPagination = true;
+    }
+
+    setPrevSyncInputs({
+      columns,
+      defaultViewMode,
+      search: initialFilters.search,
+      tag: initialFilters.tag,
+      initialColumnNextCursorById,
+      initialListNextCursor,
+      tasks,
+      archivedVersion,
+    });
+
+    // Adjusted during render before commit: the commit that brings new rows
+    // also drops a pending row, and the board must not show a frame without either.
     const isListView = defaultViewMode === "list";
     const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
-    const next = mergeTasksOnServerRefresh({
-      prev: itemsRef.current.filter((task) => !isTaskArchived(task.id)),
+    const merged = mergeTasksOnServerRefresh({
+      prev: currentItems.filter((task) => !isTaskArchived(task.id)),
       serverTasks,
-      pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
+      pendingMoveTaskIds: currentPendingMoveTaskIds,
       // List is a single updatedAt stream: keep load-more rows across
       // router.refresh() and listCursor goes stale vs the new first page.
       // A missing Task on a tagged board may have lost its tag, and under
@@ -315,30 +310,56 @@ export function useTasksViewModel({
         !initialFilters.needsMe &&
         !initialFilters.mentions,
     });
-
-    setItems(next);
+    currentItems = merged;
+    setItems(merged);
 
     // List always resyncs. Board only when no client-only load-more rows remain.
-    if (isListView || next.length <= serverTasks.length) {
-      setColumnCursorById(
-        buildInitialColumnCursorById(columns, initialColumnNextCursorById),
+    if (
+      shouldResetPagination ||
+      isListView ||
+      merged.length <= serverTasks.length
+    ) {
+      currentColumnCursorById = buildInitialColumnCursorById(
+        columns,
+        initialColumnNextCursorById,
       );
-      setColumnHiddenById(initialColumnHiddenCountById);
-      setListCursor(initialListNextCursor);
-      listCursorRef.current = initialListNextCursor;
-      setLoadingColumnIds(new Set());
-      setIsLoadingListMore(false);
-      isLoadingListMoreRef.current = false;
+      currentColumnHiddenById = initialColumnHiddenCountById;
+      currentListCursor = initialListNextCursor;
+      currentLoadingColumnIds = new Set();
+      currentIsLoadingListMore = false;
+      setColumnCursorById(currentColumnCursorById);
+      setColumnHiddenById(currentColumnHiddenById);
+      setListCursor(currentListCursor);
+      setLoadingColumnIds(currentLoadingColumnIds);
+      setIsLoadingListMore(currentIsLoadingListMore);
     }
-  }, [
-    columns,
-    defaultViewMode,
-    initialFilters.search,
-    initialFilters.tag,
-    initialColumnNextCursorById,
-    initialListNextCursor,
-    tasks,
-  ]);
+  }
+
+  const itemsRef = useLatestRef(currentItems);
+  const resetEpochRef = useLatestRef(currentResetEpoch);
+  // Drag, merge and paging keep reading `items`: a pending row is display only.
+  const itemsWithPending = usePendingCreatedTasks(
+    currentItems,
+    useCallback(
+      (input) => buildPendingTask(input, { coworkerOptions, projectOptions }),
+      [coworkerOptions, projectOptions],
+    ),
+  );
+  // A pending row has no confirmed tags. Core supplies the matching row on save.
+  // Needs me shows only Tasks that wait for a person, and a new Task does not.
+  // Mentions shows only Tasks with a mention, and a new Task has none.
+  const shownItems =
+    routeFilters.search ||
+    routeFilters.tag ||
+    routeFilters.needsMe ||
+    routeFilters.mentions
+      ? currentItems
+      : itemsWithPending;
+  const columnCursorByIdRef = useLatestRef(currentColumnCursorById);
+  const listCursorRef = useLatestRef(currentListCursor);
+  const handleEventUpdate = (_data: TaskEventData) => {
+    refreshRoute();
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -405,7 +426,40 @@ export function useTasksViewModel({
     const previousStatusSince = draggedTask.statusSince;
 
     const moveVersion = (moveVersionRef.current += 1);
-    pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
+    const epoch = resetEpochRef.current;
+    pendingMoveVersionByTaskIdRef.current.set(activeId, {
+      moveVersion,
+      resetEpoch: epoch,
+    });
+    setPendingMoveTaskIds((prev) => {
+      const next = new Set(prev);
+      next.add(activeId);
+      return next;
+    });
+
+    const clearPendingMove = (
+      taskId: string,
+      version: number,
+      expectedEpoch: number,
+    ) => {
+      const entry = pendingMoveVersionByTaskIdRef.current.get(taskId);
+      if (
+        !entry ||
+        entry.moveVersion !== version ||
+        entry.resetEpoch !== expectedEpoch ||
+        resetEpochRef.current !== expectedEpoch
+      ) {
+        return false;
+      }
+      pendingMoveVersionByTaskIdRef.current.delete(taskId);
+      setPendingMoveTaskIds((prev) => {
+        if (!prev.has(taskId)) return prev;
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      return true;
+    };
 
     setItems((prev) =>
       prev.map((task) =>
@@ -438,16 +492,14 @@ export function useTasksViewModel({
         previousStatusSince,
         desiredStatus,
         moveVersion,
+        resetEpoch: epoch,
       });
       return;
     }
 
     const rollbackMove = () => {
-      const pendingVersion =
-        pendingMoveVersionByTaskIdRef.current.get(activeId);
-      if (pendingVersion !== moveVersion) return;
+      if (!clearPendingMove(activeId, moveVersion, epoch)) return;
 
-      pendingMoveVersionByTaskIdRef.current.delete(activeId);
       setItems((prev) =>
         prev.map((task) =>
           task.id === activeId &&
@@ -475,11 +527,7 @@ export function useTasksViewModel({
           reportDragRejection(result.error.kind);
           return;
         }
-        if (
-          pendingMoveVersionByTaskIdRef.current.get(activeId) === moveVersion
-        ) {
-          pendingMoveVersionByTaskIdRef.current.delete(activeId);
-        }
+        clearPendingMove(activeId, moveVersion, epoch);
       } catch {
         rollbackMove();
         toast.error(labels.dragError);
@@ -487,13 +535,29 @@ export function useTasksViewModel({
     });
   };
 
-  const rollbackBoardReopen = (pending: PendingBoardReopen) => {
-    const pendingVersion = pendingMoveVersionByTaskIdRef.current.get(
-      pending.taskId,
-    );
-    if (pendingVersion !== pending.moveVersion) return;
-
+  const clearPendingBoardReopenMove = (pending: PendingBoardReopen) => {
+    const entry = pendingMoveVersionByTaskIdRef.current.get(pending.taskId);
+    if (
+      !entry ||
+      entry.moveVersion !== pending.moveVersion ||
+      entry.resetEpoch !== pending.resetEpoch ||
+      resetEpochRef.current !== pending.resetEpoch
+    ) {
+      return false;
+    }
     pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
+    setPendingMoveTaskIds((prev) => {
+      if (!prev.has(pending.taskId)) return prev;
+      const next = new Set(prev);
+      next.delete(pending.taskId);
+      return next;
+    });
+    return true;
+  };
+
+  const rollbackBoardReopen = (pending: PendingBoardReopen) => {
+    if (!clearPendingBoardReopenMove(pending)) return;
+
     setItems((prev) =>
       prev.map((task) =>
         task.id === pending.taskId &&
@@ -544,12 +608,7 @@ export function useTasksViewModel({
           reportDragRejection(result.error.kind);
           return;
         }
-        if (
-          pendingMoveVersionByTaskIdRef.current.get(pending.taskId) ===
-          pending.moveVersion
-        ) {
-          pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
-        }
+        clearPendingBoardReopenMove(pending);
         setPendingBoardReopen(null);
         setReopenComment("");
       } catch {
@@ -563,21 +622,33 @@ export function useTasksViewModel({
 
   // A departure and return to the same filter starts a new stream of pages.
   const pagingContext = useMemo(
-    () => ({ filters: serverTasksFiltersResetKey, viewMode }),
-    [serverTasksFiltersResetKey, viewMode],
+    () => ({ filters: serverTasksFiltersResetKey, viewMode: currentViewMode }),
+    [serverTasksFiltersResetKey, currentViewMode],
   );
   const pagingContextRef = useLatestRef(pagingContext);
+  const inFlightColumnLoadsRef = useRef<{
+    context: typeof pagingContext;
+    ids: Set<KanbanColumnId>;
+  } | null>(null);
+  const inFlightListLoadContextRef = useRef<typeof pagingContext | null>(null);
 
   const handleLoadMoreColumn = useCallback(
     async (columnId: KanbanColumnId) => {
       if (!isTaskPaginationInSync) return;
 
       const cursor = columnCursorByIdRef.current[columnId] ?? null;
-      if (cursor === null || loadingColumnIdsRef.current.has(columnId)) return;
+      const inFlightIds =
+        inFlightColumnLoadsRef.current?.context === pagingContext
+          ? inFlightColumnLoadsRef.current.ids
+          : new Set<KanbanColumnId>();
+      if (cursor === null || inFlightIds.has(columnId)) return;
 
-      const nextLoading = new Set(loadingColumnIdsRef.current);
+      const nextLoading = new Set(inFlightIds);
       nextLoading.add(columnId);
-      loadingColumnIdsRef.current = nextLoading;
+      inFlightColumnLoadsRef.current = {
+        context: pagingContext,
+        ids: nextLoading,
+      };
       setLoadingColumnIds(nextLoading);
 
       try {
@@ -618,23 +689,38 @@ export function useTasksViewModel({
         toast.error(labels.loadMoreError);
       } finally {
         if (pagingContextRef.current === pagingContext) {
-          const afterLoading = new Set(loadingColumnIdsRef.current);
+          const afterLoading = new Set(
+            inFlightColumnLoadsRef.current?.context === pagingContext
+              ? inFlightColumnLoadsRef.current.ids
+              : [],
+          );
           afterLoading.delete(columnId);
-          loadingColumnIdsRef.current = afterLoading;
+          inFlightColumnLoadsRef.current = {
+            context: pagingContext,
+            ids: afterLoading,
+          };
           setLoadingColumnIds(afterLoading);
         }
       }
     },
-    [isTaskPaginationInSync, labels.loadMoreError, routeFilters, pagingContext],
+    [
+      columnCursorByIdRef,
+      isTaskPaginationInSync,
+      labels.loadMoreError,
+      pagingContext,
+      pagingContextRef,
+      routeFilters,
+    ],
   );
 
   const handleLoadMoreList = useCallback(async () => {
     if (!isTaskPaginationInSync) return;
 
     const cursor = listCursorRef.current;
-    if (cursor === null || isLoadingListMoreRef.current) return;
+    if (cursor === null || inFlightListLoadContextRef.current === pagingContext)
+      return;
 
-    isLoadingListMoreRef.current = true;
+    inFlightListLoadContextRef.current = pagingContext;
     setIsLoadingListMore(true);
 
     try {
@@ -654,15 +740,19 @@ export function useTasksViewModel({
       toast.error(labels.loadMoreError);
     } finally {
       if (pagingContextRef.current === pagingContext) {
-        isLoadingListMoreRef.current = false;
+        if (inFlightListLoadContextRef.current === pagingContext) {
+          inFlightListLoadContextRef.current = null;
+        }
         setIsLoadingListMore(false);
       }
     }
   }, [
     isTaskPaginationInSync,
     labels.loadMoreError,
-    routeFilters,
+    listCursorRef,
     pagingContext,
+    pagingContextRef,
+    routeFilters,
   ]);
 
   const handleViewModeChange = (next: TasksViewMode) => {
@@ -688,9 +778,9 @@ export function useTasksViewModel({
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
-        ? (items.find((task) => task.id === activeDragTaskId) ?? null)
+        ? (currentItems.find((task) => task.id === activeDragTaskId) ?? null)
         : null,
-    [activeDragTaskId, items],
+    [activeDragTaskId, currentItems],
   );
   return {
     router,
@@ -698,14 +788,14 @@ export function useTasksViewModel({
     searchParams,
     tTasks,
     routeFilters,
-    viewMode,
+    viewMode: currentViewMode,
     density,
     shownItems,
-    columnCursorById,
-    columnHiddenById,
-    listCursor,
-    isLoadingListMore,
-    loadingColumnIds,
+    columnCursorById: currentColumnCursorById,
+    columnHiddenById: currentColumnHiddenById,
+    listCursor: currentListCursor,
+    isLoadingListMore: currentIsLoadingListMore,
+    loadingColumnIds: currentLoadingColumnIds,
     activeDragRect,
     pendingBoardReopen,
     reopenComment,
