@@ -851,6 +851,48 @@ it("moves between plan tabs with the arrow keys", async () => {
   expect(text()).toContain("Connect your numbers");
 });
 
+it("clears the hiring measurement return error after leaving Results and switching back", async () => {
+  const expectedError = "That connection didn't finish. Try again.";
+  await act(async () =>
+    root.render(
+      <PlanStep
+        overview={draft({ viewerCanApprove: true })}
+        phase="review"
+        initialTab="results"
+        measureError={expectedError}
+        onRequest={async () => null}
+        onSetAds={async () => null}
+        onAnswer={noop}
+        onUpdate={async () => null}
+        onApprove={noop}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    ),
+  );
+
+  expect(
+    container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
+  ).toBe("How we know it works");
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    expectedError,
+  );
+
+  await act(async () =>
+    [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => tab.textContent === "Your month")
+      ?.click(),
+  );
+  expect(text()).toContain("Up first");
+
+  await act(async () =>
+    [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => tab.textContent === "How we know it works")
+      ?.click(),
+  );
+  expect(text()).toContain("Connect your numbers");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+});
+
 // Asking for the plan: no second offer while the request is in flight.
 
 it("holds Plan as writing once the plan is requested, until Core reports it", async () => {

@@ -418,7 +418,24 @@ export function PlanReview({
   skip = null,
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
-  const [tab, setTab] = useState<PlanTab>(initialTab);
+  const [tabState, setTabState] = useState({
+    tab: initialTab,
+    measureError,
+  });
+  const { tab } = tabState;
+  // Leaving Results consumes its one-shot measurement return notice so
+  // switching back later does not show it again.
+  function selectTab(next: PlanTab) {
+    setTabState((current) =>
+      current.tab === next
+        ? current
+        : {
+            tab: next,
+            measureError:
+              current.tab === "results" ? null : current.measureError,
+          },
+    );
+  }
   // The plan's detail, folded until asked for; a measurement return opens it.
   // On the app's Strategy page the plan is the page, so it starts open.
   const [full, setFull] = useState(readOnly || initialTab === "results");
@@ -803,12 +820,12 @@ export function PlanReview({
                     aria-selected={tab === candidate.id}
                     aria-controls={`ob-tabpanel-${candidate.id}`}
                     tabIndex={tab === candidate.id ? 0 : -1}
-                    onClick={() => setTab(candidate.id)}
+                    onClick={() => selectTab(candidate.id)}
                     onKeyDown={(event) => {
                       const next = planTabAfterKey(event, index);
                       if (next === null) return;
                       event.preventDefault();
-                      setTab(TABS[next]!.id);
+                      selectTab(TABS[next]!.id);
                       document
                         .getElementById(`ob-tab-${TABS[next]!.id}`)
                         ?.focus();
@@ -846,7 +863,7 @@ export function PlanReview({
                     overview={overview}
                     strategy={strategy}
                     onConnectMeasurement={onConnectMeasurement}
-                    measureError={measureError}
+                    measureError={tabState.measureError}
                   />
                 )}
               </div>
