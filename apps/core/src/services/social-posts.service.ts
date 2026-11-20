@@ -777,9 +777,9 @@ export async function linkedInOpeningProblem(
   >`
     SELECT count(*)::int AS refused FROM "soko_bot_tool_call"
     WHERE "capability" = 'update_social_post' AND "status" = 'FAILED'
-      AND "input" LIKE ${`%${input.postId}%`}
-      AND "errorDetail"::text LIKE ${`%${OPENING_REFUSAL}%`}
-  `;
+      AND "input"->>'postId' = ${input.postId}
+      AND "errorDetail" LIKE ${`%${OPENING_REFUSAL}%`}
+  `.catch(() => [{ refused: 0 }]);
   if (refused >= MAX_OPENING_REFUSALS) return { problem: null, costUsd: 0 };
   const opening = linkedInOpening(input.text);
   try {
