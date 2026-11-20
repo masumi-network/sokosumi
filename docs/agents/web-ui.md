@@ -93,3 +93,4 @@ When migrating a client fetch effect to React Query in `apps/web`, use the share
 - **Scoped writes (`useScopedMutation` in `apps/web/src/queries/scoped-queries.ts`):**
   - Pass the unscoped `queryKeyPrefix` (and optional `workspace` override). Before running `mutationFn`, it cancels every in-flight query under the scoped prefix captured at call time.
   - On success, `applySuccess` runs only against matching queries already in `status === "success"` (never creating or marking a failed/unloaded list as loaded), then invalidates the captured scoped prefix.
+  - Keep one-time secrets (API keys, OAuth client secrets, share-link bearer tokens) in the create mutation's result/local dialog state — never write them into the React Query cache.
