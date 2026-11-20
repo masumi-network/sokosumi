@@ -31,7 +31,6 @@ function FocusHarness({ focusOnMount = false }: { focusOnMount?: boolean }) {
       value={value}
       onValueChange={setValue}
       mentions={{}}
-      onSelectedKeysChange={() => undefined}
       placeholder="Message"
       attachments={[]}
       onAttachmentsChange={() => undefined}
@@ -121,7 +120,6 @@ describe("RoomComposerEditHandle.focus", () => {
             value={value}
             onValueChange={setValue}
             mentions={{}}
-            onSelectedKeysChange={() => undefined}
             placeholder="Message"
             attachments={[]}
             onAttachmentsChange={() => undefined}
@@ -168,7 +166,6 @@ describe("RoomComposerEditHandle.focus", () => {
             value={value}
             onValueChange={setValue}
             mentions={{}}
-            onSelectedKeysChange={() => undefined}
             placeholder="Message"
             attachments={[]}
             onAttachmentsChange={() => undefined}
@@ -228,7 +225,6 @@ describe("RoomComposer focusOnMount", () => {
             value={value}
             onValueChange={setValue}
             mentions={{}}
-            onSelectedKeysChange={() => undefined}
             placeholder="Message"
             attachments={[]}
             onAttachmentsChange={() => undefined}
@@ -274,7 +270,6 @@ describe("RoomComposerEditHandle.addText", () => {
           value={value}
           onValueChange={setValue}
           mentions={{}}
-          onSelectedKeysChange={() => undefined}
           placeholder="Message"
           attachments={[]}
           onAttachmentsChange={() => undefined}

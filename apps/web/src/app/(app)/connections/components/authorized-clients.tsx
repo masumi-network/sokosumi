@@ -1,8 +1,9 @@
 "use client";
 
 import type { OAuthConsent, Scope } from "@better-auth/oauth-provider";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { usePageListSearch } from "@/components/page-list-search";
@@ -23,20 +24,22 @@ interface AuthorizedClientWithDetails extends OAuthConsent<Scope[]> {
 
 type OAuthConsentItem = OAuthConsent<Scope[]>;
 
+const AUTHORIZED_CLIENTS_QUERY_KEY = ["connections", "oauth-consents"] as const;
+
 export function OAuthAuthorizedClients() {
   const t = useTranslations("App.Account.AuthorizedClients");
   const formatter = useFormatter();
-  const [consents, setConsents] = useState<AuthorizedClientWithDetails[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [revoking, setRevoking] = useState<string | null>(null);
 
-  const visible = usePageListSearch(consents, (consent) => ({
-    primary: [consent.clientName, consent.clientId],
-  }));
-
-  useEffect(() => {
-    async function fetchConsents() {
+  const consentsQuery = useQuery({
+    queryKey: AUTHORIZED_CLIENTS_QUERY_KEY,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<AuthorizedClientWithDetails[]> => {
       try {
         const result = await authClient.oauth2.getConsents();
         if (result.error) {
@@ -44,48 +47,54 @@ export function OAuthAuthorizedClients() {
         }
 
         const consentsData: OAuthConsentItem[] = result.data || [];
-        const consentsWithDetails: AuthorizedClientWithDetails[] =
-          await Promise.all(
-            consentsData.map(async (consent: OAuthConsentItem) => {
-              try {
-                // `getClient` answers only the app's owner, so an app the
-                // viewer authorized but does not own came back 401 and showed
-                // as its raw id. The public fields carry the name for anyone.
-                const clientResult = await authClient.oauth2.publicClient({
-                  query: {
-                    client_id: consent.clientId,
-                  },
-                });
-                const clientName =
-                  typeof clientResult.data?.client_name === "string"
-                    ? clientResult.data.client_name
-                    : consent.clientId;
-                return {
-                  ...consent,
-                  clientName,
-                };
-              } catch {
-                return {
-                  ...consent,
-                  clientName: consent.clientId,
-                };
-              }
-            }),
-          );
-
-        setConsents(consentsWithDetails);
+        return await Promise.all(
+          consentsData.map(async (consent: OAuthConsentItem) => {
+            try {
+              // `getClient` answers only the app's owner, so an app the
+              // viewer authorized but does not own came back 401 and showed
+              // as its raw id. The public fields carry the name for anyone.
+              const clientResult = await authClient.oauth2.publicClient({
+                query: {
+                  client_id: consent.clientId,
+                },
+              });
+              const clientName =
+                typeof clientResult.data?.client_name === "string"
+                  ? clientResult.data.client_name
+                  : consent.clientId;
+              return {
+                ...consent,
+                clientName,
+              };
+            } catch {
+              return {
+                ...consent,
+                clientName: consent.clientId,
+              };
+            }
+          }),
+        );
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Unknown error";
-        setError(errorMessage);
         toast.error(errorMessage);
-      } finally {
-        setLoading(false);
+        throw new Error(errorMessage);
       }
-    }
+    },
+  });
 
-    fetchConsents();
-  }, [t]);
+  const consents = consentsQuery.data ?? [];
+  const loading = consentsQuery.isPending;
+  const error =
+    consentsQuery.isError && consentsQuery.data === undefined
+      ? consentsQuery.error instanceof Error
+        ? consentsQuery.error.message
+        : "Unknown error"
+      : null;
+
+  const visible = usePageListSearch(consents, (consent) => ({
+    primary: [consent.clientName, consent.clientId],
+  }));
 
   async function handleRevoke(consentId: string, clientId: string) {
     if (!confirm(t("confirmRevoke"))) {
@@ -94,14 +103,24 @@ export function OAuthAuthorizedClients() {
 
     setRevoking(clientId);
     try {
+      await queryClient.cancelQueries({
+        queryKey: AUTHORIZED_CLIENTS_QUERY_KEY,
+      });
       const result = await revokeOAuthClientAccess(consentId, clientId);
 
       if (!result.ok) {
         throw new Error(result.error.message || t("revokeError"));
       }
 
-      setConsents(consents.filter((c) => c.clientId !== clientId));
+      await queryClient.cancelQueries({
+        queryKey: AUTHORIZED_CLIENTS_QUERY_KEY,
+      });
+      queryClient.setQueryData<AuthorizedClientWithDetails[]>(
+        AUTHORIZED_CLIENTS_QUERY_KEY,
+        (current) => (current ?? []).filter((c) => c.clientId !== clientId),
+      );
       toast.success(t("revokeSuccess"));
+      await consentsQuery.refetch();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : t("revokeError");

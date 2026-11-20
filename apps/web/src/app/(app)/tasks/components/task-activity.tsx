@@ -184,7 +184,11 @@ function matchTaskFile(
   return undefined;
 }
 
-export function TaskActivitySection({
+export function TaskActivitySection(props: TaskActivityProps) {
+  return <TaskActivityContent key={props.taskId} {...props} />;
+}
+
+function TaskActivityContent({
   taskId,
   title,
   placeholder,
@@ -250,27 +254,19 @@ export function TaskActivitySection({
     return names;
   }, [userById, mentionableUsers, viewerId]);
 
-  useEffect(() => {
-    setCommentsExpanded(false);
-    setPendingJumpId(null);
-  }, [taskId]);
-
-  useEffect(() => {
+  const [syncedEvents, setSyncedEvents] = useState(events);
+  if (syncedEvents !== events) {
+    setSyncedEvents(events);
     // Same task: merge so expanded older pages survive truncated refresh.
     // Drop optimistic rows — the refreshed prop carries the persisted event.
-    // Different task: replace the feed entirely.
-    setLocalEvents((prev) => {
-      const sameTask =
-        prev.length > 0 && prev.every((event) => event.taskId === taskId);
-      if (!sameTask) {
-        return events;
-      }
-      return mergeTaskActivityEvents(
+    // Switching taskId remounts this subtree via key, so state resets cleanly.
+    setLocalEvents((prev) =>
+      mergeTaskActivityEvents(
         prev.filter((event) => !event.id.startsWith("optimistic:")),
         events,
-      );
-    });
-  }, [events, taskId]);
+      ),
+    );
+  }
 
   const localCommentCount = localEvents.filter(
     (event) => event.comment != null,

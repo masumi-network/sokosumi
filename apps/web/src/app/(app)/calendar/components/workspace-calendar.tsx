@@ -98,8 +98,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";

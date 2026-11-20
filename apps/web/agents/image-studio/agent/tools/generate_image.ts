@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { startGeneration } from "../lib/core";
 import { idempotencyKeyFor, identityFrom } from "../lib/identity";
-import { CURATED_IMAGE_MODEL_IDS, pinnedSelectionFrom } from "../lib/models";
+import { CURATED_IMAGE_MODEL_IDS } from "../lib/models";
 import { studioRouterForSession } from "../lib/router-trial";
 
 export default defineTool({
@@ -39,7 +39,7 @@ export default defineTool({
       .enum(CURATED_IMAGE_MODEL_IDS)
       .default("gemini-pro")
       .describe(
-        "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images. An Advanced model selection overrides this choice.",
+        "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images. Use recraft-v4-1-text-to-vector only for logos, icons and flat diagrams, with PNG output and no seed.",
       ),
     placementId: z
       .string()
@@ -58,25 +58,24 @@ export default defineTool({
   label: { start: ({ prompt }) => `Generate: ${prompt.slice(0, 60)}` },
   async execute(input, ctx) {
     const identity = identityFrom(ctx);
-    const selection = { ...input, ...pinnedSelectionFrom(ctx) };
     const { job } = await startGeneration(identity, {
       prompt: input.prompt,
       route: input.route,
       experimentArm: studioRouterForSession(ctx.session.id).arm,
       parentAssetId: null,
       referenceAssetIds: [],
-      aspectRatio: selection.aspectRatio,
-      resolution: selection.resolution,
-      modelId: selection.modelId,
+      aspectRatio: input.aspectRatio,
+      resolution: input.resolution,
+      modelId: input.modelId,
       ...(input.catalogProductId
         ? { catalogProductId: input.catalogProductId }
         : {}),
       placementId: input.placementId,
-      outputFormat: selection.outputFormat,
-      seed: selection.seed,
+      outputFormat: input.outputFormat,
+      seed: input.seed,
       idempotencyKey: idempotencyKeyFor(
         ctx,
-        `generate:${JSON.stringify(selection)}`,
+        `generate:${JSON.stringify(input)}`,
       ),
     });
     return {

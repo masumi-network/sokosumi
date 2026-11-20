@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { useClipboard } from "@/hooks/effects/use-clipboard";
 import {
   type DriveShareTarget,
   driveShareUrl,

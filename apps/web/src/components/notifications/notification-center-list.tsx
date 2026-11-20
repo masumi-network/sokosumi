@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import {
@@ -348,15 +349,13 @@ function LeavingRow({
 }: LeavingRowProps) {
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [isFocusInside, setIsFocusInside] = useState(false);
+  const reduceMotion = usePrefersReducedMotion();
   const isCollapsed = isLeaving && !isPointerInside && !isFocusInside;
 
   // The hide waits for the fold to finish. A row put back to unread mid
   // fold is no longer collapsed, and the cleanup drops the pending hide.
   useEffect(() => {
     if (!isCollapsed) return;
-    const reduceMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion) {
       onDeparted(notificationId);
       return;
@@ -366,7 +365,7 @@ function LeavingRow({
     }, LEAVE_DURATION_MS);
 
     return () => window.clearTimeout(timer);
-  }, [isCollapsed, notificationId, onDeparted]);
+  }, [isCollapsed, notificationId, onDeparted, reduceMotion]);
 
   return (
     <div

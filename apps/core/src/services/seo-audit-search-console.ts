@@ -41,6 +41,7 @@ import {
 export interface AuditSearchConsoleProof {
   propertyId: string;
   connectionVersion: string;
+  includeSitemaps?: true;
 }
 
 function unavailable() {

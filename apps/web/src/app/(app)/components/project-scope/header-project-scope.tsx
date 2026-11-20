@@ -13,7 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { cn } from "@/lib/utils";
 import { ProjectScopeActivity } from "./project-scope-activity";
 import { projectPageSection } from "./project-scope-href";

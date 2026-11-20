@@ -20,6 +20,24 @@ const request = () =>
   });
 
 describe("SEO worker request compatibility before Task dispatch", () => {
+  it("keeps submitted sitemaps private to a connected full audit and accepts legacy requests", () => {
+    const base = { ...request(), kind: "audit_full", analyses: undefined };
+    expect(requestSeoAnalysisSchema.parse(base)).not.toHaveProperty(
+      "includeSitemaps",
+    );
+    const approved = requestSeoAnalysisSchema.parse({
+      ...base,
+      includeSitemaps: true,
+    });
+    expect(seoTaskPacket(approved, [page], "audit-id")).not.toHaveProperty(
+      "includeSitemaps",
+    );
+    for (const request of [
+      { ...approved, allowLimitedAudit: true },
+      { ...approved, kind: "page_check" },
+    ])
+      expect(requestSeoAnalysisSchema.safeParse(request).success).toBe(false);
+  });
   it("freezes the customer's cost-plus terms independently of the worker data budget", () => {
     const fullAuditPrice = {
       kind: "cost_plus",
@@ -176,4 +194,29 @@ describe("SEO worker request compatibility before Task dispatch", () => {
     );
     expect(JSON.stringify(packet).length).toBeLessThan(SEO_MAX_PACKET_CHARS);
   });
+});
+
+it("retains approved same-origin sitemap hints and refuses off-site or private inputs before dispatch", () => {
+  const base = {
+    ...request(),
+    kind: "audit_full" as const,
+    analyses: undefined,
+    devices: ["desktop", "mobile"] as ("desktop" | "mobile")[],
+    fullAuditCredits: 750 as const,
+  };
+  const inputs = {
+    publicSitemapUrl: "https://example.test/maps/custom.xml",
+    sitemapPageHints: ["https://example.test/topic"],
+  };
+  expect(
+    seoTaskPacket({ ...base, ...inputs }, [page], "audit-id"),
+  ).toMatchObject({ ...inputs, inspectRelated: true, pageUrls: [page] });
+  for (const rejected of [
+    { ...base, publicSitemapUrl: "https://other.test/sitemap.xml" },
+    { ...base, publicSitemapUrl: "https://example.test/private/map.xml" },
+    { ...base, sitemapPageHints: [page + "?token=x"] },
+    { ...base, fullAuditCredits: undefined, ...inputs },
+    { ...base, kind: "page_check" as const, ...inputs },
+  ])
+    expect(() => validateSeoAnalysis(rejected, [page])).toThrow();
 });

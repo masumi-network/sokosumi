@@ -1,6 +1,9 @@
 import type { PublicSeoPayload } from "@/helpers/project-seo-report";
 import { normalizeSeoUrl } from "./project-seo-store";
 
+/** Severities that name a problem; notes, tests and measurements do not. */
+export const SEO_ISSUE_SEVERITIES = new Set(["critical", "major", "minor"]);
+
 type Check = { pageUrl: string; rowId: string; device: string | null };
 
 /** A measured rule remains tied to its Market, device and rulebook. */

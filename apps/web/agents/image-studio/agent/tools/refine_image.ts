@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { startGeneration } from "../lib/core";
 import { idempotencyKeyFor, identityFrom } from "../lib/identity";
-import { CURATED_IMAGE_MODEL_IDS, pinnedSelectionFrom } from "../lib/models";
+import { CURATED_EDIT_MODEL_IDS } from "../lib/models";
 import { studioRouterForSession } from "../lib/router-trial";
 
 export default defineTool({
@@ -38,10 +38,10 @@ export default defineTool({
         "Requested variant index within this turn; use 1 unless the user requested multiple images.",
       ),
     modelId: z
-      .enum(CURATED_IMAGE_MODEL_IDS)
+      .enum(CURATED_EDIT_MODEL_IDS)
       .default("gemini-pro")
       .describe(
-        "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images. An Advanced model selection overrides this choice.",
+        "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images.",
       ),
     placementId: z
       .string()
@@ -60,7 +60,6 @@ export default defineTool({
   label: { start: ({ prompt }) => `Refine: ${prompt.slice(0, 60)}` },
   async execute(input, ctx) {
     const identity = identityFrom(ctx);
-    const selection = { ...input, ...pinnedSelectionFrom(ctx) };
     const { job } = await startGeneration(identity, {
       prompt: input.prompt,
       route: input.route,
@@ -71,16 +70,13 @@ export default defineTool({
       ...(input.catalogProductId
         ? { catalogProductId: input.catalogProductId }
         : {}),
-      aspectRatio: selection.aspectRatio,
-      resolution: selection.resolution,
-      modelId: selection.modelId,
+      aspectRatio: input.aspectRatio,
+      resolution: input.resolution,
+      modelId: input.modelId,
       placementId: input.placementId,
-      outputFormat: selection.outputFormat,
-      seed: selection.seed,
-      idempotencyKey: idempotencyKeyFor(
-        ctx,
-        `refine:${JSON.stringify(selection)}`,
-      ),
+      outputFormat: input.outputFormat,
+      seed: input.seed,
+      idempotencyKey: idempotencyKeyFor(ctx, `refine:${JSON.stringify(input)}`),
     });
     return {
       jobId: job.id,

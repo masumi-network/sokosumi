@@ -1,5 +1,6 @@
 import {
   type ImageStudioRoute,
+  type ProjectImageJob,
   type ProjectImageStudioCatalog,
   readStudioAgentAdHeadline,
   type SaveStudioAgentAdHeadline,
@@ -552,6 +553,7 @@ export async function readGeneration(
     model: string;
     settings: unknown;
     error: string | null;
+    failureReason: ProjectImageJob["failureReason"];
     retryMayDuplicateCharge: boolean;
   };
   version: {

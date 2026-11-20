@@ -156,7 +156,7 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => false,
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobileMedia: () => mockIsMobileMedia(),
 }));

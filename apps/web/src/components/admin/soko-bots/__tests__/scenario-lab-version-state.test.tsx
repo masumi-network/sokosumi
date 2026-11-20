@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 const { listRunsMock, setVersionMock } = vi.hoisted(() => ({
   listRunsMock: vi.fn(),
@@ -74,6 +76,19 @@ const BOT: SokoBot = {
   updatedAt: new Date("2026-08-27T00:00:00Z"),
 };
 
+function makeWrapper(
+  options: Parameters<typeof withNuqsTestingAdapter>[0] = {},
+) {
+  const NuqsWrapper = withNuqsTestingAdapter(options);
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <TestQueryProvider>
+        <NuqsWrapper>{children}</NuqsWrapper>
+      </TestQueryProvider>
+    );
+  };
+}
+
 describe("ScenarioLab version URL state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,7 +98,7 @@ describe("ScenarioLab version URL state", () => {
 
   it("applies a valid deep-linked version before displaying it as active", async () => {
     render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: withNuqsTestingAdapter({
+      wrapper: makeWrapper({
         searchParams: "?version=v12-operator",
       }),
     });
@@ -104,7 +119,7 @@ describe("ScenarioLab version URL state", () => {
   it("updates URL state only after Core accepts a picker change", async () => {
     const onUrlUpdate = vi.fn();
     render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: withNuqsTestingAdapter({ onUrlUpdate }),
+      wrapper: makeWrapper({ onUrlUpdate }),
     });
     const candidate = await screen.findByRole("button", { name: "Operator" });
 

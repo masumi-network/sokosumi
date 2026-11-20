@@ -150,8 +150,8 @@ describe("SEO action worklist", () => {
     expect(
       await screen.findByRole("dialog", { name: "Fix the redirect" }),
     ).toBeVisible();
-    expect(setShownAction).toHaveBeenCalledWith(null);
     await user.keyboard("{Escape}");
+    expect(setShownAction).toHaveBeenCalledWith(null);
     // Its row, not the first row: no row was pressed to open it.
     await waitFor(() =>
       expect(

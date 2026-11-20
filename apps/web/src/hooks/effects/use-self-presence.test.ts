@@ -2,7 +2,7 @@ import { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "@sokosumi/utils";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useSelfPresence } from "@/hooks/use-self-presence";
+import { useSelfPresence } from "@/hooks/effects/use-self-presence";
 
 function setNavigatorOnline(value: boolean) {
   Object.defineProperty(window.navigator, "onLine", {

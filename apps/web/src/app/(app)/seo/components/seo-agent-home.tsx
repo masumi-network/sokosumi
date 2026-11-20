@@ -165,7 +165,7 @@ function SeoAgentPanel({
   const periodId = useId();
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.
-  const severitySplit = numbers.issues
+  const severitySplit = numbers.issues?.parts.length
     ? `: ${reportFormat.list(
         numbers.issues.parts.map((part) =>
           report("summary.severityCount", {
@@ -236,6 +236,7 @@ function SeoAgentPanel({
   // No check has saved a result in this view, and the reader can run one.
   const firstCheck =
     !brief.lastCheck &&
+    !brief.ruleCheckOutsideSelection &&
     !model.waitingForGoogle &&
     canRequestAnalysis &&
     !model.filters.from &&
@@ -299,20 +300,26 @@ function SeoAgentPanel({
                   ? report("agent.verdict.waiting", {
                       count: brief.opportunities,
                     })
-                  : brief.emptyState === "no_fixes" && lastCheckMeasured
-                    ? rarelyShown
-                      ? report("agent.verdict.clearRarelyShown", {
-                          pages: brief.lastCheck?.pages ?? 1,
-                        })
-                      : report("agent.verdict.clear")
-                    : brief.lastCheck
-                      ? report("actions.checksIncomplete")
-                      : // No call to run a check where no check can run: lead with what is known.
-                        canRequestAnalysis
-                        ? report("agent.verdict.noCheck")
-                        : trafficLead
-                          ? trafficLine
-                          : report("agent.verdict.noCheckOff")}
+                  : brief.earlierIssues
+                    ? report("overview.earlierFindings", {
+                        count: brief.earlierIssues,
+                      })
+                    : brief.checkClear && lastCheckMeasured
+                      ? rarelyShown
+                        ? report("agent.verdict.clearRarelyShown", {
+                            pages: brief.lastCheck?.pages ?? 1,
+                          })
+                        : report("agent.verdict.clear")
+                      : brief.lastCheck
+                        ? report("actions.checksIncomplete")
+                        : brief.ruleCheckOutsideSelection
+                          ? report("agent.verdict.noPageCheckInView")
+                          : // No call to run a check where no check can run: lead with what is known.
+                            canRequestAnalysis
+                            ? report("agent.verdict.noCheck")
+                            : trafficLead
+                              ? trafficLine
+                              : report("agent.verdict.noCheckOff")}
           </h3>
           {/* The runs row over the tabs names the day of the check in view. */}
           {brief.lastCheck && !runsShown ? (

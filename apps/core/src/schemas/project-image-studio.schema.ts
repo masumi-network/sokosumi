@@ -7,10 +7,8 @@ import {
 } from "@sokosumi/utils";
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { IMAGE_JOB_FAILURE_REASONS } from "@/lib/image-studio/failure-reason";
 import {
-  DEFAULT_IMAGE_MODEL_ID,
   IMAGE_ASPECT_RATIOS,
   IMAGE_OUTPUT_FORMATS,
   IMAGE_PROVIDER_FIELDS,
@@ -18,7 +16,6 @@ import {
 } from "@/lib/image-studio/image-model";
 import { IMAGE_PROMPT_MAX_LENGTH } from "@/lib/image-studio/request-validation";
 import { DEFAULT_TALKING_VIDEO_VOICE } from "@/lib/image-studio/talking-video";
-import { getVideoCatalog } from "@/lib/image-studio/video-catalog";
 import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_DURATIONS_SECONDS,
@@ -323,27 +320,8 @@ export const imageStudioSessionSchema = z
 
 export const createImageJobRequestSchema = z
   .object({
-    /**
-     * A catalog model id.
-     *
-     * Not a Zod enum, because the catalog is read from fal and moves without a
-     * deploy: a fixed list compiled into the schema would reject a model the
-     * studio is already offering. The refinement reads the *resolved* catalog at
-     * parse time instead, so a model that appeared in the last refresh is
-     * accepted and an unknown id is still a 400 rather than reaching the
-     * reservation. `resolveImageSettings` checks it again before anything is
-     * charged, because the schema is not the only way into that code.
-     */
-    modelId: z
-      .string()
-      .trim()
-      .min(1)
-      .max(200)
-      .default(DEFAULT_IMAGE_MODEL_ID)
-      .refine(
-        (id) => getImageCatalog().models.some((model) => model.id === id),
-        { message: "Unknown image model. Choose one from the studio catalog." },
-      ),
+    /** Repeat the approved lettering step on an existing backdrop. */
+    letterExistingBackdrop: z.boolean().optional(),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     templateId: z.string().trim().min(1).max(100).optional(),
     creativeDirection: z.string().trim().min(1).max(100).optional(),
@@ -372,23 +350,6 @@ export const createImageJobRequestSchema = z
 
 export const createVideoJobRequestSchema = z
   .object({
-    /**
-     * A video catalog model id. Omitted, the studio's default for the input:
-     * text-to-video, or image-to-video when `sourceAssetId` is set. Checked
-     * against the resolved catalog, for the same reason as `modelId` above.
-     */
-    modelId: z
-      .string()
-      .trim()
-      .min(1)
-      .max(200)
-      .optional()
-      .refine(
-        (id) =>
-          id === undefined ||
-          getVideoCatalog().models.some((model) => model.id === id),
-        { message: "Unknown video model. Choose one from the studio catalog." },
-      ),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     /** Missing fields take the model's defaults: 9:16, 5 seconds, its first resolution. */
     settings: z
@@ -812,9 +773,16 @@ export const recordImageStudioInitialTurnSchema = z.object({
 });
 
 export const createAgentImageJobSchema = createImageJobRequestSchema
-  .omit({ exportHeadline: true, useProductCutout: true })
+  .omit({
+    exportHeadline: true,
+    useProductCutout: true,
+    letterExistingBackdrop: true,
+  })
   .extend({
     route: imageStudioRouteSchema.optional(),
     experimentArm: studioRouterArmSchema.optional(),
     catalogProductId: z.string().uuid().optional(),
+    modelId: z
+      .enum(["gemini-pro", "ideogram-v3", "recraft-v4-1-text-to-vector"])
+      .default("gemini-pro"),
   });

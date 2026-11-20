@@ -536,6 +536,22 @@ describe("withTranscriptRowNeighbors", () => {
     expect(second.previousMessage?.id).toBe("msg-090");
     expect(second.dayPreviousMessage?.id).toBe("msg-090");
   });
+
+  it("drops leaked thread replies when merging or updating transcript messages", () => {
+    const root = message(10);
+    const leakedReply = { ...message(11), parentMessageId: root.id };
+    const head = mergeRoomHeadPage(emptyRoomTranscript(), {
+      messages: [root, leakedReply],
+      nextCursor: null,
+    });
+    expect(head.messages.map((row) => row.id)).toEqual(["msg-010"]);
+
+    const updated = updateRoomTranscriptMessages(head, (rows) => [
+      ...rows,
+      leakedReply,
+    ]);
+    expect(updated.messages.map((row) => row.id)).toEqual(["msg-010"]);
+  });
 });
 
 function range(from: number, to: number): number[] {
