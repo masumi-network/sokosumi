@@ -246,6 +246,8 @@ describe("Search Console audit launch", () => {
       );
       const first = monitor ? initial.analysis : initial;
       const next = monitor ? limited.analysis : limited;
+      expect(first.includeSitemaps).toBe(true);
+      expect(next.includeSitemaps).toBeUndefined();
       expect(first.allowLimitedAudit).toBeUndefined();
       expect(next).toMatchObject({
         idempotencyKey: first.idempotencyKey,
@@ -297,6 +299,46 @@ describe("uncertain audit launches", () => {
       mutate.mock.calls[2][0].command.body.allowLimitedAudit,
     ).toBeUndefined();
   });
+
+  it.each([false, true])(
+    "keeps a changed sitemap choice separate from an uncertain request (monitor %s)",
+    async (monitor) => {
+      mutate.mockRejectedValueOnce(new Error("Response lost after commit"));
+      const user = userEvent.setup();
+      const dialog = showDialog(workspace(), monitor);
+      const choice = within(dialog).getByRole("checkbox", {
+        name: messages.App.Seo.analysis.includeSitemaps,
+      });
+      const start = within(dialog).getByRole("button", {
+        name: monitor
+          ? messages.App.Seo.monitor.create
+          : messages.App.Seo.analysis.submit,
+      });
+      expect(choice).toBeChecked();
+      await user.click(start);
+      await waitFor(() => expect(toastError).toHaveBeenCalled());
+      await user.click(choice);
+      await user.click(start);
+      expect(mutate).toHaveBeenCalledTimes(1);
+      const retry = toastError.mock.lastCall?.[1]?.action;
+      mutate.mockResolvedValueOnce({
+        ok: false,
+        error: { kind: "seo_gsc_property", status: 409 },
+      });
+      await act(async () => retry.onClick());
+      expect(mutate.mock.calls[1][0]).toEqual(mutate.mock.calls[0][0]);
+      await user.click(start);
+      const first = mutate.mock.calls[0][0].command.body;
+      const changed = mutate.mock.calls[2][0].command.body;
+      expect((monitor ? first.analysis : first).includeSitemaps).toBe(true);
+      expect(
+        (monitor ? changed.analysis : changed).includeSitemaps,
+      ).toBeUndefined();
+      expect((monitor ? changed.analysis : changed).idempotencyKey).not.toBe(
+        (monitor ? first.analysis : first).idempotencyKey,
+      );
+    },
+  );
 
   it.each([false, true])(
     "replays the exact limited request after an uncertain acknowledgement (monitor %s)",
@@ -378,7 +420,9 @@ describe("full-audit price terms", () => {
     // A full audit has a minimum and no maximum: the line never says "up to".
     expect(within(dialog).queryByText(/Up to/)).toBeNull();
     expect(within(dialog).queryByRole("spinbutton")).toBeNull();
-    expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    expect(
+      within(dialog).queryByRole("checkbox", { name: /price|credits/i }),
+    ).toBeNull();
     await user.click(
       within(dialog).getByRole("button", { name: "Start check" }),
     );

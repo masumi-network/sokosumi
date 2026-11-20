@@ -29,6 +29,7 @@ function concrete(path: string): string {
 
 /** Routes that call `requireNotCmoProject`, `requireNotCuso` or `requireNotCmoDriveFile` themselves. */
 const DIRECT_LOCKED = new Set([
+  "POST /seo/audits/{id}/console-exports/{taskId}",
   "PATCH /drive/resources/{id}/metadata",
   "DELETE /drive/folders/delete",
   "PATCH /drive/folders/rename",

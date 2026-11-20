@@ -15,6 +15,7 @@ export function seoAuditInspectionPages(
   const metadata = z
     .object({
       inspectRelated: z.boolean().optional(),
+      searchConsoleAccess: z.unknown().optional(),
       relatedIndexingSelection: z.unknown().optional(),
     })
     .parse(request);
@@ -29,5 +30,9 @@ export function seoAuditInspectionPages(
   );
   if (JSON.stringify(selection.seedPageUrls) !== JSON.stringify(pageUrls))
     throw conflict("The approved audit seed pages changed");
-  return selectSeoRelatedPages(pageUrls, selection.relatedPageUrls);
+  return selectSeoRelatedPages(
+    pageUrls,
+    selection.relatedPageUrls,
+    metadata.searchConsoleAccess,
+  );
 }

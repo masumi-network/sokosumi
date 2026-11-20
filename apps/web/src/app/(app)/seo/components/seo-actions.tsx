@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { SeoActionWorklist } from "./seo-action-worklist";
 import { SeoArticleDates } from "./seo-article-dates";
+import { SeoCurrentDiscoveryActions } from "./seo-audit-discovery";
 import { SeoBriefPagePriority } from "./seo-brief-summary";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoActionsExport } from "./seo-export-model";
@@ -36,6 +37,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
     return (
       <div className="space-y-5">
         <SeoBriefPagePriority model={model} />
+        <SeoCurrentDiscoveryActions workspace={model.data} />
         <SeoStrategyActions model={model} />
         <SeoPageDetails model={model} standalone />
         <SeoArticleDates workspace={model.data} />
@@ -45,6 +47,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   return (
     <div className="space-y-5">
       <SeoBriefPagePriority model={model} />
+      <SeoCurrentDiscoveryActions workspace={model.data} />
       <SeoSection
         title={t("actions.listTitle")}
         description={

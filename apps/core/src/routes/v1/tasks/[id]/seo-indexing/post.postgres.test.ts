@@ -415,6 +415,37 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     });
   });
 
+  it("freezes and replays a www target only for the approved domain property", async () => {
+    const related = "https://www.example.test/guide";
+    const integration = await resolveSeoStatisticsIntegration(
+      { userId: ownerId, workspaceId },
+      "search_console",
+    );
+    expect.assert(integration);
+    const proof = {
+      propertyId: PROPERTY,
+      connectionVersion: connectionVersion(integration),
+    };
+    await approveDiscovery(PAGE_URLS, {
+      ...proof,
+      propertyId: "https://example.test/",
+    });
+    expect((await selectPages([related])).status).toBe(400);
+    const original = await approveDiscovery(PAGE_URLS, proof);
+    for (const proposals of [[related], []]) {
+      const response = await selectPages(proposals);
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect((await response.json()).data.inspectionPageUrls).toEqual([
+        ...PAGE_URLS,
+        related,
+      ]);
+    }
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } }))
+        .description,
+    ).toBe("seo_audit: " + JSON.stringify(original));
+  });
+
   it("freezes related indexing evidence without adding saved pages or widening the report", async () => {
     const original = await approveDiscovery();
     const before = await prisma.projectSeoAnalysis.findUniqueOrThrow({

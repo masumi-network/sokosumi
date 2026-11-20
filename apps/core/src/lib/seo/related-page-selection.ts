@@ -2,7 +2,9 @@ import { isValidHttpUrl } from "@sokosumi/utils";
 import { z } from "zod";
 
 import { badRequest, conflict } from "@/helpers/error";
+import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
 import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
+import { seoAuditSearchConsoleAccessSchema } from "@/schemas/seo-task-indexing.schema";
 import { seoRelatedIndexingSelectionSchema } from "@/schemas/seo-task-pages.schema";
 
 const requestObject = z.record(z.string(), z.json());
@@ -31,6 +33,7 @@ export function seoPageComparisonKey(value: string) {
 export function selectSeoRelatedPages(
   seedPageUrls: string[],
   relatedPageUrls: string[],
+  frozenAccess?: unknown,
 ) {
   const seeds = seedPageUrls.map(normalized);
   if (
@@ -38,14 +41,30 @@ export function selectSeoRelatedPages(
     new Set(seeds.map(seoPageComparisonKey)).size !== seeds.length
   )
     throw badRequest("The audit seed pages must be distinct");
-  const host = new URL(seeds[0]!).host;
-  for (const value of [...seeds, ...relatedPageUrls]) {
+  const primary = new URL(seeds[0]!);
+  const access = seoAuditSearchConsoleAccessSchema.safeParse(frozenAccess);
+  const property = access.success ? access.data.propertyId : "";
+  const domain = property.startsWith("sc-domain:")
+    ? property.slice("sc-domain:".length).toLowerCase()
+    : "";
+  const candidates = [...seeds, ...relatedPageUrls];
+  for (const [index, value] of candidates.entries()) {
     const url = new URL(value);
+    // Only private related targets may use the www alias. Seeds retain their exact host.
+    const alias =
+      index >= seeds.length &&
+      domain &&
+      url.port === primary.port &&
+      (url.protocol === primary.protocol ||
+        (primary.protocol === "http:" && url.protocol === "https:")) &&
+      ((primary.hostname === domain && url.hostname === "www." + domain) ||
+        (url.hostname === domain && primary.hostname === "www." + domain)) &&
+      gscPropertyCovers(property, [primary.href, url.href]);
     if (
       !isValidHttpUrl(value) ||
       url.username ||
       url.password ||
-      url.host !== host
+      (url.host !== primary.host && !alias)
     )
       throw badRequest("Related pages must use the audit's exact public host");
   }
@@ -97,6 +116,7 @@ export function originalSeoAuditPacket(value: unknown) {
   selectSeoRelatedPages(
     selection.data.seedPageUrls,
     selection.data.relatedPageUrls,
+    _access,
   );
   const { relatedIndexingSelection: _selection, ...packet } = request;
   return packet;

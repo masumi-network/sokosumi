@@ -11747,6 +11747,60 @@ export type ProjectImageStudioCaption = {
     text: string;
 };
 
+export type SeoConsoleExportSummary = {
+    kind: 'linked_pages' | 'internal_pages' | 'linking_sites' | 'anchor_text' | 'indexing_examples';
+    reason: 'discovered_not_indexed' | 'crawled_not_indexed' | 'blocked_robots' | 'excluded_noindex' | 'not_found' | 'redirect' | 'alternate_canonical' | null;
+    date: string;
+    sampleSize: number;
+    actions?: Array<{
+        id: string;
+        title: string;
+        why: string;
+        nextCheck: string;
+        subject?: string;
+    }>;
+    previousDate: string | null;
+    newInSample: number | null;
+    absentFromSample: number | null;
+    entries: Array<{
+        key: string;
+        counts: {
+            incomingLinks?: number;
+            internalLinks?: number;
+            linkingSites?: number;
+            linkingPages?: number;
+            targetPages?: number;
+            anchorLinks?: number;
+        };
+        auditedUrl: boolean;
+        inspection?: {
+            status: 'observed' | 'unavailable';
+            checkedAt: string;
+            verdict?: string;
+        };
+        previousCounts: {
+            incomingLinks?: number;
+            internalLinks?: number;
+            linkingSites?: number;
+            linkingPages?: number;
+            targetPages?: number;
+            anchorLinks?: number;
+        } | null;
+    }>;
+};
+
+export type SeoConsoleExportInput = {
+    kind: 'linked_pages' | 'internal_pages' | 'linking_sites' | 'anchor_text';
+    date: string;
+    csv: string;
+} | {
+    kind: 'indexing_examples';
+    reason: 'discovered_not_indexed' | 'crawled_not_indexed' | 'blocked_robots' | 'excluded_noindex' | 'not_found' | 'redirect' | 'alternate_canonical';
+    inspectExamples?: true;
+    date: string;
+    csv: string;
+};
+
 export type ProjectSeoWorkspace = {
     searchConsolePropertyId?: string | null;
     sharing?: 'organization' | 'personal';
@@ -11954,6 +12008,43 @@ export type ProjectSeoWorkspace = {
             coverage: 'complete' | 'partial' | 'unavailable';
             clicks: number | null;
             decision: 'investigate_loss' | 'investigate_growth' | 'monitor' | 'insufficient_history';
+        };
+        discovery?: {
+            checkedAt: Date;
+            status: 'available' | 'partial' | 'unavailable';
+            sitemaps: Array<{
+                path: string;
+                type: string | null;
+                index: boolean;
+                pending: boolean | null;
+                submittedAt: Date | null;
+                downloadedAt: Date | null;
+                errors: number | null;
+                warnings: number | null;
+                webUrls: number | null;
+            }>;
+            inspections: Array<{
+                page: string;
+                reason: string | null;
+                verdict: string;
+                canonical: string | null;
+                crawledAt: string | null;
+                checkedAt: Date;
+                reportedSitemaps?: Array<string>;
+                referringPages?: Array<string>;
+            }>;
+            changes: Array<{
+                url: string;
+                previousDay: Date;
+                currentDay?: Date;
+                text: string;
+            }>;
+            publicSitemaps: Array<string>;
+            actions: Array<{
+                url: string;
+                action: string;
+                evidence: string;
+            }>;
         };
         countries?: {
             rowLimit: number;
@@ -12661,6 +12752,7 @@ export type RequestProjectSeoAnalysisRequest = {
     };
     searchConsolePropertyId?: string;
     allowLimitedAudit?: true;
+    includeSitemaps?: true;
     setupGoal?: {
         pageId: string;
         expectedRevision: number;
@@ -78252,6 +78344,230 @@ export type PatchProjectsByIdResponses = {
 
 export type PatchProjectsByIdResponse = PatchProjectsByIdResponses[keyof PatchProjectsByIdResponses];
 
+export type GetProjectConsoleExportsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/console-exports/{taskId}';
+};
+
+export type GetProjectConsoleExportsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Audit not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict or CMO Project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid export
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectConsoleExportsError = GetProjectConsoleExportsErrors[keyof GetProjectConsoleExportsErrors];
+
+export type GetProjectConsoleExportsResponses = {
+    /**
+     * Owner-private Search Console export samples
+     */
+    200: {
+        data: Array<SeoConsoleExportSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectConsoleExportsResponse = GetProjectConsoleExportsResponses[keyof GetProjectConsoleExportsResponses];
+
+export type ImportProjectConsoleExportData = {
+    body: SeoConsoleExportInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/console-exports/{taskId}';
+};
+
+export type ImportProjectConsoleExportErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Audit not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict or CMO Project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid export
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ImportProjectConsoleExportError = ImportProjectConsoleExportErrors[keyof ImportProjectConsoleExportErrors];
+
+export type ImportProjectConsoleExportResponses = {
+    /**
+     * Owner-private Search Console export samples
+     */
+    200: {
+        data: Array<SeoConsoleExportSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ImportProjectConsoleExportResponse = ImportProjectConsoleExportResponses[keyof ImportProjectConsoleExportResponses];
+
 export type GetProjectSeoWorkspaceData = {
     body?: never;
     headers?: {
@@ -81264,6 +81580,230 @@ export type SetSeoAuditArchivedResponses = {
 };
 
 export type SetSeoAuditArchivedResponse = SetSeoAuditArchivedResponses[keyof SetSeoAuditArchivedResponses];
+
+export type GetAuditConsoleExportsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/console-exports/{taskId}';
+};
+
+export type GetAuditConsoleExportsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Audit not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict or CMO Project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid export
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAuditConsoleExportsError = GetAuditConsoleExportsErrors[keyof GetAuditConsoleExportsErrors];
+
+export type GetAuditConsoleExportsResponses = {
+    /**
+     * Owner-private Search Console export samples
+     */
+    200: {
+        data: Array<SeoConsoleExportSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAuditConsoleExportsResponse = GetAuditConsoleExportsResponses[keyof GetAuditConsoleExportsResponses];
+
+export type ImportAuditConsoleExportData = {
+    body: SeoConsoleExportInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/console-exports/{taskId}';
+};
+
+export type ImportAuditConsoleExportErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Audit not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict or CMO Project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid export
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ImportAuditConsoleExportError = ImportAuditConsoleExportErrors[keyof ImportAuditConsoleExportErrors];
+
+export type ImportAuditConsoleExportResponses = {
+    /**
+     * Owner-private Search Console export samples
+     */
+    200: {
+        data: Array<SeoConsoleExportSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ImportAuditConsoleExportResponse = ImportAuditConsoleExportResponses[keyof ImportAuditConsoleExportResponses];
 
 export type AddSeoAuditPageData = {
     body: AddProjectSeoPageRequest;

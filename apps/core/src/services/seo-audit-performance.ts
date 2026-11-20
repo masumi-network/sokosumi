@@ -21,7 +21,7 @@ export function auditSearchConsolePeriod(createdAt: Date) {
   return { from: start.toISOString().slice(0, 10), to };
 }
 
-async function readBinding(
+export async function readAuditSearchConsoleBinding(
   tx: Prisma.TransactionClient,
   taskId: string,
   requester?: SeoActor,
@@ -88,7 +88,7 @@ export async function collectSeoAuditPerformance(
   requester?: SeoActor,
 ) {
   const binding = await serializableTransaction(
-    (tx) => readBinding(tx, taskId, requester),
+    (tx) => readAuditSearchConsoleBinding(tx, taskId, requester),
     "The audit changed during collection.",
   );
   if (!binding) {
@@ -109,7 +109,11 @@ export async function collectSeoAuditPerformance(
     },
     {
       authorize: async (tx) => {
-        const current = await readBinding(tx, taskId, requester);
+        const current = await readAuditSearchConsoleBinding(
+          tx,
+          taskId,
+          requester,
+        );
         if (JSON.stringify(current) !== JSON.stringify(binding))
           throw conflict(
             "The approved audit changed during statistics collection.",
@@ -119,6 +123,7 @@ export async function collectSeoAuditPerformance(
     {
       taskId,
       connectionVersion: access.connectionVersion,
+      ...(access.includeSitemaps && { includeSitemaps: true }),
       pageUrls: pages.map((page) => page.url),
     },
   );

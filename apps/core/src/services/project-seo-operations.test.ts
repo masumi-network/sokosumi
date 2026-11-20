@@ -20,6 +20,24 @@ const request = () =>
   });
 
 describe("SEO worker request compatibility before Task dispatch", () => {
+  it("keeps submitted sitemaps private to a connected full audit and accepts legacy requests", () => {
+    const base = { ...request(), kind: "audit_full", analyses: undefined };
+    expect(requestSeoAnalysisSchema.parse(base)).not.toHaveProperty(
+      "includeSitemaps",
+    );
+    const approved = requestSeoAnalysisSchema.parse({
+      ...base,
+      includeSitemaps: true,
+    });
+    expect(seoTaskPacket(approved, [page], "audit-id")).not.toHaveProperty(
+      "includeSitemaps",
+    );
+    for (const request of [
+      { ...approved, allowLimitedAudit: true },
+      { ...approved, kind: "page_check" },
+    ])
+      expect(requestSeoAnalysisSchema.safeParse(request).success).toBe(false);
+  });
   it("freezes the customer's cost-plus terms independently of the worker data budget", () => {
     const fullAuditPrice = {
       kind: "cost_plus",

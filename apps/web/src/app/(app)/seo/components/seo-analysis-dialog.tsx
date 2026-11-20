@@ -383,6 +383,18 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
+          {full ? (
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="seo-include-sitemaps"
+                name="includeSitemaps"
+                defaultChecked
+              />
+              <Label htmlFor="seo-include-sitemaps">
+                {t("analysis.includeSitemaps")}
+              </Label>
+            </div>
+          ) : null}
           {form.selectingProperty ? (
             <p role="status" className="text-muted-foreground text-sm">
               {t("statistics.propertiesLoading")}

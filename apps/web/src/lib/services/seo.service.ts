@@ -15,6 +15,7 @@ import type {
   SaveProjectSeoBrandTermsRequest,
   SaveProjectSeoCompetitorRequest,
   SaveProjectSeoKeywordRequest,
+  SeoConsoleExportInput,
   SyncProjectSeoStatisticsData,
   UpdateProjectSeoScopeRequest,
 } from "@sokosumi/core-client";
@@ -30,9 +31,13 @@ import {
   createSeoAuditActionTask,
   createSeoAuditMonitor,
   createSeoAuditScope,
+  getAuditConsoleExports,
+  getProjectConsoleExports,
   getProjectSeoWorkspace,
   getSeoAuditWorkspace,
   getSeoAuditWorkspaceMapping,
+  importAuditConsoleExport,
+  importProjectConsoleExport,
   importProjectSeoAudit,
   importSeoAuditReport,
   listProjectSeoStatisticsProperties,
@@ -64,6 +69,32 @@ export type SeoWorkspaceQuery = NonNullable<
 >;
 
 export const seoServiceNoRedirect = {
+  async consoleExports(
+    owner: SeoOwner,
+    taskId: string,
+    body?: SeoConsoleExportInput,
+  ) {
+    const path = { id: owner.id, taskId };
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) => {
+        if (body) {
+          return (
+            owner.kind === "audit"
+              ? importAuditConsoleExport
+              : importProjectConsoleExport
+          )({ client, path, body });
+        }
+        return (
+          owner.kind === "audit"
+            ? getAuditConsoleExports
+            : getProjectConsoleExports
+        )({ client, path });
+      },
+      "Failed to access private Search Console exports",
+    );
+    return response.data;
+  },
   async listAudits(query: NonNullable<ListSeoAuditsData["query"]> = {}) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,

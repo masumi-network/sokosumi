@@ -202,6 +202,7 @@ export const requestSeoAnalysisSchema = z
     fullAuditPrice: seoCostPlusPriceSchema.optional(),
     searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
     allowLimitedAudit: z.literal(true).optional(),
+    includeSitemaps: z.literal(true).optional(),
     setupGoal: z
       .strictObject({
         pageId: seoIdSchema,
@@ -256,6 +257,12 @@ export const requestSeoAnalysisSchema = z
           ? input.sharedBrief.revision === input.setupGoal.expectedRevision
           : input.sharedBrief.revision > 0)),
     "Share goals from the reviewed brief revision in a full audit",
+  )
+  .refine(
+    (input) =>
+      !input.includeSitemaps ||
+      (input.kind === "audit_full" && !input.allowLimitedAudit),
+    "Submitted sitemaps require a full audit with Search Console access",
   )
   .openapi("RequestProjectSeoAnalysisRequest");
 export const saveSeoKeywordSchema = z

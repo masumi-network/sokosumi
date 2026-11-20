@@ -12,7 +12,12 @@ export function preserveAuditPerformance(
     !next.auditMeasuredPages
   )
     return next;
-  if (previous.auditPerformanceComplete) return previous;
+  if (previous.auditPerformanceComplete) {
+    return previous.auditDiscovery?.status === "unavailable" &&
+      next.auditDiscovery
+      ? { ...previous, auditDiscovery: next.auditDiscovery }
+      : previous;
+  }
   const samePages = next.auditMeasuredPages.every((page) =>
     previous.auditMeasuredPages?.some(
       (old) =>

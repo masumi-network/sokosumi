@@ -157,7 +157,9 @@ export function validateSeoAnalysis(
   pageUrls: string[],
 ): void {
   if (
-    (input.allowLimitedAudit || input.searchConsolePropertyId) &&
+    (input.allowLimitedAudit ||
+      input.searchConsolePropertyId ||
+      input.includeSitemaps) &&
     input.kind !== "audit_full"
   )
     throw badRequest("Search Console audit choices apply only to a full audit");
@@ -350,7 +352,10 @@ export async function requestProjectSeoAnalysis(
   return serializableTransaction(
     (tx) =>
       requestProjectSeoAnalysisInTransaction(actor, input, tx, hooks, {
-        searchConsoleAccess: proof,
+        searchConsoleAccess: {
+          ...proof,
+          ...(input.includeSitemaps && { includeSitemaps: true }),
+        },
         pages: ready.pages,
       }),
     ANALYSIS_RETRY,

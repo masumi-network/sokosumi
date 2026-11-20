@@ -68,6 +68,7 @@ export function freezeSeoTaskRelatedIndexing(
     const inspectionPageUrls = selectSeoRelatedPages(
       input.seedPageUrls,
       input.relatedPageUrls,
+      stored.searchConsoleAccess,
     );
     if (
       await tx.projectSeoObservation.count({ where: { sourceTaskId: taskId } })
