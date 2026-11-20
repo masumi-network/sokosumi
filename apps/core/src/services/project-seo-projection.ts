@@ -8,10 +8,8 @@ import type {
   ProjectSeoScope,
 } from "@sokosumi/database";
 import { internalServerError } from "@/helpers/error";
-import {
-  publicSeoPayloadSchema,
-  seoPayloadCoverage,
-} from "@/helpers/project-seo-report";
+import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
+import { scopedObservationChecks } from "@/helpers/seo-checklist-breakdown";
 import {
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
@@ -201,7 +199,10 @@ export function projectSeoProjection(
     if (!parsed.success)
       throw internalServerError("Stored SEO evidence is not readable");
     const data = parsed.data;
-    const coverage = seoPayloadCoverage(data);
+    const { coverage, checklistBreakdown, devices } = scopedObservationChecks(
+      data,
+      (url) => selectedUrls.has(normalizeSeoUrl(url)),
+    );
     scopedPublicSources.set(row.id, row);
     // One rule that fails on mobile and on desktop is one issue on that page.
     const issues = new Set(
@@ -298,16 +299,11 @@ export function projectSeoProjection(
       sourceTaskId: row.sourceTaskId,
       countryCode: data.countryCode || null,
       languageCode: data.languageCode || null,
-      devices: [
-        ...new Set(
-          [...data.checks, ...data.findings, ...data.keywords].flatMap(
-            (item) => (item.device ? [item.device] : []),
-          ),
-        ),
-      ],
+      devices,
       rulebookVersion: data.rulebookVersion,
       artifactHash: row.artifactHash,
       issues,
+      ...(checklistBreakdown && { checklistBreakdown }),
       coverage,
     });
     for (const check of data.checks) {

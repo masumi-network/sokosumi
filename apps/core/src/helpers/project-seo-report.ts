@@ -4,6 +4,7 @@ import {
   seoConversionSchema,
   seoDeviceSchema,
   seoEditorialKeywordSchema,
+  seoIdeaRankSchema,
   seoModuleCoverageSchema,
   seoSeveritySchema,
   seoUrlSchema,
@@ -16,6 +17,7 @@ import {
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
+import { seoResearchCoverage } from "@/schemas/seo-audit-coverage.schema";
 import * as seoDecisions from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import {
@@ -41,6 +43,7 @@ import {
   publicSiteFindings,
 } from "./project-seo-site-findings";
 import { publicSeoStrategy } from "./project-seo-strategy";
+import { focusedRuleCoverage, readChecklist } from "./seo-checklist-breakdown";
 import {
   articleDates,
   boundTopicLaunches,
@@ -52,6 +55,10 @@ import {
   readReviewSources,
   seoReviewSource,
 } from "./seo-recommendation-evidence";
+import {
+  pageResearchCoverage,
+  siteResearchCoverage,
+} from "./seo-research-coverage";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
@@ -77,6 +84,7 @@ const keyword = source.extend({
   difficulty,
   intent: text.nullable().optional(),
   editorial: seoEditorialKeywordSchema.optional(),
+  ideaRank: seoIdeaRankSchema,
   conversion: seoConversionSchema.nullable().optional(),
   feature: z.string().max(FEATURE_CHARS).nullable().optional(),
   source: text.optional(),
@@ -111,10 +119,12 @@ const publicSeoPayload = z.object({
   countryCode: z.string().max(10),
   languageCode: z.string().max(20),
   rulebookVersion: text,
+  researchCoverage: z.array(seoResearchCoverage).max(11).optional(),
   checks: z
     .array(
       z.object({
         rowId: text,
+        reason: z.string().max(1200).optional(),
         pageUrl: seoUrlSchema,
         device: seoDeviceSchema,
         result: z.enum(["pass", "fired", "blocked", "not_checked"]),
@@ -153,34 +163,6 @@ export const publicSeoPayloadSchema = publicSeoPayload.transform(
   omitUndefinedProperties,
 );
 export type PublicSeoPayload = z.infer<typeof publicSeoPayloadSchema>;
-
-function focusedRuleCoverage(
-  checks: PublicSeoPayload["checks"],
-  modules: NonNullable<PublicSeoPayload["coverage"]["modules"]>,
-): PublicSeoPayload["coverage"] {
-  return {
-    checked: checks.filter(
-      (check) => check.result === "pass" || check.result === "fired",
-    ).length,
-    skipped: checks.filter((check) => check.result === "not_checked").length,
-    failed: checks.filter((check) => check.result === "blocked").length,
-    modules,
-  };
-}
-
-/** Older focused payloads stored module counts in the rule coverage fields. */
-export function seoPayloadCoverage(
-  payload: PublicSeoPayload,
-): PublicSeoPayload["coverage"] {
-  if (payload.kind === "audit_full") return payload.coverage;
-  return focusedRuleCoverage(
-    payload.checks,
-    payload.coverage.modules ?? {
-      notRequested: payload.coverage.skipped,
-      failed: payload.coverage.failed,
-    },
-  );
-}
 
 const frozenRequest = z.object({
   pageUrls: z.array(seoUrlSchema).min(1),
@@ -313,7 +295,14 @@ const partial = z
       .max(10000),
     // A focused result carries no estimate: only a page Report does. One sent all the same is not read.
     keywords: z
-      .array(keyword.omit({ conversion: true, feature: true, editorial: true }))
+      .array(
+        keyword.omit({
+          conversion: true,
+          feature: true,
+          editorial: true,
+          ideaRank: true,
+        }),
+      )
       .max(5000),
     competitors: z.array(competitor).max(1000),
     findings: z.array(finding).max(5000),
@@ -452,6 +441,15 @@ const legacy = z.object({
     .catch(null),
   keywordOpportunities: z
     .object({
+      editorialResearch: z
+        .object({
+          status: z.enum(["complete", "partial", "skipped"]),
+          proposed: z.number().int().nonnegative(),
+          checked: z.number().int().nonnegative(),
+          qualified: z.number().int().nonnegative(),
+        })
+        .optional()
+        .catch(undefined),
       list: z.array(
         z.object({
           keyword: text,
@@ -473,6 +471,8 @@ const legacy = z.object({
         row: text,
         device: seoDeviceSchema,
         result: z.enum(["pass", "fired", "blocked", "not checked"]),
+        sourceReason: z.string().optional().catch(undefined),
+        detail: z.string().optional().catch(undefined),
       }),
     )
     .max(10000),
@@ -549,6 +549,11 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         Math.max(...pages.map((p) => Date.parse(p.observedAt))),
       ),
       reviewSources: ranks,
+      researchCoverage: siteResearchCoverage(
+        raw,
+        first.pageUrls[0]!,
+        pages.flatMap((p) => p.researchCoverage ?? []),
+      ),
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),
@@ -700,12 +705,15 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     rulebookVersion: result.rulebookVersion,
     ...seoDecisions.singlePageDecisions(raw, result, ranks),
     ...(seasonalIdeas && { seasonalIdeas }),
-    checks: result.checklist.map((row) => ({
-      rowId: row.row,
-      pageUrl,
-      device: row.device,
-      result: row.result === "not checked" ? "not_checked" : row.result,
-    })),
+    researchCoverage: [
+      {
+        ...pageResearchCoverage(raw, pageUrl),
+        ...(result.keywordOpportunities?.editorialResearch && {
+          rankedKeywordIdeas: true,
+        }),
+      },
+    ],
+    checks: readChecklist(result.checklist, result.couldNotSee, pageUrl),
     keywords,
     competitors,
     findings,
@@ -724,11 +732,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       edit: row.edit ? { ...row.edit, before: row.edit.before ?? null } : null,
     })),
     coverage: {
-      checked: result.checklist.filter((row) => row.result !== "not checked")
-        .length,
+      checked: result.checklist.filter(
+        (row) => row.result === "pass" || row.result === "fired",
+      ).length,
       skipped: result.checklist.filter((row) => row.result === "not checked")
         .length,
-      failed: 0,
+      failed: result.checklist.filter((row) => row.result === "blocked").length,
     },
     notes: result.couldNotSee.map((row) => `${row.item}: ${row.reason}`),
   });

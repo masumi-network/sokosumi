@@ -773,3 +773,26 @@ it("expands the whole idea row, keeps tracking independent, and gives the detail
   await user.keyboard(" ");
   expect(screen.queryByText("Recommended for lower competition")).toBeNull();
 });
+
+it("folds exactly ten of eleven keyword ideas and expands the remaining idea", async () => {
+  const user = userEvent.setup();
+  const ideas = keywordGroups(
+    Array.from({ length: 11 }, (_, i) =>
+      row({
+        keyword: "reader idea " + (i + 1),
+        source: "opportunity",
+        ideaRank: i + 1,
+      }),
+    ),
+  ).ideas;
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoKeywordIdeas ideas={ideas} model={model} />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getAllByRole("button", { name: /^reader idea / })).toHaveLength(
+    10,
+  );
+  await user.click(screen.getByRole("button", { name: "Show 1 more idea" }));
+  expect(screen.getByRole("button", { name: "reader idea 11" })).toBeVisible();
+});

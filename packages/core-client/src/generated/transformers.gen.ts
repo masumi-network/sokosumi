@@ -4798,6 +4798,10 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
                 item.previous.from = new Date(item.previous.from);
                 item.previous.to = new Date(item.previous.to);
             }
+            if (item.history) {
+                item.history.from = new Date(item.history.from);
+                item.history.to = new Date(item.history.to);
+            }
             return item;
         });
     }

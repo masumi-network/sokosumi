@@ -138,6 +138,14 @@ function openRuns(
         impressions: null,
         ctr: null,
         averagePosition: null,
+        history: {
+          reason: "recent_click_decline",
+          from: new Date("2025-10-02"),
+          to: new Date("2025-10-29"),
+          coverage: "partial",
+          clicks: null,
+          decision: "insufficient_history",
+        },
         previous: {
           from: new Date("2026-09-03"),
           to: new Date("2026-09-30"),
@@ -240,6 +248,13 @@ describe("SEO report file versions", () => {
       ),
     ).toBeVisible();
     expect(evidence.getByText("Partial data")).toBeVisible();
+    expect(evidence.getByText("2025-10-02 to 2025-10-29")).toBeVisible();
+    expect(
+      evidence.getByText(
+        "There is too little comparable history to confirm the recent change.",
+      ),
+    ).toBeVisible();
+    expect(evidence.queryByText(/^Clicks during that period:/)).toBeNull();
     expect(
       evidence.getByRole("row", { name: "Search clicks 0 1" }),
     ).toBeVisible();

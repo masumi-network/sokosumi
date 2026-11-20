@@ -15,6 +15,7 @@ import {
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { collectAuditClickHistory } from "@/lib/seo/audit-click-history";
 import { auditPerformancePage } from "@/lib/seo/audit-performance-pages";
 import { ga4LandingPlan } from "@/lib/seo/native-ga4-landing";
 import {
@@ -689,6 +690,34 @@ export async function syncProjectSeoStatistics(
               ?.value === 0)
         )
           metrics.coverage = "complete";
+        if (
+          metrics.coverage === "complete" &&
+          measuredPages.every((page) => page.basis !== "unverified")
+        ) {
+          metrics.auditClickHistory = await collectAuditClickHistory(
+            metrics,
+            async (window) => {
+              const historical = { ...query, ...window };
+              const result = unwrapNativeStatistics(
+                await read(
+                  integration,
+                  tool,
+                  gscStatisticsArguments(historical, true),
+                ),
+                ["rows"],
+              );
+              return (
+                normalizeGscStatistics(
+                  historical,
+                  null,
+                  result,
+                  metrics.observedAt,
+                ).metrics.find((metric) => metric.key === "clicks")?.points ??
+                []
+              );
+            },
+          );
+        }
       }
       metrics.collectionFingerprint = fingerprint;
       metrics.collectedAt = metrics.observedAt;

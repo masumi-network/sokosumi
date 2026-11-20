@@ -76,6 +76,7 @@ export async function readAuditPerformanceSummaries(
           evidence,
         })),
         coverage: data.coverage,
+        ...(data.auditClickHistory && { history: data.auditClickHistory }),
         ...totals(data),
         previous: earlier
           ? { from: earlier.from, to: earlier.to, ...totals(data, true) }

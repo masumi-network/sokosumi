@@ -20,6 +20,14 @@ export function lastRuleCheck(workspace: ProjectSeoWorkspace) {
   );
 }
 
+/** The latest full audit with saved research can predate a focused page check. */
+export function lastAuditResearch(workspace: ProjectSeoWorkspace) {
+  return workspace.observations.find(
+    (check) =>
+      check.kind === "audit_full" && check.checklistBreakdown?.research.length,
+  );
+}
+
 /**
  * The saved results as a few numbers with their parts, for the tile row.
  * A tile is null where no saved evidence gives its number: a missing read is not a zero.

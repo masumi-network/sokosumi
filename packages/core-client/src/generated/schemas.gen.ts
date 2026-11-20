@@ -45524,6 +45524,58 @@ export const ProjectSeoWorkspaceSchema = {
                             'to'
                         ]
                     },
+                    history: {
+                        type: 'object',
+                        properties: {
+                            reason: {
+                                type: 'string',
+                                enum: [
+                                    'recent_click_decline',
+                                    'recent_click_growth'
+                                ]
+                            },
+                            from: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            to: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            coverage: {
+                                type: 'string',
+                                enum: [
+                                    'complete',
+                                    'partial',
+                                    'unavailable'
+                                ]
+                            },
+                            clicks: {
+                                type: [
+                                    'integer',
+                                    'null'
+                                ],
+                                minimum: 0
+                            },
+                            decision: {
+                                type: 'string',
+                                enum: [
+                                    'investigate_loss',
+                                    'investigate_growth',
+                                    'monitor',
+                                    'insufficient_history'
+                                ]
+                            }
+                        },
+                        required: [
+                            'reason',
+                            'from',
+                            'to',
+                            'coverage',
+                            'clicks',
+                            'decision'
+                        ]
+                    },
                     queries: {
                         type: [
                             'object',
@@ -45809,6 +45861,127 @@ export const ProjectSeoObservationSchema = {
             type: 'integer',
             minimum: 0
         },
+        checklistBreakdown: {
+            type: 'object',
+            properties: {
+                passed: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    minimum: 0
+                },
+                flagged: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    minimum: 0
+                },
+                gaps: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            rowId: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            device: {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            reason: {
+                                type: 'string',
+                                maxLength: 1200
+                            }
+                        },
+                        required: [
+                            'rowId',
+                            'pageUrl',
+                            'device',
+                            'reason'
+                        ]
+                    }
+                },
+                research: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            pageUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            scope: {
+                                type: 'string',
+                                enum: [
+                                    'page',
+                                    'site'
+                                ]
+                            },
+                            rankedKeywordIdeas: {
+                                type: 'boolean'
+                            },
+                            stages: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        name: {
+                                            type: 'string',
+                                            enum: [
+                                                'seasonal',
+                                                'editorial',
+                                                'exploration'
+                                            ]
+                                        },
+                                        status: {
+                                            type: 'string',
+                                            enum: [
+                                                'completed',
+                                                'partial',
+                                                'skipped',
+                                                'no_finding',
+                                                'unknown'
+                                            ]
+                                        },
+                                        reason: {
+                                            type: 'string',
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'name',
+                                        'status'
+                                    ]
+                                },
+                                maxItems: 3
+                            }
+                        },
+                        required: [
+                            'pageUrl',
+                            'scope',
+                            'stages'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'passed',
+                'flagged',
+                'gaps',
+                'research'
+            ]
+        },
         coverage: {
             type: 'object',
             properties: {
@@ -45948,6 +46121,14 @@ export const ProjectSeoKeywordSchema = {
                 'models',
                 'record'
             ]
+        },
+        ideaRank: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 50
         },
         difficulty: {
             type: [

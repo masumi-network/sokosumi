@@ -1162,6 +1162,120 @@ describe("Search Console query rows", () => {
     ).toEqual([]);
   });
 
+  it.each([
+    {
+      recent: 60,
+      prior: 100,
+      year: 90,
+      days: 90,
+      decision: "investigate_loss",
+    },
+    { recent: 60, prior: 100, year: 58, days: 90, decision: "monitor" },
+    {
+      recent: 110,
+      prior: 60,
+      year: 90,
+      days: 90,
+      decision: "investigate_growth",
+    },
+    {
+      recent: 110,
+      prior: 60,
+      year: 90,
+      days: 89,
+      decision: "insufficient_history",
+    },
+    {
+      recent: 110,
+      prior: 60,
+      year: 0,
+      days: 0,
+      decision: "insufficient_history",
+    },
+    { recent: 60, prior: 59, year: 90, days: 90, decision: undefined },
+  ])(
+    "compares the approved canonical with last year only for a material change ($recent/$prior/$days)",
+    async ({ recent, prior, year, days, decision }) => {
+      const owner = { ...actor, sokoBotId: undefined };
+      const account = await resolveSeoStatisticsIntegration(
+        owner,
+        "search_console",
+      );
+      state.auditPageUrls = [state.pageUrl];
+      state.auditAccess = {
+        propertyId: gscInput.propertyId,
+        connectionVersion: connectionVersion(account!),
+      };
+      const healthy = gsc({ rows: [] });
+      const canonical = "https://www.example.test/a";
+      const historicalReads: Record<string, unknown>[] = [];
+      state.answer = (slug, args) => {
+        if (slug.endsWith("INSPECT_URL"))
+          return {
+            inspectionResult: {
+              indexStatusResult: {
+                verdict: "PASS",
+                googleCanonical: canonical,
+                userCanonical: canonical,
+              },
+            },
+          };
+        if (args.start_date === "2024-10-11") {
+          historicalReads.push(args);
+          return {
+            rows: Array.from({ length: days }, (_, i) => {
+              const day = new Date(Date.UTC(2024, 9, 11 + i))
+                .toISOString()
+                .slice(0, 10);
+              const clicks = Math.floor(year / 90) + (i < year % 90 ? 1 : 0);
+              return {
+                keys: [day],
+                ...metric,
+                clicks,
+                ctr: clicks / metric.impressions,
+              };
+            }),
+          };
+        }
+        if ((args.dimensions as string[] | undefined)?.length === 0)
+          return {
+            rows: [
+              {
+                keys: [],
+                ...metric,
+                clicks: args.start_date === "2025-10-10" ? recent : prior,
+                impressions: 1000,
+              },
+            ],
+          };
+        return healthy(slug, args);
+      };
+      await collectSeoAuditPerformance("audit-task", owner);
+      const { auditSearchConsole } = await readAuditPerformanceSummaries(
+        owner,
+        ["audit-task"],
+      );
+      expect(historicalReads).toHaveLength(decision ? 1 : 0);
+      if (decision) {
+        expect(
+          JSON.stringify(historicalReads[0].dimension_filter_groups),
+        ).toContain("www");
+        expect(auditSearchConsole[0]).toMatchObject({
+          history: {
+            from: "2024-10-11",
+            to: "2025-01-08",
+            reason:
+              recent > prior ? "recent_click_growth" : "recent_click_decline",
+            clicks: days === 90 ? year : null,
+            coverage:
+              days === 90 ? "complete" : days ? "partial" : "unavailable",
+            decision,
+          },
+        });
+      } else expect(auditSearchConsole[0]).not.toHaveProperty("history");
+    },
+  );
+
   it("refuses an unrelated requester or owner scope and discards reads when access changes in flight", async () => {
     const owner = { ...actor, sokoBotId: undefined };
     const account = await resolveSeoStatisticsIntegration(

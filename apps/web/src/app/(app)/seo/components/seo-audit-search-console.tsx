@@ -110,6 +110,24 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
           ))}
         </tbody>
       </table>
+      {evidence.history && (
+        <section className="space-y-1">
+          <h4 className="font-medium">
+            {report("reportFiles.matchedHistory")}
+          </h4>
+          <p>{period(evidence.history)}</p>
+          {evidence.history.clicks !== null && (
+            <p>
+              {report("reportFiles.matchedClicks", {
+                count: evidence.history.clicks,
+              })}
+            </p>
+          )}
+          <p>
+            {report(`reportFiles.historyDecision.${evidence.history.decision}`)}
+          </p>
+        </section>
+      )}
       {evidence.opportunities?.length > 0 && (
         <section aria-labelledby={recommendations} className="space-y-2">
           <h4 id={recommendations} className="font-medium">

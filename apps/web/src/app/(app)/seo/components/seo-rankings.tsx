@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SeoCompetitors } from "./seo-competitors";
 import { SeoKeywordMap } from "./seo-keyword-map";
-import { keywordGroups } from "./seo-keyword-rows-model";
+import { workspaceKeywordGroups } from "./seo-keyword-rows-model";
 import { SeoKeywords, SeoQueryFilter } from "./seo-keywords";
 import { SeoShareOfVoice } from "./seo-share-of-voice";
 import { type SeoRankingsSection, seoSectionClass } from "./seo-shared";
@@ -21,7 +21,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
  */
 export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
-  const groups = keywordGroups(model.data.keywords);
+  const groups = workspaceKeywordGroups(model.data);
   const ideas = groups.ideas.length + (model.data.seasonalIdeas?.length ?? 0);
   // With ideas and no checked keyword, the Keywords list is empty: the tab opens on the ideas.
   const [chosen, setSection] = useState<SeoRankingsSection>(() =>

@@ -13135,6 +13135,14 @@
         "withSearchConsole": "Berichte und Search Console",
         "missingSearchConsole": "Für diese Prüfung sind keine Search Console-Ergebnisse verfügbar.",
         "period": "{from} bis {to}",
+        "matchedHistory": "Vergleich mit denselben Wochentagen im Vorjahr",
+        "matchedClicks": "Klicks in diesem Zeitraum: {count, number}.",
+        "historyDecision": {
+          "investigate_loss": "Die Klicks sind gegenüber beiden Zeiträumen gesunken. Prüfen Sie, welche Suchanfragen und Seiten Sichtbarkeit verloren haben.",
+          "investigate_growth": "Die Klicks sind gegenüber beiden Zeiträumen gestiegen. Prüfen Sie, welche Suchanfragen und Seiten zum Anstieg beigetragen haben.",
+          "monitor": "Der Vorjahresvergleich bestätigt die letzte Änderung nicht. Beobachten Sie den nächsten vergleichbaren Zeitraum.",
+          "insufficient_history": "Die Vergleichsdaten reichen nicht aus, um die letzte Änderung zu bestätigen."
+        },
         "previousPeriod": "Vorheriger Zeitraum",
         "title": "Berichtsdateien",
         "run": "Prüfung",
@@ -13921,7 +13929,23 @@
         "issuesNone": "Keine gefunden",
         "severityCount": "{count} {severity, select, critical {kritisch} major {mit großer Auswirkung} other {mit geringer Auswirkung}}",
         "of": "von {total}",
-        "tests": "Abgeschlossene Tests",
+        "totalsOnly": "Dieses Audit enthält nur Summen. Einzelne Prüfungen sind nicht verfügbar.",
+        "verdictCounts": "{passed, number} bestanden, {flagged, number} auffällig, {missing, number} ohne Urteil",
+        "researchTitle": "Analysen des Audits",
+        "wholeSite": "Gesamte Website",
+        "stage": {
+          "seasonal": "Saisonale Analyse",
+          "editorial": "Keyword-Ideensuche",
+          "exploration": "Freie Untersuchung"
+        },
+        "progress": {
+          "completed": "Abgeschlossen",
+          "partial": "Teilweise abgeschlossen",
+          "skipped": "Übersprungen",
+          "no_finding": "Kein neuer Befund",
+          "unknown": "Kein bestätigtes Ergebnis"
+        },
+        "tests": "Urteile der Checkliste",
         "testsNoResult": "{count, plural, one {# Test ohne Ergebnis} other {# Tests ohne Ergebnis}}",
         "testsAll": "Jeder Test hat ein Ergebnis"
       },

@@ -13135,6 +13135,14 @@
         "withSearchConsole": "Informes y Search Console",
         "missingSearchConsole": "No hay resultados de Search Console disponibles para esta comprobación.",
         "period": "Del {from} al {to}",
+        "matchedHistory": "Comparación con los mismos días de la semana del año anterior",
+        "matchedClicks": "Clics en ese período: {count, number}.",
+        "historyDecision": {
+          "investigate_loss": "Los clics han bajado frente a ambos períodos. Comprueba qué consultas y páginas perdieron visibilidad.",
+          "investigate_growth": "Los clics han subido frente a ambos períodos. Comprueba qué consultas y páginas contribuyeron al aumento.",
+          "monitor": "La comparación anual no confirmó el cambio reciente. Observa el próximo período comparable.",
+          "insufficient_history": "El historial comparable no basta para confirmar el cambio reciente."
+        },
         "previousPeriod": "Periodo anterior",
         "title": "Archivos del informe",
         "run": "Comprobación",
@@ -13921,7 +13929,23 @@
         "issuesNone": "Ninguno encontrado",
         "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {de impacto alto} other {de impacto bajo}}",
         "of": "de {total}",
-        "tests": "Pruebas completadas",
+        "totalsOnly": "Esta auditoría solo guardó los totales. No hay un desglose por comprobación.",
+        "verdictCounts": "{passed, number} aprobadas, {flagged, number} señaladas, {missing, number} sin resultado",
+        "researchTitle": "Investigación de la auditoría",
+        "wholeSite": "Todo el sitio",
+        "stage": {
+          "seasonal": "Análisis estacional",
+          "editorial": "Ideas de palabras clave",
+          "exploration": "Exploración libre"
+        },
+        "progress": {
+          "completed": "Completado",
+          "partial": "Completado en parte",
+          "skipped": "Omitido",
+          "no_finding": "Sin hallazgos nuevos",
+          "unknown": "Sin resultado confirmado"
+        },
+        "tests": "Resultados de la lista de comprobación",
         "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
         "testsAll": "Todas las pruebas tienen resultado"
       },

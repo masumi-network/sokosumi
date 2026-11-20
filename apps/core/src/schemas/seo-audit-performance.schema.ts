@@ -17,6 +17,20 @@ const totals = z.object({
   averagePosition: z.number().nullable(),
 });
 const periodTotals = totals.extend({ from: z.iso.date(), to: z.iso.date() });
+export const auditClickHistorySchema = z.object({
+  reason: z.enum(["recent_click_decline", "recent_click_growth"]),
+  from: z.iso.date(),
+  to: z.iso.date(),
+  coverage: z.enum(["complete", "partial", "unavailable"]),
+  clicks: z.number().int().nonnegative().nullable(),
+  decision: z.enum([
+    "investigate_loss",
+    "investigate_growth",
+    "monitor",
+    "insufficient_history",
+  ]),
+});
+export type AuditClickHistory = z.infer<typeof auditClickHistorySchema>;
 export const seoAuditPerformanceSchema = periodTotals.extend({
   taskId: z.string(),
   propertyId: z.string(),
@@ -34,6 +48,7 @@ export const seoAuditPerformanceSchema = periodTotals.extend({
     }),
   ),
   previous: periodTotals.nullable(),
+  history: auditClickHistorySchema.optional(),
   queries: z
     .object({
       rows: z.array(seoSearchQueryRowSchema).max(AUDIT_QUERY_PREVIEW_LIMIT),

@@ -11945,6 +11945,14 @@ export type ProjectSeoWorkspace = {
             from: Date;
             to: Date;
         } | null;
+        history?: {
+            reason: 'recent_click_decline' | 'recent_click_growth';
+            from: Date;
+            to: Date;
+            coverage: 'complete' | 'partial' | 'unavailable';
+            clicks: number | null;
+            decision: 'investigate_loss' | 'investigate_growth' | 'monitor' | 'insufficient_history';
+        };
         queries: {
             rows: Array<{
                 query: string;
@@ -11998,6 +12006,26 @@ export type ProjectSeoObservation = {
     rulebookVersion: string;
     artifactHash: string;
     issues: number;
+    checklistBreakdown?: {
+        passed: number | null;
+        flagged: number | null;
+        gaps: Array<{
+            rowId: string;
+            pageUrl: string;
+            device: 'mobile' | 'desktop';
+            reason: string;
+        }>;
+        research: Array<{
+            pageUrl: string;
+            scope: 'page' | 'site';
+            rankedKeywordIdeas?: boolean;
+            stages: Array<{
+                name: 'seasonal' | 'editorial' | 'exploration';
+                status: 'completed' | 'partial' | 'skipped' | 'no_finding' | 'unknown';
+                reason?: string;
+            }>;
+        }>;
+    };
     coverage: {
         checked: number;
         skipped: number;
@@ -12025,6 +12053,7 @@ export type ProjectSeoKeyword = {
         models: Array<'gemini' | 'codex'>;
         record: string;
     };
+    ideaRank?: number | null;
     difficulty: number | null;
     clicks: {
         now: number;
