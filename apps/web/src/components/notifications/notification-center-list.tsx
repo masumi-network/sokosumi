@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsSkeletonRows } from "@/app/notifications/components/notifications-loading-view";
@@ -25,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
-import { useTimeout } from "@/hooks/effects/use-timeout";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import {
@@ -355,13 +354,18 @@ function LeavingRow({
 
   // The hide waits for the fold to finish. A row put back to unread mid
   // fold is no longer collapsed, and the cleanup drops the pending hide.
-  useTimeout(
-    () => {
+  useEffect(() => {
+    if (!isCollapsed) return;
+    if (reduceMotion) {
       onDeparted(notificationId);
-    },
-    isCollapsed ? (reduceMotion ? 0 : LEAVE_DURATION_MS) : null,
-    notificationId,
-  );
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      onDeparted(notificationId);
+    }, LEAVE_DURATION_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isCollapsed, notificationId, onDeparted, reduceMotion]);
 
   return (
     <div

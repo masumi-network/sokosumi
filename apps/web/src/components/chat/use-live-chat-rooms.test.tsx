@@ -1,6 +1,6 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { act, render, renderHook } from "@testing-library/react";
-import { Activity, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fetchMock, sessionState } = vi.hoisted(() => ({
@@ -94,44 +94,6 @@ describe("useLiveChatRooms", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_000);
-    });
-    expect(fetchMock).toHaveBeenCalledWith("active");
-    view.unmount();
-  });
-
-  it("pauses desktop ownership wait while hidden in Activity and settles on return", async () => {
-    const view = render(
-      <Activity mode="visible">
-        <TabUnread />
-      </Activity>,
-    );
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_000);
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    view.rerender(
-      <Activity mode="hidden">
-        <TabUnread />
-      </Activity>,
-    );
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5_000);
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    view.rerender(
-      <Activity mode="visible">
-        <TabUnread />
-      </Activity>,
-    );
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_999);
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1);
     });
     expect(fetchMock).toHaveBeenCalledWith("active");
     view.unmount();

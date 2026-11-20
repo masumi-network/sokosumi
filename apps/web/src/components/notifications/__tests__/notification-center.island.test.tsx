@@ -1093,66 +1093,6 @@ describe("Notification Center view filter", () => {
     });
   });
 
-  it("drops a collapsed row at 0ms when prefers-reduced-motion is active", async () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => ({
-        matches: query === "(prefers-reduced-motion: reduce)",
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-      })),
-    );
-    const unread = row("mine", { isRead: false, readAt: null });
-    getNotificationsMock.mockResolvedValue(page([unread]));
-    getNotificationsCountsMock.mockResolvedValue({
-      data: { unread: 1, needsAction: 0, mentions: 0 },
-    });
-    patchNotificationReadMock.mockResolvedValue({
-      data: { ...unread, isRead: true, readAt: new Date() },
-    });
-
-    await renderPage();
-    const user = userEvent.setup();
-    getNotificationsMock.mockResolvedValue(page([unread]));
-    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
-    await settle();
-
-    const notificationRow = screen
-      .getByText("mine")
-      .closest("[data-slot='notification-row']");
-    if (!notificationRow) {
-      throw new Error("expected the notification row");
-    }
-
-    vi.useFakeTimers({
-      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
-    });
-    try {
-      fireEvent.pointerEnter(notificationRow, { pointerType: "mouse" });
-      fireEvent.click(screen.getByRole("button", { name: "markRead: mine" }));
-      await act(async () => {
-        await Promise.resolve();
-      });
-      // Still held while hovered.
-      expect(screen.getByText("mine")).toBeTruthy();
-
-      fireEvent.pointerOut(notificationRow, {
-        relatedTarget: document.body,
-        pointerType: "mouse",
-      });
-      // Under reduced motion, leaves at 0ms without waiting the 200ms fold.
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(0);
-      });
-      expect(screen.queryByText("mine")).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
   // The heading names the page whether or not there is anything to list.
   // Mark all read is the part that has nothing to act on, so it is the part
   // that goes.

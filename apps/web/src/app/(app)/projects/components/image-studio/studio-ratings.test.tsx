@@ -355,4 +355,39 @@ describe("studio ratings", () => {
     expect(viewed).toHaveBeenCalledTimes(1);
     view.unmount();
   });
+
+  it("resets the 500 ms view window when onViewed changes", async () => {
+    vi.useFakeTimers();
+    const firstViewed = vi.fn();
+    const secondViewed = vi.fn();
+    const assets = [ASSET];
+    const props = {
+      catalog: TEST_CATALOG,
+      creditsByAssetId: {},
+      elapsedByAssetId: {},
+      labels: TEST_LABELS,
+      onClose: vi.fn(),
+      onSelect: vi.fn(),
+      onCaptionChange: vi.fn(),
+      siblings: assets,
+    };
+    const view = render(
+      <StudioLightbox {...props} assets={assets} onViewed={firstViewed} />,
+    );
+    await act(async () => vi.advanceTimersByTime(499));
+    expect(firstViewed).not.toHaveBeenCalled();
+
+    view.rerender(
+      <StudioLightbox {...props} assets={assets} onViewed={secondViewed} />,
+    );
+    await act(async () => vi.advanceTimersByTime(499));
+    expect(firstViewed).not.toHaveBeenCalled();
+    expect(secondViewed).not.toHaveBeenCalled();
+
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(firstViewed).not.toHaveBeenCalled();
+    expect(secondViewed).toHaveBeenCalledTimes(1);
+    expect(secondViewed).toHaveBeenCalledWith(ASSET);
+    view.unmount();
+  });
 });

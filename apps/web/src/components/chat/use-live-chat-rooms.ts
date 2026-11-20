@@ -26,7 +26,6 @@ import {
 } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
-import { useTimeout } from "@/hooks/effects/use-timeout";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
@@ -79,14 +78,18 @@ export function useLiveChatRooms(): ChatRoom[] | null {
   // later streamed commit than this hook's. Reading at once would read the
   // same collection twice, so on desktop this waits a moment for it; on a
   // phone there is no sidebar to wait for.
-  const [ownershipSettled, setOwnershipSettled] = useState(
-    () =>
-      typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT,
-  );
-  useTimeout(
-    () => setOwnershipSettled(true),
-    ownershipSettled ? null : SIDEBAR_REGISTRATION_WAIT_MS,
-  );
+  const [ownershipSettled, setOwnershipSettled] = useState(false);
+  useMountEffect(() => {
+    if (window.innerWidth < MOBILE_BREAKPOINT) {
+      setOwnershipSettled(true);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setOwnershipSettled(true),
+      SIDEBAR_REGISTRATION_WAIT_MS,
+    );
+    return () => window.clearTimeout(timer);
+  });
   const liveSnapshot = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     getLatestMembershipVisibleRoomsSnapshot,

@@ -6,7 +6,7 @@ import type {
 } from "@sokosumi/core-client";
 import { Download, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -152,6 +152,7 @@ export function StudioLightbox({
   }>();
 
   const viewed = useRef(new Set<string>());
+  const viewResetKey = useMemo(() => [assets, onViewed], [assets, onViewed]);
   useTimeout(
     () => {
       for (const asset of assets) {
@@ -161,7 +162,7 @@ export function StudioLightbox({
       }
     },
     assets.length > 0 ? 500 : null,
-    assets,
+    viewResetKey,
   );
 
   if (assets.length === 0) return null;
