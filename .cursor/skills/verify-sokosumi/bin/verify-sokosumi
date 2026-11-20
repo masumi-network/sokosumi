@@ -100,10 +100,10 @@ Env overrides:
                                SESSION_NAME → SESSION when SESSION is unset
   AGENT_BROWSER_ENGINE  default: chrome (overrides ~/.agent-browser/config.json lightpanda);
                         explicit non-chrome engines clear inherited AGENT_BROWSER_ARGS
-  AGENT_BROWSER_ARGS    comma-before-flag or newline-separated Chrome flags (requires
+  AGENT_BROWSER_ARGS    comma-before---flag or newline-separated Chrome flags (requires
                         agent-browser >= 0.40.0); HTTPS URLs auto-add
-                        --ignore-certificate-errors, and sign-in retries once with
-                        --no-sandbox if Chrome reports "No usable sandbox"
+                        --ignore-certificate-errors, and on Linux sign-in retries once
+                        with --no-sandbox if Chromium logs "No usable sandbox!"
 EOF
 }
 
@@ -419,6 +419,7 @@ function fixture_probe() {
 }
 
 MIN_AGENT_BROWSER_VERSION="0.40.0"
+AGENT_BROWSER_DETECTED_VERSION=""
 
 function agent_browser_version_ok() {
   # Compare semver X.Y.Z >= MIN_AGENT_BROWSER_VERSION (0.40.0 keeps commas
@@ -436,19 +437,31 @@ function agent_browser_version_ok() {
   return 1
 }
 
+function check_agent_browser_version() {
+  local raw ver
+  raw="${_VERIFY_AGENT_BROWSER_VERSION:-$(agent-browser --version 2>/dev/null || true)}"
+  if ver="$(agent_browser_version_ok "$raw")"; then
+    AGENT_BROWSER_DETECTED_VERSION="$ver"
+    return 0
+  fi
+  AGENT_BROWSER_DETECTED_VERSION="$ver"
+  echo "error: agent-browser >= $MIN_AGENT_BROWSER_VERSION required (got $ver; 0.39.0 splits AGENT_BROWSER_ARGS on every comma). Upgrade: npm i -g agent-browser" >&2
+  return 1
+}
+
 function agent_browser_args_has() {
-  # Match agent-browser's --args tokenizer (cli/src/flags.rs): split on CR/LF
-  # and on commas followed by optional whitespace + another flag ('-'), trim
-  # each token, and compare exact flag equality.
+  # Match agent-browser's split_launch_args (cli/src/flags.rs): split on CR/LF
+  # and on commas followed by optional spaces/tabs + '--' (so values like
+  # --window-position=-32000,-32000 stay whole), trim leading/trailing commas
+  # and whitespace, and compare exact flag equality.
   local flag="$1"
   [[ -n "${AGENT_BROWSER_ARGS:-}" ]] || return 1
   node -e '
     const [raw, target] = process.argv.slice(1);
     const tokens = raw
-      .replace(/\r\n?/g, "\n")
-      .split("\n")
-      .flatMap((line) => line.split(/,(?=\s*-)/))
-      .map((t) => t.trim())
+      .split(/[\r\n]/)
+      .flatMap((line) => line.split(/,(?=[ \t]*--)/))
+      .map((t) => t.replace(/^[,\s]+|[,\s]+$/g, ""))
       .filter(Boolean);
     process.exit(tokens.includes(target) ? 0 : 1);
   ' -- "${AGENT_BROWSER_ARGS}" "$flag"
@@ -483,18 +496,17 @@ function classify_browser_executable() {
   esac
 }
 
-function resolve_agent_browser_engine_and_executable() {
-  # Ensure AGENT_BROWSER_ENGINE and executablePath (env or config) form a
-  # compatible pair so forcing chrome never launches a Lightpanda binary with
-  # Chrome flags (or vice versa).
+function check_agent_browser_engine_and_executable() {
+  # Fail early with one actionable message when effective engine and executable
+  # disagree (via AGENT_BROWSER_EXECUTABLE_PATH or config executablePath,
+  # including a renamed binary paired with another engine in config).
   local engine="$1"
   local env_exe="${AGENT_BROWSER_EXECUTABLE_PATH:-}"
   if [[ -n "$env_exe" ]]; then
     local env_kind
     env_kind="$(classify_browser_executable "$env_exe")"
     if [[ "$env_kind" != "unknown" && "$env_kind" != "$engine" ]]; then
-      echo "error: AGENT_BROWSER_ENGINE=$engine conflicts with AGENT_BROWSER_EXECUTABLE_PATH=$env_exe ($env_kind binary)." >&2
-      echo "error: unset AGENT_BROWSER_EXECUTABLE_PATH or export AGENT_BROWSER_ENGINE=$env_kind." >&2
+      echo "error: AGENT_BROWSER_ENGINE=$engine conflicts with AGENT_BROWSER_EXECUTABLE_PATH=$env_exe ($env_kind binary); unset AGENT_BROWSER_EXECUTABLE_PATH or export AGENT_BROWSER_ENGINE=$env_kind." >&2
       return 1
     fi
     return 0
@@ -525,33 +537,45 @@ function resolve_agent_browser_engine_and_executable() {
 
   local cfg_kind
   cfg_kind="$(classify_browser_executable "$cfg_exe")"
-  if [[ "$cfg_kind" == "unknown" || "$cfg_kind" == "$engine" ]]; then
-    return 0
+  if [[ "$cfg_kind" != "unknown" && "$cfg_kind" != "$engine" ]]; then
+    echo "error: AGENT_BROWSER_ENGINE=$engine conflicts with executablePath=$cfg_exe in $cfg_path ($cfg_kind binary); remove executablePath from $cfg_path or export AGENT_BROWSER_ENGINE=$cfg_kind." >&2
+    return 1
   fi
-
-  # When config paired executablePath with its own matching engine (e.g.
-  # {"engine": "lightpanda", "executablePath": ".../lightpanda"}) and the
-  # harness switched engine, drop the incompatible executablePath in a state
-  # config copy so agent-browser discovers the target engine's own binary.
-  if [[ -n "$cfg_engine" && "$cfg_engine" == "$cfg_kind" ]]; then
-    local sanitized="$STATE_DIR/agent-browser-${engine}.config.json"
-    mkdir -p "$STATE_DIR"
-    node -e '
-      const fs = require("node:fs");
-      const [src, dst, engine] = process.argv.slice(1);
-      const cfg = JSON.parse(fs.readFileSync(src, "utf8"));
-      delete cfg.executablePath;
-      cfg.engine = engine;
-      if (engine !== "chrome") delete cfg.args;
-      fs.writeFileSync(dst, JSON.stringify(cfg, null, 2) + "\n");
-    ' "$cfg_path" "$sanitized" "$engine"
-    export AGENT_BROWSER_CONFIG="$sanitized"
-    return 0
+  if [[ -n "$cfg_engine" && "$cfg_engine" != "$engine" ]]; then
+    echo "error: AGENT_BROWSER_ENGINE=$engine conflicts with executablePath=$cfg_exe paired with engine=$cfg_engine in $cfg_path; remove executablePath from $cfg_path or export AGENT_BROWSER_ENGINE=$cfg_engine." >&2
+    return 1
   fi
+  return 0
+}
 
-  echo "error: AGENT_BROWSER_ENGINE=$engine conflicts with executablePath=$cfg_exe in $cfg_path ($cfg_kind binary)." >&2
-  echo "error: remove executablePath from $cfg_path, point it at a $engine binary, or set matching engine." >&2
-  return 1
+function session_daemon_engine() {
+  # Read-only query of the running daemon's engine for a session (empty when stopped).
+  local session="$1"
+  local info
+  info="$(agent-browser --session "$session" session info --json 2>/dev/null || true)"
+  [[ -n "$info" ]] || return 0
+  node -e '
+    try {
+      const parsed = JSON.parse(process.argv[1]);
+      const data = parsed?.data;
+      if (!data?.active) process.exit(0);
+      const engine = data.runtime?.engine || data.runtime?.effectiveLaunch?.engine || "";
+      if (typeof engine === "string" && engine) process.stdout.write(engine);
+    } catch {}
+  ' "$info"
+}
+
+function close_stale_session_daemon() {
+  # Avoid talking to a stale session daemon launched with a different engine.
+  local session="${AGENT_BROWSER_SESSION:-sokosumi}"
+  local target_engine="${AGENT_BROWSER_ENGINE:-chrome}"
+  local running_engine
+  running_engine="$(session_daemon_engine "$session")"
+  if [[ -n "$running_engine" && "$running_engine" != "$target_engine" ]]; then
+    echo "warn: closing stale session '$session' (engine=$running_engine) before opening with engine=$target_engine" >&2
+    AGENT_BROWSER_ENGINE="$running_engine" AGENT_BROWSER_ARGS="" \
+      agent-browser --session "$session" close >/dev/null 2>&1 || true
+  fi
 }
 
 function ensure_agent_browser_args() {
@@ -562,7 +586,7 @@ function ensure_agent_browser_args() {
   # inherited Chrome args from env and config (AGENT_BROWSER_ARGS="").
   export AGENT_BROWSER_ENGINE="${AGENT_BROWSER_ENGINE:-chrome}"
 
-  resolve_agent_browser_engine_and_executable "$AGENT_BROWSER_ENGINE" || return 1
+  check_agent_browser_engine_and_executable "$AGENT_BROWSER_ENGINE" || return 1
 
   local url="${WEB_URL:-${VERIFY_SOKOSUMI_WEB_URL:-}}"
   if [[ -z "$url" && -f "$PID_FILE" ]]; then
@@ -587,26 +611,30 @@ function ensure_agent_browser_args() {
   # Chromium on Linux cloud VMs often ignores the portless system CA, so
   # https://*.sokosumi.localhost fails with ERR_CERT_AUTHORITY_INVALID.
   # Do not pre-inject --no-sandbox heuristically; agent_browser_open retries
-  # once with --no-sandbox only if Chrome actually fails with "No usable sandbox".
+  # once with --no-sandbox on Linux only if Chromium logs "No usable sandbox!".
   if [[ "$needs_https_ignore" -eq 1 ]]; then
     append_agent_browser_arg "--ignore-certificate-errors"
   fi
 }
 
 function agent_browser_open() {
-  # Open a URL in agent-browser. Launch Chrome without --no-sandbox first;
-  # retry once with --no-sandbox only on evidence ("No usable sandbox"), and
-  # keep the flag exported so subsequent commands reuse the same daemon.
+  # Open a URL in agent-browser. Close a stale daemon if its engine differs.
+  # Launch Chrome without --no-sandbox first; on Linux, retry once with
+  # --no-sandbox only on Chromium's startup diagnostic ("FATAL:... No usable sandbox!"),
+  # and keep the flag exported so subsequent commands reuse the same daemon.
   local url="$1"
+  close_stale_session_daemon
   local out rc=0
   out="$(agent-browser open "$url" 2>&1)" || rc=$?
   if [[ "$rc" -eq 0 ]]; then
     return 0
   fi
-  if [[ "${AGENT_BROWSER_ENGINE:-chrome}" == "chrome" ]] &&
+  local os="${_VERIFY_OS:-$(uname -s)}"
+  if [[ "$os" == "Linux" ]] &&
+    [[ "${AGENT_BROWSER_ENGINE:-chrome}" == "chrome" ]] &&
     ! agent_browser_args_has "--no-sandbox" &&
-    [[ "$out" == *"No usable sandbox"* ]]; then
-    echo 'warn: Chrome failed with "No usable sandbox" — retrying with --no-sandbox' >&2
+    [[ "$out" == *"FATAL:"* && "$out" == *"No usable sandbox!"* ]]; then
+    echo 'warn: Chrome failed with "No usable sandbox!" — retrying with --no-sandbox' >&2
     append_agent_browser_arg "--no-sandbox"
     agent-browser open "$url" >/dev/null
     return $?
@@ -631,6 +659,7 @@ function require_agent_browser() {
     echo "Cloud Agent fallback: computer-use with the same auth rules (see SKILL.md)." >&2
     return 1
   fi
+  check_agent_browser_version || return 1
   ensure_agent_browser_args || return 1
   ensure_agent_browser_session
   return 0
@@ -1179,25 +1208,30 @@ function doctor() {
 
   if command -v agent-browser >/dev/null 2>&1; then
     echo "agent_browser=$(command -v agent-browser)"
-    local ab_ver_raw ab_ver
-    ab_ver_raw="${_VERIFY_AGENT_BROWSER_VERSION:-$(agent-browser --version 2>/dev/null || true)}"
-    if ab_ver="$(agent_browser_version_ok "$ab_ver_raw")"; then
-      echo "agent_browser_version=$ab_ver"
+    if check_agent_browser_version; then
+      echo "agent_browser_version=$AGENT_BROWSER_DETECTED_VERSION"
     else
-      echo "agent_browser_version=$ab_ver"
-      echo "doctor fail: agent-browser >= $MIN_AGENT_BROWSER_VERSION required (got $ab_ver; 0.39.0 splits AGENT_BROWSER_ARGS on every comma). Upgrade: npm i -g agent-browser"
+      echo "agent_browser_version=$AGENT_BROWSER_DETECTED_VERSION"
+      echo "doctor fail: agent-browser >= $MIN_AGENT_BROWSER_VERSION required"
       ok=0
     fi
+    ensure_agent_browser_session
     if ensure_agent_browser_args; then
       echo "agent_browser_engine=${AGENT_BROWSER_ENGINE}"
       if [[ -n "${AGENT_BROWSER_ARGS:-}" ]]; then
         echo "agent_browser_args=${AGENT_BROWSER_ARGS}"
       fi
+      local daemon_eng
+      daemon_eng="$(session_daemon_engine "$AGENT_BROWSER_SESSION")"
+      if [[ -n "$daemon_eng" && "$daemon_eng" != "$AGENT_BROWSER_ENGINE" ]]; then
+        echo "agent_browser_daemon_engine=$daemon_eng"
+        echo "doctor fail: running session '$AGENT_BROWSER_SESSION' uses engine '$daemon_eng', not '$AGENT_BROWSER_ENGINE' — close it (AGENT_BROWSER_ENGINE=$daemon_eng AGENT_BROWSER_ARGS=\"\" agent-browser --session $AGENT_BROWSER_SESSION close) or export AGENT_BROWSER_ENGINE=$daemon_eng"
+        ok=0
+      fi
     else
       echo "doctor fail: incompatible agent-browser engine/executable configuration"
       ok=0
     fi
-    ensure_agent_browser_session
     echo "agent_browser_session=${AGENT_BROWSER_SESSION}"
     local vp ve
     vp="$(vault_profile)"
@@ -1268,11 +1302,15 @@ function self_check() {
   )"
   _assert_eq "default-chrome-https-no-heuristic-sandbox" "$out" "chrome|--ignore-certificate-errors|"
 
-  # 2. Evidence-based sandbox retry: succeeds on first try → no --no-sandbox added
+  # 2. Evidence-based sandbox retry (Linux): succeeds on first try → no --no-sandbox added
   local fake_bin="$tmp/bin-ok"
   mkdir -p "$fake_bin"
   cat >"$fake_bin/agent-browser" <<'EOF'
 #!/usr/bin/env bash
+if [[ "$*" == *"session info --json"* ]]; then
+  echo '{"data":{"active":false},"success":true}'
+  exit 0
+fi
 printf '%s\n' "${AGENT_BROWSER_ARGS:-}" >>"$FAKE_LOG"
 exit 0
 EOF
@@ -1280,19 +1318,24 @@ EOF
   out="$(
     export PATH="$fake_bin:$PATH" FAKE_LOG="$tmp/ok.log"
     export AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--ignore-certificate-errors"
-    agent_browser_open "https://web.sokosumi.localhost/signin"
+    _VERIFY_OS=Linux agent_browser_open "https://web.sokosumi.localhost/signin"
     printf '%s|%s' "$(wc -l <"$FAKE_LOG" | tr -d '[:space:]')" "${AGENT_BROWSER_ARGS:-}"
   )"
   _assert_eq "sandbox-not-added-when-open-succeeds" "$out" "1|--ignore-certificate-errors"
 
-  # 3. Evidence-based sandbox retry: "No usable sandbox" → retries once with --no-sandbox and warns
+  # 3. Evidence-based sandbox retry (Linux): Chromium FATAL "No usable sandbox!" → retries once with --no-sandbox
   local fake_retry="$tmp/bin-retry"
   mkdir -p "$fake_retry"
   cat >"$fake_retry/agent-browser" <<'EOF'
 #!/usr/bin/env bash
+if [[ "$*" == *"session info --json"* ]]; then
+  echo '{"data":{"active":false},"success":true}'
+  exit 0
+fi
 printf '%s\n' "${AGENT_BROWSER_ARGS:-}" >>"$FAKE_LOG"
 if [[ "${AGENT_BROWSER_ARGS:-}" != *"--no-sandbox"* ]]; then
-  echo "FATAL:zygote_host_impl_linux.cc:144] No usable sandbox!" >&2
+  echo "Chrome stderr:" >&2
+  echo "  [1:1:FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:144] No usable sandbox!" >&2
   exit 1
 fi
 exit 0
@@ -1301,33 +1344,78 @@ EOF
   out="$(
     export PATH="$fake_retry:$PATH" FAKE_LOG="$tmp/retry.log"
     export AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--ignore-certificate-errors"
-    agent_browser_open "https://web.sokosumi.localhost/signin" 2>"$tmp/retry.err"
+    _VERIFY_OS=Linux agent_browser_open "https://web.sokosumi.localhost/signin" 2>"$tmp/retry.err"
     local has_warn=no
     grep -q 'retrying with --no-sandbox' "$tmp/retry.err" && has_warn=yes
     printf '%s|%s|%s' "$(wc -l <"$FAKE_LOG" | tr -d '[:space:]')" "$has_warn" "${AGENT_BROWSER_ARGS:-}"
   )"
-  _assert_eq "sandbox-retry-on-evidence" "$out" "2|yes|--ignore-certificate-errors,--no-sandbox"
+  _assert_eq "linux-sandbox-retry-on-chromium-diagnostic" "$out" "2|yes|--ignore-certificate-errors,--no-sandbox"
 
-  # 4. Non-sandbox open failure does NOT retry or add --no-sandbox
-  local fake_other="$tmp/bin-other"
-  mkdir -p "$fake_other"
-  cat >"$fake_other/agent-browser" <<'EOF'
-#!/usr/bin/env bash
-printf '%s\n' "${AGENT_BROWSER_ARGS:-}" >>"$FAKE_LOG"
-echo "ERR_CONNECTION_REFUSED" >&2
-exit 1
-EOF
-  chmod +x "$fake_other/agent-browser"
+  # 4. Simulated Darwin failure: NEVER retries with --no-sandbox even on the same error text
   out="$(
-    export PATH="$fake_other:$PATH" FAKE_LOG="$tmp/other.log"
+    export PATH="$fake_retry:$PATH" FAKE_LOG="$tmp/darwin.log"
     export AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--ignore-certificate-errors"
     rc=0
-    agent_browser_open "https://web.sokosumi.localhost/signin" 2>/dev/null || rc=$?
+    _VERIFY_OS=Darwin agent_browser_open "https://web.sokosumi.localhost/signin" 2>/dev/null || rc=$?
     printf '%s|%s|%s' "$rc" "$(wc -l <"$FAKE_LOG" | tr -d '[:space:]')" "${AGENT_BROWSER_ARGS:-}"
   )"
-  _assert_eq "no-retry-on-unrelated-error" "$out" "1|1|--ignore-certificate-errors"
+  _assert_eq "darwin-never-retries-no-sandbox" "$out" "1|1|--ignore-certificate-errors"
 
-  # 5. Compatible engine/executable pair: explicit AGENT_BROWSER_EXECUTABLE_PATH mismatch fails early
+  # 5. Linux non-Chromium CLI error (no FATAL: / 'No usable sandbox!') does NOT retry
+  local fake_cli_err="$tmp/bin-cli-err"
+  mkdir -p "$fake_cli_err"
+  cat >"$fake_cli_err/agent-browser" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *"session info --json"* ]]; then
+  echo '{"data":{"active":false},"success":true}'
+  exit 0
+fi
+printf '%s\n' "${AGENT_BROWSER_ARGS:-}" >>"$FAKE_LOG"
+echo "error: hint mentions No usable sandbox without Chromium startup diagnostic" >&2
+exit 1
+EOF
+  chmod +x "$fake_cli_err/agent-browser"
+  out="$(
+    export PATH="$fake_cli_err:$PATH" FAKE_LOG="$tmp/cli-err.log"
+    export AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--ignore-certificate-errors"
+    rc=0
+    _VERIFY_OS=Linux agent_browser_open "https://web.sokosumi.localhost/signin" 2>/dev/null || rc=$?
+    printf '%s|%s|%s' "$rc" "$(wc -l <"$FAKE_LOG" | tr -d '[:space:]')" "${AGENT_BROWSER_ARGS:-}"
+  )"
+  _assert_eq "no-retry-on-non-chromium-substring" "$out" "1|1|--ignore-certificate-errors"
+
+  # 6. Stale daemon with different engine: agent_browser_open closes its own session first
+  local fake_stale="$tmp/bin-stale"
+  mkdir -p "$fake_stale"
+  cat >"$fake_stale/agent-browser" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *"session info --json"* ]]; then
+  if [[ -f "$STALE_FLAG" ]]; then
+    echo '{"data":{"active":true,"runtime":{"engine":"lightpanda"}},"success":true}'
+  else
+    echo '{"data":{"active":false},"success":true}'
+  fi
+  exit 0
+fi
+if [[ "$*" == *" close"* ]]; then
+  printf 'close:%s:%s\n' "${AGENT_BROWSER_ENGINE:-}" "${AGENT_BROWSER_ARGS:-}" >>"$FAKE_LOG"
+  rm -f "$STALE_FLAG"
+  exit 0
+fi
+printf 'open:%s:%s\n' "${AGENT_BROWSER_ENGINE:-}" "${AGENT_BROWSER_ARGS:-}" >>"$FAKE_LOG"
+exit 0
+EOF
+  chmod +x "$fake_stale/agent-browser"
+  touch "$tmp/stale.active"
+  out="$(
+    export PATH="$fake_stale:$PATH" FAKE_LOG="$tmp/stale.log" STALE_FLAG="$tmp/stale.active"
+    export AGENT_BROWSER_SESSION=sokosumi AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--ignore-certificate-errors"
+    _VERIFY_OS=Linux agent_browser_open "https://web.sokosumi.localhost/signin" 2>/dev/null
+    tr '\n' ';' <"$FAKE_LOG"
+  )"
+  _assert_eq "closes-stale-daemon-before-engine-switch" "$out" "close:lightpanda:;open:chrome:--ignore-certificate-errors;"
+
+  # 7. Compatible engine/executable pair (no config copies): env mismatch fails early
   out="$(
     unset AGENT_BROWSER_ENGINE AGENT_BROWSER_ARGS
     export AGENT_BROWSER_CONFIG="$empty_cfg"
@@ -1341,7 +1429,6 @@ EOF
   )"
   _assert_eq "reject-env-lightpanda-exec-with-chrome" "$out" "1|yes"
 
-  # 6. Compatible engine/executable pair: lightpanda engine + chrome env executable fails early
   out="$(
     unset AGENT_BROWSER_ARGS
     export AGENT_BROWSER_CONFIG="$empty_cfg"
@@ -1356,29 +1443,42 @@ EOF
   )"
   _assert_eq "reject-env-chrome-exec-with-lightpanda" "$out" "1|yes"
 
-  # 7. Compatible engine/executable pair: config with lightpanda engine + lightpanda executablePath
-  #    gets sanitized copy without executablePath when harness defaults to chrome
+  # 8. Config executablePath mismatch (including renamed binary paired with another engine) fails early with zero config copies
   local lp_cfg="$tmp/lp-exec.json"
-  printf '{"engine":"lightpanda","executablePath":"/home/dev/.local/bin/lightpanda","headless":true}\n' >"$lp_cfg"
+  printf '{"engine":"lightpanda","executablePath":"/home/dev/.local/bin/lightpanda"}\n' >"$lp_cfg"
   out="$(
     unset AGENT_BROWSER_ENGINE AGENT_BROWSER_ARGS AGENT_BROWSER_EXECUTABLE_PATH
     export AGENT_BROWSER_CONFIG="$lp_cfg"
-    STATE_DIR="$tmp/state"
+    STATE_DIR="$tmp/state-nocopy"
     WEB_URL="https://web.sokosumi.localhost"
-    ensure_agent_browser_args
-    node -e '
-      const cfg = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
-      process.stdout.write(`${cfg.engine}|${"executablePath" in cfg}|${cfg.headless}`);
-    ' "$AGENT_BROWSER_CONFIG"
+    rc=0
+    err="$(ensure_agent_browser_args 2>&1)" || rc=$?
+    local has_msg=no copied=no
+    [[ "$err" == *"conflicts with executablePath="* ]] && has_msg=yes
+    [[ -e "$STATE_DIR/agent-browser-chrome.config.json" ]] && copied=yes
+    printf '%s|%s|%s' "$rc" "$has_msg" "$copied"
   )"
-  _assert_eq "sanitize-config-lightpanda-exec-for-chrome" "$out" "chrome|false|true"
+  _assert_eq "reject-config-lightpanda-exec-no-copy" "$out" "1|yes|no"
 
-  # 8. Compatible engine/executable pair: config with mismatched executablePath (no matching engine) fails early
-  local bad_cfg="$tmp/bad-exec.json"
-  printf '{"executablePath":"/home/dev/.local/bin/lightpanda"}\n' >"$bad_cfg"
+  local renamed_cfg="$tmp/renamed-exec.json"
+  printf '{"engine":"lightpanda","executablePath":"/opt/custom/my-browser"}\n' >"$renamed_cfg"
   out="$(
     unset AGENT_BROWSER_ENGINE AGENT_BROWSER_ARGS AGENT_BROWSER_EXECUTABLE_PATH
-    export AGENT_BROWSER_CONFIG="$bad_cfg"
+    export AGENT_BROWSER_CONFIG="$renamed_cfg"
+    WEB_URL="https://web.sokosumi.localhost"
+    rc=0
+    err="$(ensure_agent_browser_args 2>&1)" || rc=$?
+    local has_msg=no
+    [[ "$err" == *"paired with engine=lightpanda"* ]] && has_msg=yes
+    printf '%s|%s' "$rc" "$has_msg"
+  )"
+  _assert_eq "reject-config-renamed-exec-paired-other-engine" "$out" "1|yes"
+
+  local unpaired_cfg="$tmp/unpaired-exec.json"
+  printf '{"executablePath":"/home/dev/.local/bin/lightpanda"}\n' >"$unpaired_cfg"
+  out="$(
+    unset AGENT_BROWSER_ENGINE AGENT_BROWSER_ARGS AGENT_BROWSER_EXECUTABLE_PATH
+    export AGENT_BROWSER_CONFIG="$unpaired_cfg"
     WEB_URL="https://web.sokosumi.localhost"
     rc=0
     err="$(ensure_agent_browser_args 2>&1)" || rc=$?
@@ -1388,7 +1488,16 @@ EOF
   )"
   _assert_eq "reject-unpaired-config-lightpanda-exec" "$out" "1|yes"
 
-  # 9. Deduper: comma + space (', ') and CR/CRLF match upstream flags.rs tokenizer
+  # 9. Upstream flags.rs rules: trailing comma, double-hyphen vs single-hyphen, comma+space/tab, CRLF
+  out="$(
+    export AGENT_BROWSER_CONFIG="$empty_cfg" AGENT_BROWSER_ENGINE=chrome
+    export AGENT_BROWSER_ARGS="--ignore-certificate-errors,"
+    WEB_URL="https://web.sokosumi.localhost"
+    ensure_agent_browser_args
+    printf '%s' "${AGENT_BROWSER_ARGS:-}"
+  )"
+  _assert_eq "dedup-trailing-comma" "$out" "--ignore-certificate-errors,"
+
   out="$(
     export AGENT_BROWSER_CONFIG="$empty_cfg" AGENT_BROWSER_ENGINE=chrome
     export AGENT_BROWSER_ARGS="--disable-gpu, --ignore-certificate-errors"
@@ -1396,7 +1505,16 @@ EOF
     ensure_agent_browser_args
     printf '%s' "${AGENT_BROWSER_ARGS:-}"
   )"
-  _assert_eq "dedup-comma-space" "$out" "--disable-gpu, --ignore-certificate-errors"
+  _assert_eq "dedup-comma-space-double-hyphen" "$out" "--disable-gpu, --ignore-certificate-errors"
+
+  out="$(
+    export AGENT_BROWSER_CONFIG="$empty_cfg" AGENT_BROWSER_ENGINE=chrome
+    export AGENT_BROWSER_ARGS=$'--disable-gpu,\t--ignore-certificate-errors'
+    WEB_URL="https://web.sokosumi.localhost"
+    ensure_agent_browser_args
+    printf '%s' "${AGENT_BROWSER_ARGS:-}"
+  )"
+  _assert_eq "dedup-comma-tab-double-hyphen" "$out" $'--disable-gpu,\t--ignore-certificate-errors'
 
   out="$(
     export AGENT_BROWSER_CONFIG="$empty_cfg" AGENT_BROWSER_ENGINE=chrome
@@ -1407,7 +1525,13 @@ EOF
   )"
   _assert_eq "dedup-crlf" "$out" $'--disable-gpu\r\n--ignore-certificate-errors\r'
 
-  # 10. Value containing commas preserved; prefix-similar flag does not collide; comma-join existing flag
+  # Single hyphen after comma is NOT a split boundary (e.g. --window-position=-32000,-32000)
+  out="$(
+    export AGENT_BROWSER_ARGS="--window-position=-32000,-32000"
+    if agent_browser_args_has "-32000"; then echo "split"; else echo "whole"; fi
+  )"
+  _assert_eq "single-hyphen-comma-stays-whole" "$out" "whole"
+
   out="$(
     export AGENT_BROWSER_CONFIG="$empty_cfg" AGENT_BROWSER_ENGINE=chrome
     export AGENT_BROWSER_ARGS="--disable-features=Translate,HttpsUpgrades"
@@ -1435,7 +1559,7 @@ EOF
   )"
   _assert_eq "chrome-comma-join" "$out" "--no-sandbox,--ignore-certificate-errors"
 
-  # 11. Version check: require agent-browser >= 0.40.0
+  # 10. Shared version guard (>= 0.40.0) in both version check and sign-in preflight (require_agent_browser)
   local ver_out
   ver_out="$(agent_browser_version_ok "agent-browser 0.41.2")" && rc=0 || rc=$?
   _assert_eq "version-0.41.2-ok" "${rc}|${ver_out}" "0|0.41.2"
@@ -1445,10 +1569,18 @@ EOF
   _assert_eq "version-1.0.0-ok" "${rc}|${ver_out}" "0|1.0.0"
   ver_out="$(agent_browser_version_ok "agent-browser 0.39.0")" && rc=0 || rc=$?
   _assert_eq "version-0.39.0-fail" "${rc}|${ver_out}" "1|0.39.0"
-  ver_out="$(agent_browser_version_ok "invalid")" && rc=0 || rc=$?
-  _assert_eq "version-invalid-fail" "${rc}|${ver_out}" "1|unknown"
+  out="$(
+    export PATH="$fake_bin:$PATH" AGENT_BROWSER_CONFIG="$empty_cfg"
+    WEB_URL="https://web.sokosumi.localhost"
+    rc=0
+    err="$(_VERIFY_AGENT_BROWSER_VERSION="agent-browser 0.39.0" require_agent_browser 2>&1)" || rc=$?
+    local has_msg=no
+    [[ "$err" == *"agent-browser >= 0.40.0 required"* ]] && has_msg=yes
+    printf '%s|%s' "$rc" "$has_msg"
+  )"
+  _assert_eq "sign-in-preflight-rejects-0.39.0" "$out" "1|yes"
 
-  # 12. Lightpanda & Obscura clear inherited Chrome args from env and config (AGENT_BROWSER_ARGS="")
+  # 11. Lightpanda & Obscura clear inherited Chrome args from env and config (AGENT_BROWSER_ARGS="")
   out="$(
     unset AGENT_BROWSER_IGNORE_HTTPS_ERRORS AGENT_BROWSER_EXECUTABLE_PATH
     export AGENT_BROWSER_CONFIG="$empty_cfg"
@@ -1475,7 +1607,7 @@ EOF
   )"
   _assert_eq "obscura-clears-inherited-args" "$out" "obscura|set||1"
 
-  # 13. Plain HTTP does not add --ignore-certificate-errors
+  # 12. Plain HTTP does not add --ignore-certificate-errors
   out="$(
     unset AGENT_BROWSER_ENGINE AGENT_BROWSER_ARGS AGENT_BROWSER_IGNORE_HTTPS_ERRORS AGENT_BROWSER_EXECUTABLE_PATH
     export AGENT_BROWSER_CONFIG="$empty_cfg"
