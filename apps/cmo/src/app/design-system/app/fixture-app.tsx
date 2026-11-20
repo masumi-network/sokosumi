@@ -4,7 +4,7 @@ import { CmoApp, type CmoAppActions } from "../../../components/app/cmo-app";
 import type { View } from "../../../lib/views";
 import { cmoPlans } from "../../../test-fixtures/cmo";
 import { competitors, noCompetitors } from "./competitors-fixture";
-import { chat, messages, overview, seo } from "./fixtures";
+import { busyOverview, chat, messages, overview, seo } from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
 const actions: CmoAppActions = {
@@ -111,12 +111,16 @@ interface FixtureAppProps {
   /**
    * Competitors: the page with nobody watched yet, or still loading.
    * blocked: the month could not start, and a message does not send.
+   * busy: a full month, five or six posts a day.
    */
-  state?: "empty" | "loading" | "blocked";
+  state?: "empty" | "loading" | "blocked" | "busy";
 }
 
 export function FixtureApp({ view, state }: FixtureAppProps) {
-  const shown = view === "chat" ? chat : { overview, messages };
+  const shown =
+    view === "chat"
+      ? chat
+      : { overview: state === "busy" ? busyOverview : overview, messages };
   const data =
     state === "blocked"
       ? {

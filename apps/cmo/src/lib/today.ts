@@ -31,9 +31,17 @@ function plural(count: number, one: string, many: string): string {
   return count === 1 ? `1 ${one}` : `${count} ${many}`;
 }
 
+/** "X, LinkedIn and Facebook". */
+function listed(names: string[]): string {
+  return names.length < 2
+    ? (names[0] ?? "")
+    : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
 /**
  * Everything waiting on the owner, most urgent first: Cuso stopped, a
- * strategy to approve, posts to approve, a network posts wait for.
+ * strategy to approve, posts to approve, the networks posts wait for (one
+ * row for all of them).
  */
 export function needsYou(overview: CmoOverview): NeedsYou[] {
   const items: NeedsYou[] = [];
@@ -83,13 +91,15 @@ export function needsYou(overview: CmoOverview): NeedsYou[] {
     const network = waitsForNetwork(entry, connected);
     if (network) waiting.set(network, (waiting.get(network) ?? 0) + 1);
   }
-  for (const [network, count] of waiting) {
-    const name = channelLabel(network);
+  if (waiting.size > 0) {
+    const names = [...waiting.keys()].map(channelLabel);
+    const count = [...waiting.values()].reduce((sum, n) => sum + n, 0);
+    const one = waiting.size === 1;
     items.push({
-      id: `connect-${network}`,
-      title: `Connect ${name}`,
-      detail: `${plural(count, "post is", "posts are")} written and ${count === 1 ? "waits" : "wait"} for it.`,
-      action: `Connect ${name}`,
+      id: "connect",
+      title: `Connect ${listed(names)}`,
+      detail: `${plural(count, "post is", "posts are")} written and ${count === 1 ? "waits" : "wait"} for ${one ? "it" : "them"}.`,
+      action: one ? `Connect ${names[0]}` : "Open Channels",
       view: "channels",
     });
   }

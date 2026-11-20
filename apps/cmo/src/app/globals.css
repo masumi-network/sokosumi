@@ -4390,25 +4390,6 @@ button.cal-card:hover {
   gap: 32px;
 }
 
-.today-hero {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-/* Cuso in the pose of the day, on his Iris stage: a picture, so flat. */
-.today-cuso {
-  flex: none;
-  width: 112px;
-  height: 112px;
-  padding: 10px 8px 2px;
-  border: var(--line-width) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--primary-hover);
-  object-fit: contain;
-  object-position: 50% 100%;
-}
-
 .today-hello {
   display: grid;
   gap: 6px;
@@ -4447,17 +4428,6 @@ button.cal-card:hover {
 
 .today-section-head .button-ghost {
   margin-left: auto;
-}
-
-.today-clear {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  border: var(--line-width) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--ok);
-  color: var(--primary-foreground);
 }
 
 /* What needs the owner: one yellow card, a row each. */
@@ -4514,7 +4484,10 @@ button.cal-card:hover {
   margin-left: auto;
 }
 
-/* The week: seven days side by side, today on Iris. */
+/*
+ * The week: seven days side by side, today on Iris. A day counts its posts
+ * per network and shows three; the rest open with "+N more".
+ */
 .week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -4531,7 +4504,6 @@ button.cal-card:hover {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
-  min-height: 176px;
   max-width: none;
   padding: 10px 8px 12px;
 }
@@ -4545,12 +4517,20 @@ button.cal-card:hover {
   color: var(--primary-foreground);
 }
 
-.week-date {
+/* The date opens the whole day: navigation, like a nav row, so no shadow. */
+button.week-date {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
   font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
 }
 
 .week-date b {
@@ -4563,6 +4543,11 @@ button.cal-card:hover {
   font-weight: 600;
 }
 
+/* The day's count: the phone's date row only. */
+.week-total {
+  display: none;
+}
+
 .week-none {
   color: var(--muted);
 }
@@ -4571,17 +4556,40 @@ button.cal-card:hover {
   color: var(--primary-foreground);
 }
 
-.week-posts {
-  display: grid;
-  gap: 8px;
+.week-nets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-button.week-post {
+.week .week-net {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: none;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.week-posts {
   display: grid;
+  gap: 6px;
+}
+
+/* A post: its mark and its title in two lines; the phone adds the time. */
+button.week-post {
+  display: flex;
+  align-items: flex-start;
   gap: 4px;
   width: 100%;
   min-width: 0;
-  padding: 6px 8px;
+  padding: 4px 6px;
   border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-control);
   box-shadow: var(--shadow);
@@ -4597,27 +4605,38 @@ button.week-post:active {
   box-shadow: none;
 }
 
-.week-post-meta {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+button.week-post svg {
+  flex: none;
+  margin-top: 2px;
 }
 
-.week-out {
-  margin-left: auto;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
-  background: var(--ok);
-  font-size: 0.6875rem;
-  font-weight: 600;
+.week-post .num {
+  display: none;
 }
 
 .week-post-title {
   display: -webkit-box;
+  min-width: 0;
   overflow: hidden;
   font-weight: 500;
+  line-height: 1.3;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
+}
+
+button.week-more {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
 /* The month as one bar. */
@@ -4691,37 +4710,6 @@ button.week-post:active {
   background: var(--surface);
 }
 
-/* The chat, one tap away. */
-button.today-ask {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 0 20px;
-  border: var(--line-width) solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  color: var(--muted);
-  font: inherit;
-  font-size: 1rem;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background-color 150ms,
-    transform 150ms;
-}
-
-button.today-ask:hover {
-  background: var(--surface);
-  color: var(--foreground);
-}
-
-button.today-ask:active {
-  transform: translate(var(--offset), var(--offset));
-  box-shadow: none;
-}
-
 /* Pieces settle in one after another, from where they rest. */
 @media (prefers-reduced-motion: no-preference) {
   .today > * {
@@ -4735,9 +4723,6 @@ button.today-ask:active {
   }
   .today > :nth-child(4) {
     animation-delay: 180ms;
-  }
-  .today > :nth-child(5) {
-    animation-delay: 240ms;
   }
 
   .month-part {
@@ -4759,51 +4744,102 @@ button.today-ask:active {
 }
 
 @media (max-width: 860px) {
-  .today-hero {
-    gap: 14px;
-  }
-
-  .today-cuso {
-    width: 80px;
-    height: 80px;
-  }
-
   .today-says {
     font-size: 1rem;
     font-weight: 400;
     line-height: 1.375rem;
   }
 
-  /* The week as a list: the days with posts, and today. */
+  /*
+   * The week as a row of dates over one day: today at first, or the date
+   * tapped. Each date is one of a set to pick from, so it casts the shadow.
+   */
   .week {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    padding: 8px;
   }
 
   .week .week-day {
-    flex-direction: row;
-    min-height: 0;
-    padding: 12px;
+    display: contents;
   }
 
-  .week-day + .week-day {
-    border-top: 1px solid var(--border);
-    border-left: 0;
+  .week-today {
+    background: none;
+    color: inherit;
   }
 
-  .week-day[data-empty]:not(.week-today) {
+  button.week-date {
+    grid-row: 1;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+    min-height: 64px;
+    padding: 4px 0;
+    border: var(--line-width-small) solid var(--line);
+    border-radius: var(--radius-control);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    font-size: 0.6875rem;
+  }
+
+  .week-day[data-shown] button.week-date {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .week-date b {
+    font-size: 1rem;
+    line-height: 1.375rem;
+  }
+
+  .week-label {
     display: none;
   }
 
-  .week-date {
-    flex: none;
-    flex-direction: column;
-    align-items: flex-start;
-    width: 56px;
-    gap: 0;
+  .week-today button.week-date b {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
   }
 
-  .week-posts {
-    flex: 1;
+  .week-total {
+    display: block;
+    min-height: 1em;
+    font-weight: 600;
+  }
+
+  .week-day:not([data-shown]) > :not(.week-date) {
+    display: none;
+  }
+
+  .week-day[data-shown] > :not(.week-date) {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+  }
+
+  .week-day[data-shown] .week-none {
+    color: var(--muted);
+  }
+
+  button.week-post {
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: 0.875rem;
+  }
+
+  button.week-post svg {
+    margin-top: 0;
+  }
+
+  .week-post .num {
+    display: inline;
+  }
+
+  .week-post-title {
+    -webkit-line-clamp: 1;
   }
 }
 
