@@ -29,6 +29,8 @@ import {
   CMO_PIECE_WRITING_GUIDE,
   CMO_SKILLS,
 } from "../versions/cmo-skills.js";
+import { cmoV6 } from "../versions/cmo-v6.js";
+import { cmoV7 } from "../versions/cmo-v7.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
@@ -779,5 +781,22 @@ describe("what Cuso is told a talking video costs", () => {
     expect(SOKO_BOT_TOOL_DESCRIPTIONS.generate_talking_video).toContain(
       `a 150-character script costs about ${credits(150)})`,
     );
+  });
+});
+
+describe("cmo-v7", () => {
+  it("answers a change without repeating the card or naming internals", () => {
+    expect(cmoV6.systemPrompt).toContain("then answer in one or two sentences");
+    expect(cmoV7.systemPrompt).not.toContain(
+      "then answer in one or two sentences",
+    );
+    expect(cmoV7.systemPrompt).toContain(
+      "never says what changed or what stayed the same",
+    );
+    expect(cmoV7.systemPrompt).toContain(
+      "Never name your tools, saves, checks or reviews",
+    );
+    // The month written at once comes with it.
+    expect(cmoV7.skills).toEqual(cmoV6.skills);
   });
 });

@@ -206,6 +206,7 @@ describe("CMO chat setup", () => {
       return found?.kind === "scenario" ? found.prepare : undefined;
     };
     expect(prepared("cmo-change-request")).toBe("cmo-plan");
+    expect(prepared("cmo-change-reply-plain")).toBe("cmo-plan");
     expect(prepared("cmo-funnel-aida")).toBe("cmo-plan");
     expect(prepared("cmo-ads-yes")).toBe("cmo-plan-ads");
     expect(prepared("cmo-comment-replies")).toBe("cmo-comments");

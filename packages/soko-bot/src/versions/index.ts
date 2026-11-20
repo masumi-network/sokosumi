@@ -20,6 +20,7 @@ import { cmoV3 } from "./cmo-v3.js";
 import { cmoV4 } from "./cmo-v4.js";
 import { cmoV5 } from "./cmo-v5.js";
 import { cmoV6 } from "./cmo-v6.js";
+import { cmoV7 } from "./cmo-v7.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -110,6 +111,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV4,
   cmoV5,
   cmoV6,
+  cmoV7,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
