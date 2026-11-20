@@ -61,6 +61,7 @@ import {
   changeRequestPlan,
   commentChecks,
   monthPlanFromTomorrow,
+  newsletterIssueCheck,
   pollCmoCase,
   prepareCmoChatCase,
   startCmoCase,
@@ -421,5 +422,36 @@ describe("changeRequestPlan", () => {
     expect(plan.calendar[0]?.date).toBe("2026-11-10");
     expect(plan.calendar.at(-1)?.date).toBe("2026-12-07");
     expect(cmoPlanRuleProblems(plan)).toEqual([]);
+  });
+});
+
+describe("the newsletter month", () => {
+  const plan = (
+    CMO_EVAL_CASES as readonly { id: string; plan?: unknown }[]
+  ).find((evalCase) => evalCase.id === "cmo-month-newsletter")?.plan as
+    | MarketingStrategyPlan
+    | undefined;
+
+  it("plans a newsletter issue on a newsletter channel", () => {
+    expect(plan?.calendar.map((entry) => entry.channel)).toContain(
+      "newsletter",
+    );
+    expect(plan?.channels.map((channel) => channel.channel)).toContain(
+      "newsletter",
+    );
+  });
+
+  it("passes a filed issue with its subject line, and nothing else", () => {
+    const issue = "cal-newsletter-issue (newsletter/issue)";
+    const check = (file: string | null) =>
+      newsletterIssueCheck(plan ?? null, [file]).pass;
+    expect(
+      check(`${issue}: Subject: Book the right rep\n\nHi, one tip this month.`),
+    ).toBe(true);
+    expect(check(`${issue}: Hi, one tip this month.`)).toBe(false);
+    expect(check(`${issue}: Subject: Long\n\n${"word ".repeat(500)}`)).toBe(
+      false,
+    );
+    expect(check(null)).toBe(false);
   });
 });
