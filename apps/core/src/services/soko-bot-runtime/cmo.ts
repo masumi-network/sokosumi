@@ -283,13 +283,14 @@ export async function reviewCmoPlan(
   // Titles, stories and claims that say one thing in other words, by
   // meaning; like the rules above, only those this change brought.
   // Embeddings are cached, so the earlier calendar costs nothing new. A
-  // cmo-v8 Cuso also hears them once all four weeks are in: he saves a month
-  // in four calendar calls, and repeats across weeks show only then. Named on
-  // every weekly save, they kept him fixing and his months came out short.
-  if (
+  // cmo-v8 Cuso saves a month in four calendar calls: each of them hears the
+  // repeats among the entries it sent, and once all four weeks are in he
+  // hears every one. Named all at once on every weekly save, they kept him
+  // fixing old weeks and his months came out short.
+  const whole =
     reviewed < budget ||
-    (rules.claims && cmoCalendarWeeks(strategy.calendar) >= 4)
-  ) {
+    (rules.claims === true && cmoCalendarWeeks(strategy.calendar) >= 4);
+  if (whole || rules.claims) {
     const [repeats, had] = await Promise.all([
       cmoCalendarRepeats(strategy.calendar),
       earlier && earlier.calendar.length > 0
@@ -298,7 +299,13 @@ export async function reviewCmoPlan(
     ]);
     await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd + had.costUsd);
     const known = new Set(had.problems);
-    problems.push(...repeats.problems.filter((problem) => !known.has(problem)));
+    const sent = sentEntryIds(input.input);
+    problems.push(
+      ...repeats.problems.filter(
+        (problem) =>
+          !known.has(problem) && (whole || namesAnyEntry(problem, sent)),
+      ),
+    );
   }
   if (reviewed >= budget) {
     return {
@@ -353,6 +360,29 @@ export async function reviewCmoPlan(
     },
   });
   return review;
+}
+
+/** The calendar entries one save_strategy call sends, by id. */
+function sentEntryIds(input: unknown): Set<string> {
+  const calendar = (input as { strategy?: { calendar?: unknown } } | null)
+    ?.strategy?.calendar;
+  return new Set(
+    Array.isArray(calendar)
+      ? calendar.flatMap((entry) => {
+          const id = (entry as { id?: unknown } | null)?.id;
+          return typeof id === "string" ? [id] : [];
+        })
+      : [],
+  );
+}
+
+/** Whether a review problem's list of entries names one of `ids`. */
+export function namesAnyEntry(
+  problem: string,
+  ids: ReadonlySet<string>,
+): boolean {
+  const named = problem.split(/ (?:say|argue|tell) one /)[0] ?? "";
+  return named.split(", ").some((id) => ids.has(id.trim()));
 }
 
 export async function saveCmoRecord(

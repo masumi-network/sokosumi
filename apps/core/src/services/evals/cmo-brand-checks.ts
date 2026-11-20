@@ -145,6 +145,9 @@ export function strategyChecks(
   if (brand.focus && brand.focus !== "claims")
     checks.push(focusCheck(brand.focus, strategy));
   if (options.everyNetwork) checks.push(firstStrategyAdsCheck(strategy));
+  // The claims case is scored on its claims; every other strategy case
+  // holds the plan to the skill's rules.
+  if (brand.focus === "claims") return { strategy, checks };
   const problems = [
     ...cmoPlanRuleProblems(strategy),
     ...cmoPlanProblems(strategy, options),
