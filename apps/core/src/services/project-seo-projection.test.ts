@@ -226,6 +226,7 @@ describe("stored SEO workspace projections", () => {
     payload.findings.push(
       { ...issue, id: "other-page", pageUrl: "https://other.example/" },
       { ...issue, id: "note", severity: "note" },
+      { ...issue, id: "fragment", pageUrl: `${issue.pageUrl}#details` },
       // The same rule fails on the other device: still one issue on the page.
       {
         ...issue,
@@ -248,6 +249,86 @@ describe("stored SEO workspace projections", () => {
       "2026-11-01T12:00:00.000Z": 1,
       "2026-11-02T12:00:00.000Z": 0,
     });
+  });
+
+  it("keeps the issue when a diagnostic precedes it on the same row and device", () => {
+    const input = fixture();
+    const payload = parsePublicSeoArtifact(legacyReport());
+    const [issue] = payload.findings;
+    payload.findings.unshift({ ...issue, id: "measurement", severity: "note" });
+    const audit = observation(input, payload, "2026-11-01T12:00:00Z");
+    input.observations = [audit];
+
+    const view = projectSeoProjection(input);
+    expect(view.runs?.[0].issues).toBe(1);
+    expect(view.findings.map((item) => item.id)).toContain(
+      `${audit.id}:${issue.id}`,
+    );
+  });
+
+  it.each([
+    { checked: 0, skipped: 2, failed: 0 },
+    { checked: 1, skipped: 0, failed: 1 },
+    {
+      checked: 1,
+      skipped: 0,
+      failed: 0,
+      modules: { notRequested: 0, failed: 1 },
+    },
+  ])(
+    "keeps an incomplete zero unknown in the timeline, including outside the period",
+    (coverage) => {
+      const input = fixture();
+      const payload = parsePublicSeoArtifact(legacyReport());
+      payload.checks = [];
+      payload.coverage = coverage;
+      payload.findings = [];
+      input.observations = [
+        observation(input, payload, "2026-11-01T12:00:00Z"),
+      ];
+      input.query = { from: "2026-11-02" };
+      expect(projectSeoProjection(input).runs?.[0].issues).toBeNull();
+    },
+  );
+
+  it("counts a private index issue even when the audit measured no public checks", () => {
+    const input = fixture();
+    const payload = parsePublicSeoArtifact(legacyReport());
+    payload.checks = [];
+    payload.coverage = { checked: 0, skipped: 1, failed: 0 };
+    payload.findings = [];
+    const audit = observation(input, payload, "2026-11-01T12:00:00Z");
+    const taskId = randomUUID();
+    audit.sourceTaskId = taskId;
+    input.observations = [
+      audit,
+      {
+        ...audit,
+        id: randomUUID(),
+        kind: "index_triage",
+        source: "seo_worker",
+        ownerId: randomUUID(),
+        payload: {
+          version: 1,
+          taskId,
+          receiptHash: "a".repeat(64),
+          checkedAt: now.toISOString(),
+          assessments: [
+            {
+              pageUrl: SEO_TEST_PAGE,
+              status: "issue",
+              report: true,
+              reason: "Missing from search",
+              suggestedFix: null,
+              evidence: [],
+            },
+          ],
+        },
+      },
+    ];
+    const view = projectSeoProjection(input);
+    expect(view.runs?.[0].issues).toBe(1);
+    expect(view.findings).toHaveLength(1);
   });
 
   it("lists every run outside the period, with the time its request took", () => {

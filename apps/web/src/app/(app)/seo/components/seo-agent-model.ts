@@ -1,8 +1,9 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
 import { seoStrategyRows } from "./seo-places-model";
+import { isSeoRuleCheck } from "./seo-runs-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
-import { lastRuleCheck } from "./seo-summary-model";
+import { seoIssueScope } from "./seo-summary-model";
 
 /** Saved Search Console data older than this is refreshed once when the Audit opens. */
 export const SEO_SEARCH_STALE_MS = 24 * 60 * 60 * 1000;
@@ -27,7 +28,8 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   const search = latest.filter((metric) => metric.source === "search_console");
   const analytics = latest.filter((metric) => metric.source === "ga4");
   const searchSaved = search[0] ?? null;
-  const lastCheck = lastRuleCheck(workspace);
+  const scope = seoIssueScope(workspace, overview.issues);
+  const lastCheck = scope.check;
   const fixes = seoOpenFixes(overview);
   const opportunities = overview.recommendedActions.filter(
     (action) => action.kind === "opportunity",
@@ -84,8 +86,13 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
           pages: lastCheck.pageIds.length,
         }
       : null,
-    issues: overview.issues.length,
-    emptyState: overview.emptyState,
+    issues: scope.total ?? (lastCheck ? 0 : scope.current.length),
+    earlierIssues: scope.earlier.length,
+    ruleCheckOutsideSelection:
+      !lastCheck &&
+      Boolean(workspace.runs?.some((row) => isSeoRuleCheck(row.kind))),
+
+    checkClear: scope.total === 0,
     fixes: fixes.length,
     opportunities: opportunities.length,
     openTasks,

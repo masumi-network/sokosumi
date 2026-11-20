@@ -517,6 +517,7 @@ export {
   seoInspectionCrawlTime,
   seoInspectionEvidence,
 } from "./seo-index-verdict.js";
+export { seoIssueKey } from "./seo-issue-key.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export { seoReportFileFormat } from "./seo-report-file.js";
 export {

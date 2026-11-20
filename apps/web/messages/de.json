@@ -12623,6 +12623,7 @@
         "partial": "Einige Statistiken fehlen. Öffne jede Quelle, um zu sehen, welche.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
+        "earlierFindings": "Noch offen aus früheren Prüfungen ({count, number})",
         "findings": "Audit-Ergebnisse",
         "suggestedFix": "Vorgeschlagene Korrektur",
         "audits": "Erfasste Ergebnisse",
@@ -13668,6 +13669,7 @@
           "noCheck": "Noch keine Prüfung. Starte eine, um Probleme zu finden.",
           "noCheckOff": "Noch keine Prüfung",
           "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}",
+          "noPageCheckInView": "Keine Seitenprüfung für den gewählten Zeitraum",
           "clearRarelyShown": "{pages, plural, one {Deine Seite besteht die letzte Prüfung, aber Google zeigt sie noch selten} other {Deine Seiten bestehen die letzte Prüfung, aber Google zeigt sie noch selten}}"
         },
         "lastCheckOn": "Letzte Prüfung",
@@ -13942,7 +13944,8 @@
         }
       },
       "summary": {
-        "issues": "Probleme",
+        "issues": "Probleme in dieser Prüfung",
+        "issuesInCheck": "{count, plural, one {# Problem in dieser Prüfung} other {# Probleme in dieser Prüfung}}",
         "issuesNone": "Keine gefunden",
         "severityCount": "{count} {severity, select, critical {kritisch} major {mit großer Auswirkung} other {mit geringer Auswirkung}}",
         "of": "von {total}",

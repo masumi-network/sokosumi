@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoIssueKey } from "@sokosumi/utils";
 
 const ISSUE_SEVERITIES = { critical: 0, major: 1, minor: 2 } as const;
 /** Issue severities, worst first. */
@@ -45,25 +46,18 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     .filter((finding) => issueRank(finding) < NON_ISSUE_RANK)
     .toSorted((left, right) => issueRank(left) - issueRank(right));
   // One rule that fails on mobile and on desktop is one issue on that page; the row names its devices.
-  const issues = [
-    ...Map.groupBy(failed, (finding) =>
-      JSON.stringify([
-        finding.observationId,
-        finding.rowId,
-        finding.pageUrl,
-        finding.relatedPageUrl,
-      ]),
-    ).values(),
-  ].map((group) => ({
-    ...group[0],
-    // Only rows with an issue severity reach this list.
-    severity: group[0].severity as SeoIssueSeverity,
-    findingIds: group.map(({ id }) => id),
-    devices: [
-      ...new Set(group.flatMap(({ device }) => (device ? [device] : []))),
-    ],
-    evidence: [...new Set(group.flatMap(({ evidence }) => evidence))],
-  }));
+  const issues = [...Map.groupBy(failed, seoIssueKey).values()].map(
+    (group) => ({
+      ...group[0],
+      // Only rows with an issue severity reach this list.
+      severity: group[0].severity as SeoIssueSeverity,
+      findingIds: group.map(({ id }) => id),
+      devices: [
+        ...new Set(group.flatMap(({ device }) => (device ? [device] : []))),
+      ],
+      evidence: [...new Set(group.flatMap(({ evidence }) => evidence))],
+    }),
+  );
   // Each device of one check can report the same measurement; one check shows it once.
   const diagnostics = [
     ...new Map(

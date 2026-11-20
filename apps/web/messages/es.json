@@ -12623,6 +12623,7 @@
         "partial": "Faltan algunas estadísticas. Abre cada fuente para ver cuáles.",
         "available": "Hay estadísticas disponibles para los periodos indicados.",
         "priority": "Acciones recomendadas",
+        "earlierFindings": "Pendientes de comprobaciones anteriores ({count, number})",
         "findings": "Hallazgos de la auditoría",
         "suggestedFix": "Corrección sugerida",
         "audits": "Resultados capturados",
@@ -13668,6 +13669,7 @@
           "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",
           "noCheckOff": "Aún no hay comprobación",
           "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}",
+          "noPageCheckInView": "No hay comprobaciones de páginas para las fechas seleccionadas",
           "clearRarelyShown": "{pages, plural, one {Tu página pasa la última comprobación, pero Google aún la muestra poco} other {Tus páginas pasan la última comprobación, pero Google aún las muestra poco}}"
         },
         "lastCheckOn": "Última comprobación",
@@ -13942,7 +13944,8 @@
         }
       },
       "summary": {
-        "issues": "Problemas",
+        "issues": "Problemas en esta comprobación",
+        "issuesInCheck": "{count, plural, one {# problema en esta comprobación} other {# problemas en esta comprobación}}",
         "issuesNone": "Ninguno encontrado",
         "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {de impacto alto} other {de impacto bajo}}",
         "of": "de {total}",

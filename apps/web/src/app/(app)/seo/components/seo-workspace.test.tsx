@@ -2018,9 +2018,9 @@ describe("SEO workspace integration", () => {
         .getAllByRole("button", { pressed: undefined })
         .map((button) => button.textContent),
     ).toEqual([
-      "Oct 287 issues",
-      "Nov 106 issues",
-      "Nov 125 issues",
+      "Oct 287 issues in this check",
+      "Nov 106 issues in this check",
+      "Nov 125 issues in this check",
       "Other dates",
     ]);
     // The timeline holds the one date filter: the header and the filter block have none.
@@ -2101,6 +2101,98 @@ describe("SEO workspace integration", () => {
     ).toBeEnabled();
   });
 
+  it("uses the selected day's issue total and moves older open findings into their own section", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const latest = { ...workspace.observations[0], issues: 5 };
+    const previous = {
+      ...latest,
+      id: crypto.randomUUID(),
+      observedAt: new Date("2026-01-01T12:00:00Z"),
+      issues: 2,
+    };
+    workspace.observations = [latest, previous];
+    workspace.runs = runsOf(workspace);
+    workspace.findings = workspace.observations.flatMap((check) =>
+      Array.from({ length: check.issues }, (_, index) => ({
+        id: `${check.id}:${index}`,
+        observationId: check.id,
+        pageUrl: workspace.pages[0].url,
+        device: "desktop" as const,
+        rowId: `${check.id}-${index}`,
+        title: `${check.id === previous.id ? "Previous" : "Current"} finding ${index + 1}`,
+        severity: "minor" as const,
+        evidence: [],
+        sourceRef: "html:head",
+        observedAt: check.observedAt,
+      })),
+    );
+    const day = "2026-01-01";
+    const historicalWorkspace = {
+      ...workspace,
+      scope: { ...workspace.scope, to: day },
+      observations: [previous],
+      findings: workspace.findings.filter(
+        (row) => row.observationId === previous.id,
+      ),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        connectedSeoResponse(
+          url.includes(`to=${day}`) ? historicalWorkspace : workspace,
+          url,
+        ),
+      ),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    const stops = within(screen.getByRole("group", { name: "Checks" }));
+    expect(
+      stops.getByRole("button", { name: /Jan 3 5 issues in this check/ }),
+    ).toBeVisible();
+    expect(screen.getByTestId("seo-summary-issues")).toHaveTextContent(/^5/);
+    const earlier = screen
+      .getByRole("heading", { name: "Still open from earlier checks (2)" })
+      .closest("section")!;
+    expect(within(earlier).getAllByRole("listitem")).toHaveLength(2);
+    expect(earlier).toHaveTextContent("Previous finding 2");
+    expect(earlier).not.toHaveTextContent("Current finding");
+    await user.click(
+      stops.getByRole("button", { name: /Jan 1 2 issues in this check/ }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("seo-summary-issues")).toHaveTextContent(/^2/),
+    );
+    expect(
+      screen.queryByRole("heading", { name: /Still open from earlier checks/ }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: /Previous finding 2/ }),
+    ).toBeVisible();
+  });
+
+  it("keeps the Agent verdict scoped to a rankings-only day after a clean page check", () => {
+    const workspace = seoTestCheckedAudit();
+    workspace.runs = [
+      ...(runsOf(workspace) ?? []),
+      {
+        observationId: crypto.randomUUID(),
+        kind: "rankings",
+        issues: null,
+        seconds: null,
+        observedAt: new Date("2026-01-04T12:00:00Z"),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
+      "No page check for the selected dates",
+    );
+  });
+
   it("shows a day's issue count only where it changed from the day before", () => {
     const workspace = seoTestWorkspace();
     workspace.metrics = [seoTestMetric()];
@@ -2126,7 +2218,11 @@ describe("SEO workspace integration", () => {
       within(within(runs).getByRole("list"))
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Oct 287 issues", "Nov 105 issues", "Nov 12"]);
+    ).toEqual([
+      "Oct 287 issues in this check",
+      "Nov 105 issues in this check",
+      "Nov 12",
+    ]);
   });
 
   it("boxes in the calendar the day the line of checks marks", async () => {
@@ -8326,9 +8422,15 @@ describe("SEO workspace integration", () => {
       devices: ["mobile", "desktop"],
       rulebookVersion: "html-v1",
       artifactHash: "checked-html",
-      issues: 2,
+      issues: 1,
       coverage: { checked: 201, skipped: 30, failed: 0 },
     });
+    const older = {
+      ...workspace.observations[0],
+      id: "51fd7134-4a26-42a8-b8d3-631684028a27",
+      observedAt: new Date("2026-01-01T12:00:00Z"),
+    };
+    workspace.observations.push(older);
     const failed = {
       observationId,
       pageUrl: workspace.pages[0].url,
@@ -8357,6 +8459,8 @@ describe("SEO workspace integration", () => {
       {
         ...failed,
         id: "alt",
+        observationId: older.id,
+        observedAt: older.observedAt,
         device: "desktop",
         rowId: "P-06",
         title: "Images have alt text",
@@ -8435,12 +8539,12 @@ describe("SEO workspace integration", () => {
     // The Agent tab says the issue count once, in its headline, and shows the keyword numbers.
     expect(
       await screen.findByRole("heading", {
-        name: "2 issues to fix: 1 high impact and 1 low impact",
+        name: "1 issue to fix: 1 high impact",
       }),
     ).toBeVisible();
-    expect(
-      screen.getAllByText("2 issues to fix: 1 high impact and 1 low impact"),
-    ).toHaveLength(1);
+    expect(screen.getAllByText("1 issue to fix: 1 high impact")).toHaveLength(
+      1,
+    );
     expect(
       screen.queryByRole("heading", { name: "The agent proposes" }),
     ).toBeNull();
@@ -8457,9 +8561,16 @@ describe("SEO workspace integration", () => {
     // The Actions tab leads with the numbers of the page check, and not with the keyword numbers.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     const issues = screen.getByTestId("seo-summary-issues");
-    expect(issues).toHaveTextContent(/^2/);
+    expect(issues).toHaveTextContent(/^1/);
     expect(within(issues).getByText("1 high impact")).toBeVisible();
-    expect(within(issues).getByText("1 low impact")).toBeVisible();
+    expect(within(issues).queryByText("1 low impact")).toBeNull();
+    const earlierHeading = screen.getByRole("heading", {
+      name: "Still open from earlier checks (1)",
+    });
+    expect(earlierHeading).toBeVisible();
+    expect(earlierHeading.closest("section")).toHaveTextContent(
+      "Images have alt text",
+    );
     // Tests without a result are part of the total, not hidden. With one kind of them the total says it:
     // a line "30 tests gave no result" would say 231 minus 201 a second time.
     const tests = screen.getByTestId("seo-summary-tests");

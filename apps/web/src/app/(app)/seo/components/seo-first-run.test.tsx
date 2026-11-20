@@ -940,8 +940,12 @@ describe("SEO audit first run", () => {
     workspace.runs.push(run("2026-11-10T09:00:00Z", 6));
     render(page(<SeoWorkspace workspace={workspace} />));
     const runs = within(screen.getByRole("group", { name: "Checks" }));
-    const newest = runs.getByRole("button", { name: "Nov 12 5 issues" });
-    const older = runs.getByRole("button", { name: "Nov 10 6 issues" });
+    const newest = runs.getByRole("button", {
+      name: "Nov 12 5 issues in this check",
+    });
+    const older = runs.getByRole("button", {
+      name: "Nov 10 6 issues in this check",
+    });
     expect(newest).toHaveAttribute("aria-pressed", "true");
     expect(older).toHaveAttribute("aria-pressed", "false");
     await user.click(older);

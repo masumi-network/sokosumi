@@ -148,9 +148,9 @@ export function SeoSummaryTiles({
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : issues.total === 0 ? (
               result("summary.issuesNone")
-            )}
+            ) : null}
           </Tile>
         ) : null}
         {tests ? (
