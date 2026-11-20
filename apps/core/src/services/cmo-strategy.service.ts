@@ -1362,7 +1362,13 @@ export function patchPlan(
   const calendar = [
     ...before.calendar.map((entry) => {
       const next = byId.get(entry.id);
-      return next ? { ...entry, ...next } : entry;
+      if (!next) return entry;
+      const merged = { ...entry, ...next };
+      // A patch that makes a talking video another format leaves its other
+      // networks out: they belong to the talking video alone.
+      return merged.alsoOn && !isCmoTalkingFormat(merged.channel, merged.format)
+        ? { ...merged, alsoOn: undefined }
+        : merged;
     }),
     ...entries.filter((entry) => !old.has(entry.id)),
   ] as CmoCalendarEntry[];
