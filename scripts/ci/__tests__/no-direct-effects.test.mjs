@@ -237,10 +237,10 @@ function runBiomeJson(args, cwd) {
 }
 
 /**
- * Runs both Grit plugins in a single Biome pass over `apps`'s `src` trees with
- * Biome's default file discovery and no baseline exclusions, then filters
- * diagnostics through app-relative `isExemptPath`. Direct calls
- * (`no-direct-effects.grit`, warn) and alias/indirection hits
+ * Runs both Grit plugins in a single Biome pass over every non-exempt file
+ * under `apps`'s `src` trees (selected via app-relative `isExemptPath`, with no
+ * extension allowlist so Biome checks every file type it supports). Direct
+ * calls (`no-direct-effects.grit`, warn) and alias/indirection hits
  * (`no-effect-aliases.grit`, error) are separated by diagnostic severity.
  */
 function scanAppsWithPlugins(apps) {
@@ -270,9 +270,17 @@ function scanAppsWithPlugins(apps) {
       }),
     );
 
-    const targets = apps
-      .map((app) => join(app.dir, "src"))
-      .filter((srcDir) => existsSync(srcDir));
+    // Passing non-exempt paths skips ~1.5k test/ui/fixture files (~2x faster);
+    // ~150 KiB argv stays well below Linux (2 MiB) and macOS (1 MiB) ARG_MAX.
+    const targets = [];
+    for (const app of apps) {
+      for (const absPath of walkFiles(join(app.dir, "src"))) {
+        const relPath = toPosixPath(relative(app.dir, absPath));
+        if (isExemptPath(relPath, app)) continue;
+        const fromRoot = relative(ROOT, absPath);
+        targets.push(fromRoot.startsWith("..") ? absPath : fromRoot);
+      }
+    }
     if (targets.length === 0) return results;
 
     const report = runBiomeJson(
