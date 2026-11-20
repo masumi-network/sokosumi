@@ -79,3 +79,17 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries
 - `use-latest-ref` (`useLatestRef`) — ref synced to the latest committed value in a layout effect
 - `use-retire-query-client` (`useRetireQueryClient`) — cancels and clears a replaced or unmounted session `QueryClient`
+- `use-query-error-report` (`useQueryErrorReport`) — calls a query error reporter once per failure while mounted on the active key
+
+### React Query in migrations
+
+When migrating a client fetch effect to React Query in `apps/web`, use the shared seams instead of per-component guards:
+
+- **Session boundary (`QueryProvider`):** `apps/web/src/contexts/query-provider.tsx` owns one browser `QueryClient` per signed-in user id via Better Auth's `useSession()`. On sign-out, account switch, or session expiry (401), it swaps to a fresh client (keyed so mounted `useQuery`/`useMutation` observers rebind) and retires the old one with `cancelQueries()` then `clear()`. Server-side per-request `getQueryClient()` stays unchanged; never reintroduce a module-level browser singleton.
+- **Scoped reads (`useScopedQuery` / `useScopedInfiniteQuery` in `apps/web/src/queries/scoped-queries.ts`):**
+  - Always prepends `[workspace, userId]` to `queryKey` (`workspace` defaults to the active session organization or `"personal"`; pass `workspace` explicitly when a route owns an org slug) and disables the read while `userId` is missing.
+  - Defaults to `networkMode: "always"`, `retry: false`, and `refetchOnWindowFocus: false` without changing global `QueryClient` defaults for existing `useQuery` callers.
+  - Pass `onError` to toast or report failures: `useQueryErrorReport` fires only while the observer is mounted and still on the failing key, so an abandoned read cannot toast on another screen.
+- **Scoped writes (`useScopedMutation` in `apps/web/src/queries/scoped-queries.ts`):**
+  - Pass the unscoped `queryKeyPrefix` (and optional `workspace` override). Before running `mutationFn`, it cancels every in-flight query under the scoped prefix captured at call time.
+  - On success, `applySuccess` runs only against matching queries already in `status === "success"` (never creating or marking a failed/unloaded list as loaded), then invalidates the captured scoped prefix.
