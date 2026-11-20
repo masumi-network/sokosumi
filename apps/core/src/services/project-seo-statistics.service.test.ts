@@ -24,6 +24,7 @@ const state = vi.hoisted(() => {
       propertyId: string;
       connectionVersion: string;
       includeSitemaps?: true;
+      includePropertyTotals?: true;
     } | null,
     auditPageUrls: [] as string[],
     briefGoal: null as string | null,
@@ -383,6 +384,7 @@ vi.mock(
 import { z } from "@hono/zod-openapi";
 import prisma from "@/lib/db/prisma";
 import { prepareAuditSettlement } from "@/lib/seo/audit-settlement";
+import { GSC_STATS_TOOL } from "@/lib/seo/native-statistics";
 import { runSeoTool } from "@/lib/soko-bot/seo-tools";
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 import { expectCoreLog } from "@/test/core-log";
@@ -1135,6 +1137,175 @@ describe("Search Console query rows", () => {
       };
     };
   }
+
+  it("recovers property-wide totals for an old private audit without changing its filtered page metrics", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    state.auditPageUrls = [state.pageUrl];
+    const integration = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(integration!),
+    };
+    const fallback = gsc({ rows: [] });
+    let propertyReads = 0;
+    state.answer = (slug, args) => {
+      if (slug === GSC_STATS_TOOL && !args.dimension_filter_groups) {
+        ++propertyReads;
+        expect(args).toMatchObject({
+          site_url: gscInput.propertyId,
+          dimensions: [],
+          aggregation_type: "byProperty",
+          search_type: "web",
+          data_state: "final",
+        });
+        return {
+          responseAggregationType: "byProperty",
+          rows: [{ clicks: 9, impressions: 675, ctr: 9 / 675, position: 6.7 }],
+        };
+      }
+      if (
+        slug === GSC_STATS_TOOL &&
+        Array.isArray(args.dimensions) &&
+        args.dimensions.length === 0
+      )
+        return { rows: [{ clicks: 0, impressions: 0, ctr: 0, position: 0 }] };
+      if (slug.endsWith("INSPECT_URL"))
+        return {
+          inspectionResult: {
+            indexStatusResult: {
+              verdict: "NEUTRAL",
+              coverageState: "Page with redirect",
+            },
+          },
+        };
+      return fallback(slug, args);
+    };
+    await collectSeoAuditPerformance("audit-task");
+    expect(propertyReads).toBe(0);
+    state.reads.length = 0;
+    await collectSeoAuditPerformance("audit-task", owner, true);
+    expect(state.reads.filter((r) => r.slug === GSC_STATS_TOOL)).toHaveLength(
+      1,
+    );
+    const summary = await readAuditPerformanceSummaries(owner, ["audit-task"]);
+    expect(summary.auditSearchConsole[0]).toMatchObject({
+      clicks: 0,
+      measuredPages: [
+        {
+          pageUrl: state.pageUrl,
+          measuredUrl: state.pageUrl,
+          basis: "unverified",
+        },
+      ],
+      propertyTotals: {
+        clicks: 9,
+        impressions: 675,
+        ctr: 9 / 675,
+        averagePosition: 6.7,
+      },
+    });
+    await collectSeoAuditPerformance("audit-task", owner, true);
+    expect(propertyReads).toBe(1);
+    expect(summary.auditSearchConsole[0]).not.toHaveProperty("pageDiscovery");
+    const prior = state.answer;
+    state.answer = (slug, args) =>
+      slug === GSC_STATS_TOOL && JSON.stringify(args.dimensions) === '["page"]'
+        ? { responseAggregationType: "byPage", rows: [] }
+        : prior(slug, args);
+    const beforeDiscovery = state.reads.length;
+    await collectSeoAuditPerformance("audit-task", owner, true, true);
+    const discovered = await readAuditPerformanceSummaries(owner, [
+      "audit-task",
+    ]);
+    expect(discovered.auditSearchConsole[0]).toMatchObject({
+      propertyTotals: { clicks: 9 },
+      pageDiscovery: { pages: [], limited: false, topClickedPages: [] },
+    });
+    expect(
+      state.reads
+        .slice(beforeDiscovery)
+        .filter((r) => r.slug === GSC_STATS_TOOL),
+    ).toHaveLength(3);
+    await collectSeoAuditPerformance("audit-task", owner, true, true);
+    expect(
+      state.reads
+        .slice(beforeDiscovery)
+        .filter((r) => r.slug === GSC_STATS_TOOL),
+    ).toHaveLength(3);
+    const oldSnapshot = nativeSeoMetricsSchema.parse(
+      state.observations[0].payload,
+    );
+    delete oldSnapshot.auditPageDiscovery!.topClickedPages;
+    state.observations[0].payload = oldSnapshot;
+    const beforeBackfill = state.reads.length;
+    const home = "https://www.example.test/";
+    state.answer = (slug, args) =>
+      slug === GSC_STATS_TOOL
+        ? {
+            responseAggregationType: "byPage",
+            rows: [{ keys: [home], clicks: 3, impressions: 83 }],
+          }
+        : prior(slug, args);
+    await collectSeoAuditPerformance("audit-task", owner, true, true);
+    const recovered = await readAuditPerformanceSummaries(owner, [
+      "audit-task",
+    ]);
+    expect(recovered.auditSearchConsole[0]).toMatchObject({
+      propertyTotals: { clicks: 9 },
+      pageDiscovery: {
+        pages: [],
+        topClickedPages: [{ pageUrl: home, clicks: 3, impressions: 83 }],
+      },
+    });
+    await collectSeoAuditPerformance("audit-task", owner, true, true);
+    expect(
+      state.reads
+        .slice(beforeBackfill)
+        .filter((r) => r.slug === GSC_STATS_TOOL),
+    ).toHaveLength(1);
+  });
+
+  it("keeps a failed property read unavailable, then recovers without replacing page evidence", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    const integration = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditPageUrls = [state.pageUrl];
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(integration!),
+      includePropertyTotals: true,
+    };
+    const fallback = gsc({ rows: [] });
+    let attempts = 0;
+    state.answer = (slug, args) => {
+      if (slug === GSC_STATS_TOOL && !args.dimension_filter_groups) {
+        attempts++;
+        return attempts === 1
+          ? { responseAggregationType: "byPage", rows: [] }
+          : { responseAggregationType: "byProperty", rows: [] };
+      }
+      return fallback(slug, args);
+    };
+    await collectSeoAuditPerformance("audit-task");
+    const first = await readAuditPerformanceSummaries(owner, ["audit-task"]);
+    expect(first.auditSearchConsole[0]).not.toHaveProperty("propertyTotals");
+    await collectSeoAuditPerformance("audit-task", owner, true);
+    const second = await readAuditPerformanceSummaries(owner, ["audit-task"]);
+    expect(second.auditSearchConsole[0]).toMatchObject({
+      clicks: 1,
+      propertyTotals: {
+        clicks: 0,
+        impressions: 0,
+        ctr: null,
+        averagePosition: null,
+      },
+    });
+  });
 
   it("reads submitted sitemaps only for a bound consenting audit and shows concrete actions privately", async () => {
     const owner = { ...actor, sokoBotId: undefined };

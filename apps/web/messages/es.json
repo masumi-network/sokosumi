@@ -13039,7 +13039,7 @@
       "actions": {
         "title": "Acciones",
         "listTitle": "Acciones recomendadas",
-        "listHint": "Cambios que recomienda nuestro agente.",
+        "checkDetails": "Detalles de la comprobación",
         "empty": "No hay acciones recomendadas",
         "emptyBody": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Ejecuta una comprobación o pregunta al agente SEO qué hacer a continuación.",
         "emptyBodyOff": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Pregunta al agente SEO qué hacer a continuación.",
@@ -13221,6 +13221,7 @@
         "sitemaps": "Sitemaps que incluyen este destino"
       },
       "discovery": {
+        "actionsHeading": "Acciones de Search Console",
         "reportedSitemaps": "Sitemaps Google associates with this URL",
         "referringPages": "Examples of direct or indirect referring URLs from Google",
         "exportActions": "Actions from your Search Console exports",
@@ -13241,11 +13242,40 @@
         "canonical": "Google canonical: {url}",
         "inspections": "Inspected URLs in this audit ({count})"
       },
+      "pageDiscovery": {
+        "partial": "No se pudieron cargar algunas comparaciones de páginas.",
+        "queryUnavailable": "No se pudieron cargar las consultas de búsqueda de esta página.",
+        "title": "Páginas para revisar en Search Console",
+        "reviews": "Revisiones basadas en la búsqueda de Google",
+        "empty": "Ninguna página de los resultados cumplió los criterios de revisión.",
+        "lowCtr": "Muchas impresiones con pocos clics",
+        "lostClicks": "Disminuyeron los clics",
+        "gainingImpressions": "Aumentaron las impresiones",
+        "audit": "Periodo de la auditoría",
+        "recent": "Últimos 28 días",
+        "previous": "28 días anteriores",
+        "query": "Consulta del periodo reciente",
+        "counts": "{clicks, plural, one {# clic} other {# clics}} · {impressions, plural, one {# impresión} other {# impresiones}}",
+        "position": "Posición media {value}",
+        "range": "{from} a {to}",
+        "observe": "Observa esta página. Los datos de las consultas no justifican un cambio concreto.",
+        "openPage": "Abrir página",
+        "limited": "Se muestra una selección de los resultados que devolvió Google."
+      },
       "reportFiles": {
         "noQueryRecommendations": "Search Console no devolvió consultas para estas páginas y fechas. Esta comprobación no tiene recomendaciones basadas en consultas.",
         "recommendations": "Recomendaciones de esta comprobación",
         "recoverSearch": "Recuperar resultados de Search Console",
         "recoverSearchFailed": "No se pudieron recuperar los resultados de Search Console. Vuelve a intentarlo.",
+        "crawlDetails": "Detalles del rastreo",
+        "performanceScope": "Los datos de página que siguen corresponden a las URL auditadas.",
+        "topClickedPages": "Páginas con más clics en la búsqueda",
+        "propertyPerformance": "Rendimiento en la búsqueda web de toda la propiedad",
+        "propertyTotalsFailed": "No se pudieron cargar todos los datos de la propiedad. Vuelve a intentarlo.",
+        "propertyDataExpired": "Este período supera el plazo de conservación de Search Console. Puedes consultar los resultados guardados.",
+        "loadPropertyTotals": "Cargar los totales y el análisis de páginas",
+        "unverifiedPagePerformance": "No se ha verificado el rendimiento de las páginas.",
+        "pagePerformance": "Rendimiento de las páginas auditadas en la búsqueda web",
         "auditedUrls": "URLs auditadas",
         "googleCanonical": "URL canónica de Google medida: {url}",
         "canonicalUnverified": "Se midió la URL enviada. No se verificó la URL canónica.",
@@ -13376,6 +13406,7 @@
         "importSitemapHelp": "Se compartirán hasta {count} URL de páginas de la lista en esta auditoría. El archivo XML permanece en tu dispositivo.",
         "sitemapReading": "Leyendo sitemap…",
         "sitemapInvalid": "Elige un sitemap de menos de 512 KiB con páginas públicas de este sitio.",
+        "includePropertyTotals": "Incluir en mi informe privado los totales, las páginas y las consultas de búsqueda web de toda la propiedad.",
         "includeSitemaps": "Incluir el estado de los sitemaps enviados a Google para esta propiedad en mi informe privado.",
         "alreadyRunning": "Hay una comprobación en curso. Espera su resultado antes de iniciar la siguiente.",
         "noPermission": "No se puede solicitar una comprobación para estas páginas.",
@@ -13861,6 +13892,7 @@
         "lastCrawled": "Último rastreo de Google"
       },
       "index": {
+        "resultDate": "Resultado de indexación del",
         "title": "Índice de Google",
         "state": {
           "indexed": "Indexada",
@@ -14066,7 +14098,6 @@
         "researchDetails": {
           "visitor": "Comprobación de la acción del visitante",
           "trends": "Google Trends",
-          "evidenceRecord": "Evidencia: {record}",
           "caption": "Resultados de Google Trends para las palabras clave auditadas",
           "keyword": "Palabra clave",
           "status": "Estado",

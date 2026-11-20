@@ -1,15 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import {
-  createContext,
-  type ReactNode,
-  Suspense,
-  use,
-  useOptimistic,
-} from "react";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-import { listenForNavigationStart } from "@/lib/navigation/navigation-start";
+import { createContext, type ReactNode, Suspense, use } from "react";
+import { usePendingNavigation } from "@/hooks/effects/use-pending-navigation";
 
 const PendingPathnameContext = createContext<string | null>(null);
 
@@ -68,15 +61,7 @@ export function NavigationProgress({ children }: { children: ReactNode }) {
   // hard navigation the reader cancels at a "Leave site?" prompt never
   // arrives: the bar and the row mark then stay until the next navigation
   // does.
-  const [pending, setPending] = useOptimistic<{
-    pathname: string;
-    onScreen: boolean;
-  } | null>(null);
-  useMountEffect(() =>
-    listenForNavigationStart((pathname, onScreen) =>
-      setPending({ pathname, onScreen }),
-    ),
-  );
+  const pending = usePendingNavigation();
 
   return (
     <PendingPathnameContext value={pending?.pathname ?? null}>

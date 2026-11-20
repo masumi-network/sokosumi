@@ -102,10 +102,10 @@ it("opens the verdict evidence on the SEO page and keeps research outside the ru
   expect(within(trends).getByText("battery charging")).toBeVisible();
   expect(within(trends).getByText("Too little history")).toBeVisible();
   expect(
-    screen.getByText(
+    screen.queryByText(
       "The regular keyword list had already filled all 20 places.",
     ),
-  ).toBeVisible();
+  ).not.toBeInTheDocument();
 });
 
 it("keeps the last full audit's research visible after a focused check and with zero checklist rows", () => {

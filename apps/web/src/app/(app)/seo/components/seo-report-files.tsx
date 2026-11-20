@@ -16,6 +16,7 @@ import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoAuditSearchConsole } from "./seo-audit-search-console";
 import { SeoConsoleExports } from "./seo-console-exports";
 import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SeoFoldSummary } from "./seo-shared";
 import { SeoSiteEvidence } from "./seo-site-evidence";
 import {
   type SeoReportFileProps,
@@ -73,8 +74,9 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
     siteEvidence,
     fullAudit,
     recoverSearch,
+    loadProperty,
     recovering,
-    recoveryFailed,
+    recoveryError,
   } = useSeoReportFiles({ model, versions });
   return (
     <>
@@ -98,10 +100,24 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
           {t("reportFiles.historyLimit")}
         </p>
       )}
-      {siteEvidence && <SeoSiteEvidence evidence={siteEvidence} />}
       {evidence ? (
         <>
           <SeoAuditSearchConsole evidence={evidence} />
+          {evidence.propertyDataExpired && (
+            <p className="text-sm text-muted-foreground">
+              {t("reportFiles.propertyDataExpired")}
+            </p>
+          )}
+          {loadProperty && (
+            <Button
+              size="sm"
+              variant="outline"
+              loading={recovering}
+              onClick={loadProperty}
+            >
+              {t("reportFiles.loadPropertyTotals")}
+            </Button>
+          )}
           <SeoConsoleExports
             owner={seoWorkspaceOwner(model.data)}
             taskId={taskId}
@@ -123,12 +139,12 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
           >
             {t("reportFiles.recoverSearch")}
           </Button>
-          {recoveryFailed && (
-            <p role="alert" className="text-destructive text-sm">
-              {t("reportFiles.recoverSearchFailed")}
-            </p>
-          )}
         </div>
+      )}
+      {recoveryError && (
+        <p role="alert" className="text-destructive text-sm">
+          {t(`reportFiles.${recoveryError}`)}
+        </p>
       )}
       {recoverPageSpeed && (
         <Button
@@ -230,6 +246,16 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
           {t("reportFiles.refresh")}
         </Button>
       ) : null}
+      {siteEvidence && (
+        <details key={taskId} className="min-w-0 rounded-lg border">
+          <SeoFoldSummary className="min-h-11 justify-between px-3 py-2 text-sm font-medium">
+            {t("reportFiles.crawlDetails")}
+          </SeoFoldSummary>
+          <div className="border-t p-3">
+            <SeoSiteEvidence evidence={siteEvidence} />
+          </div>
+        </details>
+      )}
     </>
   );
 }

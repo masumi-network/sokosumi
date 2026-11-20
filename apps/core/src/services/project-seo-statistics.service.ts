@@ -1,9 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE,
   SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
-  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
@@ -16,6 +14,7 @@ import {
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { auditClickHistoryFromSearchAnalytics } from "@/lib/seo/audit-click-history";
+import { readAuditPropertyEvidence } from "@/lib/seo/audit-page-discovery";
 import {
   GSC_LIST_SITEMAPS,
   type inspectionDiscoverySources,
@@ -41,6 +40,7 @@ import {
   selectTrackedKeywords,
 } from "@/lib/seo/native-gsc-queries";
 import {
+  applyPreviousSeoPeriod,
   bindSeoToolArguments,
   GA4_PROPERTIES_TOOL,
   GA4_STATS_TOOL,
@@ -85,7 +85,10 @@ import {
   getProjectSeoWorkspace,
   recordNativeSeoMetrics,
 } from "./project-seo.service";
-import { withAutomaticSeoStatistics } from "./project-seo-statistics-cache";
+import {
+  type AuditStatisticsScope,
+  withAutomaticSeoStatistics,
+} from "./project-seo-statistics-cache";
 import {
   applyStatisticsInspections,
   auditPerformancePages,
@@ -136,6 +139,14 @@ async function read(
 ) {
   const args = bindSeoToolArguments(tool, logical);
   return readIntegrationTool(integration, tool.slug, args);
+}
+
+function readerFor(integration: ComposioIntegrationAccount, slug: string) {
+  let tool: Promise<SeoNativeTool> | undefined;
+  return async (args: Record<string, unknown>) => {
+    tool ??= toolFor(integration, slug);
+    return read(integration, await tool, args);
+  };
 }
 
 /** One read-only Google read on a connected account, its arguments bound to the tool's declared inputs. */
@@ -263,12 +274,7 @@ export async function syncProjectSeoStatistics(
   actor: SeoActor,
   raw: SyncProjectSeoStatistics,
   hooks: SeoMutationHooks = {},
-  audit?: {
-    taskId: string;
-    connectionVersion: string;
-    pageUrls: string[];
-    includeSitemaps?: true;
-  },
+  audit?: AuditStatisticsScope,
 ) {
   const input = syncProjectSeoStatisticsSchema.parse(raw);
   await requireSeoOwner(actor, prisma, true);
@@ -352,8 +358,7 @@ export async function syncProjectSeoStatistics(
   };
   return withAutomaticSeoStatistics({
     actor,
-    auditTaskId: audit?.taskId,
-    includeSitemaps: audit?.includeSitemaps,
+    audit,
     input,
     integration,
     pageIds,
@@ -382,7 +387,7 @@ export async function syncProjectSeoStatistics(
         throw unprocessableEntity(
           "The Search Console property does not cover the selected pages",
         );
-      let inspectionTool: Promise<SeoNativeTool> | undefined;
+      const readInspection = readerFor(integration, GSC_INSPECT_TOOL);
       const discoverySources = new Map<
         string,
         ReturnType<typeof inspectionDiscoverySources>
@@ -397,15 +402,12 @@ export async function syncProjectSeoStatistics(
               input.propertyId,
               url,
               audit?.includeSitemaps ? discoverySources : undefined,
-              async (args) => {
-                inspectionTool ??= toolFor(integration, GSC_INSPECT_TOOL);
-                return read(integration, await inspectionTool, args);
-              },
+              readInspection,
             ),
           cached,
           audit?.includeSitemaps ? discoverySources : undefined,
         );
-      let sitemapTool: Promise<SeoNativeTool> | undefined;
+      const readSitemaps = readerFor(integration, GSC_LIST_SITEMAPS);
       const discovery = (
         taskId: string,
         data: Parameters<typeof collectAuditDiscovery>[2],
@@ -415,15 +417,34 @@ export async function syncProjectSeoStatistics(
           taskId,
           data,
           discoverySources,
-          async (args) => {
-            sitemapTool ??= toolFor(integration, GSC_LIST_SITEMAPS);
-            return read(integration, await sitemapTool, args);
-          },
+          readSitemaps,
           cached?.auditDiscovery,
         );
-      if (cached && audit?.includeSitemaps && cached.auditPerformanceComplete) {
+      const readStats = readerFor(
+        integration,
+        input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
+      );
+      const property = await readAuditPropertyEvidence(
+        input,
+        readStats,
+        !!audit?.propertyTotals,
+        !!audit?.pageDiscovery,
+        cached,
+      );
+      if (
+        cached &&
+        audit &&
+        (cached.auditPerformanceComplete || audit.propertyTotals === "only")
+      ) {
         return retain(
-          { ...cached, auditDiscovery: await discovery(audit.taskId, cached) },
+          {
+            ...cached,
+            ...property,
+            ...(audit.propertyTotals !== "only" &&
+              audit.includeSitemaps && {
+                auditDiscovery: await discovery(audit.taskId, cached),
+              }),
+          },
           collectionHooks,
         );
       }
@@ -438,10 +459,6 @@ export async function syncProjectSeoStatistics(
         cached,
       );
       if (refreshed) return retain(refreshed, collectionHooks);
-      const tool = await toolFor(
-        integration,
-        input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
-      );
       const measuredPages =
         audit && inspections
           ? await auditPerformancePages(
@@ -468,7 +485,7 @@ export async function syncProjectSeoStatistics(
           : normalizeGscStatistics;
       const collect = async (daily: boolean) => {
         const payload = unwrapNativeStatistics(
-          await read(integration, tool, build(query, daily)),
+          await readStats(build(query, daily)),
           expected,
         );
         // Validate each independent response before combining it, so one malformed half cannot discard the other.
@@ -511,7 +528,7 @@ export async function syncProjectSeoStatistics(
         const totals = normalize(
           earlier,
           unwrapNativeStatistics(
-            await read(integration, tool, build(earlier, false)),
+            await readStats(build(earlier, false)),
             expected,
           ),
           null,
@@ -529,7 +546,7 @@ export async function syncProjectSeoStatistics(
           ? normalizeGscQueries(
               query,
               unwrapNativeStatistics(
-                await read(integration, tool, gscQueryArguments(query)),
+                await readStats(gscQueryArguments(query)),
                 ["rows"],
               ),
             )
@@ -539,11 +556,7 @@ export async function syncProjectSeoStatistics(
           ? normalizeGscBreakdown(
               dimension,
               unwrapNativeStatistics(
-                await read(
-                  integration,
-                  tool,
-                  gscBreakdownArguments(query, dimension),
-                ),
+                await readStats(gscBreakdownArguments(query, dimension)),
                 ["rows"],
               ),
               query.searchType,
@@ -566,11 +579,7 @@ export async function syncProjectSeoStatistics(
                 query,
                 group,
                 unwrapNativeStatistics(
-                  await read(
-                    integration,
-                    tool,
-                    gscKeywordSeriesArguments(query, group),
-                  ),
+                  await readStats(gscKeywordSeriesArguments(query, group)),
                   ["rows"],
                 ),
               ),
@@ -606,10 +615,15 @@ export async function syncProjectSeoStatistics(
           actor,
           workspace.pages,
           integration,
-          (args) => read(integration, tool, args),
+          readStats,
         ),
       ]);
-      if (period.status === "rejected" && daily.status === "rejected") {
+      if (
+        !property.auditPropertyTotals &&
+        !property.auditPageDiscovery &&
+        period.status === "rejected" &&
+        daily.status === "rejected"
+      ) {
         await recordSeoConnectionFailure(actor, input.provider, integration);
         throw unprocessableEntity(
           "The native connection could not provide statistics",
@@ -623,31 +637,11 @@ export async function syncProjectSeoStatistics(
       );
       // A failed earlier window leaves the change unknown; it never reads as zero.
       if (previous.status === "fulfilled" && period.status === "fulfilled") {
-        const previousNotes = previous.value.totals.notes;
-        if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE)) {
-          metrics.coverage = "partial";
-          if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE))
-            metrics.notes.push(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE);
-        }
-        if (
-          previousNotes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)
-        ) {
-          metrics.coverage = "partial";
-          if (
-            !metrics.notes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)
-          )
-            metrics.notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
-        }
-        for (const metric of metrics.metrics) {
-          const before = previous.value.totals.metrics.find(
-            (candidate) => candidate.key === metric.key,
-          );
-          if (before)
-            metric.previous = {
-              ...previous.value.window,
-              value: before.value,
-            };
-        }
+        applyPreviousSeoPeriod(
+          metrics,
+          previous.value.totals,
+          previous.value.window,
+        );
       }
       if (landingPlan) {
         if (landingPlan.skippedUrls.length)
@@ -707,6 +701,7 @@ export async function syncProjectSeoStatistics(
         // The evidence belongs to the approved page records. Query rows retain Google's measured URLs.
         metrics.pageUrls = pageUrls;
         metrics.auditMeasuredPages = measuredPages;
+        Object.assign(metrics, property);
         if (audit?.includeSitemaps) {
           applyStatisticsInspections(metrics, inspections);
           metrics.auditDiscovery = await discovery(audit.taskId, metrics);
@@ -732,8 +727,10 @@ export async function syncProjectSeoStatistics(
           measuredPages.every((page) => page.basis !== "unverified")
         ) {
           metrics.auditClickHistory =
-            await auditClickHistoryFromSearchAnalytics(metrics, query, (args) =>
-              read(integration, tool, args),
+            await auditClickHistoryFromSearchAnalytics(
+              metrics,
+              query,
+              readStats,
             );
         }
       }

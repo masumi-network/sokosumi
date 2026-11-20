@@ -127,12 +127,17 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
       };
       const includeSitemaps =
         kind === "audit_full" && form.get("includeSitemaps") === "on";
+      const includePropertyTotals =
+        kind === "audit_full" && form.get("includePropertyTotals") === "on";
       const scope = model.setupScopeKey;
       const analysisKey = model.operationKey(
         JSON.stringify([
           monitor ? "monitor-analysis" : "analysis",
           scope,
           request,
+          ...(includePropertyTotals
+            ? ["includePropertyTotals", "includePageDiscovery"]
+            : []),
           ...(includeSitemaps ? ["includeSitemaps"] : []),
         ]),
       );
@@ -149,6 +154,11 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
       const analysis = {
         ...request,
         idempotencyKey: analysisKey,
+        ...(!allowLimited &&
+          includePropertyTotals && {
+            includePropertyTotals: true as const,
+            includePageDiscovery: true as const,
+          }),
         ...(!allowLimited &&
           includeSitemaps && { includeSitemaps: true as const }),
         ...(kind === "audit_full" &&

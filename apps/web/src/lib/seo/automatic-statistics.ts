@@ -22,7 +22,16 @@ const automaticSchema = z.object({
 
 const inputSchema = z.union([
   automaticSchema,
-  z.strictObject({ auditTaskId: z.uuid() }),
+  z
+    .strictObject({
+      auditTaskId: z.uuid(),
+      includePropertyTotals: z.literal(true).optional(),
+      includePageDiscovery: z.literal(true).optional(),
+    })
+    .refine(
+      (input) => !input.includePageDiscovery || input.includePropertyTotals,
+      "Page discovery requires property performance access",
+    ),
 ]);
 
 /** Background Google reads use HTTP so they cannot delay the user's Server Actions. */

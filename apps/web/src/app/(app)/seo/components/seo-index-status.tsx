@@ -90,6 +90,7 @@ export function SeoIndexStatus({
             ...new Set(pageNotes.map((note) => seoIndexReviewState(note))),
           ];
           const shared = noteStates.length === 1;
+          const hasUnavailableInspection = noteStates.includes("unavailable");
           return (
             <li key={page.pageUrl} className="space-y-1 p-4">
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -118,6 +119,7 @@ export function SeoIndexStatus({
                   </>
                 ) : null}
                 {shared &&
+                noteStates[0] !== "unavailable" &&
                 !(state === "unknown" && noteStates[0] === "unknown") ? (
                   <SeoState>
                     {noteStates[0] === "unknown"
@@ -126,8 +128,14 @@ export function SeoIndexStatus({
                   </SeoState>
                 ) : null}
               </p>
+              {hasUnavailableInspection && (
+                <p className="text-xs text-muted-foreground">
+                  {result("index.resultDate")}{" "}
+                  <SeoDate report day value={page.checkedAt} />
+                </p>
+              )}
               {/* Beside a note row that names its URL, every row names its own. */}
-              {inView.size > 1 || alone.length ? (
+              {inView.size > 1 || alone.length || hasUnavailableInspection ? (
                 <SeoPageLink url={page.pageUrl} />
               ) : null}
               <p className="text-muted-foreground text-sm">
@@ -154,7 +162,7 @@ export function SeoIndexStatus({
                   <SeoIndexNote
                     assessment={note}
                     alone={false}
-                    badge={!shared}
+                    badge={!shared && note.status !== "unavailable"}
                     statusReadAt={page.checkedAt}
                   />
                 </div>

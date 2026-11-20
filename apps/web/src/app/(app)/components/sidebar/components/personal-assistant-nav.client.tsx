@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { type ReactNode, Suspense, use } from "react";
 import { browser } from "react-dom";
-import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
@@ -30,7 +29,7 @@ import {
   SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { usePersonalAssistantChromeVisible } from "@/hooks/effects/use-personal-assistant-chrome-visible";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { isPathActive } from "@/lib/utils/is-path-active";
@@ -69,10 +68,8 @@ export default function PersonalAssistantNav({
 }: {
   bot?: SidebarSokoBotLive | null;
 }) {
-  useMountEffect(() => {
-    // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
-    publishPersonalAssistantChromeVisible(true);
-  });
+  // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
+  usePersonalAssistantChromeVisible();
 
   return (
     <SidebarGroup className="w-full">

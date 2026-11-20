@@ -1,5 +1,6 @@
 import prisma from "@/lib/db/prisma";
 import { auditDiscoveryResult } from "@/lib/seo/audit-discovery-actions";
+import { withinSearchConsoleRetention } from "@/lib/seo/native-statistics";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import {
@@ -74,6 +75,9 @@ export async function readAuditPerformanceSummaries(
       {
         taskId: row.sourceTaskId,
         propertyId: data.propertyId,
+        ...(!withinSearchConsoleRetention(data.from) && {
+          propertyDataExpired: true as const,
+        }),
         pageUrls: data.pageUrls,
         from: data.from,
         to: data.to,
@@ -112,6 +116,12 @@ export async function readAuditPerformanceSummaries(
           }),
         ...(data.auditClickHistory && { history: data.auditClickHistory }),
         ...totals(data),
+        ...(data.auditPageDiscovery && {
+          pageDiscovery: data.auditPageDiscovery,
+        }),
+        ...(data.auditPropertyTotals && {
+          propertyTotals: data.auditPropertyTotals,
+        }),
         previous: earlier
           ? { from: earlier.from, to: earlier.to, ...totals(data, true) }
           : null,
