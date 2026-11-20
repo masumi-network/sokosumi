@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { ProjectSeoObservation } from "@sokosumi/database";
+import { SEO_MAX_PAGES, seoUrlSchema } from "@/schemas/seo-page.schema";
+import { auditIndexReadSchema } from "@/schemas/seo-sitemap-evidence.schema";
 import {
   type SeoTaskIndexingReceipt,
   seoAnsweredUnknownPageUrlsSchema,
@@ -18,6 +20,14 @@ export const storedReceiptSchema = z.strictObject({
   providerAnsweredAll: z.literal(true).optional(),
   answeredUnknownPageUrls: seoAnsweredUnknownPageUrlsSchema.optional(),
   reusedCheckedAt: seoReusedInspectionTimesSchema.optional(),
+  discoverySources: z
+    .array(
+      auditIndexReadSchema
+        .pick({ reportedSitemaps: true, referringPages: true })
+        .extend({ pageUrl: seoUrlSchema }),
+    )
+    .max(SEO_MAX_PAGES)
+    .optional(),
   retainedAssessments: seoTaskIndexingResultSchema.shape.assessments.optional(),
   receipt: persistedReceiptSchema,
 });

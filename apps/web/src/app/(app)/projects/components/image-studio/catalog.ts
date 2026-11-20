@@ -78,7 +78,10 @@ export function defaultVideoModel(
   input: StudioVideoModel["input"],
 ): StudioVideoModel | null {
   const models = videoModelsFor(catalog, input);
-  const preferred = input === "image" ? "h3-max-animate" : "h3-max";
+  const preferred =
+    input === "image"
+      ? catalog.defaultAnimateModelId
+      : catalog.defaultVideoModelId;
   return models.find((model) => model.id === preferred) ?? models[0] ?? null;
 }
 
@@ -101,59 +104,29 @@ export function modelById(
   return catalog.models.find((model) => model.id === id) ?? null;
 }
 
-/**
- * A short second line for models that share a label, keyed by model id.
- *
- * fal names four endpoints just "Wan", and two each "Kling Image" or
- * "Seedream". The endpoint is the one fact that tells them apart, so the line
- * is the part of it the group does not share: path segments left after the
- * common leading and trailing ones and the `text-to-image` task segment are
- * dropped. `fal-ai/wan/v2.7/pro/text-to-image` beside the other Wan rows reads
- * "v2.7 · pro". Verbatim, never reworded: a version written by hand here
- * would be a guess. A model with a unique label, or the group's plain base
- * endpoint, gets no line.
- */
-export function modelVariants(
-  models: Pick<StudioModel, "id" | "label" | "generateEndpoint">[],
-): Map<string, string> {
-  const groups = Map.groupBy(models, (model) => model.label);
-  const variants = new Map<string, string>();
-  for (const group of groups.values()) {
-    if (group.length < 2) continue;
-    const paths = group.map((model) =>
-      model.generateEndpoint
-        .split("/")
-        .filter((segment) => segment !== "text-to-image"),
-    );
-    const shortest = Math.min(...paths.map((path) => path.length));
-    const shared = (at: (path: string[]) => string | undefined) =>
-      paths.every((path) => at(path) === at(paths[0]));
-    let head = 0;
-    while (head < shortest && shared((path) => path[head])) head++;
-    let tail = 0;
-    while (
-      head + tail < shortest &&
-      shared((path) => path[path.length - 1 - tail])
-    )
-      tail++;
-    group.forEach((model, index) => {
-      const path = paths[index];
-      const variant = path.slice(head, path.length - tail).join(" · ");
-      if (variant) variants.set(model.id, variant);
-    });
-  }
-  return variants;
-}
-
-/** Whether the original model can make a variation using this image. */
-export function supportsVariation(
+/** Resolve the automatic route for a repeat before offering or submitting it. */
+export function imageRepeatRoute(
   catalog: StudioCatalog,
-  endpoint: string | null | undefined,
-): boolean {
-  const model = modelById(catalog, resolveModel(catalog, endpoint).id);
-  return (
-    model !== null && model.editEndpoint !== null && model.maxReferences >= 1
-  );
+  source: Pick<StudioAsset, "model" | "lettering">,
+  referenceCount: number,
+) {
+  const letterExistingBackdrop =
+    source.lettering === "ideogram" &&
+    resolveModel(catalog, source.model).id === "ideogram-v3";
+  const model = letterExistingBackdrop
+    ? modelById(catalog, "ideogram-v3")
+    : defaultModel(catalog);
+  const references = letterExistingBackdrop
+    ? Math.max(referenceCount, 1)
+    : referenceCount;
+  if (
+    !model ||
+    (references > 0 &&
+      (!model.editEndpoint || references > model.maxReferences))
+  ) {
+    return null;
+  }
+  return { model, letterExistingBackdrop };
 }
 
 /**
@@ -162,41 +135,11 @@ export function supportsVariation(
  * `defaultModelId` is what Core would pick anyway, so honouring it keeps the
  * composer's preview and the job that is actually created in agreement. The
  * first listed model is the fallback for a catalog whose default was withdrawn.
- * Auto supersedes that ordering by preferring Gemini Pro when it is available.
  */
 export function defaultModel(catalog: StudioCatalog): StudioModel | null {
   return (
-    modelById(catalog, "gemini-pro") ??
-    modelById(catalog, catalog.defaultModelId) ??
-    catalog.models[0] ??
-    null
+    modelById(catalog, catalog.defaultModelId) ?? catalog.models[0] ?? null
   );
-}
-
-/**
- * The models the studio opens with.
- *
- * Core's `curatedRank` names a shortlist of five hand-picked for range rather
- * than for price — a general image model, a stronger one, a photographic one,
- * one that handles typography, and one for vector and brand work. One brief
- * across all five is the thing this composer is for, so it is what a person
- * lands on rather than something they have to assemble first.
- *
- * Read off the catalog and sorted by the rank Core gave, never held here: a
- * shortlist copied into the browser is a second opinion about which models are
- * good, and it would go stale the moment fal withdrew one of them. `models`
- * already arrives curated-first, but this does not rely on that either.
- *
- * Falls back to the catalog's own default when no row is ranked, so a catalog
- * without a shortlist still opens on something rather than on nothing.
- */
-export function curatedModels(catalog: StudioCatalog): StudioModel[] {
-  const ranked = catalog.models
-    .filter((model) => model.curatedRank !== null)
-    .sort((a, b) => (a.curatedRank ?? 0) - (b.curatedRank ?? 0));
-  if (ranked.length > 0) return ranked;
-  const fallback = defaultModel(catalog);
-  return fallback ? [fallback] : [];
 }
 
 /**
@@ -323,20 +266,4 @@ export function settingsOf(
     outputFormat: source?.settings?.outputFormat ?? "png",
     seed: source?.settings?.seed ?? null,
   };
-}
-
-/**
- * The model id to reuse when repeating a piece of work.
- *
- * Falls back to the catalog default when the original endpoint is not in the
- * catalog: a retry has to name *some* model, and the alternative is refusing
- * to retry work that predates the catalog.
- */
-export function modelIdForRepeat(
-  catalog: StudioCatalog,
-  endpoint: string | null | undefined,
-): string | null {
-  return (
-    resolveModel(catalog, endpoint).id ?? defaultModel(catalog)?.id ?? null
-  );
 }

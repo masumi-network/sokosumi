@@ -65,6 +65,14 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob,
   createVideoJob,
   createTalkingVideoJob,
+  downloadStudioFileReference: async () => ({
+    bytes: await (await import("sharp"))
+      .default({
+        create: { width: 390, height: 844, channels: 3, background: "#0f0" },
+      })
+      .png()
+      .toBuffer(),
+  }),
   DEFAULT_SETTINGS: {
     aspectRatio: "1:1",
     resolution: "1K",
@@ -107,7 +115,13 @@ vi.mock("@/lib/reference-library/style-check", () => ({
   checkStyledPicture,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
-  readAssetBytes: async () => new Uint8Array([1, 2, 3]),
+  readAssetBytes: async () =>
+    (await import("sharp"))
+      .default({
+        create: { width: 100, height: 125, channels: 3, background: "#fff" },
+      })
+      .png()
+      .toBuffer(),
 }));
 vi.mock("@/services/soko-bot-billing.service", () => ({
   recordSokoBotCheckUsage: vi.fn(),
@@ -142,6 +156,7 @@ import {
   cmoStylePrompt,
   cmoVisualKey,
   logoForPicture,
+  PLACED_SCREEN_NOTE,
   REFERENCE_STYLE_MODELS,
 } from "./cmo-media-maker.service";
 
@@ -556,6 +571,38 @@ describe("advanceCmoMedia", () => {
     });
   });
 
+  it("tells the check that Core placed the brand's page itself", async () => {
+    const shows = piece({
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      headline: "Fresh minted",
+      visual: "Hands holding a phone that shows the homepage",
+      visualFileIds: ["f-home"],
+    });
+    jobFindMany.mockResolvedValue([
+      {
+        id: "job-1",
+        idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(shows)}:1`,
+        status: "SUCCEEDED",
+        prompt: "prompt",
+        error: null,
+        asset: { id: "asset-1" },
+      },
+    ]);
+    jobs.findUnique.mockResolvedValue({ error: null });
+    jobs.updateMany.mockResolvedValue({ count: 1 });
+    checkStyledPicture.mockResolvedValue({
+      passes: false,
+      costUsd: 0.01,
+      verdict: { problems: ["anything"] },
+    });
+    await advanceCmoMedia(context, [shows]);
+    const input = checkStyledPicture.mock.calls[0]?.[0];
+    // Scenes name a phone or laptop: the check is told Core's frame is it.
+    expect(input.scene).toContain("Hands holding a phone");
+    expect(input.scene).toContain(PLACED_SCREEN_NOTE);
+    expect(input.brandPictures).toHaveLength(1);
+  });
+
   it("keeps one verdict per picture when two passes check it at once", async () => {
     const styledPiece = piece({
       styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
@@ -746,6 +793,11 @@ describe("advanceCmoMedia", () => {
     );
     expect(createImageJob.mock.calls[1]?.[0].prompt).not.toContain(
       "own picture",
+    );
+    // Told only to leave the panel, the models drew their own pages with
+    // invented words around it, and ran the headline behind the phone.
+    expect(createImageJob.mock.calls[1]?.[0].prompt).toContain(
+      "Draw no other screen, browser, phone, laptop, monitor or web page",
     );
     expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain("panel");
   });

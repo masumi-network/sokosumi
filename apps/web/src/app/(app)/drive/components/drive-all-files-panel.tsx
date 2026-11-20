@@ -358,13 +358,13 @@ export function DriveAllFilesPanel({
    * `setFilters` and not `applyFilters`: the page is where this came from, so
    * telling it again would be an echo.
    */
-  useEffect(() => {
-    setFilters((current) =>
-      current.folder === initialFolder
-        ? current
-        : { ...current, folder: initialFolder },
-    );
-  }, [initialFolder]);
+  const [prevInitialFolder, setPrevInitialFolder] = useState(initialFolder);
+  if (prevInitialFolder !== initialFolder) {
+    setPrevInitialFolder(initialFolder);
+    if (filters.folder !== initialFolder) {
+      setFilters({ ...filters, folder: initialFolder });
+    }
+  }
 
   const debouncedSearch = useDebouncedCallback((value: string) => {
     setAppliedQuery(value);
@@ -424,7 +424,9 @@ export function DriveAllFilesPanel({
 
   // Switching workspace is a different scope: drop everything rather than
   // letting one store's rows linger under another store's header.
-  useEffect(() => {
+  const [prevStoreKey, setPrevStoreKey] = useState(storeKey);
+  if (prevStoreKey !== storeKey) {
+    setPrevStoreKey(storeKey);
     setSelectedIds([]);
     setState({
       items: [],
@@ -434,7 +436,7 @@ export function DriveAllFilesPanel({
       error: null,
       restarted: false,
     });
-  }, [storeKey]);
+  }
 
   async function loadMore() {
     const cursor = state.meta?.nextCursor;

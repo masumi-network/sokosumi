@@ -25,7 +25,11 @@ import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 import { buildJobDayGroups } from "./jobs-list.utils";
-import { JobsSearch } from "./jobs-search";
+import {
+  filterJobsByQuery,
+  JobsSearch,
+  useJobsSearchQuery,
+} from "./jobs-search";
 
 const JOB_STATUS_EVENT_NAME = "job_status_data";
 
@@ -136,7 +140,7 @@ export function JobsList({
   const [statusPatches, setStatusPatches] = useState(
     () => new Map<string, JobStatusPatch>(),
   );
-  const [filteredJobs, setFilteredJobs] = useState<JobSummary[]>(jobs);
+  const { searchValue, handleInputChange, handleClear } = useJobsSearchQuery();
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
@@ -165,6 +169,11 @@ export function JobsList({
       };
     });
   }, [jobs, appendedJobs, statusPatches]);
+
+  const filteredJobs = useMemo(
+    () => filterJobsByQuery(localJobs, searchValue),
+    [localJobs, searchValue],
+  );
 
   const dayGroups = useMemo(
     () => buildJobDayGroups(filteredJobs, locale),
@@ -247,9 +256,12 @@ export function JobsList({
       <aside className="@4xl/jobs-panes:border-border flex size-full min-h-0 flex-col py-4 @4xl/jobs-panes:border-r">
         {header}
         <JobsSearch
-          jobs={localJobs}
+          searchValue={searchValue}
+          onSearchChange={handleInputChange}
+          onClear={handleClear}
+          filteredCount={filteredJobs.length}
+          totalCount={localJobs.length}
           hasMoreHistory={Boolean(nextCursor)}
-          onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
         />
 
         <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 @4xl/jobs-panes:pb-2">

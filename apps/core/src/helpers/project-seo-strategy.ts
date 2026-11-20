@@ -16,12 +16,14 @@ import {
   seoStrategyPurposeSource,
 } from "@/schemas/project-seo-strategy.schema";
 import { publicSeoKeywordReach } from "./project-seo-keyword-reach";
+import { publicSeoMarkets } from "./project-seo-markets";
 
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 
 const count = z.number().finite().nullable();
 /** The fields Core reads from a site report. Zod drops every other field of the strategy block. */
 const source = z.object({
+  pages: z.array(z.unknown()).optional().catch(undefined),
   selection: z
     .object({
       pages: z.array(z.object({ n: z.number().int(), url: seoUrlSchema })),
@@ -37,6 +39,9 @@ const source = z.object({
       .extend({ page: z.number().int().positive() })
       .optional()
       .catch(undefined),
+    markets: z.unknown().optional(),
+    marketNote: z.unknown().optional(),
+    business: z.unknown().optional(),
     verdict: z.string(),
     why: z.string(),
     groups: z.array(
@@ -269,6 +274,11 @@ export function publicSeoStrategy(
       },
     ),
     ...(placesNotes.length ? { placesNotes } : {}),
+    ...publicSeoMarkets(
+      parsed.data.strategy,
+      verifiedPages.get(START_PAGE),
+      parsed.data.pages ?? [],
+    ),
     ...publicSeoKeywordReach(raw as Record<string, unknown>, webAddress),
   });
   return strategy.success

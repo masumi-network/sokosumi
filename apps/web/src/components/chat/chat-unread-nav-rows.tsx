@@ -4,12 +4,7 @@ import { AnnouncedFeature, type ChatRoom } from "@sokosumi/core-client";
 import { CheckCheck, Loader2, Sunrise } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useEffectEvent,
-  useTransition,
-} from "react";
+import { type ReactNode, useTransition } from "react";
 import { toast } from "sonner";
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
 import { CHAT_CATCH_UP_PATH } from "@/app/chat/utils/chat-route-base";
@@ -41,6 +36,7 @@ import {
   SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
@@ -83,34 +79,24 @@ export function ChatUnreadsFilterChip({
     markFeatureSeen(AnnouncedFeature.UNREADS);
     onUnreadOnlyChange(!unreadOnly);
   }
-  const toggleFromKeyboard = useEffectEvent(toggleUnreadOnly);
-
   // The same toggle the button runs, from the keyboard: ⌘⇧U / Ctrl+Shift+U is
   // no browser default (checked against Chrome, Safari, Firefox and Edge).
   // Editable targets keep their "u" for text and, on Linux, their Ctrl+Shift+U
   // Unicode input, so the shortcut stands down there.
-  useEffect(() => {
-    if (!showsShortcut) {
+  useEventListener(showsShortcut ? "window" : null, "keydown", (event) => {
+    if (event.key?.toLowerCase() !== "u" || event.repeat) {
       return;
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key?.toLowerCase() !== "u" || event.repeat) {
-        return;
-      }
-      const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
-      if (!hostModifier || !event.shiftKey || event.altKey) {
-        return;
-      }
-      if (isEditableKeyboardTarget(event.target)) {
-        return;
-      }
-      event.preventDefault();
-      toggleFromKeyboard();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showsShortcut, isApplePlatform]);
+    const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
+    if (!hostModifier || !event.shiftKey || event.altKey) {
+      return;
+    }
+    if (isEditableKeyboardTarget(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    toggleUnreadOnly();
+  });
 
   // A mode, not a place: on, it takes the primary tint the app uses for what
   // is on. Before React reads the remembered filter, the boot script's mark

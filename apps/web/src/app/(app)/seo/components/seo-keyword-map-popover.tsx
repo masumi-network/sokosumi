@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { PopoverContent } from "@/components/ui/popover";
-import { useIsMobileMedia } from "@/hooks/use-mobile";
+import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
 import type { SeoKeywordPoint } from "./seo-keyword-map-model";

@@ -126,17 +126,14 @@ interface FixtureAppProps {
 
 export function FixtureApp({ view, state }: FixtureAppProps) {
   const shown =
-    view === "chat"
-      ? chat
-      : {
-          overview:
-            state === "busy"
-              ? busyOverview
-              : state === "quiet"
-                ? quietOverview
-                : overview,
-          messages,
-        };
+    state === "quiet"
+      ? { overview: quietOverview, messages }
+      : view === "chat"
+        ? chat
+        : {
+            overview: state === "busy" ? busyOverview : overview,
+            messages,
+          };
   const data =
     state === "blocked"
       ? {

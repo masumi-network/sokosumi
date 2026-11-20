@@ -3,8 +3,9 @@
 import "./onboarding/onboarding.css";
 
 import { ChevronDown, LogOut, Users } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
+import { useEventListener } from "../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../lib/agent";
 import { StartOver } from "./start-over";
 import { ThemeToggle } from "./theme-toggle";
@@ -40,26 +41,15 @@ export function AccountMenu({
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
-      if (
-        event instanceof MouseEvent &&
-        root.current?.contains(event.target as Node)
-      ) {
-        return;
-      }
-      setOpen(false);
-      if (event instanceof KeyboardEvent) trigger.current?.focus();
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
+  useEventListener(open ? "document" : null, "mousedown", (event) => {
+    if (root.current?.contains(event.target as Node)) return;
+    setOpen(false);
+  });
+  useEventListener(open ? "document" : null, "keydown", (event) => {
+    if (event.key !== "Escape") return;
+    setOpen(false);
+    trigger.current?.focus();
+  });
 
   return (
     <div className="ob-who" ref={root}>

@@ -101,4 +101,24 @@ describe("OrgPresenceProvider", () => {
       expect(screen.getByTestId("presence")).toHaveTextContent("online");
     });
   });
+
+  it("clears live presence back to fallback when switching to personal workspace", async () => {
+    const { rerender } = render(
+      <OrgPresenceProvider organizationId="org_1">
+        <PresenceProbe userId="user_live" fallback="offline" />
+      </OrgPresenceProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("presence")).toHaveTextContent("online");
+    });
+
+    rerender(
+      <OrgPresenceProvider organizationId={null}>
+        <PresenceProbe userId="user_live" fallback="offline" />
+      </OrgPresenceProvider>,
+    );
+
+    expect(screen.getByTestId("presence")).toHaveTextContent("offline");
+  });
 });

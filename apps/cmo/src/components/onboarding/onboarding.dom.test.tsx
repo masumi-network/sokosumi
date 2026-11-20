@@ -851,6 +851,59 @@ it("moves between plan tabs with the arrow keys", async () => {
   expect(text()).toContain("Connect your numbers");
 });
 
+it("clears the hiring measurement return error after leaving Results and returning via tabs or Brand", async () => {
+  const expectedError = "That connection didn't finish. Try again.";
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft({ viewerCanApprove: true })}
+        messages={[]}
+        initialStep="results"
+        measureError={expectedError}
+        skipped={["questions"]}
+        actions={actionsFor()}
+      />,
+    ),
+  );
+
+  expect(
+    container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
+  ).toBe("How we know it works");
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    expectedError,
+  );
+
+  await act(async () =>
+    [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => tab.textContent === "Your month")
+      ?.click(),
+  );
+  expect(text()).toContain("Up first");
+
+  await act(async () =>
+    [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => tab.textContent === "How we know it works")
+      ?.click(),
+  );
+  expect(text()).toContain("Connect your numbers");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+
+  // Leaving Strategy to Brand and returning remounts PlanReview; the consumed
+  // error must not come back.
+  await act(async () =>
+    container
+      .querySelectorAll<HTMLButtonElement>(".ob-steps button")[0]
+      ?.click(),
+  );
+  expect(text()).toContain("Here's acme.io as I see it.");
+
+  await press("Continue to Strategy");
+  expect(
+    container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
+  ).toBe("How we know it works");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+});
+
 // Asking for the plan: no second offer while the request is in flight.
 
 it("holds Plan as writing once the plan is requested, until Core reports it", async () => {

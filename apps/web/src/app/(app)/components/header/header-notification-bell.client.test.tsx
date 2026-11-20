@@ -50,7 +50,7 @@ vi.mock("@/app/components/header/notification-panel-content", () => ({
   ),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => isMobileMock(),
   useIsMobileMedia: () => isMobileMock(),

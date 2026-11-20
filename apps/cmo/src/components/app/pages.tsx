@@ -2,7 +2,7 @@
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
 import {
@@ -18,14 +18,9 @@ import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { nextWeeklyReview } from "../../lib/page-lead";
 import { strategyApproved } from "../../lib/strategy";
-import { monthEntries } from "../../lib/today";
+import { monthEntries, waitingLine } from "../../lib/today";
 import type { View } from "../../lib/views";
-import {
-  type AdActions,
-  AdsPanel,
-  adsReturnError,
-  ConnectAdsButton,
-} from "../ads";
+import { type AdActions, AdsPanel, ConnectAdsButton } from "../ads";
 import { hostOf } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
 import { LocalDay } from "../local-day";
@@ -63,6 +58,7 @@ export function ResultsPage({
   overview,
   openUpdate,
   connectMeasurement,
+  measureError = null,
   ads,
   onChange,
   openView,
@@ -70,6 +66,7 @@ export function ResultsPage({
   openView: (view: View) => void;
   openUpdate: (id: string) => void;
   connectMeasurement: ConnectMeasurement;
+  measureError?: string | null;
   ads: Pick<AdActions, "loadAdCampaigns" | "setAdCampaignStatus">;
   onChange: (overview: CmoOverview) => void;
 }) {
@@ -93,6 +90,7 @@ export function ResultsPage({
     (entry) => waitsForNetwork(entry, networks) ?? [],
   );
   const drafts = written.length - waits.length;
+  const waitsLine = waitingLine(overview);
   const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
@@ -114,15 +112,10 @@ export function ResultsPage({
           <Kpi label="Failed" value={posts.failed} />
         ) : null}
       </div>
-      {waits.length > 0 ? (
+      {waitsLine ? (
         <p className="cal-waits">
           <StatusDisc status="warn" decorative />
-          <span className="grow">
-            {waits.length === 1
-              ? "1 post is written and waits"
-              : `${waits.length} posts are written and wait`}{" "}
-            for {[...new Set(waits)].map(channelLabel).join(" and ")}.
-          </span>
+          <span className="grow">{waitsLine}</span>
           <button
             type="button"
             className="button button-secondary button-small"
@@ -149,6 +142,7 @@ export function ResultsPage({
         <MeasureFunnel
           sources={overview.measurement}
           onConnect={connectMeasurement}
+          measureError={measureError}
         />
       </section>
       <AdsPanel
@@ -371,6 +365,7 @@ export function ChannelsPage({
   addMailingList,
   onChange,
   connectError = null,
+  adsError = null,
   change,
   openSeo,
   connectSearchConsole,
@@ -381,6 +376,8 @@ export function ChannelsPage({
   connectAds: AdActions["connectAds"];
   /** Why the connection that sent the founder back did not finish. */
   connectError?: string | null;
+  /** Why the ad-account connection that sent the founder back did not finish. */
+  adsError?: string | null;
   /** Signs in again to put another account in a connection's place. */
   change?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   /** Opens the SEO tab, where search work and Search Console live. */
@@ -391,11 +388,7 @@ export function ChannelsPage({
   }>;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
-  const [error, setError] = useState<string | null>(connectError);
-  useEffect(() => {
-    const adsError = adsReturnError();
-    if (adsError) setError(adsError);
-  }, []);
+  const [error, setError] = useState<string | null>(adsError ?? connectError);
   const [, startTransition] = useTransition();
 
   function start(provider: Provider, replaceId?: string) {

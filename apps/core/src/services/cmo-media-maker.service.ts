@@ -707,7 +707,7 @@ export function cmoStylePrompt(input: {
       : "",
     `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slides > 1 ? " One picture of a series: the others share this same style and colours. Draw no slide number, page number or counter." : ""}${slide ? ` This slide: ${slide}.` : ""}`,
     input.screen
-      ? `Leave one plain, light, empty panel ${SCREEN_PANEL_WORDS}, with nothing drawn in it and no frame of your own: the brand's real screen is placed there afterwards. Keep the headline above it.`
+      ? `Leave one plain, light, empty panel ${SCREEN_PANEL_WORDS}, with nothing drawn in it and no frame of your own: the brand's real screen is placed there afterwards. Draw no other screen, browser, phone, laptop, monitor or web page anywhere in the picture. Keep the headline in the top quarter, above the panel.`
       : "",
     headline
       ? `${own > 0 ? "Besides what stands in the brand's own picture, the" : "The"} only words in the picture: "${headline}", lettered large in the reference's style and spelled exactly. ${STEPS_WITHOUT_WORDS}`
@@ -1319,7 +1319,9 @@ async function checkAndBrand(
       picture,
       reference: reference.bytes,
       headline: piece.headline ?? null,
-      scene: piece.visual ?? null,
+      scene: screen
+        ? `${piece.visual ?? ""} ${PLACED_SCREEN_NOTE}`.trim()
+        : (piece.visual ?? null),
       colours: style.colours,
       brandPictures: screen ? [screen] : await jobBrandPictures(job.id),
     });
@@ -1360,6 +1362,14 @@ async function checkAndBrand(
         contentType: "image/jpeg",
       };
 }
+
+/**
+ * Told to the check when Core placed the screen: scenes name "hands holding
+ * a phone showing the page", and the check refused Core's frame for hiding
+ * the phone (2026-11-20).
+ */
+export const PLACED_SCREEN_NOTE =
+  "(Core placed the brand's real page itself, in a plain browser window or phone in the middle: it stands in for any screen, phone or laptop this scene names.)";
 
 /** The style verdict stored on a job, if a check already judged it. */
 async function jobVerdict(

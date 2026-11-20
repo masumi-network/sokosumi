@@ -19,6 +19,9 @@ vi.mock("next-intl/server", () => ({
 vi.mock("@/app/tasks/components/back-to-tasks-button", () => ({
   BackToTasksButton: () => null,
 }));
+vi.mock("./archived-tasks-loading", () => ({
+  ArchivedTasksLoading: () => null,
+}));
 vi.mock("./archived-tasks-list", () => ({
   ArchivedTasksList: ({ query, total }: { query?: string; total: number }) => (
     <p data-testid="archived-list" data-total={total}>
@@ -30,12 +33,13 @@ vi.mock("@/lib/services/task.service", () => ({
   taskService: { listTasks: listTasksMock },
 }));
 
+/** Renders the page's content, which streams inside its Suspense boundary. */
 async function renderPage(q?: string) {
-  render(
-    await ArchivedTasksPage({
-      searchParams: Promise.resolve(q === undefined ? {} : { q }),
-    }),
-  );
+  const boundary = ArchivedTasksPage({
+    searchParams: Promise.resolve(q === undefined ? {} : { q }),
+  });
+  const content = boundary.props.children;
+  render(await content.type(content.props));
 }
 
 describe("ArchivedTasksPage search", () => {

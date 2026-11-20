@@ -20,6 +20,7 @@ process.env.CORE_APP_BASE_URL = "http://core.invalid";
 
 const {
   readAdHeadline,
+  readBrandContext,
   registerCreatedSession,
   saveAdHeadline,
   transitionInitialTurn,
@@ -30,7 +31,7 @@ const IDENTITY = { userId: "user-a", projectId: "project-a" };
 function respond(body: unknown, status = 200): void {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(body), { status })),
+    vi.fn(async () => Response.json(body, { status })),
   );
 }
 
@@ -259,4 +260,13 @@ describe("reading a registration result", () => {
       deliveryToken: "lease-1",
     });
   });
+});
+
+it("unwraps brand reference data from a grant-authenticated GET", async () => {
+  respond({ data: {}, meta: { timestamp: new Date().toISOString() } });
+  expect(await readBrandContext(IDENTITY)).toEqual({});
+  const [[url, init]] = vi.mocked(fetch).mock.calls;
+  expect(url).toBe("http://core.invalid/v1/image-studio-agent/brand-context");
+  expect(init?.method).toBe("GET");
+  expect(new Headers(init?.headers).get("authorization")).toMatch(/^Bearer /);
 });

@@ -192,7 +192,7 @@ describe("prepareStudioAssetSocialMedia", () => {
 
 const REQUEST = {
   projectId: "project-1",
-  modelId: "model-a",
+
   prompt: "A calm product photo",
   settings: { aspectRatio: "1:1", resolution: "1K", outputFormat: "png" },
   parentAssetId: "asset-1",
@@ -206,14 +206,13 @@ describe("starting image generation", () => {
     createJob.mockResolvedValue({ id: "lettering-job" });
     await startImageGeneration({
       ...REQUEST,
-      modelId: "gemini-pro",
+
       exportHeadline: "Made to last",
       lettering: "ideogram",
     });
     expect(createJob).toHaveBeenCalledWith(
       "project-1",
       expect.objectContaining({
-        modelId: "gemini-pro",
         exportHeadline: "Made to last",
         lettering: "ideogram",
       }),
@@ -248,7 +247,6 @@ describe("starting image generation", () => {
 
     expect(result).toEqual({ ok: true, job });
     expect(createJob).toHaveBeenCalledWith("project-1", {
-      modelId: "model-a",
       prompt: REQUEST.prompt,
       settings: REQUEST.settings,
       parentAssetId: "asset-1",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useDragToScroll } from "@/hooks/use-drag-to-scroll";
+import { useDragToScroll } from "@/hooks/effects/use-drag-to-scroll";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 

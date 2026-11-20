@@ -26,6 +26,7 @@ const PROPER_PHRASES = [
   "Google Ads",
   "Google Search",
   "Google Analytics",
+  "Google Trends",
   "Search Console",
   "Display Network",
   // Google's spreadsheet product, which Files links.

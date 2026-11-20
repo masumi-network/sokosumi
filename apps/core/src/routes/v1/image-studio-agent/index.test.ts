@@ -23,6 +23,9 @@ const state = vi.hoisted(() => ({
   register: vi.fn(),
   recordInitialTurn: vi.fn(),
   readCatalog: vi.fn(),
+  project: vi.fn(),
+  strategy: vi.fn(),
+  design: vi.fn(),
   saveHeadline: vi.fn(),
   /** The Project with a live Cuso: a CMO Project. */
   cmoProjectId: "aaaaaaaa-aaaa-4aaa-8aaa-0000000000c0",
@@ -51,6 +54,8 @@ vi.mock("@/services/studio-ad-headline.service", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    project: { findUniqueOrThrow: state.project },
+    marketingStrategy: { findFirst: state.strategy },
     sokoBot: {
       findFirst: async ({ where }: { where: { projectId: string } }) =>
         where.projectId === state.cmoProjectId ? { id: "cuso" } : null,
@@ -61,7 +66,9 @@ vi.mock("@/services/studio-product-catalog.service", () => ({
   readStudioProductCatalog: state.readCatalog,
 }));
 
-import { errorResponseSchema } from "@/helpers/error";
+vi.mock("@/lib/design-md-blob", () => ({ readDesignMdContent: state.design }));
+
+import { errorResponseSchema, notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { mintAgentGrant } from "@/lib/image-studio/agent-grant";
 import router from "@/routes/v1/image-studio-agent/index";
@@ -117,6 +124,103 @@ beforeEach(() => {
     accepted: true,
     mayDeliver: false,
     deliveryToken: null,
+  });
+});
+
+describe("reading brand context", () => {
+  function read(audience: "browser" | "agent" = "agent") {
+    return app.request(
+      "/v1/image-studio-agent/brand-context?projectId=other&organizationId=other",
+      {
+        headers: { authorization: `Bearer ${token(audience)}` },
+      },
+    );
+  }
+
+  it("requires an agent grant and live access before reading any context", async () => {
+    expect((await read("browser")).status).toBe(401);
+    state.access.mockRejectedValueOnce(notFound("Project not found"));
+    expect((await read()).status).toBe(404);
+    expect(state.project).not.toHaveBeenCalled();
+    expect(state.strategy).not.toHaveBeenCalled();
+  });
+
+  it("returns empty context when neither source exists", async () => {
+    state.project.mockResolvedValueOnce({
+      brandBrain: null,
+      designMdUrl: null,
+    });
+    state.strategy.mockResolvedValueOnce(null);
+    const response = await read();
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual({});
+    expect(state.design).not.toHaveBeenCalled();
+  });
+
+  it("selects and caps reference copy from the authorized project", async () => {
+    const long = "a".repeat(250);
+    state.project.mockResolvedValueOnce({
+      designMdUrl: "project-design",
+      brandBrain: {
+        body: {
+          summary: long,
+          audience: ["one", "two", "three", "four"],
+          products: [],
+          competitors: [],
+          channels: [],
+          voice: {
+            tone: "Quiet",
+            do: ["Be direct"],
+            dont: ["Hype"],
+            examples: [long],
+          },
+        },
+      },
+    });
+    state.design.mockResolvedValueOnce("Palette #123456.\nfont-family: Inter;");
+    state.strategy.mockResolvedValueOnce({
+      approvedAt: null,
+      plan: {
+        month: "2026-11",
+        summary: "private plan detail",
+        goals: [long],
+        pillars: [{ name: "Craft", share: 100 }],
+        channels: [],
+        calendar: [],
+      },
+    });
+    const response = await read();
+    expect(response.status).toBe(200);
+    expect(state.access).toHaveBeenCalledWith({
+      userId: "user-a",
+      projectId: "project-a",
+    });
+    expect(state.project).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "project-a", workspaceId: "workspace-a" },
+      }),
+    );
+    expect(state.strategy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { projectId: "project-a" } }),
+    );
+    expect((await response.json()).data).toEqual({
+      brand: {
+        positioning: long.slice(0, 180),
+        tone: "Quiet",
+        audience: ["one", "two", "three"],
+        keyMessages: [long.slice(0, 180)],
+        do: ["Be direct"],
+        dont: ["Hype"],
+      },
+      strategy: {
+        month: "2026-11",
+        approved: false,
+        goals: [long.slice(0, 180)],
+        themes: ["Craft"],
+      },
+      colors: ["#123456"],
+      fonts: ["Inter"],
+    });
   });
 });
 

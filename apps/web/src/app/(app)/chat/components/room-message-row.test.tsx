@@ -149,7 +149,7 @@ vi.mock("@/components/ui/tooltip", () => ({
   TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/hooks/use-clipboard", () => ({
+vi.mock("@/hooks/effects/use-clipboard", () => ({
   copyTextWithToast: copyMock,
   useClipboard: () => ({
     copied: false,
