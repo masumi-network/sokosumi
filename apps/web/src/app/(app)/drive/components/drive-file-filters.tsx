@@ -111,14 +111,32 @@ export function DriveFileFilters({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<FileSearchFilterState>(filters);
 
+  // Unmounting the desktop popover on resize does not fire onOpenChange, so
+  // drop it when hidden and track desktop popover vs mobile sheet separately.
+  const isSheetOpen = Boolean(sheetOpen);
+  if (hideDesktopTrigger && open) {
+    setOpen(false);
+  }
+  const popoverOpen = !hideDesktopTrigger && open;
+
   // Reopening shows what is actually applied, not an abandoned draft.
-  const isOpen = open || Boolean(sheetOpen);
-  const [synced, setSynced] = useState({ isOpen, filters });
-  if (isOpen && (!synced.isOpen || synced.filters !== filters)) {
-    setSynced({ isOpen, filters });
+  const [synced, setSynced] = useState({
+    popoverOpen,
+    sheetOpen: isSheetOpen,
+    filters,
+  });
+  const popoverOpened = popoverOpen && !synced.popoverOpen;
+  const sheetOpened = isSheetOpen && !synced.sheetOpen;
+  const filtersChangedWhileOpen =
+    (popoverOpen || isSheetOpen) && synced.filters !== filters;
+  if (popoverOpened || sheetOpened || filtersChangedWhileOpen) {
+    setSynced({ popoverOpen, sheetOpen: isSheetOpen, filters });
     setDraft(filters);
-  } else if (!isOpen && synced.isOpen) {
-    setSynced({ isOpen, filters });
+  } else if (
+    popoverOpen !== synced.popoverOpen ||
+    isSheetOpen !== synced.sheetOpen
+  ) {
+    setSynced({ popoverOpen, sheetOpen: isSheetOpen, filters });
   }
 
   // The folder is the trail's, not a filter.

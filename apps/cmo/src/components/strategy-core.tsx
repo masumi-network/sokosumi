@@ -11,12 +11,7 @@ import {
   Search,
   ShoppingBag,
 } from "lucide-react";
-import {
-  type ReactNode,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
+import { type ReactNode, useState, useTransition } from "react";
 
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
@@ -26,17 +21,6 @@ import { StatusText } from "./status";
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Stage = NonNullable<Strategy["funnel"]>[number];
 type Source = CmoOverview["measurement"][number];
-
-const subscribeNoop = () => () => {};
-
-function getMeasureReturnError(): string | null {
-  if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get("measure") === "failed"
-    ? "That connection didn't finish. Try again."
-    : null;
-}
-
-const getServerMeasureReturnError = () => null;
 
 const SOURCE_ICONS = {
   google_analytics: ChartLine,
@@ -555,27 +539,21 @@ export function Improvements({
 export function MeasureFunnel({
   sources,
   onConnect,
+  measureError = null,
 }: {
   sources: Source[];
   onConnect: (
     provider: Source["provider"],
   ) => Promise<{ url: string | null; error: string | null }>;
+  measureError?: string | null;
 }) {
   const [pending, setPending] = useState<Source["provider"] | null>(null);
-  const returnError = useSyncExternalStore(
-    subscribeNoop,
-    getMeasureReturnError,
-    getServerMeasureReturnError,
-  );
-  const [errorOverride, setErrorOverride] = useState<string | null | undefined>(
-    undefined,
-  );
-  const error = errorOverride === undefined ? returnError : errorOverride;
+  const [error, setError] = useState<string | null>(measureError);
   const [, startTransition] = useTransition();
 
   function connect(provider: Source["provider"]) {
     setPending(provider);
-    setErrorOverride(null);
+    setError(null);
     startTransition(async () => {
       try {
         const result = await onConnect(provider);
@@ -583,9 +561,9 @@ export function MeasureFunnel({
           window.location.assign(result.url);
           return;
         }
-        setErrorOverride(result.error);
+        setError(result.error);
       } catch {
-        setErrorOverride("Could not connect. Try again.");
+        setError("Could not connect. Try again.");
       }
       setPending(null);
     });

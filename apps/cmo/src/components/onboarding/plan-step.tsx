@@ -158,6 +158,8 @@ interface PlanStepProps {
   phase: PlanPhase;
   /** The tab to open, such as Results after a measurement connection. */
   initialTab?: PlanTab;
+  /** Why a measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
   /** Cuso writes or changes the plan; a refusal comes back as text. */
   onRequest: (note?: string) => Promise<string | null>;
   /** The owner's own monthly ad budget; a refusal comes back as text. */
@@ -403,6 +405,7 @@ export function PlanReview({
   overview,
   readOnly = false,
   initialTab = "plan",
+  measureError = null,
   onRequest,
   onSetAds,
   onAnswer,
@@ -843,6 +846,7 @@ export function PlanReview({
                     overview={overview}
                     strategy={strategy}
                     onConnectMeasurement={onConnectMeasurement}
+                    measureError={measureError}
                   />
                 )}
               </div>

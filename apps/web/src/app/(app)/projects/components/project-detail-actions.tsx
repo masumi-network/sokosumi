@@ -112,7 +112,7 @@ export function ProjectDetailActions({
       ? labels.pin
       : null;
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const closeAttemptRef = useRef<{
+  const [closeAttempt, setCloseAttempt] = useState<{
     operationId: string;
     reason?: string;
   } | null>(null);
@@ -120,7 +120,11 @@ export function ProjectDetailActions({
   const [closeReason, setCloseReason] = useState("");
   const [isClosing, startCloseTransition] = useTransition();
 
-  if (isClosingOrClosed && (isCloseDialogOpen || closeReason !== "")) {
+  if (
+    isClosingOrClosed &&
+    (isCloseDialogOpen || closeReason !== "" || closeAttempt !== null)
+  ) {
+    setCloseAttempt(null);
     setCloseReason("");
     setIsCloseDialogOpen(false);
   }
@@ -131,24 +135,24 @@ export function ProjectDetailActions({
     }
 
     const normalizedReason = closeReason.trim() || undefined;
-    let closeAttempt = closeAttemptRef.current;
-    if (!closeAttempt || closeAttempt.reason !== normalizedReason) {
-      closeAttempt = {
-        operationId: crypto.randomUUID(),
-        reason: normalizedReason,
-      };
-    }
-    closeAttemptRef.current = closeAttempt;
+    const nextCloseAttempt =
+      closeAttempt && closeAttempt.reason === normalizedReason
+        ? closeAttempt
+        : {
+            operationId: crypto.randomUUID(),
+            reason: normalizedReason,
+          };
+    setCloseAttempt(nextCloseAttempt);
 
     startCloseTransition(async () => {
       try {
         await closeProject({
           projectId,
-          operationId: closeAttempt.operationId,
+          operationId: nextCloseAttempt.operationId,
           expectedProjectRevision: projectRevision,
           ...(normalizedReason ? { reason: normalizedReason } : {}),
         });
-        closeAttemptRef.current = null;
+        setCloseAttempt(null);
         setIsCloseDialogOpen(false);
         setCloseReason("");
         toast.success(labels.closeDialog.success);
@@ -218,10 +222,7 @@ export function ProjectDetailActions({
               variant="destructive"
               // Let the menu close: kept open, it sat under the dialog and was
               // still open once the dialog closed.
-              onSelect={() => {
-                closeAttemptRef.current = null;
-                setIsCloseDialogOpen(true);
-              }}
+              onSelect={() => setIsCloseDialogOpen(true)}
             >
               <CircleStop className="size-4" aria-hidden />
               {labels.close}

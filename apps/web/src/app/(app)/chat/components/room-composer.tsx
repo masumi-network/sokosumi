@@ -32,13 +32,8 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from "react";
 import { toast } from "sonner";
-import {
-  getFormatToolbarOpenPreference,
-  setFormatToolbarOpenPreference,
-} from "@/app/chat/utils/format-toolbar-preference-storage";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { ComposerAddLinkDialog } from "@/components/chat/composer-add-link-dialog";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
@@ -67,6 +62,7 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
+import { useFormatToolbarOpenPreference } from "@/hooks/effects/use-format-toolbar-open-preference";
 import { transcribeVoiceRecording } from "@/lib/services/voice-transcription.browser";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
@@ -98,30 +94,6 @@ import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
-}
-
-const subscribeNoop = () => () => {};
-const getFormatToolbarOpenSnapshot = () =>
-  getFormatToolbarOpenPreference() ?? false;
-const getFormatToolbarOpenServerSnapshot = () => false;
-
-/**
- * Slack Aa toggle: formatting strip above the editor.
- * SSR + first paint start closed (hydration-safe). Preference persisted via localStorage on Aa.
- */
-function useFormatToolbarOpenPreference(): [boolean, (next: boolean) => void] {
-  const stored = useSyncExternalStore(
-    subscribeNoop,
-    getFormatToolbarOpenSnapshot,
-    getFormatToolbarOpenServerSnapshot,
-  );
-  const [override, setOverride] = useState<boolean | null>(null);
-  const open = override ?? stored;
-  const setOpen = useCallback((next: boolean) => {
-    setOverride(next);
-    setFormatToolbarOpenPreference(next);
-  }, []);
-  return [open, setOpen];
 }
 
 /** Shell drop zones + Quote/Thread callers reuse this surface. */

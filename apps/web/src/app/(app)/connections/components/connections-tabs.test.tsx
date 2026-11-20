@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
@@ -27,13 +27,16 @@ function renderTabs(searchParams: string) {
 }
 
 describe("ConnectionsTabs", () => {
-  it("falls back to connected-apps when the tab query parameter is invalid", () => {
-    renderTabs("?tab=invalid-tab");
+  it("falls back to connected-apps and cleans up an invalid tab query parameter", async () => {
+    const onUrlUpdate = renderTabs("?tab=invalid-tab");
 
     expect(
       screen.getByRole("tab", { name: "tabs.connectedApps" }),
     ).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Connected apps panel")).toBeVisible();
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("tab")).toBeNull();
   });
 
   it("opens the requested valid tab and updates the URL when switching", async () => {

@@ -1,6 +1,5 @@
 "use client";
 
-import { parseAsStringLiteral, useQueryState } from "nuqs";
 import type { ReactNode } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,11 +7,11 @@ import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
 } from "@/components/ui/tabs-classes";
+import { useNormalizedQueryTab } from "@/hooks/effects/use-normalized-query-tab";
 import { cn } from "@/lib/utils";
 
 const ALL_BILLING_TABS = ["subscription", "credits", "coupon"] as const;
 const BILLING_TABS_WITHOUT_CREDITS = ["subscription", "coupon"] as const;
-type BillingTabValue = (typeof ALL_BILLING_TABS)[number];
 
 interface BillingTabsProps {
   couponContent: ReactNode;
@@ -37,18 +36,17 @@ export function BillingTabs({
     ? ALL_BILLING_TABS
     : BILLING_TABS_WITHOUT_CREDITS;
 
-  const [activeTab, setTab] = useQueryState(
+  const [activeTab, setTab] = useNormalizedQueryTab(
     "tab",
-    parseAsStringLiteral(enabledTabs).withDefault("subscription"),
+    enabledTabs,
+    "subscription",
   );
 
   return (
     <Tabs
       value={activeTab}
       onValueChange={(value: string) => {
-        if ((enabledTabs as readonly string[]).includes(value)) {
-          void setTab(value as BillingTabValue);
-        }
+        void setTab(value);
       }}
       className="flex flex-col gap-5"
     >

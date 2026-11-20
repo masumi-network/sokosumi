@@ -39,6 +39,8 @@ interface OnboardingFlowProps {
   messages: CusoMessage[];
   /** "results" when a measurement connection sends the founder back to it. */
   initialStep?: "results" | undefined;
+  /** Why a measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
   /** What this person skipped in hiring, from CMO's cookie. */
   skipped?: SkippedStep[];
   /** The CMO plans the checkout step offers; empty when Core could not read them. */
@@ -57,6 +59,7 @@ export function OnboardingFlow({
   overview: initialOverview,
   messages: initialMessages,
   initialStep,
+  measureError = null,
   skipped: initialSkipped = [],
   plans = [],
   returnedFromCheckout = false,
@@ -316,6 +319,7 @@ export function OnboardingFlow({
             phase={planPhase}
             starting={starting}
             initialTab={initialStep === "results" ? "results" : undefined}
+            measureError={measureError}
             ahead={ahead}
             onRequest={request}
             onSetAds={async (monthly, currency) =>

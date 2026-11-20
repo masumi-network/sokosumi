@@ -1,12 +1,10 @@
 "use client";
 
 import { ALargeSmall, AtSign, Paperclip, SmilePlus } from "lucide-react";
-import { useSyncExternalStore } from "react";
 
 import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
 import { RoomTypingLine } from "@/app/chat/components/room-typing-line";
-import { getFormatToolbarOpenPreference } from "@/app/chat/utils/format-toolbar-preference-storage";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
 import {
   ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
@@ -15,12 +13,8 @@ import {
   RoomMessageComposer,
 } from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
+import { useFormatToolbarOpenPreference } from "@/hooks/effects/use-format-toolbar-open-preference";
 import { cn } from "@/lib/utils";
-
-const subscribeNoop = () => () => {};
-const getFormatToolbarOpenSnapshot = () =>
-  getFormatToolbarOpenPreference() ?? false;
-const getFormatToolbarOpenServerSnapshot = () => false;
 
 /**
  * Instant / Suspense fallback: same shell tree as progressive RoomsClient +
@@ -31,11 +25,7 @@ const getFormatToolbarOpenServerSnapshot = () => false;
  * empty:before cannot steal mobile LCP from real chrome.
  */
 export function RoomOpenLoadingView(): React.ReactElement {
-  const formatToolbarOpen = useSyncExternalStore(
-    subscribeNoop,
-    getFormatToolbarOpenSnapshot,
-    getFormatToolbarOpenServerSnapshot,
-  );
+  const [formatToolbarOpen] = useFormatToolbarOpenPreference();
 
   return (
     <RoomShellLayout

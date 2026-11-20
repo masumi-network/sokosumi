@@ -14,7 +14,11 @@ import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
-import { connectReturnError } from "../lib/connect-return";
+import {
+  adsReturnErrorFromCode,
+  connectReturnError,
+  measureReturnError,
+} from "../lib/connect-return";
 import { asSignedInPersonInPage } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
@@ -191,6 +195,8 @@ export interface HomeSearchParams {
   /** With `hire`: the Project of the Cuso to hire a test copy of. */
   testCopyOf?: string | string[];
   connect?: string | string[];
+  ads?: string | string[];
+  measure?: string | string[];
   from?: string | string[];
 }
 
@@ -300,6 +306,8 @@ export async function Home({ searchParams, view }: HomeProps) {
   // Every Cuso action names the Project of the overview this page rendered,
   // so a workspace switch elsewhere cannot move them to another Cuso.
   const { projectId } = overview;
+  const adsError = adsReturnErrorFromCode(first(params.ads) ?? null);
+  const measureError = measureReturnError(first(params.measure) ?? null);
   if (overview.onboardingStep !== "done" || backInHiring) {
     const skipped = await skippedSteps(projectId);
     // The app's pages open once onboarding ends; until then it is the first run.
@@ -314,6 +322,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
+        measureError={measureError}
         skipped={skipped}
         // The steps up to Subscribe open in place, without this page
         // rendering again, so the plans load from the first of them.
@@ -380,6 +389,8 @@ export async function Home({ searchParams, view }: HomeProps) {
           ? connectReturnError(first(params.connect) ?? null)
           : null
       }
+      adsError={adsError}
+      measureError={measureError}
       actions={{
         loadState: loadState.bind(null, projectId),
         loadChatWork: loadChatWork.bind(null, projectId),

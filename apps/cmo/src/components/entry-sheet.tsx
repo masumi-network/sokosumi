@@ -178,7 +178,7 @@ export function EntrySheet({
         <h3 className="sheet-title">{entry.title}</h3>
         {overview && draft && isSocialProvider(entry.channel.toLowerCase()) ? (
           <PostPreview
-            key={`${entry.id}:${draft}`}
+            key={entry.id}
             entry={entry}
             media={media}
             text={draft}
@@ -324,6 +324,13 @@ function PostPreview({
   const [words, setWords] = useState(text);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
+  const [syncedText, setSyncedText] = useState(text);
+  if (syncedText !== text) {
+    setSyncedText(text);
+    setWords(text);
+    setEditing(false);
+    setRefusal(null);
+  }
   const pictureFirst = channel === "instagram";
   const picture = <PieceMedia entry={entry} media={media} />;
   return (
@@ -346,7 +353,7 @@ function PostPreview({
         </header>
         {pictureFirst ? picture : null}
         {editing ? (
-          <div className="field">
+          <div key={text} className="field">
             <label htmlFor={`post-text-${entry.id}`}>Post text</label>
             <textarea
               id={`post-text-${entry.id}`}

@@ -142,6 +142,10 @@ interface CmoAppProps {
   initialView?: View;
   /** Why the channel connection that sent the founder back did not finish. */
   connectError?: string | null;
+  /** Why the ad-account connection that sent the founder back did not finish. */
+  adsError?: string | null;
+  /** Why the measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
   /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
   plans?: CmoSubscriptionPlan[];
   /** The person has another Cuso, for the sidebar's "Your Cusos". */
@@ -232,6 +236,8 @@ export function CmoApp({
   email,
   initialView = "today",
   connectError = null,
+  adsError = null,
+  measureError = null,
   plans = [],
   manyCusos = false,
   mayHire = false,
@@ -590,6 +596,7 @@ export function CmoApp({
                   connectMeasurement={(provider) =>
                     actions.connectMeasurement(provider, "app")
                   }
+                  measureError={measureError}
                   ads={actions}
                   onChange={setOverview}
                   openView={go}
@@ -621,6 +628,7 @@ export function CmoApp({
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
                   connectError={connectError}
+                  adsError={adsError}
                   change={actions.changeChannel}
                   openSeo={() => go("seo")}
                   connectSearchConsole={() =>

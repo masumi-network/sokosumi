@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
 import type { ReactNode } from "react";
 
 import {
@@ -12,10 +11,10 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useNormalizedQueryTab } from "@/hooks/effects/use-normalized-query-tab";
 import { cn } from "@/lib/utils";
 
 const ENABLED_TABS = ["connected-apps", "mcp"] as const;
-type ConnectionsTabValue = (typeof ENABLED_TABS)[number];
 
 interface ConnectionsTabsProps {
   connectedAppsContent: ReactNode;
@@ -27,18 +26,17 @@ export function ConnectionsTabs({
   mcpContent,
 }: ConnectionsTabsProps) {
   const t = useTranslations("App.Connections");
-  const [activeTab, setTab] = useQueryState(
+  const [activeTab, setTab] = useNormalizedQueryTab(
     "tab",
-    parseAsStringLiteral(ENABLED_TABS).withDefault("connected-apps"),
+    ENABLED_TABS,
+    "connected-apps",
   );
 
   return (
     <Tabs
       value={activeTab}
       onValueChange={(value: string) => {
-        if (ENABLED_TABS.includes(value as ConnectionsTabValue)) {
-          void setTab(value as ConnectionsTabValue);
-        }
+        void setTab(value);
       }}
       className="flex flex-col gap-5"
     >
