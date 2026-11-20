@@ -28,4 +28,13 @@ describe("TermsNotice", () => {
       screen.getByRole("link", { name: "Privacy Policy" }),
     ).toHaveAttribute("href", "https://www.sokosumi.com/privacy-policy");
   });
+  it("uses CMO's policies for a CMO OAuth request", () => {
+    render(<TermsNotice brand="cmo" />);
+    expect(
+      screen.getByRole("link", { name: "Terms of Service" }),
+    ).toHaveAttribute("href", "https://www.cmo.xyz/terms");
+    expect(
+      screen.getByRole("link", { name: "Privacy Policy" }),
+    ).toHaveAttribute("href", "https://www.cmo.xyz/privacy");
+  });
 });

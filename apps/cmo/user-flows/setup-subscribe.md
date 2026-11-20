@@ -3,7 +3,7 @@
 **Steps**
 
 1. Sees what the approved month holds (posts, channels, pictures, videos) and the plans, monthly or yearly, each saying how many posts, pictures and videos it makes of this strategy a month; the smallest plan that makes all of it is picked.
-2. Pays through the hosted checkout.
+2. Can read the CMO Terms, Privacy Policy, DPA and Imprint before paying. Pays through the hosted checkout.
 3. Comes back to CMO and moves on to Launch.
 
 **They expect**

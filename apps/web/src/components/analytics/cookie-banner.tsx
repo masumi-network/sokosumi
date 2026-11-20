@@ -130,7 +130,11 @@ export function CookieBanner() {
         <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
           {t("body", { product })}{" "}
           <a
-            href={COOKIE_POLICY_URL}
+            href={
+              product === "CMO.XYZ"
+                ? "https://www.cmo.xyz/privacy#cookies-and-similar-storage"
+                : COOKIE_POLICY_URL
+            }
             target="_blank"
             rel="noreferrer"
             className="text-foreground underline"
