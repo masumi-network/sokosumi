@@ -318,6 +318,17 @@ export const brandBrainSchema = z.object({
 });
 export type BrandBrain = z.infer<typeof brandBrainSchema>;
 
+/**
+ * The Brand Brain as Core stores and serves it: Cuso's essentials plus what
+ * only Core sets. Cuso's save_brand_brain takes `brandBrainSchema`, so a
+ * save never sets these.
+ */
+export const storedBrandBrainSchema = brandBrainSchema.extend({
+  /** A member rewrote the promise, so it is their words, not the site's. */
+  promiseByOwner: z.boolean().optional(),
+});
+export type StoredBrandBrainBody = z.infer<typeof storedBrandBrainSchema>;
+
 export const CMO_CALENDAR_STATUSES = [
   "idea",
   "draft",

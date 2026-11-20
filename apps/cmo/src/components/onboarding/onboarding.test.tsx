@@ -344,6 +344,17 @@ describe("Brand", () => {
     expect(html).toContain("Source: acme.io");
   });
 
+  it("drops the site as the promise's source once the owner rewrote it", () => {
+    const promise = (html: string) =>
+      html.slice(html.indexOf("ob-promise"), html.indexOf("ob-tiles"));
+    expect(promise(render(draft()))).toContain("Source: acme.io");
+    const html = promise(
+      render(draft({ brandBrain: { ...brain, promiseByOwner: true } })),
+    );
+    expect(html).toContain("Your promise, in one line");
+    expect(html).not.toContain("Source:");
+  });
+
   it("shows only the tiles that have data, in order", () => {
     const html = render(draft());
     const order = [

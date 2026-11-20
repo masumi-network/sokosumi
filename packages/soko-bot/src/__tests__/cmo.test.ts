@@ -24,13 +24,20 @@ import {
 } from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
-import { CMO_SKILLS } from "../versions/cmo-skills.js";
+import {
+  CMO_BATCHED_PRODUCTION_SKILL,
+  CMO_PIECE_WRITING_GUIDE,
+  CMO_SKILLS,
+} from "../versions/cmo-skills.js";
+import { cmoV6 } from "../versions/cmo-v6.js";
+import { cmoV7 } from "../versions/cmo-v7.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkill,
   getSokoBotVersion,
   SOKO_BOT_VERSIONS,
 } from "../versions/index.js";
@@ -111,6 +118,51 @@ describe("CMO version", () => {
     );
   });
 
+  it("gives Core's month writer only to a Cuso whose production skill calls it", () => {
+    expect(
+      applyVersionCapabilities(getSokoBotVersion("cmo-v6"), ["read_memory"]),
+    ).toContain("write_month_pieces");
+    for (const id of ["cmo-v5", "cmo-v1", DEFAULT_SOKO_BOT_VERSION_ID])
+      expect(
+        applyVersionCapabilities(getSokoBotVersion(id), [
+          "read_memory",
+          "write_month_pieces",
+        ]),
+      ).not.toContain("write_month_pieces");
+  });
+
+  it("keeps cmo-v5's month and has cmo-v6 call the writer first, on the same writing rules", () => {
+    const skillOf = (id: string) =>
+      getSokoBotVersion(id).skills.find((skill) =>
+        skill.startsWith("cmo-production"),
+      );
+    expect(skillOf("cmo-v5")).toBe("cmo-production");
+    expect(skillOf("cmo-v6")).toBe(CMO_BATCHED_PRODUCTION_SKILL);
+    const batched = getSokoBotSkill(CMO_BATCHED_PRODUCTION_SKILL).content;
+    expect(batched).toContain("## Core writes first");
+    expect(batched).toContain("write_month_pieces");
+    const sections = (content: string) =>
+      content.split("\n## ").map((section) => section.split("\n")[0]);
+    // The same sections in the same order, one more first, and an end that
+    // leaves Core's pieces to Jev's review.
+    expect(sections(batched)).toEqual(
+      sections(getSokoBotSkill("cmo-production").content).flatMap((name) =>
+        name === "Before the first piece"
+          ? ["Core writes first", name]
+          : [name],
+      ),
+    );
+    expect(batched).toContain("do not read them back or rewrite them");
+    expect(getSokoBotSkill("cmo-production").content).not.toContain(
+      "do not read them back",
+    );
+    // The writer works from the same copy rules, without the tool steps.
+    expect(CMO_PIECE_WRITING_GUIDE).toContain("## Hooks and copy");
+    expect(CMO_PIECE_WRITING_GUIDE).not.toMatch(
+      /list_project_social_accounts|update_social_post|save_strategy/,
+    );
+  });
+
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
@@ -121,7 +173,9 @@ describe("CMO version", () => {
     ])
       expect(applyVersionCapabilities(cmo, routed)).toEqual([
         "read_memory",
-        ...SOKO_BOT_CMO_CAPABILITIES,
+        ...SOKO_BOT_CMO_CAPABILITIES.filter(
+          (capability) => capability !== "write_month_pieces",
+        ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]);
     // Another bot gets them only from its route; Core then asks whether a
@@ -727,5 +781,22 @@ describe("what Cuso is told a talking video costs", () => {
     expect(SOKO_BOT_TOOL_DESCRIPTIONS.generate_talking_video).toContain(
       `a 150-character script costs about ${credits(150)})`,
     );
+  });
+});
+
+describe("cmo-v7", () => {
+  it("answers a change without repeating the card or naming internals", () => {
+    expect(cmoV6.systemPrompt).toContain("then answer in one or two sentences");
+    expect(cmoV7.systemPrompt).not.toContain(
+      "then answer in one or two sentences",
+    );
+    expect(cmoV7.systemPrompt).toContain(
+      "never says what changed or what stayed the same",
+    );
+    expect(cmoV7.systemPrompt).toContain(
+      "Never name your tools, saves, checks or reviews",
+    );
+    // The month written at once comes with it.
+    expect(cmoV7.skills).toEqual(cmoV6.skills);
   });
 });

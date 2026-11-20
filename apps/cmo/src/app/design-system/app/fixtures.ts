@@ -168,6 +168,7 @@ export const overview: CmoOverview = cmoOverview({
   brandBrainUpdatedAt: at("01T09:01:00"),
   brandBrainConfirmedAt: at("01T09:05:00"),
   strategy: plan,
+  strategyShort: null,
   approvedStrategy: plan,
   onboardingStep: "done",
   botStatus: "IDLE",

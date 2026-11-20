@@ -197,6 +197,7 @@ const CUSO_SELECT = {
       id: true,
       workspaceId: true,
       websiteUrl: true,
+      cmoPendingAdBudget: true,
       workspace: { select: { organizationId: true } },
       brandBrain: {
         select: { body: true, updatedAt: true, confirmedAt: true },
@@ -223,6 +224,27 @@ export interface Cuso {
   brandBrain: Prisma.JsonValue | null;
   brandBrainUpdatedAt: Date | null;
   brandBrainConfirmedAt: Date | null;
+  /** An ad budget the owner set while he was busy, still to plan. */
+  pendingAdBudget?: CmoPendingAdBudget | null;
+}
+
+/** An ad budget set while Cuso was busy: he plans it when his turn ends. */
+export interface CmoPendingAdBudget {
+  monthly: number;
+  currency: string;
+  userId: string;
+}
+
+function pendingAdBudgetOf(
+  value: Prisma.JsonValue | null,
+): CmoPendingAdBudget | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const { monthly, currency, userId } = value as Record<string, unknown>;
+  return typeof monthly === "number" &&
+    typeof currency === "string" &&
+    typeof userId === "string"
+    ? { monthly, currency, userId }
+    : null;
 }
 
 /** Null for a bot without a Project, which `CUSO_BOT_WHERE` never returns. */
@@ -239,6 +261,7 @@ function cusoView({ id, createdAt, project }: CusoRow): Cuso | null {
     brandBrain: project.brandBrain?.body ?? null,
     brandBrainUpdatedAt: project.brandBrain?.updatedAt ?? null,
     brandBrainConfirmedAt: project.brandBrain?.confirmedAt ?? null,
+    pendingAdBudget: pendingAdBudgetOf(project.cmoPendingAdBudget),
   };
 }
 

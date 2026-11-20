@@ -440,6 +440,7 @@ export function CmoApp({
             {view === "strategy" &&
             overview.strategy &&
             !strategyApproved(overview) &&
+            !overview.strategyShort &&
             overview.viewerCanApprove ? (
               <ApproveDraft
                 approve={async () =>
