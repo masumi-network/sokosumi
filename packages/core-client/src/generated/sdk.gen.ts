@@ -5321,7 +5321,7 @@ export const postProjectsByIdImageStudioTalkingVideoScripts = <ThrowOnError exte
 });
 
 /**
- * A Project's talking videos: the newest jobs and the videos they delivered. Polled while one is being made; answering it settles finished jobs, like the studio state.
+ * A Project's talking videos: jobs and their delivered videos, newest first. Pass the oldest job's createdAt and id to read the next 30. Reading the newest page settles finished jobs, like the studio state.
  */
 export const getProjectsByIdImageStudioTalkingVideos = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdImageStudioTalkingVideosData, ThrowOnError>): RequestResult<GetProjectsByIdImageStudioTalkingVideosResponses, GetProjectsByIdImageStudioTalkingVideosErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdImageStudioTalkingVideosResponses, GetProjectsByIdImageStudioTalkingVideosErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdImageStudioTalkingVideosResponseTransformer,

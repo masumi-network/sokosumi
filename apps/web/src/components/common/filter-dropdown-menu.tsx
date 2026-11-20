@@ -74,6 +74,11 @@ interface FilterDropdownMenuProps {
   searchPlaceholder: string;
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
+  /** Direct choices appear above the expandable filter sections. */
+  quickFilters?: { menu: ReactNode; sheet: ReactNode };
+  dropdownOpen?: boolean;
+  onDropdownOpenChange?: (open: boolean) => void;
+  showMobileLabel?: boolean;
   showActiveIndicator?: boolean;
   /**
    * The trigger edge the desktop menu lines up with. `start` for a trigger at
@@ -106,6 +111,10 @@ export function FilterDropdownMenu({
   searchPlaceholder,
   emptyResultsLabel,
   sections,
+  quickFilters,
+  dropdownOpen: dropdownOpenProp,
+  onDropdownOpenChange,
+  showMobileLabel = false,
   showActiveIndicator = false,
   align = "end",
   activeCount,
@@ -115,7 +124,13 @@ export function FilterDropdownMenu({
   onSheetOpenChange,
   resetAction,
 }: FilterDropdownMenuProps) {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [uncontrolledDropdownOpen, setUncontrolledDropdownOpen] =
+    useState(false);
+  const dropdownOpen = dropdownOpenProp ?? uncontrolledDropdownOpen;
+  function setDropdownOpen(open: boolean) {
+    if (dropdownOpenProp === undefined) setUncontrolledDropdownOpen(open);
+    onDropdownOpenChange?.(open);
+  }
   const [uncontrolledSheetOpen, setUncontrolledSheetOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
@@ -129,7 +144,7 @@ export function FilterDropdownMenu({
     onSheetOpenChange?.(open);
   }
 
-  if (sections.length === 0) {
+  if (sections.length === 0 && !quickFilters) {
     return null;
   }
 
@@ -173,6 +188,10 @@ export function FilterDropdownMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align={align} className="w-64">
+          {quickFilters?.menu}
+          {quickFilters && sections.length > 0 ? (
+            <DropdownMenuSeparator />
+          ) : null}
           {sections.map((section) => (
             <FilterDropdownMenuSectionItem
               key={section.id}
@@ -208,6 +227,7 @@ export function FilterDropdownMenu({
           onClick={() => setSheetOpen(true)}
         >
           <ListFilter className="size-4" aria-hidden />
+          {showMobileLabel ? <span>{buttonLabel}</span> : null}
           {countBadge}
           {showActiveIndicator && !activeCount ? (
             <span
@@ -231,6 +251,7 @@ export function FilterDropdownMenu({
             className="h-[calc(80dvh-5rem)] min-w-0 w-full px-4"
           >
             <div className="mt-4 w-full min-w-0 space-y-4">
+              {quickFilters?.sheet}
               {sections.map((section) => (
                 <FilterDropdownMenuSectionMobile
                   key={section.id}

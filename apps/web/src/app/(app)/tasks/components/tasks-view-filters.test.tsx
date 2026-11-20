@@ -2,6 +2,7 @@ import { TaskStatus } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { workspaceTagsQueryKey } from "@/queries/workspace-tags";
 
@@ -122,6 +123,7 @@ function renderTasksViewFilters(
         />
       </TasksSearchParamsProvider>
     </QueryClientProvider>,
+    { wrapper: NuqsTestingAdapter },
   );
 
   return filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
@@ -200,11 +202,11 @@ describe("TasksViewFilters", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("names the view, project and every chip for the view options menu", () => {
+  it("names the view, project, search and every chip for the view options menu", () => {
     window.history.replaceState(
       null,
       "",
-      "/tasks?needsMe=1&assigneeUserId=user-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
+      "/tasks?q=release&needsMe=1&assigneeUserId=user-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
     );
     searchParams = new URLSearchParams(window.location.search);
     const display = vi.fn((_activeFilters: string[]) => null);
@@ -213,6 +215,7 @@ describe("TasksViewFilters", () => {
     expect(display.mock.calls.at(-1)?.[0]).toEqual([
       "chip(viewLabel, needsMe)",
       "chip(projectLabel, Research)",
+      "chip(searchPlaceholder, release)",
       "chip(Coworker, Me)",
       "chip(Status, Ready)",
     ]);

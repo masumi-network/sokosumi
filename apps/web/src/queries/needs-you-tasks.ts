@@ -8,6 +8,7 @@ import { TASK_INPUT_REQUIRED_MESSAGE_KEY } from "@sokosumi/utils";
 import { queryOptions } from "@tanstack/react-query";
 import { COLUMN_TASK_STATUSES } from "@/app/tasks/utils/task-column";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import { collectCursorPages } from "@/lib/utils/collect-cursor-pages";
 
 /** Every reader's and workspace's waiting-Tasks query starts with this. */
 export const NEEDS_YOU_TASKS_QUERY_KEY = ["needs-you-tasks"] as const;
@@ -21,7 +22,7 @@ export const NEEDS_YOU_TASKS_LIMIT = 50;
 export interface NeedsYouTasks {
   /** Home's "N tasks need your input" number, from the same Core summary. */
   count: number;
-  /** The newest waiting Tasks, at most {@link NEEDS_YOU_TASKS_LIMIT}. */
+  /** The newest waiting Tasks, at most {@link NEEDS_YOU_TASKS_LIMIT} in the initial list. Page search includes older Tasks. */
   tasks: TaskListItem[];
 }
 
@@ -38,15 +39,20 @@ export interface NeedsYouTasks {
 export function needsYouTasksQueryOptions(
   userId: string | undefined,
   organizationId: string | null,
+  complete = false,
 ) {
   const scope = organizationId ? "workspace" : "owned";
 
   return queryOptions({
-    queryKey: [...NEEDS_YOU_TASKS_QUERY_KEY, userId ?? null, organizationId],
+    queryKey: [
+      ...NEEDS_YOU_TASKS_QUERY_KEY,
+      userId ?? null,
+      organizationId,
+      complete,
+    ],
     queryFn: async (): Promise<NeedsYouTasks> => {
-      const [summary, list] = await Promise.all([
-        coreClient.getTasksSummary({ scope }),
-        coreClient.getTasks({
+      const readPage = async (cursor?: string) => {
+        const page = await coreClient.getTasks({
           scope,
           status: COLUMN_TASK_STATUSES["input-required"],
           // A blocked sub-task needs the reader as much as its parent does,
@@ -54,10 +60,22 @@ export function needsYouTasksQueryOptions(
           includeSubtasks: "true",
           sort: "updatedAt",
           limit: NEEDS_YOU_TASKS_LIMIT,
-        }),
+          ...(cursor && { cursor }),
+        });
+        return {
+          items: page.data,
+          nextCursor: page.meta?.pagination?.nextCursor,
+        };
+      };
+      const [summary, list] = await Promise.all([
+        coreClient.getTasksSummary({ scope }),
+        readPage(),
       ]);
 
-      return { count: summary.data.awaitingInput, tasks: list.data };
+      const tasks = complete
+        ? await collectCursorPages(list.items, list.nextCursor, readPage)
+        : list.items;
+      return { count: summary.data.awaitingInput, tasks };
     },
     // Without a session both reads are a guaranteed 401.
     enabled: Boolean(userId),

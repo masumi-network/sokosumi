@@ -11,7 +11,6 @@ import {
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-
 import {
   GALLERY_DIVIDER_CLASS,
   GALLERY_HERO_BAND_CLASS,
@@ -21,6 +20,7 @@ import {
   GALLERY_SOCIAL_PROOF_CAPTION_CLASS,
   GALLERY_SOCIAL_PROOF_FACE_CLASS,
 } from "@/components/agents/gallery-page-classes";
+import { PageSearchRows } from "@/components/page-list-search";
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -424,18 +424,22 @@ export async function TeamSection({ team }: { team: SokoBotTeam }) {
         <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
           {paired.length > 0 ? (
             <ul className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
-              {paired.map((member) =>
-                member.bot ? (
-                  <PairCard
-                    key={member.userId}
-                    member={member}
-                    bot={member.bot}
-                    t={t}
-                    tStatus={tStatus}
-                    format={format}
-                  />
-                ) : null,
-              )}
+              <PageSearchRows
+                rows={paired.map((member) => ({
+                  primary: [member.bot?.name, member.name],
+                  secondary: [member.bot ? tStatus(member.bot.status) : null],
+                  content: member.bot ? (
+                    <PairCard
+                      key={member.userId}
+                      member={member}
+                      bot={member.bot}
+                      t={t}
+                      tStatus={tStatus}
+                      format={format}
+                    />
+                  ) : null,
+                }))}
+              />
             </ul>
           ) : isPersonal ? (
             <p className="text-muted-foreground px-2 py-1 text-sm">

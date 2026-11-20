@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { usePageListSearch } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,6 +30,10 @@ export function OAuthAuthorizedClients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<string | null>(null);
+
+  const visible = usePageListSearch(consents, (consent) => ({
+    primary: [consent.clientName, consent.clientId],
+  }));
 
   useEffect(() => {
     async function fetchConsents() {
@@ -139,7 +144,7 @@ export function OAuthAuthorizedClients() {
           <p className="text-muted-foreground">{t("noApplications")}</p>
         ) : (
           <div className="space-y-4">
-            {consents.map((consent) => (
+            {visible.map((consent) => (
               <div
                 key={consent.clientId}
                 className="flex items-center justify-between rounded-lg border p-4"

@@ -5,7 +5,10 @@ import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-crea
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { SocialCalendarPreviewProvider } from "@/app/social/components/social-calendar-preview";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
+import { PageQuerySearchField } from "@/components/page-query-search-field";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
+import { rankPageItems } from "@/lib/utils/page-search";
+import { calendarSearchFields } from "./calendar-search";
 import { calendarUrl } from "./calendar-url";
 import {
   type CalendarPageSearchParams,
@@ -17,7 +20,9 @@ export const instant = false;
 
 interface CalendarPageProps {
   // `socialOnly` is the retired "Social posts only" switch, still in old links.
-  searchParams: Promise<CalendarPageSearchParams & { socialOnly?: string }>;
+  searchParams: Promise<
+    CalendarPageSearchParams & { socialOnly?: string; q?: string }
+  >;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -36,24 +41,40 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CalendarPage({
   searchParams,
 }: CalendarPageProps) {
-  const params = await searchParams;
+  const { q, ...params } = await searchParams;
+  const term = typeof q === "string" ? q.trim() : "";
   if (params.socialOnly !== undefined) redirect(calendarUrl(params));
 
   const page = await loadWorkspaceCalendarPage({
+    complete: Boolean(term),
     searchParams: Promise.resolve(params),
   });
+
+  const items = rankPageItems(page.items, term, (entry) =>
+    calendarSearchFields(entry, page),
+  );
+  const empty = Boolean(term) && !items.length;
+  const tSearch = await getTranslations("App.PageSearch");
 
   return (
     <CreateTaskModalProvider>
       <RefreshPrefetchedPage />
+      {empty ? (
+        <p role="status" className="text-muted-foreground mb-3 text-sm">
+          {tSearch("noMatches")}
+        </p>
+      ) : null}
       <SocialCalendarPreviewProvider>
         <WorkspaceCalendar
+          searchField={
+            <PageQuerySearchField inHeader placeholder={tSearch("calendar")} />
+          }
           activeOrganizationId={page.activeOrganizationId}
           coworkers={page.coworkerOptions}
           currentUserId={page.currentUserId}
           initialDate={page.initialDate}
-          items={page.items}
-          key={page.calendarKey}
+          items={items}
+          calendarKey={page.calendarKey}
           latestDate={page.latestDate}
           newsletterEnabled={page.newsletterEnabled}
           pagination={page.pagination}

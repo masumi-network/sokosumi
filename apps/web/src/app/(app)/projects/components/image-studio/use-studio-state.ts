@@ -74,6 +74,7 @@ export function useStudioState(options: {
   const [sort, setSort] = useState<"newest" | "best">("newest");
   const sortRef = useRef(sort);
   sortRef.current = sort;
+  const pendingOlder = useRef<string | null>(null);
   const loadedSortRef = useRef<"newest" | "best">("newest");
   const removedAssetIds = useRef(new Set<string>());
   const mutationRevision = useRef(0);
@@ -292,6 +293,9 @@ export function useStudioState(options: {
     const requestedRevision = mutationRevision.current;
     const cursor = stateRef.current.nextCursor;
     if (!cursor) return;
+    const requestKey = JSON.stringify([projectId, requestedSort, cursor.id]);
+    if (pendingOlder.current === requestKey) return;
+    pendingOlder.current = requestKey;
     setIsRefreshing(true);
     try {
       // Both halves of the cursor: versions settled in the same millisecond
@@ -305,7 +309,7 @@ export function useStudioState(options: {
         `${stateUrl(projectId)}?${query.toString()}`,
         { credentials: "same-origin", cache: "no-store" },
       );
-      if (!response.ok) return;
+      if (!response.ok) throw new Error("Could not load older studio assets");
       const older = (await response.json()) as StudioState;
       // Same rule as the refresh: an older page of the project the reader has
       // left is not older history of the one they are looking at.
@@ -338,6 +342,7 @@ export function useStudioState(options: {
         return;
       setError("load_older_failed");
     } finally {
+      if (pendingOlder.current === requestKey) pendingOlder.current = null;
       if (
         projectId === shownProjectIdRef.current &&
         requestedSort === sortRef.current
@@ -405,7 +410,7 @@ export function useStudioState(options: {
     activeJobs,
     refresh,
     loadOlder,
-    hasOlder: shownState.nextCursor !== null,
+    hasOlder: shownState.nextCursor !== null && sort === loadedSortRef.current,
     isRefreshing: switching ? false : isRefreshing,
     error: switching ? null : error,
   };

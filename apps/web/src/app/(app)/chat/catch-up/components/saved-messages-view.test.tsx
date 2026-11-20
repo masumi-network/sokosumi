@@ -16,6 +16,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 
 import { SavedMessagesView } from "./saved-messages-view";
 
@@ -297,6 +298,31 @@ describe("SavedMessagesView", () => {
     expect(
       screen.queryByRole("button", { name: "Load older" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("finds a saved message on a later page without an extra click", async () => {
+    listMock.mockResolvedValueOnce({
+      ok: true,
+      value: { items: [saved("older", "Launch checklist")], nextCursor: null },
+    });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <SearchablePageContent>
+          {view({
+            items: [saved("newer", "Other message")],
+            nextCursor: "older-cursor",
+          })}
+        </SearchablePageContent>
+      </NextIntlClientProvider>,
+    );
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "launch" },
+    });
+    expect(
+      await screen.findByRole("link", { name: /Launch checklist/ }),
+    ).toBeInTheDocument();
+    expect(listMock).toHaveBeenCalledWith("older-cursor");
+    expect(screen.queryByRole("link", { name: /Other message/ })).toBeNull();
   });
 
   it("explains how to save when the list is empty", () => {

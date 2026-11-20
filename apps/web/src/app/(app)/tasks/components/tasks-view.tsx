@@ -354,6 +354,7 @@ export function TasksView(props: TasksViewProps) {
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
                     sort={shownSort}
+                    preserveSearchOrder={Boolean(routeFilters.search)}
                     canDragTask={(task) =>
                       canCreateTask && isTaskDnDDraggable(task)
                     }
@@ -412,6 +413,7 @@ export function TasksView(props: TasksViewProps) {
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
                 sort={shownSort}
+                preserveSearchOrder={Boolean(routeFilters.search)}
                 labels={{
                   columns: labels.columns,
                   emptyColumn: labels.listPlaceholder,

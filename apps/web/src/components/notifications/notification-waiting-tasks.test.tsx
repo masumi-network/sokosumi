@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 
 const core = vi.hoisted(() => ({
   getTasksSummary: vi.fn(),
@@ -56,7 +57,7 @@ function parked(comment: string | null = null) {
   return event("park", comment, { status: "INPUT_REQUIRED", createdAt: SINCE });
 }
 
-function renderRows(tasks: ReturnType<typeof task>[]) {
+function renderRows(tasks: ReturnType<typeof task>[], search = false) {
   core.getTasksSummary.mockResolvedValue({
     data: { awaitingInput: tasks.length },
   });
@@ -66,7 +67,13 @@ function renderRows(tasks: ReturnType<typeof task>[]) {
   });
   render(
     <QueryClientProvider client={client}>
-      <NotificationWaitingTasks />
+      {search ? (
+        <SearchablePageContent>
+          <NotificationWaitingTasks />
+        </SearchablePageContent>
+      ) : (
+        <NotificationWaitingTasks />
+      )}
     </QueryClientProvider>,
   );
   return client;
@@ -83,6 +90,23 @@ beforeEach(() => {
 });
 
 describe("NotificationWaitingTasks", () => {
+  it("finds a waiting Task on a later page by name without listing unrelated asks", async () => {
+    const first = task("first", "INPUT_REQUIRED");
+    const later = task("launch", "APPROVAL_REQUIRED");
+    renderRows([first], true);
+    await screen.findByRole("link", { name: /Task first/ });
+    core.getTasks.mockImplementation(async ({ cursor }) =>
+      cursor
+        ? { data: [later] }
+        : { data: [first], meta: { pagination: { nextCursor: "first" } } },
+    );
+    await userEvent.type(screen.getByRole("searchbox"), "launch");
+    expect(
+      await screen.findByRole("link", { name: /Task launch/ }),
+    ).toBeVisible();
+    expect(screen.queryByRole("link", { name: /Task first/ })).toBeNull();
+  });
+
   it("answers a Task waiting for input without leaving the list", async () => {
     core.getTaskEvents.mockResolvedValue({
       data: [parked("Which audience?")],

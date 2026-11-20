@@ -1,6 +1,7 @@
 import type { SocialPost } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import type { ActionError } from "@/lib/actions/errors/action-error";
+import { rankPageItems } from "@/lib/utils/page-search";
 import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
 
 function timeOf(value: Date | null): number {
@@ -88,4 +89,34 @@ export function withoutActions(post: SocialPost): SocialPost {
     canApprove: false,
     canReject: false,
   };
+}
+
+export function socialPostSearchFields(post: SocialPost, projectName?: string) {
+  return {
+    primary: [
+      post.text,
+      post.planning?.title,
+      ...(post.threadParts ?? []).map((part) => part.text),
+    ],
+    secondary: [
+      projectName,
+      post.creator?.name,
+      post.provider,
+      post.status,
+      post.socialConnection?.displayName,
+      post.socialConnection?.externalHandle,
+      post.firstComment,
+    ],
+  };
+}
+
+export function searchSocialPosts(posts: SocialPost[], query: string) {
+  return rankPageItems(posts, query, (post) => socialPostSearchFields(post));
+}
+
+export function postsInSection(posts: SocialPost[], section: SectionKey) {
+  return sortSection(
+    posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
+    section,
+  );
 }

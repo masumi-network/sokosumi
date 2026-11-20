@@ -1819,7 +1819,8 @@
     "Tasks": {
       "Page": {
         "title": "Task manager",
-        "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
+        "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view.",
+        "searchPlaceholder": "Search tasks"
       },
       "Export": {
         "button": "Export as CSV…",
@@ -11442,6 +11443,8 @@
         "week": "Week",
         "agenda": "Agenda"
       },
+      "showAndFilter": "Show & filter",
+      "activeFilters": "{count, plural, one {# active filter} other {# active filters}}",
       "show": {
         "label": "Show",
         "tasks": "Tasks",
@@ -11755,7 +11758,9 @@
       "matchingRows": "{count, plural, one {# row matches} other {# rows match}}",
       "contactsName": "Contacts",
       "contactsPinned": "Pinned",
-      "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}"
+      "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}",
+      "searchPlaceholder": "Search tables",
+      "noMatches": "No matching tables"
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
@@ -14243,6 +14248,24 @@
       "adminOnly": "Only workspace admins can change these preferences.",
       "loadError": "Failed to load ad data preferences. Try again.",
       "retry": "Try again"
+    },
+    "PageSearch": {
+      "find": "Find on this page",
+      "filter": "Filter this list",
+      "clear": "Clear search",
+      "previous": "Previous match",
+      "next": "Next match",
+      "position": "{current} of {total}",
+      "noMatches": "No matches",
+      "schedules": "Search schedules",
+      "calendar": "Search calendar",
+      "audits": "Search reports",
+      "searching": "Searching…",
+      "results": "{count, plural, =0 {No matches} one {# match} other {# matches}}",
+      "issues": "Search issues",
+      "posts": "Search posts",
+      "controlShortcut": "Ctrl+F",
+      "loadedResults": "{count, plural, =0 {No matches in loaded items} one {# match in loaded items} other {# matches in loaded items}}"
     }
   },
   "Share": {

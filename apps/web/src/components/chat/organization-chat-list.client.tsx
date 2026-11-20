@@ -5,40 +5,11 @@ import type {
   ChatRoomInvitation,
   StarredChatRoomOrder,
 } from "@sokosumi/core-client";
-import {
-  ArrowUpDown,
-  Check,
-  CheckCheck,
-  Ellipsis,
-  Globe2,
-  RotateCcw,
-  Trash2,
-} from "lucide-react";
-import {
-  AnimatePresence,
-  MotionConfig,
-  type MotionProps,
-  motion,
-  type Transition,
-  useReducedMotion,
-} from "motion/react";
-import { usePathname, useRouter } from "next/navigation";
+import { MotionConfig, useReducedMotion } from "motion/react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  acceptChatRoomInvitationAction,
-  declineChatRoomInvitationAction,
-  deleteRoomAction,
-  restoreRoomAction,
-} from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
@@ -48,36 +19,14 @@ import {
   useRoomWorkspaceName,
 } from "@/app/chat/components/use-room-display-name";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarRowSlot,
 } from "@/components/ui/sidebar";
-import {
-  SIDEBAR_ICON_ACTION_CLASS,
-  SIDEBAR_ROW_CLASS,
-  SIDEBAR_ROW_LABEL_INSET_CLASS,
-} from "@/components/ui/sidebar-classes";
+import { SIDEBAR_ROW_LABEL_INSET_CLASS } from "@/components/ui/sidebar-classes";
 import { SidebarSectionContent } from "@/components/ui/sidebar-section";
 import { cn } from "@/lib/utils";
 import { moveIdToSlot } from "@/lib/utils/move-id";
@@ -86,28 +35,40 @@ import {
   getActiveRoomIdFromSelection,
 } from "./active-room-id";
 import { ChannelKindGlyph } from "./channel-discoverability-icon";
+import {
+  ArchivedRoomsSection,
+  useArchivedRoomActions,
+} from "./chat-archived-rooms-section";
 import { ChatElsewhereOverflowRow } from "./chat-elsewhere-overflow-row";
+import {
+  ExternalRoomsSection,
+  useRoomInvitationActions,
+} from "./chat-external-rooms-section";
+import { PinnedRoomsSection } from "./chat-pinned-rooms-section";
 import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
 } from "./chat-room-sidebar-row";
 import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import {
+  READ_INBOX_ROOM_ITEM_PROPS,
+  UNREAD_FILTER_CSS_TIMING,
+  UNREAD_FILTER_TRANSITION,
+  UnreadInboxPinnedRooms,
+  UnreadInboxSection,
+} from "./chat-unread-inbox-section";
+import {
   ChatMarkAllReadButton,
   ChatUnreadNavRows,
   ChatUnreadsFilterChip,
 } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
-import * as sectionLimits from "./limit-sidebar-section-rooms";
+import { limitSidebarChannels } from "./limit-sidebar-section-rooms";
 import {
   listOrganizationChatRoomsAction,
   reorderPinnedOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
-import {
-  PinnedRoomsDndContext,
-  SortablePinnedRoomRow,
-} from "./pinned-rooms-dnd";
 import { rememberPinnedRooms } from "./remembered-pinned-rooms";
 import {
   resolveChatsAttention,
@@ -121,6 +82,7 @@ import {
   advanceUnreadFilterPass,
   EMPTY_UNREAD_FILTER_PASS,
 } from "./unread-filter-pass";
+import { useChatPageSearch } from "./use-chat-page-search";
 import { useChatUnreadsFilter } from "./use-chat-unreads-filter";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 import { useOtherWorkspaceRooms } from "./use-other-workspace-rooms";
@@ -129,69 +91,6 @@ import { useSidebarSectionShowAll } from "./use-sidebar-section-show-all";
 /** Stable empty default — inline `= []` is a new array every render and
  *  infinite-loops the render-time pendingInvitations sync (React #301). */
 const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
-
-/** Same absolute slot as live room rows so archived height matches Channels/DMs. */
-const ARCHIVED_TRAILING_CONTROL_CLASS =
-  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5";
-
-/**
- * A room the All unreads filter lists with nothing unread: read during the
- * pass, or pinned. Dimmed.
- */
-/**
- * One timing for everything the All unreads filter animates: motion's
- * presence, and the same curve and length for its CSS dim and fade.
- */
-const UNREAD_FILTER_TRANSITION: Transition = {
-  duration: 0.2,
-  ease: [0.2, 0, 0, 1],
-};
-const UNREAD_FILTER_CSS_TIMING =
-  "motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.2,0,0,1)]";
-
-const READ_INBOX_ROOM_ITEM_PROPS = {
-  "data-read": "true",
-  // Eases down when the reader moves on from a room they just read. Coming
-  // back to full is instant: that is new activity, and it should be seen.
-  className: `opacity-60 motion-safe:transition-opacity ${UNREAD_FILTER_CSS_TIMING}`,
-};
-
-/**
- * The caught-up row and its "Read just now" label, in and out. Height, so
- * what is below slides instead of jumping, and at the same timing as a room
- * arriving, so a room taking the caught-up row's place nets out to no move.
- */
-const UNREAD_FILTER_PRESENCE = {
-  initial: { height: 0, opacity: 0 },
-  animate: { height: "auto", opacity: 1 },
-  exit: { height: 0, opacity: 0 },
-  style: { overflow: "hidden" },
-} satisfies MotionProps;
-
-/**
- * The caught-up message is a row of the list above it, not a section: it
- * cancels the 8px gap that sets sections apart (the `space-y-2` of the chat
- * area, which collapses with this margin). The margin moves with the height,
- * so a room taking its place brings the gap back as the message leaves.
- */
-const UNREAD_CAUGHT_UP_PRESENCE = {
-  initial: { ...UNREAD_FILTER_PRESENCE.initial, marginTop: 0 },
-  animate: { ...UNREAD_FILTER_PRESENCE.animate, marginTop: -8 },
-  exit: { ...UNREAD_FILTER_PRESENCE.exit, marginTop: 0 },
-  style: UNREAD_FILTER_PRESENCE.style,
-} satisfies MotionProps;
-
-/**
- * A room arriving in or leaving the filter's list. No opacity: a read room's
- * dimming is a class on the same `<li>`, and a finished fade would pin it at
- * full. Clipped only while it moves, because the row's focus ring sits on
- * the edge of its box.
- */
-const UNREAD_FILTER_ROW_PRESENCE = {
-  initial: { height: 0, overflow: "hidden" },
-  animate: { height: "auto", transitionEnd: { overflow: "visible" } },
-  exit: { height: 0, overflow: "hidden" },
-} satisfies MotionProps;
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
@@ -238,7 +137,6 @@ export function OrganizationChatList({
   const roomWorkspaceName = useRoomWorkspaceName();
   const pathname = usePathname();
   const selectedPath = useRoomSelection();
-  const router = useRouter();
   const hasOrganization = Boolean(organizationId);
   const {
     roomRows,
@@ -257,6 +155,15 @@ export function OrganizationChatList({
     currentUserId,
     organizationId,
     paintOnly,
+  });
+  const archivedActions = useArchivedRoomActions({
+    setArchivedRows,
+    upsertRoomToTop,
+  });
+  const invitationActions = useRoomInvitationActions({
+    pendingRows,
+    setPendingRows,
+    replaceAllRooms,
   });
   // In memory only, as the nav groups' are: the area comes back on reload.
   const [chatsOpen, setChatsOpen] = useState(true);
@@ -281,112 +188,6 @@ export function OrganizationChatList({
     setUnreadOnly(next);
   }
   const [filterPass, setFilterPass] = useState(EMPTY_UNREAD_FILTER_PASS);
-  // The app sidebar and the mobile `/chat` page each mount this list.
-  const inboxReadLabelId = useId();
-  const inboxNeedsYouLabelId = useId();
-  const inboxPinnedLabelId = useId();
-  const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
-  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
-  const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
-    null,
-  );
-  const [respondingInvitation, setRespondingInvitation] = useState<
-    string | null
-  >(null);
-  const [_isRestoring, startRestoreTransition] = useTransition();
-  const [_isDeleting, startDeleteTransition] = useTransition();
-  const [_isRespondingInvite, startInviteResponseTransition] = useTransition();
-  function handleRestoreRoom(room: ChatRoom) {
-    if (restoringRoomId || deletingRoomId) {
-      return;
-    }
-    setRestoringRoomId(room.id);
-    startRestoreTransition(async () => {
-      const result = await restoreRoomAction(room.id);
-      setRestoringRoomId(null);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      toast.success(tActions("restoreSuccess", { name: room.name }));
-      upsertRoomToTop(result.value);
-      router.push(`/chat/rooms/${result.value.id}`);
-    });
-  }
-
-  function handleConfirmDeleteRoom() {
-    const room = pendingDeleteRoom;
-    if (!room || restoringRoomId || deletingRoomId) {
-      return;
-    }
-    setDeletingRoomId(room.id);
-    startDeleteTransition(async () => {
-      const result = await deleteRoomAction(room.id);
-      setDeletingRoomId(null);
-      setPendingDeleteRoom(null);
-      if (!result.ok) {
-        toast.error(result.error.message || tActions("deleteError"));
-        return;
-      }
-      toast.success(tActions("deleteSuccess", { name: room.name }));
-      setArchivedRows((current) => current.filter((row) => row.id !== room.id));
-    });
-  }
-
-  function handleAcceptInvitation(invitation: ChatRoomInvitation) {
-    if (respondingInvitation) {
-      return;
-    }
-    setRespondingInvitation(invitation.id);
-    startInviteResponseTransition(async () => {
-      const result = await acceptChatRoomInvitationAction(invitation.id);
-      if (!result.ok) {
-        setRespondingInvitation(null);
-        toast.error(result.error.message || tExternal("acceptError"));
-        return;
-      }
-      toast.success(tExternal("acceptSuccess", { name: invitation.roomName }));
-      // Drop pending and upsert rooms in the same tick so External does not
-      // unmount between the last invite and the joined guest room.
-      const requestRevision = beginRoomAttentionRefresh();
-      const roomsResult = await listOrganizationChatRoomsAction();
-      setRespondingInvitation(null);
-      setPendingRows((current) =>
-        current.filter((row) => row.id !== invitation.id),
-      );
-      if (roomsResult.ok) {
-        replaceAllRooms(roomsResult.value.rooms, requestRevision);
-      }
-      router.push(`/chat/rooms/${invitation.roomId}`);
-    });
-  }
-
-  function handleDeclineInvitation(invitation: ChatRoomInvitation) {
-    if (respondingInvitation) {
-      return;
-    }
-    setRespondingInvitation(invitation.id);
-    const without = (rows: ChatRoomInvitation[]) =>
-      rows.filter((row) => row.id !== invitation.id);
-    const index = pendingRows.indexOf(invitation);
-    // The row leaves at once. A rejected call is a failed decline too.
-    setPendingRows(without);
-    startInviteResponseTransition(async () => {
-      const result = await declineChatRoomInvitationAction(invitation.id).catch(
-        () => null,
-      );
-      setRespondingInvitation(null);
-      // Without again: a list read during the write can bring the row back.
-      setPendingRows((rows) =>
-        result?.ok
-          ? without(rows)
-          : without(rows).toSpliced(index, 0, invitation),
-      );
-      if (result?.ok) toast.success(tExternal("declineSuccess"));
-      else toast.error(result?.error.message || tExternal("declineError"));
-    });
-  }
-
   // The highlight moves on click, before the route commits. Dim follows
   // that, or a read room stays faded under the bar until pathname catches up.
   const activeRoomId = selectedPath
@@ -500,30 +301,50 @@ export function OrganizationChatList({
   // so nothing new waits behind "Show more".
   const keepInSection = (room: ChatRoom) =>
     room.id === activeRoomId || isUnreadRoom(room);
-  const channelRows = sectionLimits.limitSidebarChannels(namedChannels, {
-    showAll: channelsShowAll,
-    alwaysShow: keepInSection,
+  const search = useChatPageSearch({
+    rooms: unreadOnly ? [...inboxRooms, ...pinned] : listedRooms,
+    elsewhere: elsewhereRooms,
+    archived: hasOrganization && !unreadOnly ? archivedRows : [],
+    invitations: pendingRows,
+    currentUserId,
   });
-  const externalRows = sectionLimits.limitSidebarSectionRooms(externalJoined, {
-    showAll: externalShowAll,
-    alwaysShow: keepInSection,
-  });
-  const directRows = sectionLimits.limitSidebarSectionRooms(directMessages, {
-    showAll: directShowAll,
-    alwaysShow: keepInSection,
-  });
+  const channelRows = search.limited(
+    namedChannels,
+    channelsShowAll,
+    keepInSection,
+    limitSidebarChannels,
+  );
+  const externalRows = search.limited(
+    externalJoined,
+    externalShowAll,
+    keepInSection,
+  );
+  const directRows = search.limited(
+    directMessages,
+    directShowAll,
+    keepInSection,
+  );
   // Read rooms dim, but not the open one: dimmed, its highlight reads as
   // disabled.
-  const inboxItemProps = (room: ChatRoom) =>
-    isUnreadRoom(room) || room.id === activeRoomId
-      ? undefined
-      : READ_INBOX_ROOM_ITEM_PROPS;
+  function inboxRoomRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
+    return {
+      ...roomRowProps(room),
+      itemProps:
+        isUnreadRoom(room) || room.id === activeRoomId
+          ? undefined
+          : READ_INBOX_ROOM_ITEM_PROPS,
+    };
+  }
   const pinnedRoomIds = pinned.map((room) => room.id);
   // Reordering lives on the full Pinned section's header, which the filter
   // replaces; its Pinned group shows every pin, fixed. Folding Chats folds
   // Pinned with it, so it ends the mode the same way.
   const canReorderPinned =
-    chatsOpen && pinnedOpen && pinned.length > 1 && !unreadOnly;
+    chatsOpen &&
+    pinnedOpen &&
+    pinned.length > 1 &&
+    !unreadOnly &&
+    !search.active;
   // A pending invitation stays under the filter, in External, and keeps the
   // reader from being caught up: it is addressed to them and waits on them,
   // which is why a closed section already marks it as a mention
@@ -643,13 +464,18 @@ export function OrganizationChatList({
       />
       {/* Outside the keyed list below: the Unreads filter does not touch them,
           because hiding what is unread is the last thing it should do. */}
-      {elsewhereRows.length > 0 ? (
+      {(search.active ? elsewhereRooms : elsewhereRows).length > 0 ? (
         <SidebarMenu
           data-slot="elsewhere-rows"
           aria-label={t("UnreadNav.elsewhereLabel")}
           className="gap-0"
         >
-          {elsewhereRows.map((room) => (
+          {(search.active
+            ? search.matching(
+                elsewhereRooms.filter((room) => room.starredAt == null),
+              )
+            : elsewhereRows
+          ).map((room) => (
             <ChatRoomSidebarRow
               key={room.id}
               {...roomRowProps(room)}
@@ -661,7 +487,7 @@ export function OrganizationChatList({
               elsewhere
             />
           ))}
-          {elsewhereOverflowCount > 0 ? (
+          {!search.active && elsewhereOverflowCount > 0 ? (
             <ChatElsewhereOverflowRow
               count={elsewhereOverflowCount}
               dismissSheetOnNavigate={dismissSheetOnNavigate}
@@ -684,177 +510,38 @@ export function OrganizationChatList({
         )}
       >
         {unreadOnly ? (
-          // Present for the whole pass, empty or not, so a room arriving in an
-          // empty list animates in: `initial={false}` only spares the rows
-          // already here when the filter comes on. Hidden while it holds
-          // nothing, so it adds no gap.
-          <div className="[&:not(:has(li,[role=status]))]:hidden">
-            <AnimatePresence initial={false}>
-              {caughtUp ? (
-                // A message, not a row: nothing here opens. The way back to
-                // every room is the tinted Unreads chip above it. Row
-                // sized, so a room arriving takes its place and nothing below
-                // moves. Muted like a read row: the tinted circle and weight
-                // are the unread signal, and this says there is none.
-                <motion.div
-                  key="caught-up"
-                  role="status"
-                  data-slot="unread-caught-up"
-                  {...UNREAD_CAUGHT_UP_PRESENCE}
-                >
-                  <div
-                    className={cn(
-                      SIDEBAR_ROW_CLASS,
-                      "text-muted-foreground text-sm",
-                    )}
-                  >
-                    <SidebarRowSlot>
-                      <CheckCheck aria-hidden />
-                    </SidebarRowSlot>
-                    <span className="min-w-0 truncate">
-                      {t("UnreadNav.caughtUp")}
-                    </span>
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-            <AnimatePresence initial={false}>
-              {showsReadLabel ? (
-                // Everything left is read: say why it is still listed.
-                <motion.div key="read-label" {...UNREAD_FILTER_PRESENCE}>
-                  <p
-                    id={inboxReadLabelId}
-                    className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium"
-                  >
-                    {t("UnreadNav.justRead")}
-                  </p>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-            {needsYouInboxRooms.length > 0 ? (
-              <>
-                <p
-                  id={inboxNeedsYouLabelId}
-                  className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium"
-                >
-                  {t("Signals.needsYouSection")}
-                </p>
-                <SidebarMenu
-                  data-slot="unread-inbox-needs-you"
-                  aria-labelledby={inboxNeedsYouLabelId}
-                  className="gap-0"
-                >
-                  <AnimatePresence initial={false}>
-                    {needsYouInboxRooms.map((room) => (
-                      <ChatRoomSidebarRow
-                        key={room.id}
-                        {...roomRowProps(room)}
-                        itemProps={inboxItemProps(room)}
-                        itemMotion={UNREAD_FILTER_ROW_PRESENCE}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </SidebarMenu>
-              </>
-            ) : null}
-            <SidebarMenu
-              data-slot="unread-inbox"
-              aria-labelledby={showsReadLabel ? inboxReadLabelId : undefined}
-              className="gap-0"
-            >
-              <AnimatePresence initial={false}>
-                {otherInboxRooms.map((room) => (
-                  <ChatRoomSidebarRow
-                    key={room.id}
-                    {...roomRowProps(room)}
-                    itemProps={inboxItemProps(room)}
-                    itemMotion={UNREAD_FILTER_ROW_PRESENCE}
-                  />
-                ))}
-              </AnimatePresence>
-            </SidebarMenu>
-          </div>
+          <UnreadInboxSection
+            caughtUp={caughtUp}
+            showsReadLabel={showsReadLabel}
+            hasNeedsYou={needsYouInboxRooms.length > 0}
+            needsYou={search.matching(needsYouInboxRooms)}
+            other={search.matching(otherInboxRooms)}
+            roomRowProps={inboxRoomRowProps}
+          />
         ) : null}
         {!unreadOnly && pinned.length > 0 ? (
-          <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
-            <ChatSidebarSectionHeader
-              isOpen={pinnedOpen}
-              closedAttention={resolveSectionAttention(pinned)}
-              createAction={
-                canReorderPinned ? (
-                  <button
-                    type="button"
-                    aria-pressed={isReorderingPinned}
-                    aria-label={t(
-                      isReorderingPinned
-                        ? "reorderPinnedDone"
-                        : "reorderPinned",
-                    )}
-                    className={SIDEBAR_ICON_ACTION_CLASS}
-                    onClick={() => setPinnedReorderMode((current) => !current)}
-                  >
-                    {isReorderingPinned ? (
-                      <Check className="size-4 md:size-3.5" aria-hidden />
-                    ) : (
-                      <ArrowUpDown className="size-4 md:size-3.5" aria-hidden />
-                    )}
-                  </button>
-                ) : undefined
-              }
-            >
-              {t("pinned")}
-            </ChatSidebarSectionHeader>
-            {/* A row being dragged translates past the section's box, and the
-                animation's `overflow-hidden` would cut it off. Dropping the
-                clip cannot cost the section its animation, because
-                `canReorderPinned` carries `pinnedOpen`: the render that
-                closes Pinned is already the render where `isReorderingPinned`
-                reads false, so the collapse clips as every other section
-                does. */}
-            <SidebarSectionContent
-              className={cn(isReorderingPinned && "overflow-visible")}
-            >
-              {isReorderingPinned ? (
-                <PinnedRoomsDndContext
-                  roomIds={pinnedRoomIds}
-                  onReorder={handleReorderPinned}
-                >
-                  <SidebarMenu className="gap-0">
-                    {pinned.map((room, index) => (
-                      <SortablePinnedRoomRow
-                        key={room.id}
-                        index={index}
-                        {...roomRowProps(room)}
-                        onMoveUp={movePinnedTo(
-                          room.id,
-                          pinnedRoomIds[index - 1],
-                        )}
-                        onMoveDown={movePinnedTo(
-                          room.id,
-                          pinnedRoomIds[index + 1],
-                        )}
-                      />
-                    ))}
-                  </SidebarMenu>
-                </PinnedRoomsDndContext>
-              ) : (
-                <SidebarMenu className="gap-0">
-                  {pinned.map((room) => (
-                    <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
-                  ))}
-                </SidebarMenu>
-              )}
-            </SidebarSectionContent>
-          </Collapsible>
+          <PinnedRoomsSection
+            pinned={pinned}
+            visible={search.matching(pinned)}
+            open={search.active || pinnedOpen}
+            onOpenChange={setPinnedOpen}
+            canReorderPinned={canReorderPinned}
+            isReorderingPinned={isReorderingPinned}
+            onToggleReorder={() => setPinnedReorderMode((current) => !current)}
+            pinnedRoomIds={pinnedRoomIds}
+            onReorder={handleReorderPinned}
+            movePinnedTo={movePinnedTo}
+            roomRowProps={roomRowProps}
+          />
         ) : null}
 
         {hasOrganization && !unreadOnly ? (
           <Collapsible
-            open={channelSectionOpen}
+            open={search.active || channelSectionOpen}
             onOpenChange={setChannelSectionOpen}
           >
             <ChatSidebarSectionHeader
-              isOpen={channelSectionOpen}
+              isOpen={search.active || channelSectionOpen}
               closedAttention={resolveSectionAttention(namedChannels)}
               createAction={<CreateChannelDialog />}
               secondaryAction={<BrowseChannelsDialog />}
@@ -892,279 +579,45 @@ export function OrganizationChatList({
 
         {pendingRows.length > 0 ||
         (!unreadOnly && externalJoined.length > 0) ? (
-          <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
-            <ChatSidebarSectionHeader
-              isOpen={externalOpen}
-              closedAttention={resolveSectionAttention(externalJoined, {
-                hasPendingInvitation: pendingRows.length > 0,
-              })}
-            >
-              {tExternal("title")}
-            </ChatSidebarSectionHeader>
-            <SidebarSectionContent>
-              <SidebarMenu className="gap-0">
-                {pendingRows.map((invitation) => {
-                  const anyBusy = respondingInvitation !== null;
-                  const acceptBusy = respondingInvitation === invitation.id;
-                  const invitationLabel = tExternal("pendingAria", {
-                    name: invitation.roomName,
-                    organization: invitation.organizationName,
-                  });
-                  return (
-                    <SidebarMenuItem key={invitation.id}>
-                      <div
-                        aria-label={invitationLabel}
-                        className="text-tertiary-foreground dark:text-muted-foreground flex w-full items-start gap-2 px-2 py-1.5"
-                      >
-                        <SidebarRowSlot>
-                          <Globe2
-                            className="text-muted-foreground"
-                            aria-hidden
-                          />
-                        </SidebarRowSlot>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium text-foreground">
-                            {invitation.roomName}
-                          </div>
-                          <div className="text-muted-foreground truncate text-xs leading-tight">
-                            {invitation.organizationName}
-                          </div>
-                          <div className="mt-1.5 flex items-center gap-1.5">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="default"
-                              className="h-6 px-2 text-xs"
-                              disabled={anyBusy}
-                              loading={acceptBusy}
-                              onClick={() => handleAcceptInvitation(invitation)}
-                            >
-                              {tExternal("accept")}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-6 px-2 text-xs"
-                              disabled={anyBusy}
-                              onClick={() =>
-                                handleDeclineInvitation(invitation)
-                              }
-                            >
-                              {tExternal("decline")}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </SidebarMenuItem>
-                  );
-                })}
-                {/* Under the filter these rooms are in its flat list. */}
-                {unreadOnly
-                  ? null
-                  : externalRows.visible.map((room) => (
-                      <ChatRoomSidebarRow
-                        key={room.id}
-                        {...roomRowProps(room)}
-                      />
-                    ))}
-                {!unreadOnly && externalRows.hiddenCount > 0 ? (
-                  <SidebarSectionShowMoreRow
-                    hiddenCount={externalRows.hiddenCount}
-                    showAll={externalShowAll}
-                    onShowAllChange={setExternalShowAll}
-                  />
-                ) : null}
-              </SidebarMenu>
-            </SidebarSectionContent>
-          </Collapsible>
+          <ExternalRoomsSection
+            rooms={externalJoined}
+            rows={externalRows}
+            invitations={search.invitations}
+            hasPendingInvitation={pendingRows.length > 0}
+            actions={invitationActions}
+            open={search.active || externalOpen}
+            onOpenChange={setExternalOpen}
+            unreadOnly={unreadOnly}
+            showAll={externalShowAll}
+            onShowAllChange={setExternalShowAll}
+            roomRowProps={roomRowProps}
+          />
         ) : null}
 
         {/* After External: a pending invitation waits on the reader, as an
             unread room does. */}
         {inboxPinnedRooms.length > 0 ? (
-          <div>
-            <p
-              id={inboxPinnedLabelId}
-              className="text-muted-foreground px-2 pb-1 text-xs font-medium"
-            >
-              {t("pinned")}
-            </p>
-            <SidebarMenu
-              data-slot="unread-inbox-pinned"
-              aria-labelledby={inboxPinnedLabelId}
-              className="gap-0"
-            >
-              {inboxPinnedRooms.map((room) => (
-                <ChatRoomSidebarRow
-                  key={room.id}
-                  {...roomRowProps(room)}
-                  itemProps={inboxItemProps(room)}
-                />
-              ))}
-            </SidebarMenu>
-          </div>
+          <UnreadInboxPinnedRooms
+            rooms={search.matching(inboxPinnedRooms)}
+            roomRowProps={inboxRoomRowProps}
+          />
         ) : null}
-        {hasOrganization && !unreadOnly && sortedArchivedChannels.length > 0 ? (
-          <Collapsible
-            open={archivedSectionOpen}
-            onOpenChange={setArchivedSectionOpen}
-          >
-            <ChatSidebarSectionHeader isOpen={archivedSectionOpen}>
-              {t("archivedChannels")}
-            </ChatSidebarSectionHeader>
-            <SidebarSectionContent>
-              <SidebarMenu className="gap-0">
-                {sortedArchivedChannels.map((room) => {
-                  const isRestoring = restoringRoomId === room.id;
-                  const isDeleting = deletingRoomId === room.id;
-                  const actionBusy =
-                    restoringRoomId !== null || deletingRoomId !== null;
-                  const showOverflowMenu = isOrgOwnerOrAdmin;
-                  return (
-                    <SidebarMenuItem
-                      key={room.id}
-                      className="group/room-row relative"
-                    >
-                      <div
-                        className={cn(
-                          SIDEBAR_ROW_CLASS,
-                          "text-tertiary-foreground dark:text-muted-foreground",
-                        )}
-                      >
-                        <SidebarRowSlot>
-                          <ChannelKindGlyph
-                            className="opacity-60"
-                            discoverability={room.discoverability}
-                          />
-                        </SidebarRowSlot>
-                        <span className="min-w-0 flex-1 truncate">
-                          {room.name}
-                        </span>
-                        <span
-                          className="size-8 shrink-0 md:size-7"
-                          aria-hidden
-                        />
-                      </div>
-                      {showOverflowMenu ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              disabled={actionBusy}
-                              className={cn(
-                                ARCHIVED_TRAILING_CONTROL_CLASS,
-                                "text-muted-foreground",
-                                isRestoring || isDeleting
-                                  ? "opacity-100"
-                                  : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
-                              )}
-                              aria-label={tActions("roomMenu", {
-                                name: room.name,
-                              })}
-                            >
-                              <Ellipsis
-                                className={cn(
-                                  "size-5 md:size-4",
-                                  (isRestoring || isDeleting) &&
-                                    "animate-pulse",
-                                )}
-                                aria-hidden
-                              />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem
-                              disabled={actionBusy}
-                              onSelect={() => handleRestoreRoom(room)}
-                            >
-                              <RotateCcw className="size-4" aria-hidden />
-                              {tActions("restore")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={actionBusy}
-                              variant="destructive"
-                              onSelect={() => setPendingDeleteRoom(room)}
-                            >
-                              <Trash2 className="size-4" aria-hidden />
-                              {tActions("delete")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            ARCHIVED_TRAILING_CONTROL_CLASS,
-                            "text-muted-foreground",
-                            isRestoring
-                              ? "opacity-100"
-                              : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
-                          )}
-                          disabled={actionBusy}
-                          loading={isRestoring}
-                          onClick={() => handleRestoreRoom(room)}
-                          aria-label={`${tActions("restore")} ${room.name}`}
-                        >
-                          <RotateCcw className="size-3.5" aria-hidden />
-                        </Button>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarSectionContent>
-          </Collapsible>
-        ) : null}
-
-        <AlertDialog
-          open={pendingDeleteRoom !== null}
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen && deletingRoomId === null) {
-              setPendingDeleteRoom(null);
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {pendingDeleteRoom
-                  ? tActions("deleteConfirmTitle", {
-                      name: pendingDeleteRoom.name,
-                    })
-                  : null}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {pendingDeleteRoom
-                  ? tActions("deleteConfirmDescription", {
-                      name: pendingDeleteRoom.name,
-                    })
-                  : null}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deletingRoomId !== null}>
-                {tActions("cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                loading={deletingRoomId !== null}
-                onClick={(event) => {
-                  event.preventDefault();
-                  handleConfirmDeleteRoom();
-                }}
-              >
-                {tActions("deleteConfirm")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ArchivedRoomsSection
+          actions={archivedActions}
+          rooms={search.matching(sortedArchivedChannels)}
+          visible={
+            hasOrganization && !unreadOnly && sortedArchivedChannels.length > 0
+          }
+          open={search.active || archivedSectionOpen}
+          onOpenChange={setArchivedSectionOpen}
+          isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
+        />
 
         {!unreadOnly ? (
-          <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
+          <Collapsible
+            open={search.active || directOpen}
+            onOpenChange={setDirectOpen}
+          >
             {/*
             Sidebar rows = messaged history only. `+` opens Start New Direct
             in place (org members + coworkers, 1:1 coworker / group humans).
@@ -1172,7 +625,7 @@ export function OrganizationChatList({
             (coworkers only).
           */}
             <ChatSidebarSectionHeader
-              isOpen={directOpen}
+              isOpen={search.active || directOpen}
               closedAttention={resolveSectionAttention(directMessages)}
               createAction={<CreateDirectDialog />}
             >

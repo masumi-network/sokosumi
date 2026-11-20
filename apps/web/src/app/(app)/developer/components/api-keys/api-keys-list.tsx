@@ -5,6 +5,10 @@ import { useMemo } from "react";
 
 import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/developer-loading-view";
 import DataTable from "@/components/data-table/data-table";
+import {
+  usePageListSearch,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 
 import { ApiKeyActions, ApiKeyStatus } from "./api-key-row-parts";
@@ -21,6 +25,17 @@ export function ApiKeysList({
 }: ApiKeysListProps) {
   const t = useTranslations("App.Account.ApiKeys");
   const formatter = useFormatter();
+
+  // Newest first, like the table's default sort.
+  const newestFirst = [...apiKeys].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  const visible = usePageListSearch(newestFirst, (key) => ({
+    primary: [key.name, key.start],
+    secondary: [t(key.enabled ? "Status.enabled" : "Status.disabled")],
+  }));
+  const searching = Boolean(usePageSearchQuery());
 
   const columns = useMemo(
     () => getApiKeyColumns(t, formatter, onToggleStatus, onDeleteClick),
@@ -52,16 +67,11 @@ export function ApiKeysList({
     );
   }
 
-  // Newest first, like the table's default sort.
-  const newestFirst = [...apiKeys].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
-
   return (
     <>
       {/* Phones: one stacked row per key, so status and actions stay on screen. */}
       <ul className="divide-border divide-y rounded-lg border md:hidden">
-        {newestFirst.map((apiKey) => (
+        {visible.map((apiKey) => (
           <li key={apiKey.id} className="flex items-center gap-3 p-3">
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -88,18 +98,23 @@ export function ApiKeysList({
       </ul>
       <DataTable
         columns={columns}
-        data={apiKeys}
-        showPagination={apiKeys.length > 0}
+        key={searching ? "search" : "all"}
+        data={[...visible]}
+        showPagination={visible.length > 0}
         enableRowSelection={false}
         disableHover={true}
         showRowsPerPage={false}
         initialPageSize={5}
-        defaultSort={[
-          {
-            id: "createdAt",
-            desc: true,
-          },
-        ]}
+        defaultSort={
+          searching
+            ? []
+            : [
+                {
+                  id: "createdAt",
+                  desc: true,
+                },
+              ]
+        }
         containerClassName="hidden rounded-lg md:flex"
       />
     </>

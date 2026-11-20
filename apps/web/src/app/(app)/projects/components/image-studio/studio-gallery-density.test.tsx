@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { isActive, type StudioAsset, type StudioJob } from "./types";
@@ -27,6 +27,7 @@ import { isActive, type StudioAsset, type StudioJob } from "./types";
 const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
+  loadOlder: vi.fn().mockResolvedValue(undefined),
   listBatchAssets: vi.fn(),
   saveHeadline: vi.fn(),
   loadBrandKit: vi.fn().mockResolvedValue({ approvedLines: [] }),
@@ -100,7 +101,11 @@ vi.mock("./use-studio-state", () => ({
   useStudioState: ({
     initialState,
   }: {
-    initialState: { assets: StudioAsset[]; jobs: StudioJob[] };
+    initialState: {
+      assets: StudioAsset[];
+      jobs: StudioJob[];
+      nextCursor?: { id: string };
+    };
   }) => ({
     state: initialState,
     selectedAsset: initialState.assets[0] ?? null,
@@ -110,8 +115,8 @@ vi.mock("./use-studio-state", () => ({
     // its notice.
     activeJobs: initialState.jobs.filter((job) => isActive(job)),
     refresh: mocks.refresh,
-    loadOlder: vi.fn(),
-    hasOlder: false,
+    loadOlder: mocks.loadOlder,
+    hasOlder: Boolean(initialState.nextCursor),
     error: null,
   }),
 }));
@@ -508,6 +513,47 @@ describe("a gallery with work in it", () => {
         [],
       ),
     );
+  });
+
+  it("searches the assistant in a narrow window and restores gallery search after closing it", () => {
+    const nativeMatch = window.matchMedia.bind(window);
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => {
+      const media = nativeMatch(query);
+      if (query === "(min-width: 64rem)")
+        Object.defineProperty(media, "matches", { value: false });
+      return media;
+    });
+    render(
+      <SearchablePageContent>
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={
+            {
+              assets: [{ ...ASSET, myReasons: [] }],
+              jobs: [],
+              sessions: [],
+              nextCursor: { id: "older" },
+            } as never
+          }
+          labels={TEST_LABELS}
+          projectId="p"
+        />
+      </SearchablePageContent>,
+    );
+    const field = screen.getByRole("searchbox", { name: "filter" });
+    fireEvent.click(screen.getByRole("button", { name: "Assistant.title" }));
+    fireEvent.change(field, { target: { value: "sample" } });
+    const panel = screen.getByRole("complementary", {
+      name: "Assistant.title",
+    });
+    expect(panel).toBeVisible();
+    expect(field).toHaveAccessibleName("find");
+    expect(mocks.loadOlder).not.toHaveBeenCalled();
+    fireEvent.click(within(panel).getByRole("button", { name: "close" }));
+    expect(field).toHaveAccessibleName("filter");
+    expect(field).toHaveValue("sample");
+    expect(mocks.loadOlder).toHaveBeenCalledOnce();
   });
 
   it("hands the selected ad to the assistant and keeps the generation draft", () => {

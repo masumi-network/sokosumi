@@ -94,13 +94,15 @@ describe("contactFilterWhere", () => {
     ]);
   });
 
-  it("searches name, organization, channel values and location without case", async () => {
+  it("searches names, organizations, roles, summaries, channels and locations without case", async () => {
     queryRaw.mockResolvedValueOnce([]);
     const [search] = await contactFilterWhere(actor, { search: "acme" }, now);
     expect(search).toEqual({
       OR: [
         { name: { contains: "acme", mode: "insensitive" } },
         { organization: { contains: "acme", mode: "insensitive" } },
+        { role: { contains: "acme", mode: "insensitive" } },
+        { summary: { contains: "acme", mode: "insensitive" } },
         {
           channels: {
             some: { value: { contains: "acme", mode: "insensitive" } },

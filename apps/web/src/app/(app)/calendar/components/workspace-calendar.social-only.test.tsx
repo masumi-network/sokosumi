@@ -483,7 +483,12 @@ describe("WorkspaceCalendar Social-only view", () => {
       renderCalendar({ types: ["social"], items: [POST] });
 
       expect(renderedEventTitles()).toEqual(["Launch news"]);
-      expect(screen.queryByTestId("calendar-show")).not.toBeInTheDocument();
+      expect(filterDropdownMenuMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quickFilters: undefined,
+          showMobileLabel: false,
+        }),
+      );
     });
 
     it("opens on the month, not the workspace calendar's week", () => {

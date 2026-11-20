@@ -11,6 +11,10 @@ import { useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { taskHref } from "@/app/tasks/utils/task-href";
+import {
+  usePageListSearch,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusMarker } from "@/components/ui/status-marker";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,13 +32,14 @@ import {
 } from "@/queries/needs-you-tasks";
 
 /** The Tasks waiting on the reader, shared by the tab count and the rows. */
-export function useNeedsYouTasks() {
+export function useNeedsYouTasks(complete = false) {
   const { data: session } = useSession();
 
   return useQuery(
     needsYouTasksQueryOptions(
       session?.user.id,
       session?.session.activeOrganizationId ?? null,
+      complete,
     ),
   );
 }
@@ -379,7 +384,17 @@ export function NotificationWaitingTasks({
   const t = useTranslations("Components.NotificationCenter.WaitingTasks");
   const tCenter = useTranslations("Components.NotificationCenter");
   const formatTime = useNotificationTimeFormatter();
-  const { data, isError, refetch } = useNeedsYouTasks();
+  const query = usePageSearchQuery();
+  const { data, isError, refetch } = useNeedsYouTasks(Boolean(query));
+  const tasks = usePageListSearch(data?.tasks ?? [], (task) => ({
+    primary: [task.name, task.identifier],
+    secondary: [
+      agentName(task),
+      task.description,
+      task.project?.name,
+      isWaitingStatus(task.status) ? t(`status.${task.status}`) : null,
+    ],
+  }));
   // The panel and the page can both be open, so the heading id is per frame.
   const headingId = useId();
 
@@ -399,7 +414,7 @@ export function NotificationWaitingTasks({
     );
   }
 
-  if (!data || data.count === 0) {
+  if (!data || data.count === 0 || (query && !tasks.length)) {
     return null;
   }
 
@@ -420,7 +435,7 @@ export function NotificationWaitingTasks({
         ) : null}
       </div>
       <ul className="divide-border divide-y">
-        {data.tasks.map((task) => {
+        {tasks.map((task) => {
           // Core read only these statuses; the guard narrows the type.
           const status = isWaitingStatus(task.status)
             ? task.status

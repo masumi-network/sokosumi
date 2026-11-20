@@ -116,8 +116,6 @@ describe("ContactsFilterBar", () => {
     const onFilter = vi.fn();
     render(
       <ContactsFilterBar
-        search=""
-        onSearch={vi.fn()}
         filters={{
           stage: null,
           replyState: "NO_REPLY",

@@ -1,17 +1,7 @@
 "use client";
 
-import { Search, X } from "lucide-react";
-import { useQueryState } from "nuqs";
-import {
-  type TransitionStartFunction,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { useDebouncedCallback } from "use-debounce";
-
-import { Input } from "@/components/ui/input";
-import { getEnvPublicConfig } from "@/config/env.public";
+import type { TransitionStartFunction } from "react";
+import { PageQuerySearchField } from "@/components/page-query-search-field";
 
 /** Matches the Core route's own bound on `q`. */
 const MAX_QUERY_LENGTH = 200;
@@ -39,64 +29,13 @@ export function ProjectsFilter({
   labels,
   startTransition,
 }: ProjectsFilterProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [queryParam, setQueryParam] = useQueryState("q", {
-    defaultValue: "",
-    shallow: false,
-    clearOnDefault: true,
-    startTransition,
-  });
-  const [value, setValue] = useState(queryParam);
-
-  useEffect(() => {
-    setValue(queryParam);
-  }, [queryParam]);
-
-  const debouncedSetQuery = useDebouncedCallback(
-    (next: string) => setQueryParam(next),
-    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
-  );
-
-  function handleChange(next: string) {
-    const trimmed = next.slice(0, MAX_QUERY_LENGTH);
-    setValue(trimmed);
-    debouncedSetQuery(trimmed);
-  }
-
-  function handleClear() {
-    setValue("");
-    debouncedSetQuery.cancel();
-    setQueryParam("");
-    inputRef.current?.focus();
-  }
-
   return (
-    <div className="relative min-w-0 flex-1 basis-full sm:basis-0">
-      <Search
-        className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-        aria-hidden
-      />
-      <Input
-        ref={inputRef}
-        className="pr-8 pl-8"
-        aria-label={labels.placeholder}
-        placeholder={labels.placeholder}
-        value={value}
-        onChange={(event) => handleChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") handleClear();
-        }}
-      />
-      {value ? (
-        <button
-          type="button"
-          aria-label={labels.clear}
-          onClick={handleClear}
-          className="text-muted-foreground press hover:text-foreground focus-visible:ring-ring focus-visible:ring-2 hit-area absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition-[color,background-color,border-color,transform] outline-none"
-        >
-          <X className="size-4" />
-        </button>
-      ) : null}
-    </div>
+    <PageQuerySearchField
+      inHeader
+      placeholder={labels.placeholder}
+      clearLabel={labels.clear}
+      startTransition={startTransition}
+      maxLength={MAX_QUERY_LENGTH}
+    />
   );
 }

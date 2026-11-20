@@ -22,3 +22,8 @@ export function deduplicateQueryValues<T extends string>(
 
   return Array.from(new Set(values));
 }
+
+/** Treat SQL LIKE wildcards as literal text in a user search. */
+export function escapeLikeText(search: string): string {
+  return search.replace(/[\\%_]/g, (match) => `\\${match}`);
+}

@@ -1,5 +1,5 @@
 import type { Coworker } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -104,6 +104,30 @@ describe("CoworkerGallerySection chat CTA", () => {
     openCoworkerRoomMock.mockReset();
     handleOpenWithMock.mockReset();
   });
+
+  it.each([{ metaKey: true }, { ctrlKey: true }])(
+    "focuses the gallery search on entry and on the find shortcut, %o",
+    async (modifier) => {
+      render(
+        <nav>
+          <a href="/agents">Agents</a>
+        </nav>,
+      );
+      const opener = screen.getByRole("link", { name: "Agents" });
+      await userEvent.tab();
+      expect(opener).toHaveFocus();
+      render(
+        <OrganizationSeatContext value={true}>
+          <CoworkerGallerySection coworkers={[makeCoworker()]} />
+        </OrganizationSeatContext>,
+      );
+      const field = screen.getByRole("textbox", { name: "searchHint" });
+      expect(field).toHaveFocus();
+      opener.focus();
+      fireEvent.keyDown(window, { key: "f", ...modifier });
+      expect(field).toHaveFocus();
+    },
+  );
 
   it("shows Chat with {name} next to Start New Task when coworker can chat", () => {
     render(

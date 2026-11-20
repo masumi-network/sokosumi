@@ -5,10 +5,12 @@ import type {
   SokoBotIntegrations,
 } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Loader2, Search } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { LoadErrorState } from "@/components/common/load-error-state";
+import { PageListSearchContext } from "@/components/page-list-search";
+import { PageSearchField } from "@/components/page-search-field";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +23,6 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
@@ -115,9 +116,15 @@ export function ToolConnectors({
   const now = useNow({ updateInterval: 60_000 });
   const { busy, connect, disconnect } = useIntegrationActions();
   // A connect link's search obeys the same limit as a typed one.
-  const [query, setQuery] = useState(() =>
-    (focusProvider ?? "").slice(0, SEARCH_MAX_LENGTH),
-  );
+  const linkedQuery = (focusProvider ?? "").slice(0, SEARCH_MAX_LENGTH);
+  const [localQuery, setLocalQuery] = useState(linkedQuery);
+  const pageSearch = useContext(PageListSearchContext);
+  const setPageQuery = pageSearch?.setQuery;
+  const query = (pageSearch?.query ?? localQuery).slice(0, SEARCH_MAX_LENGTH);
+  useEffect(() => {
+    if (linkedQuery && !readOnly && integrations.configured)
+      setPageQuery?.(linkedQuery);
+  }, [linkedQuery, readOnly, integrations.configured, setPageQuery]);
   const catalog = useCatalog(query, !readOnly);
   const focused = useRef<HTMLLIElement>(null);
   // A connect link never searches on a read-only bot.
@@ -173,22 +180,13 @@ export function ToolConnectors({
 
   return (
     <div className="space-y-3">
-      {readOnly ? null : (
-        <div className="relative">
-          <Search
-            aria-hidden
-            className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-          />
-          <Input
-            type="search"
-            maxLength={SEARCH_MAX_LENGTH}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("searchPlaceholder")}
-            aria-label={t("searchPlaceholder")}
-            className="ps-9"
-          />
-        </div>
+      {!pageSearch && !readOnly && (
+        <PageSearchField
+          maxLength={SEARCH_MAX_LENGTH}
+          value={localQuery}
+          onValueChange={setLocalQuery}
+          placeholder={t("searchPlaceholder")}
+        />
       )}
       {searching && (catalog.phase !== "done" || !catalog.data?.length) ? (
         <SearchOutcome query={query.trim()} catalog={catalog} />

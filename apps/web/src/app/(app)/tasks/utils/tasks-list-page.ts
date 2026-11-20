@@ -32,6 +32,7 @@ interface GetTasksListPageParams {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  search?: string;
   tag?: string;
   stuck?: boolean;
   needsMe?: boolean;
@@ -58,6 +59,7 @@ export async function getTasksListPage({
   status,
   projectId,
   visibility,
+  search,
   tag,
   stuck = false,
   needsMe = false,
@@ -83,6 +85,7 @@ export async function getTasksListPage({
     return { tasks: [], nextCursor: null, total: 0 };
   }
   const result = await taskService.listTasks({
+    search,
     status: statuses ?? undefined,
     scope: tasksQueryScope(scope, { needsMe, mentions }),
     ...(mentions ? { unansweredMention: true } : {}),

@@ -36,8 +36,8 @@ vi.mock("next/headers", () => ({ cookies: async () => new Map() }));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 vi.mock("next-intl/server", () => ({
   getLocale: m.locale,
-  getTranslations: async () =>
-    createTranslator({ locale: "en", messages, namespace: "App.Seo" }),
+  getTranslations: async (namespace: "App.Seo" | "App.PageSearch") =>
+    createTranslator({ locale: "en", messages, namespace }),
 }));
 vi.mock("@/lib/services/seo.service", () => ({
   seoService: { listAudits: m.listAudits, getWorkspace: m.getWorkspace },
@@ -139,6 +139,43 @@ describe("native SEO audit entry", () => {
     });
     expect(m.getWorkspace).not.toHaveBeenCalled();
     expect(m.coworkers).not.toHaveBeenCalled();
+  });
+
+  it("finds archived reports across pages when search starts from a later page", async () => {
+    const audit = (id: string, name: string) => ({
+      id,
+      name,
+      projectId: SEO_TEST_PROJECT,
+      pageCount: 1,
+      createdAt: new Date("2026-01-02T12:00:00Z"),
+    });
+    m.listAudits
+      .mockResolvedValueOnce({
+        audits: [audit("unrelated", "Unrelated report")],
+        pagination: { nextCursor: "second" },
+      })
+      .mockResolvedValueOnce({
+        audits: [audit("matching", "Launch pages")],
+        pagination: { nextCursor: null },
+      });
+    await show({
+      view: "archived",
+      projectId: SEO_TEST_PROJECT,
+      cursor: "previous",
+      q: "Launch",
+    });
+    expect(screen.getByRole("heading", { name: "Launch pages" })).toBeVisible();
+    expect(screen.queryByText("Unrelated report")).toBeNull();
+    expect(
+      m.listAudits.mock.calls.map(([input]) => [
+        input.cursor,
+        input.projectId,
+        input.status,
+      ]),
+    ).toEqual([
+      [undefined, SEO_TEST_PROJECT, "archived"],
+      ["second", SEO_TEST_PROJECT, "archived"],
+    ]);
   });
 
   it("reads archived reports in the chosen project and keeps the cursor in the archive", async () => {

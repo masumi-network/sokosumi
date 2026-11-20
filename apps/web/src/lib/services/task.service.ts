@@ -32,6 +32,7 @@ interface ListTasksParams {
   workspaceTagId?: string;
   topicTagId?: TaskTagId;
   q?: string;
+  search?: string;
   scope?: "workspace" | "owned" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
@@ -183,6 +184,7 @@ export const taskService = (() => {
         ? { unansweredMention: "true" as const }
         : {}),
       q: params.q,
+      search: params.search,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
       cursor: params.cursor ?? undefined,

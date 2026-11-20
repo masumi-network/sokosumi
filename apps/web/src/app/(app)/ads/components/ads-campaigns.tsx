@@ -2,9 +2,9 @@ import type { AdCampaign, ProjectAdProvider } from "@sokosumi/core-client";
 import { Megaphone } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { campaignDetailsHref, type RangeParam } from "@/app/ads/ads-query";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchRows } from "@/components/page-list-search";
 import { Badge } from "@/components/ui/badge";
 import {
   HOLDER_CLASS,
@@ -128,86 +128,96 @@ export async function AdsCampaigns({
       data-testid="ads-campaigns"
     >
       <ul className="flex flex-col gap-2">
-        {campaigns.map((campaign) => {
-          const linked = provider === "google_ads";
-          const objectiveAndBudget = summary(campaign);
-          return (
-            <li
-              key={campaign.id}
-              className={cn(
-                HOLDER_ITEM_CLASS,
-                linked && HOLDER_ITEM_HOVER_CLASS,
-                "content-in relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 p-3 transition-colors lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:gap-x-6",
-                linked && "press",
-              )}
-              data-testid="ads-campaign-row"
-            >
-              <div className="col-start-1 row-start-1 min-w-0">
-                <div className="flex min-w-0 items-center gap-2">
-                  {linked ? (
-                    <Link
-                      className="text-foreground focus-visible:after:ring-ring truncate text-sm font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2"
-                      href={campaignDetailsHref(
-                        projectId,
-                        accountId,
-                        campaign.id,
-                        range,
-                      )}
-                    >
-                      {campaign.name}
-                    </Link>
-                  ) : (
-                    <p className="text-foreground truncate text-sm font-medium">
-                      {campaign.name}
-                    </p>
+        <PageSearchRows
+          rows={campaigns.map((campaign) => {
+            const linked = provider === "google_ads";
+            const objectiveAndBudget = summary(campaign);
+            return {
+              primary: [campaign.name, campaign.id],
+              secondary: [
+                objectiveAndBudget,
+                t(`status.${campaign.status}`),
+                provider,
+              ],
+              content: (
+                <li
+                  key={campaign.id}
+                  className={cn(
+                    HOLDER_ITEM_CLASS,
+                    linked && HOLDER_ITEM_HOVER_CLASS,
+                    "content-in relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 p-3 transition-colors lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:gap-x-6",
+                    linked && "press",
                   )}
-                  <Badge
-                    className="rounded-sm"
-                    variant={
-                      campaign.status === "ACTIVE" ? "secondary" : "outline"
-                    }
-                  >
-                    {t(`status.${campaign.status}`)}
-                  </Badge>
-                </div>
-                {objectiveAndBudget ? (
-                  <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
-                    {objectiveAndBudget}
-                  </p>
-                ) : null}
-              </div>
-              <dl className="col-span-2 row-start-2 grid grid-cols-3 gap-x-4 gap-y-2 sm:grid-cols-6 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:flex lg:gap-6">
-                {METRICS.map((metric) => (
-                  <div
-                    key={metric}
-                    className={cn(
-                      "flex min-w-0 flex-col gap-0.5 lg:w-20 lg:items-end",
-                      WIDE_ONLY_METRICS.has(metric) && "hidden sm:flex",
-                    )}
-                  >
-                    <dt className="text-muted-foreground text-xs">
-                      {t(`columns.${metric}`)}
-                    </dt>
-                    <dd className="truncate text-sm tabular-nums">
-                      {figures[metric](campaign)}
-                    </dd>
+                  data-testid="ads-campaign-row"
+                >
+                  <div className="col-start-1 row-start-1 min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {linked ? (
+                        <Link
+                          className="text-foreground focus-visible:after:ring-ring truncate text-sm font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2"
+                          href={campaignDetailsHref(
+                            projectId,
+                            accountId,
+                            campaign.id,
+                            range,
+                          )}
+                        >
+                          {campaign.name}
+                        </Link>
+                      ) : (
+                        <p className="text-foreground truncate text-sm font-medium">
+                          {campaign.name}
+                        </p>
+                      )}
+                      <Badge
+                        className="rounded-sm"
+                        variant={
+                          campaign.status === "ACTIVE" ? "secondary" : "outline"
+                        }
+                      >
+                        {t(`status.${campaign.status}`)}
+                      </Badge>
+                    </div>
+                    {objectiveAndBudget ? (
+                      <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
+                        {objectiveAndBudget}
+                      </p>
+                    ) : null}
                   </div>
-                ))}
-              </dl>
-              {readOnly ? null : (
-                <div className="relative z-10 col-start-2 row-start-1 lg:col-start-3">
-                  <AdsCampaignActions
-                    accountId={accountId}
-                    campaign={campaign}
-                    currency={currency}
-                    projectId={projectId}
-                    provider={provider}
-                  />
-                </div>
-              )}
-            </li>
-          );
-        })}
+                  <dl className="col-span-2 row-start-2 grid grid-cols-3 gap-x-4 gap-y-2 sm:grid-cols-6 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:flex lg:gap-6">
+                    {METRICS.map((metric) => (
+                      <div
+                        key={metric}
+                        className={cn(
+                          "flex min-w-0 flex-col gap-0.5 lg:w-20 lg:items-end",
+                          WIDE_ONLY_METRICS.has(metric) && "hidden sm:flex",
+                        )}
+                      >
+                        <dt className="text-muted-foreground text-xs">
+                          {t(`columns.${metric}`)}
+                        </dt>
+                        <dd className="truncate text-sm tabular-nums">
+                          {figures[metric](campaign)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {readOnly ? null : (
+                    <div className="relative z-10 col-start-2 row-start-1 lg:col-start-3">
+                      <AdsCampaignActions
+                        accountId={accountId}
+                        campaign={campaign}
+                        currency={currency}
+                        projectId={projectId}
+                        provider={provider}
+                      />
+                    </div>
+                  )}
+                </li>
+              ),
+            };
+          })}
+        />
       </ul>
     </section>
   );

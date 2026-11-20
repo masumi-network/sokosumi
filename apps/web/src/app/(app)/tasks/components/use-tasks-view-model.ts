@@ -201,7 +201,10 @@ export function useTasksViewModel({
   // Needs me shows only Tasks that wait for a person, and a new Task does not.
   // Mentions shows only Tasks with a mention, and a new Task has none.
   const shownItems =
-    routeFilters.tag || routeFilters.needsMe || routeFilters.mentions
+    routeFilters.search ||
+    routeFilters.tag ||
+    routeFilters.needsMe ||
+    routeFilters.mentions
       ? items
       : itemsWithPending;
   const columnCursorByIdRef = useRef(columnCursorById);
@@ -306,6 +309,7 @@ export function useTasksViewModel({
       // reader may have answered.
       keepLocalOnlyTasks:
         !isListView &&
+        !initialFilters.search &&
         !initialFilters.tag &&
         !initialFilters.needsMe &&
         !initialFilters.mentions,
@@ -328,6 +332,7 @@ export function useTasksViewModel({
   }, [
     columns,
     defaultViewMode,
+    initialFilters.search,
     initialFilters.tag,
     initialColumnNextCursorById,
     initialListNextCursor,

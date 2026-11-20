@@ -77,11 +77,10 @@ describe("ProjectsLoadingView", () => {
     expect(browse).not.toHaveClass("border");
     const header = screen.getByTestId("projects-loading-toolbar");
     expect(browse).not.toContainElement(header);
-    // Search fills what the two controls leave, as the live field does.
-    expect(header.querySelector('[data-slot="skeleton"]')).toHaveClass(
-      "h-10",
-      "flex-1",
-    );
+    // Search reserves its desktop width before create in the trailing group.
+    expect(
+      screen.getByTestId("projects-loading-create").previousElementSibling,
+    ).toHaveClass("h-10", "@2xl/page-toolbar:w-64");
 
     const list = browse.lastElementChild;
     for (const token of PROJECTS_BROWSE_LIST_CLASS.split(/\s+/)) {

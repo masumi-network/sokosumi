@@ -4,14 +4,27 @@ import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useOptimistic, useRef, useState, useTransition } from "react";
+import { parseAsString, useQueryState } from "nuqs";
+import {
+  useEffect,
+  useEffectEvent,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
-import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
+import {
+  taskScheduleAssigneeId,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
 import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULE_STATE_PARAM,
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
@@ -32,6 +45,7 @@ import {
   serializeSchedulesViewModeCookie,
 } from "@/lib/ui-preferences/schedules-view-mode";
 import { cn } from "@/lib/utils";
+import { rankPageItems } from "@/lib/utils/page-search";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskScheduleRow } from "./task-schedule-row";
 
@@ -88,6 +102,9 @@ export function TaskSchedulesView({
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const formatter = useFormatter();
+  const tSearch = useTranslations("App.PageSearch");
+  const [query, setQuery] = useQueryState("q", parseAsString.withDefault(""));
+  const searching = Boolean(query.trim());
   const [viewMode, setViewMode] = useState(defaultViewMode);
   const router = useRouter();
   const pathname = usePathname();
@@ -108,14 +125,17 @@ export function TaskSchedulesView({
   function handleStateChange(next: string): string {
     showAllDestination = null;
     const params = new URLSearchParams(searchParams.toString());
+    // Preserve the latest keystroke even if the shallow URL update is pending.
+    if (query) params.set("q", query);
+    else params.delete("q");
     const nextState = parseTaskScheduleStateFilter(next);
     if (nextState) {
       params.set(TASK_SCHEDULE_STATE_PARAM, nextState);
     } else {
       params.delete(TASK_SCHEDULE_STATE_PARAM);
     }
-    const query = params.toString();
-    const href = query ? `${pathname}?${query}` : pathname;
+    const search = params.toString();
+    const href = search ? `${pathname}?${search}` : pathname;
     startFiltering(() => {
       setShownState(nextState);
       router.replace(href);
@@ -172,27 +192,48 @@ export function TaskSchedulesView({
   }
 
   // A refresh can bring back rows a "Load more" already appended.
-  const rows = [
+  const loaded = [
     ...schedules,
     ...additionalPage.schedules.filter(
       (extra) => !schedules.some((row) => row.id === extra.id),
     ),
   ];
 
+  const rows = rankPageItems(loaded, query, (schedule) => ({
+    primary: [schedule.name],
+    secondary: [
+      schedule.description,
+      t(`state.${schedule.state}`),
+      projectOptions.find((project) => project.id === schedule.projectId)?.name,
+      assigneeDisplayOptions.find(
+        (person) => person.id === taskScheduleAssigneeId(schedule),
+      )?.name,
+    ],
+  }));
+  const searchNextPage = useEffectEvent(handleLoadMore);
+  const searchCursor =
+    searching && !hasFailed && !isLoadingMore && !isRefreshing
+      ? additionalPage.nextCursor
+      : null;
+  useEffect(() => {
+    if (searchCursor) searchNextPage();
+  }, [searchCursor]);
+
   const shownValue = shownState ?? ALL_STATES;
   // The first-use text stays for a workspace with no schedules at all.
   const otherStates = otherStateCounts.filter(({ count }) => count > 0);
   const isFilteredEmpty =
-    rows.length === 0 && selectedState !== null && otherStates.length > 0;
+    loaded.length === 0 && selectedState !== null && otherStates.length > 0;
 
   useLoadWhenVisible(boundaryRef, {
     armed:
+      !searching &&
       Boolean(additionalPage.nextCursor) &&
       !isLoadingMore &&
       !isRefreshing &&
       !hasFailed,
     // A new last row means a moved boundary, which asks for the next page.
-    boundaryKey: rows.at(-1)?.id ?? "",
+    boundaryKey: loaded.at(-1)?.id ?? "",
     onVisible: handleLoadMore,
   });
 
@@ -202,7 +243,7 @@ export function TaskSchedulesView({
       onValueChange={handleStateChange}
       value={shownValue}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
         <TabsList
           aria-label={t("stateFilter")}
           className={cn(
@@ -227,7 +268,14 @@ export function TaskSchedulesView({
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <PageSearchActions>
+          <PageSearchField
+            inHeader
+            placeholder={tSearch("schedules")}
+            value={query}
+            onValueChange={setQuery}
+          />
+
           <ListGridViewSwitch
             value={viewMode}
             data-testid="schedules-view-mode-switch"
@@ -243,7 +291,7 @@ export function TaskSchedulesView({
               {t("newSchedule")}
             </Button>
           ) : null}
-        </div>
+        </PageSearchActions>
       </div>
 
       {/* One panel, always the shown state's, so the list is its tab's panel. */}
@@ -251,7 +299,18 @@ export function TaskSchedulesView({
         className={cn(HOLDER_CLASS, "flex flex-col gap-4")}
         value={shownValue}
       >
-        {isFilteredEmpty ? (
+        {searching && rows.length === 0 ? (
+          <p
+            className="text-muted-foreground p-4 text-center text-sm"
+            role="status"
+          >
+            {additionalPage.nextCursor
+              ? hasFailed
+                ? null
+                : tSearch("searching")
+              : tSearch("noMatches")}
+          </p>
+        ) : isFilteredEmpty ? (
           <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center gap-2 px-4 py-16 text-center duration-200 ease-out">
             <CalendarSync
               className="text-muted-foreground size-6"

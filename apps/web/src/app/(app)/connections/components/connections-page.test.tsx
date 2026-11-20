@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { err, ok } from "neverthrow";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import englishMessages from "@/../messages/en.json";
 
@@ -65,6 +66,18 @@ vi.mock("./mcp-active-key-view", () => ({
 
 import { ConnectionsPage } from "./connections-page";
 
+async function renderPage() {
+  return render(
+    <NextIntlClientProvider
+      locale="en"
+      timeZone="UTC"
+      messages={englishMessages}
+    >
+      {await ConnectionsPage()}
+    </NextIntlClientProvider>,
+  );
+}
+
 describe("ConnectionsPage", () => {
   beforeEach(() => {
     getSessionMock.mockReset();
@@ -74,7 +87,7 @@ describe("ConnectionsPage", () => {
   });
 
   it("names the page in one top-level heading with a short summary", async () => {
-    render(await ConnectionsPage());
+    await renderPage();
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Connections" }),
@@ -85,7 +98,7 @@ describe("ConnectionsPage", () => {
   });
 
   it("titles the sign-in providers above the account rows", async () => {
-    render(await ConnectionsPage());
+    await renderPage();
 
     const section = screen.getByTestId("connections-sign-in");
     expect(
@@ -102,7 +115,7 @@ describe("ConnectionsPage", () => {
       err({ path: "/auth/list-accounts", reason: "http", status: 500 }),
     );
 
-    render(await ConnectionsPage());
+    await renderPage();
 
     expect(screen.getByTestId("connections-load-error")).toBeVisible();
     expect(screen.getByText("Could not load connected accounts")).toBeVisible();

@@ -6,6 +6,7 @@ import {
   encodeProjectActivityCursor,
   type ProjectActivityRow,
   projectActivityPageQuery,
+  projectCountQuery,
 } from "./project-activity";
 
 vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
@@ -178,6 +179,33 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         expect((await page(human)).slice(0, 3).map((p) => p.id)).toEqual(
           [10, 9, 8].map(id),
         );
+        await tx.$executeRawUnsafe(
+          'ALTER TABLE project ADD COLUMN name text, ADD COLUMN identifier text, ADD COLUMN briefing text, ADD COLUMN "websiteUrl" text',
+        );
+        await tx.$executeRaw`UPDATE project SET name = 'Audit roadmap' WHERE id IN (${id(3)}::uuid, ${id(26)}::uuid)`;
+        await tx.$executeRaw`UPDATE project SET identifier = 'AUDIT' WHERE id = ${id(5)}::uuid`;
+        await tx.$executeRaw`UPDATE project SET briefing = 'Support the audit' WHERE id = ${id(4)}::uuid`;
+        await tx.$executeRaw`UPDATE project SET "websiteUrl" = 'https://audit.example' WHERE id = ${id(6)}::uuid`;
+        const query = {
+          workspaceId,
+          visibility: human,
+          search: "audit",
+          take: 1,
+        };
+        let cursor: string | undefined;
+        const matches: string[] = [];
+        for (let i = 0; i < 5; i++) {
+          const [row] = await tx.$queryRaw<ProjectActivityRow[]>(
+            projectActivityPageQuery({ ...query, cursor }),
+          );
+          if (!row) break;
+          matches.push(row.id);
+          cursor = encodeProjectActivityCursor(workspaceId, row);
+        }
+        expect(matches).toEqual([5, 3, 6, 4].map(id));
+        expect(
+          await tx.$queryRaw(projectCountQuery(workspaceId, query)),
+        ).toEqual([{ count: 4n }]);
         await tx.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
       },
       { timeout: 20000 },

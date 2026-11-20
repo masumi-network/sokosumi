@@ -4,12 +4,13 @@ import type {
   CreateProjectImageJobRequest,
   CreateProjectTalkingVideoJobRequest,
   CreateProjectVideoJobRequest,
+  GetProjectsByIdImageStudioTalkingVideosData,
+  GetProjectsByIdImageStudioTalkingVideosResponses,
   ImageStudioRecentProjects,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
   ProjectTalkingVideoScripts,
-  ProjectTalkingVideos,
   SaveStudioBrandCopy,
   SaveStudioBrandLook,
   SaveStudioPairwisePick,
@@ -20,6 +21,9 @@ import type {
   StudioProductPhoto,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
+
+export type TalkingVideoPage =
+  GetProjectsByIdImageStudioTalkingVideosResponses[200]["data"];
 
 interface StudioStateQuery {
   assetId?: string;
@@ -215,9 +219,16 @@ export const imageStudioService = {
   },
 
   /** Answering this settles finished talking videos, like `getState`. */
-  async getTalkingVideos(projectId: string): Promise<ProjectTalkingVideos> {
-    const result =
-      await coreClient.getProjectsByIdImageStudioTalkingVideos(projectId);
+  async getTalkingVideos(
+    projectId: string,
+    query?: GetProjectsByIdImageStudioTalkingVideosData["query"],
+    signal?: AbortSignal,
+  ): Promise<TalkingVideoPage> {
+    const result = await coreClient.getProjectsByIdImageStudioTalkingVideos(
+      projectId,
+      query,
+      signal,
+    );
     return result.data;
   },
 

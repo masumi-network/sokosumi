@@ -23,7 +23,7 @@ type TemplatePickerProps = {
   onApplyTemplate: (template: StudioTemplate) => void;
 };
 
-function TemplateButton({
+export function TemplateButton({
   template,
   label,
   onApplyTemplate,
