@@ -18,7 +18,7 @@ describe("versionChoices", () => {
     expect(ids).toContain("cmo-v2");
     expect(ids).toContain("cmo-v5");
     expect(ids.every((id) => id.startsWith("cmo-"))).toBe(true);
-    expect(choices.defaultVersionId).toBe("cmo-v7");
+    expect(choices.defaultVersionId).toBe("cmo-v8");
   });
 
   it("offers any other bot only the Soko Bot versions", () => {
