@@ -237,8 +237,12 @@ export async function reviewCmoPlan(
   // Jev reads the first saves only; the rule checks cost nothing and run on
   // a few more, so a late save still hears about a repeated title. Past
   // that the review stops, so a plan that cannot be fixed still ends.
+  // A cmo-v8 Cuso also fixes his repeated claims in short patches after the
+  // month is in: his last saves were past the cap and never heard the list.
   const ruleChecks =
-    2 * budget + (weekly && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0);
+    2 * budget +
+    (weekly && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0) +
+    (rules.claims && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0);
   if (reviewed >= ruleChecks) return null;
   // The plan this turn built on, as it was before the turn touched it.
   const before =
