@@ -9,6 +9,7 @@ import {
   channelLabel,
   connectedNetworks,
   formatDay,
+  isSocialProvider,
   SOCIAL_PROVIDERS,
   waitsForNetwork,
 } from "../../lib/calendar";
@@ -73,24 +74,25 @@ export function ResultsPage({
 }) {
   const weekly = overview.updates.filter((update) => update.kind === "weekly");
   const { posts } = overview;
-  // Pieces Cuso has written that are not Social posts yet count as drafts too.
-  const writtenInPlan = (overview.strategy?.calendar ?? []).filter(
-    (entry) =>
-      entry.draft &&
-      !entry.socialPostId &&
-      entry.status !== "published" &&
-      entry.status !== "skipped",
-  ).length;
   const networks = connectedNetworks(overview.channels);
   const connected = networks.length > 0;
-  // A written post on a network that is not connected is not a draft Cuso
-  // still works on: it waits for the owner to connect that network.
-  const waits = (
-    (overview.approvedStrategy ?? overview.strategy)?.calendar ?? []
-  ).flatMap((entry) => waitsForNetwork(entry, networks) ?? []);
-  const drafts = Math.max(0, posts.draft + writtenInPlan - waits.length);
-  const review = nextWeeklyReview(overview);
   const month = monthEntries(overview);
+  // Drafts are the month's written posts, counted from the plan Cuso makes:
+  // Core's Social post rows also hold placeholders and posts beyond the plan.
+  // A written post on a network that is not connected waits for the owner.
+  const written = month.filter(
+    (entry) =>
+      isSocialProvider(entry.channel.toLowerCase()) &&
+      (entry.status === "draft" ||
+        (Boolean(entry.draft) &&
+          !entry.socialPostId &&
+          entry.status !== "published")),
+  );
+  const waits = written.flatMap(
+    (entry) => waitsForNetwork(entry, networks) ?? [],
+  );
+  const drafts = written.length - waits.length;
+  const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
       <div className="grid4">
