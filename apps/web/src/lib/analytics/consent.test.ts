@@ -4,7 +4,10 @@ import {
   applyConsentMode,
   CONSENT_CHANGE_EVENT,
   CONSENT_COOKIE,
+  CONSENT_MODE_DEFAULTS,
   CONSENT_VERSION,
+  ensureConsentModeDefault,
+  hasConsentModeDefault,
   readConsent,
   writeConsent,
 } from "./consent";
@@ -140,5 +143,86 @@ describe("applyConsentMode", () => {
     window.removeEventListener(CONSENT_CHANGE_EVENT, listener);
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener.mock.calls[0][0].detail).toEqual(choice);
+  });
+});
+
+function toPlainDataLayer(): unknown[] {
+  return (window.dataLayer ?? []).map((entry) =>
+    typeof entry === "object" &&
+    entry !== null &&
+    !Array.isArray(entry) &&
+    "length" in entry
+      ? Array.from(entry as ArrayLike<unknown>)
+      : entry,
+  );
+}
+
+describe("ensureConsentModeDefault", () => {
+  beforeEach(() => {
+    window.dataLayer = undefined;
+    document.cookie = `${CONSENT_COOKIE}=; Max-Age=0; Path=/`;
+  });
+
+  afterEach(() => {
+    window.dataLayer = undefined;
+    document.cookie = `${CONSENT_COOKIE}=; Max-Age=0; Path=/`;
+  });
+
+  it("queues denied defaults and privacy flags when missing", () => {
+    expect(hasConsentModeDefault()).toBe(false);
+    expect(ensureConsentModeDefault()).toBe(true);
+    expect(hasConsentModeDefault()).toBe(true);
+    expect(toPlainDataLayer()).toEqual([
+      ["consent", "default", CONSENT_MODE_DEFAULTS],
+      ["set", "url_passthrough", true],
+      ["set", "ads_data_redaction", true],
+    ]);
+  });
+
+  it("replays a stored cookie choice after the denied default", () => {
+    setLocation("localhost", "http:");
+    writeConsent({ analytics: true, marketing: true });
+
+    expect(ensureConsentModeDefault()).toBe(true);
+    expect(toPlainDataLayer()).toEqual([
+      ["consent", "default", CONSENT_MODE_DEFAULTS],
+      [
+        "consent",
+        "update",
+        {
+          analytics_storage: "granted",
+          ad_storage: "granted",
+          ad_user_data: "granted",
+          ad_personalization: "granted",
+        },
+      ],
+      {
+        event: "consent_status",
+        consent_analytics: "granted",
+        consent_marketing: "granted",
+      },
+      ["set", "url_passthrough", true],
+      ["set", "ads_data_redaction", true],
+    ]);
+  });
+
+  it("is a no-op when consent default was already queued", () => {
+    expect(ensureConsentModeDefault()).toBe(true);
+    const lengthAfterFirst = window.dataLayer?.length;
+
+    expect(ensureConsentModeDefault()).toBe(false);
+    expect(window.dataLayer).toHaveLength(lengthAfterFirst ?? 0);
+  });
+
+  it("still queues the default when only a consent update was pushed earlier", () => {
+    applyConsentMode({
+      necessary: true,
+      analytics: false,
+      marketing: false,
+    });
+    expect(hasConsentModeDefault()).toBe(false);
+
+    expect(ensureConsentModeDefault()).toBe(true);
+    expect(hasConsentModeDefault()).toBe(true);
   });
 });
