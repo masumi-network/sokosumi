@@ -104,6 +104,15 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-auth-session-hydration` (`useAuthSessionHydration`) — before-paint `authClient` session hydration and rendered-user registration
 - `use-pending-navigation` (`usePendingNavigation`) — optimistic destination tracking for in-flight Next.js navigation transitions
 - `use-pending-created-tasks` (`usePendingCreatedTasks`, `withBoardPreview`) — optimistic pending task board preview registration while a task create transition runs
+- `use-document-lang` (`useDocumentLang`) — before-paint `document.documentElement.lang` synchronization with the active locale
+- `use-body-dataset` (`useBodyDataset`) — `document.body.dataset` key/value toggle with unmount and React `<Activity>` cleanup
+- `use-root-css-variable` (`useRootCssVariable`) — `document.documentElement` CSS custom property toggle with unmount and React `<Activity>` cleanup
+- `use-chat-unreads-filter` (`useChatUnreadsFilter`) — browser-remembered Unreads filter cookie store and before-paint boot attribute cleanup
+- `use-dynamic-type-root-cap` (`useDynamicTypeRootCap`) — Apple Dynamic Type root `fontSize` cap on mount, `pageshow`, and `visibilitychange`
+- `use-browser-time-format-sync` (`useBrowserTimeFormatSync`) — browser 12h/24h time-format cookie sync and Auto route refresh
+- `use-browser-time-zone-sync` (`useBrowserTimeZoneSync`) — browser IANA time-zone cookie sync and route refresh
+- `use-canonical-history-path` (`useCanonicalHistoryPath`) — post-render `window.history.replaceState` pathname canonicalization preserving state, search, and hash
+- `use-internal-traffic-gate` (`useInternalTrafficGate`) — internal-traffic cookie sync, `?internal` URL stripping, and Google tags gating
 
 ### React Query in migrations
 

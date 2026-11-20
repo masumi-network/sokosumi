@@ -2,7 +2,7 @@
 
 import { Bot } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
+import { useRootCssVariable } from "@/hooks/effects/use-root-css-variable";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** The chat sheet gives the focus back to this button when it closes. */
@@ -17,13 +17,7 @@ const SEO_TOAST_BOTTOM_OFFSET = "76px";
  */
 export function SeoAskButton({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty("--toast-bottom-offset", SEO_TOAST_BOTTOM_OFFSET);
-    return () => {
-      root.style.removeProperty("--toast-bottom-offset");
-    };
-  }, []);
+  useRootCssVariable("--toast-bottom-offset", SEO_TOAST_BOTTOM_OFFSET);
   return (
     <button
       type="button"
