@@ -1168,6 +1168,9 @@ async function checkAndBrand(
     ? await readReferenceImage(piece.styleReferenceId)
     : null;
   if (!asset || !reference) return "rejected";
+  // One verdict per job: a pass that already judged it is followed.
+  const judged = await jobVerdict(job.id);
+  if (judged === "rejected") return "rejected";
   const made = await readAssetBytes(asset.blobPathname);
   const picture = screen
     ? asset.contentType === "image/png"
@@ -1176,28 +1179,37 @@ async function checkAndBrand(
           .jpeg({ quality: 92 })
           .toBuffer()
     : made;
-  const check = await checkStyledPicture({
-    picture,
-    reference: reference.bytes,
-    headline: piece.headline ?? null,
-    scene: piece.visual ?? null,
-    colours: style.colours,
-    brandPictures: screen ? [screen] : await jobBrandPictures(job.id),
-  });
-  await recordSokoBotCheckUsage({
-    sokoBotId: context.cuso.sokoBotId,
-    key: `cmo-style-check:${job.id}`,
-    costUsd: check.costUsd,
-  });
-  if (!check.passes) {
-    await prisma.projectImageJob.update({
-      where: { id: job.id },
-      data: {
-        error: `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`,
-      },
-      select: { id: true },
+  if (judged !== "passed") {
+    const check = await checkStyledPicture({
+      picture,
+      reference: reference.bytes,
+      headline: piece.headline ?? null,
+      scene: piece.visual ?? null,
+      colours: style.colours,
+      brandPictures: screen ? [screen] : await jobBrandPictures(job.id),
     });
-    return "rejected";
+    await recordSokoBotCheckUsage({
+      sokoBotId: context.cuso.sokoBotId,
+      key: `cmo-style-check:${job.id}`,
+      costUsd: check.costUsd,
+    });
+    // Two passes once checked one job at the same time: the first passed and
+    // put the picture on its post, the second refused and marked the job.
+    // The first verdict stored wins, and a later one follows it.
+    const verdict = check.passes
+      ? CMO_STYLE_PASSED
+      : `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`;
+    const { count } = await prisma.projectImageJob.updateMany({
+      where: { id: job.id, error: null },
+      data: { error: verdict },
+    });
+    const outcome =
+      count > 0
+        ? check.passes
+          ? "passed"
+          : "rejected"
+        : await jobVerdict(job.id);
+    if (outcome !== "passed") return "rejected";
   }
   const logo = await logoForPicture(picture, style);
   if (!logo) {
@@ -1212,6 +1224,19 @@ async function checkAndBrand(
         bytes: await sharp(png).jpeg({ quality: 90 }).toBuffer(),
         contentType: "image/jpeg",
       };
+}
+
+/** The style verdict stored on a job, if a check already judged it. */
+async function jobVerdict(
+  jobId: string,
+): Promise<"passed" | "rejected" | null> {
+  const row = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: { error: true },
+  });
+  if (row?.error === CMO_STYLE_PASSED) return "passed";
+  if (row?.error?.startsWith(CMO_STYLE_REJECTED)) return "rejected";
+  return null;
 }
 
 /** The brand's real screen a styled piece shows, if its visual names one. */
