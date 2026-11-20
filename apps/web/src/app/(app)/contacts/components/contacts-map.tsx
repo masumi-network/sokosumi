@@ -164,6 +164,7 @@ function useOutline(zoomedIn: boolean): Outline {
     enabled: zoomedIn,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
+    networkMode: "always",
     refetchOnWindowFocus: false,
     retry: false,
   });

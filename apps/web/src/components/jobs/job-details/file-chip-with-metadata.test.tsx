@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   fireEvent,
   render as rtlRender,
@@ -236,5 +237,39 @@ describe("FileChipWithMetadata", () => {
         "https://files.example/abcdef012345#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
       );
     });
+  });
+
+  it("retries HEAD metadata on remount after a transient failure instead of caching null", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    fetchMock
+      .mockRejectedValueOnce(new Error("transient network error"))
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: createHeaders({
+          "content-disposition": 'attachment; filename="recovered.pdf"',
+          "content-length": "2048",
+          "content-type": "application/pdf",
+        }),
+      });
+
+    const first = rtlRender(
+      <QueryClientProvider client={client}>
+        <FileChipWithMetadata url="https://files.example/transient.pdf" />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    rtlRender(
+      <QueryClientProvider client={client}>
+        <FileChipWithMetadata url="https://files.example/transient.pdf" />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText("recovered.pdf")).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

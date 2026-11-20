@@ -1,9 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Sheet,
@@ -21,6 +20,11 @@ import {
 } from "@/lib/team-file";
 import { cn } from "@/lib/utils";
 
+type LoadState =
+  | { status: "loading" }
+  | { status: "ready"; team: Team }
+  | { status: "failed" };
+
 /**
  * A `*.team.json` file read from `url` and shown as a team.
  *
@@ -29,34 +33,40 @@ import { cn } from "@/lib/utils";
  */
 export function TeamFileView({ url }: { url: string }) {
   const t = useTranslations("Components.TeamView");
-  const teamQuery = useQuery({
-    queryKey: ["team-file", url],
-    retry: false,
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }): Promise<Team> => {
-      const response = await fetch(url, { signal });
-      if (!response.ok) throw new Error("Failed to fetch team");
-      const json: unknown = await response.json();
-      const team = parseTeam(json);
-      if (!team) throw new Error("Invalid team");
-      return team;
-    },
-  });
+  const [state, setState] = useState<LoadState>({ status: "loading" });
 
-  if (teamQuery.isPending)
+  useEffect(() => {
+    const controller = new AbortController();
+    setState({ status: "loading" });
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to fetch team");
+        return response.json();
+      })
+      .then((json: unknown) => {
+        const team = parseTeam(json);
+        setState(team ? { status: "ready", team } : { status: "failed" });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setState({ status: "failed" });
+      });
+    return () => controller.abort();
+  }, [url]);
+
+  if (state.status === "loading")
     return (
       <div role="status" aria-label={t("loading")}>
         <Skeleton className="h-96 w-full rounded-xl" />
       </div>
     );
-  if (teamQuery.isError)
+  if (state.status === "failed")
     return (
       <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
         <Users aria-hidden className="text-muted-foreground size-9" />
         <p className="text-muted-foreground text-sm">{t("failed")}</p>
       </div>
     );
-  return <TeamView team={teamQuery.data} />;
+  return <TeamView team={state.team} />;
 }
 
 /** One person is a profile page; more are an org chart. */

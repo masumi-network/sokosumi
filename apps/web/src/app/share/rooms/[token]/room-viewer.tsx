@@ -5,7 +5,6 @@ import type {
   DataRoomView,
   DataRoomViewerQuestion,
 } from "@sokosumi/core-client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   ChevronRight,
@@ -17,7 +16,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
@@ -516,47 +515,37 @@ function RoomQuestions({
  * whether they are still loading or failed to, and a way to load them again.
  */
 function useRoomQuestions(url: string) {
-  const queryClient = useQueryClient();
-  const queryKey = ["share-room-questions", url] as const;
-  const isRetryRef = useRef(false);
-  const query = useQuery({
-    queryKey,
-    retry: false,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
-      const useNoStore = isRetryRef.current;
-      isRetryRef.current = false;
-      const response = await fetch(
-        url,
-        useNoStore ? { cache: "no-store", signal } : { signal },
-      );
-      if (!response.ok) throw new Error(`Questions ${response.status}`);
-      return (await response.json()) as DataRoomViewerQuestion[];
-    },
-  });
-
-  const status: "loading" | "ready" | "failed" =
-    query.isPending || query.isFetching
-      ? "loading"
-      : query.isError
-        ? "failed"
-        : "ready";
-
+  const [questions, setQuestions] = useState<DataRoomViewerQuestion[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "failed">(
+    "loading",
+  );
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let current = true;
+    fetch(url, attempt > 0 ? { cache: "no-store" } : undefined)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Questions ${response.status}`);
+        return response.json();
+      })
+      .then((loaded: DataRoomViewerQuestion[]) => {
+        if (!current) return;
+        setQuestions(loaded);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (current) setStatus("failed");
+      });
+    return () => {
+      current = false;
+    };
+  }, [url, attempt]);
   return {
-    questions: query.data ?? [],
-    setQuestions: (
-      updater: (previous: DataRoomViewerQuestion[]) => DataRoomViewerQuestion[],
-    ) => {
-      queryClient.setQueryData<DataRoomViewerQuestion[]>(queryKey, (previous) =>
-        updater(previous ?? []),
-      );
-    },
+    questions,
+    setQuestions,
     status,
     retry: () => {
-      isRetryRef.current = true;
-      void query.refetch();
+      setStatus("loading");
+      setAttempt((count) => count + 1);
     },
   };
 }

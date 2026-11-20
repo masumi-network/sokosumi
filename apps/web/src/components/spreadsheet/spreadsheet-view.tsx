@@ -1,9 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Sheet as SheetIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +12,11 @@ import {
   type Spreadsheet,
 } from "@/lib/spreadsheet-file";
 import { cn } from "@/lib/utils";
+
+type LoadState =
+  | { status: "loading" }
+  | { status: "ready"; sheets: Spreadsheet[] }
+  | { status: "failed" };
 
 /**
  * An `.xlsx` or `.csv` read from `url` and shown as a table.
@@ -28,34 +32,44 @@ export function SpreadsheetFileView({
   kind: "xlsx" | "csv";
 }) {
   const t = useTranslations("Components.SpreadsheetView");
-  const spreadsheetQuery = useQuery({
-    queryKey: ["spreadsheet-file", url, kind],
-    retry: false,
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }): Promise<Spreadsheet[]> => {
-      const response = await fetch(url, { signal });
-      if (!response.ok) throw new Error("Failed to fetch spreadsheet");
-      const bytes = await response.arrayBuffer();
-      const sheets = await readSpreadsheet(kind, bytes);
-      if (sheets.length === 0) throw new Error("Empty spreadsheet");
-      return sheets;
-    },
-  });
+  const [state, setState] = useState<LoadState>({ status: "loading" });
 
-  if (spreadsheetQuery.isPending)
+  useEffect(() => {
+    const controller = new AbortController();
+    setState({ status: "loading" });
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to fetch spreadsheet");
+        return response.arrayBuffer();
+      })
+      .then((bytes) => readSpreadsheet(kind, bytes))
+      .then((sheets) =>
+        setState(
+          sheets.length > 0
+            ? { status: "ready", sheets }
+            : { status: "failed" },
+        ),
+      )
+      .catch(() => {
+        if (!controller.signal.aborted) setState({ status: "failed" });
+      });
+    return () => controller.abort();
+  }, [url, kind]);
+
+  if (state.status === "loading")
     return (
       <div role="status" aria-label={t("loading")}>
         <Skeleton className="h-96 w-full rounded-xl" />
       </div>
     );
-  if (spreadsheetQuery.isError)
+  if (state.status === "failed")
     return (
       <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
         <SheetIcon aria-hidden className="text-muted-foreground size-9" />
         <p className="text-muted-foreground text-sm">{t("failed")}</p>
       </div>
     );
-  return <SpreadsheetView sheets={spreadsheetQuery.data} />;
+  return <SpreadsheetView sheets={state.sheets} />;
 }
 
 export function SpreadsheetView({ sheets }: { sheets: Spreadsheet[] }) {

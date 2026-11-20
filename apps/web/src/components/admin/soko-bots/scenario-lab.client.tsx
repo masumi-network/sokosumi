@@ -335,6 +335,7 @@ export function ScenarioLab({
     retry: false,
     staleTime: 0,
     gcTime: 0,
+    networkMode: "always",
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<History> => {
       const result = await listSokoBotLabRunsAction({});

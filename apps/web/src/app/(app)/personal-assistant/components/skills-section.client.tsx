@@ -66,6 +66,7 @@ export function SkillsSection({
     queryKey: ["personal-assistant", "skills-browse", page],
     queryFn: () => fetchBrowsePage(page),
     retry: false,
+    networkMode: "always",
     refetchOnWindowFocus: false,
   });
   const browse = browseQuery.data ?? null;
@@ -77,6 +78,7 @@ export function SkillsSection({
         queryKey: ["personal-assistant", "skills-browse", nextPage],
         queryFn: () => fetchBrowsePage(nextPage),
         retry: false,
+        networkMode: "always",
       });
       if (requestId === pageRequestRef.current) {
         setPage(nextPage);

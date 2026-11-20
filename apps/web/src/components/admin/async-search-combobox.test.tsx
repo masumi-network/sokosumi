@@ -1,3 +1,4 @@
+import { onlineManager } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -166,5 +167,25 @@ describe("AsyncSearchCombobox", () => {
 
     expect(onChange).toHaveBeenCalledWith(null);
     expect(screen.queryByPlaceholderText("Search items…")).toBeNull();
+  });
+
+  it("fails with the error label instead of pausing when offline", async () => {
+    onlineManager.setOnline(false);
+    try {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      const search = vi.fn(async () => {
+        throw new Error("offline");
+      });
+      renderCombobox({ search });
+
+      await user.click(screen.getByRole("combobox"));
+      await user.type(screen.getByPlaceholderText("Search items…"), "x");
+
+      expect(
+        await screen.findByText("Search failed. Try again."),
+      ).toBeVisible();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 });

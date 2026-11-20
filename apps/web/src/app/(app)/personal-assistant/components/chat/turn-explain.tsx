@@ -389,6 +389,7 @@ export function TurnExplain({
     enabled: open,
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
+    networkMode: "always",
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }): Promise<ChatTurnDetail> => {
       const response = await fetch(

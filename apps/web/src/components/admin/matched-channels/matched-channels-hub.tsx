@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,8 @@ export function MatchedChannelsHub() {
   const router = useRouter();
 
   const [listStatus, setListStatus] = useState<ListStatus>("active");
+  const activeStatusRef = useRef<ListStatus>(listStatus);
+  activeStatusRef.current = listStatus;
   const [channelName, setChannelName] = useState("");
   const [nameDirty, setNameDirty] = useState(false);
   const [channelSlug, setChannelSlug] = useState("");
@@ -43,24 +45,31 @@ export function MatchedChannelsHub() {
     retry: false,
     staleTime: 0,
     gcTime: 0,
+    networkMode: "always",
     refetchOnWindowFocus: false,
-    queryFn: async (): Promise<AdminMatchedChannelOption[]> => {
+    queryFn: async ({ signal }): Promise<AdminMatchedChannelOption[]> => {
+      const requestedStatus = listStatus;
       let result: Awaited<ReturnType<typeof listAdminMatchedChannelsAction>>;
       try {
         result = await listAdminMatchedChannelsAction({
-          input: { status: listStatus },
+          input: { status: requestedStatus },
         });
       } catch {
         // A server action rejects instead of answering with a result when the
         // POST comes back as something other than RSC. The spinner has to stop
         // here too, or the panel loads forever.
-        toast.error(t("listError"));
-        return [];
+        if (activeStatusRef.current === requestedStatus && !signal.aborted) {
+          toast.error(t("listError"));
+        }
+        throw new Error(t("listError"));
       }
 
       if (!result.ok) {
-        toast.error(result.error.message ?? t("listError"));
-        return [];
+        const errorMessage = result.error.message ?? t("listError");
+        if (activeStatusRef.current === requestedStatus && !signal.aborted) {
+          toast.error(errorMessage);
+        }
+        throw new Error(errorMessage);
       }
 
       return result.value;

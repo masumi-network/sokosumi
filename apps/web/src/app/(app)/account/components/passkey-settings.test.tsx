@@ -1,3 +1,4 @@
+import { onlineManager } from "@tanstack/react-query";
 import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
@@ -600,6 +601,20 @@ describe("PasskeySettings", () => {
     expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument();
     expect(screen.queryByText("empty")).not.toBeInTheDocument();
     expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  it("shows the inline retry state instead of pausing when offline", async () => {
+    onlineManager.setOnline(false);
+    try {
+      mockListUserPasskeys.mockRejectedValueOnce(new Error("offline"));
+
+      render(<PasskeySettings accounts={[]} canAddPasskey />);
+
+      expect(await screen.findByText("loadError")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it("falls back to the generic add passkey error when no message is returned", async () => {

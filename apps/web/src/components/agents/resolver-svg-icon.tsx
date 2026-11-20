@@ -12,25 +12,25 @@ async function fetchSvgOrNull(
   url: string,
   signal: AbortSignal,
 ): Promise<string | null> {
-  try {
-    const resp = await fetch(url, {
-      mode: "cors",
-      credentials: "omit",
-      signal,
-    });
+  const resp = await fetch(url, {
+    mode: "cors",
+    credentials: "omit",
+    signal,
+  });
 
-    // Quick header-based detection
-    const contentType = resp.headers.get("content-type")?.toLowerCase() ?? "";
-    const text = await resp.text();
-    const looksLikeSvg = /<svg[\s>]/i.test(text);
-
-    if (contentType.includes("image/svg+xml") || looksLikeSvg) {
-      return text;
-    }
-    return null;
-  } catch {
-    return null;
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch SVG (${resp.status})`);
   }
+
+  // Quick header-based detection
+  const contentType = resp.headers.get("content-type")?.toLowerCase() ?? "";
+  const text = await resp.text();
+  const looksLikeSvg = /<svg[\s>]/i.test(text);
+
+  if (contentType.includes("image/svg+xml") || looksLikeSvg) {
+    return text;
+  }
+  return null;
 }
 
 function sanitizeAndColorize(svg: string): string {
@@ -81,6 +81,7 @@ export function ResolverSVGIcon({
     enabled: Boolean(svgUrl),
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
+    networkMode: "always",
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }): Promise<string | null> => {
       if (!svgUrl) return null;

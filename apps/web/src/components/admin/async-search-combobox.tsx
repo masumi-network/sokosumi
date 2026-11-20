@@ -135,6 +135,7 @@ export function AsyncSearchCombobox<T>({
     retry: false,
     staleTime: 0,
     gcTime: 0,
+    networkMode: "always",
     refetchOnWindowFocus: false,
   });
 

@@ -27,32 +27,29 @@ function useFileHeadMetadata(url: string): FileHeadMetadata | undefined {
     queryKey: ["file-head-metadata", url],
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
+    networkMode: "always",
     refetchOnWindowFocus: false,
-    queryFn: async ({ signal }): Promise<FileHeadMetadata | null> => {
-      try {
-        const response = await fetch(url, {
-          method: "HEAD",
-          signal,
-        });
+    queryFn: async ({ signal }): Promise<FileHeadMetadata> => {
+      const response = await fetch(url, {
+        method: "HEAD",
+        signal,
+      });
 
-        if (!response.ok) {
-          return null;
-        }
-
-        return {
-          contentType: response.headers.get("content-type") ?? undefined,
-          fileName: parseContentDispositionFilename(
-            response.headers.get("content-disposition"),
-          ),
-          size: parseContentLength(response.headers.get("content-length")),
-        };
-      } catch {
-        return null;
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file metadata (${response.status})`);
       }
+
+      return {
+        contentType: response.headers.get("content-type") ?? undefined,
+        fileName: parseContentDispositionFilename(
+          response.headers.get("content-disposition"),
+        ),
+        size: parseContentLength(response.headers.get("content-length")),
+      };
     },
   });
 
-  return data ?? undefined;
+  return data;
 }
 
 export function FileChipWithMetadata({

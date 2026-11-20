@@ -1,4 +1,5 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render as rtlRender, waitFor } from "@testing-library/react";
 import DOMPurify from "dompurify";
 import type { ReactElement } from "react";
@@ -351,5 +352,36 @@ describe("ResolverSVGIcon", () => {
       const image = container.querySelector('[data-testid="fallback-image"]');
       expect(image).toBeInTheDocument();
     });
+  });
+
+  it("retries on remount after a transient fetch failure instead of caching null", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    mockFetch
+      .mockRejectedValueOnce(new Error("Network blip"))
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => "image/svg+xml" },
+        text: async () => "<svg><circle/></svg>",
+      });
+
+    const first = rtlRender(
+      <QueryClientProvider client={client}>
+        <ResolverSVGIcon svgUrl="https://example.com/transient.svg" />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    const second = rtlRender(
+      <QueryClientProvider client={client}>
+        <ResolverSVGIcon svgUrl="https://example.com/transient.svg" />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => {
+      expect(second.container.querySelector("svg")).toBeInTheDocument();
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });

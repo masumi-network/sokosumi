@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ const API_KEYS_QUERY_KEY = ["developer", "api-keys"] as const;
 
 export function useApiKeys(): UseApiKeysReturn {
   const t = useTranslations("App.Account.ApiKeys");
+  const queryClient = useQueryClient();
   const [isManualInitialRefresh, setIsManualInitialRefresh] = useState(false);
   const [optimisticEnabled, setOptimisticEnabled] = useState<
     Record<string, boolean>
@@ -34,6 +35,7 @@ export function useApiKeys(): UseApiKeysReturn {
     retry: false,
     staleTime: 0,
     gcTime: 0,
+    networkMode: "always",
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<ApiKeyRecord[]> => {
       try {
@@ -81,6 +83,7 @@ export function useApiKeys(): UseApiKeysReturn {
         setIsManualInitialRefresh(true);
       }
       try {
+        await queryClient.cancelQueries({ queryKey: API_KEYS_QUERY_KEY });
         await refetchApiKeys();
       } finally {
         if (isInitial) {
@@ -88,7 +91,7 @@ export function useApiKeys(): UseApiKeysReturn {
         }
       }
     },
-    [refetchApiKeys],
+    [queryClient, refetchApiKeys],
   );
 
   const create = useCallback(
@@ -99,13 +102,24 @@ export function useApiKeys(): UseApiKeysReturn {
         });
 
         if (result.data) {
+          const { key: createdKey, ...createdRecord } = result.data;
+          await queryClient.cancelQueries({ queryKey: API_KEYS_QUERY_KEY });
+          queryClient.setQueryData<ApiKeyRecord[]>(
+            API_KEYS_QUERY_KEY,
+            (current) => {
+              const existing = current ?? [];
+              return existing.some((item) => item.id === createdRecord.id)
+                ? existing
+                : [...existing, createdRecord];
+            },
+          );
           toast.success(t("Messages.createSuccess"));
           // Reveal the one-time key immediately; list refresh is non-blocking.
           void refresh();
           return {
             ok: true,
             value: {
-              key: result.data.key,
+              key: createdKey,
             },
           };
         } else {
@@ -130,7 +144,7 @@ export function useApiKeys(): UseApiKeysReturn {
         };
       }
     },
-    [refresh, t],
+    [queryClient, refresh, t],
   );
 
   const update = useCallback(
@@ -159,9 +173,17 @@ export function useApiKeys(): UseApiKeysReturn {
 
         if (result.data) {
           const action = getToggleActionText(!data.enabled);
+          await queryClient.cancelQueries({ queryKey: API_KEYS_QUERY_KEY });
+          queryClient.setQueryData<ApiKeyRecord[]>(
+            API_KEYS_QUERY_KEY,
+            (current) =>
+              (current ?? []).map((key) =>
+                key.id === data.keyId ? { ...key, enabled: data.enabled } : key,
+              ),
+          );
+          clearOptimistic();
           toast.success(t("Messages.updateSuccess", { action }));
           await refresh();
-          clearOptimistic();
           return true;
         } else {
           clearOptimistic();
@@ -176,7 +198,7 @@ export function useApiKeys(): UseApiKeysReturn {
         updatingKeyIds.current.delete(data.keyId);
       }
     },
-    [refresh, t],
+    [queryClient, refresh, t],
   );
 
   const deleteApiKey = useCallback(
@@ -187,6 +209,11 @@ export function useApiKeys(): UseApiKeysReturn {
         });
 
         if (result.data) {
+          await queryClient.cancelQueries({ queryKey: API_KEYS_QUERY_KEY });
+          queryClient.setQueryData<ApiKeyRecord[]>(
+            API_KEYS_QUERY_KEY,
+            (current) => (current ?? []).filter((key) => key.id !== data.keyId),
+          );
           toast.success(t("Messages.deleteSuccess"));
           await refresh();
           return true;
@@ -199,7 +226,7 @@ export function useApiKeys(): UseApiKeysReturn {
         return false;
       }
     },
-    [refresh, t],
+    [queryClient, refresh, t],
   );
 
   return {

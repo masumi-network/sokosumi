@@ -47,6 +47,7 @@ import { useOAuthClients } from "@/app/developer/components/oauth-clients/hooks/
 describe("useOAuthClients", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getClientsMock.mockReset();
     getClientsMock.mockResolvedValue({
       data: [
         {
@@ -777,5 +778,126 @@ describe("useOAuthClients", () => {
     await waitFor(() => {
       expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
+  });
+
+  it("applies successful update and delete to the cache even when the follow-up list fails", async () => {
+    getClientsMock
+      .mockResolvedValueOnce({
+        data: [
+          {
+            client_id: "client_1",
+            client_name: "Test Client",
+            redirect_uris: ["https://example.com/callback"],
+          },
+        ],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "list failed" },
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "list failed" },
+      });
+    updateClientMock.mockResolvedValueOnce({
+      data: {
+        client_id: "client_1",
+        client_name: "Renamed Client",
+        redirect_uris: ["https://example.com/new"],
+      },
+      error: null,
+    });
+    deleteClientMock.mockResolvedValueOnce({ data: {}, error: null });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "Renamed Client",
+        redirectUris: ["https://example.com/new"],
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.clients[0]?.client_name).toBe("Renamed Client");
+    });
+
+    await act(async () => {
+      await result.current.delete({ clientId: "client_1" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.clients).toHaveLength(0);
+    });
+  });
+
+  it("cancels an in-flight pre-write list before refetching after delete", async () => {
+    let finishStaleRefresh: (value: unknown) => void = () => {};
+    let finishPostDeleteRefresh: (value: unknown) => void = () => {};
+    getClientsMock
+      .mockResolvedValueOnce({
+        data: [
+          {
+            client_id: "client_1",
+            client_name: "Test Client",
+            redirect_uris: ["https://example.com/callback"],
+          },
+        ],
+        error: null,
+      })
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (finishStaleRefresh = resolve)),
+      )
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (finishPostDeleteRefresh = resolve)),
+      );
+    deleteClientMock.mockResolvedValueOnce({ data: {}, error: null });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    let staleRefreshPromise: Promise<void> = Promise.resolve();
+    act(() => {
+      staleRefreshPromise = result.current.refresh();
+    });
+    await waitFor(() => {
+      expect(getClientsMock).toHaveBeenCalledTimes(2);
+    });
+
+    let deletePromise: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      deletePromise = result.current.delete({ clientId: "client_1" });
+    });
+
+    await waitFor(() => {
+      expect(getClientsMock).toHaveBeenCalledTimes(3);
+    });
+
+    await act(async () => {
+      finishPostDeleteRefresh({ data: [], error: null });
+      await deletePromise;
+    });
+    await act(async () => {
+      finishStaleRefresh({
+        data: [
+          {
+            client_id: "client_1",
+            client_name: "Test Client",
+            redirect_uris: ["https://example.com/callback"],
+          },
+        ],
+        error: null,
+      });
+      await staleRefreshPromise;
+    });
+
+    expect(result.current.clients).toEqual([]);
   });
 });

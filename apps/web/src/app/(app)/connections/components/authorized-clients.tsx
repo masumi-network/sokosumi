@@ -37,6 +37,7 @@ export function OAuthAuthorizedClients() {
     retry: false,
     staleTime: 0,
     gcTime: 0,
+    networkMode: "always",
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<AuthorizedClientWithDetails[]> => {
       try {
@@ -84,11 +85,12 @@ export function OAuthAuthorizedClients() {
 
   const consents = consentsQuery.data ?? [];
   const loading = consentsQuery.isPending;
-  const error = consentsQuery.isError
-    ? consentsQuery.error instanceof Error
-      ? consentsQuery.error.message
-      : "Unknown error"
-    : null;
+  const error =
+    consentsQuery.isError && consentsQuery.data === undefined
+      ? consentsQuery.error instanceof Error
+        ? consentsQuery.error.message
+        : "Unknown error"
+      : null;
 
   const visible = usePageListSearch(consents, (consent) => ({
     primary: [consent.clientName, consent.clientId],
@@ -101,17 +103,24 @@ export function OAuthAuthorizedClients() {
 
     setRevoking(clientId);
     try {
+      await queryClient.cancelQueries({
+        queryKey: AUTHORIZED_CLIENTS_QUERY_KEY,
+      });
       const result = await revokeOAuthClientAccess(consentId, clientId);
 
       if (!result.ok) {
         throw new Error(result.error.message || t("revokeError"));
       }
 
+      await queryClient.cancelQueries({
+        queryKey: AUTHORIZED_CLIENTS_QUERY_KEY,
+      });
       queryClient.setQueryData<AuthorizedClientWithDetails[]>(
         AUTHORIZED_CLIENTS_QUERY_KEY,
         (current) => (current ?? []).filter((c) => c.clientId !== clientId),
       );
       toast.success(t("revokeSuccess"));
+      await consentsQuery.refetch();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : t("revokeError");
