@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { useEventListener } from "../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../lib/agent";
 import { channelLabel, formatDay, isSocialProvider } from "../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../lib/channels";
@@ -78,21 +79,17 @@ export function EntrySheet({
     };
   }, [entry.id, filed, loadText]);
   const draft = entry.draft ?? filedText;
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-      // The arrows step through pieces, except while typing a change.
-      if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement
-      )
-        return;
-      if (event.key === "ArrowLeft") onPrev?.();
-      if (event.key === "ArrowRight") onNext?.();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, onPrev, onNext]);
+  useEventListener("window", "keydown", (event) => {
+    if (event.key === "Escape") onClose();
+    // The arrows step through pieces, except while typing a change.
+    if (
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLTextAreaElement
+    )
+      return;
+    if (event.key === "ArrowLeft") onPrev?.();
+    if (event.key === "ArrowRight") onNext?.();
+  });
   return (
     <>
       {/* The sheet's Close button is its one control; the scrim only catches clicks. */}
