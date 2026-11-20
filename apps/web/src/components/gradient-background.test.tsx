@@ -1,4 +1,6 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -7,8 +9,43 @@ import {
   gradientLoopAt,
 } from "./gradient-background";
 
+function createMockWebGLContext() {
+  return {
+    VERTEX_SHADER: 0x8b31,
+    FRAGMENT_SHADER: 0x8b30,
+    ARRAY_BUFFER: 0x8892,
+    STATIC_DRAW: 0x88e4,
+    FLOAT: 0x1406,
+    LINK_STATUS: 0x8b82,
+    TRIANGLE_STRIP: 0x0005,
+    createProgram: vi.fn(() => ({})),
+    createShader: vi.fn(() => ({})),
+    shaderSource: vi.fn(),
+    compileShader: vi.fn(),
+    attachShader: vi.fn(),
+    linkProgram: vi.fn(),
+    getProgramParameter: vi.fn(() => true),
+    useProgram: vi.fn(),
+    createBuffer: vi.fn(() => ({})),
+    bindBuffer: vi.fn(),
+    bufferData: vi.fn(),
+    getAttribLocation: vi.fn(() => 0),
+    enableVertexAttribArray: vi.fn(),
+    vertexAttribPointer: vi.fn(),
+    getUniformLocation: vi.fn(() => ({})),
+    uniform1f: vi.fn(),
+    uniform3f: vi.fn(),
+    viewport: vi.fn(),
+    drawArrays: vi.fn(),
+    deleteBuffer: vi.fn(),
+    deleteProgram: vi.fn(),
+    deleteShader: vi.fn(),
+  } as unknown as WebGLRenderingContext;
+}
+
 describe("GradientBackground", () => {
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -19,6 +56,41 @@ describe("GradientBackground", () => {
     expect(box).toHaveAttribute("aria-hidden", "true");
     expect(box).toHaveClass("pointer-events-none", "h-10");
     expect(box?.querySelector("canvas")).toHaveClass("size-full");
+  });
+
+  it("paints a single static frame without animating after SSR hydration under reduced motion", async () => {
+    const gl = createMockWebGLContext();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(gl);
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation(() => 1);
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(prefers-reduced-motion: reduce)",
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      })),
+    );
+
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<GradientBackground />);
+    document.body.append(container);
+
+    let root: Root | null = null;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, <GradientBackground />);
+      });
+      expect(gl.drawArrays).toHaveBeenCalled();
+      expect(rafSpy).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+    }
   });
 });
 

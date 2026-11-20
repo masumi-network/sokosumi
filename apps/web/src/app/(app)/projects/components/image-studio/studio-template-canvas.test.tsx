@@ -337,10 +337,11 @@ describe("Studio template canvas", () => {
   });
 
   it("keeps the wall still when reduced motion is preferred", () => {
-    const preference = window.matchMedia(
-      "(prefers-reduced-motion: no-preference)",
-    );
-    Object.defineProperty(preference, "matches", { value: false });
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    Object.defineProperty(preference, "matches", {
+      configurable: true,
+      value: true,
+    });
     vi.spyOn(window, "matchMedia").mockReturnValue(preference);
     const { row, column } = mount();
     const initial = position(row, column);
