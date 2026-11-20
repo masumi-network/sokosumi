@@ -33,6 +33,7 @@ vi.mock("./data-room-people", () => ({
 vi.mock("./data-room-colleagues", () => ({ DataRoomColleagues: () => null }));
 vi.mock("./data-room-contents", () => ({ DataRoomContents: () => null }));
 vi.mock("./data-room-settings", () => ({ DataRoomSettingsPanel: () => null }));
+vi.mock("./data-room-company", () => ({ DataRoomCompanyPanel: () => null }));
 
 import { DataRoomClient } from "./data-room-client";
 

@@ -5,6 +5,10 @@ import {
   DataRoomStorage,
 } from "@sokosumi/database";
 
+import {
+  dataRoomCompanySchema,
+  readDataRoomCompany,
+} from "@/schemas/data-room-company.schema";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import type { DataRoomTreeRow } from "@/services/data-room-files.service";
@@ -53,6 +57,7 @@ export const dataRoomSchema = z
       .openapi({ description: "The room's address: /share/rooms/{token}" }),
     title: z.union([z.string(), z.null()]),
     welcomeNote: z.union([z.string(), z.null()]),
+    company: z.union([dataRoomCompanySchema, z.null()]),
     logoFileId: z.union([z.string(), z.null()]),
     allowedDomains: z.array(z.string()),
     expiresAt: isoDate,
@@ -74,6 +79,7 @@ export function toDataRoomDto(room: DataRoom): z.infer<typeof dataRoomSchema> {
     token: room.token,
     title: room.title,
     welcomeNote: room.welcomeNote,
+    company: readDataRoomCompany(room.company),
     logoFileId: room.logoFileId,
     allowedDomains: room.allowedDomains,
     expiresAt: room.expiresAt?.toISOString() ?? null,
@@ -199,6 +205,9 @@ export const updateDataRoomRequestSchema = z
     ...storeFields,
     title: z.union([z.string().max(200), z.null()]).optional(),
     welcomeNote: z.union([z.string().max(5_000), z.null()]).optional(),
+    company: z.union([dataRoomCompanySchema, z.null()]).optional().openapi({
+      description: "The room's Company page; null removes it.",
+    }),
     logoFileId: z.union([z.string().uuid(), z.null()]).optional(),
     allowedDomains: z.array(z.string().max(253)).max(50).optional(),
     expiresAt: z.union([z.string().datetime(), z.null()]).optional(),
@@ -390,6 +399,7 @@ export const dataRoomViewSchema = z
     state: z.enum(["in", "out", "closed", "expired"]),
     title: z.string(),
     welcomeNote: z.union([z.string(), z.null()]),
+    company: z.union([dataRoomCompanySchema, z.null()]),
     hasLogo: z.boolean(),
     allowDownload: z.boolean(),
     watermark: z.boolean(),

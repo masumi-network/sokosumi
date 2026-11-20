@@ -4,6 +4,7 @@ import {
   type DataRoomMember,
   DataRoomStorage,
   FileSourceScope,
+  Prisma,
 } from "@sokosumi/database";
 import { normalizeDriveFolderPath } from "@sokosumi/utils";
 
@@ -12,6 +13,10 @@ import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { canSeeDataRoom } from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
 import { toDataRoomViewerQuestionDto } from "@/schemas/data-room.schema";
+import {
+  cleanDataRoomCompany,
+  type DataRoomCompany,
+} from "@/schemas/data-room-company.schema";
 import {
   type DataRoomCaller,
   listDataRooms,
@@ -141,6 +146,7 @@ export async function updateDataRoomSettings(input: {
   roomId: string;
   title?: string | null;
   welcomeNote?: string | null;
+  company?: DataRoomCompany | null;
   logoFileId?: string | null;
   allowedDomains?: string[];
   expiresAt?: Date | null;
@@ -165,6 +171,13 @@ export async function updateDataRoomSettings(input: {
         : {}),
       ...(input.welcomeNote !== undefined
         ? { welcomeNote: input.welcomeNote?.trim() || null }
+        : {}),
+      ...(input.company !== undefined
+        ? {
+            company: input.company
+              ? cleanDataRoomCompany(input.company)
+              : Prisma.DbNull,
+          }
         : {}),
       ...(input.logoFileId !== undefined
         ? { logoFileId: input.logoFileId }

@@ -10672,6 +10672,7 @@
           "activity": "Actividad",
           "questions": "Preguntas",
           "contents": "Contenido",
+          "company": "Empresa",
           "settings": "Ajustes"
         },
         "Colleagues": {
@@ -10752,6 +10753,48 @@
           "save": "Guardar orden",
           "saved": "Orden guardado",
           "saveFailed": "No se pudo guardar el orden"
+        },
+        "Company": {
+          "intro": "Los datos legales de la empresa, en la página Empresa de la sala. Los visitantes pueden leerlos, pero no cambiarlos. Deja vacía la razón social para ocultar la página.",
+          "sections": {
+            "company": "Empresa",
+            "addresses": "Direcciones y contacto",
+            "euRepresentative": "Representante en la UE (RGPD art. 27)",
+            "ukRepresentative": "Representante en el Reino Unido",
+            "taxAndShares": "Impuestos y acciones"
+          },
+          "fields": {
+            "legalName": "Razón social",
+            "legalForm": "Forma jurídica",
+            "jurisdiction": "Jurisdicción",
+            "registrationAuthority": "Registro",
+            "registrationNumber": "Número de registro",
+            "incorporated": "Fecha de constitución",
+            "registeredOffice": "Domicilio social",
+            "registeredAgent": "Agente registrado",
+            "businessAddress": "Dirección comercial",
+            "contactEmail": "Correo de contacto legal",
+            "websites": "Sitios web",
+            "eu": {
+              "name": "Nombre",
+              "email": "Correo",
+              "address": "Dirección postal"
+            },
+            "uk": {
+              "name": "Nombre",
+              "email": "Correo",
+              "address": "Dirección postal"
+            },
+            "vatId": "NIF-IVA",
+            "ein": "EIN",
+            "authorizedShares": "Acciones autorizadas",
+            "parValue": "Valor nominal",
+            "formation": "Documentos de constitución"
+          },
+          "noFolder": "Ninguna carpeta",
+          "save": "Guardar datos de la empresa",
+          "saved": "Datos de la empresa guardados",
+          "saveFailed": "No se pudieron guardar los datos de la empresa"
         },
         "Settings": {
           "titleLabel": "Título",
@@ -14366,7 +14409,28 @@
       "sharedNote": "Respondida para todos en la sala",
       "sharedLoading": "Cargando las respuestas compartidas con todos…",
       "sharedFailed": "No se pudieron cargar las respuestas compartidas con todos. Revisa tu conexión e inténtalo de nuevo.",
-      "retry": "Reintentar"
+      "retry": "Reintentar",
+      "Company": {
+        "title": "Empresa",
+        "legalName": "Razón social",
+        "legalForm": "Forma jurídica",
+        "jurisdiction": "Jurisdicción",
+        "registrationAuthority": "Registro",
+        "registrationNumber": "Número de registro",
+        "incorporated": "Constituida",
+        "registeredOffice": "Domicilio social",
+        "registeredAgent": "Agente registrado",
+        "businessAddress": "Dirección comercial",
+        "contactEmail": "Contacto legal",
+        "euRepresentative": "Representante en la UE (RGPD art. 27)",
+        "ukRepresentative": "Representante en el Reino Unido",
+        "vatId": "NIF-IVA",
+        "ein": "EIN",
+        "authorizedShares": "Acciones autorizadas",
+        "parValue": "Valor nominal",
+        "websites": "{count, plural, one {Sitio web} other {Sitios web}}",
+        "formation": "Documentos de constitución"
+      }
     }
   },
   "NotFound": {

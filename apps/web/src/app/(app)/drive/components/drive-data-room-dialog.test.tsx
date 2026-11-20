@@ -28,6 +28,7 @@ const room = {
   token: "tok",
   title: null,
   welcomeNote: null,
+  company: null,
   logoFileId: null,
   allowedDomains: [],
   expiresAt: null,

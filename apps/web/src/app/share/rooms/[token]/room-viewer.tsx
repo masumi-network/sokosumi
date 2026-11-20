@@ -6,6 +6,7 @@ import type {
   DataRoomViewerQuestion,
 } from "@sokosumi/core-client";
 import {
+  Building2,
   ChevronRight,
   Download,
   File,
@@ -27,6 +28,7 @@ import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { fileTitle, isTeamFileName } from "@/lib/team-file";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { RoomCompany } from "./room-company";
 import { RoomMark } from "./room-mark";
 import { RoomPdf } from "./room-pdf";
 
@@ -37,7 +39,10 @@ const IMAGE_TYPES = new Set([
   "image/webp",
 ]);
 
-/** A signed-in viewer's room: the numbered index, the Welcome page or one file beside it. */
+/** The Company page's place in the index, beside file paths. */
+const COMPANY: unique symbol = Symbol("company");
+
+/** A signed-in viewer's room: the numbered index, the Welcome page, the Company page or one file beside it. */
 export function RoomViewer({
   token,
   room,
@@ -49,7 +54,9 @@ export function RoomViewer({
   const router = useRouter();
   const base = `/share/rooms/${encodeURIComponent(token)}`;
   /** The open file's path; null is the Welcome page. */
-  const [openPath, setOpenPath] = useState<string | null>(null);
+  const [openPath, setOpenPath] = useState<string | null | typeof COMPANY>(
+    null,
+  );
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const open = room.rows.find((row) => row.path === openPath) ?? null;
   const visible = room.rows.filter((row) =>
@@ -68,6 +75,18 @@ export function RoomViewer({
   function openFile(path: string) {
     setExpanded((previous) => new Set([...previous, ...ancestorsOf(path)]));
     setOpenPath(path);
+  }
+
+  /** Shows a folder in the index, open at its first document. */
+  function openFolder(path: string) {
+    const first = room.rows.find(
+      (row) => row.kind === "file" && row.path.startsWith(`${path}/`),
+    );
+    if (first) openFile(first.path);
+    else
+      setExpanded(
+        (previous) => new Set([...previous, ...ancestorsOf(path), path]),
+      );
   }
 
   return (
@@ -117,6 +136,25 @@ export function RoomViewer({
                   {t("welcome")}
                 </button>
               </li>
+              {room.company ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setOpenPath(COMPANY)}
+                    aria-current={openPath === COMPANY || undefined}
+                    className={cn(
+                      "flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm",
+                      openPath === COMPANY ? "bg-muted" : "hover:bg-quinary",
+                    )}
+                  >
+                    <Building2
+                      aria-hidden
+                      className="text-muted-foreground size-4 shrink-0"
+                    />
+                    {t("Company.title")}
+                  </button>
+                </li>
+              ) : null}
               {visible.map((row) => (
                 <RoomRow
                   key={row.path}
@@ -140,6 +178,12 @@ export function RoomViewer({
                 row={open}
                 allowDownload={room.allowDownload}
                 watermark={room.watermark}
+              />
+            ) : openPath === COMPANY && room.company ? (
+              <RoomCompany
+                company={room.company}
+                rows={room.rows}
+                onOpenFolder={openFolder}
               />
             ) : (
               <RoomWelcome base={base} room={room} onOpenFile={openFile} />

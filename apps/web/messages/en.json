@@ -10672,6 +10672,7 @@
           "activity": "Activity",
           "questions": "Questions",
           "contents": "Contents",
+          "company": "Company",
           "settings": "Settings"
         },
         "Colleagues": {
@@ -10752,6 +10753,48 @@
           "save": "Save order",
           "saved": "Order saved",
           "saveFailed": "Could not save the order"
+        },
+        "Company": {
+          "intro": "The company's legal details, on the room's Company page. Viewers can read them but not change them. Leave the legal name empty to hide the page.",
+          "sections": {
+            "company": "Company",
+            "addresses": "Addresses and contact",
+            "euRepresentative": "EU representative (GDPR article 27)",
+            "ukRepresentative": "UK representative",
+            "taxAndShares": "Tax and shares"
+          },
+          "fields": {
+            "legalName": "Legal name",
+            "legalForm": "Legal form",
+            "jurisdiction": "Jurisdiction",
+            "registrationAuthority": "Registration authority",
+            "registrationNumber": "File number",
+            "incorporated": "Date of incorporation",
+            "registeredOffice": "Registered office",
+            "registeredAgent": "Registered agent",
+            "businessAddress": "Business address",
+            "contactEmail": "Legal contact email",
+            "websites": "Websites",
+            "eu": {
+              "name": "Name",
+              "email": "Email",
+              "address": "Postal address"
+            },
+            "uk": {
+              "name": "Name",
+              "email": "Email",
+              "address": "Postal address"
+            },
+            "vatId": "VAT ID",
+            "ein": "EIN",
+            "authorizedShares": "Authorized shares",
+            "parValue": "Par value",
+            "formation": "Formation documents"
+          },
+          "noFolder": "No folder",
+          "save": "Save company details",
+          "saved": "Company details saved",
+          "saveFailed": "Could not save the company details"
         },
         "Settings": {
           "titleLabel": "Title",
@@ -14366,7 +14409,28 @@
       "sharedNote": "Answered for everyone in the room",
       "sharedLoading": "Loading answers shared with everyone…",
       "sharedFailed": "Could not load the answers shared with everyone. Check your connection and try again.",
-      "retry": "Try again"
+      "retry": "Try again",
+      "Company": {
+        "title": "Company",
+        "legalName": "Legal name",
+        "legalForm": "Legal form",
+        "jurisdiction": "Jurisdiction",
+        "registrationAuthority": "Registration authority",
+        "registrationNumber": "File number",
+        "incorporated": "Incorporated",
+        "registeredOffice": "Registered office",
+        "registeredAgent": "Registered agent",
+        "businessAddress": "Business address",
+        "contactEmail": "Legal contact",
+        "euRepresentative": "EU representative (GDPR article 27)",
+        "ukRepresentative": "UK representative",
+        "vatId": "VAT ID",
+        "ein": "EIN",
+        "authorizedShares": "Authorized shares",
+        "parValue": "Par value",
+        "websites": "{count, plural, one {Website} other {Websites}}",
+        "formation": "Formation documents"
+      }
     }
   },
   "NotFound": {

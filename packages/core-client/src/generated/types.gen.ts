@@ -4911,6 +4911,7 @@ export type DataRoom = {
     token: string;
     title: string | null;
     welcomeNote: string | null;
+    company: DataRoomCompany | null;
     logoFileId: string | null;
     allowedDomains: Array<string>;
     expiresAt: string | null;
@@ -4919,6 +4920,42 @@ export type DataRoom = {
     notifyOnFirstVisit: boolean;
     createdByUserId: string;
     createdAt: string;
+};
+
+export type DataRoomCompany = {
+    legalName: string;
+    legalForm?: string;
+    jurisdiction?: string;
+    registrationAuthority?: string;
+    registrationNumber?: string;
+    /**
+     * When it was formed, as the owner writes it, e.g. "2 November 2026".
+     */
+    incorporated?: string;
+    registeredOffice?: string;
+    registeredAgent?: string;
+    businessAddress?: string;
+    contactEmail?: string;
+    euRepresentative?: DataRoomCompanyRepresentative;
+    ukRepresentative?: DataRoomCompanyRepresentative;
+    vatId?: string;
+    ein?: string;
+    authorizedShares?: string;
+    parValue?: string;
+    websites?: Array<string>;
+    /**
+     * Folder of the formation documents, relative to the room, e.g. "Legal/Formation".
+     */
+    formationPath?: string;
+};
+
+/**
+ * GDPR Art. 27 representative in the EU.
+ */
+export type DataRoomCompanyRepresentative = {
+    name?: string;
+    email?: string;
+    address?: string;
 };
 
 export type CreateDataRoomRequest = {
@@ -5016,6 +5053,10 @@ export type UpdateDataRoomRequest = {
     organizationId?: string;
     title?: string | null;
     welcomeNote?: string | null;
+    /**
+     * The room's Company page; null removes it.
+     */
+    company?: DataRoomCompany | null;
     logoFileId?: string | null;
     allowedDomains?: Array<string>;
     expiresAt?: Date | null;
@@ -13257,6 +13298,7 @@ export type DataRoomView = {
     state: 'in' | 'out' | 'closed' | 'expired';
     title: string;
     welcomeNote: string | null;
+    company: DataRoomCompany | null;
     hasLogo: boolean;
     allowDownload: boolean;
     watermark: boolean;
