@@ -159,6 +159,10 @@ describe("seoLead", () => {
     expect(seoLead(seo, BERLIN, NOW).kicker).toMatch(
       /^SEO · audit of acme\.io, /,
     );
+    // The line speaks of the changes, never "each one" after the checks.
+    expect(seoLead(seo, BERLIN, NOW).line).toMatch(
+      /checks passed\. (The change|Each change) below comes with the exact new text to copy\.$/,
+    );
   });
 
   it("says nothing is to change, and when the first audit runs", () => {

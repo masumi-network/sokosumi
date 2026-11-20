@@ -156,8 +156,9 @@ function NeedsYouList({
   );
 }
 
-/** Posts a day shows before "+N more". */
+/** Posts a day shows before "+N more"; two on a short window. */
 const DAY_SHOWS = 3;
+const SHORT_SHOWS = 2;
 
 /**
  * Seven days, Monday first; today stands on Iris. A day counts its posts per
@@ -213,11 +214,12 @@ export function WeekStrip({
               <>
                 <NetworkCounts posts={posts} />
                 <span className="week-posts">
-                  {shown.map((entry) => (
+                  {shown.map((entry, index) => (
                     <button
                       key={entry.id}
                       type="button"
-                      className={`week-post net-${channelTone(entry.channel)}`}
+                      // A short window shows two a day; the third gives way.
+                      className={`week-post net-${channelTone(entry.channel)}${!isOpen && index === SHORT_SHOWS ? " week-post-extra" : ""}`}
                       onClick={() => openEntry(entry.id)}
                       aria-label={`${channelLabel(entry.channel)} ${formatName(entry.channel, entry.format)}${entry.time ? ` at ${entry.time}` : ""}${entry.status === "published" ? ", out" : ""}: ${entry.title}`}
                     >
@@ -229,13 +231,20 @@ export function WeekStrip({
                     </button>
                   ))}
                 </span>
-                {more > 0 ? (
+                {!isOpen && posts.length > SHORT_SHOWS ? (
                   <button
                     type="button"
-                    className="week-more"
+                    className={
+                      more > 0 ? "week-more" : "week-more week-more-short"
+                    }
                     onClick={() => setOpenDay(day)}
                   >
-                    +{more} more
+                    {more > 0 ? (
+                      <span className="more-wide">+{more} more</span>
+                    ) : null}
+                    <span className="more-short">
+                      +{posts.length - SHORT_SHOWS} more
+                    </span>
                   </button>
                 ) : null}
               </>
