@@ -1,9 +1,9 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
+import { useRouteNoticeToast } from "@/hooks/effects/use-route-notice-toast";
 import {
   BILLING_PORTAL_ERROR_PARAM,
   BILLING_PORTAL_ERROR_UNAUTHORIZED,
@@ -18,34 +18,32 @@ function BillingPortalErrorToastContent({
   generalMessage,
   unauthorizedMessage,
 }: BillingPortalErrorToastProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const hasHandledRef = useRef(false);
+  const errorCode = searchParams.get(BILLING_PORTAL_ERROR_PARAM);
 
-  useEffect(() => {
-    if (hasHandledRef.current) {
-      return;
-    }
-
-    const errorCode = searchParams.get(BILLING_PORTAL_ERROR_PARAM);
-    if (!errorCode) {
-      return;
-    }
-
-    hasHandledRef.current = true;
-
-    const message =
-      errorCode === BILLING_PORTAL_ERROR_UNAUTHORIZED && unauthorizedMessage
-        ? unauthorizedMessage
-        : generalMessage;
-    toast.error(message);
-
+  let replaceHref = pathname;
+  if (errorCode) {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete(BILLING_PORTAL_ERROR_PARAM);
     const query = nextParams.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
-  }, [generalMessage, pathname, router, searchParams, unauthorizedMessage]);
+    replaceHref = query ? `${pathname}?${query}` : pathname;
+  }
+
+  useRouteNoticeToast(
+    errorCode
+      ? {
+          variant: "error",
+          message:
+            errorCode === BILLING_PORTAL_ERROR_UNAUTHORIZED &&
+            unauthorizedMessage
+              ? unauthorizedMessage
+              : generalMessage,
+          replaceHref,
+          once: true,
+        }
+      : null,
+  );
 
   return null;
 }

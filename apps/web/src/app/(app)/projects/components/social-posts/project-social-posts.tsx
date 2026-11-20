@@ -25,7 +25,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTimeZone, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringEnum, useQueryState } from "nuqs";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
 import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
@@ -67,6 +67,7 @@ import {
   TabsList,
 } from "@/components/ui/tabs";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
+import { useStateToast } from "@/hooks/effects/use-route-notice-toast";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import type { ActionResultDto } from "@/lib/actions/action-result";
 import {
@@ -351,14 +352,18 @@ export function ProjectSocialPosts({
     setPreviewOpen(Boolean(linkedPost));
   }
 
-  useEffect(() => {
-    // A failed load is not a missing post; the inline error says so instead.
-    if (!requestedPostId || selectedPostId || selectedPostFailed) return;
-    toast.error(t("toasts.missingPost"), {
-      duration: Infinity,
-      closeButton: true,
-    });
-  }, [requestedPostId, selectedPostId, selectedPostFailed, t]);
+  // A failed load is not a missing post; the inline error says so instead.
+  useStateToast(
+    requestedPostId && !selectedPostId && !selectedPostFailed
+      ? {
+          key: requestedPostId,
+          variant: "error",
+          message: t("toasts.missingPost"),
+          duration: Number.POSITIVE_INFINITY,
+          closeButton: true,
+        }
+      : null,
+  );
 
   function handleCloseAutoFocus(event: Event) {
     if (!returnFocus) return;

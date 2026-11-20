@@ -4,9 +4,9 @@ import { RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 import { seoLoadRecovery } from "@/app/seo/seo-load-error-model";
 import { Button } from "@/components/ui/button";
+import { useRouterRefreshWhen } from "@/hooks/effects/use-router-redirect";
 import type { SeoOwner } from "@/lib/seo/owner";
 import { SeoEmpty } from "./seo-shared";
 
@@ -30,9 +30,7 @@ export function SeoPageError({
 }) {
   const t = useTranslations("App.Seo");
   const router = useRouter();
-  useEffect(() => {
-    if (askPage) router.refresh();
-  }, [askPage, router]);
+  useRouterRefreshWhen(askPage);
   const model = seoLoadRecovery({
     status,
     invalidFilters,

@@ -109,6 +109,8 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-auth-session-hydration` (`useAuthSessionHydration`) — before-paint `authClient` session hydration and rendered-user registration
 - `use-pending-navigation` (`usePendingNavigation`) — optimistic destination tracking for in-flight Next.js navigation transitions
 - `use-pending-created-tasks` (`usePendingCreatedTasks`, `withBoardPreview`) — optimistic pending task board preview registration while a task create transition runs
+- `use-router-redirect` (`useRouterRedirect`, `useRouterRefreshWhen`) — client-side Next.js App Router navigation (`replace`/`push`, optional one-shot) and conditional `router.refresh()` driven by state
+- `use-route-notice-toast` (`useRouteNoticeToast`, `useStateToast`) — toast feedback for incoming route notices with `router.replace` URL cleanup, and router-free state-driven toasts
 
 ### React Query in migrations
 

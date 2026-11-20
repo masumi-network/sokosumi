@@ -1,9 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
-import { toast } from "sonner";
+import { useRouteNoticeToast } from "@/hooks/effects/use-route-notice-toast";
 
 /**
  * Soft-land notice when `/chat/rooms/{id}` redirects for missing/forbidden room.
@@ -11,15 +9,17 @@ import { toast } from "sonner";
  */
 export function ChatLandingNotice({ notice }: { notice: string | null }) {
   const t = useTranslations("App.Channels");
-  const router = useRouter();
 
-  useEffect(() => {
-    if (notice !== "room-unavailable") {
-      return;
-    }
-    toast.error(t("roomUnavailable"));
-    router.replace("/", { scroll: false });
-  }, [notice, router, t]);
+  useRouteNoticeToast(
+    notice === "room-unavailable"
+      ? {
+          variant: "error",
+          message: t("roomUnavailable"),
+          replaceHref: "/",
+          replaceScroll: false,
+        }
+      : null,
+  );
 
   return null;
 }
