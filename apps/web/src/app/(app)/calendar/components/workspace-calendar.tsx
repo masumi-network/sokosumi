@@ -98,8 +98,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -604,32 +606,35 @@ function CalendarView({
   view: CalendarView;
 }) {
   const isMobile = useIsMobile();
-  const calendarRef = useRef<HTMLDivElement>(null);
+  const [calendarElement, setCalendarElement] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [fillHeight, setFillHeight] = useState<number | null>(null);
   const socialChips = socialPostVariant !== "compact";
   // Social's week is one row of days; let it reach the bottom of the screen
   // rather than stop under the last chip.
   const fillSpace = socialChips && view === "week" && !isMobile;
-  useEffect(() => {
-    if (!fillSpace || !calendarRef.current) return;
-    const element = calendarRef.current;
-    const measure = () => {
-      setFillHeight(
-        Math.max(
-          320,
-          window.innerHeight - element.getBoundingClientRect().top - 24,
-        ),
-      );
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element.parentElement ?? element);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [fillSpace]);
+  const measureFillHeight = () => {
+    if (!calendarElement) return;
+    setFillHeight(
+      Math.max(
+        320,
+        window.innerHeight - calendarElement.getBoundingClientRect().top - 24,
+      ),
+    );
+  };
+  useResizeObserver(
+    fillSpace && calendarElement
+      ? (calendarElement.parentElement ?? calendarElement)
+      : null,
+    measureFillHeight,
+    { immediate: true },
+  );
+  useEventListener(
+    fillSpace && calendarElement ? "window" : null,
+    "resize",
+    measureFillHeight,
+  );
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
@@ -867,7 +872,7 @@ function CalendarView({
     <>
       <div
         className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
-        ref={calendarRef}
+        ref={setCalendarElement}
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
