@@ -147,7 +147,10 @@ export function CusoStatus({
           alt=""
           width={624}
           height={652}
-          sizes="360px"
+          // He is the page's largest picture on a wide screen; a phone hides
+          // the sidebar and takes the smallest file.
+          sizes="(max-width: 860px) 16px, 360px"
+          preload
         />
       </span>
     </div>
