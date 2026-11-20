@@ -1,6 +1,9 @@
 /** The token a Task Schedule name can hold for its Run's date. */
 export const SCHEDULE_TASK_NAME_DATE_TOKEN = "{date}";
 
+/** Core's Task name limit, in UTF-16 code units like Zod's `.max()`. */
+export const SCHEDULE_TASK_NAME_MAX_LENGTH = 10_000;
+
 /** A date is always YYYY-MM-DD: ten characters. */
 const DATE_LENGTH = 10;
 
@@ -25,7 +28,9 @@ function isoDate(at: Date, timeZone: string): string {
 /**
  * The name of the Task a Task Schedule Run creates: the schedule's name with
  * each `{date}` replaced by the Run's date (YYYY-MM-DD) in the schedule's time
- * zone. An unknown time zone falls back to UTC.
+ * zone. An unknown time zone falls back to UTC. A name saved before its
+ * filled length was checked is cut at the Task name limit, never inside a
+ * character.
  */
 export function fillScheduleTaskName(
   name: string,
@@ -39,7 +44,11 @@ export function fillScheduleTaskName(
   } catch {
     date = isoDate(runAt, "UTC");
   }
-  return name.replaceAll(SCHEDULE_TASK_NAME_DATE_TOKEN, date);
+  const filled = name.replaceAll(SCHEDULE_TASK_NAME_DATE_TOKEN, date);
+  if (filled.length <= SCHEDULE_TASK_NAME_MAX_LENGTH) return filled;
+  const cut = filled.slice(0, SCHEDULE_TASK_NAME_MAX_LENGTH);
+  // Drop a high surrogate whose pair the cut left behind.
+  return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
 }
 
 /** How long the Task name made from this schedule name is, whatever the date. */

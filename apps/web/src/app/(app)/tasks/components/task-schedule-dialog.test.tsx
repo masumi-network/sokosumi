@@ -318,6 +318,57 @@ describe("TaskScheduleDialog", () => {
     );
   });
 
+  it("keeps Core's moved next Run when Custom repeats the same rule", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        name: "Weekly report {date}",
+        nextRunAt: new Date("2030-01-15T07:30:00.000Z"),
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+    const cron = screen.getByLabelText("cron");
+    await user.clear(cron);
+    await user.type(cron, "30 8 * * MON");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "preview: Weekly report 2030-01-15",
+    );
+    await user.click(screen.getByRole("button", { name: "save" }));
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("names the first Task under a new rule as such, since an owed Run may come first", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: { ...SCHEDULE, name: "Weekly report {date}" },
+    });
+
+    await user.click(screen.getByRole("button", { name: "repeats.daily" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /^previewNewRule: Weekly report \d{4}-\d{2}-\d{2}$/,
+    );
+  });
+
+  it("leaves an unchanged name out of the edit", async () => {
+    const user = userEvent.setup();
+    renderDialog({ schedule: SCHEDULE });
+
+    await user.click(screen.getByRole("button", { name: "repeats.daily" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "name",
+    );
+  });
+
   it("shows the assignees supplied by Core", async () => {
     const user = userEvent.setup();
     renderDialog({ coworkerOptions: [COWORKER, SOKO_BOT] });
@@ -647,10 +698,13 @@ describe("TaskScheduleDialog", () => {
       expect.objectContaining({
         scheduleId: SCHEDULE.id,
         expectedRevision: 4,
-        name: "Weekly report",
         description: "**Summarise** the week",
         assigneeId: "cow_1",
       }),
+    );
+    // An unchanged name stays out, so an older over-limit name never blocks.
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "name",
     );
     // An unchanged rule is not replaced, so skipped and moved Runs survive.
     expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(

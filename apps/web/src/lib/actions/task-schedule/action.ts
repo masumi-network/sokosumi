@@ -63,7 +63,9 @@ interface CreateTaskScheduleParameters
 
 interface UpdateTaskScheduleParameters
   extends AuthenticatedRequest,
-    TaskScheduleBlueprintInput {
+    Omit<TaskScheduleBlueprintInput, "name"> {
+  /** Omitted when unchanged. */
+  name?: string;
   scheduleId: string;
   expectedRevision: number;
   /** Omitted when unchanged: a new rule cancels skipped and moved Runs. */

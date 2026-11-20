@@ -257,6 +257,10 @@ function TaskScheduleDialogForm({
     [selection],
   );
   const summary = useWhenSummary(when, selection);
+  // Replacing the rule drops skipped and moved Runs, so an edit that leaves
+  // it alone does not send it; the name preview follows the same decision.
+  const replacesRule =
+    !!schedule && !!rule && hasTaskScheduleChanged(initialSelection, selection);
 
   const assignee = resolveTaskAssigneeFields(
     assigneeValue,
@@ -331,18 +335,17 @@ function TaskScheduleDialogForm({
       projectId,
       ...assignee,
     };
+    // An unchanged name stays out of an edit, so a name saved under older
+    // limits never blocks other changes.
+    const { name: _name, ...unchangedName } = input;
     setIsSaving(true);
     try {
       const result = schedule
         ? await updateTaskSchedule({
-            ...input,
+            ...(input.name === schedule.name ? unchangedName : input),
             scheduleId: schedule.id,
             expectedRevision: schedule.revision,
-            // Replacing the rule drops skipped and moved Runs, so an edit
-            // that leaves it alone does not send it.
-            ...(rule && hasTaskScheduleChanged(initialSelection, selection)
-              ? { rule }
-              : {}),
+            ...(replacesRule && rule ? { rule } : {}),
           })
         : // A create always requires the rule; `rule &&` only narrows it.
           rule &&
@@ -411,15 +414,16 @@ function TaskScheduleDialogForm({
             <ScheduleNameDate
               id={nameHelpId}
               name={name}
-              // Editing only the blueprint: Core's next Run, which a move or
-              // skip may have shifted. A changed rule: its first new Run.
+              // A kept rule: Core's next Run, which a move or skip may have
+              // shifted. A new rule: its first Run, after any Run still owed.
               nextRunAt={
-                schedule && !whenChanged
+                schedule && !replacesRule
                   ? schedule.nextRunAt
                     ? new Date(schedule.nextRunAt)
                     : undefined
                   : summary.nextRunAt
               }
+              newRule={replacesRule}
               timezone={when.timezone}
               onAddDate={() => {
                 // The button goes away once the name holds {date}.
@@ -640,12 +644,14 @@ function ScheduleNameDate({
   id,
   name,
   nextRunAt,
+  newRule,
   timezone,
   onAddDate,
 }: {
   id: string;
   name: string;
   nextRunAt: Date | undefined;
+  newRule: boolean;
   timezone: string;
   onAddDate: () => void;
 }) {
@@ -655,7 +661,7 @@ function ScheduleNameDate({
   let text: string;
   if (!hasDate) text = t("hint", { token });
   else if (nextRunAt)
-    text = t("preview", {
+    text = t(newRule ? "previewNewRule" : "preview", {
       taskName: fillScheduleTaskName(name.trim(), nextRunAt, timezone),
     });
   else text = t("noNext", { token });

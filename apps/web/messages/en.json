@@ -2503,6 +2503,7 @@
             "hint": "Add {token} to give each task its run's date.",
             "add": "Add date",
             "preview": "Next task: {taskName}",
+            "previewNewRule": "First task on the new schedule: {taskName}",
             "noNext": "{token} becomes each run's date."
           },
           "create": "Create schedule",

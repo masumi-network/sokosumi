@@ -2503,6 +2503,7 @@
             "hint": "Añade {token} para que cada tarea lleve la fecha de su ejecución.",
             "add": "Añadir fecha",
             "preview": "Próxima tarea: {taskName}",
+            "previewNewRule": "Primera tarea con la nueva programación: {taskName}",
             "noNext": "{token} se convierte en la fecha de cada ejecución."
           },
           "create": "Crear programación",

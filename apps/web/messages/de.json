@@ -2503,6 +2503,7 @@
             "hint": "Füge {token} hinzu, damit jeder Task das Datum seines Laufs trägt.",
             "add": "Datum hinzufügen",
             "preview": "Nächster Task: {taskName}",
+            "previewNewRule": "Erster Task nach dem neuen Plan: {taskName}",
             "noNext": "{token} wird zum Datum des jeweiligen Laufs."
           },
           "create": "Zeitplan erstellen",

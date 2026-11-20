@@ -6,7 +6,6 @@ import {
   TaskStatus,
 } from "@sokosumi/database";
 import { fillScheduleTaskName } from "@sokosumi/utils";
-import { LIMITS } from "@/config/constants";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { publishTaskEventData } from "@/lib/ably/publish";
@@ -41,11 +40,7 @@ export async function createTaskFromBlueprint(
       organizationId: schedule.organizationId,
       workspaceId: schedule.workspaceId,
       projectId: schedule.projectId,
-      // A name saved before its filled length was checked can pass the limit.
-      name: fillScheduleTaskName(schedule.name, runAt, schedule.timezone).slice(
-        0,
-        LIMITS.NAME_MAX_LENGTH,
-      ),
+      name: fillScheduleTaskName(schedule.name, runAt, schedule.timezone),
       description: schedule.description,
       visibility: schedule.visibility,
       assigneeId: schedule.assigneeId,

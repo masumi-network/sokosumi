@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fillScheduleTaskName,
+  SCHEDULE_TASK_NAME_MAX_LENGTH,
   scheduleTaskNameLength,
 } from "./task-schedule-name.js";
 
@@ -29,6 +30,18 @@ describe("fillScheduleTaskName", () => {
   it("writes a zero-padded YYYY-MM-DD in any locale", () => {
     const runAt = new Date("0987-02-03T12:00:00Z");
     expect(fillScheduleTaskName("{date}", runAt, "UTC")).toBe("0987-02-03");
+  });
+
+  it("cuts an older over-limit name at the Task name limit without splitting a character", () => {
+    const name = `${"a".repeat(9989)}{date}😀`;
+    const filled = fillScheduleTaskName(
+      name,
+      new Date("2026-01-05T09:00:00Z"),
+      "UTC",
+    );
+
+    expect(filled.length).toBeLessThanOrEqual(SCHEDULE_TASK_NAME_MAX_LENGTH);
+    expect(filled).toBe(`${"a".repeat(9989)}2026-01-05`);
   });
 
   it("measures the name a Run's Task gets", () => {

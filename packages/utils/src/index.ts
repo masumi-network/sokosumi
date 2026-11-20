@@ -686,6 +686,7 @@ export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   fillScheduleTaskName,
   SCHEDULE_TASK_NAME_DATE_TOKEN,
+  SCHEDULE_TASK_NAME_MAX_LENGTH,
   scheduleTaskNameLength,
 } from "./task-schedule-name.js";
 export {

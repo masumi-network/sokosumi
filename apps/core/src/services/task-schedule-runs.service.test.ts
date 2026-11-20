@@ -6,7 +6,10 @@ import {
   TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
+import { SCHEDULE_TASK_NAME_MAX_LENGTH } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { LIMITS } from "@/config/constants";
 
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { publishTaskEventData } from "@/lib/ably/publish";
@@ -301,6 +304,10 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     await release();
 
     expect(taskScheduleTestDb.tasks[0]?.name).toHaveLength(10_000);
+  });
+
+  it("caps filled names at the same limit Core's Task names have", () => {
+    expect(SCHEDULE_TASK_NAME_MAX_LENGTH).toBe(LIMITS.NAME_MAX_LENGTH);
   });
 
   it("names a Run now Task after the day it runs, not the next planned Run", async () => {
