@@ -168,6 +168,7 @@ import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-sche
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
+import { useScheduledTimeoutMap } from "@/hooks/effects/use-scheduled-timeout";
 import { useSelectedRoomChannelHealth } from "@/hooks/effects/use-selected-room-channel-health";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import {
@@ -1076,7 +1077,7 @@ function RoomView({
   const [outboundSentTickIds, setOutboundSentTickIds] = useState<
     ReadonlySet<string>
   >(() => new Set());
-  const outboundSentTickTimeoutsRef = useRef(new Map<string, number>());
+  const outboundSentTickTimeouts = useScheduledTimeoutMap<string>();
 
   // Drop classic outbound jobs when leaving a room — shells are wiped and
   // Retry UI is gone (ADR-0004: no outbox across navigation).
@@ -1089,16 +1090,6 @@ function RoomView({
     };
   }, [selectedRoomId, classicChannelRefs, classicThreadRefs]);
 
-  useEffect(() => {
-    const timeouts = outboundSentTickTimeoutsRef.current;
-    return () => {
-      for (const timeoutId of timeouts.values()) {
-        window.clearTimeout(timeoutId);
-      }
-      timeouts.clear();
-    };
-  }, []);
-
   function flashOutboundSentTick(
     messageId: string,
     clientTurnId?: string | null,
@@ -1106,27 +1097,25 @@ function RoomView({
     // Sync registry first — first settled paint must see the check even if
     // the React tick setState commits a frame later (or not at all yet).
     markOutboundSentTick([messageId, clientTurnId]);
-    const existing = outboundSentTickTimeoutsRef.current.get(messageId);
-    if (existing != null) {
-      window.clearTimeout(existing);
-    }
     setOutboundSentTickIds((prev) => {
       const next = new Set(prev);
       next.add(messageId);
       return next;
     });
-    const timeoutId = window.setTimeout(() => {
-      outboundSentTickTimeoutsRef.current.delete(messageId);
-      setOutboundSentTickIds((prev) => {
-        if (!prev.has(messageId)) {
-          return prev;
-        }
-        const next = new Set(prev);
-        next.delete(messageId);
-        return next;
-      });
-    }, OUTBOUND_SENT_TICK_MS);
-    outboundSentTickTimeoutsRef.current.set(messageId, timeoutId);
+    outboundSentTickTimeouts.schedule(
+      messageId,
+      () => {
+        setOutboundSentTickIds((prev) => {
+          if (!prev.has(messageId)) {
+            return prev;
+          }
+          const next = new Set(prev);
+          next.delete(messageId);
+          return next;
+        });
+      },
+      OUTBOUND_SENT_TICK_MS,
+    );
   }
 
   /**

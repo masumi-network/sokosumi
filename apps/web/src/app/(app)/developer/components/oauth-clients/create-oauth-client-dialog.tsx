@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { cn } from "@/lib/utils";
 
 import { ClientSecretField } from "./client-secret-field";
@@ -51,7 +52,7 @@ export function CreateOAuthClientDialog({
   const t = useTranslations("App.Account.OAuthClients");
   const [createdCredentials, setCreatedCredentials] =
     useState<OAuthClientCredentials | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cleanupTimeout = useScheduledTimeout();
 
   const schema = createOAuthClientSchema(t);
 
@@ -62,13 +63,6 @@ export function CreateOAuthClientDialog({
 
   const { isSubmitting } = form.formState;
   const showingCredentials = createdCredentials !== null;
-
-  const clearPendingCleanup = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  };
 
   const resetDialogState = () => {
     setCreatedCredentials(null);
@@ -100,7 +94,7 @@ export function CreateOAuthClientDialog({
     }
 
     onOpenChange(nextOpen);
-    clearPendingCleanup();
+    cleanupTimeout.cancel();
 
     if (nextOpen) {
       // Avoid re-showing prior credentials if reopened during close animation.
@@ -111,19 +105,17 @@ export function CreateOAuthClientDialog({
     // Delay form reset so close animation does not flash the empty form.
     // Credentials are cleared immediately to avoid secret re-display on reopen.
     setCreatedCredentials(null);
-    timeoutRef.current = setTimeout(() => {
+    cleanupTimeout.schedule(() => {
       form.reset();
-      timeoutRef.current = null;
     }, DIALOG_CLEANUP_TIMEOUT);
   };
 
   const handleCredentialsDone = () => {
-    clearPendingCleanup();
+    cleanupTimeout.cancel();
     setCreatedCredentials(null);
     onOpenChange(false);
-    timeoutRef.current = setTimeout(() => {
+    cleanupTimeout.schedule(() => {
       form.reset();
-      timeoutRef.current = null;
     }, DIALOG_CLEANUP_TIMEOUT);
   };
 
@@ -135,12 +127,6 @@ export function CreateOAuthClientDialog({
       toast.error(t("Messages.copyError"));
     }
   };
-
-  useEffect(() => {
-    return () => {
-      clearPendingCleanup();
-    };
-  }, []);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
