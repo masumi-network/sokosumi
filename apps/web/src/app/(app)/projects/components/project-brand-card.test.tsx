@@ -63,6 +63,10 @@ vi.mock("next-intl", () => ({
     ),
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: "viewer-1" } } }),
+}));
+
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
@@ -117,7 +121,7 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
   },
 }));
 
-const FAILURE_KEY = "sokosumi:project-brand-failure:project-1";
+const FAILURE_KEY = "sokosumi:project-brand-failure:viewer-1:project-1";
 
 function generationCallback<T>(name: string) {
   return generationOptions.current?.[name] as (value: T) => void;
@@ -613,7 +617,7 @@ describe("ProjectBrandCard", () => {
       FAILURE_KEY,
       JSON.stringify({
         failedAt: "2026-11-20T23:56:00.000Z",
-        url: "https://bad.invalid/",
+        website: "https://bad.invalid/",
       }),
     );
     renderBrandDashboard({
@@ -650,7 +654,10 @@ describe("ProjectBrandCard", () => {
     );
     expect(
       JSON.parse(window.sessionStorage.getItem(FAILURE_KEY) ?? ""),
-    ).toEqual({ failedAt: expect.any(String), url: "https://bad.invalid/" });
+    ).toEqual({
+      failedAt: expect.any(String),
+      website: "https://bad.invalid/",
+    });
   });
 
   it("clears the failure when a new attempt starts", () => {
@@ -658,7 +665,7 @@ describe("ProjectBrandCard", () => {
       FAILURE_KEY,
       JSON.stringify({
         failedAt: "2026-11-20T23:56:00.000Z",
-        url: "https://bad.invalid/",
+        website: "https://bad.invalid/",
       }),
     );
     renderBrandDashboard({
@@ -680,12 +687,36 @@ describe("ProjectBrandCard", () => {
     expect(window.sessionStorage.getItem(FAILURE_KEY)).toBeNull();
   });
 
+  it("marks the field invalid only while it holds the failed website", async () => {
+    const user = userEvent.setup();
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+    const field = screen.getByRole("textbox", { name: "Project website" });
+    // Restored on load: described, not announced again.
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await user.type(field, "x");
+    expect(field).not.toHaveAttribute("aria-invalid", "true");
+    await user.type(field, "{Backspace}");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+  });
+
   it("ignores a failure for a website the project no longer has", () => {
     window.sessionStorage.setItem(
       FAILURE_KEY,
       JSON.stringify({
         failedAt: "2026-11-20T23:56:00.000Z",
-        url: "https://bad.invalid/",
+        website: "https://bad.invalid/",
       }),
     );
     renderBrandDashboard({

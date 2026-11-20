@@ -1,0 +1,154 @@
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  ProjectBrandCard,
+  ProjectBrandProvider,
+} from "@/app/projects/components/project-brand-card";
+import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
+import {
+  pollDesignMdGeneration,
+  startDesignMdGeneration,
+} from "@/lib/actions/design-md/action";
+
+// The real generation hook and storage between the wizard and the project
+// page; only the server actions are mocked.
+
+vi.mock("@/lib/actions/design-md/action", () => ({
+  finalizeDesignMdGeneration: vi.fn(),
+  pollDesignMdGeneration: vi.fn(),
+  saveDesignMdUpload: vi.fn(),
+  startDesignMdGeneration: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/project/action", () => ({
+  removeProjectDesignMd: vi.fn(),
+  resolveProjectSiteIcon: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { url: null },
+  }),
+  updateProject: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: "viewer-1" } } }),
+}));
+
+vi.mock("next-intl", () => ({
+  useFormatter: () => ({ dateTime: () => "Nov 20, 2026, 11:56 PM" }),
+  useTranslations: () => (key: string) => key,
+}));
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+
+const PROJECT_ID = "project-1";
+const WEBSITE = "https://bad.invalid/";
+const FAILURE_KEY = `sokosumi:project-brand-failure:viewer-1:${PROJECT_ID}`;
+const PENDING_KEY = `sokosumi:project-brand-job:${PROJECT_ID}`;
+
+type PollResult = Awaited<ReturnType<typeof pollDesignMdGeneration>>;
+type StartResult = Awaited<ReturnType<typeof startDesignMdGeneration>>;
+
+const failedPoll = {
+  ok: true,
+  value: { status: "failed", error: "Could not resolve bad.invalid." },
+} as PollResult;
+
+function overview() {
+  return (
+    <ProjectBrandProvider
+      projectId={PROJECT_ID}
+      initialDesignMd={null}
+      websiteUrl={WEBSITE}
+    >
+      <ProjectBrandCard projectId={PROJECT_ID} websiteUrl={WEBSITE} />
+    </ProjectBrandProvider>
+  );
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+describe("project brand generation across surfaces", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.sessionStorage.clear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("shows a wizard failure on the project page without retrying", async () => {
+    vi.mocked(startDesignMdGeneration).mockResolvedValue({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Could not resolve bad.invalid." },
+    } as StartResult);
+
+    const wizard = render(
+      <ProjectBrandSetup
+        projectId={PROJECT_ID}
+        projectName="Launch"
+        websiteUrl={WEBSITE}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText("failed")).toBeTruthy());
+    wizard.unmount();
+
+    render(overview());
+
+    expect(await screen.findByText("brandCard.failed")).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "brandCard.websiteLabel" }),
+    ).toHaveAttribute("aria-invalid", "true");
+    // Restored, not new: shown, not announced again.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(startDesignMdGeneration).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a late poll from a provider that has left", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    window.sessionStorage.setItem(
+      PENDING_KEY,
+      JSON.stringify({ jobId: "job-1", jobToken: "token-1", url: WEBSITE }),
+    );
+    const departedPoll = deferred<PollResult>();
+    vi.mocked(pollDesignMdGeneration)
+      .mockReturnValueOnce(departedPoll.promise)
+      .mockResolvedValueOnce(failedPoll)
+      .mockReturnValue(new Promise(() => {}));
+    vi.mocked(startDesignMdGeneration).mockResolvedValue({
+      ok: true,
+      value: { kind: "queued", jobId: "job-2", jobToken: "token-2" },
+    } as StartResult);
+
+    // The overview resumes the job and leaves while its poll is out.
+    const departed = render(overview());
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(pollDesignMdGeneration).toHaveBeenCalledOnce();
+    departed.unmount();
+
+    // The DESIGN.md page resumes the same job, sees it fail, and retries.
+    render(overview());
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(await screen.findByText("brandCard.failed")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "brandCard.generate" }),
+    );
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(PENDING_KEY)).toContain("job-2"),
+    );
+    expect(window.sessionStorage.getItem(FAILURE_KEY)).toBeNull();
+
+    // The departed overview's poll answers late.
+    await act(async () => departedPoll.resolve(failedPoll));
+
+    expect(window.sessionStorage.getItem(FAILURE_KEY)).toBeNull();
+    expect(window.sessionStorage.getItem(PENDING_KEY)).toContain("job-2");
+    expect(screen.getByText("brandCard.generating")).toBeInTheDocument();
+  });
+});

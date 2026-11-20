@@ -6,10 +6,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
-import {
-  clearPendingProjectBrandJob,
-  savePendingProjectBrandJob,
-} from "@/app/projects/project-brand-job";
+import { projectBrandJobCallbacks } from "@/app/projects/project-brand-job";
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   type DesignMdOwner,
@@ -20,6 +17,7 @@ import {
   resolveProjectSiteIcon,
   updateProject,
 } from "@/lib/actions/project/action";
+import { useSession } from "@/lib/auth/auth.client";
 
 export interface ProjectBrandChange {
   logo?: string | null;
@@ -48,6 +46,7 @@ export function ProjectBrandSetup({
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isResolvingLogo, setIsResolvingLogo] = useState(true);
+  const viewerId = useSession().data?.user.id;
 
   const owner = useMemo<DesignMdOwner>(
     () => ({ type: "project", projectId }),
@@ -70,9 +69,8 @@ export function ProjectBrandSetup({
     },
     // The wizard may close before the job finishes; the project page resumes
     // polling from this record so the brand still lands in the background.
-    onJobStarted: (job) =>
-      savePendingProjectBrandJob(projectId, { ...job, url: websiteUrl }),
-    onSettled: () => clearPendingProjectBrandJob(projectId),
+    // A failure seen here is kept too, so the project page shows it.
+    ...projectBrandJobCallbacks(projectId, viewerId),
     owner,
   });
 

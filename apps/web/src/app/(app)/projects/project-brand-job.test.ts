@@ -1,13 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  clearFailedProjectBrandGeneration,
   clearPendingProjectBrandJob,
   hasProjectBrandAutoStartAttempted,
   markProjectBrandAutoStartAttempted,
+  projectBrandJobCallbacks,
   readFailedProjectBrandGeneration,
   readPendingProjectBrandJob,
-  saveFailedProjectBrandGeneration,
   savePendingProjectBrandJob,
 } from "@/app/projects/project-brand-job";
 
@@ -48,31 +47,41 @@ describe("project brand job storage", () => {
     ).toBeNull();
   });
 
-  it("remembers the latest failed generation until cleared", () => {
-    const failure = {
-      failedAt: "2026-11-20T23:56:00.000Z",
+  it("keeps the latest failure per viewer until an attempt starts", () => {
+    const lifecycle = projectBrandJobCallbacks(PROJECT_ID, "viewer-1");
+
+    lifecycle.onFailed({ url: "https://me:secret@bad.invalid/shop?x=1#top" });
+    // Only what names the attempt: no sign-in details, query or fragment.
+    expect(readFailedProjectBrandGeneration(PROJECT_ID, "viewer-1")).toEqual({
+      failedAt: expect.any(String),
+      website: "https://bad.invalid/shop",
+    });
+    expect(readFailedProjectBrandGeneration(PROJECT_ID, "viewer-2")).toBeNull();
+
+    lifecycle.onStarted();
+    expect(readFailedProjectBrandGeneration(PROJECT_ID, "viewer-1")).toBeNull();
+  });
+
+  it("keeps no failure without a viewer", () => {
+    projectBrandJobCallbacks(PROJECT_ID, undefined).onFailed({
       url: "https://bad.invalid/",
-    };
+    });
 
-    saveFailedProjectBrandGeneration(PROJECT_ID, failure);
-    expect(readFailedProjectBrandGeneration(PROJECT_ID)).toEqual(failure);
-
-    clearFailedProjectBrandGeneration(PROJECT_ID);
-    expect(readFailedProjectBrandGeneration(PROJECT_ID)).toBeNull();
+    expect(window.sessionStorage.length).toBe(0);
   });
 
   it("drops a corrupt failed generation", () => {
+    const key = `sokosumi:project-brand-failure:viewer-1:${PROJECT_ID}`;
     window.sessionStorage.setItem(
-      `sokosumi:project-brand-failure:${PROJECT_ID}`,
-      JSON.stringify({ failedAt: "yesterday", url: "https://bad.invalid/" }),
+      key,
+      JSON.stringify({
+        failedAt: "yesterday",
+        website: "https://bad.invalid/",
+      }),
     );
 
-    expect(readFailedProjectBrandGeneration(PROJECT_ID)).toBeNull();
-    expect(
-      window.sessionStorage.getItem(
-        `sokosumi:project-brand-failure:${PROJECT_ID}`,
-      ),
-    ).toBeNull();
+    expect(readFailedProjectBrandGeneration(PROJECT_ID, "viewer-1")).toBeNull();
+    expect(window.sessionStorage.getItem(key)).toBeNull();
   });
 
   it("does not fail generation flows when storage is unavailable", () => {

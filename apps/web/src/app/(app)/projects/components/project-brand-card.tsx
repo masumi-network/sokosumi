@@ -27,15 +27,13 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
-  clearFailedProjectBrandGeneration,
-  clearPendingProjectBrandJob,
   type FailedProjectBrandGeneration,
   hasProjectBrandAutoStartAttempted,
   markProjectBrandAutoStartAttempted,
+  projectBrandJobCallbacks,
+  projectBrandWebsite,
   readFailedProjectBrandGeneration,
   readPendingProjectBrandJob,
-  saveFailedProjectBrandGeneration,
-  savePendingProjectBrandJob,
 } from "@/app/projects/project-brand-job";
 import { DesignMdUploadTrigger } from "@/components/design-md/design-md-upload-trigger";
 import { DESIGN_MD_TRANSLATION_NAMESPACE } from "@/components/design-md/types";
@@ -63,6 +61,7 @@ import {
   removeProjectDesignMd,
   updateProject,
 } from "@/lib/actions/project/action";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
 interface ProjectBrandProviderProps {
@@ -73,10 +72,13 @@ interface ProjectBrandProviderProps {
   websiteUrl?: string | null;
 }
 
+/** `live`: it failed while this page was open, so it is announced. */
+type BrandFailure = FailedProjectBrandGeneration & { live?: boolean };
+
 interface ProjectBrandDashboardValue {
   designMd: ProjectDesignMd | null;
-  /** The latest failed generation, until a new one starts or succeeds. */
-  failure: FailedProjectBrandGeneration | null;
+  /** The latest failed generation, until a new attempt starts. */
+  failure: BrandFailure | null;
   generation: ReturnType<typeof useDesignMdGeneration>;
   setDesignMd: (designMd: ProjectDesignMd | null) => void;
 }
@@ -110,9 +112,8 @@ export function ProjectBrandProvider({
   const [designMd, setDesignMd] = useState<ProjectDesignMd | null>(
     initialDesignMd,
   );
-  const [failure, setFailure] = useState<FailedProjectBrandGeneration | null>(
-    null,
-  );
+  const viewerId = useSession().data?.user.id;
+  const [failure, setFailure] = useState<BrandFailure | null>(null);
   const backgroundGenerationAttempted = useRef(false);
   const owner = useMemo(
     () => ({ type: "project" as const, projectId }),
@@ -132,35 +133,27 @@ export function ProjectBrandProvider({
         extractionId: nextDesignMd.extractionId,
         url: nextDesignMd.url,
       });
-      clearFailedProjectBrandGeneration(projectId);
-      setFailure(null);
     },
-    [projectId],
+    [],
   );
   const generation = useDesignMdGeneration({
     messages,
     onCompleted: handleCompleted,
-    onFailed: ({ url }) => {
-      const nextFailure = { failedAt: new Date().toISOString(), url };
-      saveFailedProjectBrandGeneration(projectId, nextFailure);
-      setFailure(nextFailure);
-    },
     // The job's own URL: a website just saved in the card is not in the
     // props yet when its generation starts.
-    onJobStarted: (job) => savePendingProjectBrandJob(projectId, job),
-    onSettled: () => clearPendingProjectBrandJob(projectId),
-    onStarted: () => {
-      clearFailedProjectBrandGeneration(projectId);
-      setFailure(null);
-    },
+    ...projectBrandJobCallbacks(projectId, viewerId, (nextFailure) =>
+      setFailure(nextFailure && { ...nextFailure, live: true }),
+    ),
     owner,
   });
 
-  // Browser storage exists only after hydration, so the remembered failure
-  // comes in after the first render.
+  // Browser storage exists only after hydration and the viewer once the
+  // session loads, so a remembered failure comes in after the first render.
   useEffect(() => {
-    setFailure(readFailedProjectBrandGeneration(projectId));
-  }, [projectId]);
+    setFailure(
+      viewerId ? readFailedProjectBrandGeneration(projectId, viewerId) : null,
+    );
+  }, [projectId, viewerId]);
 
   // Background brand setup: the wizard may have closed mid-generation, so pick
   // up its pending job here; if there is none but the project has a website
@@ -182,13 +175,24 @@ export function ProjectBrandProvider({
       resume(pending);
       return;
     }
-    if (!autoStart || !websiteUrl) return;
+    if (!autoStart || !websiteUrl || !viewerId) return;
     if (backgroundGenerationAttempted.current) return;
     if (hasProjectBrandAutoStartAttempted(projectId)) return;
+    // A failure (the wizard's too) waits for the owner, not a silent retry.
+    if (readFailedProjectBrandGeneration(projectId, viewerId)) return;
     backgroundGenerationAttempted.current = true;
     markProjectBrandAutoStartAttempted(projectId);
     void generate({ url: websiteUrl });
-  }, [autoStart, designMd, generate, isRunning, projectId, resume, websiteUrl]);
+  }, [
+    autoStart,
+    designMd,
+    generate,
+    isRunning,
+    projectId,
+    resume,
+    viewerId,
+    websiteUrl,
+  ]);
 
   const value = useMemo(
     () => ({ designMd, failure, generation, setDesignMd }),
@@ -233,16 +237,14 @@ export function ProjectBrandCard({
   // The card's form explains a failure, so read-only cards keep the plain
   // message. A failure on another website than the saved one no longer
   // applies.
-  const failedWebsite =
-    failure && !readOnly && !designMd && !generation.isRunning
-      ? normalizeWebsiteUrl(failure.url)
-      : null;
   const shownFailure =
     failure &&
-    failedWebsite &&
+    !readOnly &&
+    !designMd &&
+    !generation.isRunning &&
     websiteUrl &&
-    failedWebsite === normalizeWebsiteUrl(websiteUrl)
-      ? { failedAt: failure.failedAt, host: new URL(failedWebsite).host }
+    failure.website === projectBrandWebsite(websiteUrl)
+      ? { ...failure, host: new URL(failure.website).host }
       : null;
   const websiteDescription =
     [
@@ -454,10 +456,10 @@ export function ProjectBrandCard({
                   setWebsiteError(null);
                 }}
                 disabled={isSavingWebsite}
-                // The failed website stays marked until someone edits it.
+                // Marked while the field holds the website that failed.
                 aria-invalid={
                   Boolean(websiteError) ||
-                  (shownFailure !== null && websiteDraft === null)
+                  shownFailure?.website === projectBrandWebsite(website)
                 }
                 aria-describedby={websiteDescription}
                 className="min-w-0 sm:h-8 sm:flex-1"
@@ -485,7 +487,11 @@ export function ProjectBrandCard({
             ) : null}
             {shownFailure ? (
               <div id="project-brand-failure" className="space-y-1 text-xs">
-                <p className="text-destructive" role="alert">
+                <p
+                  className="text-destructive"
+                  // Announced when it happens, not again on every visit.
+                  role={shownFailure.live ? "alert" : undefined}
+                >
                   {t("brandCard.failedReason", { host: shownFailure.host })}
                 </p>
                 <p className="text-muted-foreground">

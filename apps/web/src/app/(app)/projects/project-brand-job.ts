@@ -5,6 +5,8 @@
  * reload. Client-only helpers.
  */
 
+import { normalizeWebsiteUrl } from "@sokosumi/utils";
+
 export interface PendingProjectBrandJob {
   jobId: string;
   jobToken: string;
@@ -14,7 +16,8 @@ export interface PendingProjectBrandJob {
 /** The website the latest generation failed on, and when. */
 export interface FailedProjectBrandGeneration {
   failedAt: string;
-  url: string;
+  /** Origin and path only, from `projectBrandWebsite`. */
+  website: string;
 }
 
 function storageKey(projectId: string): string {
@@ -25,8 +28,20 @@ function autoStartAttemptedKey(projectId: string): string {
   return `sokosumi:project-brand-autostart:${projectId}`;
 }
 
-function failureKey(projectId: string): string {
-  return `sokosumi:project-brand-failure:${projectId}`;
+// Per viewer: another account signed in to this tab later must not see it.
+function failureKey(projectId: string, viewerId: string): string {
+  return `sokosumi:project-brand-failure:${viewerId}:${projectId}`;
+}
+
+/**
+ * The part of a website that names a generation attempt: origin and path,
+ * without sign-in details, query or fragment. `null` when not a website.
+ */
+export function projectBrandWebsite(url: string): string | null {
+  const normalized = normalizeWebsiteUrl(url);
+  if (!normalized) return null;
+  const { origin, pathname } = new URL(normalized);
+  return `${origin}${pathname}`;
 }
 
 function getStorage(): Storage | null {
@@ -95,10 +110,14 @@ export function clearPendingProjectBrandJob(projectId: string): void {
 
 export function saveFailedProjectBrandGeneration(
   projectId: string,
+  viewerId: string,
   failure: FailedProjectBrandGeneration,
 ): void {
   try {
-    getStorage()?.setItem(failureKey(projectId), JSON.stringify(failure));
+    getStorage()?.setItem(
+      failureKey(projectId, viewerId),
+      JSON.stringify(failure),
+    );
   } catch {
     // The card still shows the failure until the page reloads.
   }
@@ -106,18 +125,22 @@ export function saveFailedProjectBrandGeneration(
 
 export function readFailedProjectBrandGeneration(
   projectId: string,
+  viewerId: string,
 ): FailedProjectBrandGeneration | null {
   return readStored<FailedProjectBrandGeneration>(
-    failureKey(projectId),
+    failureKey(projectId, viewerId),
     (failure) =>
-      typeof failure.url === "string" &&
+      typeof failure.website === "string" &&
       typeof failure.failedAt === "string" &&
       !Number.isNaN(Date.parse(failure.failedAt)),
   );
 }
 
-export function clearFailedProjectBrandGeneration(projectId: string): void {
-  removeStored(failureKey(projectId));
+export function clearFailedProjectBrandGeneration(
+  projectId: string,
+  viewerId: string,
+): void {
+  removeStored(failureKey(projectId, viewerId));
 }
 
 export function hasProjectBrandAutoStartAttempted(projectId: string): boolean {
@@ -134,4 +157,34 @@ export function markProjectBrandAutoStartAttempted(projectId: string): void {
   } catch {
     // The in-flight guard still prevents duplicate starts in this mount.
   }
+}
+
+/**
+ * The project's brand generation callbacks for `useDesignMdGeneration`, shared
+ * by the wizard and the project pages so either one hands the other its
+ * pending job and its latest failure. Without a viewer (session still
+ * loading) failures are not kept. `onFailureChange` hears the new failure,
+ * or `null` when an attempt starts.
+ */
+export function projectBrandJobCallbacks(
+  projectId: string,
+  viewerId: string | undefined,
+  onFailureChange?: (failure: FailedProjectBrandGeneration | null) => void,
+) {
+  return {
+    onFailed: ({ url }: { url: string }) => {
+      const website = projectBrandWebsite(url);
+      if (!viewerId || !website) return;
+      const failure = { failedAt: new Date().toISOString(), website };
+      saveFailedProjectBrandGeneration(projectId, viewerId, failure);
+      onFailureChange?.(failure);
+    },
+    onJobStarted: (job: PendingProjectBrandJob) =>
+      savePendingProjectBrandJob(projectId, job),
+    onSettled: () => clearPendingProjectBrandJob(projectId),
+    onStarted: () => {
+      if (viewerId) clearFailedProjectBrandGeneration(projectId, viewerId);
+      onFailureChange?.(null);
+    },
+  };
 }

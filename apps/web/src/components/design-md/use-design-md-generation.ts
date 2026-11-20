@@ -77,8 +77,18 @@ export function useDesignMdGeneration({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
   const mountedRef = useRef(true);
+  // Each generate, resume or reset is a new attempt. A late response from an
+  // older attempt, or from after unmount (a provider remount or the wizard
+  // closing), must not call back: another owner may have taken the project's
+  // job over and its stored state is no longer this attempt's to write.
+  const attemptRef = useRef(0);
   // The website of the attempt in flight, for `onFailed`.
   const urlRef = useRef("");
+
+  const owns = useCallback(
+    (attempt: number) => mountedRef.current && attemptRef.current === attempt,
+    [],
+  );
 
   const clearPollTimeout = useCallback(() => {
     if (!timeoutRef.current) return;
@@ -91,30 +101,33 @@ export function useDesignMdGeneration({
   }, []);
 
   const completeGeneration = useCallback(
-    (designMd: PersistedDesignMd) => {
+    (designMd: PersistedDesignMd, attempt: number) => {
+      if (!owns(attempt)) return;
       onCompleted?.(designMd);
       safeSetState({ errorMessage: null, status: "completed" });
       inFlightRef.current = false;
       onSettled?.();
     },
-    [onCompleted, onSettled, safeSetState],
+    [onCompleted, onSettled, owns, safeSetState],
   );
 
   const failGeneration = useCallback(
-    (message: string) => {
+    (message: string, attempt: number) => {
+      if (!owns(attempt)) return;
       clearPollTimeout();
       safeSetState({ errorMessage: message, status: "failed" });
       inFlightRef.current = false;
       onFailed?.({ url: urlRef.current });
       onSettled?.();
     },
-    [clearPollTimeout, onFailed, onSettled, safeSetState],
+    [clearPollTimeout, onFailed, onSettled, owns, safeSetState],
   );
 
   const pollUntilDone = useCallback(
-    (jobId: string, jobToken: string) => {
+    (jobId: string, jobToken: string, attempt: number) => {
       clearPollTimeout();
       timeoutRef.current = setTimeout(async () => {
+        if (!owns(attempt)) return;
         safeSetState({ errorMessage: null, status: "polling" });
 
         try {
@@ -127,6 +140,7 @@ export function useDesignMdGeneration({
           if (!pollResult.ok) {
             failGeneration(
               pollResult.error.message ?? messages.generationFailed,
+              attempt,
             );
             return;
           }
@@ -136,12 +150,14 @@ export function useDesignMdGeneration({
               pollResult.value.error ??
                 pollResult.value.message ??
                 messages.generationFailed,
+              attempt,
             );
             return;
           }
 
+          if (!owns(attempt)) return;
           if (isDesignMdJobInProgress(pollResult.value)) {
-            pollUntilDone(jobId, jobToken);
+            pollUntilDone(jobId, jobToken, attempt);
             return;
           }
 
@@ -153,14 +169,18 @@ export function useDesignMdGeneration({
           });
 
           if (!finalizeResult.ok) {
-            failGeneration(finalizeResult.error.message ?? messages.saveFailed);
+            failGeneration(
+              finalizeResult.error.message ?? messages.saveFailed,
+              attempt,
+            );
             return;
           }
 
-          completeGeneration(finalizeResult.value);
+          completeGeneration(finalizeResult.value, attempt);
         } catch (error) {
           failGeneration(
             getUnknownErrorMessage(error, messages.generationFailed),
+            attempt,
           );
         }
       }, pollIntervalMs);
@@ -171,6 +191,7 @@ export function useDesignMdGeneration({
       failGeneration,
       messages,
       owner,
+      owns,
       pollIntervalMs,
       safeSetState,
     ],
@@ -182,6 +203,7 @@ export function useDesignMdGeneration({
 
       clearPollTimeout();
       inFlightRef.current = true;
+      const attempt = ++attemptRef.current;
       urlRef.current = url;
       onStarted?.({ url });
       safeSetState({ errorMessage: null, status: "starting" });
@@ -194,25 +216,34 @@ export function useDesignMdGeneration({
         });
 
         if (!startResult.ok) {
-          failGeneration(startResult.error.message ?? messages.startFailed);
+          failGeneration(
+            startResult.error.message ?? messages.startFailed,
+            attempt,
+          );
           return;
         }
 
         if (startResult.value.kind === "completed") {
-          completeGeneration(startResult.value.data);
+          completeGeneration(startResult.value.data, attempt);
           return;
         }
 
+        if (!owns(attempt)) return;
         safeSetState({ errorMessage: null, status: "polling" });
         onJobStarted?.({
           jobId: startResult.value.jobId,
           jobToken: startResult.value.jobToken,
           url,
         });
-        pollUntilDone(startResult.value.jobId, startResult.value.jobToken);
+        pollUntilDone(
+          startResult.value.jobId,
+          startResult.value.jobToken,
+          attempt,
+        );
       } catch (error) {
         failGeneration(
           getUnknownErrorMessage(error, messages.generationFailed),
+          attempt,
         );
       }
     },
@@ -224,6 +255,7 @@ export function useDesignMdGeneration({
       onJobStarted,
       onStarted,
       owner,
+      owns,
       pollUntilDone,
       safeSetState,
     ],
@@ -234,9 +266,10 @@ export function useDesignMdGeneration({
     (job: { jobId: string; jobToken: string; url: string }) => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
+      const attempt = ++attemptRef.current;
       urlRef.current = job.url;
       safeSetState({ errorMessage: null, status: "polling" });
-      pollUntilDone(job.jobId, job.jobToken);
+      pollUntilDone(job.jobId, job.jobToken, attempt);
     },
     [pollUntilDone, safeSetState],
   );
@@ -244,10 +277,13 @@ export function useDesignMdGeneration({
   const reset = useCallback(() => {
     clearPollTimeout();
     inFlightRef.current = false;
+    attemptRef.current += 1;
     safeSetState({ errorMessage: null, status: "idle" });
   }, [clearPollTimeout, safeSetState]);
 
   useEffect(() => {
+    // Set again on mount: a Strict Mode remount keeps the refs it unmounted.
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       clearPollTimeout();
