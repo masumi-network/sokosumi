@@ -2,21 +2,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getPushDevicesQueryKey } from "@/queries/push-devices";
-
 import {
   rememberPushPreference,
   resumePushPreferenceForSession,
   wantsPushHere,
-} from "./push-preference.client";
-import { healPushSubscription } from "./push-self-heal.client";
+} from "@/lib/ably/push-preference.client";
+import { healPushSubscription } from "@/lib/ably/push-self-heal.client";
 import {
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
-} from "./release-push-device.client";
+} from "@/lib/ably/release-push-device.client";
+import { getPushDevicesQueryKey } from "@/queries/push-devices";
 import { usePushRecovery } from "./use-push-recovery";
 
-vi.mock("./push-self-heal.client", () => ({
+vi.mock("@/lib/ably/push-self-heal.client", () => ({
   healPushSubscription: vi.fn(),
 }));
 

@@ -169,7 +169,7 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
+vi.mock("@/hooks/effects/use-chat-room-realtime", () => ({
   useChatRoomRealtime: useChatRoomRealtimeMock,
 }));
 
@@ -182,7 +182,7 @@ vi.mock("@/hooks/effects/use-room-typing", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
+vi.mock("@/hooks/effects/use-selected-room-channel-health", () => ({
   useSelectedRoomChannelHealth: () => undefined,
 }));
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useChatControlChannel } from "@/lib/ably/use-chat-control-channel";
+import { useChatControlChannel } from "@/hooks/effects/use-chat-control-channel";
 
 import { notifyOrganizationChatRoomsChanged } from "./organization-chat-events";
 

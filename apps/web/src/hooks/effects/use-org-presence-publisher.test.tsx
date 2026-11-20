@@ -47,7 +47,7 @@ vi.mock("ably/react", () => ({
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
-import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
+import { useOrgPresencePublisher } from "./use-org-presence-publisher";
 
 function channelFor(name: string) {
   let channel = channelsByName.get(name);

@@ -4,11 +4,11 @@ import type * as Ably from "ably";
 import { useAbly, useChannel } from "ably/react";
 import { useCallback, useEffect, useEffectEvent } from "react";
 
+import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
 import {
   type NotificationEventData,
   notificationEventDataSchema,
 } from "@/lib/ably/schema";
-import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 
 const NOTIFICATION_CREATED_EVENT_NAME = "notification_created";
 
