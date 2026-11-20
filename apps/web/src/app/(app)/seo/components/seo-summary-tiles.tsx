@@ -8,6 +8,7 @@ import {
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoChecklistDetails, SeoResearchStatus } from "./seo-audit-coverage";
+import { SeoPageSpeed } from "./seo-page-speed";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SEO_SEVERITY_MARK_CLASS, SeoDate, SeoSource } from "./seo-shared";
 import { lastAuditResearch, seoSummary } from "./seo-summary-model";
@@ -112,7 +113,17 @@ export function SeoSummaryTiles({
       observedAt={audit.observedAt}
     />
   );
-  if (!issues && !tests) return research ?? null;
+  const full = workspace.observations.find((row) => row.kind === "audit_full");
+  const performance = full && (
+    <SeoPageSpeed rows={full.pageSpeed} at={full.observedAt} />
+  );
+  if (!issues && !tests)
+    return (
+      <>
+        {research}
+        {performance}
+      </>
+    );
   const check =
     tests &&
     workspace.observations.find((row) => row.id === tests.observationId);
@@ -227,6 +238,7 @@ export function SeoSummaryTiles({
         ) : null}
       </dl>
       {research}
+      {performance}
     </>
   );
 }
