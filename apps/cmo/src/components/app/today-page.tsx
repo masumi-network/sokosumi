@@ -69,7 +69,12 @@ export function TodayPage({
       ) : null}
 
       <section
-        className="today-section today-week"
+        // An empty week keeps its own height instead of filling the screen.
+        className={
+          entries.some((entry) => weekOf(today).includes(entry.date))
+            ? "today-section today-week"
+            : "today-section today-week-empty"
+        }
         aria-labelledby="today-week"
       >
         <div className="today-section-head">
