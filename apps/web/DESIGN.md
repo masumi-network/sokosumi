@@ -377,8 +377,10 @@ prop/state-driven.
   draws `ButtonLoadingBar`.
 - **Input** — h-10, `rounded-md border-input bg-transparent`, `text-base md:text-sm`
   (via `withEditableTextSize`).
-- **Badge** — 4 variants (default/secondary/destructive/outline), `px-2 py-0.5 text-xs
+- **Badge** — 5 variants (default/secondary/muted/destructive/outline), `px-2 py-0.5 text-xs
   font-medium rounded-md`, SVG `size-3`. A badge labels a state; it never answers the pointer.
+  `muted` (`bg-quaternary`, shows in both themes) is the quiet fill for descriptive labels,
+  such as a file's category.
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
   (`text-muted-foreground text-sm`)/Content/Footer; `px-6` insets.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay

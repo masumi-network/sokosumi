@@ -116,8 +116,8 @@ export function JobsSearch({
           className={cn(
             "pr-8 pl-8",
             searchValue
-              ? "@min-[14rem]/page-search:pe-24"
-              : "@min-[14rem]/page-search:pe-16",
+              ? "pointer-fine:@min-[14rem]/page-search:pe-24"
+              : "pointer-fine:@min-[14rem]/page-search:pe-16",
           )}
           placeholder={t("placeholder")}
           value={searchValue}

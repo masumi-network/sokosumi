@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useAgentFullbleedBody } from "@/hooks/effects/use-agent-fullbleed-body";
 
 /**
  * Toggles `data-agent-fullbleed="true"` on `<body>` while the agent detail
@@ -9,11 +9,6 @@ import { useEffect } from "react";
  * tree that would keep gallery `main` padding at 0 after soft nav away.
  */
 export default function AgentFullbleedEffect() {
-  useEffect(() => {
-    document.body.dataset.agentFullbleed = "true";
-    return () => {
-      delete document.body.dataset.agentFullbleed;
-    };
-  }, []);
+  useAgentFullbleedBody();
   return null;
 }
