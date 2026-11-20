@@ -7,6 +7,7 @@ const {
   startGeneration,
   listImageOptions,
   readGeneration,
+  readBrandContext,
   listStudioProducts,
   readAdHeadline,
   saveAdHeadline,
@@ -14,6 +15,7 @@ const {
   startGeneration: vi.fn(),
   listImageOptions: vi.fn(),
   readGeneration: vi.fn(),
+  readBrandContext: vi.fn(),
   listStudioProducts: vi.fn(),
   readAdHeadline: vi.fn(),
   saveAdHeadline: vi.fn(),
@@ -22,6 +24,7 @@ vi.mock("../lib/core", () => ({
   startGeneration,
   listImageOptions,
   readGeneration,
+  readBrandContext,
   listStudioProducts,
   readAdHeadline,
   saveAdHeadline,
@@ -32,6 +35,7 @@ import check from "./check_generation";
 import generate from "./generate_image";
 import options from "./list_image_options";
 import products from "./list_products";
+import brandContext from "./read_brand_context";
 import refine from "./refine_image";
 
 // These tools use only session identity and turn ID from the runtime context.
@@ -329,5 +333,15 @@ describe("non-billed agent behavior contract", () => {
     ]) {
       expect(instructions.replace(/\s+/g, " ")).toContain(rule);
     }
+  });
+});
+
+it("reads brand context with only the session identity", async () => {
+  const reference = { fonts: ["Inter"] };
+  readBrandContext.mockResolvedValueOnce(reference);
+  expect(await brandContext.execute({}, ctx)).toEqual(reference);
+  expect(readBrandContext).toHaveBeenCalledWith({
+    userId: "user-1",
+    projectId: "project-1",
   });
 });
