@@ -14,16 +14,6 @@ export const CONSENT_COOKIE = "sokosumi_consent";
 export const CONSENT_VERSION = 1;
 /** Window event dispatched after a banner choice is applied; `detail` is the ConsentChoice. */
 export const CONSENT_CHANGE_EVENT = "sokosumi:consent-change";
-/** Shared denied-by-default Google Consent Mode v2 payload used by both ConsentModeInit and client fallback. */
-export const CONSENT_MODE_DEFAULTS = {
-  ad_storage: "denied",
-  ad_user_data: "denied",
-  ad_personalization: "denied",
-  analytics_storage: "denied",
-  functionality_storage: "granted",
-  security_storage: "granted",
-  wait_for_update: 500,
-} as const;
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 182; // ~6 months, then we ask again
 
 export interface ConsentChoice {
@@ -115,24 +105,17 @@ export function writeConsent(
   return value;
 }
 
-const DENIED_CONSENT_SIGNALS = {
-  analytics_storage: "denied",
-  ad_storage: "denied",
-  ad_user_data: "denied",
-  ad_personalization: "denied",
-} as const;
-
-function consentSignalsFor(choice: ConsentChoice) {
-  return {
+/**
+ * Flip Google Consent Mode v2 to match the choice, and fire the `consent_status` event the GTM container gates on (e.g. to re-fire a tag now that
+ * consent exists).
+ */
+export function applyConsentMode(choice: ConsentChoice): void {
+  gtag("consent", "update", {
     analytics_storage: choice.analytics ? "granted" : "denied",
     ad_storage: choice.marketing ? "granted" : "denied",
     ad_user_data: choice.marketing ? "granted" : "denied",
     ad_personalization: choice.marketing ? "granted" : "denied",
-  } as const;
-}
-
-function pushConsentUpdate(choice: ConsentChoice): void {
-  gtag("consent", "update", consentSignalsFor(choice));
+  });
   if (typeof window !== "undefined") {
     window.dataLayer = window.dataLayer ?? [];
     window.dataLayer.push({
@@ -140,85 +123,6 @@ function pushConsentUpdate(choice: ConsentChoice): void {
       consent_analytics: choice.analytics ? "granted" : "denied",
       consent_marketing: choice.marketing ? "granted" : "denied",
     });
-  }
-}
-
-export function hasLoadedGoogleTags(): boolean {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return false;
-  }
-  return Boolean(
-    document.getElementById("_next-gtm") ||
-      document.getElementById("_next-ga") ||
-      document.getElementById("_next-gtm-init") ||
-      document.getElementById("_next-ga-init") ||
-      Reflect.get(window, "google_tag_manager"),
-  );
-}
-
-export function setGoogleAnalyticsDisabled(
-  gaId: string | undefined,
-  disabled: boolean,
-): void {
-  if (!gaId || typeof window === "undefined") return;
-  Reflect.set(window, `ga-disable-${gaId}`, disabled);
-}
-
-export function denyConsentMode(): void {
-  gtag("consent", "update", DENIED_CONSENT_SIGNALS);
-}
-
-export function restorePersistedConsentMode(): void {
-  const stored = readConsent();
-  if (!stored) return;
-  gtag("consent", "update", consentSignalsFor(stored));
-}
-
-export function hasConsentModeDefault(dataLayer?: unknown[]): boolean {
-  const entries =
-    dataLayer ?? (typeof window !== "undefined" ? window.dataLayer : undefined);
-  if (!Array.isArray(entries)) return false;
-
-  return entries.some(
-    (entry) =>
-      typeof entry === "object" &&
-      entry !== null &&
-      Reflect.get(entry, 0) === "consent" &&
-      Reflect.get(entry, 1) === "default",
-  );
-}
-
-/**
- * Ensures Google Consent Mode v2 denied defaults (plus any stored choice and
- * privacy flags) are queued in `window.dataLayer` before GTM/GA mount.
- *
- * Normally `ConsentModeInit` (`beforeInteractive`) runs at document bootstrap,
- * making this a no-op. When a document boots on a telemetry-blocked route
- * (e.g. `/reset-password`) and later soft-navigates to a tracked route, Next.js
- * does not re-run `beforeInteractive` scripts; calling this before mounting
- * Google tags guarantees the denied default is still queued first.
- */
-export function ensureConsentModeDefault(): boolean {
-  if (typeof window === "undefined") return false;
-  if (hasConsentModeDefault(window.dataLayer)) return false;
-
-  gtag("consent", "default", CONSENT_MODE_DEFAULTS);
-  const stored = readConsent();
-  if (stored) {
-    pushConsentUpdate(stored);
-  }
-  gtag("set", "url_passthrough", true);
-  gtag("set", "ads_data_redaction", true);
-  return true;
-}
-
-/**
- * Flip Google Consent Mode v2 to match the choice, and fire the `consent_status` event the GTM container gates on (e.g. to re-fire a tag now that
- * consent exists).
- */
-export function applyConsentMode(choice: ConsentChoice): void {
-  pushConsentUpdate(choice);
-  if (typeof window !== "undefined") {
     window.dispatchEvent(
       new CustomEvent<ConsentChoice>(CONSENT_CHANGE_EVENT, { detail: choice }),
     );

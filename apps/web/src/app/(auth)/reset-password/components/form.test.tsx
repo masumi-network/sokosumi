@@ -16,12 +16,26 @@ import { signOut } from "@/lib/auth/auth.client";
 
 import ResetPasswordForm from "./form";
 
-const { push, searchParams } = vi.hoisted(() => ({
-  push: vi.fn(),
+const { assign, searchParams } = vi.hoisted(() => ({
+  assign: vi.fn(),
   searchParams: { current: new URLSearchParams() },
 }));
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => (
+    <a href={href} data-next-link="true" {...props}>
+      {children}
+    </a>
+  ),
+}));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => searchParams.current,
 }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
@@ -46,6 +60,7 @@ async function submitNewPassword() {
 describe("ResetPasswordForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(window.location, "assign").mockImplementation(assign);
     searchParams.current = new URLSearchParams();
     vi.mocked(resetPasswordWithToken).mockResolvedValue({
       ok: true,
@@ -71,12 +86,12 @@ describe("ResetPasswordForm", () => {
     }
   });
 
-  it("sends the person to sign in afterwards", async () => {
+  it("sends the person to sign in via a full document load afterwards", async () => {
     render(<ResetPasswordForm />);
 
     await submitNewPassword();
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/signin"));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/signin"));
     expect(toast.success).toHaveBeenCalledWith("success");
   });
 
@@ -88,12 +103,14 @@ describe("ResetPasswordForm", () => {
       order.push("signOut");
       return { data: { success: true }, error: null };
     });
-    push.mockImplementation(() => order.push("push"));
+    assign.mockImplementation(() => {
+      order.push("assign");
+    });
     render(<ResetPasswordForm />);
 
     await submitNewPassword();
 
-    await waitFor(() => expect(order).toEqual(["signOut", "push"]));
+    await waitFor(() => expect(order).toEqual(["signOut", "assign"]));
   });
 
   it.each(["network", "server"])(
@@ -117,7 +134,7 @@ describe("ResetPasswordForm", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "signOutError",
       );
-      expect(push).not.toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
       expect(
         screen.queryByLabelText("Fields.Password.label"),
       ).not.toBeInTheDocument();
@@ -126,7 +143,7 @@ describe("ResetPasswordForm", () => {
         .click(screen.getByRole("button", { name: "continueToSignIn" }));
 
       await waitFor(() =>
-        expect(push).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
+        expect(assign).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
       );
       expect(resetPasswordWithToken).toHaveBeenCalledOnce();
       expect(signOut).toHaveBeenCalledTimes(2);
@@ -140,7 +157,7 @@ describe("ResetPasswordForm", () => {
     await submitNewPassword();
 
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith("/signin?returnUrl=%2Fchat"),
+      expect(assign).toHaveBeenCalledWith("/signin?returnUrl=%2Fchat"),
     );
   });
 
@@ -153,7 +170,7 @@ describe("ResetPasswordForm", () => {
     await submitNewPassword();
 
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith(
+      expect(assign).toHaveBeenCalledWith(
         "/signin?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
       ),
     );
@@ -167,7 +184,7 @@ describe("ResetPasswordForm", () => {
     await submitNewPassword();
 
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
+      expect(assign).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
     );
   });
 
@@ -202,7 +219,7 @@ describe("ResetPasswordForm", () => {
       await submitNewPassword();
 
       await waitFor(() =>
-        expect(push).toHaveBeenCalledWith(`/signin?${expiredQuery}`),
+        expect(assign).toHaveBeenCalledWith(`/signin?${expiredQuery}`),
       );
       expect(sentBodies).toEqual([{}]);
     } finally {
@@ -245,13 +262,13 @@ describe("ResetPasswordForm", () => {
       expect(
         screen.getByRole("button", { name: "continueToSignIn" }),
       ).not.toHaveAttribute("aria-busy");
-      expect(push).not.toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("offers a new link when the reset fails", async () => {
+  it("offers a full-document link to request a new link when the reset fails", async () => {
     searchParams.current = new URLSearchParams(OAUTH_QUERY);
     vi.mocked(resetPasswordWithToken).mockResolvedValue({
       ok: false,
@@ -263,9 +280,9 @@ describe("ResetPasswordForm", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("error");
-    expect(
-      screen.getByRole("link", { name: "requestNewLink" }),
-    ).toHaveAttribute("href", `/forgot-password?${OAUTH_QUERY}`);
-    expect(push).not.toHaveBeenCalled();
+    const link = screen.getByRole("link", { name: "requestNewLink" });
+    expect(link).toHaveAttribute("href", `/forgot-password?${OAUTH_QUERY}`);
+    expect(link).not.toHaveAttribute("data-next-link");
+    expect(assign).not.toHaveBeenCalled();
   });
 });

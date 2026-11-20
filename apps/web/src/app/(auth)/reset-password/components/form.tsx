@@ -1,8 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -41,7 +40,6 @@ const formData: FormData<
 
 export default function ResetPasswordForm() {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
-  const router = useRouter();
   // The sign-in the reset started from, carried through the emailed link.
   const context = readAuthPageContext(useSearchParams());
   const [failed, setFailed] = useState(false);
@@ -101,7 +99,9 @@ export default function ResetPasswordForm() {
         return;
       }
       toast.success(t("success"));
-      router.push(buildAuthPageUrl("/signin", context));
+      // Full document load crosses out of the telemetry-blocked reset route so
+      // /signin bootstraps Consent Mode defaults and Back restores this clean document.
+      window.location.assign(buildAuthPageUrl("/signin", context));
     } catch {
       setSignOutFailed(true);
     } finally {
@@ -143,12 +143,12 @@ export default function ResetPasswordForm() {
       {failed ? (
         <p role="alert" className="text-destructive text-center text-sm">
           {t("error")}{" "}
-          <Link
+          <a
             href={buildAuthPageUrl("/forgot-password", context)}
             className="font-medium underline"
           >
             {t("requestNewLink")}
-          </Link>
+          </a>
         </p>
       ) : null}
       <SubmitButton isSubmitting={isSubmitting} label={t("submit")} />

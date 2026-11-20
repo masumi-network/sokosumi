@@ -4,6 +4,22 @@ import { describe, expect, it, vi } from "vitest";
 
 import Markdown from "@/components/markdown";
 
+vi.mock("next/link", () => ({
+  __esModule: true,
+  default: ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => (
+    <a href={href} data-next-link="true" {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 vi.mock("rehype-raw", () => ({
   __esModule: true,
   default: () => null,
@@ -32,10 +48,17 @@ vi.mock("react-markdown", () => ({
     components,
     children,
   }: {
-    components?: { code?: (props: Record<string, unknown>) => React.ReactNode };
+    components?: {
+      a?: (props: Record<string, unknown>) => React.ReactNode;
+      code?: (props: Record<string, unknown>) => React.ReactNode;
+    };
     children?: string;
   }) => {
     reactMarkdownRenders();
+    if (children?.startsWith("LINK:") && components?.a) {
+      const href = children.slice("LINK:".length);
+      return <div>{components.a({ href, children: href })}</div>;
+    }
     if (!components?.code) return <>{children}</>;
 
     if (children?.includes("BLOCK_ONLY")) {
@@ -105,5 +128,31 @@ describe("Markdown", () => {
 
     expect(highlightedToken).toBeInTheDocument();
     expect(highlightedToken).toHaveTextContent("const");
+  });
+
+  it.each([
+    "/n/weekly/embed",
+    "/n/weekly/embed/",
+    "/n/weekly/embed?ref=doc",
+    "/reset-password",
+    "/reset-password/exchange?token=abc",
+  ])(
+    "renders a plain same-tab anchor instead of Next Link for telemetry-blocked path %s",
+    (href) => {
+      const { container } = render(<Markdown>{`LINK:${href}`}</Markdown>);
+      const anchor = container.querySelector("a");
+
+      expect(anchor).toHaveAttribute("href", href);
+      expect(anchor).not.toHaveAttribute("data-next-link");
+      expect(anchor).not.toHaveAttribute("target");
+    },
+  );
+
+  it("keeps Next Link for regular internal app paths", () => {
+    const { container } = render(<Markdown>{"LINK:/n/weekly"}</Markdown>);
+    const anchor = container.querySelector("a");
+
+    expect(anchor).toHaveAttribute("href", "/n/weekly");
+    expect(anchor).toHaveAttribute("data-next-link", "true");
   });
 });

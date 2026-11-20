@@ -3,10 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import {
-  isTelemetryBlockedPath,
-  useBlockedRouteGoogleTelemetry,
-} from "@/hooks/effects/use-blocked-route-google-telemetry";
+import { isTelemetryBlockedPath } from "@/lib/analytics/telemetry-blocked-paths";
 
 interface TelemetryBoundaryProps {
   children: ReactNode;
@@ -14,9 +11,5 @@ interface TelemetryBoundaryProps {
 
 export function TelemetryBoundary({ children }: TelemetryBoundaryProps) {
   const pathname = usePathname();
-  const isBlocked = isTelemetryBlockedPath(pathname);
-
-  useBlockedRouteGoogleTelemetry(isBlocked);
-
-  return isBlocked ? null : children;
+  return isTelemetryBlockedPath(pathname) ? null : children;
 }

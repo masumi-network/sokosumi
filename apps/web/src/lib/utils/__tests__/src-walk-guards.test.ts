@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { isTelemetryBlockedPath } from "@/lib/analytics/telemetry-blocked-paths";
+
 /**
  * One walk of `apps/web/src`, many guards. Each `it()` keeps the failure
  * message its old file used (path + line + rule). The walk itself is the
@@ -2009,6 +2011,126 @@ describe("segmented controls", () => {
     ];
     for (const line of clean) {
       expect(segmentedLookOverrides("app/x.tsx", line), line).toEqual([]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// telemetry boundary crossings
+// ---------------------------------------------------------------------------
+
+const TELEMETRY_BLOCKED_SOURCE_DIRS = [
+  "app/(auth)/reset-password/",
+  "app/n/[slug]/embed/",
+];
+
+const SOFT_NAV_LINK_RE =
+  /<(?:Link|RestingIntentLink|BackLink)\b[^>]*\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|\{\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`|buildAuthPageUrl\(\s*["']([^"']+)["']))/g;
+
+const SOFT_NAV_ROUTER_RE =
+  /\brouter\.(?:push|replace)\(\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`|buildAuthPageUrl\(\s*["']([^"']+)["'])/g;
+
+const ANY_SOFT_NAV_IN_BLOCKED_DIR_RE =
+  /<(?:Link|RestingIntentLink|BackLink)\b|\brouter\.(?:push|replace)\(/g;
+
+function normalizeTemplateTarget(raw: string): string {
+  return raw.replace(/\$\{[^}]+\}/g, "placeholder");
+}
+
+function lineNumberAt(text: string, index: number): number {
+  return text.slice(0, index).split("\n").length;
+}
+
+function telemetryBoundaryCrossingViolations(
+  relSrc: string,
+  text: string,
+): string[] {
+  const hits: string[] = [];
+
+  if (TELEMETRY_BLOCKED_SOURCE_DIRS.some((dir) => relSrc.startsWith(dir))) {
+    for (const match of text.matchAll(ANY_SOFT_NAV_IN_BLOCKED_DIR_RE)) {
+      hits.push(
+        `${relSrc}:${lineNumberAt(text, match.index ?? 0)}: soft navigation inside telemetry-blocked route (${match[0].trim()}); use <a> or window.location.assign`,
+      );
+    }
+    return hits;
+  }
+
+  for (const regex of [SOFT_NAV_LINK_RE, SOFT_NAV_ROUTER_RE]) {
+    for (const match of text.matchAll(regex)) {
+      const target =
+        match[1] ?? match[2] ?? match[3] ?? match[4] ?? match[5] ?? match[6];
+      if (!target) continue;
+      const candidate = normalizeTemplateTarget(target);
+      if (isTelemetryBlockedPath(candidate)) {
+        hits.push(
+          `${relSrc}:${lineNumberAt(text, match.index ?? 0)}: soft navigation targets telemetry-blocked path ${JSON.stringify(target)}; use <a> or window.location.assign`,
+        );
+      }
+    }
+  }
+
+  return hits;
+}
+
+describe("telemetry boundary crossings", () => {
+  it("uses full document navigation for every Link or router call crossing a telemetry-blocked path", () => {
+    const hits = SRC_FILES.filter(
+      (file) =>
+        (file.ext === ".ts" || file.ext === ".tsx") &&
+        !file.relSrc.includes(".test."),
+    ).flatMap((file) =>
+      telemetryBoundaryCrossingViolations(file.relSrc, file.text),
+    );
+
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("catches Link and router soft navigations targeting or leaving telemetry-blocked paths", () => {
+    const badIntoBlocked = [
+      '<Link href="/reset-password">Reset</Link>',
+      '<Link href="/reset-password/exchange?token=abc">Exchange</Link>',
+      '<Link href={"/n/weekly/embed"}>Embed</Link>',
+      "<Link href={`/n/${slug}/embed`}>Embed</Link>",
+      "<Link href={`/n/${slug}/embed/`}>Embed</Link>",
+      'router.push("/reset-password")',
+      'router.replace("/n/weekly/embed")',
+      "router.push(`/n/${encodeURIComponent(slug)}/embed`)",
+      '<Link href={buildAuthPageUrl("/reset-password", ctx)}>Reset</Link>',
+    ];
+    for (const sample of badIntoBlocked) {
+      expect(
+        telemetryBoundaryCrossingViolations("components/sample.tsx", sample),
+        sample,
+      ).not.toEqual([]);
+    }
+
+    const badLeavingBlocked = [
+      'router.push("/signin")',
+      '<Link href="/forgot-password">New link</Link>',
+    ];
+    for (const sample of badLeavingBlocked) {
+      expect(
+        telemetryBoundaryCrossingViolations(
+          "app/(auth)/reset-password/components/form.tsx",
+          sample,
+        ),
+        sample,
+      ).not.toEqual([]);
+    }
+
+    const clean = [
+      '<Link href="/signin">Sign in</Link>',
+      "<Link href={`/n/${slug}/archive`}>Archive</Link>",
+      '<a href="/reset-password">Reset</a>',
+      '<a href="/n/weekly/embed">Embed</a>',
+      'window.location.assign("/signin")',
+    ];
+    for (const sample of clean) {
+      expect(
+        telemetryBoundaryCrossingViolations("components/sample.tsx", sample),
+        sample,
+      ).toEqual([]);
     }
   });
 });

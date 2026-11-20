@@ -4,7 +4,6 @@ import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import { useState } from "react";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { ensureConsentModeDefault } from "@/lib/analytics/consent";
 import {
   syncInternalTraffic,
   withoutInternalTrafficParam,
@@ -24,11 +23,7 @@ export function GoogleTags({ gtmId, gaId }: GoogleTagsProps) {
   const [enabled, setEnabled] = useState(false);
 
   useMountEffect(() => {
-    const isInternal = syncInternalTraffic(window.location.search);
-    if (!isInternal && (gtmId || gaId)) {
-      ensureConsentModeDefault();
-    }
-    setEnabled(!isInternal);
+    setEnabled(!syncInternalTraffic(window.location.search));
     const cleanUrl = withoutInternalTrafficParam(window.location.href);
     if (cleanUrl) {
       window.history.replaceState(window.history.state, "", cleanUrl);

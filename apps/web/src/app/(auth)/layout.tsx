@@ -10,6 +10,7 @@ import { LegalLinks } from "@/components/legal-links";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
+import { isTelemetryBlockedPath } from "@/lib/analytics/telemetry-blocked-paths";
 import { getSession } from "@/lib/auth/auth.server";
 import {
   authProductName,
@@ -114,6 +115,10 @@ export default async function AuthLayout({
             // Leaving for Sokosumi's home would drop the OAuth request; the
             // header links back to the product instead.
             <div className="inline-flex min-h-6 items-center">{logo}</div>
+          ) : isTelemetryBlockedPath(pathname) ? (
+            <a href="/" className="inline-flex min-h-6 items-center">
+              {logo}
+            </a>
           ) : (
             <Link href="/" className="inline-flex min-h-6 items-center">
               {logo}

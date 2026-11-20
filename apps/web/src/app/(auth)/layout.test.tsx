@@ -7,6 +7,20 @@ const { redirectMock, getSessionMock, requestHeaders } = vi.hoisted(() => ({
   requestHeaders: new Map<string, string>(),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => (
+    <a href={href} data-next-link="true" {...props}>
+      {children}
+    </a>
+  ),
+}));
 vi.mock("next/headers", () => ({
   headers: async () => ({
     get: (name: string) => requestHeaders.get(name) ?? null,
@@ -118,5 +132,22 @@ describe("AuthLayout", () => {
     getSessionMock.mockResolvedValue(null);
     await renderAt("/signin");
     expect(screen.getByText("Sokosumi pitch")).toBeInTheDocument();
+  });
+
+  it("renders a full-document anchor for the header home link on /reset-password, and Next Link on /signin", async () => {
+    getSessionMock.mockResolvedValue(null);
+
+    await renderAt("/reset-password");
+    const resetHomeLink = document.querySelector('a[href="/"]');
+    expect(resetHomeLink).toBeInTheDocument();
+    expect(resetHomeLink).not.toHaveAttribute("data-next-link");
+  });
+
+  it("uses Next Link for the header home link on tracked auth routes", async () => {
+    getSessionMock.mockResolvedValue(null);
+
+    await renderAt("/signin");
+    const signinHomeLink = document.querySelector('a[href="/"]');
+    expect(signinHomeLink).toHaveAttribute("data-next-link", "true");
   });
 });

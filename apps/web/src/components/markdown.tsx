@@ -18,6 +18,7 @@ import { MermaidBlock } from "@/components/mermaid/mermaid-block";
 import { ConnectLinkButton } from "@/components/soko-bot/connect-link-button";
 import { connectLinkTarget } from "@/components/soko-bot/connect-link-target";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
+import { isTelemetryBlockedPath } from "@/lib/analytics/telemetry-blocked-paths";
 import { cn } from "@/lib/utils";
 import { normalizeLooseInlineMarkdown } from "@/lib/utils/composer-markdown-dom";
 import {
@@ -210,22 +211,23 @@ export default function Markdown({
           );
         }
         const sameTab = isSokosumiLink(href);
-        const link = isInternalAppPath(href) ? (
-          <Link href={href} className={classNames} {...props}>
-            {children}
-          </Link>
-        ) : (
-          <a
-            href={href}
-            {...props}
-            className={classNames}
-            {...(sameTab
-              ? {}
-              : { target: "_blank", rel: "noopener noreferrer" })}
-          >
-            {children}
-          </a>
-        );
+        const link =
+          isInternalAppPath(href) && !isTelemetryBlockedPath(href) ? (
+            <Link href={href} className={classNames} {...props}>
+              {children}
+            </Link>
+          ) : (
+            <a
+              href={href}
+              {...props}
+              className={classNames}
+              {...(sameTab
+                ? {}
+                : { target: "_blank", rel: "noopener noreferrer" })}
+            >
+              {children}
+            </a>
+          );
         const contact = contactMentionTarget(href);
         return contact ? (
           <ContactMentionCard target={contact} fallback={link}>

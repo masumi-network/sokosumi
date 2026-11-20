@@ -1,10 +1,6 @@
 import Script from "next/script";
 
-import {
-  CONSENT_COOKIE,
-  CONSENT_MODE_DEFAULTS,
-  CONSENT_VERSION,
-} from "@/lib/analytics/consent";
+import { CONSENT_COOKIE, CONSENT_VERSION } from "@/lib/analytics/consent";
 
 /**
  * Google Consent Mode v2, denied by default (Advanced: tags still load).
@@ -23,7 +19,11 @@ export function ConsentModeInit() {
       {`
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
-      gtag('consent', 'default', ${JSON.stringify(CONSENT_MODE_DEFAULTS)});
+      gtag('consent', 'default', {
+        ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied',
+        analytics_storage: 'denied', functionality_storage: 'granted',
+        security_storage: 'granted', wait_for_update: 500
+      });
       try {
         var m = document.cookie.match(new RegExp('(?:^|; )' + ${JSON.stringify(CONSENT_COOKIE)} + '=([^;]+)'));
         if (m) {
