@@ -7,6 +7,7 @@ import type {
 } from "@sokosumi/core-client";
 import type { ChatRoomCollection } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useMembershipVisibleRoomsPublisher } from "@/hooks/effects/use-membership-visible-rooms-publisher";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { withPinnedOrder } from "./chat-room-activity-sort";
@@ -14,11 +15,7 @@ import {
   fetchSidebarRoom,
   fetchSidebarRoomCollection,
 } from "./fetch-sidebar-room-collection";
-import {
-  getLatestMembershipVisibleRoomsSnapshot,
-  publishMembershipVisibleRooms,
-  registerMembershipVisibleRoomsPublisher,
-} from "./membership-visible-rooms-store";
+import { getLatestMembershipVisibleRoomsSnapshot } from "./membership-visible-rooms-store";
 import {
   useOrganizationChatRoomRead,
   useOrganizationChatRoomsChanged,
@@ -422,24 +419,13 @@ export function useOrganizationChatRooms({
     !paintOnly,
   );
 
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-    publishMembershipVisibleRooms(
-      roomRows,
-      organizationId,
-      currentUserId,
-      rooms,
-    );
-  }, [currentUserId, organizationId, paintOnly, roomRows, rooms]);
-
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-    return registerMembershipVisibleRoomsPublisher();
-  }, [paintOnly]);
+  useMembershipVisibleRoomsPublisher({
+    rooms: roomRows,
+    organizationId,
+    currentUserId,
+    sourceRooms: rooms,
+    enabled: !paintOnly,
+  });
 
   return {
     roomRows,

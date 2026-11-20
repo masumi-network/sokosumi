@@ -12,9 +12,9 @@ import { getPendingTaskName } from "@/app/tasks/utils/pending-created-task";
 import { isAgentAssigneeFields } from "@/app/tasks/utils/task-form-status";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { withBoardPreview } from "@/hooks/effects/use-pending-created-tasks";
 import { updateTask } from "@/lib/actions/task/action";
 import { toTaskContextSelectionInput } from "./task-context-attachments";
-import { withBoardPreview } from "./use-pending-created-tasks";
 
 import type { useTaskFormModel } from "./use-task-form-model";
 export function useTaskFormSubmission(

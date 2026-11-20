@@ -2,10 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import { startTransition, useEffect, useOptimistic } from "react";
+import type {
+  TaskFormCreateHandler,
+  TaskFormCreateInput,
+} from "@/app/tasks/components/task-form";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { getPendingTaskName } from "@/app/tasks/utils/pending-created-task";
 import { createTask } from "@/lib/actions/task/action";
-import type { TaskFormCreateHandler, TaskFormCreateInput } from "./task-form";
 
 type ShowPendingTask = (input: TaskFormCreateInput) => void;
 

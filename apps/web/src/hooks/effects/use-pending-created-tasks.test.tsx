@@ -1,8 +1,9 @@
 import { act, render, screen } from "@testing-library/react";
+import { Activity } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { TaskFormCreateInput } from "@/app/tasks/components/task-form";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import type { CreateTaskResult } from "@/lib/actions/task/action";
-import type { TaskFormCreateInput } from "./task-form";
 import {
   usePendingCreatedTasks,
   withBoardPreview,
@@ -118,5 +119,46 @@ describe("pending created tasks", () => {
     });
 
     expect(result).toEqual({ ok: true });
+  });
+
+  it("clears board preview registration on React Activity hide and restores it on reveal", async () => {
+    const first = deferredCreate();
+    const { rerender } = render(
+      <Activity mode="visible">
+        <Board items={[]} />
+      </Activity>,
+    );
+
+    rerender(
+      <Activity mode="hidden">
+        <Board items={[]} />
+      </Activity>,
+    );
+
+    let hiddenCreate: Promise<CreateTaskResult> | undefined;
+    await act(async () => {
+      hiddenCreate = withBoardPreview(first.handler)(input);
+      first.finish({ ok: true } as CreateTaskResult);
+      await hiddenCreate;
+    });
+
+    rerender(
+      <Activity mode="visible">
+        <Board items={[]} />
+      </Activity>,
+    );
+
+    const second = deferredCreate();
+    let visibleCreate: Promise<CreateTaskResult> | undefined;
+    await act(async () => {
+      visibleCreate = withBoardPreview(second.handler)(input);
+    });
+
+    expect(screen.getByText("pending New task")).toBeInTheDocument();
+
+    await act(async () => {
+      second.finish({ ok: false } as CreateTaskResult);
+      await visibleCreate;
+    });
   });
 });
