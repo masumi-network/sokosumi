@@ -15,6 +15,8 @@ const {
   updateSocialPost,
   scheduleSocialPost,
   brandPictures,
+  jobs,
+  checkStyledPicture,
 } = vi.hoisted(() => ({
   jobFindMany: vi.fn(),
   jobCount: vi.fn(),
@@ -28,12 +30,24 @@ const {
   updateSocialPost: vi.fn(),
   scheduleSocialPost: vi.fn(),
   brandPictures: vi.fn(),
+  jobs: {
+    findUnique: vi.fn(),
+    updateMany: vi.fn(),
+    update: vi.fn(),
+  },
+  checkStyledPicture: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findUnique: async () => null },
-    projectImageJob: { findMany: jobFindMany, count: jobCount },
+    projectImageJob: { findMany: jobFindMany, count: jobCount, ...jobs },
+    projectImageAsset: {
+      findUnique: async () => ({
+        blobPathname: "studio/asset-1.png",
+        contentType: "image/png",
+      }),
+    },
     socialPost: { findUnique: postFindUnique, updateMany: postUpdateMany },
     marketingStrategyFile: { updateMany: fileUpdateMany },
   },
@@ -79,10 +93,24 @@ vi.mock("@/services/cuso-project-files.service", () => ({
     userId: "runner-1",
     projectId: "project-1",
   }),
+  saveCusoProjectFile: async () => true,
 }));
 vi.mock("@/services/reference-library.service", () => ({
   referenceLibraryAvailable: () => true,
-  readReferenceImage: vi.fn(),
+  readReferenceImage: async () => ({
+    bytes: Buffer.from("reference"),
+    contentType: "image/jpeg",
+    description: "an old poster",
+  }),
+}));
+vi.mock("@/lib/reference-library/style-check", () => ({
+  checkStyledPicture,
+}));
+vi.mock("@/services/image-studio-assets.service", () => ({
+  readAssetBytes: async () => new Uint8Array([1, 2, 3]),
+}));
+vi.mock("@/services/soko-bot-billing.service", () => ({
+  recordSokoBotCheckUsage: vi.fn(),
 }));
 vi.mock("@/services/cmo-brand-visual.service", () => ({
   cmoBrandVisual: async () => null,
@@ -528,6 +556,90 @@ describe("advanceCmoMedia", () => {
     });
   });
 
+  it("keeps one verdict per picture when two passes check it at once", async () => {
+    const styledPiece = piece({
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      headline: "Fresh minted",
+    });
+    jobFindMany.mockResolvedValue([
+      {
+        id: "job-1",
+        idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(styledPiece)}:1`,
+        status: "SUCCEEDED",
+        prompt: "prompt",
+        error: null,
+        asset: { id: "asset-1" },
+      },
+    ]);
+    // The job row: a verdict is written once, where none is stored yet.
+    let stored: string | null = null;
+    jobs.findUnique.mockImplementation(async () => ({
+      error: stored,
+      workspaceId: "ws-1",
+      requestedByUserId: "runner-1",
+      referenceFileIds: [],
+      workspace: { organizationId: "org-1" },
+    }));
+    jobs.updateMany.mockImplementation(async ({ where, data }) => {
+      if (where.error === null && stored !== null) return { count: 0 };
+      stored = data.error;
+      return { count: 1 };
+    });
+    jobs.update.mockImplementation(async ({ data }) => {
+      stored = data.error;
+      return { id: "job-1" };
+    });
+    // Both passes read the job before either decides; the first check
+    // passes, the second refuses a moment later.
+    let release: () => void = () => {};
+    const bothChecking = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    checkStyledPicture.mockImplementation(async () => {
+      calls += 1;
+      const passes = calls === 1;
+      if (calls === 2) release();
+      await bothChecking;
+      if (!passes) await new Promise((resolve) => setTimeout(resolve, 5));
+      return {
+        passes,
+        costUsd: 0.01,
+        verdict: { problems: passes ? [] : ["Extra words"] },
+      };
+    });
+    ensureDriveFile.mockResolvedValue({
+      id: "file-1",
+      name: "fresh.png",
+      pathname: "drive/fresh.png",
+      mimeType: "image/png",
+      size: 10,
+    });
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "x",
+      text: "Fresh minted",
+      media: [],
+      revision: 1,
+      status: "DRAFT",
+      scheduledAt: null,
+      planning: { title: "Fresh minted" },
+    });
+    updateSocialPost.mockResolvedValue({
+      media: [{ pathname: "drive/fresh.png" }],
+      revision: 2,
+    });
+
+    await Promise.all([
+      advanceCmoMedia(context, [styledPiece]),
+      advanceCmoMedia(context, [styledPiece]),
+    ]);
+
+    // The picture went on its post, and the job says it passed.
+    expect(updateSocialPost).toHaveBeenCalled();
+    expect(stored).toBe("Style passed");
+  });
+
   it("starts each piece's picture once, within the month's limit, from the brand's pictures", async () => {
     jobFindMany.mockResolvedValue([]);
     jobCount.mockResolvedValue(4);
@@ -604,7 +716,7 @@ describe("advanceCmoMedia", () => {
     ]);
   });
 
-  it("gives a styled picture only the brand pictures its visual names", async () => {
+  it("never sends a styled picture's screen to the model, and leaves it a panel", async () => {
     jobFindMany.mockResolvedValue([]);
     jobCount.mockResolvedValue(0);
     const style = "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9";
@@ -624,12 +736,18 @@ describe("advanceCmoMedia", () => {
     expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain(
       "own picture",
     );
+    // Asked to redraw the real homepage, the models cropped or changed it in
+    // 8 of 8 tries: Core places the screenshot on the panel afterwards.
     expect(createImageJob.mock.calls[1]?.[0]).toMatchObject({
-      referenceFileIds: ["f-home"],
+      referenceFileIds: [],
     });
     expect(createImageJob.mock.calls[1]?.[0].prompt).toContain(
-      "The second image is NMKR's own picture",
+      "Leave one plain, light, empty panel from 10% to 90% of the width and 30% to 76% of the height",
     );
+    expect(createImageJob.mock.calls[1]?.[0].prompt).not.toContain(
+      "own picture",
+    );
+    expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain("panel");
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {

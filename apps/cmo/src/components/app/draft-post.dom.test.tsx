@@ -316,7 +316,7 @@ describe("Calendar", () => {
         />,
       ),
     );
-    expect(host.querySelector("h3")?.textContent).toContain("Waiting for you");
+    expect(host.querySelector("h2")?.textContent).toContain("Waiting for you");
     expect(host.textContent).toContain("1 post");
     expect(host.querySelectorAll("video")).toHaveLength(1);
   });

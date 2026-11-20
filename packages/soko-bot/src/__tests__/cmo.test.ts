@@ -245,9 +245,7 @@ describe("CMO version", () => {
     ])
       expect(applyVersionCapabilities(cmo, routed)).toEqual([
         "read_memory",
-        ...SOKO_BOT_CMO_CAPABILITIES.filter(
-          (capability) => capability !== "write_month_pieces",
-        ),
+        ...SOKO_BOT_CMO_CAPABILITIES,
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]);
     // Another bot gets them only from its route; Core then asks whether a
@@ -857,6 +855,10 @@ describe("what Cuso is told a talking video costs", () => {
 });
 
 describe("cmo-v7", () => {
+  it("is the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v7");
+  });
+
   it("answers a change without repeating the card or naming internals", () => {
     expect(cmoV6.systemPrompt).toContain("then answer in one or two sentences");
     expect(cmoV7.systemPrompt).not.toContain(

@@ -26,6 +26,10 @@ import { renderStudioPng } from "@/lib/image-studio/brand-overlay";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import {
+  placeScreen,
+  SCREEN_PANEL_WORDS,
+} from "@/lib/image-studio/screen-composite";
+import {
   DEFAULT_TALKING_VIDEO_VOICE,
   TALKING_VIDEO_PRESENTERS,
 } from "@/lib/image-studio/talking-video";
@@ -687,6 +691,8 @@ export function cmoStylePrompt(input: {
   colours: readonly string[];
   /** The brand's own pictures sent after the reference. */
   brandPictures?: number;
+  /** Core places the brand's real screen on a plain panel afterwards. */
+  screen?: boolean;
 }): string {
   const { piece } = input;
   const slides = piece.slides?.length ?? 0;
@@ -700,6 +706,9 @@ export function cmoStylePrompt(input: {
       ? `${own > 1 ? "The other images are" : "The second image is"} ${input.businessName}'s own picture${own > 1 ? "s" : ""} of its site or product. Set what the scene shows of it into the composition as it is, like a plate printed into the page: its layout, words and colours unchanged and readable. Invent no price, number, plan, label or interface detail it does not show.`
       : "",
     `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slides > 1 ? " One picture of a series: the others share this same style and colours. Draw no slide number, page number or counter." : ""}${slide ? ` This slide: ${slide}.` : ""}`,
+    input.screen
+      ? `Leave one plain, light, empty panel ${SCREEN_PANEL_WORDS}, with nothing drawn in it and no frame of your own: the brand's real screen is placed there afterwards. Keep the headline above it.`
+      : "",
     headline
       ? `${own > 0 ? "Besides what stands in the brand's own picture, the" : "The"} only words in the picture: "${headline}", lettered large in the reference's style and spelled exactly. ${STEPS_WITHOUT_WORDS}`
       : own > 0
@@ -919,12 +928,15 @@ export async function advanceCmoMedia(
         piece,
         slot,
         action,
+        // A styled picture's screen is placed by Core, never redrawn.
         references:
-          action.step === "video" || action.step === "talking"
+          action.step === "video" || action.step === "talking" || styled(piece)
             ? []
-            : styled(piece)
-              ? styleBrandPictures(piece, brandPictures)
-              : references(piece, brandPictures),
+            : references(piece, brandPictures),
+        screen:
+          styled(piece) &&
+          action.step === "image" &&
+          styleBrandPictures(piece, brandPictures).length > 0,
         colours:
           styled(piece) && action.step !== "video" && action.step !== "talking"
             ? (await brandFor()).colours
@@ -1054,6 +1066,8 @@ async function start(
     references: string[];
     /** The brand's colours, for a picture in a reference library style. */
     colours: string[];
+    /** A styled picture leaves a panel for the brand's real screen. */
+    screen?: boolean;
   },
 ): Promise<boolean> {
   const { piece, slot, action } = input;
@@ -1118,7 +1132,7 @@ async function start(
             slot,
             businessName: context.cuso.businessName,
             colours: input.colours,
-            brandPictures: input.references.length,
+            screen: input.screen ?? false,
           })
         : cmoImagePrompt({
             piece,
@@ -1183,6 +1197,7 @@ async function attach(
         },
         job,
         style,
+        job.step === "image" ? await pieceScreen(context, drive, piece) : null,
       )
     : null;
   if (finished === "rejected") return false;
@@ -1277,6 +1292,8 @@ async function checkAndBrand(
   piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline" | "visual">,
   job: Pick<CmoMediaJob, "id" | "assetId">,
   style: StyleBrand,
+  /** The brand's real screen, placed on the picture's panel before the check. */
+  screen: Uint8Array | null = null,
 ): Promise<"rejected" | { bytes: Buffer; contentType: string }> {
   const asset = await prisma.projectImageAsset.findUnique({
     where: { id: job.assetId ?? "" },
@@ -1286,29 +1303,48 @@ async function checkAndBrand(
     ? await readReferenceImage(piece.styleReferenceId)
     : null;
   if (!asset || !reference) return "rejected";
-  const picture = await readAssetBytes(asset.blobPathname);
-  const check = await checkStyledPicture({
-    picture,
-    reference: reference.bytes,
-    headline: piece.headline ?? null,
-    scene: piece.visual ?? null,
-    colours: style.colours,
-    brandPictures: await jobBrandPictures(job.id),
-  });
-  await recordSokoBotCheckUsage({
-    sokoBotId: context.cuso.sokoBotId,
-    key: `cmo-style-check:${job.id}`,
-    costUsd: check.costUsd,
-  });
-  if (!check.passes) {
-    await prisma.projectImageJob.update({
-      where: { id: job.id },
-      data: {
-        error: `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`,
-      },
-      select: { id: true },
+  // One verdict per job: a pass that already judged it is followed.
+  const judged = await jobVerdict(job.id);
+  if (judged === "rejected") return "rejected";
+  const made = await readAssetBytes(asset.blobPathname);
+  const picture = screen
+    ? asset.contentType === "image/png"
+      ? await placeScreen(made, screen)
+      : await sharp(await placeScreen(made, screen))
+          .jpeg({ quality: 92 })
+          .toBuffer()
+    : made;
+  if (judged !== "passed") {
+    const check = await checkStyledPicture({
+      picture,
+      reference: reference.bytes,
+      headline: piece.headline ?? null,
+      scene: piece.visual ?? null,
+      colours: style.colours,
+      brandPictures: screen ? [screen] : await jobBrandPictures(job.id),
     });
-    return "rejected";
+    await recordSokoBotCheckUsage({
+      sokoBotId: context.cuso.sokoBotId,
+      key: `cmo-style-check:${job.id}`,
+      costUsd: check.costUsd,
+    });
+    // Two passes once checked one job at the same time: the first passed and
+    // put the picture on its post, the second refused and marked the job.
+    // The first verdict stored wins, and a later one follows it.
+    const verdict = check.passes
+      ? CMO_STYLE_PASSED
+      : `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`;
+    const { count } = await prisma.projectImageJob.updateMany({
+      where: { id: job.id, error: null },
+      data: { error: verdict },
+    });
+    const outcome =
+      count > 0
+        ? check.passes
+          ? "passed"
+          : "rejected"
+        : await jobVerdict(job.id);
+    if (outcome !== "passed") return "rejected";
   }
   const logo = await logoForPicture(picture, style);
   if (!logo) {
@@ -1323,6 +1359,39 @@ async function checkAndBrand(
         bytes: await sharp(png).jpeg({ quality: 90 }).toBuffer(),
         contentType: "image/jpeg",
       };
+}
+
+/** The style verdict stored on a job, if a check already judged it. */
+async function jobVerdict(
+  jobId: string,
+): Promise<"passed" | "rejected" | null> {
+  const row = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: { error: true },
+  });
+  if (row?.error === CMO_STYLE_PASSED) return "passed";
+  if (row?.error?.startsWith(CMO_STYLE_REJECTED)) return "rejected";
+  return null;
+}
+
+/** The brand's real screen a styled piece shows, if its visual names one. */
+async function pieceScreen(
+  context: MediaContext,
+  drive: CusoDrive,
+  piece: CmoMediaPiece,
+): Promise<Uint8Array | null> {
+  const [fileId] = styleBrandPictures(
+    piece,
+    await listCmoBrandPictures(context.cuso.projectId),
+  );
+  if (!fileId) return null;
+  return downloadStudioFileReference(drive.workspaceId, fileId, {
+    userId: drive.userId,
+    organizationId: drive.organizationId,
+    kind: "soko_bot",
+  })
+    .then((file) => file.bytes)
+    .catch(() => null);
 }
 
 /** The brand's own pictures a styled job was made from, for its check. */

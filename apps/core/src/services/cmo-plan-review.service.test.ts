@@ -21,6 +21,7 @@ import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
   cmoDraftProblems,
+  cmoMonthShortfall,
   cmoNewNetworkProblems,
   cmoPlanDrift,
   cmoPlanProblems,
@@ -28,12 +29,12 @@ import {
   cmoPlanRuleProblems,
   cmoRejectedTermProblems,
   cmoRejectedTerms,
+  cmoPromiseGaps,
   cmoReplySafety,
   cmoSideChannelFit,
   cmoStrategyRules,
   cmoTopVolumeProblems,
   cmoWithOwnerPace,
-  isTopVolumeProblem,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
@@ -426,6 +427,48 @@ describe("the funnel strategy", () => {
     expect(
       cmoPlanProblems(plan({ calendar: weekOne, pace })).join(" "),
     ).not.toContain("calendar covers");
+  });
+
+  it("names a four-week month short of its own pace and cadences, and how short", () => {
+    // NMKR's test copy: four weeks at 16 a week against an all_in pace of 43.
+    const calendar = Array.from({ length: 64 }, (_, index) => ({
+      ...entry(`p${index}`, index % 2 ? "x" : "linkedin", "post"),
+      date: `2026-11-${String(2 + Math.floor(index / 16) * 7 + (index % 7)).padStart(2, "0")}`,
+    }));
+    const short = plan({
+      calendar,
+      pace: { level: "all_in", why: "Go hard", perWeek: 43 },
+      channels: [
+        { channel: "x", cadence: "3 a day", role: "main" },
+        { channel: "linkedin", cadence: "2 a day", role: "main" },
+      ],
+    });
+    const options = { weekly: true, everyNetwork: true };
+    expect(cmoPromiseGaps(short, options)).toEqual([
+      "calendar has about 16 pieces a week; the all_in pace says 43. Match them.",
+      'x has 32 calendar pieces, but its cadence "3 a day" means about 84 over four weeks. Save part calendar so they match.',
+      'linkedin has 32 calendar pieces, but its cadence "2 a day" means about 56 over four weeks. Save part calendar so they match.',
+    ]);
+    expect(cmoMonthShortfall(short, options)).toEqual({
+      planned: 64,
+      promised: 172,
+    });
+    // Too many on a channel is no gap: the plan bought caps what is made.
+    const whole = plan({
+      calendar,
+      pace: { level: "all_in", why: "Go hard", perWeek: 16 },
+      channels: [
+        { channel: "x", cadence: "1 a day", role: "main", setByOwner: true },
+        {
+          channel: "linkedin",
+          cadence: "1 a week",
+          role: "main",
+          setByOwner: true,
+        },
+      ],
+    });
+    expect(cmoPromiseGaps(whole, options)).toEqual([]);
+    expect(cmoMonthShortfall(whole, options)).toBeNull();
   });
 
   it("holds a weekly Cuso's side channels to a buyer and three a week", () => {
@@ -1519,6 +1562,59 @@ describe("a cmo-v5 month at the top volume, whose funnel says what it plans", ()
     );
   });
 
+  it("counts video a funnel promises and the calendar lacks as a gap of the month", () => {
+    const month = plan({
+      pace: { level: "all_in", why: "Top volume", perWeek: 1 },
+      channels: [
+        { ...channel("x", "1 a week", "main"), setByOwner: true },
+        { ...channel("instagram", "1 a week", "side"), setByOwner: true },
+      ],
+      funnel: [
+        stage("awareness", [{ channel: "x", what: "Weekly posts" }]),
+        stage("interest", [
+          { channel: "instagram", what: "Moments, including weekly video" },
+        ]),
+      ],
+      calendar: [0, 1, 2, 3].flatMap((n) => [
+        { ...entry(`x${n}`, "x", "post"), date: week(n), title: `Post ${n}` },
+        {
+          ...entry(`i${n}`, "instagram", "image"),
+          date: week(n),
+          title: `Picture ${n}`,
+        },
+      ]),
+    });
+    const options = { everyNetwork: true, weekly: true };
+    expect(cmoPromiseGaps(month, options)).toEqual([
+      'the funnel\'s interest play on instagram promises video ("Moments, including weekly video"), but no talking video in the calendar goes out on instagram; plan one with instagram in its alsoOn, or take video out of the play.',
+    ]);
+    // Only a video is missing: the owner reads no count.
+    expect(cmoMonthShortfall(month, options)).toEqual({
+      planned: 8,
+      promised: 8,
+    });
+    const withVideo = {
+      ...month,
+      calendar: [...month.calendar, { ...video(1), alsoOn: ["instagram"] }],
+    };
+    expect(cmoPromiseGaps(withVideo, options)).toEqual([]);
+  });
+
+  it("fills a video network through the talking videos' alsoOn, within the video cap", () => {
+    // A finish turn once added a fifth video for YouTube's "1 a week".
+    const month = plan({
+      pace: { level: "all_in", why: "Top volume", perWeek: 1 },
+      channels: [{ ...channel("youtube", "1 a week", "main") }],
+      calendar: [0, 1, 2, 3].map((n) => ({
+        ...video(n),
+        alsoOn: n === 0 ? ["youtube"] : [],
+      })),
+    });
+    expect(cmoPromiseGaps(month, { weekly: true })).toEqual([
+      'youtube has 1 calendar pieces, but its cadence "1 a week" means about 4 over four weeks. List youtube in the alsoOn of more of the month\'s talking videos (at most 4 videos a month), or set its cadence to what they hold.',
+    ]);
+  });
+
   it("passes the same month at the top volume, on every network, with talking videos", () => {
     const fixed = plan({
       ...nmkr,
@@ -1706,12 +1802,31 @@ describe("a pace or cadence only the owner lowers", () => {
     });
     const options = { everyNetwork: true, weekly: true, aida: true };
     const volume = (fresh: boolean) =>
-      cmoPlanProblemsSince(old, old, { ...options, fresh }).filter(
-        isTopVolumeProblem,
+      cmoPlanProblemsSince(old, old, { ...options, fresh }).filter((problem) =>
+        problem.includes("at the top volume"),
       );
     expect(volume(false)).toEqual([]);
     expect(volume(true)).toEqual([
       'x has the cadence "13 posts a week"; at the top volume a main x takes 3 a day. Set it and plan its pieces, unless the owner asked for less.',
+    ]);
+  });
+
+  it("holds a new month to its own pace whatever the month before had", () => {
+    const calendar = Array.from({ length: 16 }, (_, index) => ({
+      ...entry(`p${index}`, "x", "post"),
+      date: `2026-11-${String(2 + index * 2).padStart(2, "0")}`,
+    }));
+    const short = plan({
+      calendar,
+      pace: { level: "all_in", why: "Go hard", perWeek: 43 },
+    });
+    const pace = (fresh: boolean) =>
+      cmoPlanProblemsSince(short, short, { weekly: true, fresh }).filter(
+        (problem) => problem.includes("pace says"),
+      );
+    expect(pace(false)).toEqual([]);
+    expect(pace(true)).toEqual([
+      "calendar has about 4 pieces a week; the all_in pace says 43. Match them.",
     ]);
   });
 });

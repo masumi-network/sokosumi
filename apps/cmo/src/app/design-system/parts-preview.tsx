@@ -144,7 +144,14 @@ export function PartsPreview() {
         <p className="ds-t-small muted">{AGENT_NAME} status, by pose</p>
         <div className="ds-statuses">
           {STATUS_CARDS.map((card) => (
-            <CusoStatus key={card.label} overview={card.overview} now={AT} />
+            <div key={card.label} className="ds-stage">
+              <CusoStatus
+                overview={card.overview}
+                view="today"
+                now={AT}
+                onOpen={noop}
+              />
+            </div>
           ))}
         </div>
       </div>

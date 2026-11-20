@@ -83,7 +83,7 @@ export function useRoomPanelSlideOut(
  * under reduced motion.
  */
 export function useRoomPanelSlide() {
-  const mainRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);

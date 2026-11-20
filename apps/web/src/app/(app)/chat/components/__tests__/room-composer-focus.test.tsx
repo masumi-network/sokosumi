@@ -14,6 +14,7 @@ import {
 } from "@/app/chat/components/room-composer";
 
 const editorFocus = vi.hoisted(() => vi.fn());
+const editorAppend = vi.hoisted(() => vi.fn());
 
 async function flushAnimationFrame() {
   await act(async () => {
@@ -69,6 +70,7 @@ vi.mock("@/components/chat/composer-wysiwyg-editor", () => ({
         editorFocus();
       },
       insertText: () => undefined,
+      appendText: editorAppend,
       openMentions: () => undefined,
       applyFormat: () => undefined,
       insertLink: () => undefined,
@@ -252,5 +254,47 @@ describe("RoomComposer focusOnMount", () => {
     await waitFor(() => {
       expect(editorFocus).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("RoomComposerEditHandle.addText", () => {
+  function AddTextHarness({ draft }: { draft: string }) {
+    const composerRef = useRef<RoomComposerEditHandle | null>(null);
+    const [value, setValue] = useState(draft);
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => composerRef.current?.addText("Plan a launch")}
+        >
+          add
+        </button>
+        <RoomComposer
+          ref={composerRef}
+          value={value}
+          onValueChange={setValue}
+          mentions={{}}
+          onSelectedKeysChange={() => undefined}
+          placeholder="Message"
+          attachments={[]}
+          onAttachmentsChange={() => undefined}
+          onSubmit={(event) => event.preventDefault()}
+          isSending={false}
+          sendDisabled={false}
+          showMentionShortcut={false}
+          allowAttachments={false}
+        />
+      </>
+    );
+  }
+
+  it("appends to the draft through the editor", async () => {
+    editorAppend.mockClear();
+    const { getByRole } = render(<AddTextHarness draft="Hi" />);
+    await waitFor(() => {
+      expect(getByRole("textbox")).toBeInTheDocument();
+    });
+    getByRole("button", { name: "add" }).click();
+    expect(editorAppend).toHaveBeenCalledExactlyOnceWith("Plan a launch");
   });
 });

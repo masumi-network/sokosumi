@@ -162,14 +162,14 @@ export function CalendarPage({
   const waiting =
     overview.drafts.length > 0 ? (
       <section className="cal-week" aria-labelledby="cal-waiting">
-        <h3 className="cal-week-head" id="cal-waiting">
+        <h2 className="cal-week-head" id="cal-waiting">
           Waiting for you
           <span className="note num">
             {overview.drafts.length === 1
               ? "1 post"
               : `${overview.drafts.length} posts`}
           </span>
-        </h3>
+        </h2>
         <div className="cal-waiting">
           {overview.drafts.map((draft) => (
             <DraftPost key={draft.id} draft={draft} actions={drafts} />
@@ -307,7 +307,7 @@ export function CalendarPage({
             className={current ? "cal-week cal-this-week" : "cal-week"}
             ref={current && weekIndex > 0 ? thisWeek : undefined}
           >
-            <h3 className="cal-week-head">
+            <h2 className="cal-week-head">
               {current ? <span className="cal-now">This week</span> : null}
               Week {weekIndex + 1}
               <span className="note num">
@@ -316,7 +316,7 @@ export function CalendarPage({
                   month: "short",
                 })}
               </span>
-            </h3>
+            </h2>
             <ul className="cal-grid">
               {pieces.map((entry) => (
                 <li key={entry.id}>

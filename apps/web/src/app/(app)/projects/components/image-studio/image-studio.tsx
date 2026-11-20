@@ -70,7 +70,6 @@ import {
   MAX_ARCHIVE_MIB,
   saveStudioDownload,
 } from "./studio-ad-download";
-import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
 import type {
   StudioBatchDownloadReview,
   StudioBatchProduct,
@@ -89,6 +88,7 @@ import { StudioFailedSubmission } from "./studio-failed-submission";
 import { getDistinctProviderError } from "./studio-failure-notice";
 import { StudioGallery } from "./studio-gallery";
 import { StudioGalleryColumn } from "./studio-gallery-column";
+import { readStudioHeadlineKit } from "./studio-headline-kit";
 import { usesExactFontOverlay } from "./studio-lettering";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
@@ -656,13 +656,14 @@ export function ImageStudio({
       await Promise.all(
         reviewedProjects.map(
           async (projectId) =>
-            [projectId, await readApprovedStudioHeadlines(projectId)] as const,
+            [projectId, await readStudioHeadlineKit(projectId)] as const,
         ),
       ),
     );
     if (
       reviewedAssets.some(
-        ({ text, projectId }) => !approvals.get(projectId)?.includes(text),
+        ({ text, projectId }) =>
+          !approvals.get(projectId)?.approvedLines.includes(text),
       )
     ) {
       toast.error(t("archiveHeadlineRemoved"));
@@ -674,6 +675,9 @@ export function ImageStudio({
           logo,
           Object.fromEntries(reviewedAssets.map(({ id, text }) => [id, text])),
           state.jobs,
+          Object.fromEntries(
+            [...approvals].map(([projectId, kit]) => [projectId, kit.look]),
+          ),
         )
       : await createStudioAdArchive(assets, logo, undefined, state.jobs);
     saveStudioDownload(
@@ -1031,8 +1035,8 @@ export function ImageStudio({
         setActionError(null);
         startTransition(async () => {
           try {
-            const approved =
-              await readApprovedStudioHeadlines(generationProjectId);
+            const { approvedLines: approved } =
+              await readStudioHeadlineKit(generationProjectId);
             if (headlines.some((line) => !approved.includes(line))) {
               setTarget((current) => ({
                 ...current,

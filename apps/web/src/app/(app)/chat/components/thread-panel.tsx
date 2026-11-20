@@ -32,7 +32,6 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { cn } from "@/lib/utils";
 import type { ChatRoomMessageLink } from "@/lib/utils/notification-href";
-import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   type ChatParticipantHoverProfile,
@@ -43,6 +42,7 @@ import {
 import { ChatMessageRow } from "./room-message-row";
 import {
   RoomSessionComposer,
+  type RoomSessionComposerHandle,
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
@@ -207,7 +207,7 @@ export function ThreadPanel({
   viewportRef?: RefObject<TranscriptViewportHandle | null>;
 }) {
   const t = useTranslations("App.Channels");
-  const threadComposerRef = useRef<RoomComposerHandle | null>(null);
+  const threadComposerRef = useRef<RoomSessionComposerHandle | null>(null);
   const localViewportRef = useRef<TranscriptViewportHandle | null>(null);
   const viewportRef = viewportRefFromParent ?? localViewportRef;
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);

@@ -24,8 +24,9 @@ import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
 import {
-  cmoCalendarWeeks,
+  cmoPromiseGaps,
   cmoStrategyRules,
+  type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
@@ -728,11 +729,14 @@ export async function startCmoCase(
 /** How long after the plan turn settles a finish turn may take to start. */
 const FINISH_START_GRACE_MS = 60_000;
 
-/** The lane's newest draft covers fewer than four weeks. */
-async function monthStillShort(lane: EvalLaneRecord): Promise<boolean> {
+/** The lane's newest draft is short of its weeks, pace or cadences: a finish turn follows. */
+async function monthStillShort(
+  lane: EvalLaneRecord,
+  rules: PlanReviewOptions,
+): Promise<boolean> {
   const saved = await newestMarketingStrategy(lane.cusoProjectId);
   const plan = parseMarketingPlan(saved?.plan);
-  return plan !== null && cmoCalendarWeeks(plan.calendar) < 4;
+  return plan !== null && cmoPromiseGaps(plan, rules).length > 0;
 }
 
 async function settledTurn(turnId: string) {
@@ -847,14 +851,24 @@ async function monthPictureChecks(
     },
   ];
   if (!pictures) return checks;
-  const withPage = jobs.filter(
+  const posts = await prisma.socialPost.findMany({
+    where: { marketingStrategyId: strategyId },
+    select: { planning: true, media: true },
+  });
+  // Core places the page itself on a styled picture; the model never gets it.
+  const showsPage = posts.filter((post) => {
+    const planning = parseSocialPostPlanning(post.planning);
+    return Boolean(
+      planning?.styleReferenceId && planning.visualFileIds?.length,
+    );
+  });
+  const placed = showsPage.filter(
+    (post) => Array.isArray(post.media) && post.media.length > 0,
+  );
+  const sentPage = jobs.filter(
     (job) =>
       job.referenceLibraryIds.length > 0 && job.referenceFileIds.length > 0,
   );
-  const posts = await prisma.socialPost.findMany({
-    where: { marketingStrategyId: strategyId },
-    select: { planning: true },
-  });
   const carousels = posts.flatMap((post) => {
     const planning = parseSocialPostPlanning(post.planning);
     return planning?.slides?.length ? [planning] : [];
@@ -863,16 +877,14 @@ async function monthPictureChecks(
     ...checks,
     {
       label: "The homepage's screenshot sits inside a styled picture",
-      pass: withPage.length > 0,
-      actual: `${withPage.length} styled job${withPage.length === 1 ? "" : "s"} with a brand picture`,
+      pass: placed.length > 0 && sentPage.length === 0,
+      actual: `${placed.length} styled piece${placed.length === 1 ? "" : "s"} with the page placed, ${sentPage.length} job${sentPage.length === 1 ? "" : "s"} sent it to the model`,
     },
     {
-      // Every piece given the screenshot would paste it into each picture.
+      // Every piece given the screenshot would show it in each picture.
       label: "Only a piece that shows the page gets the screenshot",
-      pass:
-        new Set(withPage.map((job) => job.idempotencyKey.split(":")[2])).size <=
-        1,
-      actual: `${new Set(withPage.map((job) => job.idempotencyKey.split(":")[2])).size} pieces with a brand picture`,
+      pass: showsPage.length <= 1,
+      actual: `${showsPage.length} pieces with a brand picture`,
     },
     {
       label: "Each carousel slide has its own words",
@@ -1285,7 +1297,12 @@ export async function pollCmoCase(
   if (
     evalCase.kind === "cmo-strategy" &&
     finishes.length === 0 &&
-    (await monthStillShort(lane)) &&
+    (await monthStillShort(
+      lane,
+      turn.versionId
+        ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
+        : {},
+    )) &&
     (await databaseNow()).getTime() - (turn.updatedAt?.getTime() ?? 0) <
       FINISH_START_GRACE_MS
   )

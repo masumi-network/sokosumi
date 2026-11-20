@@ -485,13 +485,95 @@ describe("the plan starts when the research ends", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
-  it("finishes nothing for a whole month, an approved one, or a Cuso who saves in two calls", async () => {
-    const day = (week: number) => ({
+  it("finishes a four-week month short of its cadences: NMKR's test copy planned a third", async () => {
+    // Four weeks, one LinkedIn piece a week against "3 a week".
+    const week = (index: number) => ({
       ...strategy.calendar[0],
-      id: `w${week}`,
-      date: `2026-10-${String(1 + week * 7).padStart(2, "0")}`,
+      id: `w${index}`,
+      date: `2026-10-${String(1 + index * 7).padStart(2, "0")}`,
     });
-    seedStrategy({ ...strategy, calendar: [0, 1, 2, 3].map(day) });
+    seedStrategy({ ...strategy, calendar: [0, 1, 2, 3].map(week) });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const message = (startTurn.mock.calls[0]?.[0] as { message: string })
+      .message;
+    expect(message).toContain(
+      "its calendar does not hold what the strategy promises",
+    );
+    expect(message).toContain(
+      'linkedin has 4 calendar pieces, but its cadence "3 a week" means about 12',
+    );
+    expect(message).toContain(
+      "Never lower the pace or a posting network's cadence",
+    );
+  });
+
+  it("finishes a month whose funnel promises video the calendar does not hold", async () => {
+    // Four weeks at the owner's "3 a week", and a play that promises video.
+    const day = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `w${index}`,
+      date: `2026-10-${String(1 + Math.floor(index / 3) * 7 + (index % 3) * 2).padStart(2, "0")}`,
+    });
+    seedStrategy({
+      ...strategy,
+      channels: [
+        { channel: "linkedin", cadence: "3 a week", setByOwner: true },
+      ],
+      pace: { level: "all_in", why: "Top volume.", perWeek: 3 },
+      funnel: [
+        {
+          stage: "interest",
+          goal: "g",
+          cusoDoes: "I post how-tos.",
+          channels: ["linkedin"],
+          metric: "Trials",
+          plays: [{ channel: "linkedin", what: "A weekly founder video" }],
+        },
+      ],
+      calendar: Array.from({ length: 12 }, (_, index) => day(index)),
+    });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const message = (startTurn.mock.calls[0]?.[0] as { message: string })
+      .message;
+    expect(message).toContain(
+      "the funnel's interest play on linkedin promises video",
+    );
+    expect(message).toContain(
+      "first add the network to the alsoOn of talking videos already planned",
+    );
+  });
+
+  it("finishes nothing for a whole month, an approved one, or a Cuso who saves in two calls", async () => {
+    // Four weeks at "3 a week", the cadence the owner asked for: twelve pieces.
+    const day = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `w${index}`,
+      date: `2026-10-${String(1 + Math.floor(index / 3) * 7 + (index % 3) * 2).padStart(2, "0")}`,
+    });
+    seedStrategy({
+      ...strategy,
+      channels: [
+        { channel: "linkedin", cadence: "3 a week", setByOwner: true },
+      ],
+      pace: { level: "all_in", why: "Top volume.", perWeek: 3 },
+      calendar: Array.from({ length: 12 }, (_, index) => day(index)),
+    });
     sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
     const ended = {
       sokoBotId: "bot-1",
@@ -2167,7 +2249,20 @@ describe("changes after the plan", () => {
     expect(message()).toContain("EUR 300");
   });
 
+  it("refuses to approve a month short of the volume it promises", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    // Three weeks, at steady: short of its weeks and the top volume.
+    const short = seedStrategy(wholePlan());
+    await expect(requireCmoStrategyFitted(HIRE, short.id)).rejects.toThrow(
+      "This strategy promises more than its calendar holds",
+    );
+    // A Cuso who saves in two calls has no finish turn to fill it.
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    await requireCmoStrategyFitted(HIRE, short.id);
+  });
+
   it("refuses to approve a strategy that still shows an answer the owner said no to", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
     const question = {
       id: "q1",
       question: "Can you spend about $300 on ads?",

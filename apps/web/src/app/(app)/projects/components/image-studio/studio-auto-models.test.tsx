@@ -15,8 +15,8 @@ import type { GenerationRequest } from "./use-generation-queue";
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
-vi.mock("./studio-approved-headlines", () => ({
-  readApprovedStudioHeadlines: vi.fn(),
+vi.mock("./studio-headline-kit", () => ({
+  readStudioHeadlineKit: vi.fn(),
 }));
 
 const catalog = {

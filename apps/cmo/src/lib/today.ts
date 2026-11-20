@@ -89,12 +89,7 @@ export function needsYou(overview: CmoOverview): NeedsYou[] {
       view: "calendar",
     });
   }
-  const connected = connectedNetworks(overview.channels);
-  const waiting = new Map<string, number>();
-  for (const entry of monthEntries(overview)) {
-    const network = waitsForNetwork(entry, connected);
-    if (network) waiting.set(network, (waiting.get(network) ?? 0) + 1);
-  }
+  const waiting = waitingByNetwork(overview);
   if (waiting.size > 0) {
     const names = [...waiting.keys()].map(channelLabel);
     const count = [...waiting.values()].reduce((sum, n) => sum + n, 0);
@@ -108,6 +103,17 @@ export function needsYou(overview: CmoOverview): NeedsYou[] {
     });
   }
   return items;
+}
+
+/** The month's written posts that wait for a network, counted per network. */
+export function waitingByNetwork(overview: CmoOverview): Map<string, number> {
+  const connected = connectedNetworks(overview.channels);
+  const waiting = new Map<string, number>();
+  for (const entry of monthEntries(overview)) {
+    const network = waitsForNetwork(entry, connected);
+    if (network) waiting.set(network, (waiting.get(network) ?? 0) + 1);
+  }
+  return waiting;
 }
 
 /** The owner's day (YYYY-MM-DD) in Cuso's time zone. */

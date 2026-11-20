@@ -28,9 +28,9 @@ const tabs = () =>
     (tab) => tab.textContent,
   );
 
-it("puts Today, Cuso, Calendar, Results and More under the thumb", async () => {
+it("puts Today, Chat, Calendar, Results and More under the thumb", async () => {
   await act(async () => root.render(<FixtureApp view="today" />));
-  expect(tabs()).toEqual(["2Today", "Cuso", "Calendar", "Results", "More"]);
+  expect(tabs()).toEqual(["2Today", "Chat", "Calendar", "Results", "More"]);
   expect(container.querySelector(".tabbar .tab.active")?.textContent).toBe(
     "2Today",
   );
@@ -46,9 +46,9 @@ it("opens every other page from More, and closes on a pick or Escape", async () 
   ];
   expect(links.map((link) => link.textContent)).toEqual([
     "Strategy",
-    "SEO",
-    "Competitors",
     "Brand Brain",
+    "Competitors",
+    "SEO",
     "Channels",
     "Settings",
   ]);

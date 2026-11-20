@@ -300,6 +300,8 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["core", "Test Core"],
       ["core-postgres", "Test Core PostgreSQL"],
       ["packages", "Test Packages"],
+      ["cli", "Test CLI"],
+      ["ci-config", "Test CI config"],
     ]) {
       const block = jobBlock(test, jobId);
       assert.match(block, new RegExp(`\\n    name: ${name}\\n`));
