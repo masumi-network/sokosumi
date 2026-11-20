@@ -44,14 +44,16 @@ describe("sign-in problem page", () => {
     }
   });
 
-  it("says why sign in stopped, with the mascot", () => {
+  it("says why sign in stopped, beside the primary lockup", () => {
     const html = alertFor("access_denied");
 
     expect(html).toContain("<h1>Sign in did not finish.</h1>");
     expect(html).toContain(
       '<p role="alert">You did not allow CMO. Nothing was shared.</p>',
     );
-    expect(html).toContain('class="mascot hero-mascot"');
+    expect(html).toContain(
+      'src="/logo/cmo-xyz-lockup-mascot-top-outline-black.svg"',
+    );
   });
 
   // One state cookie per browser: a second Sign in, in another tab or from

@@ -1,5 +1,7 @@
 "use client";
 
+import { Logo } from "../components/logo";
+
 interface ErrorPageProps {
   error: Error & { digest?: string };
   retry: () => void;
@@ -16,6 +18,7 @@ export default function ErrorPage({ retry }: ErrorPageProps) {
           Try again
         </button>
       </div>
+      <Logo lockup="block" className="hero-logo" />
     </main>
   );
 }
