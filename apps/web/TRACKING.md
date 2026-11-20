@@ -333,6 +333,13 @@ It contains, at minimum:
 - **GA4 Event** tags, one per event above, on Custom Event triggers.
 - **Google Ads** conversion linker (AW-16455471438), consent-gated
   (`ad_storage`).
+- **History Change triggers exclude the telemetry-blocked routes.** The app
+  loads no Google tags on `/reset-password` and `/n/<slug>/embed`
+  (`TelemetryBoundary`), but a document that already loaded GTM keeps it when
+  the visitor goes Back to one of them. Every History Change trigger (including
+  the one on `GA4 - config`) must fire on **Some History Changes** with
+  `Page Path` does not start with `/reset-password` and `Page Path` does not
+  match RegEx `^/n/[^/]+/embed`. **Not yet applied in GTM (2026-11-20).**
 
 Test changes with **Tag Assistant** (Preview) before publishing, and confirm
 storage-gated tags do not write analytics/ads cookies until consent is granted.
