@@ -89,8 +89,10 @@ export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
   // same frame as this row instead of lagging behind a passive effect.
   const failedId = current.status === SokoBotStatus.ERROR ? current.id : null;
   useLayoutEffect(() => {
-    publishFailedSokoBotId(failedId);
-    return () => publishFailedSokoBotId(null);
+    if (!failedId) {
+      return;
+    }
+    return publishFailedSokoBotId(failedId);
   }, [failedId]);
 
   return current;
