@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  clearFailedProjectBrandGeneration,
   clearPendingProjectBrandJob,
   hasProjectBrandAutoStartAttempted,
   markProjectBrandAutoStartAttempted,
+  readFailedProjectBrandGeneration,
   readPendingProjectBrandJob,
+  saveFailedProjectBrandGeneration,
   savePendingProjectBrandJob,
 } from "@/app/projects/project-brand-job";
 
@@ -42,6 +45,33 @@ describe("project brand job storage", () => {
     expect(readPendingProjectBrandJob(PROJECT_ID)).toBeNull();
     expect(
       window.sessionStorage.getItem(`sokosumi:project-brand-job:${PROJECT_ID}`),
+    ).toBeNull();
+  });
+
+  it("remembers the latest failed generation until cleared", () => {
+    const failure = {
+      failedAt: "2026-11-20T23:56:00.000Z",
+      url: "https://bad.invalid/",
+    };
+
+    saveFailedProjectBrandGeneration(PROJECT_ID, failure);
+    expect(readFailedProjectBrandGeneration(PROJECT_ID)).toEqual(failure);
+
+    clearFailedProjectBrandGeneration(PROJECT_ID);
+    expect(readFailedProjectBrandGeneration(PROJECT_ID)).toBeNull();
+  });
+
+  it("drops a corrupt failed generation", () => {
+    window.sessionStorage.setItem(
+      `sokosumi:project-brand-failure:${PROJECT_ID}`,
+      JSON.stringify({ failedAt: "yesterday", url: "https://bad.invalid/" }),
+    );
+
+    expect(readFailedProjectBrandGeneration(PROJECT_ID)).toBeNull();
+    expect(
+      window.sessionStorage.getItem(
+        `sokosumi:project-brand-failure:${PROJECT_ID}`,
+      ),
     ).toBeNull();
   });
 

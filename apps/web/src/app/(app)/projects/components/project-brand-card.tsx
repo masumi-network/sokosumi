@@ -12,7 +12,7 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   createContext,
   type FormEvent,
@@ -27,10 +27,14 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
+  clearFailedProjectBrandGeneration,
   clearPendingProjectBrandJob,
+  type FailedProjectBrandGeneration,
   hasProjectBrandAutoStartAttempted,
   markProjectBrandAutoStartAttempted,
+  readFailedProjectBrandGeneration,
   readPendingProjectBrandJob,
+  saveFailedProjectBrandGeneration,
   savePendingProjectBrandJob,
 } from "@/app/projects/project-brand-job";
 import { DesignMdUploadTrigger } from "@/components/design-md/design-md-upload-trigger";
@@ -59,6 +63,7 @@ import {
   removeProjectDesignMd,
   updateProject,
 } from "@/lib/actions/project/action";
+import { cn } from "@/lib/utils";
 
 interface ProjectBrandProviderProps {
   autoStart?: boolean;
@@ -70,6 +75,8 @@ interface ProjectBrandProviderProps {
 
 interface ProjectBrandDashboardValue {
   designMd: ProjectDesignMd | null;
+  /** The latest failed generation, until a new one starts or succeeds. */
+  failure: FailedProjectBrandGeneration | null;
   generation: ReturnType<typeof useDesignMdGeneration>;
   setDesignMd: (designMd: ProjectDesignMd | null) => void;
 }
@@ -103,6 +110,9 @@ export function ProjectBrandProvider({
   const [designMd, setDesignMd] = useState<ProjectDesignMd | null>(
     initialDesignMd,
   );
+  const [failure, setFailure] = useState<FailedProjectBrandGeneration | null>(
+    null,
+  );
   const backgroundGenerationAttempted = useRef(false);
   const owner = useMemo(
     () => ({ type: "project" as const, projectId }),
@@ -122,18 +132,35 @@ export function ProjectBrandProvider({
         extractionId: nextDesignMd.extractionId,
         url: nextDesignMd.url,
       });
+      clearFailedProjectBrandGeneration(projectId);
+      setFailure(null);
     },
-    [],
+    [projectId],
   );
   const generation = useDesignMdGeneration({
     messages,
     onCompleted: handleCompleted,
+    onFailed: ({ url }) => {
+      const nextFailure = { failedAt: new Date().toISOString(), url };
+      saveFailedProjectBrandGeneration(projectId, nextFailure);
+      setFailure(nextFailure);
+    },
     // The job's own URL: a website just saved in the card is not in the
     // props yet when its generation starts.
     onJobStarted: (job) => savePendingProjectBrandJob(projectId, job),
     onSettled: () => clearPendingProjectBrandJob(projectId),
+    onStarted: () => {
+      clearFailedProjectBrandGeneration(projectId);
+      setFailure(null);
+    },
     owner,
   });
+
+  // Browser storage exists only after hydration, so the remembered failure
+  // comes in after the first render.
+  useEffect(() => {
+    setFailure(readFailedProjectBrandGeneration(projectId));
+  }, [projectId]);
 
   // Background brand setup: the wizard may have closed mid-generation, so pick
   // up its pending job here; if there is none but the project has a website
@@ -164,8 +191,8 @@ export function ProjectBrandProvider({
   }, [autoStart, designMd, generate, isRunning, projectId, resume, websiteUrl]);
 
   const value = useMemo(
-    () => ({ designMd, generation, setDesignMd }),
-    [designMd, generation],
+    () => ({ designMd, failure, generation, setDesignMd }),
+    [designMd, failure, generation],
   );
 
   return (
@@ -181,7 +208,9 @@ export function ProjectBrandCard({
   readOnly = false,
 }: ProjectBrandCardProps) {
   const t = useTranslations("App.Projects.Detail");
-  const { designMd, generation, setDesignMd } = useProjectBrandDashboard();
+  const { designMd, failure, generation, setDesignMd } =
+    useProjectBrandDashboard();
+  const format = useFormatter();
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -201,6 +230,27 @@ export function ProjectBrandCard({
   const [isSavingWebsite, startSaveWebsite] = useTransition();
   const menuBusy =
     generation.isRunning || isRemoving || isUploading || isSavingWebsite;
+  // The card's form explains a failure, so read-only cards keep the plain
+  // message. A failure on another website than the saved one no longer
+  // applies.
+  const failedWebsite =
+    failure && !readOnly && !designMd && !generation.isRunning
+      ? normalizeWebsiteUrl(failure.url)
+      : null;
+  const shownFailure =
+    failure &&
+    failedWebsite &&
+    websiteUrl &&
+    failedWebsite === normalizeWebsiteUrl(websiteUrl)
+      ? { failedAt: failure.failedAt, host: new URL(failedWebsite).host }
+      : null;
+  const websiteDescription =
+    [
+      websiteError ? "project-brand-website-error" : null,
+      shownFailure ? "project-brand-failure" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   function handleGenerate() {
     if (!websiteUrl) return;
@@ -349,7 +399,13 @@ export function ProjectBrandCard({
             />
             <span className="truncate">DESIGN.md</span>
           </p>
-          <Badge variant="outline" className="shrink-0 gap-1.5 text-xs">
+          <Badge
+            variant="outline"
+            className={cn(
+              "shrink-0 gap-1.5 text-xs",
+              shownFailure && "text-destructive border-destructive",
+            )}
+          >
             {generation.isRunning ? (
               <Loader2
                 className="size-3 animate-spin motion-reduce:animate-pulse"
@@ -360,12 +416,19 @@ export function ProjectBrandCard({
                 className="bg-semantic-success size-1.5 rounded-full"
                 aria-hidden
               />
+            ) : shownFailure ? (
+              <span
+                className="bg-semantic-destructive size-1.5 rounded-full"
+                aria-hidden
+              />
             ) : null}
             {generation.isRunning
               ? t("brandCard.generating")
               : designMd
                 ? t("brandCard.ready")
-                : t("brandCard.notSet")}
+                : shownFailure
+                  ? t("brandCard.failed")
+                  : t("brandCard.notSet")}
           </Badge>
         </div>
 
@@ -391,10 +454,12 @@ export function ProjectBrandCard({
                   setWebsiteError(null);
                 }}
                 disabled={isSavingWebsite}
-                aria-invalid={Boolean(websiteError)}
-                aria-describedby={
-                  websiteError ? "project-brand-website-error" : undefined
+                // The failed website stays marked until someone edits it.
+                aria-invalid={
+                  Boolean(websiteError) ||
+                  (shownFailure !== null && websiteDraft === null)
                 }
+                aria-describedby={websiteDescription}
                 className="min-w-0 sm:h-8 sm:flex-1"
               />
               <Button
@@ -418,13 +483,28 @@ export function ProjectBrandCard({
                 {websiteError}
               </p>
             ) : null}
+            {shownFailure ? (
+              <div id="project-brand-failure" className="space-y-1 text-xs">
+                <p className="text-destructive" role="alert">
+                  {t("brandCard.failedReason", { host: shownFailure.host })}
+                </p>
+                <p className="text-muted-foreground">
+                  {t("brandCard.lastTried", {
+                    when: format.dateTime(
+                      new Date(shownFailure.failedAt),
+                      "dateTimeMedium",
+                    ),
+                  })}
+                </p>
+              </div>
+            ) : null}
           </form>
         ) : !hasWebsite && !readOnly ? (
           <p className="text-muted-foreground text-xs">
             {t("brandCard.missingWebsite")}
           </p>
         ) : null}
-        {generation.errorMessage ? (
+        {generation.errorMessage && !shownFailure ? (
           <p className="text-destructive text-xs" role="alert">
             {generation.errorMessage}
           </p>

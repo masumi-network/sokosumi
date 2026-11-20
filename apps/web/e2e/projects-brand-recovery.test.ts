@@ -8,9 +8,9 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user's first Project gets a website brand generation cannot reach.
-// The Brand card says why and keeps the website in a field, still there after
-// a reload, so the user corrects it in place and the DESIGN.md comes out
-// Ready. Each size signs up its own disposable mail.tm inbox. Brand generation
+// The Brand card says Failed, why and when, and keeps the website in a field
+// marked invalid, all still there after a reload, so the user corrects it in
+// place and the DESIGN.md comes out Ready. Each size signs up its own disposable mail.tm inbox. Brand generation
 // is free for the user.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -96,10 +96,17 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
       assert.equal(await website.inputValue(), `https://${BAD_WEBSITE}/`);
       await shot(page, size, "failed");
 
-      // Back later, the error is gone but the website is still there to fix.
+      // Back later, the failure and the website to fix are both still there.
       await page.reload();
-      await website.waitFor();
+      await brand.getByText("Failed", { exact: true }).waitFor();
+      assert.ok(
+        (await brand.getByRole("alert").innerText()).includes(
+          `from ${BAD_WEBSITE}.`,
+        ),
+      );
+      await brand.getByText(/^Last tried /).waitFor();
       assert.equal(await website.inputValue(), `https://${BAD_WEBSITE}/`);
+      assert.equal(await website.getAttribute("aria-invalid"), "true");
 
       await website.fill(GOOD_WEBSITE);
       await website.press("Enter");

@@ -34,6 +34,8 @@ interface UseDesignMdGenerationOptions {
     startFailed: string;
   };
   onCompleted?: (designMd: PersistedDesignMd) => void;
+  /** Called when an attempt fails, with the website it tried. */
+  onFailed?: (attempt: { url: string }) => void;
   /** Called once a background job exists — lets callers persist it so another
    * surface (e.g. the project page) can `resume` polling after navigation. */
   onJobStarted?: (job: {
@@ -42,6 +44,8 @@ interface UseDesignMdGenerationOptions {
     url: string;
   }) => void;
   onSettled?: () => void;
+  /** Called when `generate` starts a new attempt, before any job exists. */
+  onStarted?: (attempt: { url: string }) => void;
   owner: DesignMdOwner;
   pollIntervalMs?: number;
 }
@@ -58,8 +62,10 @@ function getUnknownErrorMessage(error: unknown, fallback: string): string {
 export function useDesignMdGeneration({
   messages,
   onCompleted,
+  onFailed,
   onJobStarted,
   onSettled,
+  onStarted,
   owner,
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
 }: UseDesignMdGenerationOptions) {
@@ -71,6 +77,8 @@ export function useDesignMdGeneration({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
   const mountedRef = useRef(true);
+  // The website of the attempt in flight, for `onFailed`.
+  const urlRef = useRef("");
 
   const clearPollTimeout = useCallback(() => {
     if (!timeoutRef.current) return;
@@ -97,9 +105,10 @@ export function useDesignMdGeneration({
       clearPollTimeout();
       safeSetState({ errorMessage: message, status: "failed" });
       inFlightRef.current = false;
+      onFailed?.({ url: urlRef.current });
       onSettled?.();
     },
-    [clearPollTimeout, onSettled, safeSetState],
+    [clearPollTimeout, onFailed, onSettled, safeSetState],
   );
 
   const pollUntilDone = useCallback(
@@ -173,6 +182,8 @@ export function useDesignMdGeneration({
 
       clearPollTimeout();
       inFlightRef.current = true;
+      urlRef.current = url;
+      onStarted?.({ url });
       safeSetState({ errorMessage: null, status: "starting" });
 
       try {
@@ -211,6 +222,7 @@ export function useDesignMdGeneration({
       failGeneration,
       messages,
       onJobStarted,
+      onStarted,
       owner,
       pollUntilDone,
       safeSetState,
@@ -219,9 +231,10 @@ export function useDesignMdGeneration({
 
   /** Continue polling a job another surface started (see `onJobStarted`). */
   const resume = useCallback(
-    (job: { jobId: string; jobToken: string }) => {
+    (job: { jobId: string; jobToken: string; url: string }) => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
+      urlRef.current = job.url;
       safeSetState({ errorMessage: null, status: "polling" });
       pollUntilDone(job.jobId, job.jobToken);
     },

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,17 +11,26 @@ import {
   updateProject,
 } from "@/lib/actions/project/action";
 
-const { generateMock, refreshMock, resumeMock } = vi.hoisted(() => ({
-  generateMock: vi.fn(),
-  refreshMock: vi.fn(),
-  resumeMock: vi.fn(),
-}));
+const { generateMock, generationOptions, refreshMock, resumeMock } = vi.hoisted(
+  () => ({
+    generateMock: vi.fn(),
+    // The options the provider passes the generation hook, so a test can
+    // play the hook's callbacks.
+    generationOptions: { current: null as null | Record<string, unknown> },
+    refreshMock: vi.fn(),
+    resumeMock: vi.fn(),
+  }),
+);
 
 const MESSAGES: Record<string, string> = {
   brand: "Brand",
   "brandCard.ready": "Ready",
   "brandCard.generating": "Generating…",
   "brandCard.notSet": "Not set",
+  "brandCard.failed": "Failed",
+  "brandCard.failedReason":
+    "We couldn't generate a DESIGN.md from {host}. Check the address and try again.",
+  "brandCard.lastTried": "Last tried {when}",
   "brandCard.generate": "Generate from website",
   "brandCard.missingWebsite":
     "Add a project website before generating brand context.",
@@ -46,7 +55,12 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => MESSAGES[key] ?? key,
+  useFormatter: () => ({ dateTime: () => "Nov 20, 2026, 11:56 PM" }),
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    (MESSAGES[key] ?? key).replace(
+      /\{(\w+)\}/g,
+      (_, name: string) => values?.[name] ?? name,
+    ),
 }));
 
 vi.mock("sonner", () => ({
@@ -90,15 +104,24 @@ vi.mock("@/components/design-md/design-md-upload-trigger", () => ({
   ),
 }));
 vi.mock("@/components/design-md/use-design-md-generation", () => ({
-  useDesignMdGeneration: () => ({
-    errorMessage: null,
-    generate: generateMock,
-    isRunning: false,
-    reset: vi.fn(),
-    resume: resumeMock,
-    status: "idle",
-  }),
+  useDesignMdGeneration: (options: Record<string, unknown>) => {
+    generationOptions.current = options;
+    return {
+      errorMessage: null,
+      generate: generateMock,
+      isRunning: false,
+      reset: vi.fn(),
+      resume: resumeMock,
+      status: "idle",
+    };
+  },
 }));
+
+const FAILURE_KEY = "sokosumi:project-brand-failure:project-1";
+
+function generationCallback<T>(name: string) {
+  return generationOptions.current?.[name] as (value: T) => void;
+}
 
 function renderBrandDashboard({
   autoStart,
@@ -583,5 +606,95 @@ describe("ProjectBrandCard", () => {
     expect(
       screen.getByRole("button", { name: "Generate from website" }),
     ).toBeDisabled();
+  });
+
+  it("keeps the latest failed generation after a refresh", () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        url: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.queryByText("Not set")).toBeNull();
+    const field = screen.getByRole("textbox", { name: "Project website" });
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription(
+      "We couldn't generate a DESIGN.md from bad.invalid. Check the address and try again. Last tried Nov 20, 2026, 11:56 PM",
+    );
+  });
+
+  it("remembers a failure the generation reports", () => {
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    act(() =>
+      generationCallback<{ url: string }>("onFailed")({
+        url: "https://bad.invalid/",
+      }),
+    );
+
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "We couldn't generate a DESIGN.md from bad.invalid.",
+    );
+    expect(
+      JSON.parse(window.sessionStorage.getItem(FAILURE_KEY) ?? ""),
+    ).toEqual({ failedAt: expect.any(String), url: "https://bad.invalid/" });
+  });
+
+  it("clears the failure when a new attempt starts", () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        url: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    act(() =>
+      generationCallback<{ url: string }>("onStarted")({
+        url: "https://bad.invalid/",
+      }),
+    );
+
+    expect(screen.queryByText("Failed")).toBeNull();
+    expect(
+      screen.getByRole("textbox", { name: "Project website" }),
+    ).not.toHaveAttribute("aria-invalid", "true");
+    expect(window.sessionStorage.getItem(FAILURE_KEY)).toBeNull();
+  });
+
+  it("ignores a failure for a website the project no longer has", () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        url: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://example.com/",
+    });
+
+    expect(screen.getByText("Not set")).toBeInTheDocument();
+    expect(screen.queryByText("Failed")).toBeNull();
   });
 });
