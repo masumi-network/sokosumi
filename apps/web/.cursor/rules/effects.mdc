@@ -32,7 +32,7 @@ Prefer **conditional mounting** over guarding inside an effect: don’t mount th
 
 - **Named external sync** — Put genuine external synchronization (DOM listeners, observers, third-party widgets) in a named, tested hook under `src/hooks/effects/` (see [docs/agents/web-ui.md#effects](../../../../docs/agents/web-ui.md#effects)).
 - Subscribing to external stores (prefer `useSyncExternalStore` when applicable).
-- Reading the latest callback or prop inside an effect without re-running it: use `useEffectEvent` only when called from inside an effect (or code an effect runs, like a subscription it set up); for event handlers, timers, and callbacks passed to a child or library, use `useLatestRef` from `src/hooks/effects/`.
+- **Latest callback or prop inside an effect** — Use `useEffectEvent`, and call it only from that effect or from callbacks the effect registers (its timers, listeners, subscriptions). A callback registered outside an effect (a JSX event handler, a library callback, a timer started in a handler) that needs the latest committed value uses `useLatestRef` from `src/hooks/effects/`. Render logic reads current props and state directly, never a ref.
 - Fetching that must stay in sync with props — use `@tanstack/react-query` instead of a manual effect.
 
 ## Examples
