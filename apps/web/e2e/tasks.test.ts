@@ -124,6 +124,8 @@ function recordShellFrame({
     top: number;
     href: string;
     seen: Record<string, string | null>;
+    /** Chip labels cut short by their own box, not just scrolled away. */
+    clippedLabels: string[];
   };
   const record = window as unknown as {
     __shellFrame?: Frame;
@@ -141,6 +143,11 @@ function recordShellFrame({
     const frame = visible(shell);
     if (frame) {
       const entry: Frame = {
+        clippedLabels: Array.from(
+          document.querySelectorAll("main ul[aria-label] li span[title]"),
+        )
+          .filter((el) => el.scrollWidth > el.clientWidth + 1)
+          .map((el) => el.textContent ?? ""),
         top: Math.round(frame.getBoundingClientRect().top),
         href: location.href,
         seen: Object.fromEntries(
@@ -351,6 +358,13 @@ async function assertColdBoardShell(page: Page, path: string, chip: string) {
   assert.ok(frame, `${path} painted no loading shell before the board`);
   assert.equal(new URL(frame.href).pathname + new URL(frame.href).search, path);
   assertToolbarInFrame(frame.seen);
+  for (const shown of frames as { clippedLabels?: string[] }[]) {
+    assert.deepEqual(
+      shown.clippedLabels ?? [],
+      [],
+      "a loading frame cuts a filter chip's label short",
+    );
+  }
   assert.ok(
     frame.seen.chips?.includes(chip),
     `the loading toolbar shows "${frame.seen.chips}", not the ${chip} chip`,
@@ -365,6 +379,18 @@ async function assertColdBoardShell(page: Page, path: string, chip: string) {
     loadedTop,
     frame.top,
     `the filtered board's columns move while it loads (top ${frame.top} -> ${loadedTop}px)`,
+  );
+  const clippedLoaded = await page.evaluate(() =>
+    Array.from(document.querySelectorAll("main ul[aria-label] li span[title]"))
+      .filter(
+        (el) => el.checkVisibility() && el.scrollWidth > el.clientWidth + 1,
+      )
+      .map((el) => el.textContent),
+  );
+  assert.deepEqual(
+    clippedLoaded,
+    [],
+    "the loaded board cuts a filter chip's label short",
   );
 }
 
