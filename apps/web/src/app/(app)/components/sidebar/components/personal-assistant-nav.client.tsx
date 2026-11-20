@@ -233,8 +233,9 @@ function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
 
 /**
  * "Active 2h ago", narrow, in the reader's locale; ticks once a minute. The
- * server sends the absolute time instead: its clock and the browser's differ
- * by the load, so a relative label from each would not hydrate (React #418).
+ * server sends the time of day instead ("Active 9:34 PM"): its clock and the
+ * browser's differ by the load, so a relative label from each would not
+ * hydrate (React #418), and a date as well would not fit the row.
  */
 export function LastActive({ at }: { at: Date }) {
   const t = useTranslations("App.Sidebar.Content.SokoBot");
@@ -242,7 +243,7 @@ export function LastActive({ at }: { at: Date }) {
 
   return (
     <Suspense
-      fallback={t("activeAgo", { time: formatter.dateTime(at, "dateTime") })}
+      fallback={t("activeAgo", { time: formatter.dateTime(at, "time") })}
     >
       <LastActiveRelative at={at} />
     </Suspense>
