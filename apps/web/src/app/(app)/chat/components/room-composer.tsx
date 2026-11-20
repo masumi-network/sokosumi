@@ -416,7 +416,7 @@ export function RoomComposer({
 
   // Keep toasts just above the composer (incl. mobile keyboard).
   const updateToastOffset = () => {
-    if (!form || !form.isConnected) {
+    if (!form || formRef.current !== form || !form.isConnected) {
       return;
     }
     const top = form.getBoundingClientRect().top;

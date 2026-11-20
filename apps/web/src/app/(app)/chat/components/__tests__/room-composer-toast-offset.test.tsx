@@ -156,4 +156,101 @@ describe("RoomComposer --toast-bottom-offset lifecycle", () => {
       document.documentElement.style.getPropertyValue("--toast-bottom-offset"),
     ).toBe("");
   });
+
+  it("keeps --toast-bottom-offset empty if visualViewport or ResizeObserver fires during Activity hide commit", () => {
+    let formTop = 700;
+    let triggerResize: (() => void) | null = null;
+    const disconnect = vi.fn();
+
+    vi.stubGlobal("innerHeight", 900);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        return {
+          top: this.tagName === "FORM" ? formTop : 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        };
+      },
+    );
+
+    vi.stubGlobal(
+      "ResizeObserver",
+      class implements ResizeObserver {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe() {
+          triggerResize = () => this.callback([], this);
+        }
+        unobserve() {}
+        disconnect = disconnect;
+      },
+    );
+
+    const visualViewport = new EventTarget();
+    vi.stubGlobal("visualViewport", visualViewport);
+
+    const composer = (
+      <RoomComposer
+        value=""
+        onValueChange={vi.fn()}
+        mentions={{}}
+        placeholder="Message"
+        attachments={[]}
+        onAttachmentsChange={vi.fn()}
+        onSubmit={vi.fn()}
+        isSending={false}
+        sendDisabled={false}
+      />
+    );
+
+    const { rerender } = render(<Activity mode="visible">{composer}</Activity>);
+    expect(
+      document.documentElement.style.getPropertyValue("--toast-bottom-offset"),
+    ).toBe("208px");
+
+    let firedDuringHideCommit = false;
+    const originalRemoveProperty =
+      document.documentElement.style.removeProperty.bind(
+        document.documentElement.style,
+      );
+    vi.spyOn(
+      document.documentElement.style,
+      "removeProperty",
+    ).mockImplementation((property: string) => {
+      const result = originalRemoveProperty(property);
+      if (property === "--toast-bottom-offset" && !firedDuringHideCommit) {
+        firedDuringHideCommit = true;
+        // Ref cleanup runs in commit before passive effect cleanups detach.
+        expect(disconnect).not.toHaveBeenCalled();
+        // Hidden Activity node stays connected with top = 0 (display: none).
+        formTop = 0;
+        visualViewport.dispatchEvent(new Event("resize"));
+        expect(
+          document.documentElement.style.getPropertyValue(
+            "--toast-bottom-offset",
+          ),
+        ).toBe("");
+        triggerResize?.();
+        expect(
+          document.documentElement.style.getPropertyValue(
+            "--toast-bottom-offset",
+          ),
+        ).toBe("");
+      }
+      return result;
+    });
+
+    rerender(<Activity mode="hidden">{composer}</Activity>);
+
+    expect(firedDuringHideCommit).toBe(true);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(
+      document.documentElement.style.getPropertyValue("--toast-bottom-offset"),
+    ).toBe("");
+  });
 });
