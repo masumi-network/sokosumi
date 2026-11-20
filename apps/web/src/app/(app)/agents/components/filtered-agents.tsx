@@ -8,6 +8,7 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents/agents";
+import { GalleryGroupHeading } from "@/components/agents/gallery-group-heading";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import type { GalleryFilterState } from "@/lib/agents/gallery-filter";
@@ -21,6 +22,8 @@ interface FilteredAgentsProps {
   agents: CatalogBrowseAgent[];
   ratingStatsMap: Record<string, AgentRatingStats>;
   categories: Category[];
+  title: string;
+  subtitle: string;
 }
 
 export default function FilteredAgents(props: FilteredAgentsProps) {
@@ -35,9 +38,16 @@ function FilteredAgentsInner({
   agents,
   ratingStatsMap,
   categories,
+  title,
+  subtitle,
 }: FilteredAgentsProps) {
   const t = useTranslations("Components.Agents");
-  const { query, categories: selectedCategories, kind } = useGalleryFilter();
+  const {
+    query,
+    scope,
+    categories: selectedCategories,
+    kind,
+  } = useGalleryFilter();
 
   const filteredAgents = useMemo(() => {
     const criteria: GalleryFilterState = {
@@ -57,27 +67,38 @@ function FilteredAgentsInner({
     return <AgentsNotAvailable />;
   }
 
+  if (scope === "coworkers") {
+    return null;
+  }
+
   return (
-    <div className="flex flex-col gap-12">
-      {/* Keep filter chrome mounted on empty matches so kind/search stay usable. */}
-      <FilterSection categories={categories} />
-      {!filteredAgents.length ? (
-        <AgentsNotFound />
-      ) : (
-        groupedAgents.map((group) => (
-          <Agents
-            key={group.categorySlug}
-            agents={group.agents}
-            icon={group.categoryIcon}
-            ratingStatsMap={ratingStatsMap}
-            title={
-              group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
-                ? t("othersCategory")
-                : group.categoryName
-            }
-          />
-        ))
-      )}
-    </div>
+    <section className="space-y-8">
+      <GalleryGroupHeading
+        title={title}
+        subtitle={subtitle}
+        count={query.trim() ? filteredAgents.length : undefined}
+      />
+      <div className="flex flex-col gap-12">
+        {/* Keep filter chrome mounted on empty matches so kind/search stay usable. */}
+        <FilterSection categories={categories} />
+        {!filteredAgents.length ? (
+          <AgentsNotFound />
+        ) : (
+          groupedAgents.map((group) => (
+            <Agents
+              key={group.categorySlug}
+              agents={group.agents}
+              icon={group.categoryIcon}
+              ratingStatsMap={ratingStatsMap}
+              title={
+                group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
+                  ? t("othersCategory")
+                  : group.categoryName
+              }
+            />
+          ))
+        )}
+      </div>
+    </section>
   );
 }

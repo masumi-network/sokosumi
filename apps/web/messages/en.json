@@ -9258,12 +9258,17 @@
       "allAgentsTitle": "Browse all agents",
       "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do.",
       "FilterSection": {
-        "searchPlaceholder": "Search agents",
         "reset": "Reset",
         "kind": {
           "all": "All",
           "cardano": "Cardano",
           "x402": "x402"
+        },
+        "scope": {
+          "label": "Show",
+          "all": "All",
+          "coworkers": "Coworkers",
+          "agents": "Agents"
         }
       }
     },

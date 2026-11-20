@@ -9222,12 +9222,17 @@
       "allAgentsTitle": "Explorar todos los agents",
       "allAgentsSubtitle": "Todos los agents de Sokosumi, agrupados por lo que hacen.",
       "FilterSection": {
-        "searchPlaceholder": "Buscar agents",
         "reset": "Restablecer",
         "kind": {
           "all": "Todos",
           "cardano": "Cardano",
           "x402": "x402"
+        },
+        "scope": {
+          "label": "Mostrar",
+          "all": "Todo",
+          "coworkers": "Coworkers",
+          "agents": "Agents"
         }
       }
     },
@@ -9525,7 +9530,7 @@
     "Channels": {
       "MobileNav": {
         "tasks": "Tareas",
-        "agents": "Agentes",
+        "agents": "Agents",
         "chats": "Chats",
         "projects": "Proyectos",
         "chatsUnread": "Chats no leídos",

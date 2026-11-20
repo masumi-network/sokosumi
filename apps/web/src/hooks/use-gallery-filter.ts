@@ -5,12 +5,19 @@ import {
   useQueryState,
 } from "nuqs";
 
-import { GALLERY_AGENT_KINDS } from "@/lib/agents/gallery-filter";
+import {
+  GALLERY_AGENT_KINDS,
+  GALLERY_SCOPES,
+} from "@/lib/agents/gallery-filter";
 
 export default function useGalleryFilter() {
-  // Catalog-only search. Coworker gallery keeps the separate `query` param so
-  // the two tiers do not share / desync URL-backed search state.
-  const [query, setQuery] = useQueryState("agentQuery", { defaultValue: "" });
+  // One search for the whole Agents page: the hero field writes `query`, and
+  // both the coworker gallery and the agent catalog filter by it.
+  const [query, setQuery] = useQueryState("query", { defaultValue: "" });
+  const [scope, setScope] = useQueryState(
+    "show",
+    parseAsStringLiteral(GALLERY_SCOPES).withDefault("all"),
+  );
   const [categories, setCategories] = useQueryState(
     "categories",
     parseAsArrayOf(parseAsString).withDefault([]),
@@ -28,9 +35,11 @@ export default function useGalleryFilter() {
 
   return {
     query,
+    scope,
     categories,
     kind,
     setQuery,
+    setScope,
     setCategories,
     setKind,
     resetFilters,

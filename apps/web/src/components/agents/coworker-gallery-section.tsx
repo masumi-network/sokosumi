@@ -4,7 +4,6 @@ import type { Coworker } from "@sokosumi/core-client";
 import { ArrowRight, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
 import { StartChatButton } from "@/app/chat/components/landing/start-chat-button.client";
 import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
@@ -16,12 +15,12 @@ import {
   type OfferItem,
 } from "@/components/agents/coworker-gallery-results";
 import { CoworkerGallerySearch } from "@/components/agents/coworker-gallery-search";
+import { GalleryGroupHeading } from "@/components/agents/gallery-group-heading";
 import {
   GALLERY_DIVIDER_CLASS,
   GALLERY_HERO_BAND_CLASS,
   GALLERY_HERO_HEADLINE_CLASS,
   GALLERY_HERO_INNER_CLASS,
-  GALLERY_SECTION_HEADLINE_CLASS,
   GALLERY_SOCIAL_PROOF_CAPTION_CLASS,
   GALLERY_SOCIAL_PROOF_FACE_CLASS,
 } from "@/components/agents/gallery-page-classes";
@@ -34,8 +33,11 @@ import {
 import { TagIcon } from "@/components/agents/tag-icon";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
+import useGalleryFilter from "@/hooks/use-gallery-filter";
+import { GALLERY_SCOPES } from "@/lib/agents/gallery-filter";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
 
@@ -439,10 +441,11 @@ function CoworkerGallerySectionInner({
   coworkers,
 }: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
+  const tScope = useTranslations("App.Agents.FilterSection.scope");
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
-  // Coworker gallery search — independent from catalog `agentQuery`.
-  const [query, setQuery] = useQueryState("query", { defaultValue: "" });
+  // The page's one search; the agent catalog below filters by it too.
+  const { query, setQuery, scope, setScope } = useGalleryFilter();
   const { handleOpenWith } = useCreateTaskModal();
   const [selected, setSelected] = useState<OfferItem | null>(null);
   const [showAllCompanies, setShowAllCompanies] = useState(false);
@@ -522,16 +525,31 @@ function CoworkerGallerySectionInner({
           <h2 className={GALLERY_HERO_HEADLINE_CLASS}>{t("heroHeadline")}</h2>
           <CoworkerGallerySearch
             query={query}
-            setQuery={setQuery}
+            setQuery={(value) => void setQuery(value)}
             suggestions={suggestions}
           />
+          <ToggleGroup
+            type="single"
+            aria-label={tScope("label")}
+            value={scope}
+            onValueChange={(next) => {
+              const match = GALLERY_SCOPES.find((option) => option === next);
+              if (match) void setScope(match);
+            }}
+          >
+            {GALLERY_SCOPES.map((option) => (
+              <ToggleGroupItem key={option} value={option}>
+                {tScope(option)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
           {suggestions.length > 0 ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
               {suggestions.map((suggestion) => (
                 <button
                   key={suggestion}
                   type="button"
-                  onClick={() => setQuery(suggestion)}
+                  onClick={() => void setQuery(suggestion)}
                   className={cn(
                     "bg-card border-border text-muted-foreground press hover:text-foreground rounded-full border px-3 py-1.5 text-sm transition-colors",
                     FOCUS_RING,
@@ -545,11 +563,19 @@ function CoworkerGallerySectionInner({
         </div>
       </div>
 
-      {vendorGroups.length > 0 ? (
+      {scope !== "agents" && vendorGroups.length > 0 ? (
         <div className="space-y-8">
-          <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>
-            {t("coworkersTitle")}
-          </h2>
+          <GalleryGroupHeading
+            title={t("coworkersTitle")}
+            count={
+              isSearching
+                ? vendorGroups.reduce(
+                    (total, group) => total + group.coworkers.length,
+                    0,
+                  )
+                : undefined
+            }
+          />
           <div>
             {visibleGroups.map(
               ({ vendor, coworkers: members, offers }, index) => (
@@ -603,6 +629,10 @@ function CoworkerGallerySectionInner({
             </div>
           ) : null}
         </div>
+      ) : scope === "coworkers" && isSearching ? (
+        <p className="text-muted-foreground text-center text-sm">
+          {t("noResults")}
+        </p>
       ) : null}
 
       <OfferDetailDialog

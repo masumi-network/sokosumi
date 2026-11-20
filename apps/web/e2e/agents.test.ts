@@ -7,7 +7,8 @@ import { type Browser, chromium } from "playwright";
 import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
-// A new user finds an agent from the Agents gallery and reads its profile.
+// A new user finds an agent with the Agents page's one search, reads its
+// profile and opens New task from it (cancelled; nothing is created or spent).
 // The profile keeps the app's side gutter at every size, and its Find field
 // shows below the header (on a phone it once sat under the top bar).
 const BASE_URL = resolveBaseUrl(process.env);
@@ -69,9 +70,22 @@ for (const { name: size, ...viewport } of PROJECTS) {
       }
       await page.waitForURL(`${BASE_URL}/agents**`);
 
+      // One search field on the page; the catalog has none of its own.
+      const search = page.getByRole("textbox", {
+        name: "Search agents, coworkers, and offers",
+      });
+      assert.equal(await page.getByRole("textbox").count(), 1);
+      await search.fill("research");
+      await page.getByRole("radio", { name: "Agents", exact: true }).click();
+      await page.waitForURL(/show=agents/);
+      assert.equal(
+        await page.getByRole("heading", { name: "Your AI coworkers" }).count(),
+        0,
+        "Agents scope hides the coworkers group",
+      );
       await page
-        .getByRole("textbox", { name: "Search agents", exact: true })
-        .fill("research");
+        .getByRole("heading", { name: /^Browse all agents · \d+$/ })
+        .waitFor();
       const card = page.locator('main a[href^="/agents/"]').first();
       await card.scrollIntoViewIfNeeded();
       await shot("1-gallery");
@@ -154,6 +168,14 @@ for (const { name: size, ...viewport } of PROJECTS) {
       );
       assert.equal(overflow, false, "the page scrolls sideways");
       await shot("2-profile");
+
+      // Start a task opens New task; cancel without creating anything.
+      await page.getByRole("button", { name: "Start a task" }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.waitFor();
+      await shot("3-new-task");
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await dialog.waitFor({ state: "hidden" });
 
       assert.deepEqual(errors, []);
       await context.close();

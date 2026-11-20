@@ -3,25 +3,28 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Coworker gallery and Agent catalog must not share a single search URL key.
- * Catalog owns `agentQuery`; coworker gallery keeps `query`.
+ * The Agents page has one search. The hero field and the catalog both read
+ * the `query` URL key through `useGalleryFilter`, so they cannot desync, and
+ * the catalog has no field of its own to compete for Cmd/Ctrl+F.
  */
-describe("agents gallery search URL separation contract", () => {
-  it("catalog filter hook binds search to agentQuery", () => {
-    const source = readFileSync(
-      join(process.cwd(), "src/hooks/use-gallery-filter.ts"),
-      "utf8",
-    );
-    expect(source).toMatch(/useQueryState\(\s*["']agentQuery["']/);
-    expect(source).not.toMatch(/useQueryState\(\s*["']query["']/);
+describe("agents gallery single search contract", () => {
+  const read = (path: string) =>
+    readFileSync(join(process.cwd(), path), "utf8");
+
+  it("binds the page search to the query key", () => {
+    const source = read("src/hooks/use-gallery-filter.ts");
+    expect(source).toMatch(/useQueryState\(\s*["']query["']/);
+    expect(source).not.toMatch(/agentQuery/);
   });
 
-  it("coworker gallery binds search to query via useQueryState", () => {
-    const source = readFileSync(
-      join(process.cwd(), "src/components/agents/coworker-gallery-section.tsx"),
-      "utf8",
-    );
-    expect(source).toMatch(/useQueryState\(\s*["']query["']/);
-    expect(source).not.toMatch(/useGalleryFilter/);
+  it("coworker gallery reads the shared filter", () => {
+    const source = read("src/components/agents/coworker-gallery-section.tsx");
+    expect(source).toMatch(/useGalleryFilter\(\)/);
+    expect(source).not.toMatch(/useQueryState/);
+  });
+
+  it("catalog filters own no search field or Cmd/Ctrl+F", () => {
+    const source = read("src/app/(app)/agents/components/filter-section.tsx");
+    expect(source).not.toMatch(/usePageSearchShortcut|<Input/);
   });
 });
