@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUnreadThreadReplyCounts } from "@/app/chat/hooks/use-unread-thread-reply-counts";
-import { TestQueryProvider } from "@/test/query-provider";
 
 const listUnreadThreadReplyCountsAction = vi.fn();
 
@@ -41,9 +40,7 @@ describe("useUnreadThreadReplyCounts", () => {
 
   it("reports the room's unread threads and each one's replies", async () => {
     listUnreadThreadReplyCountsAction.mockResolvedValue(unread(4, 3));
-    render(<Probe roomId="room-1" refreshKey="0:false" />, {
-      wrapper: TestQueryProvider,
-    });
+    render(<Probe roomId="room-1" refreshKey="0:false" />);
 
     await waitFor(() => {
       expect(screen.getByTestId("count")).toHaveTextContent("4");
@@ -54,9 +51,7 @@ describe("useUnreadThreadReplyCounts", () => {
 
   it("re-counts when the refresh key moves", async () => {
     listUnreadThreadReplyCountsAction.mockResolvedValue(unread(2));
-    const view = render(<Probe roomId="room-1" refreshKey="0:false" />, {
-      wrapper: TestQueryProvider,
-    });
+    const view = render(<Probe roomId="room-1" refreshKey="0:false" />);
     await waitFor(() => {
       expect(screen.getByTestId("count")).toHaveTextContent("2");
     });
@@ -71,9 +66,7 @@ describe("useUnreadThreadReplyCounts", () => {
 
   it("drops a looked-at thread at once, before the re-read", async () => {
     listUnreadThreadReplyCountsAction.mockResolvedValue(unread(3, 2));
-    render(<Probe roomId="room-1" refreshKey="0:false" />, {
-      wrapper: TestQueryProvider,
-    });
+    render(<Probe roomId="room-1" refreshKey="0:false" />);
     await waitFor(() => {
       expect(screen.getByTestId("count")).toHaveTextContent("3");
     });
@@ -88,18 +81,14 @@ describe("useUnreadThreadReplyCounts", () => {
     listUnreadThreadReplyCountsAction.mockReturnValue(
       new Promise(() => undefined),
     );
-    render(<Probe roomId="room-1" refreshKey="0:false" />, {
-      wrapper: TestQueryProvider,
-    });
+    render(<Probe roomId="room-1" refreshKey="0:false" />);
 
     expect(screen.getByTestId("parent-a")).toHaveTextContent("-");
   });
 
   it("never shows the previous room's count", async () => {
     listUnreadThreadReplyCountsAction.mockResolvedValue(unread(5));
-    const view = render(<Probe roomId="room-1" refreshKey="0:false" />, {
-      wrapper: TestQueryProvider,
-    });
+    const view = render(<Probe roomId="room-1" refreshKey="0:false" />);
     await waitFor(() => {
       expect(screen.getByTestId("count")).toHaveTextContent("5");
     });
@@ -115,9 +104,7 @@ describe("useUnreadThreadReplyCounts", () => {
 
   it("keeps the last count when the count fails", async () => {
     listUnreadThreadReplyCountsAction.mockResolvedValue(unread(3));
-    const view = render(<Probe roomId="room-1" refreshKey="0:false" />, {
-      wrapper: TestQueryProvider,
-    });
+    const view = render(<Probe roomId="room-1" refreshKey="0:false" />);
     await waitFor(() => {
       expect(screen.getByTestId("count")).toHaveTextContent("3");
     });
@@ -136,9 +123,7 @@ describe("useUnreadThreadReplyCounts", () => {
 
   it("keeps the last count when the count rejects", async () => {
     listUnreadThreadReplyCountsAction.mockResolvedValue(unread(3));
-    const view = render(<Probe roomId="room-1" refreshKey="0:false" />, {
-      wrapper: TestQueryProvider,
-    });
+    const view = render(<Probe roomId="room-1" refreshKey="0:false" />);
     await waitFor(() => {
       expect(screen.getByTestId("count")).toHaveTextContent("3");
     });
@@ -165,9 +150,7 @@ describe("useUnreadThreadReplyCounts", () => {
         settleFirst = resolve;
       }),
     );
-    const view = render(<Probe roomId="room-1" refreshKey="0:false" />, {
-      wrapper: TestQueryProvider,
-    });
+    const view = render(<Probe roomId="room-1" refreshKey="0:false" />);
     // The first read has to be in flight, not still inside the burst window,
     // or there is no out-of-order answer to ignore.
     await waitFor(() => {

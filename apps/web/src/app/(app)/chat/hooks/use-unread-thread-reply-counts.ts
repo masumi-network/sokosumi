@@ -1,30 +1,11 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { listUnreadThreadReplyCountsAction } from "@/app/chat/actions";
 
 /** Burst window for re-reads. Short enough to read as immediate. */
 const READ_DEBOUNCE_MS = 150;
-
-function waitForBurstWindow(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(signal.reason);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      signal.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      window.clearTimeout(timer);
-      reject(signal.reason);
-    };
-    signal.addEventListener("abort", onAbort, { once: true });
-  });
-}
 
 /**
  * Unread replies per Thread in the visible room, keyed by parent message id.
@@ -57,82 +38,63 @@ export function useUnreadThreadReplyCounts(
   replyCounts: ReadonlyMap<string, number> | null;
   clear: (isCleared: (parentMessageId: string) => boolean) => void;
 } {
-  const queryClient = useQueryClient();
   const [lastRead, setLastRead] = useState<{
     roomId: string;
-    refreshKey: string;
     replyCounts: ReadonlyMap<string, number>;
   } | null>(null);
 
-  const query = useQuery({
-    queryKey: ["chat", "unread-thread-reply-counts", roomId, refreshKey],
-    queryFn: async ({ signal }) => {
-      if (!roomId) {
-        throw new Error("No room selected");
-      }
-      await waitForBurstWindow(READ_DEBOUNCE_MS, signal);
-      const result = await listUnreadThreadReplyCountsAction(roomId);
-      if (!result.ok) {
-        throw new Error(result.error.message ?? undefined);
-      }
-      return new Map(
-        result.value.map((thread) => [
-          thread.parentMessageId,
-          thread.unreadReplyCount,
-        ]),
-      );
-    },
-    enabled: Boolean(roomId),
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
-
-  if (
-    roomId &&
-    query.data !== undefined &&
-    (lastRead?.roomId !== roomId ||
-      lastRead.refreshKey !== refreshKey ||
-      lastRead.replyCounts !== query.data)
-  ) {
-    setLastRead({
-      roomId,
-      refreshKey,
-      replyCounts: query.data,
-    });
-  }
+  useEffect(() => {
+    if (!roomId) {
+      return;
+    }
+    let active = true;
+    const timeoutId = window.setTimeout(() => {
+      void listUnreadThreadReplyCountsAction(roomId)
+        .then((result) => {
+          if (active && result.ok) {
+            setLastRead({
+              roomId,
+              replyCounts: new Map(
+                result.value.map((thread) => [
+                  thread.parentMessageId,
+                  thread.unreadReplyCount,
+                ]),
+              ),
+            });
+          }
+        })
+        // A server action rejects instead of answering with a result when the
+        // POST comes back as something other than RSC. That is the same
+        // outcome as a failed read, so keep the last answer.
+        .catch(() => {});
+    }, READ_DEBOUNCE_MS);
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [roomId, refreshKey]);
 
   const clear = useCallback(
     (isCleared: (parentMessageId: string) => boolean) => {
-      const filterMap = (current: ReadonlyMap<string, number>) => {
-        const replyCounts = new Map(
-          [...current].filter(([id]) => !isCleared(id)),
-        );
-        return replyCounts.size === current.size ? current : replyCounts;
-      };
-      queryClient.setQueryData<ReadonlyMap<string, number>>(
-        ["chat", "unread-thread-reply-counts", roomId, refreshKey],
-        (current) => (current ? filterMap(current) : current),
-      );
       setLastRead((current) => {
         if (!current) {
           return current;
         }
-        const replyCounts = filterMap(current.replyCounts);
-        return replyCounts === current.replyCounts
+        const replyCounts = new Map(
+          [...current.replyCounts].filter(([id]) => !isCleared(id)),
+        );
+        return replyCounts.size === current.replyCounts.size
           ? current
           : { ...current, replyCounts };
       });
     },
-    [queryClient, refreshKey, roomId],
+    [],
   );
 
   // An answer belongs to the room it was read for, so switching rooms shows
   // nothing until that room's own read lands.
   return {
-    replyCounts:
-      query.data ?? (lastRead?.roomId === roomId ? lastRead.replyCounts : null),
+    replyCounts: lastRead?.roomId === roomId ? lastRead.replyCounts : null,
     clear,
   };
 }

@@ -1,7 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TestQueryProvider } from "@/test/query-provider";
 
 import {
   CreateTaskModal,
@@ -97,16 +96,12 @@ function getLatestProjectId() {
   return props.initialValues.projectId;
 }
 
-function renderModal(ui: React.ReactElement) {
-  return render(ui, { wrapper: TestQueryProvider });
-}
-
 async function openFromCalendar(
   defaults: { projectId?: string | null },
   { initialProjectId }: { initialProjectId?: string | null } = {},
 ) {
   const user = userEvent.setup();
-  renderModal(
+  render(
     <CreateTaskModalProvider initialProjectId={initialProjectId ?? null}>
       <CalendarSlotButton defaults={defaults} />
       <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
@@ -133,7 +128,7 @@ describe("CreateTaskModal", () => {
       "",
       "/tasks?projectId=project-1&status=READY&create=true&assignee=cow&prompt=hello",
     );
-    renderModal(
+    render(
       <CreateTaskModalProvider initialOpen initialProjectId="project-1">
         <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
       </CreateTaskModalProvider>,
@@ -153,7 +148,7 @@ describe("CreateTaskModal", () => {
 
   it("reports the created task without a second page render", () => {
     const onTaskCreated = vi.fn();
-    renderModal(
+    render(
       <CreateTaskModalProvider initialOpen onTaskCreated={onTaskCreated}>
         <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
       </CreateTaskModalProvider>,
@@ -207,7 +202,7 @@ describe("CreateTaskModal", () => {
   });
 
   it("opens a copy as a Draft with its name, visibility, assignee and brief, and forgets it for the next Task", () => {
-    renderModal(
+    render(
       <CreateTaskModalProvider
         initialOpen
         initialPrompt="Summarise the week"
@@ -266,7 +261,7 @@ describe("CreateTaskModal", () => {
 
     it("clears the deep-link params from the URL when opened by ?create=true", () => {
       window.history.replaceState({}, "", "/calendar?create=true&assignee=cow");
-      renderModal(
+      render(
         <CreateTaskModalProvider initialOpen>
           <CreateTaskModal coworkerOptions={[]} initialCreateTaskOpen />
         </CreateTaskModalProvider>,
@@ -279,7 +274,7 @@ describe("CreateTaskModal", () => {
 
     it("reports every close to the provider's onClose", () => {
       const onClose = vi.fn();
-      renderModal(
+      render(
         <CreateTaskModalProvider initialOpen onClose={onClose}>
           <CreateTaskModal coworkerOptions={[]} />
         </CreateTaskModalProvider>,
@@ -292,7 +287,7 @@ describe("CreateTaskModal", () => {
 
     it("leaves the page URL alone when opened in place", () => {
       window.history.replaceState({}, "", "/calendar?create=true");
-      renderModal(
+      render(
         <CreateTaskModalProvider initialOpen>
           <CreateTaskModal coworkerOptions={[]} />
         </CreateTaskModalProvider>,
@@ -305,7 +300,7 @@ describe("CreateTaskModal", () => {
   });
 
   it("loads agent names itself when opened without them", async () => {
-    renderModal(
+    render(
       <CreateTaskModalProvider initialOpen>
         <CreateTaskModal coworkerOptions={[]} />
       </CreateTaskModalProvider>,
@@ -320,7 +315,7 @@ describe("CreateTaskModal", () => {
   });
 
   it("loads workspace projects when the caller omits projectOptions", async () => {
-    renderModal(
+    render(
       <CreateTaskModalProvider initialOpen>
         <CreateTaskModal coworkerOptions={[]} />
       </CreateTaskModalProvider>,
@@ -334,7 +329,7 @@ describe("CreateTaskModal", () => {
   });
 
   it("does not load create data when the caller owns it", async () => {
-    renderModal(
+    render(
       <CreateTaskModalProvider initialOpen>
         <CreateTaskModal
           coworkerOptions={[]}
@@ -352,7 +347,7 @@ describe("CreateTaskModal", () => {
   });
 
   it("shows a loading state instead of the form while the wizard lists load", () => {
-    renderModal(
+    render(
       <CreateTaskModalProvider initialOpen>
         <CreateTaskModal coworkerOptions={[]} isLoadingOptions />
       </CreateTaskModalProvider>,

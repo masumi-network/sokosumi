@@ -1,12 +1,10 @@
 "use client";
 
 import type { DiscoverableChatRoom } from "@sokosumi/core-client";
-import { useQuery } from "@tanstack/react-query";
 import { List, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { useDebounce } from "use-debounce";
 import {
   joinRoomAction,
   listDiscoverableChannelsAction,
@@ -33,38 +31,43 @@ export function BrowseChannelsDialog({
   const t = useTranslations("App.Channels.Browse");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [debouncedQuery] = useDebounce(query, 200);
+  const [rooms, setRooms] = useState<DiscoverableChatRoom[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [_isJoining, startJoinTransition] = useTransition();
 
-  const effectiveQuery = query === "" ? "" : debouncedQuery;
-  const channelsQuery = useQuery({
-    queryKey: ["chat", "discoverable-channels", effectiveQuery],
-    queryFn: async () => {
-      const result = await listDiscoverableChannelsAction({
-        q: effectiveQuery,
-      });
-      if (!result.ok) {
-        const message = result.error.message || t("loadError");
-        toast.error(message);
-        throw new Error(message);
-      }
-      return result.value;
-    },
-    enabled: open,
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
 
-  const rooms = open ? (channelsQuery.data ?? []) : [];
-  const isLoading = open && channelsQuery.isFetching;
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setIsLoading(true);
+      const result = await listDiscoverableChannelsAction({ q: query });
+      if (cancelled) {
+        return;
+      }
+      setIsLoading(false);
+      if (!result.ok) {
+        toast.error(result.error.message || t("loadError"));
+        setRooms([]);
+        return;
+      }
+      setRooms(result.value);
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [open, query, t]);
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (!nextOpen) {
       setQuery("");
+      setRooms([]);
       setJoiningRoomId(null);
     }
   }

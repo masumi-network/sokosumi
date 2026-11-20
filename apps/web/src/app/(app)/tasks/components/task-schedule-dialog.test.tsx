@@ -11,7 +11,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { UploadUserFileDirectOptions } from "@/lib/utils/user-file-upload.client";
-import { TestQueryProvider } from "@/test/query-provider";
 
 import { TaskScheduleActions } from "./task-schedule-actions";
 import {
@@ -691,7 +690,6 @@ describe("TaskScheduleDialog", () => {
         projectOptions={[{ id: "p_near", name: "Near Project" }]}
         canCreatePrivate={false}
       />,
-      { wrapper: TestQueryProvider },
     );
 
     await user.click(screen.getByRole("button", { name: "more" }));

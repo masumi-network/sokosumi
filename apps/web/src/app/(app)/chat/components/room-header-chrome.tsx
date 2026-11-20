@@ -503,6 +503,7 @@ export function RoomHeaderChrome({
           <RoomSearchPanel
             key={room.id}
             roomId={room.id}
+            currentUserId={currentUserId}
             onJumpToMessage={onJumpToMessage}
             labels={{
               open: t("RoomSearch.open"),

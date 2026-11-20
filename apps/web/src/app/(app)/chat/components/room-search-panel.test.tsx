@@ -68,6 +68,7 @@ function renderPanel(onJumpToMessage = vi.fn()) {
   render(
     <RoomSearchPanel
       roomId="550e8400-e29b-41d4-a716-446655440000"
+      currentUserId="user_1"
       labels={labels}
       onJumpToMessage={onJumpToMessage}
     />,
@@ -339,6 +340,7 @@ describe("RoomSearchPanel", () => {
       const { unmount } = render(
         <RoomSearchPanel
           roomId="550e8400-e29b-41d4-a716-446655440000"
+          currentUserId="user_1"
           labels={labels}
           onJumpToMessage={vi.fn()}
         />,
@@ -692,5 +694,34 @@ describe("RoomSearchPanel", () => {
       expect(screen.getByText(labels.idle)).toBeInTheDocument();
       expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
     });
+  });
+
+  it("drops cached hits on close so reopening never leaves stale results selectable while refetching", async () => {
+    renderPanel();
+
+    openSearch();
+    typeQuery("budget");
+    expect(await screen.findByTestId("room-search-result")).toHaveTextContent(
+      "Hello budget review",
+    );
+
+    // Select the hit to close the popover while keeping the query text.
+    fireEvent.click(screen.getByTestId("room-search-result"));
+    expect(screen.queryByTestId("room-search-panel")).not.toBeInTheDocument();
+
+    const nextRead = Promise.withResolvers<{ data: ChatRoomMessage[] }>();
+    getChatRoomMessagesMock.mockReturnValueOnce(nextRead.promise);
+
+    // Reopen with the same query: must show loading, never the old hit.
+    openSearch();
+    expect(await screen.findByText(labels.loading)).toBeInTheDocument();
+    expect(screen.queryAllByTestId("room-search-result")).toHaveLength(0);
+
+    nextRead.resolve({
+      data: [message({ id: "msg-fresh", content: "Updated budget review" })],
+    });
+    expect(await screen.findByTestId("room-search-result")).toHaveTextContent(
+      "Updated budget review",
+    );
   });
 });

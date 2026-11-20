@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Search } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
@@ -20,6 +20,7 @@ import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { splitVoiceTranscript } from "@/lib/utils/voice-message";
+import { buildScopedQueryKey, useScopedQuery } from "@/queries/scoped-queries";
 
 const SEARCH_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -37,17 +38,19 @@ export interface RoomSearchPanelLabels {
 
 interface RoomSearchPanelProps {
   roomId: string;
+  currentUserId: string;
   labels: RoomSearchPanelLabels;
   onJumpToMessage: (hit: ChatRoomMessage) => void;
 }
 
 export function RoomSearchPanel({
   roomId,
+  currentUserId,
   labels,
   onJumpToMessage,
 }: RoomSearchPanelProps) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [openSession, setOpenSession] = useState(0);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [activeSelection, setActiveSelection] = useState({ key: "", index: 0 });
@@ -76,8 +79,14 @@ export function RoomSearchPanel({
     setDebouncedQuery(nextQuery);
   }, SEARCH_DEBOUNCE_MS);
 
-  const searchQuery = useQuery({
-    queryKey: ["chat", "room-search", roomId, openSession, debouncedQuery],
+  const scope = [roomId, currentUserId] as const;
+  const scopedSearchPrefix = buildScopedQueryKey(scope, [
+    "chat",
+    "room-search",
+  ] as const);
+  const searchQuery = useScopedQuery({
+    scope,
+    queryKey: ["chat", "room-search", debouncedQuery] as const,
     queryFn: async () => {
       const response = await coreClient.getChatRoomMessages(roomId, {
         q: debouncedQuery,
@@ -88,18 +97,18 @@ export function RoomSearchPanel({
     enabled: open && Boolean(debouncedQuery),
     staleTime: 0,
     gcTime: 0,
-    retry: false,
-    refetchOnWindowFocus: false,
   });
 
-  const results =
-    open && Boolean(debouncedQuery) ? (searchQuery.data ?? []) : [];
   const isLoading = open && Boolean(debouncedQuery) && searchQuery.isFetching;
+  const results =
+    open && Boolean(debouncedQuery) && !isLoading
+      ? (searchQuery.data ?? [])
+      : [];
   const error =
     open && Boolean(debouncedQuery) && searchQuery.isError
       ? labels.error
       : null;
-  const currentResultsKey = `${roomId}:${openSession}:${debouncedQuery}`;
+  const currentResultsKey = `${roomId}:${currentUserId}:${debouncedQuery}`;
   const activeIndex =
     activeSelection.key === currentResultsKey ? activeSelection.index : 0;
 
@@ -164,7 +173,7 @@ export function RoomSearchPanel({
     // query itself does survive, because the field stays on screen and
     // emptying it under the user would look like data loss; reopening
     // re-runs the search from that query.
-    setOpenSession((session) => session + 1);
+    queryClient.removeQueries({ queryKey: scopedSearchPrefix });
     setActiveSelection({ key: "", index: 0 });
     setOpen(false);
   }
@@ -188,6 +197,7 @@ export function RoomSearchPanel({
   /** Escape means "clear", wherever focus happens to be when it is pressed. */
   function clearQuery() {
     scheduleDebouncedQuery.cancel();
+    queryClient.removeQueries({ queryKey: scopedSearchPrefix });
     setQuery("");
     setDebouncedQuery("");
   }
@@ -297,6 +307,7 @@ export function RoomSearchPanel({
           // on the previous fetch. Mobile keeps the popover because the
           // field lives inside it.
           scheduleDebouncedQuery.cancel();
+          queryClient.removeQueries({ queryKey: scopedSearchPrefix });
           setDebouncedQuery("");
           setActiveSelection({ key: "", index: 0 });
           if (!isMobile) {

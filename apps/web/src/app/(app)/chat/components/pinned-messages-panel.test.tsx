@@ -11,7 +11,6 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TestQueryProvider } from "@/test/query-provider";
 import { PinnedMessagesPanel } from "./pinned-messages-panel";
 
 const listPinnedMessagesActionMock = vi.fn();
@@ -155,7 +154,6 @@ function renderPanel(
       onJump={onJump}
       onUnpin={onUnpin}
     />,
-    { wrapper: TestQueryProvider },
   );
   return { onClose };
 }
