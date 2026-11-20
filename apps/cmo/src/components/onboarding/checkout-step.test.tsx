@@ -169,6 +169,27 @@ describe("CheckoutStep", () => {
     expect(gets).toContain("1 picture and 1 video");
   });
 
+  it("names the month's search ads apart from its posts", async () => {
+    const posts = planAt("steady");
+    const ad = (id: string) => ({
+      id,
+      date: "2026-10-09",
+      channel: "google_ads",
+      title: `Search ad ${id}`,
+      format: "search ad",
+      status: "idea" as const,
+    });
+    await render({
+      plan: { ...posts, calendar: [...posts.calendar, ad("a1"), ad("a2")] },
+    });
+    const count = posts.calendar.length;
+    expect(text()).toContain(`${count} posts from your strategy`);
+    expect(text()).not.toContain("Google Ads, written in your voice");
+    expect(text()).toContain(
+      "2 ads for Google Ads, live only when you launch them",
+    );
+  });
+
   it("says what each plan makes of the strategy, and marks the smallest that makes all of it", async () => {
     // Three X posts a day for a week: Starter makes one a day, Growth two, Scale three.
     const week: Strategy = {

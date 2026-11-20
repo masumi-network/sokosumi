@@ -8,7 +8,11 @@ import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import { monthPostCount, strategyApproved } from "../../lib/strategy";
+import {
+  monthLabel,
+  monthPostCount,
+  strategyApproved,
+} from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
 import { AdsChoice, money } from "../strategy-core";
@@ -443,7 +447,7 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const pieces = monthPostCount(strategy.calendar);
+  const month = monthLabel(strategy.calendar);
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -483,7 +487,7 @@ export function PlanReview({
   // What it rests on and the language of the posts, in plain words. No page
   // count: the screenshots Core keeps are not the pages Cuso read.
   const line = [
-    `${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks, built from your website and your answers.`,
+    `${month} for the next four weeks, built from your website and your answers.`,
     strategy.contentLanguage
       ? `The posts are written in ${strategy.contentLanguage}.`
       : null,
@@ -900,7 +904,7 @@ function goalFacts(strategy: Strategy): { term: string; value: string }[] {
     { term: "Where", value: where },
     {
       term: "This month",
-      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "post" : "posts"}` : "",
+      value: pieces > 0 ? monthLabel(strategy.calendar) : "",
     },
   ];
   return facts.filter((fact): fact is { term: string; value: string } =>
