@@ -19,7 +19,6 @@ import {
   isExpectedAblyChannelLifecycleError,
   safeDetachChannel,
 } from "./safe-detach-channel";
-import { useAblyConnectionHealthPublisher } from "./use-ably-connection-health-publisher";
 
 const calendarInvalidationEventSchema = z.object({
   id: z.string().min(1),
@@ -83,7 +82,6 @@ function CalendarRealtimeSubscription({
 }: CalendarRealtimeBridgeProps) {
   const ably = useAbly();
   const router = useRouter();
-  useAblyConnectionHealthPublisher();
   const onAccessRevokedRef = useRef(onAccessRevoked);
   onAccessRevokedRef.current = onAccessRevoked;
   const onInvalidatedRef = useRef(onInvalidated);

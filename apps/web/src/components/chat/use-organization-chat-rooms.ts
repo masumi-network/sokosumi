@@ -20,8 +20,8 @@ import {
   registerMembershipVisibleRoomsPublisher,
 } from "./membership-visible-rooms-store";
 import {
-  subscribeOrganizationChatRoomRead,
-  subscribeOrganizationChatRoomsChanged,
+  useOrganizationChatRoomRead,
+  useOrganizationChatRoomsChanged,
 } from "./organization-chat-events";
 import { keepRoomUnreadState } from "./room-attention";
 import {
@@ -400,20 +400,10 @@ export function useOrganizationChatRooms({
     [requestActive, requestArchived, requestInvitations],
   );
 
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
+  useOrganizationChatRoomRead(setRoomRows, undefined, !paintOnly);
 
-    return subscribeOrganizationChatRoomRead(setRoomRows);
-  }, [paintOnly]);
-
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-
-    return subscribeOrganizationChatRoomsChanged({
+  useOrganizationChatRoomsChanged(
+    {
       onRemoved: (removedRoomId) => {
         latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
         latestArchivedRefreshRef.current = latestAppliedRefreshRef.current;
@@ -428,8 +418,9 @@ export function useOrganizationChatRooms({
       },
       onRoom: upsertRoomToTop,
       onInvalidated: requestCollections,
-    });
-  }, [paintOnly, requestCollections, upsertRoomToTop]);
+    },
+    !paintOnly,
+  );
 
   useEffect(() => {
     if (paintOnly) {

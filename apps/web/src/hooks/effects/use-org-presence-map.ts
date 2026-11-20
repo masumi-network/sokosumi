@@ -8,13 +8,66 @@ import {
 } from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { authorizeAbly } from "@/lib/ably/authorize.client";
+import { organizationIdsFromAblyCapability } from "@/lib/ably/organization-ids-from-ably-capability";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
-import { authorizeAbly } from "./authorize.client";
-
-import { organizationIdsFromAblyCapability } from "./organization-ids-from-ably-capability";
 
 const RECLASSIFY_TICK_MS = 30_000;
+
+export const EMPTY_ORG_PRESENCE_MAP = new Map<string, ChatPresenceState>();
+
+export interface OrgPresenceSnapshot {
+  organizationId: string | null;
+  map: Map<string, ChatPresenceState>;
+}
+
+const EMPTY_ORG_PRESENCE_SNAPSHOT: OrgPresenceSnapshot = {
+  organizationId: null,
+  map: EMPTY_ORG_PRESENCE_MAP,
+};
+
+export interface OrgPresenceStore {
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => OrgPresenceSnapshot;
+  getServerSnapshot: () => OrgPresenceSnapshot;
+  setPresenceMap: (
+    organizationId: string | null,
+    next: Map<string, ChatPresenceState>,
+  ) => void;
+}
+
+export function createOrgPresenceStore(): OrgPresenceStore {
+  let snapshot: OrgPresenceSnapshot = EMPTY_ORG_PRESENCE_SNAPSHOT;
+  const listeners = new Set<() => void>();
+
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot() {
+      return snapshot;
+    },
+    getServerSnapshot() {
+      return EMPTY_ORG_PRESENCE_SNAPSHOT;
+    },
+    setPresenceMap(organizationId, next) {
+      if (
+        snapshot.organizationId === organizationId &&
+        samePresenceMap(snapshot.map, next)
+      ) {
+        return;
+      }
+      snapshot = { organizationId, map: next };
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+  };
+}
 
 function samePresenceMap(
   a: Map<string, ChatPresenceState>,
@@ -41,7 +94,7 @@ function membersToInputs(
 }
 
 /**
- * Live org presence map: userId → online | afk.
+ * Sync live Ably org presence into an external store: userId → online | afk.
  * Users absent from the map are offline (caller uses fallback).
  *
  * Gates attach on token capability (same as publisher). Attaching
@@ -49,17 +102,15 @@ function membersToInputs(
  * (SOKOSUMI-R0) as unhandled rejections. Re-syncs on `connected` so a
  * transient auth/grant miss can recover without remounting.
  */
-export function useOrgPresenceMap(
+export function useOrgPresenceMapSync(
   organizationId: string | null | undefined,
-): Map<string, ChatPresenceState> {
+  store: OrgPresenceStore,
+): void {
   const ably = useAbly();
-  const [presenceByUserId, setPresenceByUserId] = useState<
-    Map<string, ChatPresenceState>
-  >(() => new Map());
 
   useEffect(() => {
     if (!organizationId) {
-      setPresenceByUserId(new Map());
+      store.setPresenceMap(null, EMPTY_ORG_PRESENCE_MAP);
       return;
     }
 
@@ -67,7 +118,7 @@ export function useOrgPresenceMap(
     const activeOrganizationId = organizationId;
     // Drop prior org roster immediately so UI does not flash stale members
     // while authorize runs for the new workspace.
-    setPresenceByUserId(new Map());
+    store.setPresenceMap(activeOrganizationId, EMPTY_ORG_PRESENCE_MAP);
 
     let cancelled = false;
     let channel: Ably.RealtimeChannel | null = null;
@@ -83,9 +134,7 @@ export function useOrgPresenceMap(
       }
       const inputs = membersToInputs([...members.values()]);
       const next = aggregateChatPresenceByUserId(inputs);
-      setPresenceByUserId((previous) =>
-        samePresenceMap(previous, next) ? previous : next,
-      );
+      store.setPresenceMap(activeOrganizationId, next);
     }
 
     function upsertMember(message: Ably.PresenceMessage) {
@@ -126,7 +175,7 @@ export function useOrgPresenceMap(
         intervalId = undefined;
       }
       if (!cancelled) {
-        setPresenceByUserId(new Map());
+        store.setPresenceMap(activeOrganizationId, EMPTY_ORG_PRESENCE_MAP);
       }
     }
 
@@ -232,7 +281,25 @@ export function useOrgPresenceMap(
       // Do not detach: publisher owns channel lifecycle on shared RealtimeChannel
       // instances. Detach here would leave this client from org presence.
     };
-  }, [ably, organizationId]);
+  }, [ably, organizationId, store]);
+}
 
-  return presenceByUserId;
+/**
+ * Live org presence map: userId → online | afk.
+ * Users absent from the map are offline (caller uses fallback).
+ */
+export function useOrgPresenceMap(
+  organizationId: string | null | undefined,
+): Map<string, ChatPresenceState> {
+  const [store] = useState(createOrgPresenceStore);
+  useOrgPresenceMapSync(organizationId, store);
+  const snapshot = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
+  );
+
+  return organizationId && snapshot.organizationId === organizationId
+    ? snapshot.map
+    : EMPTY_ORG_PRESENCE_MAP;
 }

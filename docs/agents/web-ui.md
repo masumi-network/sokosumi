@@ -78,6 +78,8 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching
 - `use-chat-unread-document-title` (`useChatUnreadDocumentTitle`) — browser tab unread count prefix
 - `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
+- `use-org-presence-map` (`useOrgPresenceMap`, `useOrgPresenceMapSync`, `createOrgPresenceStore`) — Ably organization presence subscription backed by an external store
+- `use-room-typing` (`useRoomTyping`, `useRoomTypingSync`, `createRoomTypingStore`) — Ably room typing subscription and publisher backed by an external store
 - `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
 - `use-location-replace` (`useLocationReplace`) — `window.location.replace` redirect when a target URL is set
 - `use-format-toolbar-open-preference` (`useFormatToolbarOpenPreference`) — before-paint chat formatting toolbar preference read and persistence
