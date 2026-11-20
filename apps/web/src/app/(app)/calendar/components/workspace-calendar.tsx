@@ -102,6 +102,7 @@ import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
+import { useUrlTimezone } from "@/hooks/effects/use-url-timezone";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -150,7 +151,6 @@ import { SocialStatusSummary } from "./social-status-summary";
 import { SourceMarker } from "./source-marker";
 import { useBotRunChanges } from "./use-bot-run-changes";
 import { useRunChanges } from "./use-run-changes";
-import { useUrlTimezone } from "./use-url-timezone";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
@@ -1824,7 +1824,7 @@ function WorkspaceCalendarView({
         {/* The grid's period, not the whole loaded range: an empty week next
             to a busy one still says so. */}
         {view !== "agenda" && !visibleItems.some(inShownPeriod) ? (
-          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+          <div className="bg-card-background text-muted-foreground rounded-xl p-8 text-center text-sm">
             {emptyState}
           </div>
         ) : null}

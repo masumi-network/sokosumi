@@ -117,6 +117,28 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-track-purchase` (`useTrackPurchase`) — fires the GTM `purchase` event at most once per checkout session id once analytics consent is granted
 - `use-report-route-error` (`useReportRouteError`, `useGlobalRouteError`) — reports route error boundary failures to Sentry and handles one-shot stale-deployment refresh in the global error boundary
 - `use-router-redirect` (`useRouterRedirect`) — client-side Next.js App Router navigation (`replace`/`push`, optional one-shot) driven by state
+- `use-aurora-orb-canvas` (`useAuroraOrbCanvas`) — live `AuroraOrb` and `PlaceholderOrb` canvas handle lifecycle (mount, expression/speed updates, pulse nonce, teardown)
+- `use-live-bot-avatar` (`useLiveBotAvatar`) — shared-WebGL `LiveBotAvatar` canvas handle, intersection visibility, model upload, context-loss teardown, and pointer gaze
+- `use-gradient-background-canvas` (`useGradientBackgroundCanvas`) — WebGL Home gradient canvas lifecycle with theme token observation, reduced motion, and off-screen pause
+- `use-thinking-orb-canvas` (`useThinkingOrbCanvas`) — `thinking-orbs` 2D canvas animation with reduced-motion static frame fallback
+- `use-studio-wall-paint` (`useStudioWallPaint`, `applyStudioWallTransform`) — before-paint Studio template wall layout transform synchronization
+- `use-document-locale-lang` (`useDocumentLocaleLang`) — before-paint `document.documentElement.lang` synchronization with the active locale
+- `use-agent-fullbleed-body` (`useAgentFullbleedBody`) — `data-agent-fullbleed="true"` toggle on `<body>` while the agent jobs layout is mounted
+- `use-soko-bot-creating-body` (`useSokoBotCreatingBody`) — `data-soko-bot-creating="true"` toggle on `<body>` while the Soko Bot creation flow is mounted
+- `use-seo-ask-button-toast-offset` (`useSeoAskButtonToastOffset`) — `--toast-bottom-offset` toggle on `document.documentElement` while the SEO ask button is mounted
+- `use-chat-unreads-filter` (`useChatUnreadsFilter`) — browser-remembered Unreads filter cookie store and before-paint boot attribute cleanup
+- `use-dynamic-type-root-cap` (`useDynamicTypeRootCap`) — Apple Dynamic Type root `fontSize` cap on mount, `pageshow`, and `visibilitychange`
+- `use-browser-time-format-sync` (`useBrowserTimeFormatSync`) — browser 12h/24h time-format cookie sync and Auto route refresh
+- `use-browser-time-zone-sync` (`useBrowserTimeZoneSync`) — browser IANA time-zone cookie sync and route refresh
+- `use-canonical-history-path` (`useCanonicalHistoryPath`) — post-render `window.history.replaceState` pathname canonicalization preserving state, search, and hash
+- `use-internal-traffic-gate` (`useInternalTrafficGate`) — internal-traffic cookie sync, `?internal` URL stripping, and Google tags gating
+- `use-url-timezone` (`useUrlTimezone`) — seeds the browser's IANA time zone into a calendar URL that lacks a valid one
+- `use-push-preference` (`usePushPreference`) — browser Web Push capability, permission, subscription, and repair state synchronization
+- `use-record-project-visit` (`useRecordProjectVisit`) — records visited project IDs in the per-user/per-workspace `localStorage` visit log
+- `use-record-page-visit` (`useRecordPageVisit`) — increments the per-pathname likely-pages visit counter on mount
+- `use-remembered-project-scope` (`useRememberedProjectScope`) — `sessionStorage` external store and workspace-switch-guarded project scope synchronization
+- `use-tasks-restored-view-url` (`useTasksRestoredViewUrl`, `rememberSavedTasksView`, `forgetSavedTasksView`, `withTasksView`) — before-paint restored Tasks view URL synchronization via `history.replaceState` / `router.replace`
+- `use-calendar-week-row-label` (`useCalendarWeekRowLabel`) — sets localized ISO week `aria-label` on FullCalendar month week rows
 
 ### React Query in migrations
 
