@@ -4,6 +4,7 @@ import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { useCallback, useEffect, useState } from "react";
+import { useScrollWindowToTop } from "../../hooks/effects/use-scroll-window-to-top";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { connectReturnError } from "../../lib/connect-return";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
@@ -159,9 +160,7 @@ export function OnboardingFlow({
     }
   }
   const current = stepIndex(step);
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [step]);
+  useScrollWindowToTop(step);
 
   // A finished step opened again leads forward to where the founder was.
   const ahead = revisiting

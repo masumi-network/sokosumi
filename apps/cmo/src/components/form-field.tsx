@@ -1,9 +1,5 @@
-import {
-  type InputHTMLAttributes,
-  type RefObject,
-  useEffect,
-  useRef,
-} from "react";
+import { type InputHTMLAttributes, type RefObject, useRef } from "react";
+import { useFocusWhen } from "../hooks/effects/use-focus-when";
 
 interface FormFieldProps
   extends Omit<
@@ -81,13 +77,12 @@ export function useFocusFirstInvalid(
   attempt: number,
 ): RefObject<HTMLFormElement | null> {
   const formRef = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (attempt === 0) return;
-    const form = formRef.current;
-    (
-      form?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
-      form?.querySelector<HTMLElement>('[role="alert"]')
-    )?.focus();
-  }, [attempt]);
+  useFocusWhen(
+    () =>
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+      formRef.current?.querySelector<HTMLElement>('[role="alert"]'),
+    attempt !== 0,
+    { resetKey: attempt },
+  );
   return formRef;
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronRight, X } from "lucide-react";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useRef } from "react";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
+import { useFocusWithRestore } from "../../hooks/effects/use-focus-with-restore";
 
 interface GoalBlockProps {
   label: string;
@@ -103,13 +104,7 @@ export function SidePanel({
 }: SidePanelProps) {
   const sheet = useRef<HTMLElement>(null);
   // The sheet takes the focus it was opened for, and gives it back.
-  useEffect(() => {
-    const opener = document.activeElement;
-    sheet.current?.focus();
-    return () => {
-      if (opener instanceof HTMLElement) opener.focus({ preventScroll: true });
-    };
-  }, []);
+  useFocusWithRestore(sheet);
   useEventListener("window", "keydown", (event) => {
     if (event.key !== "Escape") return;
     onClose();

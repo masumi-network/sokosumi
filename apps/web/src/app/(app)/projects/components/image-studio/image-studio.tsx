@@ -35,6 +35,7 @@ import { switchScopeHref } from "@/app/components/project-scope/project-scope-hr
 import { openProjectScope } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { Button } from "@/components/ui/button";
 import { useIntersectionObserver } from "@/hooks/effects/use-intersection-observer";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -455,12 +456,16 @@ export function ImageStudio({
    * DOM-only: there is no React state for "where the gallery is scrolled to",
    * which is exactly the kind of external system an Effect is for.
    */
-  useMountEffect(() => {
-    if (!initialSelectedAssetId) return;
-    document
-      .querySelector(`[data-asset-id="${CSS.escape(initialSelectedAssetId)}"]`)
-      ?.scrollIntoView({ block: "center" });
-  });
+  useScrollIntoViewWhen(
+    () =>
+      initialSelectedAssetId
+        ? document.querySelector(
+            `[data-asset-id="${CSS.escape(initialSelectedAssetId)}"]`,
+          )
+        : null,
+    true,
+    { block: "center" },
+  );
 
   const queue = useGenerationQueue({
     onAccepted: useCallback(

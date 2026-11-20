@@ -8,6 +8,7 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import {
   useSeoResultFormatter,
   useSeoResultTranslations,
@@ -110,10 +111,10 @@ function SeoAgentPanel({
   // The button that started the check leaves with the setup card. Focus that
   // fell to the page moves to the result; focus anywhere else is left alone.
   const verdict = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    if (checkSeen && !checkRunning && document.activeElement === document.body)
-      verdict.current?.focus();
-  }, [checkSeen, checkRunning]);
+  useFocusWhen(
+    () => (document.activeElement === document.body ? verdict.current : null),
+    checkSeen && !checkRunning,
+  );
   // The action whose card is open in the dialog. It is read from the data, so a Task for it shows in the card.
   const [dialogKey, setDialogKey] = useState<string | null>(null);
   const dialogRow = useRef<HTMLButtonElement | null>(null);

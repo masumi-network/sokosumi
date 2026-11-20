@@ -75,9 +75,12 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-resize-observer` (`useResizeObserver`, `useLayoutResizeObserver`) — live-element `ResizeObserver` subscriptions with unmount disconnect
 - `use-mutation-observer` (`useMutationObserver`, `useLayoutMutationObserver`) — live-node / `"body"` / `"documentElement"` `MutationObserver` subscriptions with unmount disconnect
 - `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
-- `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus `targetRef.current` when a condition turns true (reads the ref at effect time; optional `preventScroll`, `deferToFrame`, and `resetKey`)
+- `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus a ref or getter target when a condition turns true (reads the target at effect time; optional `preventScroll`, `deferToFrame`, and `resetKey`; CMO has `useFocusWhen` under `apps/cmo/src/hooks/effects/use-focus-when.ts`)
+- `use-focus-form-field-on-mount` (`useFocusFormFieldOnMount`) — focus a `react-hook-form` field once on mount (or Activity reveal)
+- `use-focus-at-end-on-mount` (`useFocusAtEndOnMount`) — focus an imperative editor handle at the end of its content once on mount (or Activity reveal)
 - `use-scroll-into-view-when` (`useScrollIntoViewWhen`) — scroll a ref or getter target into view when a condition turns true (reads the target at effect time; optional reduced-motion downgrade and `resetKey`; CMO has `useScrollIntoViewWhen` under `apps/cmo/src/hooks/effects/use-scroll-into-view-when.ts`)
-- `use-scroll-to-end` (`useScrollToEnd`) — scroll `targetRef.current` to its vertical or horizontal end when a trigger changes
+- `use-scroll-child-into-view-x` (`useScrollChildIntoViewX`) — horizontally scroll a container's `scrollLeft` just enough to reveal a matched child without moving vertical page scroll
+- `use-scroll-to-end` (`useScrollToEnd`) — scroll `targetRef.current` to its vertical or horizontal end when a trigger changes (CMO also has `useScrollWindowToTop` under `apps/cmo/src/hooks/effects/use-scroll-window-to-top.ts` and `useFocusWithRestore` under `apps/cmo/src/hooks/effects/use-focus-with-restore.ts`)
 - `use-page-search-shortcut` (`usePageSearchShortcut`) — Cmd/Ctrl+F search input focus shortcut
 - `use-prevent-enter-submit` (`usePreventEnterSubmit`) — form Enter submission guard
 - `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching
