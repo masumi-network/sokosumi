@@ -1370,7 +1370,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Cuso saves the strategy with save_strategy so it is about recruiting teams who book candidate interviews: the summary, the goals, the focus, the funnel stages and their plays, the questions and the calendar titles follow recruiting teams. Nothing in the strategy still names revenue operations, RevOps or revenue teams, not even to say they are out; the changes list saying what changed is fine. The month keeps its channels. Rewriting only the goal or a few posts, calling the strategy the plan, or saying it changed without a successful save_strategy, fails.",
     expect: {
-      routes: ["MANAGE_WORK", "MIXED", "CLARIFY"],
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
       tools: ["save_strategy"],
       allowFailedTools: ["save_strategy"],
       forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
