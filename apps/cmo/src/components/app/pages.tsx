@@ -16,6 +16,7 @@ import {
 import { channelInfo, SOON_CHANNELS } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
+import { nextWeeklyReview } from "../../lib/page-lead";
 import { strategyApproved } from "../../lib/strategy";
 import { monthEntries } from "../../lib/today";
 import type { View } from "../../lib/views";
@@ -284,18 +285,6 @@ function ComingUp({
   );
 }
 
-/** When the next weekly review runs, once the strategy is approved. */
-function nextWeeklyReview(
-  overview: CmoOverview,
-): { at: Date | string; zone: string | null } | null {
-  const review = overview.routines.find(
-    (routine) => routine.key === "cmo-weekly-review",
-  );
-  return review?.nextRunAt && strategyApproved(overview)
-    ? { at: review.nextRunAt, zone: review.timezone }
-    : null;
-}
-
 /** The line under the Results title: how often, and the real next day. */
 export function ResultsLead({ overview }: { overview: CmoOverview }) {
   const review = nextWeeklyReview(overview);
@@ -354,6 +343,7 @@ export function BrandBrainPage({
         messages={messages}
         onCorrect={onAsk}
         onSave={onSave}
+        withLead={false}
       />
     </div>
   );

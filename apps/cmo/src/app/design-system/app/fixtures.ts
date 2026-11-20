@@ -491,6 +491,25 @@ export const busyOverview: CmoOverview = (() => {
 })();
 
 /**
+ * Nothing to show and nothing to do: a month with no posts yet, nothing that
+ * needs the owner, and a business whose name runs long.
+ */
+export const quietOverview: CmoOverview = (() => {
+  const strategy = { ...plan, calendar: [] };
+  return {
+    ...overview,
+    businessName: "Northern Lights Handmade Ceramics and Studio Pottery",
+    brandVisual: overview.brandVisual
+      ? { ...overview.brandVisual, siteName: null }
+      : null,
+    strategy,
+    approvedStrategy: strategy,
+    drafts: [],
+    posts: { draft: 0, scheduled: 0, published: 0, failed: 0 },
+  };
+})();
+
+/**
  * The chat page's own state: a long German message, to check how the thread
  * wraps, and Cuso at work, so the typing row shows above the composer.
  */

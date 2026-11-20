@@ -45,15 +45,16 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-it("opens on Today: the greeting, the month, what needs the owner, then the week", async () => {
+it("opens on Today: the greeting, the month, the week, then what needs the owner", async () => {
   await act(async () => root.render(<FixtureApp view="today" />));
   expect(container.querySelector("h1")?.textContent).toBe(
-    "Good morning, Francis",
+    "Good morning, Francis.",
   );
   const sections = [...container.querySelectorAll(".today h2")].map(
     (head) => head.textContent,
   );
-  expect(sections).toEqual(["This month", "Needs you", "This week"]);
+  // Needs you comes last, where the sidebar's Cuso points.
+  expect(sections).toEqual(["This month", "This week", "Needs you"]);
   const needs = [...container.querySelectorAll(".needs-row b")].map(
     (row) => row.textContent,
   );
@@ -129,4 +130,11 @@ it("opens a post of the week on the Calendar in one tap", async () => {
     "Calendar",
   );
   expect(container.querySelector("[role=dialog]")).not.toBeNull();
+});
+
+it("keeps a week without posts short and says nothing needs the owner", async () => {
+  await act(async () => root.render(<FixtureApp view="today" state="quiet" />));
+  expect(container.querySelector(".today-week-empty")).not.toBeNull();
+  expect(container.querySelector(".today-week")).toBeNull();
+  expect(container.querySelector(".today-needs")).toBeNull();
 });
