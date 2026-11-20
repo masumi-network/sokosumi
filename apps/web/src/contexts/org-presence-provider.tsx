@@ -53,6 +53,8 @@ interface OrgPresenceProviderProps {
   children: ReactNode;
 }
 
+const EMPTY_PRESENCE_MAP = new Map<string, ChatPresenceState>();
+
 /**
  * App-shell Ably presence (ADR-0003).
  * Children always mount with context (REST fallback until Ably hydrates).
@@ -63,9 +65,17 @@ export function OrgPresenceProvider({
   organizationId,
   children,
 }: OrgPresenceProviderProps) {
+  const [prevOrganizationId, setPrevOrganizationId] = useState(organizationId);
   const [presenceByUserId, setPresenceByUserId] = useState<
     Map<string, ChatPresenceState>
-  >(() => new Map());
+  >(() => EMPTY_PRESENCE_MAP);
+
+  if (prevOrganizationId !== organizationId) {
+    setPrevOrganizationId(organizationId);
+    if (organizationId == null && presenceByUserId.size > 0) {
+      setPresenceByUserId(EMPTY_PRESENCE_MAP);
+    }
+  }
 
   const handleMapChange = useCallback((map: Map<string, ChatPresenceState>) => {
     setPresenceByUserId((previous) => {
@@ -85,14 +95,11 @@ export function OrgPresenceProvider({
     });
   }, []);
 
-  useEffect(() => {
-    if (organizationId == null) {
-      setPresenceByUserId(new Map());
-    }
-  }, [organizationId]);
+  const providedPresenceMap =
+    organizationId == null ? EMPTY_PRESENCE_MAP : presenceByUserId;
 
   return (
-    <OrgPresenceMapContext value={presenceByUserId}>
+    <OrgPresenceMapContext value={providedPresenceMap}>
       {children}
       <LazyAblyProvider>
         <OrgPresencePublisherBridge organizationId={organizationId} />

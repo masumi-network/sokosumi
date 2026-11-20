@@ -71,14 +71,14 @@ export default function RootLayout({
       <head>
         <ApplePwaHead />
       </head>
-      <Suspense fallback={null}>
-        <TelemetryBoundary>
-          {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
-          {analyticsEnabled && <ConsentModeInit />}
-          <GoogleTags gtmId={gtmId} gaId={gaId} />
-        </TelemetryBoundary>
-      </Suspense>
       <body className="bg-background min-h-dvh max-w-dvw antialiased">
+        <Suspense fallback={null}>
+          <TelemetryBoundary>
+            {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
+            {analyticsEnabled && <ConsentModeInit />}
+            <GoogleTags gtmId={gtmId} gaId={gaId} />
+          </TelemetryBoundary>
+        </Suspense>
         <DynamicTypeRootCap />
         <NuqsAdapter>
           <ThemeProvider>

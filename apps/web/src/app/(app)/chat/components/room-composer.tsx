@@ -458,12 +458,6 @@ export function RoomComposer({
     return () => cancelAnimationFrame(frame);
   }, [focusOnMount]);
 
-  useEffect(() => {
-    if (!formatToolbarOpen) {
-      setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
-    }
-  }, [formatToolbarOpen]);
-
   const handleActiveFormatsChange = useCallback(
     (formats: ComposerActiveFormats) => {
       setActiveFormats((previous) => {
@@ -819,11 +813,12 @@ export function RoomComposer({
               }
               aria-pressed={formatToolbarOpen}
               onClick={() => {
-                setFormatToolbarOpen((open) => {
-                  const next = !open;
-                  setFormatToolbarOpenPreference(next);
-                  return next;
-                });
+                const next = !formatToolbarOpen;
+                setFormatToolbarOpen(next);
+                setFormatToolbarOpenPreference(next);
+                if (!next) {
+                  setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
+                }
               }}
             >
               <ALargeSmall className="size-4" aria-hidden />

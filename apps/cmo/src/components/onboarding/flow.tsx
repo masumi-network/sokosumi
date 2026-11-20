@@ -161,16 +161,14 @@ export function OnboardingFlow({
   // Asked for the plan this session: it is being written, even before Core
   // reports the work, so the button is not offered a second time.
   const [planRequested, setPlanRequested] = useState(false);
-  useEffect(() => {
-    if (
-      planRequested &&
-      (overview.work?.kind === "strategy" || overview.strategy)
-    ) {
-      setPlanRequested(false);
-    }
-  }, [planRequested, overview.work, overview.strategy]);
+  const strategyStarted =
+    overview.work?.kind === "strategy" || Boolean(overview.strategy);
+  if (planRequested && strategyStarted) {
+    setPlanRequested(false);
+  }
   const starting =
     planRequested &&
+    !strategyStarted &&
     position.step === "plan" &&
     position.phase === "writing-needed";
   const planPhase =
