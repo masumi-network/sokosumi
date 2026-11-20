@@ -5,7 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ### Git hooks
 
-Husky runs `pnpm precommit` (`pnpm check && pnpm effects:check && pnpm typecheck`) before each commit. Expect 20–30 seconds with a warm Turbo cache and 1–2 minutes on a fresh checkout or cloud session, where `typecheck` starts cold. Let it run: it covers the same checks CI gates on in `Biome` (which runs `biome check .` and the full `no-direct-effects` suite against the base SHA) and `Typecheck`, so a commit that passes it is a commit that passes both.
+Husky runs `pnpm precommit` (`pnpm check && pnpm effects:check && pnpm typecheck`) before each commit. Expect 40–60 seconds with a warm Turbo cache and 1–2 minutes on a fresh checkout or cloud session, where `typecheck` starts cold. Let it run: it covers the local `Biome` and `Typecheck` checks, while CI's `Biome` job also runs the full `no-direct-effects` suite against the base SHA (`EFFECT_BASELINE_BASE_REF`) to reject any baseline growth.
 
 `git commit --no-verify` and `HUSKY=0` exist for the case where the hook itself is broken — a missing binary, a worktree without `node_modules`. Fix the cause and commit normally. Passing the checks by hand first is not a reason to bypass the hook: the bypass is indistinguishable from hiding a failure, and only the hook's own run proves the tree is green.
 
