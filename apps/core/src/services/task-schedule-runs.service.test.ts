@@ -268,6 +268,25 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(2);
   });
 
+  it("puts each Run's own date in the Task name, in the schedule's time zone", async () => {
+    // 23:30 UTC on Sunday is already Monday in Zurich.
+    const lateSunday = new Date("2029-12-30T23:30:00.000Z");
+    const schedule = seedTaskSchedule({
+      name: "Weekly report {date}",
+      timezone: "Europe/Zurich",
+      nextRunAt: lateSunday,
+    });
+    seedRun(schedule, lateSunday);
+    seedRun(schedule, MONDAY_9);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks.map((task) => task.name)).toEqual([
+      "Weekly report 2029-12-31",
+      "Weekly report 2030-01-07",
+    ]);
+  });
+
   it("keeps planning Runs across the calendar horizon", async () => {
     const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
     seedRun(schedule, MONDAY_9);
@@ -431,7 +450,10 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
   it("releases a moved Run at its new time, not the rule's", async () => {
     const TUESDAY_9 = new Date("2030-01-08T09:00:00.000Z");
-    const schedule = seedTaskSchedule({ nextRunAt: TUESDAY_9 });
+    const schedule = seedTaskSchedule({
+      name: "Standup {date}",
+      nextRunAt: TUESDAY_9,
+    });
     const moved = seedRun(schedule, MONDAY_9, {
       effectiveScheduledAt: TUESDAY_9,
     });
@@ -443,6 +465,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     await release();
 
     expect(taskScheduleTestDb.tasks).toHaveLength(1);
+    expect(taskScheduleTestDb.tasks[0]?.name).toBe("Standup 2030-01-08");
     expect(
       runsOf(schedule.id).find((row) => row.id === moved.id),
     ).toMatchObject({

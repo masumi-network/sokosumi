@@ -40,7 +40,8 @@ const {
 }));
 
 vi.mock("next-intl", () => {
-  const translate = (key: string) => key;
+  const translate = (key: string, values?: { taskName?: string }) =>
+    values?.taskName ? `${key}: ${values.taskName}` : key;
   return {
     useTranslations: () => translate,
     useFormatter: () => ({ dateTime: (date: Date) => date.toISOString() }),
@@ -260,6 +261,26 @@ describe("TaskScheduleDialog", () => {
       }),
     );
     expect(onSaved).toHaveBeenCalledWith("new-schedule");
+  });
+
+  it("adds {date} to the name and shows the next Task's name", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByLabelText("name"), "Daily digest");
+    await user.click(screen.getByRole("button", { name: "add" }));
+
+    expect(screen.getByLabelText("name")).toHaveValue("Daily digest {date}");
+    // The next 09:00 run is today or tomorrow, by the machine's time zone.
+    expect(screen.getByTestId("schedule-name-preview")).toHaveTextContent(
+      /^preview: Daily digest 2026-10-0[12]$/,
+    );
+
+    await user.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(createTaskScheduleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Daily digest {date}" }),
+    );
   });
 
   it("shows the assignees supplied by Core", async () => {

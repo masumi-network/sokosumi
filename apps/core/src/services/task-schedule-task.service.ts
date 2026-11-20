@@ -5,6 +5,7 @@ import {
   type TaskSchedule,
   TaskStatus,
 } from "@sokosumi/database";
+import { fillScheduleTaskName } from "@sokosumi/utils";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { publishTaskEventData } from "@/lib/ably/publish";
@@ -12,10 +13,15 @@ import { releaseSeoMonitorRun } from "./project-seo-monitor.service";
 import type { ManualSeoRunApproval } from "./seo-monitor-search-console";
 import type { ReleasedTask } from "./task-schedule-runs.service";
 
+/**
+ * `runAt` is the Run's scheduled time (or now, for Run now): a `{date}` in the
+ * schedule's name becomes that day, so a late release keeps its Run's date.
+ */
 export async function createTaskFromBlueprint(
   tx: Prisma.TransactionClient,
   schedule: TaskSchedule,
   runId: string,
+  runAt: Date,
   manual = false,
   approval?: ManualSeoRunApproval,
 ) {
@@ -34,7 +40,7 @@ export async function createTaskFromBlueprint(
       organizationId: schedule.organizationId,
       workspaceId: schedule.workspaceId,
       projectId: schedule.projectId,
-      name: schedule.name,
+      name: fillScheduleTaskName(schedule.name, runAt, schedule.timezone),
       description: schedule.description,
       visibility: schedule.visibility,
       assigneeId: schedule.assigneeId,

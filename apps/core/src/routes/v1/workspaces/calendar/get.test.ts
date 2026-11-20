@@ -157,6 +157,7 @@ function createRun(overrides: Record<string, unknown> = {}) {
     schedule: {
       id: SCHEDULE_ID,
       name: "Weekly report",
+      timezone: "UTC",
       ownerId: "user_123",
       visibility: TaskVisibility.PUBLIC,
       state: TaskScheduleState.ACTIVE,
@@ -354,6 +355,27 @@ describe("GET /workspaces/calendar", () => {
           },
         ],
       },
+    ]);
+  });
+
+  it("puts a planned Run's date in its schedule's {date} name", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createRun({
+        // 23:30 UTC on June 3 is already June 4 in Zurich.
+        effectiveScheduledAt: new Date("2026-06-03T23:30:00.000Z"),
+        schedule: { name: "Weekly report {date}", timezone: "Europe/Zurich" },
+      }),
+    ]);
+
+    const { items } = await readWorkspaceCalendar(
+      WORKSPACE_ID,
+      "user_123",
+      QUERY,
+      { access: USER_ACCESS },
+    );
+
+    expect(items).toEqual([
+      expect.objectContaining({ taskName: "Weekly report 2026-06-04" }),
     ]);
   });
 

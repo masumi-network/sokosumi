@@ -2499,6 +2499,12 @@
           "name": "Name",
           "description": "Description",
           "assignee": "Assignee",
+          "NameDate": {
+            "hint": "Add {token} to give each task its run's date.",
+            "add": "Add date",
+            "preview": "Next task: {taskName}",
+            "noNext": "{token} becomes each run's date."
+          },
           "create": "Create schedule",
           "save": "Save changes",
           "created": "Schedule created",

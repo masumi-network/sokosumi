@@ -684,6 +684,10 @@ export {
 } from "./task-notification-link.js";
 export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
+  fillScheduleTaskName,
+  SCHEDULE_TASK_NAME_DATE_TOKEN,
+} from "./task-schedule-name.js";
+export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,

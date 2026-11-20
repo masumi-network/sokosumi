@@ -2499,6 +2499,12 @@
           "name": "Nombre",
           "description": "Descripción",
           "assignee": "Responsable",
+          "NameDate": {
+            "hint": "Añade {token} para que cada tarea lleve la fecha de su ejecución.",
+            "add": "Añadir fecha",
+            "preview": "Próxima tarea: {taskName}",
+            "noNext": "{token} se convierte en la fecha de cada ejecución."
+          },
           "create": "Crear programación",
           "save": "Guardar cambios",
           "created": "Programación creada",

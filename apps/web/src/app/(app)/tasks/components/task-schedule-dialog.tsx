@@ -5,6 +5,10 @@ import {
   TaskScheduleEndsMode,
   TaskVisibility,
 } from "@sokosumi/core-client";
+import {
+  fillScheduleTaskName,
+  SCHEDULE_TASK_NAME_DATE_TOKEN,
+} from "@sokosumi/utils";
 import { CalendarClock, ChevronDown, Lock, Paperclip } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
@@ -138,6 +142,7 @@ function useWhenSummary(when: ScheduleWhen, selection: TaskScheduleSelection) {
   }
   return {
     rule,
+    nextRunAt: runs[0],
     runs: runs.map((run) =>
       formatter.dateTime(run, "dateTimeMedium", { timeZone: when.timezone }),
     ),
@@ -399,6 +404,16 @@ function TaskScheduleDialogForm({
               autoComplete="off"
               className="placeholder:text-muted-foreground w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight shadow-none outline-none"
             />
+            <ScheduleNameDate
+              name={name}
+              nextRunAt={summary.nextRunAt}
+              timezone={when.timezone}
+              onAddDate={() =>
+                setName((current) =>
+                  `${current.trimEnd()} ${SCHEDULE_TASK_NAME_DATE_TOKEN}`.trimStart(),
+                )
+              }
+            />
             <FileUpload
               label={tNewTask("uploadFile")}
               value={pendingUploadFiles}
@@ -598,5 +613,46 @@ function TaskScheduleDialogForm({
         </div>
       </div>
     </TaskFormModal>
+  );
+}
+
+/**
+ * Under the schedule's name: how to put each Run's date in its Task's name,
+ * or, once the name holds `{date}`, the next Task's name.
+ */
+function ScheduleNameDate({
+  name,
+  nextRunAt,
+  timezone,
+  onAddDate,
+}: {
+  name: string;
+  nextRunAt: Date | undefined;
+  timezone: string;
+  onAddDate: () => void;
+}) {
+  const t = useTranslations("App.Tasks.Schedules.Dialog.NameDate");
+  const token = SCHEDULE_TASK_NAME_DATE_TOKEN;
+  if (!name.includes(token)) {
+    return (
+      <div className="text-muted-foreground -mt-2 flex flex-wrap items-center gap-x-2 text-sm">
+        <span>{t("hint", { token })}</span>
+        <Button type="button" variant="ghost" size="sm" onClick={onAddDate}>
+          {t("add")}
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <p
+      className="text-muted-foreground -mt-2 text-sm text-pretty"
+      data-testid="schedule-name-preview"
+    >
+      {nextRunAt
+        ? t("preview", {
+            taskName: fillScheduleTaskName(name.trim(), nextRunAt, timezone),
+          })
+        : t("noNext", { token })}
+    </p>
   );
 }

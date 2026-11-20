@@ -6,6 +6,7 @@ import {
   TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
+import { fillScheduleTaskName } from "@sokosumi/utils";
 
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import prisma from "@/lib/db/prisma";
@@ -169,6 +170,7 @@ export const readTasks: CalendarReader = async ({
           select: {
             id: true,
             name: true,
+            timezone: true,
             ownerId: true,
             visibility: true,
             state: true,
@@ -237,7 +239,13 @@ export const readTasks: CalendarReader = async ({
           scheduleReader != null &&
           canWriteTaskSchedule(scheduleReader, schedule),
         taskId: task?.id ?? null,
-        taskName: blueprint.name,
+        taskName: task
+          ? task.name
+          : fillScheduleTaskName(
+              schedule.name,
+              run.effectiveScheduledAt,
+              schedule.timezone,
+            ),
         taskStatus: task?.status ?? null,
         taskAssigneeId: blueprint.assigneeId,
         taskAssigneeUserId: blueprint.assigneeUserId,

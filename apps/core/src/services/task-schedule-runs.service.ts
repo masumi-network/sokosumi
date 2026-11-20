@@ -422,6 +422,7 @@ export async function releaseManualTaskScheduleRun(
     tx,
     schedule,
     runId,
+    now,
     true,
     approval,
   );
@@ -472,13 +473,18 @@ async function releaseRuns(
     take: isSeoMonitorDescription(schedule.description)
       ? Math.min(limit, SEO_RELEASES_PER_TRANSACTION)
       : limit,
-    select: { id: true },
+    select: { id: true, effectiveScheduledAt: true },
   });
 
   const tasks: ReleasedTask[] = [];
   for (const run of runs) {
     if (!shouldContinue()) break;
-    const task = await createTaskFromBlueprint(tx, schedule, run.id);
+    const task = await createTaskFromBlueprint(
+      tx,
+      schedule,
+      run.id,
+      run.effectiveScheduledAt,
+    );
     const { count } = await tx.taskScheduleRun.updateMany({
       where: { id: run.id, state: TaskScheduleRunState.PLANNED },
       data: {

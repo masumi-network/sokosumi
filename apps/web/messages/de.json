@@ -2499,6 +2499,12 @@
           "name": "Name",
           "description": "Beschreibung",
           "assignee": "Zuständig",
+          "NameDate": {
+            "hint": "Füge {token} hinzu, damit jeder Task das Datum seines Laufs trägt.",
+            "add": "Datum hinzufügen",
+            "preview": "Nächster Task: {taskName}",
+            "noNext": "{token} wird zum Datum des jeweiligen Laufs."
+          },
           "create": "Zeitplan erstellen",
           "save": "Änderungen speichern",
           "created": "Zeitplan erstellt",
