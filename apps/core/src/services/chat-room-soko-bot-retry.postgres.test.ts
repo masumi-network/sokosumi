@@ -142,6 +142,8 @@ vi.mock("@/services/soko-bot-control-plane.service", async (importOriginal) => {
   };
 });
 
+const COLD_IMPORT_TIMEOUT_MS = 30_000;
+
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
@@ -164,6 +166,9 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       .releaseFailedTurnForRetry;
     enqueue = (await import("./soko-bot-delivery.service"))
       .enqueueSokoBotDelivery;
+  }, COLD_IMPORT_TIMEOUT_MS);
+
+  beforeAll(async () => {
     await db.user.create({
       data: {
         id: userId,
