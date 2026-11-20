@@ -48,6 +48,7 @@ import { type CellEdit, ContactCell } from "./contact-cell";
 import {
   AvatarStack,
   ChannelIcon,
+  CONTACT_AVATAR_FILL_CLASS,
   ContactAvatar,
   Dot,
   ListChip,
@@ -285,6 +286,7 @@ export function ContactsGrid({
                 src={contact.avatarUrl}
                 email={primaryEmail(contact.channels)}
                 kind={contact.kind}
+                className={CONTACT_AVATAR_FILL_CLASS}
               />
               <button
                 type="button"

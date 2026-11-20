@@ -99,7 +99,7 @@ export function DriveFileRow({
    * still buys ranking weight and the staleness marker; it just stopped
    * deciding how a tag looks.
    */
-  function labelChip(label: FileLabel, variant: "secondary" | "outline") {
+  function labelChip(label: FileLabel, variant: "muted" | "outline") {
     const dismissable = onDismissLabel && label.state !== "CONFIRMED";
     return (
       <Badge
@@ -184,7 +184,7 @@ export function DriveFileRow({
           >
             {item.displayName}
           </Link>
-          {item.category ? labelChip(item.category, "secondary") : null}
+          {item.category ? labelChip(item.category, "muted") : null}
           {tags.map((tag) => labelChip(tag, "outline"))}
           {hiddenTagCount > 0 ? (
             <span className="text-muted-foreground text-xs">

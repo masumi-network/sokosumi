@@ -58,13 +58,13 @@ export function CoworkerGallerySearch({
             onBlur={() => setIsSearchFocused(false)}
             placeholder=""
             aria-label={t("searchHint")}
-            className="bg-foreground text-background h-14 w-full rounded-full pr-5 pl-13 @min-[14rem]/page-search:pr-16 text-base outline-none md:text-lg"
+            className="bg-foreground text-background h-14 w-full rounded-full pr-5 pl-13 pointer-fine:@min-[14rem]/page-search:pr-16 text-base outline-none md:text-lg"
           />
           {/* Animated rotating placeholder (hidden while typing/focused) */}
           {query === "" && !isSearchFocused ? (
             <div
               aria-hidden
-              className="pointer-events-none absolute top-1/2 right-5 left-13 @min-[14rem]/page-search:right-16 -translate-y-1/2 overflow-hidden text-left"
+              className="pointer-events-none absolute top-1/2 right-5 left-13 pointer-fine:@min-[14rem]/page-search:right-16 -translate-y-1/2 overflow-hidden text-left"
             >
               <span
                 key={hintIdx}

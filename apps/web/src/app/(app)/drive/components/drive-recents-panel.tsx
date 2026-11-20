@@ -729,7 +729,7 @@ function DriveRecentsLabels({
       {visible.map((label, index) => (
         <li key={label.labelId} className="min-w-0">
           <Badge
-            variant={category && index === 0 ? "secondary" : "outline"}
+            variant={category && index === 0 ? "muted" : "outline"}
             className="max-w-40 truncate"
           >
             {label.displayName}
