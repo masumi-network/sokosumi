@@ -373,7 +373,7 @@ describe("SEO competitor baselines", () => {
     );
     renderWorkspace(workspace);
     const row = screen
-      .getByRole("link", { name: "https://competitor.example/" })
+      .getByRole("link", { name: "competitor.example" })
       .closest("tr");
     // An empty cell is hidden on a phone; a wrapper would add a blank row.
     expect(row?.lastElementChild).toBeEmptyDOMElement();

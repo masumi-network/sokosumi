@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { Fragment, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
@@ -16,14 +16,18 @@ import {
 import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoExportMenu } from "./seo-export-menu";
-import { seoKeywordsTableExport } from "./seo-export-model";
-import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
+import { seoKeywordIdeasExport } from "./seo-export-model";
 import {
   SEO_DIFFICULTY_COLUMN_CLASS,
   SeoDifficultyCell,
 } from "./seo-keyword-difficulty";
 import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
 import { type SeoKeywordGroup } from "./seo-keyword-rows-model";
+import {
+  assessKeywordIdeas,
+  type IdeaAssessment,
+  priorityFirst,
+} from "./seo-keyword-shortlist";
 import { SEO_LIST_PAGE_SIZE } from "./seo-list-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
@@ -40,24 +44,32 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoKeywordIdeas({
   model,
   ideas,
+  comparisonIdeas = ideas,
 }: {
   model: SeoWorkspaceModel;
   ideas: SeoKeywordGroup[];
+  comparisonIdeas?: SeoKeywordGroup[];
 }) {
   const t = useTranslations("App.Seo");
   const result = useSeoResultTranslations("App.Seo");
   const [expanded, setExpanded] = useState(false);
   if (!ideas.length) return null;
   // A search already narrows the list; it shows every match.
-  const visible = SEO_LIST_PAGE_SIZE;
+  const assessments = assessKeywordIdeas(ideas, comparisonIdeas);
+  const assess = (group: SeoKeywordGroup) => assessments.get(group.lead.id)!;
+  const ordered = ideas.toSorted((a, b) => priorityFirst(assess(a), assess(b)));
+  const priorityCount = ordered.filter(
+    (group) => assess(group).reason === "priority",
+  ).length;
+  const visible = priorityCount || SEO_LIST_PAGE_SIZE;
   const rows =
-    expanded || model.keywordSearch ? ideas : ideas.slice(0, visible);
+    expanded || model.keywordSearch ? ordered : ordered.slice(0, visible);
   const shown = {
     volume: ideas.some((group) => group.volume !== null),
     // Only a check that reads keyword difficulty fills the column.
     difficulty: ideas.some((group) => group.difficulty !== null),
     // Only a check that estimates conversion fills the column.
-    conversion: ideas.some((group) => group.conversion !== null),
+    gain: ideas.some((group) => group.clicks != null),
     // One reason on every row in view tells no idea from another: "Related search" stood on ten of ten rows.
   };
   // A row names its page only when it is not the primary page: the header says "and its page" only when a row in
@@ -86,20 +98,18 @@ export function SeoKeywordIdeas({
           name="keyword-ideas"
           titleKey="keywords.ideas.name"
           workspace={model.data}
-          table={(report) => seoKeywordsTableExport(ideas, report)}
+          table={(report) =>
+            seoKeywordIdeasExport(ordered, assessments, report)
+          }
         />
       }
       // The one Track sentence: it names the next position check, so it has no place where none can run.
       // The Keywords list has none, because a check tracks its keywords from the start.
-      description={
-        <>
-          {result("keywords.recommendation.mix")}{" "}
-          {model.data.availableActions.canEdit &&
-          model.data.availableActions.canUsePaidSearchData === true
-            ? result("keywords.help")
-            : null}
-        </>
-      }
+      description={result(
+        priorityCount
+          ? "keywords.shortlist.summary"
+          : "keywords.shortlist.none",
+      )}
     >
       <div className={HOLDER_ITEM_CLASS}>
         <Table className={SEO_COMPACT_ROWS_CLASS}>
@@ -118,8 +128,10 @@ export function SeoKeywordIdeas({
                   {t("keywords.difficulty.title")}
                 </TableHead>
               ) : null}
-              {shown.conversion ? (
-                <TableHead>{t("keywords.conversion.title")}</TableHead>
+              {shown.gain ? (
+                <TableHead className="text-right">
+                  {t("keywords.shortlist.gain")}
+                </TableHead>
               ) : null}
               <TableHead>
                 <span className="sr-only">{t("queries.rowActions")}</span>
@@ -127,21 +139,54 @@ export function SeoKeywordIdeas({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((group) => (
-              <SeoIdeaRow
-                key={group.lead.id}
-                group={group}
-                model={model}
-                shown={shown}
-                manyMarkets={manyMarkets}
-                manyPages={manyPages}
-                mostSearched={mostSearched}
-              />
+            {rows.map((group, index) => (
+              <Fragment key={group.lead.id}>
+                {priorityCount > 0 &&
+                  (index === 0 || index === priorityCount) && (
+                    <TableRow className="bg-muted">
+                      <TableCell
+                        colSpan={
+                          2 +
+                          Number(shown.volume) +
+                          Number(shown.gain) +
+                          Number(shown.difficulty)
+                        }
+                        className="text-xs font-semibold"
+                      >
+                        {t(
+                          index === 0
+                            ? "keywords.shortlist.group"
+                            : "keywords.shortlist.other",
+                          {
+                            count:
+                              index === 0
+                                ? priorityCount
+                                : ordered.length - priorityCount,
+                          },
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                <SeoIdeaRow
+                  assessment={assess(group)}
+                  group={group}
+                  model={model}
+                  shown={shown}
+                  manyMarkets={manyMarkets}
+                  manyPages={manyPages}
+                  mostSearched={mostSearched}
+                />
+              </Fragment>
             ))}
           </TableBody>
         </Table>
-        {shown.conversion ? <SeoConversionNote /> : null}
       </div>
+      {model.data.availableActions.canEdit &&
+        model.data.availableActions.canUsePaidSearchData && (
+          <p className="text-muted-foreground px-2 text-xs">
+            {result("keywords.help")}
+          </p>
+        )}
       {ideas.length > visible && !model.keywordSearch ? (
         <SeoShowMore
           more={t("keywords.ideas.more", {
@@ -160,6 +205,7 @@ export function SeoKeywordIdeas({
  * A line on every row made the list busy (owner, 2026-11-13).
  */
 function SeoIdeaRow({
+  assessment,
   group,
   model,
   shown,
@@ -169,7 +215,8 @@ function SeoIdeaRow({
 }: {
   group: SeoKeywordGroup;
   model: SeoWorkspaceModel;
-  shown: { volume: boolean; difficulty: boolean; conversion: boolean };
+  assessment: IdeaAssessment;
+  shown: { volume: boolean; difficulty: boolean; gain: boolean };
   manyMarkets: boolean;
   manyPages: boolean;
   mostSearched: number;
@@ -179,7 +226,7 @@ function SeoIdeaRow({
   const [open, setOpen] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
   const id = useId();
-  const { lead, volume, conversion, feature, difficulty } = group;
+  const { lead, volume, difficulty } = group;
   return (
     <>
       <TableRow
@@ -251,8 +298,15 @@ function SeoIdeaRow({
         {shown.difficulty ? (
           <SeoDifficultyCell difficulty={difficulty} />
         ) : null}
-        {shown.conversion ? (
-          <SeoConversionCell conversion={conversion} feature={feature} />
+        {shown.gain ? (
+          <TableCell
+            className="text-right tabular-nums"
+            data-label={t("keywords.shortlist.gain")}
+          >
+            {assessment.extra !== null
+              ? result("keywords.shortlist.clicks", { count: assessment.extra })
+              : result("none")}
+          </TableCell>
         ) : null}
         <TableCell>
           {model.data.availableActions.canEdit ? (
@@ -279,7 +333,7 @@ function SeoIdeaRow({
               2 +
               Number(shown.volume) +
               Number(shown.difficulty) +
-              Number(shown.conversion)
+              Number(shown.gain)
             }
             className="whitespace-normal"
             onKeyDown={(event) => {
@@ -289,7 +343,11 @@ function SeoIdeaRow({
               }
             }}
           >
-            <SeoKeywordDraftDetails group={group} model={model} />
+            <SeoKeywordDraftDetails
+              assessment={assessment}
+              group={group}
+              model={model}
+            />
           </TableCell>
         </TableRow>
       )}

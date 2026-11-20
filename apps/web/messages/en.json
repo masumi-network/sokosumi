@@ -12850,20 +12850,13 @@
             "medium": "Medium chance to convert",
             "high": "High chance to convert"
           },
-          "note": "Chance to convert is the check's estimate, from what the searcher looks for and how well your product fits. It is not a measured rate.",
+          "note": "Goal fit is an estimate based on what people search for and what your page offers.",
           "high": "High",
           "medium": "Medium",
           "low": "Low"
         },
         "recommendation": {
-          "mix": "Ideas that fit the page goal and face less competition come first. Then the two groups alternate while both have ideas. Open a row to see why.",
-          "both": "Recommended for lower competition and strong goal fit",
-          "competition": "Recommended for lower competition",
-          "goal": "Recommended for strong goal fit",
           "editorial": "Proposed by {models}. DataForSEO measured demand and difficulty in this market.",
-          "easeEvidence": "Difficulty {value, number}/100 (below {limit}).",
-          "goalEvidence": "High estimated chance of reaching the page goal.",
-          "legend": "Recommended idea",
           "page": "Audited page",
           "action": "Page goal: {action}",
           "studio": "Draft in Content Studio (coming soon)"
@@ -12875,7 +12868,7 @@
           "evidence": "Page and demand evidence",
           "above_baseline": "Local searches exceeded the earlier median last year.",
           "no_observed_rise": "Local searches did not rise above the earlier median last year.",
-          "windowRise": "These months had more local searches last year than the comparison months.",
+          "windowRise": "Local searches rose in these months last year.",
           "windowOther": "For {target}, {prior} had {volume, number} estimated local searches. The median was {baseline, number} across the other observed months ({months}).",
           "incompleteComparison": "Available local search estimates from last year: {counts}. There is too little data to compare demand.",
           "historicalIdea": "Research this search using the local DataForSEO history.",
@@ -12915,7 +12908,7 @@
         "searchKeywords": "Filter keywords",
         "map": {
           "title": "Keyword opportunities",
-          "subtitle": "Monthly searches against how hard it is to rank. Top left is best.",
+          "subtitle": "Higher means more monthly searches. Further left means less competition.",
           "checked": "Your keywords",
           "idea": "Idea",
           "hint": "Use the left and right arrow keys to move between keywords, Enter to open one, and + or - to zoom.",
@@ -12923,7 +12916,6 @@
           "difficulty": "Difficulty {value} of 100",
           "top10": "{clicks, plural, =0 {Top 10: no extra clicks} one {Top 10: +# click a month} other {Top 10: +# clicks a month}}",
           "top3": "{clicks, plural, =0 {Top 3: no extra clicks} one {Top 3: +# click a month} other {Top 3: +# clicks a month}}",
-          "gain": "Extra clicks at top 3",
           "table": "Show as a table",
           "source": "Clicks are estimates from monthly searches and the share of clicks per Google place (Advanced Web Ranking, July 2026). Difficulty comes from DataForSEO.",
           "zoomIn": "Zoom in",
@@ -13001,6 +12993,27 @@
             "medium": "Medium difficulty",
             "hard": "Hard to rank"
           }
+        },
+        "shortlist": {
+          "label": "Shortlist",
+          "chartKey": "Shortlist · estimated gain at position 10",
+          "summary": "Shortlisted ideas fit your goal, face less competition and could bring more clicks.",
+          "none": "No idea here meets all three checks: strong goal fit, low difficulty and enough extra clicks.",
+          "group": "Shortlist ({count, number})",
+          "other": "Other ideas ({count, number})",
+          "gain": "Est. gain at #10",
+          "clicks": "{count, plural, =0 {0 clicks/mo} one {+# click/mo} other {+# clicks/mo}}",
+          "lift": "{percent} more monthly clicks than the current estimate.",
+          "priority": "Strong goal fit and low difficulty. The middle gain for ideas in this market is {median, number} extra clicks/month.",
+          "fitUnknown": "Goal fit has not been assessed.",
+          "medium": "The estimated fit with your page goal is medium.",
+          "low": "The estimated fit with your page goal is low.",
+          "difficultyUnknown": "Difficulty has not been measured.",
+          "competition": "This search is more competitive than the shortlisted range.",
+          "gainUnknown": "There is no click estimate for position 10.",
+          "noGain": "Reaching position 10 would add no estimated clicks.",
+          "smallerGain": "This gain is below the middle estimate of {median, number} extra clicks/month in this market.",
+          "smallerLift": "The percentage gain is below the median for ideas with a click baseline in this market."
         }
       },
       "competitors": {
@@ -13034,7 +13047,8 @@
         "dialogHelp": "Add a site you compete with. It stays on this list as your competitor.",
         "searchPlaceholder": "Filter sites",
         "rankHint": "Best position: the highest place one page of this site holds for one of your keywords.",
-        "domainsShort": "Linking sites"
+        "domainsShort": "Linking sites",
+        "about": "About these numbers"
       },
       "actions": {
         "title": "Actions",
@@ -14504,14 +14518,14 @@
         }
       },
       "shareOfVoice": {
-        "title": "Share of voice",
-        "description": "Estimated share of organic clicks over the tracked keywords in the week of {week}, from {count, plural, one {# keyword read} other {# keyword reads}}. Each keyword counts the same.",
+        "title": "Estimated share of search clicks",
+        "description": "Week of {week} · {count, plural, one {# keyword read} other {# keyword reads}}. Each keyword counts equally.",
         "site": "Your pages",
         "others": "Other sites",
         "unattributed": "Results without a known site",
         "change": "{points} pts",
         "changeNote": "Points: change since the week of {week}.",
-        "method": "An estimate, not a measurement: each organic result gets the click-through rate of its rank (Advanced Web Ranking, July 2026).",
+        "method": "Estimates use the usual click rate at each Google position (Advanced Web Ranking, July 2026).",
         "weekly": "Weekly values",
         "week": "Week of",
         "siteShare": "Your pages' share"

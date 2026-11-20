@@ -12850,20 +12850,13 @@
             "medium": "Mittlere Conversion-Chance",
             "high": "Hohe Conversion-Chance"
           },
-          "note": "Die Conversion-Chance ist eine Schätzung der Prüfung: danach, was die suchende Person will und wie gut dein Produkt dazu passt. Sie ist keine gemessene Rate.",
+          "note": "Die Zielrelevanz ist eine Schätzung anhand der Suche und des Angebots deiner Seite.",
           "high": "Hoch",
           "medium": "Mittel",
           "low": "Niedrig"
         },
         "recommendation": {
-          "mix": "Ideen mit wenig Wettbewerb, die gut zum Seitenziel passen, stehen zuerst. Danach wechseln sich die Gruppen ab, solange beide Ideen enthalten. Öffne eine Zeile für die Begründung.",
-          "both": "Empfohlen: geringer Wettbewerb und passendes Seitenziel",
-          "competition": "Empfohlen: geringer Wettbewerb",
-          "goal": "Empfohlen für das Seitenziel",
           "editorial": "Proposed by {models}. DataForSEO measured demand and difficulty in this market.",
-          "easeEvidence": "Schwierigkeit {value, number}/100 (unter {limit}).",
-          "goalEvidence": "Die Prüfung schätzt die Chance, das Seitenziel zu erreichen, als hoch ein.",
-          "legend": "Empfohlene Idee",
           "page": "Geprüfte Seite",
           "action": "Seitenziel: {action}",
           "studio": "Entwurf im Content Studio erstellen (demnächst)"
@@ -12875,7 +12868,7 @@
           "evidence": "Seitenbeleg und Nachfragedaten",
           "above_baseline": "Die lokalen Suchanfragen lagen im Vorjahr über dem früheren Median.",
           "no_observed_rise": "Die lokalen Suchanfragen lagen im Vorjahr nicht über dem früheren Median.",
-          "windowRise": "In diesen Monaten gab es im Vorjahr mehr lokale Suchanfragen als in den Vergleichsmonaten.",
+          "windowRise": "Im letzten Jahr stiegen die Suchanfragen in diesen Monaten vor Ort.",
           "windowOther": "Vergleich für {target}: Im {prior} gab es geschätzt {volume, number} lokale Suchanfragen. Der Median der anderen beobachteten Monate ({months}) lag bei {baseline, number}.",
           "incompleteComparison": "Verfügbare Schätzwerte für lokale Suchanfragen im Vorjahr: {counts}. Für einen Vergleich fehlen Daten.",
           "historicalIdea": "Prüfe diese Suchanfrage anhand der lokalen Daten von DataForSEO.",
@@ -12915,7 +12908,7 @@
         "searchKeywords": "Keywords filtern",
         "map": {
           "title": "Keyword-Chancen",
-          "subtitle": "Suchen im Monat gegen die Schwierigkeit. Oben links ist am besten.",
+          "subtitle": "Weiter oben gibt es mehr monatliche Suchen. Weiter links ist die Konkurrenz geringer.",
           "checked": "Ihre Keywords",
           "idea": "Idee",
           "hint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Keywords, mit der Eingabetaste öffnen Sie eines, mit + oder - zoomen Sie.",
@@ -12923,7 +12916,6 @@
           "difficulty": "Schwierigkeit {value} von 100",
           "top10": "{clicks, plural, =0 {Top 10: keine zusätzlichen Klicks} one {Top 10: +# Klick im Monat} other {Top 10: +# Klicks im Monat}}",
           "top3": "{clicks, plural, =0 {Top 3: keine zusätzlichen Klicks} one {Top 3: +# Klick im Monat} other {Top 3: +# Klicks im Monat}}",
-          "gain": "Zusätzliche Klicks in den Top 3",
           "table": "Als Tabelle anzeigen",
           "source": "Klicks sind Schätzungen aus den monatlichen Suchanfragen und dem Klickanteil je Google-Platz (Advanced Web Ranking, Juli 2026). Die Schwierigkeit stammt von DataForSEO.",
           "zoomIn": "Vergrößern",
@@ -13001,6 +12993,27 @@
             "medium": "Mittlere Schwierigkeit",
             "hard": "Schwer zu ranken"
           }
+        },
+        "shortlist": {
+          "label": "Engere Auswahl",
+          "chartKey": "Engere Auswahl · geschätzter Zuwachs auf Platz 10",
+          "summary": "Ideen in der engeren Auswahl passen zum Ziel, haben wenig Konkurrenz und versprechen zusätzliche Klicks.",
+          "none": "Keine Idee erfüllt alle drei Kriterien: hohe Zielrelevanz, geringe Schwierigkeit und genügend zusätzliche Klicks.",
+          "group": "Engere Auswahl ({count, number})",
+          "other": "Weitere Ideen ({count, number})",
+          "gain": "Geschätztes Plus auf Platz 10",
+          "clicks": "{count, plural, =0 {0 Klicks/Monat} one {+# Klick/Monat} other {+# Klicks/Monat}}",
+          "lift": "{percent} mehr monatliche Klicks als aktuell geschätzt.",
+          "priority": "Hohe Zielrelevanz und geringe Schwierigkeit. Der mittlere Zuwachs für Ideen in diesem Markt beträgt {median, number} zusätzliche Klicks pro Monat.",
+          "fitUnknown": "Die Zielrelevanz wurde noch nicht bewertet.",
+          "medium": "Die geschätzte Zielrelevanz ist mittel.",
+          "low": "Die geschätzte Zielrelevanz ist gering.",
+          "difficultyUnknown": "Die Schwierigkeit wurde noch nicht gemessen.",
+          "competition": "Dieser Suchbegriff hat mehr Konkurrenz als die engere Auswahl.",
+          "gainUnknown": "Für Platz 10 fehlt eine Klickschätzung.",
+          "noGain": "Platz 10 verspricht keine zusätzlichen Klicks.",
+          "smallerGain": "Der Zuwachs liegt unter dem mittleren Schätzwert von {median, number} zusätzlichen Klicks pro Monat in diesem Markt.",
+          "smallerLift": "Der prozentuale Zuwachs liegt unter dem Median der Ideen mit einem Klick-Ausgangswert in diesem Markt."
         }
       },
       "competitors": {
@@ -13034,7 +13047,8 @@
         "dialogHelp": "Füge eine Website hinzu, mit der du konkurrierst. Sie bleibt als dein Mitbewerber in dieser Liste.",
         "searchPlaceholder": "Websites filtern",
         "rankHint": "Beste Position: der höchste Platz, den eine Seite dieser Website für eines deiner Keywords hat.",
-        "domainsShort": "Verlinkende Websites"
+        "domainsShort": "Verlinkende Websites",
+        "about": "Zu diesen Zahlen"
       },
       "actions": {
         "title": "Aktionen",
@@ -14504,14 +14518,14 @@
         }
       },
       "shareOfVoice": {
-        "title": "Share of Voice",
-        "description": "Geschätzter Anteil an organischen Klicks über die verfolgten Keywords in der Woche vom {week}, aus {count, plural, one {# Keyword-Abruf} other {# Keyword-Abrufen}}. Jedes Keyword zählt gleich.",
+        "title": "Geschätzter Anteil der Suchklicks",
+        "description": "Woche vom {week} · {count, plural, one {# Suchbegriffmessung} other {# Suchbegriffmessungen}}. Alle Suchbegriffe zählen gleich.",
         "site": "Ihre Seiten",
         "others": "Andere Websites",
         "unattributed": "Ergebnisse ohne bekannte Website",
         "change": "{points} Pkt.",
         "changeNote": "Punkte: Änderung seit der Woche vom {week}.",
-        "method": "Eine Schätzung, keine Messung: Jedes organische Ergebnis erhält die Klickrate seines Rangs (Advanced Web Ranking, Juli 2026).",
+        "method": "Die Schätzung verwendet die übliche Klickrate je Google-Platzierung (Advanced Web Ranking, Juli 2026).",
         "weekly": "Wochenwerte",
         "week": "Woche vom",
         "siteShare": "Anteil Ihrer Seiten"
