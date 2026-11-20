@@ -146,4 +146,61 @@ describe("TaskFormModal", () => {
       screen.queryByRole("button", { name: "Back" }),
     ).not.toBeInTheDocument();
   });
+
+  it("removes TaskFormModalHeaderStart in the close commit while Radix Presence keeps the dialog mounted during exit", () => {
+    const originalGetComputedStyle = window.getComputedStyle;
+    const getComputedStyleSpy = vi
+      .spyOn(window, "getComputedStyle")
+      .mockImplementation((element: Element, pseudo?: string | null) => {
+        const computed = originalGetComputedStyle.call(window, element, pseudo);
+        if (element.getAttribute("data-slot") === "dialog-content") {
+          return new Proxy(computed, {
+            get(target, prop, receiver) {
+              if (prop === "animationName") {
+                return element.getAttribute("data-state") === "closed"
+                  ? "dialog-exit"
+                  : "dialog-enter";
+              }
+              const value = Reflect.get(target, prop, receiver);
+              return typeof value === "function" ? value.bind(target) : value;
+            },
+          });
+        }
+        return computed;
+      });
+
+    try {
+      const renderModal = (open: boolean) => (
+        <TaskFormModal
+          open={open}
+          onOpenChange={vi.fn()}
+          title="Create task"
+          cancelLabel="Cancel"
+        >
+          <TaskFormModalHeaderStart>
+            <button type="button">Back</button>
+          </TaskFormModalHeaderStart>
+          <div>Body</div>
+        </TaskFormModal>
+      );
+
+      const { rerender } = render(renderModal(true));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+
+      rerender(renderModal(false));
+
+      // Radix Presence keeps the dialog mounted while the exit animation runs.
+      const closingDialog = document.querySelector(
+        '[data-slot="dialog-content"][data-state="closed"]',
+      );
+      expect(closingDialog).not.toBeNull();
+      // Back leaves the header immediately in the close commit, before animationend.
+      expect(
+        screen.queryByRole("button", { name: "Back", hidden: true }),
+      ).not.toBeInTheDocument();
+    } finally {
+      getComputedStyleSpy.mockRestore();
+    }
+  });
 });

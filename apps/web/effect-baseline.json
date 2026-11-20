@@ -121,6 +121,7 @@
   "src/app/(app)/tasks/components/tasks-search-params.tsx": 1,
   "src/app/(app)/tasks/components/use-task-subtasks.ts": 1,
   "src/app/(app)/tasks/components/use-task-tag-suggestions.ts": 4,
+  "src/app/(app)/tasks/components/use-tasks-view-model.ts": 3,
   "src/app/(app)/tasks/utils/use-refresh-when-shown.ts": 1,
   "src/app/(app)/tiktok-studio/components/use-talking-video-history.ts": 1,
   "src/app/(auth)/components/auth-flow.tsx": 1,

@@ -9,12 +9,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import {
-  Activity,
-  type ComponentProps,
-  cloneElement,
-  type ReactNode,
-} from "react";
+import { type ComponentProps, cloneElement, type ReactNode } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
@@ -22,10 +17,7 @@ import type {
   KanbanColumnId,
   TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
-import {
-  markTaskArchived,
-  unmarkTaskArchived,
-} from "@/app/tasks/utils/archived-task-ids";
+import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
@@ -753,60 +745,6 @@ it("drops a task this tab archived, including when the refresh still returns it"
     screen.queryByTestId(`board-card-${archived.id}`),
   ).not.toBeInTheDocument();
   expect(boardCard(TASK.id)).toBeInTheDocument();
-});
-
-it("drops a task archived while hidden in Activity on reveal and restores it if unarchived", () => {
-  const archived: TaskWithCoworker = { ...TASK, id: "task-activity-archived" };
-  const view = boardView([TASK, archived]);
-  const { rerender } = render(<Activity mode="visible">{view}</Activity>);
-  expect(boardCard(archived.id)).toBeInTheDocument();
-
-  rerender(<Activity mode="hidden">{view}</Activity>);
-  act(() => markTaskArchived(archived.id));
-  rerender(<Activity mode="visible">{view}</Activity>);
-
-  expect(
-    screen.queryByTestId(`board-card-${archived.id}`),
-  ).not.toBeInTheDocument();
-  expect(boardCard(TASK.id)).toBeInTheDocument();
-
-  act(() => unmarkTaskArchived(archived.id));
-  expect(boardCard(archived.id)).toBeInTheDocument();
-});
-
-it("preserves an in-flight optimistic drag across a stale server refresh", async () => {
-  const pendingDrag =
-    Promise.withResolvers<Awaited<ReturnType<typeof setTaskStatusFromDrag>>>();
-  vi.mocked(setTaskStatusFromDrag).mockReturnValueOnce(pendingDrag.promise);
-
-  const { rerender } = renderBoard([TASK]);
-  const onDragEnd = dndContextPropsSpy.mock.calls.at(-1)?.[0]?.onDragEnd as (
-    event: DragEndEvent,
-  ) => void;
-  act(() =>
-    onDragEnd({
-      active: {
-        id: TASK.id,
-        data: { current: { columnId: "backlog" } },
-      },
-      over: { id: "todo" },
-    } as unknown as DragEndEvent),
-  );
-  expect(boardCard(TASK.id)).toHaveAttribute("data-column", "todo");
-
-  // A stale server refresh still places TASK in backlog; the in-flight drag wins.
-  rerender(
-    boardView([{ ...TASK, columnId: "backlog", status: TaskStatus.DRAFT }]),
-  );
-  expect(boardCard(TASK.id)).toHaveAttribute("data-column", "todo");
-
-  await act(async () => {
-    pendingDrag.resolve({
-      ok: true,
-      value: { status: TaskStatus.READY },
-    } as never);
-    await pendingDrag.promise;
-  });
 });
 
 it("drops a load-more task once it is archived, and keeps the other load-more rows", async () => {

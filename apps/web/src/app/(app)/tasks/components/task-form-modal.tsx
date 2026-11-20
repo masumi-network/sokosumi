@@ -86,7 +86,7 @@ export function TaskFormModal({
         }}
       >
         <DialogDescription className="hidden" />
-        <TaskFormModalHeaderContext value={headerStartHost}>
+        <TaskFormModalHeaderContext value={open ? headerStartHost : null}>
           <div className="bg-background flex h-dvh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90dvh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-lg">
             <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center px-6 py-3 md:px-8">
               <div ref={setHeaderStartHost} className="justify-self-start" />
