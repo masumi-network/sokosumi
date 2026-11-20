@@ -1,7 +1,9 @@
 "use client";
 
 import { type CallbackInvokedEvent, ForesightManager } from "js.foresight";
-import { useCallback, useEffectEvent } from "react";
+import { useCallback } from "react";
+
+import { useLatestRef } from "./use-latest-ref";
 
 /**
  * How long after a scroll, or a move with a mouse button down, a prediction
@@ -127,7 +129,7 @@ export function useIntentPrefetch<T extends Element>(
   { reactivateAfter, enabled = true }: IntentPrefetchOptions,
 ) {
   // The element registers once, so it calls whichever `prefetch` is current.
-  const runPrefetch = useEffectEvent(prefetch);
+  const latest = useLatestRef(prefetch);
   return useCallback(
     (element: T | null) => {
       if (!element || !enabled) return;
@@ -140,7 +142,7 @@ export function useIntentPrefetch<T extends Element>(
           return;
         }
         if (element.contains(document.elementFromPoint(cursorX, cursorY))) {
-          runPrefetch("pointer");
+          latest.current("pointer");
           return;
         }
         // The library now holds the element back for `reactivateAfter`.
@@ -151,7 +153,7 @@ export function useIntentPrefetch<T extends Element>(
         element,
         callback: () => {
           if (Date.now() - unsettledAt >= UNSETTLED_MS) {
-            runPrefetch(lastSource.get(element) ?? "other");
+            latest.current(lastSource.get(element) ?? "other");
             return;
           }
           // A long scroll outlasts `reactivateAfter`, so the element can fire

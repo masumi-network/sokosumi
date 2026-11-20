@@ -1,13 +1,8 @@
 "use client";
 
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffectEvent,
-  useRef,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
+
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 
 interface SeatManagementContextValue {
   showSeatManagement: boolean;
@@ -68,15 +63,13 @@ export function SeatManagementContextProvider({
   const [optimisticState, setOptimisticState] = useState<SeatOptimisticState>(
     createInitialOptimisticState,
   );
-  // Seat handlers read and write a same-tick pending ref, not a setState
-  // updater: React may defer an updater to the next render, so a value it sets
-  // is not there when the handler returns. `useEffectEvent` reads committed
-  // values only, so a discarded render cannot leave them stale.
-  const pendingStateRef = useRef<{
-    baseOptimisticState: SeatOptimisticState;
-    baseServerUnusedSeats: number;
-    current: SeatOptimisticState;
-  } | null>(null);
+  // Seat handlers read and write these refs, not a setState updater: React
+  // may defer an updater to the next render, so a value it sets is not
+  // there when the handler returns. `useLatestRef` re-syncs them in a layout
+  // effect from committed values only, so a discarded render cannot leave them
+  // stale.
+  const latestOptimisticStateRef = useLatestRef(optimisticState);
+  const latestServerUnusedSeatsRef = useLatestRef(serverUnusedSeats);
   const [syncedServerUnusedSeats, setSyncedServerUnusedSeats] =
     useState(serverUnusedSeats);
 
@@ -85,36 +78,11 @@ export function SeatManagementContextProvider({
     setOptimisticState(createInitialOptimisticState());
   }
 
-  const getCommittedSnapshot = useEffectEvent(() => ({
-    optimisticState,
-    serverUnusedSeats,
-  }));
-
-  function readLatestState() {
-    const committed = getCommittedSnapshot();
-    const pending = pendingStateRef.current;
-    const latestOptimisticState =
-      pending !== null &&
-      pending.baseOptimisticState === committed.optimisticState &&
-      pending.baseServerUnusedSeats === committed.serverUnusedSeats
-        ? pending.current
-        : committed.optimisticState;
-    return {
-      committed,
-      optimisticState: latestOptimisticState,
-    };
-  }
-
   function updateOptimisticState(
     next: (prev: SeatOptimisticState) => SeatOptimisticState,
   ): void {
-    const { committed, optimisticState: prev } = readLatestState();
-    const nextState = next(prev);
-    pendingStateRef.current = {
-      baseOptimisticState: committed.optimisticState,
-      baseServerUnusedSeats: committed.serverUnusedSeats,
-      current: nextState,
-    };
+    const nextState = next(latestOptimisticStateRef.current);
+    latestOptimisticStateRef.current = nextState;
     setOptimisticState(nextState);
   }
 
@@ -134,9 +102,9 @@ export function SeatManagementContextProvider({
   }
 
   function tryBeginSeatAssign(memberId: string): boolean {
-    const { committed, optimisticState: prev } = readLatestState();
+    const prev = latestOptimisticStateRef.current;
     if (
-      computeUnusedSeats(committed.serverUnusedSeats, prev) <= 0 ||
+      computeUnusedSeats(latestServerUnusedSeatsRef.current, prev) <= 0 ||
       prev.optimisticallyAssignedMemberIds.has(memberId)
     ) {
       return false;

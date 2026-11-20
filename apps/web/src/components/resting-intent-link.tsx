@@ -12,7 +12,6 @@ import {
   type TouchEvent,
   useCallback,
   useEffect,
-  useEffectEvent,
   useRef,
 } from "react";
 
@@ -20,6 +19,7 @@ import {
   msUntilIntentSettled,
   useIntentPrefetch,
 } from "@/hooks/effects/use-intent-prefetch";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { prefetchRouteContent } from "@/lib/navigation/prefetch-route-content";
 
 /**
@@ -117,14 +117,11 @@ export function RestingIntentLink({
   const keyboardFocused = useRef(false);
   // A reload asks for the page the link leads to now, and only while it
   // still loads content: a new href or the current page starts over.
-  const shouldKeepLoaded = useEffectEvent(
-    (loadedHref: string) =>
-      (hovering.current || keyboardFocused.current) &&
-      prefetchContent &&
-      href === loadedHref,
-  );
+  const loads = useLatestRef({ href, prefetchContent });
   const keepLoadedFor = (loadedHref: string) => () =>
-    shouldKeepLoaded(loadedHref);
+    (hovering.current || keyboardFocused.current) &&
+    loads.current.prefetchContent &&
+    loads.current.href === loadedHref;
   // A touch loads only the shared App Shell. A resting hover and focus also
   // load the page's content, a server render each.
   const prefetchShell = () => {

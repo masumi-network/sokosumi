@@ -15,7 +15,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   SeoWorkspaceLoadError,
@@ -24,6 +24,7 @@ import {
   shouldRetrySeoLoad,
 } from "@/app/seo/seo-load-error-model";
 import { type SeoTab, seoTab } from "@/app/seo/seo-query";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { mutateSeo } from "@/lib/actions/seo/action";
 import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
@@ -154,9 +155,10 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const waitingForSession =
     initialIdentity === null && query.toString() === initialQuery.current;
   // A read without the viewer is refused (409); after a save, the read waits for the session.
-  const refetchForViewer = useEffectEvent(async () => {
-    if (session?.user.id) await result.refetch();
-  });
+  const viewerId = useLatestRef(session?.user.id);
+  async function refetchForViewer() {
+    if (viewerId.current) await result.refetch();
+  }
   const key = [
     "seo-workspace",
     session?.session.activeOrganizationId,

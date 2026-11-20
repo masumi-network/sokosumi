@@ -16,7 +16,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
-  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -45,6 +44,7 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import type { TaskEventData } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
@@ -566,7 +566,7 @@ export function useTasksViewModel({
     () => ({ filters: serverTasksFiltersResetKey, viewMode }),
     [serverTasksFiltersResetKey, viewMode],
   );
-  const getPagingContext = useEffectEvent(() => pagingContext);
+  const pagingContextRef = useLatestRef(pagingContext);
 
   const handleLoadMoreColumn = useCallback(
     async (columnId: KanbanColumnId) => {
@@ -588,7 +588,7 @@ export function useTasksViewModel({
           // Same order as the first page, or the cursor skips Tasks.
           sort: effectiveTasksSort(routeFilters.sort, "board"),
         });
-        if (getPagingContext() !== pagingContext) return;
+        if (pagingContextRef.current !== pagingContext) return;
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
         setColumnHiddenById((prev) => ({
@@ -606,7 +606,7 @@ export function useTasksViewModel({
           [columnId]: nextCursor,
         };
       } catch {
-        if (getPagingContext() !== pagingContext) return;
+        if (pagingContextRef.current !== pagingContext) return;
         setColumnCursorById((prev) => ({
           ...prev,
           [columnId]: null,
@@ -617,7 +617,7 @@ export function useTasksViewModel({
         };
         toast.error(labels.loadMoreError);
       } finally {
-        if (getPagingContext() === pagingContext) {
+        if (pagingContextRef.current === pagingContext) {
           const afterLoading = new Set(loadingColumnIdsRef.current);
           afterLoading.delete(columnId);
           loadingColumnIdsRef.current = afterLoading;
@@ -642,18 +642,18 @@ export function useTasksViewModel({
         cursor,
         ...routeFilters,
       });
-      if (getPagingContext() !== pagingContext) return;
+      if (pagingContextRef.current !== pagingContext) return;
       setItems((prev) => appendUniqueTasks(prev, result.tasks));
       const nextCursor = result.nextCursor;
       setListCursor(nextCursor);
       listCursorRef.current = nextCursor;
     } catch {
-      if (getPagingContext() !== pagingContext) return;
+      if (pagingContextRef.current !== pagingContext) return;
       setListCursor(null);
       listCursorRef.current = null;
       toast.error(labels.loadMoreError);
     } finally {
-      if (getPagingContext() === pagingContext) {
+      if (pagingContextRef.current === pagingContext) {
         isLoadingListMoreRef.current = false;
         setIsLoadingListMore(false);
       }
