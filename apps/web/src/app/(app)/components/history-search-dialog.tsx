@@ -10,7 +10,10 @@ import type {
 import { Copy, FileText, ListTodo, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { GoToSearchGroups } from "@/app/components/go-to-search-groups";
+import {
+  GoToSearchGroups,
+  type GoToSearchState,
+} from "@/app/components/go-to-search-groups";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -219,29 +222,32 @@ export function HistorySearchDialog({
         onValueChange={setQuery}
       />
       <CommandList ref={listRef} style={{ maxHeight: listMaxHeight }}>
-        {searching && history.length === 0 ? (
-          <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {labels.loading}
-          </div>
-        ) : null}
-
-        {nothingFound && error ? (
-          <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {error}
-          </div>
-        ) : null}
-
-        {nothingFound && !error ? (
-          <CommandEmpty>{labels.empty}</CommandEmpty>
-        ) : null}
-
         {query.trim() ? (
           <GoToSearchGroups
             query={query}
             labels={labels}
             onSelect={closeAndGo}
+            renderStatus={(goTo) => (
+              <SearchStatus
+                searching={searching}
+                nothingFound={nothingFound}
+                hasHistory={history.length > 0}
+                error={error}
+                goTo={goTo}
+                labels={labels}
+              />
+            )}
           />
-        ) : null}
+        ) : (
+          <SearchStatus
+            searching={searching}
+            nothingFound={nothingFound}
+            hasHistory={history.length > 0}
+            error={error}
+            goTo={IDLE_GO_TO}
+            labels={labels}
+          />
+        )}
 
         <TagSearchGroups
           tags={tags}
@@ -324,6 +330,46 @@ export function HistorySearchDialog({
         ) : null}
       </CommandList>
     </CommandDialog>
+  );
+}
+
+const IDLE_GO_TO: GoToSearchState = { pending: false, failed: false, count: 0 };
+
+/**
+ * Loading, failed or empty, across every group. "No results found" waits for
+ * every source, Projects and Channels included, and a failed read says so.
+ */
+function SearchStatus({
+  searching,
+  nothingFound,
+  hasHistory,
+  error,
+  goTo,
+  labels,
+}: {
+  searching: boolean;
+  nothingFound: boolean;
+  hasHistory: boolean;
+  error: string | null;
+  goTo: GoToSearchState;
+  labels: Pick<HistorySearchDialogLabels, "loading" | "empty" | "error">;
+}) {
+  const statusClass = "text-muted-foreground px-2 py-6 text-center text-sm";
+  if ((searching || goTo.pending) && !hasHistory && goTo.count === 0) {
+    return (
+      <div role="status" className={statusClass}>
+        {labels.loading}
+      </div>
+    );
+  }
+  if (!nothingFound || goTo.count > 0) return null;
+  const failure = error ?? (goTo.failed ? labels.error : null);
+  return failure ? (
+    <div role="status" className={statusClass}>
+      {failure}
+    </div>
+  ) : (
+    <CommandEmpty>{labels.empty}</CommandEmpty>
   );
 }
 

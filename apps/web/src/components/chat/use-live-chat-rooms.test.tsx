@@ -18,7 +18,11 @@ vi.mock("@/lib/ably/ably-connection-health-store", () => ({
   useAblyConnectionHealthy: () => true,
 }));
 
-import { registerMembershipVisibleRoomsPublisher } from "./membership-visible-rooms-store";
+import {
+  clearMembershipVisibleRoomsSnapshot,
+  publishMembershipVisibleRooms,
+  registerMembershipVisibleRoomsPublisher,
+} from "./membership-visible-rooms-store";
 import { useLiveChatRooms } from "./use-live-chat-rooms";
 
 function TabUnread() {
@@ -39,7 +43,55 @@ describe("useLiveChatRooms", () => {
     fetchMock.mockResolvedValue({ rooms: [] });
     vi.stubGlobal("innerWidth", 1280);
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    clearMembershipVisibleRoomsSnapshot();
+    vi.useRealTimers();
+  });
+
+  it("never returns another workspace's held rows, before or while its own read is pending", async () => {
+    vi.stubGlobal("innerWidth", 390);
+    const other = { id: "room-x", name: "secret-plans", kind: "channel" };
+    publishMembershipVisibleRooms([other as never], "org-2", "user-1");
+    let resolveRead: (page: { rooms: unknown[] }) => void = () => {};
+    fetchMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRead = resolve;
+      }),
+    );
+    const seen: unknown[] = [];
+    function Probe() {
+      seen.push(useLiveChatRooms());
+      return null;
+    }
+    const view = render(<Probe />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(seen.every((rooms) => rooms === null)).toBe(true);
+
+    const own = { id: "room-1", name: "general", kind: "channel" };
+    await act(async () => {
+      resolveRead({ rooms: [own] });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(seen.at(-1)).toEqual([expect.objectContaining({ id: "room-1" })]);
+    view.unmount();
+  });
+
+  it("returns held rows at once when they are this workspace's", () => {
+    vi.stubGlobal("innerWidth", 390);
+    const own = { id: "room-1", name: "general", kind: "channel" };
+    publishMembershipVisibleRooms([own as never], "org-1", "user-1");
+    fetchMock.mockReturnValue(new Promise(() => {}));
+    let first: unknown;
+    function Probe() {
+      const rooms = useLiveChatRooms();
+      if (first === undefined) first = rooms;
+      return null;
+    }
+    render(<Probe />).unmount();
+    expect(first).toEqual([expect.objectContaining({ id: "room-1" })]);
+  });
 
   it("leaves the read to a desktop sidebar that mounts a moment later", async () => {
     function Page() {

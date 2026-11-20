@@ -28,8 +28,13 @@ vi.mock("@/app/components/new-task-wizard-provider", () => ({
 }));
 
 // Projects and Channels read the session and rooms; covered in go-to tests.
+// Here they answer at once with nothing, so only this file's groups count.
 vi.mock("@/app/components/go-to-search-groups", () => ({
-  GoToSearchGroups: () => null,
+  GoToSearchGroups: ({
+    renderStatus,
+  }: {
+    renderStatus: (state: object) => unknown;
+  }) => renderStatus({ pending: false, failed: false, count: 0 }),
 }));
 
 vi.mock("next/navigation", () => ({

@@ -36,12 +36,29 @@ const SIDEBAR_REGISTRATION_WAIT_MS = 2_000;
 /** Poll cadence while the Ably connection is unavailable. */
 const LIVE_CHAT_ROOMS_FALLBACK_MS = 15_000;
 
-function getInitialRoomsFromSessionSnapshot(): ChatRoom[] | null {
+/** The user and workspace a list of rooms belongs to. */
+function roomsScope(
+  organizationId: string | null,
+  userId: string,
+): string | null {
+  return userId ? `${organizationId ?? ""}:${userId}` : null;
+}
+
+/** Rows with the scope they were read in, so another scope's never show. */
+interface HeldRooms {
+  scope: string | null;
+  rooms: ChatRoom[] | null;
+}
+
+function getInitialRoomsFromSessionSnapshot(): HeldRooms {
   const snapshot = getLatestMembershipVisibleRoomsSnapshot();
   if (snapshot == null) {
-    return null;
+    return { scope: null, rooms: null };
   }
-  return applyRoomReadOverlays([...snapshot.rooms]);
+  return {
+    scope: roomsScope(snapshot.organizationId, snapshot.currentUserId),
+    rooms: applyRoomReadOverlays([...snapshot.rooms]),
+  };
 }
 
 /**
@@ -62,8 +79,24 @@ export function useLiveChatRooms(): ChatRoom[] | null {
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;
   const latestAppliedRefreshRef = useRef(0);
-  const [rooms, setRooms] = useState<ChatRoom[] | null>(
+  const [held, setHeld] = useState<HeldRooms>(
     getInitialRoomsFromSessionSnapshot,
+  );
+  const scope = roomsScope(organizationId, currentUserId);
+  // Read by the async refresh, which keeps one identity across scopes.
+  const scopeRef = useRef(scope);
+  useEffect(() => {
+    scopeRef.current = scope;
+  }, [scope]);
+  // Updates a held list in place; a list not read yet stays unread.
+  const updateRooms = useCallback(
+    (apply: (rooms: ChatRoom[]) => ChatRoom[]) =>
+      setHeld((current) =>
+        current.rooms === null
+          ? current
+          : { ...current, rooms: apply(current.rooms) },
+      ),
+    [],
   );
 
   // A mounted sidebar list already reads the active collection on the same
@@ -104,12 +137,9 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     ) {
       return;
     }
-    setRooms([...liveSnapshot.rooms]);
-  }, [sidebarOwnsReads, liveSnapshot, currentUserId, organizationId]);
+    setHeld({ scope, rooms: [...liveSnapshot.rooms] });
+  }, [sidebarOwnsReads, liveSnapshot, currentUserId, organizationId, scope]);
 
-  const scope = currentUserId
-    ? `${organizationId ?? ""}:${currentUserId}`
-    : null;
   const previousScopeRef = useRef<string | null>(null);
 
   // Drop the previous workspace's rows before the new GET lands so an
@@ -125,13 +155,15 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     }
     latestAppliedRefreshRef.current = 0;
     const snapshot = getLatestMembershipVisibleRoomsSnapshot();
-    setRooms(
-      snapshot &&
+    setHeld({
+      scope,
+      rooms:
+        snapshot &&
         snapshot.currentUserId === currentUserId &&
         snapshot.organizationId === organizationId
-        ? applyRoomReadOverlays([...snapshot.rooms])
-        : null,
-    );
+          ? applyRoomReadOverlays([...snapshot.rooms])
+          : null,
+    });
   }, [scope, currentUserId, organizationId]);
 
   // Same GET read and scheduling rules as the sidebar's active collection
@@ -149,7 +181,10 @@ export function useLiveChatRooms(): ChatRoom[] | null {
       return;
     }
     latestAppliedRefreshRef.current = requestRevision;
-    setRooms(reconcileRoomAttention(page.rooms, requestRevision));
+    setHeld({
+      scope: scopeRef.current,
+      rooms: reconcileRoomAttention(page.rooms, requestRevision),
+    });
   }, []);
   const requestRefresh = useChatRefreshScheduler({
     key:
@@ -162,28 +197,23 @@ export function useLiveChatRooms(): ChatRoom[] | null {
   });
 
   useMountEffect(() =>
-    subscribeOrganizationChatRoomRead((apply) =>
-      setRooms((current) => (current === null ? null : apply(current))),
-    ),
+    subscribeOrganizationChatRoomRead((apply) => updateRooms(apply)),
   );
 
   useEffect(
     () =>
       subscribeOrganizationChatRoomsChanged({
         onRemoved: (removedRoomId) =>
-          setRooms((current) =>
-            current === null
-              ? null
-              : applyRoomReadOverlays(
-                  current.filter((row) => row.id !== removedRoomId),
-                ),
+          updateRooms((current) =>
+            applyRoomReadOverlays(
+              current.filter((row) => row.id !== removedRoomId),
+            ),
           ),
         onRoom: (room) =>
           // The answers that land here do not count what is unread, so the
           // room keeps what the title already counted for it.
-          setRooms((current) => {
-            // One room is not the list; the first read still decides it.
-            if (current === null) return null;
+          // One room is not the list; the first read still decides it.
+          updateRooms((current) => {
             const held = current.find((row) => row.id === room.id);
             const without = current.filter((row) => row.id !== room.id);
             return applyRoomReadOverlays([
@@ -198,8 +228,10 @@ export function useLiveChatRooms(): ChatRoom[] | null {
           }
         },
       }),
-    [requestRefresh],
+    [requestRefresh, updateRooms],
   );
 
-  return rooms;
+  // Rows read for another user or workspace never show, even before this
+  // scope's own read lands.
+  return scope !== null && held.scope === scope ? held.rooms : null;
 }

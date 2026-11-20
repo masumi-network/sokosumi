@@ -161,6 +161,62 @@ describe("HistorySearchDialog Projects and Channels groups", () => {
     expect(screen.getAllByText(/^ops project \d$/)).toHaveLength(5);
   });
 
+  it("names each option by the project alone, not its avatar initial", async () => {
+    useScopeProjectsMock.mockReturnValue({
+      rows: [{ id: "p-1", name: "Spring launch", logo: null }],
+    });
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "spring");
+
+    expect(
+      await screen.findByRole("option", { name: "Spring launch" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says Loading, not No results, while Core still searches projects", async () => {
+    useScopeProjectsMock.mockReturnValue({ rows: [], isSearchPending: true });
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "zzz");
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Loading...");
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+  });
+
+  it("says Loading, not No results, until the rooms are read", async () => {
+    useLiveChatRoomsMock.mockReturnValue(null);
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "zzz");
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Loading...");
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+  });
+
+  it("says the read failed, not No results, when projects fail to load", async () => {
+    useScopeProjectsMock.mockReturnValue({ rows: [], isError: true });
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "zzz");
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Failed");
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+  });
+
+  it("says No results once every source answered with nothing", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "zzz");
+
+    expect(await screen.findByText("No results found")).toBeInTheDocument();
+  });
+
   it("reads no projects or rooms before anything is typed", () => {
     renderDialog();
 
