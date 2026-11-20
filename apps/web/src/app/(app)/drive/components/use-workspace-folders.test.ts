@@ -1,7 +1,12 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook as rtlRenderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 const fetchWorkspaceFoldersMock = vi.fn();
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: "user-1" } } }),
+}));
 
 vi.mock("@/lib/utils/file-search.client", () => ({
   fetchWorkspaceFolders: (...args: unknown[]) =>
@@ -11,6 +16,16 @@ vi.mock("@/lib/utils/file-search.client", () => ({
 import { useWorkspaceFolders } from "./use-workspace-folders";
 
 const STORE = { scope: "me" as const };
+
+function renderHook<Result, Props>(
+  callback: (props: Props) => Result,
+  options?: { initialProps?: Props },
+) {
+  return rtlRenderHook(callback, {
+    ...options,
+    wrapper: TestQueryProvider,
+  });
+}
 
 describe("useWorkspaceFolders", () => {
   it("loads the folders again when the reload token changes", async () => {

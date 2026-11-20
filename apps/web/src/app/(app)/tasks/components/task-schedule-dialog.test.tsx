@@ -2,21 +2,27 @@ import type { ProjectListItem, TaskSchedule } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
-  render,
+  render as rtlRender,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { UploadUserFileDirectOptions } from "@/lib/utils/user-file-upload.client";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { TaskScheduleActions } from "./task-schedule-actions";
 import {
   copiedTaskScheduleRule,
   TaskScheduleDialog,
 } from "./task-schedule-dialog";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 const {
   createTaskScheduleMock,

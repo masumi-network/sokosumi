@@ -1,5 +1,6 @@
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render as rtlRender, waitFor } from "@testing-library/react";
 import {
+  type ReactElement,
   type ReactNode,
   type Ref,
   useImperativeHandle,
@@ -12,6 +13,11 @@ import {
   RoomComposer,
   type RoomComposerEditHandle,
 } from "@/app/chat/components/room-composer";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 const editorFocus = vi.hoisted(() => vi.fn());
 const editorAppend = vi.hoisted(() => vi.fn());

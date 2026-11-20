@@ -1,9 +1,19 @@
-import { render } from "@testing-library/react";
-import { type ReactNode, type Ref, useImperativeHandle } from "react";
+import { render as rtlRender } from "@testing-library/react";
+import {
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+  useImperativeHandle,
+} from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
+import { TestQueryProvider } from "@/test/query-provider";
 import { RoomComposer } from "../room-composer";
 import type { RoomMentionParticipant } from "../room-helpers";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,

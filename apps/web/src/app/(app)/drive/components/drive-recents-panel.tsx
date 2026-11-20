@@ -2,6 +2,7 @@
 
 import type { DriveItem, DriveRecentsItem } from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Copy,
   Download,
@@ -16,14 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   DriveFilePreview,
@@ -57,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
+import { useSession } from "@/lib/auth/auth.client";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -140,169 +135,103 @@ export function DriveRecentsPanel({
   onOpenWorkspace,
 }: DriveRecentsPanelProps): ReactElement {
   const t = useTranslations("App.Drive");
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const viewerId = session?.user?.id ?? null;
   const formatter = useFormatter();
   const { locale } = useLocalizedDateTime();
-  const [items, setItems] = useState<DriveRecentsItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [editingPathname, setEditingPathname] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  const loadAbortRef = useRef<AbortController | null>(null);
-  const loadMoreAbortRef = useRef<AbortController | null>(null);
-  const workspaceIdRef = useRef(activeOrganizationId);
-  workspaceIdRef.current = activeOrganizationId;
   const trimmedSearchQuery = searchQuery.trim();
   // A stable key, so a new array with the same ids does not refetch.
   const tagFilterKey = tagLabelIds.join(",");
   const isFiltered = trimmedSearchQuery.length > 0 || tagFilterKey.length > 0;
+  const canLoad = !(driveStore.scope === "org" && !activeOrganizationId);
+
+  const recentsQueryKey = [
+    "drive",
+    "recents",
+    viewerId,
+    driveStore.scope,
+    driveStore.scope === "org" ? activeOrganizationId : null,
+    trimmedSearchQuery,
+    tagFilterKey,
+    reloadToken,
+  ] as const;
+  const recentsKeyString = JSON.stringify(recentsQueryKey);
+  const activeRecentsKeyRef = useRef<string | null>(null);
+  activeRecentsKeyRef.current = canLoad ? recentsKeyString : null;
+
+  const recentsQuery = useInfiniteQuery({
+    queryKey: recentsQueryKey,
+    enabled: canLoad,
+    initialPageParam: undefined as string | undefined,
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async ({ pageParam, signal }) => {
+      const keyAtStart = recentsKeyString;
+      try {
+        return await fetchDriveRecentsPage({
+          scope: driveStore.scope,
+          ...(driveStore.scope === "org" && activeOrganizationId
+            ? { organizationId: activeOrganizationId }
+            : {}),
+          ...(pageParam ? { cursor: pageParam } : {}),
+          ...(trimmedSearchQuery ? { q: trimmedSearchQuery } : {}),
+          ...(tagFilterKey ? { tagLabelIds: tagFilterKey.split(",") } : {}),
+          signal,
+        });
+      } catch (error) {
+        if (!signal.aborted && activeRecentsKeyRef.current === keyAtStart) {
+          if (pageParam) {
+            console.error("Failed to load more Drive recents", error);
+            toast.error(t("loadMoreRecentsError"));
+          } else {
+            console.error("Failed to load Drive recents", error);
+            toast.error(t("loadRecentsError"));
+          }
+        }
+        throw error;
+      }
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+
+  const items = useMemo(() => {
+    const pages = recentsQuery.data?.pages ?? [];
+    const seen = new Set<string>();
+    const merged: DriveRecentsItem[] = [];
+    for (const page of pages) {
+      for (const item of page.items) {
+        const key = recentsItemKey(item);
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(item);
+        }
+      }
+    }
+    return merged;
+  }, [recentsQuery.data?.pages]);
+
+  const loading = canLoad && recentsQuery.isPending;
+  const loadingMore = recentsQuery.isFetchingNextPage;
+  const hasMore = recentsQuery.hasNextPage;
 
   const dayGroups = useMemo(
     () => buildDriveRecentsDayGroups(items, locale),
     [items, locale],
   );
 
-  const loadRecents = useCallback(async () => {
-    loadAbortRef.current?.abort();
-    loadMoreAbortRef.current?.abort();
-    loadMoreAbortRef.current = null;
-    setLoadingMore(false);
-    const controller = new AbortController();
-    loadAbortRef.current = controller;
-    const requestedWorkspaceId = activeOrganizationId;
-
-    try {
-      if (driveStore.scope === "org" && !activeOrganizationId) {
-        if (!controller.signal.aborted) {
-          setItems([]);
-          setNextCursor(null);
-          setLoading(false);
-        }
-        return;
-      }
-
-      if (!controller.signal.aborted) {
-        setItems([]);
-        setNextCursor(null);
-        setLoading(true);
-      }
-
-      const page = await fetchDriveRecentsPage({
-        scope: driveStore.scope,
-        ...(driveStore.scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
-        ...(trimmedSearchQuery ? { q: trimmedSearchQuery } : {}),
-        ...(tagFilterKey ? { tagLabelIds: tagFilterKey.split(",") } : {}),
-        signal: controller.signal,
-      });
-
-      if (
-        controller.signal.aborted ||
-        workspaceIdRef.current !== requestedWorkspaceId
-      ) {
-        return;
-      }
-
-      setItems(page.items);
-      setNextCursor(page.nextCursor);
-    } catch (error) {
-      if (controller.signal.aborted) {
-        return;
-      }
-      console.error("Failed to load Drive recents", error);
-      toast.error(t("loadRecentsError"));
-      if (workspaceIdRef.current === requestedWorkspaceId) {
-        setItems([]);
-        setNextCursor(null);
-      }
-    } finally {
-      if (
-        !controller.signal.aborted &&
-        workspaceIdRef.current === requestedWorkspaceId
-      ) {
-        setLoading(false);
-      }
-    }
-  }, [
-    activeOrganizationId,
-    driveStore.scope,
-    reloadToken,
-    t,
-    trimmedSearchQuery,
-    tagFilterKey,
-  ]);
-
-  useEffect(() => {
-    void loadRecents();
-    return () => {
-      loadAbortRef.current?.abort();
-      loadMoreAbortRef.current?.abort();
-    };
-  }, [loadRecents]);
-
-  async function loadMoreRecents() {
-    if (!nextCursor || loadingMore) {
-      return;
-    }
-
-    loadMoreAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadMoreAbortRef.current = controller;
-    const requestedWorkspaceId = activeOrganizationId;
-    const searchQueryAtRequest = trimmedSearchQuery;
-    setLoadingMore(true);
-
-    try {
-      const page = await fetchDriveRecentsPage({
-        scope: driveStore.scope,
-        ...(driveStore.scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
-        cursor: nextCursor,
-        ...(searchQueryAtRequest ? { q: searchQueryAtRequest } : {}),
-        ...(tagFilterKey ? { tagLabelIds: tagFilterKey.split(",") } : {}),
-        signal: controller.signal,
-      });
-
-      const queryStillMatches =
-        workspaceIdRef.current === requestedWorkspaceId &&
-        trimmedSearchQuery === searchQueryAtRequest;
-
-      if (controller.signal.aborted || !queryStillMatches) {
-        return;
-      }
-
-      setItems((current) => {
-        const seen = new Set(current.map(recentsItemKey));
-        const appended = page.items.filter(
-          (item) => !seen.has(recentsItemKey(item)),
-        );
-        return [...current, ...appended];
-      });
-      setNextCursor(page.nextCursor);
-    } catch (error) {
-      if (controller.signal.aborted) {
-        return;
-      }
-      console.error("Failed to load more Drive recents", error);
-      toast.error(t("loadMoreRecentsError"));
-    } finally {
-      if (
-        !controller.signal.aborted &&
-        workspaceIdRef.current === requestedWorkspaceId
-      ) {
-        setLoadingMore(false);
-      }
-    }
-  }
-
   async function handleRenameConfirm(item: DriveItem, newName: string) {
+    await queryClient.cancelQueries({ queryKey: recentsQueryKey });
     await onRenameFile(item, newName);
     setEditingPathname(null);
     setEditingName("");
     onItemsChanged();
-    await loadRecents();
+    await queryClient.cancelQueries({ queryKey: recentsQueryKey });
+    await recentsQuery.refetch();
   }
 
   if (loading) {
@@ -678,13 +607,13 @@ export function DriveRecentsPanel({
           </section>
         ))}
 
-        {nextCursor ? (
+        {hasMore ? (
           <div className="flex justify-center py-4">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => void loadMoreRecents()}
+              onClick={() => void recentsQuery.fetchNextPage()}
               disabled={loadingMore}
             >
               {t("loadMore")}

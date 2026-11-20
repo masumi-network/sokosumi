@@ -1,11 +1,22 @@
 import type { TaskEvent } from "@sokosumi/core-client";
 import { Channel, TaskEventStatus, TaskStatus } from "@sokosumi/core-client";
 import { expectConsole } from "@sokosumi/utils/test-console";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 async function submitCommentWithHappyDomError() {
   const errorCalls = expectConsole("error", "");

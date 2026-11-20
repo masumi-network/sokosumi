@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useSession } from "@/lib/auth/auth.client";
 import {
   type FileStore,
   fetchWorkspaceFolders,
@@ -21,21 +22,40 @@ export function useWorkspaceFolders(
   store: FileStore,
   reloadToken: number,
 ): string[] {
-  const [folders, setFolders] = useState<string[]>([]);
+  const { data: session } = useSession();
+  const viewerId = session?.user?.id ?? null;
+  const organizationId =
+    store.scope === "org" ? (store.organizationId ?? null) : null;
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchWorkspaceFolders({ store, signal: controller.signal })
-      .then((next) => {
-        if (!controller.signal.aborted) setFolders(next);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setFolders([]);
-      });
-    return () => controller.abort();
-    // `reloadToken` is a signal, not an input: the files under the store
-    // changed, so the folders they sit in may have too.
-  }, [store, reloadToken]);
+  const foldersQuery = useQuery({
+    queryKey: [
+      "drive",
+      "workspace-folders",
+      viewerId,
+      store.scope,
+      organizationId,
+      // `reloadToken` is a signal, not an input: the files under the store
+      // changed, so the folders they sit in may have too.
+      reloadToken,
+    ],
+    queryFn: ({ signal }) => fetchWorkspaceFolders({ store, signal }),
+    placeholderData: (previousData, previousQuery) => {
+      const previousKey = previousQuery?.queryKey;
+      if (
+        previousKey &&
+        previousKey[2] === viewerId &&
+        previousKey[3] === store.scope &&
+        previousKey[4] === organizationId
+      ) {
+        return previousData;
+      }
+      return undefined;
+    },
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+  });
 
-  return folders;
+  return foldersQuery.isError ? [] : (foldersQuery.data ?? []);
 }

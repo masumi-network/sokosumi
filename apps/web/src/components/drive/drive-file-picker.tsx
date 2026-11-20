@@ -1,8 +1,8 @@
 "use client";
 
-import type { DriveFile, DriveItem } from "@sokosumi/core-client";
-import { getUsersByIdOrganizations } from "@sokosumi/core-client";
+import type { DriveFile } from "@sokosumi/core-client";
 import { isDriveFolderMarkerName } from "@sokosumi/utils";
+import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
   ChevronRight,
@@ -12,7 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -27,14 +27,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useSession } from "@/lib/auth/auth.client";
-import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import {
   driveStoreForActiveWorkspace,
   driveWorkspaceRootLabel,
-  listDriveItems,
 } from "@/lib/utils/drive-file-list.client";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import {
+  getDriveItemsQueryOptions,
+  getDriveOrganizationNameQueryOptions,
+} from "@/queries/drive";
 
 interface DriveFilePickerProps {
   open: boolean;
@@ -57,23 +59,13 @@ function DriveFilePickerWorkspace({
   const t = useTranslations("App.Drive");
   const formatter = useFormatter();
   const { data: session } = useSession();
+  const viewerId = session?.user?.id ?? null;
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const scope = driveStore.scope;
-  const [items, setItems] = useState<DriveItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentFolder, setCurrentFolder] = useState("");
-  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
-    myDrive: t("myDrive"),
-    organizationFallback: t("organizationDriveFallback"),
-  });
-
-  const loadFilesAbortRef = useRef<AbortController | null>(null);
-  const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
 
   const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
     setDebouncedSearchQuery(value);
@@ -84,80 +76,42 @@ function DriveFilePickerWorkspace({
     debouncedSetSearchQuery(value);
   }
 
-  const loadItems = useCallback(async () => {
-    loadFilesAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadFilesAbortRef.current = controller;
+  const itemsQuery = useQuery({
+    ...getDriveItemsQueryOptions({
+      store: driveStore,
+      folder: currentFolder,
+      search: debouncedSearchQuery,
+      viewerId,
+    }),
+    enabled: open,
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+  });
 
-    setLoading(true);
-    setError(null);
-    try {
-      const loaded = await listDriveItems({
-        ...driveStore,
-        ...(currentFolder ? { folder: currentFolder } : {}),
-        ...(debouncedSearchQuery.trim()
-          ? { q: debouncedSearchQuery.trim() }
-          : {}),
-        signal: controller.signal,
-      });
+  const organizationNameQuery = useQuery({
+    ...getDriveOrganizationNameQueryOptions({
+      userId: viewerId,
+      activeOrganizationId,
+    }),
+    enabled: open && Boolean(activeOrganizationId && viewerId),
+  });
 
-      if (!controller.signal.aborted) {
-        const filteredItems = loaded.filter(
-          (item) => !isDriveFolderMarkerName(item.name),
-        );
-        setItems(filteredItems);
-      }
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        setError(err instanceof Error ? err.message : t("loadFilesError"));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [scope, activeOrganizationId, currentFolder, debouncedSearchQuery, t]);
+  const organizationName = organizationNameQuery.data ?? null;
+  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
+    myDrive: t("myDrive"),
+    organizationFallback: t("organizationDriveFallback"),
+  });
 
-  useEffect(() => {
-    if (open) {
-      void loadItems();
-    }
-  }, [open, loadItems]);
-
-  useEffect(() => {
-    async function fetchOrganizationName() {
-      fetchOrgNameAbortRef.current?.abort();
-      const controller = new AbortController();
-      fetchOrgNameAbortRef.current = controller;
-
-      if (!activeOrganizationId || !session?.user?.id) {
-        if (!controller.signal.aborted) {
-          setOrganizationName(null);
-        }
-        return;
-      }
-
-      try {
-        const response = await getUsersByIdOrganizations({
-          client: getBrowserCoreClient(),
-          path: { id: session.user.id },
-        });
-        const orgs = response.data?.data || [];
-        const activeOrg = orgs.find((org) => org.id === activeOrganizationId);
-        if (!controller.signal.aborted) {
-          setOrganizationName(activeOrg?.name ?? null);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setOrganizationName(null);
-        }
-      }
-    }
-
-    if (open) {
-      void fetchOrganizationName();
-    }
-  }, [open, activeOrganizationId, session?.user?.id]);
+  const items = (itemsQuery.data ?? []).filter(
+    (item) => !isDriveFolderMarkerName(item.name),
+  );
+  const loading = open && itemsQuery.isPending;
+  const error = itemsQuery.isError
+    ? itemsQuery.error instanceof Error
+      ? itemsQuery.error.message
+      : t("loadFilesError")
+    : null;
 
   // A picked file is linked into a message, a post or an ad. A data room's
   // files never leave it that way, so the picker does not offer them.

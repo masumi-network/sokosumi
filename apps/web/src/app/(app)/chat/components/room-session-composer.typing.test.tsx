@@ -1,17 +1,22 @@
 import {
   act,
   fireEvent,
-  render,
+  render as rtlRender,
   screen,
   waitFor,
 } from "@testing-library/react";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   composeDraftKey,
   setComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 const handleComposerChangeSpy = vi.fn();
 const handleStopTypingSpy = vi.fn();

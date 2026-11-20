@@ -2,19 +2,29 @@ import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
-  render,
+  render as rtlRender,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { type ComponentProps, type ReactNode, useState } from "react";
+import {
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode,
+  useState,
+} from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   composeDraftKey,
   getComposeDraft,
   setComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
+import { TestQueryProvider } from "@/test/query-provider";
 import type { PendingRoomQuote } from "./room-helpers";
 import { RoomSessionComposer } from "./room-session-composer";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,

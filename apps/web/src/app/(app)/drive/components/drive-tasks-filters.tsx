@@ -1,18 +1,19 @@
 "use client";
 
 import {
-  type Coworker,
   getCoworkers,
   getProjectsById,
   getTasksById,
 } from "@sokosumi/core-client";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Bot, FolderKanban, ListCheck } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
@@ -119,312 +120,208 @@ export function DriveTasksFilters({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const viewerId = session?.user?.id ?? null;
+  const store = driveStoreForActiveWorkspace(activeOrganizationId);
+  const canLoadStore = !(store.scope === "org" && !activeOrganizationId);
 
-  const [coworkers, setCoworkers] = useState<Coworker[]>([]);
-  const [projects, setProjects] = useState<DriveTasksProjectFilterOption[]>([]);
-  const [projectsNextCursor, setProjectsNextCursor] = useState<string | null>(
-    null,
-  );
-  const [projectsLoadingMore, setProjectsLoadingMore] = useState(false);
-  const [tasks, setTasks] = useState<DriveTasksTaskFilterOption[]>([]);
-  const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
-  const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
-  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(
-    null,
-  );
-  const [selectedTaskName, setSelectedTaskName] = useState<string | null>(null);
-  const loadMoreProjectsAbortRef = useRef<AbortController | null>(null);
-  const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadCoworkers() {
-      try {
-        const response = await getCoworkers({
-          client: getBrowserCoreClient(),
-          query: { scope: "available", capability: ["tasks"] },
-        });
-        if (!controller.signal.aborted) {
-          setCoworkers(response.data?.data ?? []);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setCoworkers([]);
-        }
+  const coworkersQuery = useQuery({
+    queryKey: [
+      "drive",
+      "tasks-filters",
+      "coworkers",
+      viewerId,
+      activeOrganizationId,
+    ],
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }) => {
+      const response = await getCoworkers({
+        client: getBrowserCoreClient(),
+        query: { scope: "available", capability: ["tasks"] },
+        signal,
+      });
+      if (response.error || !response.data) {
+        throw response.error ?? new Error("Failed to load coworkers");
       }
-    }
-    void loadCoworkers();
-    return () => {
-      controller.abort();
-    };
-  }, [activeOrganizationId]);
+      return response.data.data ?? [];
+    },
+  });
 
-  useEffect(() => {
-    const store = driveStoreForActiveWorkspace(activeOrganizationId);
-    if (store.scope === "org" && !activeOrganizationId) {
-      setProjects([]);
-      setProjectsNextCursor(null);
-      return;
-    }
+  const projectsQuery = useInfiniteQuery({
+    queryKey: [
+      "drive",
+      "tasks-filters",
+      "projects",
+      viewerId,
+      store.scope,
+      activeOrganizationId,
+      assigneeId,
+    ],
+    enabled: canLoadStore,
+    initialPageParam: undefined as string | undefined,
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveTasksPage({
+        scope: store.scope,
+        ...(store.scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(assigneeId ? { assigneeId } : {}),
+        ...(pageParam ? { cursor: pageParam } : {}),
+        signal,
+      }),
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
+      resolveNextCursor(lastPage.nextCursor, lastPageParam) ?? undefined,
+  });
 
-    const controller = new AbortController();
-
-    async function loadProjects() {
-      try {
-        const page = await fetchDriveTasksPage({
-          scope: store.scope,
-          ...(store.scope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
-          ...(assigneeId ? { assigneeId } : {}),
-          signal: controller.signal,
-        });
-        if (!controller.signal.aborted) {
-          setProjects(
+  const coworkers = coworkersQuery.isError ? [] : (coworkersQuery.data ?? []);
+  const projects = useMemo(
+    () =>
+      projectsQuery.isError
+        ? []
+        : (projectsQuery.data?.pages ?? []).flatMap((page) =>
             mapDriveTasksToProjectOptions(page.items, labels.noProjectLabel),
-          );
-          setProjectsNextCursor(page.nextCursor);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setProjects([]);
-          setProjectsNextCursor(null);
-        }
-      }
-    }
-    void loadProjects();
-    return () => {
-      controller.abort();
-      loadMoreProjectsAbortRef.current?.abort();
-      loadMoreProjectsAbortRef.current = null;
-    };
-  }, [activeOrganizationId, assigneeId, labels.noProjectLabel]);
+          ),
+    [projectsQuery.data?.pages, projectsQuery.isError, labels.noProjectLabel],
+  );
+  const projectsNextCursor = projectsQuery.hasNextPage
+    ? (projectsQuery.data?.pages.at(-1)?.nextCursor ?? null)
+    : null;
+  const projectsLoadingMore = projectsQuery.isFetchingNextPage;
 
-  useEffect(() => {
-    if (!projectId || projectId === "null") {
-      setSelectedProjectName(
-        projectId === "null" ? labels.noProjectLabel : null,
-      );
-      return;
-    }
+  const needsSelectedProjectFetch =
+    Boolean(projectId) &&
+    projectId !== "null" &&
+    !projects.some((project) => project.id === projectId);
 
-    if (projects.some((project) => project.id === projectId)) {
-      setSelectedProjectName(null);
-      return;
-    }
+  const selectedProjectQuery = useQuery({
+    queryKey: [
+      "drive",
+      "project-name",
+      viewerId,
+      activeOrganizationId,
+      projectId,
+    ],
+    enabled: needsSelectedProjectFetch,
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }) => {
+      if (!projectId) return null;
+      const response = await getProjectsById({
+        client: getBrowserCoreClient(),
+        path: { id: projectId },
+        signal,
+        throwOnError: true,
+      });
+      return response.data?.data?.name ?? null;
+    },
+  });
 
-    const selectedProjectId = projectId;
+  const selectedProjectName =
+    projectId === "null"
+      ? labels.noProjectLabel
+      : needsSelectedProjectFetch
+        ? (selectedProjectQuery.data ?? null)
+        : null;
 
-    async function fetchSelectedProject() {
-      try {
-        const response = await getProjectsById({
-          client: getBrowserCoreClient(),
-          path: { id: selectedProjectId },
-          throwOnError: true,
-        });
-        const selectedProject = response.data?.data;
-        if (!selectedProject?.name) {
-          return;
-        }
-        setSelectedProjectName(selectedProject.name);
-      } catch {
-        setSelectedProjectName(null);
-      }
-    }
+  const tasksQuery = useInfiniteQuery({
+    queryKey: [
+      "drive",
+      "tasks-filters",
+      "tasks",
+      viewerId,
+      store.scope,
+      activeOrganizationId,
+      projectId,
+      assigneeId,
+    ],
+    enabled: Boolean(projectId) && canLoadStore,
+    initialPageParam: undefined as string | undefined,
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveTasksPage({
+        scope: store.scope,
+        ...(store.scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        projectId: projectId ?? undefined,
+        ...(assigneeId ? { assigneeId } : {}),
+        ...(pageParam ? { cursor: pageParam } : {}),
+        signal,
+      }),
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
+      resolveNextCursor(lastPage.nextCursor, lastPageParam) ?? undefined,
+  });
 
-    void fetchSelectedProject();
-  }, [projectId, projects, labels.noProjectLabel]);
+  const tasks = useMemo(
+    () =>
+      !projectId || tasksQuery.isError
+        ? []
+        : (tasksQuery.data?.pages ?? []).flatMap((page) =>
+            mapDriveTasksToTaskOptions(page.items),
+          ),
+    [projectId, tasksQuery.data?.pages, tasksQuery.isError],
+  );
+  const tasksNextCursor =
+    projectId && tasksQuery.hasNextPage
+      ? (tasksQuery.data?.pages.at(-1)?.nextCursor ?? null)
+      : null;
+  const tasksLoadingMore = tasksQuery.isFetchingNextPage;
 
-  useEffect(() => {
-    if (!projectId) {
-      setTasks([]);
-      setTasksNextCursor(null);
-      setSelectedTaskName(null);
-      return;
-    }
-    const store = driveStoreForActiveWorkspace(activeOrganizationId);
-    const selectedProjectId = projectId;
+  const needsSelectedTaskFetch =
+    Boolean(taskId) &&
+    Boolean(projectId) &&
+    !tasks.some((task) => task.id === taskId);
 
-    const controller = new AbortController();
+  const selectedTaskQuery = useQuery({
+    queryKey: ["drive", "task-name", viewerId, activeOrganizationId, taskId],
+    enabled: needsSelectedTaskFetch,
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }) => {
+      if (!taskId) return null;
+      const response = await getTasksById({
+        client: getBrowserCoreClient(),
+        path: { id: taskId },
+        signal,
+        throwOnError: true,
+      });
+      return response.data?.data?.name ?? null;
+    },
+  });
 
-    async function loadTasks() {
-      try {
-        const page = await fetchDriveTasksPage({
-          scope: store.scope,
-          ...(store.scope === "org" && activeOrganizationId
-            ? { organizationId: activeOrganizationId }
-            : {}),
-          projectId: selectedProjectId,
-          ...(assigneeId ? { assigneeId } : {}),
-          signal: controller.signal,
-        });
-        if (!controller.signal.aborted) {
-          setTasks(mapDriveTasksToTaskOptions(page.items));
-          setTasksNextCursor(page.nextCursor);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setTasks([]);
-          setTasksNextCursor(null);
-        }
-      }
-    }
-    void loadTasks();
-    return () => {
-      controller.abort();
-      loadMoreTasksAbortRef.current?.abort();
-      loadMoreTasksAbortRef.current = null;
-    };
-  }, [projectId, activeOrganizationId, assigneeId]);
+  const selectedTaskName = needsSelectedTaskFetch
+    ? (selectedTaskQuery.data ?? null)
+    : null;
 
-  useEffect(() => {
-    if (!taskId || !projectId) {
-      setSelectedTaskName(null);
-      return;
-    }
-
-    if (tasks.some((task) => task.id === taskId)) {
-      setSelectedTaskName(null);
-      return;
-    }
-
-    const selectedTaskId = taskId;
-
-    async function fetchSelectedTask() {
-      try {
-        const response = await getTasksById({
-          client: getBrowserCoreClient(),
-          path: { id: selectedTaskId },
-          throwOnError: true,
-        });
-        const selectedTask = response.data?.data;
-        if (!selectedTask?.name) {
-          return;
-        }
-        setSelectedTaskName(selectedTask.name);
-      } catch {
-        setSelectedTaskName(null);
-      }
-    }
-
-    void fetchSelectedTask();
-  }, [taskId, projectId, tasks]);
-
+  const { fetchNextPage: fetchNextProjectsPage } = projectsQuery;
   const loadMoreProjects = useCallback(async () => {
     if (!projectsNextCursor || projectsLoadingMore) {
       return;
     }
+    await fetchNextProjectsPage();
+  }, [fetchNextProjectsPage, projectsLoadingMore, projectsNextCursor]);
 
-    const store = driveStoreForActiveWorkspace(activeOrganizationId);
-    if (store.scope === "org" && !activeOrganizationId) {
-      return;
-    }
-
-    loadMoreProjectsAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadMoreProjectsAbortRef.current = controller;
-    const assigneeIdAtRequest = assigneeId;
-    const activeOrganizationIdAtRequest = activeOrganizationId;
-    const cursorAtRequest = projectsNextCursor;
-
-    setProjectsLoadingMore(true);
-    try {
-      const page = await fetchDriveTasksPage({
-        scope: store.scope,
-        ...(store.scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
-        ...(assigneeId ? { assigneeId } : {}),
-        cursor: cursorAtRequest,
-        signal: controller.signal,
-      });
-      if (
-        controller.signal.aborted ||
-        assigneeId !== assigneeIdAtRequest ||
-        activeOrganizationId !== activeOrganizationIdAtRequest
-      ) {
-        return;
-      }
-      const nextPage = mapDriveTasksToProjectOptions(
-        page.items,
-        labels.noProjectLabel,
-      );
-      setProjects((current) => [...current, ...nextPage]);
-      setProjectsNextCursor(
-        resolveNextCursor(page.nextCursor, cursorAtRequest),
-      );
-    } catch {
-      if (!controller.signal.aborted) {
-        // Leave the current list intact when pagination fails.
-      }
-    } finally {
-      if (
-        !controller.signal.aborted &&
-        assigneeId === assigneeIdAtRequest &&
-        activeOrganizationId === activeOrganizationIdAtRequest
-      ) {
-        setProjectsLoadingMore(false);
-      }
-    }
-  }, [
-    activeOrganizationId,
-    assigneeId,
-    labels.noProjectLabel,
-    projectsNextCursor,
-    projectsLoadingMore,
-  ]);
-
+  const { fetchNextPage: fetchNextTasksPage } = tasksQuery;
   const loadMoreTasks = useCallback(async () => {
     if (!projectId || !tasksNextCursor || tasksLoadingMore) {
       return;
     }
-
-    const store = driveStoreForActiveWorkspace(activeOrganizationId);
-    if (store.scope === "org" && !activeOrganizationId) {
-      return;
-    }
-
-    loadMoreTasksAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadMoreTasksAbortRef.current = controller;
-    const projectIdAtRequest = projectId;
-    const cursorAtRequest = tasksNextCursor;
-
-    setTasksLoadingMore(true);
-    try {
-      const page = await fetchDriveTasksPage({
-        scope: store.scope,
-        ...(store.scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
-        projectId: projectIdAtRequest,
-        ...(assigneeId ? { assigneeId } : {}),
-        cursor: cursorAtRequest,
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted || projectId !== projectIdAtRequest) {
-        return;
-      }
-      const nextPage = mapDriveTasksToTaskOptions(page.items);
-      setTasks((current) => [...current, ...nextPage]);
-      setTasksNextCursor(resolveNextCursor(page.nextCursor, cursorAtRequest));
-    } catch {
-      if (!controller.signal.aborted) {
-        // Leave the current list intact when pagination fails.
-      }
-    } finally {
-      if (!controller.signal.aborted && projectId === projectIdAtRequest) {
-        setTasksLoadingMore(false);
-      }
-    }
-  }, [
-    projectId,
-    activeOrganizationId,
-    assigneeId,
-    tasksNextCursor,
-    tasksLoadingMore,
-  ]);
+    await fetchNextTasksPage();
+  }, [fetchNextTasksPage, projectId, tasksLoadingMore, tasksNextCursor]);
 
   const handleFilterChange = useCallback(
     (param: "assigneeId" | "projectId" | "taskId", value: string | null) => {
