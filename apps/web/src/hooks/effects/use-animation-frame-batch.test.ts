@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
+import { Activity, createElement, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAnimationFrameBatch } from "./use-animation-frame-batch";
@@ -106,5 +107,51 @@ describe("useAnimationFrameBatch", () => {
     });
 
     expect(onFlush).not.toHaveBeenCalled();
+  });
+
+  it("recovers after an Activity hide before paint so the next event after reveal renders", () => {
+    let pushUpdate: ((item: string) => void) | null = null;
+
+    function StatusBadge() {
+      const [items, setItems] = useState<string[]>([]);
+      pushUpdate = useAnimationFrameBatch<string>((batch) => {
+        setItems((prev) => [...prev, ...batch]);
+      });
+      return createElement(
+        "output",
+        { "data-testid": "items" },
+        items.join(","),
+      );
+    }
+
+    const { rerender } = render(
+      createElement(Activity, { mode: "visible" }, createElement(StatusBadge)),
+    );
+
+    // Enqueue before paint, then hide the Activity before the frame runs.
+    act(() => {
+      pushUpdate?.("stale-before-hide");
+    });
+    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
+
+    rerender(
+      createElement(Activity, { mode: "hidden" }, createElement(StatusBadge)),
+    );
+    expect(window.cancelAnimationFrame).toHaveBeenCalledWith(1);
+
+    // Reveal the Activity and push a new update; it must schedule and render.
+    rerender(
+      createElement(Activity, { mode: "visible" }, createElement(StatusBadge)),
+    );
+    act(() => {
+      pushUpdate?.("live-after-reveal");
+    });
+    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      flushFrames();
+    });
+
+    expect(screen.getByTestId("items")).toHaveTextContent("live-after-reveal");
   });
 });
