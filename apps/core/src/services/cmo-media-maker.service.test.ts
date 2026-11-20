@@ -601,7 +601,7 @@ describe("advanceCmoMedia", () => {
     ]);
   });
 
-  it("gives a styled picture only the brand pictures its visual names", async () => {
+  it("never sends a styled picture's screen to the model, and leaves it a panel", async () => {
     jobFindMany.mockResolvedValue([]);
     jobCount.mockResolvedValue(0);
     const style = "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9";
@@ -621,12 +621,18 @@ describe("advanceCmoMedia", () => {
     expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain(
       "own picture",
     );
+    // Asked to redraw the real homepage, the models cropped or changed it in
+    // 8 of 8 tries: Core places the screenshot on the panel afterwards.
     expect(createImageJob.mock.calls[1]?.[0]).toMatchObject({
-      referenceFileIds: ["f-home"],
+      referenceFileIds: [],
     });
     expect(createImageJob.mock.calls[1]?.[0].prompt).toContain(
-      "The second image is NMKR's own picture",
+      "Leave one plain, light, empty panel from 10% to 90% of the width and 30% to 76% of the height",
     );
+    expect(createImageJob.mock.calls[1]?.[0].prompt).not.toContain(
+      "own picture",
+    );
+    expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain("panel");
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
