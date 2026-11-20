@@ -2065,6 +2065,57 @@ describe("TaskForm", () => {
     );
   });
 
+  it("clears a Calendar-provided Run at permanently when an untouched default becomes a member", async () => {
+    const user = userEvent.setup();
+    const bob = mockCoworkerOption({
+      id: "user-bob",
+      slug: "bob",
+      name: "Bob",
+      kind: "user",
+    });
+    const fullOptions = [...coworkerOptions, bob];
+    const renderProps = (options: typeof fullOptions) => (
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={options}
+        initialValues={{ runAt: RUN_AT_ISO }}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    const { rerender } = render(renderProps(fullOptions));
+    await user.click(
+      screen.getByRole("button", { name: /Start from scratch/ }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Schedule Task/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("footer")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Queued",
+    );
+
+    // Agent lookup briefly degrades to member-only options.
+    rerender(renderProps([bob]));
+    expect(screen.queryByText("footer")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Draft",
+    );
+
+    // Agent options recover: the cleared Run at must not resurrect.
+    rerender(renderProps(fullOptions));
+    expect(screen.queryByText("footer")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+      "Ready",
+    );
+    expect(
+      screen.getByRole("button", { name: "Create Task" }),
+    ).toBeInTheDocument();
+  });
+
   it("names the Task and keeps the input when Core refuses the create", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);

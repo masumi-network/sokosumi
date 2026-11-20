@@ -5,7 +5,7 @@ import { Search, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { PageSearchHint } from "@/components/page-search-field";
 import { Input } from "@/components/ui/input";
@@ -31,49 +31,32 @@ function toSearchableJob(job: JobSummary): SearchableJob {
   };
 }
 
-interface JobsSearchProps {
-  jobs: JobSummary[];
-  /** True when older jobs exist beyond the loaded pages (load-more available). */
-  hasMoreHistory?: boolean;
-  onFilteredChange?: (filtered: JobSummary[], query: string) => void;
+export function filterJobsByQuery(
+  jobs: JobSummary[],
+  query: string,
+): JobSummary[] {
+  const q = query.trim();
+  if (!q || q.length > MAX_QUERY_LENGTH) return jobs;
+  return jobs.filter((j) => jobMatchesQuery(toSearchableJob(j), q));
 }
 
-export function JobsSearch({
-  jobs,
-  hasMoreHistory = false,
-  onFilteredChange,
-}: JobsSearchProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const pathname = usePathname();
-  usePageSearchShortcut(inputRef, { focusOnMount: pathname.endsWith("/jobs") });
-  const t = useTranslations("Components.Jobs.JobsSearch");
-
+export function useJobsSearchQuery() {
   const [queryParam, setQueryParam] = useQueryState("query", {
     defaultValue: "",
   });
 
+  const [prevQueryParam, setPrevQueryParam] = useState(queryParam);
   const [searchValue, setSearchValue] = useState<string>(queryParam);
 
-  useEffect(() => {
+  if (prevQueryParam !== queryParam) {
+    setPrevQueryParam(queryParam);
     setSearchValue(queryParam);
-  }, [queryParam]);
+  }
 
   const debouncedSetQuery = useDebouncedCallback(
     (next: string) => setQueryParam(next),
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
-
-  const matcher = useMemo(() => jobMatchesQuery, []);
-
-  const filteredJobs = useMemo(() => {
-    const q = searchValue.trim();
-    if (!q || q.length > MAX_QUERY_LENGTH) return jobs;
-    return jobs.filter((j) => matcher(toSearchableJob(j), q));
-  }, [jobs, searchValue, matcher]);
-
-  useEffect(() => {
-    onFilteredChange?.(filteredJobs, searchValue);
-  }, [filteredJobs, searchValue, onFilteredChange]);
 
   function handleInputChange(next: string) {
     const trimmed = next.slice(0, MAX_QUERY_LENGTH);
@@ -85,6 +68,40 @@ export function JobsSearch({
     debouncedSetQuery.cancel();
     setSearchValue("");
     void setQueryParam("");
+  }
+
+  return {
+    searchValue,
+    handleInputChange,
+    handleClear,
+  };
+}
+
+interface JobsSearchProps {
+  searchValue: string;
+  onSearchChange: (next: string) => void;
+  onClear: () => void;
+  filteredCount: number;
+  totalCount: number;
+  /** True when older jobs exist beyond the loaded pages (load-more available). */
+  hasMoreHistory?: boolean;
+}
+
+export function JobsSearch({
+  searchValue,
+  onSearchChange,
+  onClear,
+  filteredCount,
+  totalCount,
+  hasMoreHistory = false,
+}: JobsSearchProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pathname = usePathname();
+  usePageSearchShortcut(inputRef, { focusOnMount: pathname.endsWith("/jobs") });
+  const t = useTranslations("Components.Jobs.JobsSearch");
+
+  function handleClear() {
+    onClear();
     inputRef.current?.focus();
   }
 
@@ -104,7 +121,7 @@ export function JobsSearch({
           )}
           placeholder={t("placeholder")}
           value={searchValue}
-          onChange={(e) => handleInputChange(e.target.value)}
+          onChange={(e) => onSearchChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Escape") handleClear();
           }}
@@ -129,8 +146,8 @@ export function JobsSearch({
         <div className="text-muted-foreground flex flex-col gap-0.5 px-1 text-xs">
           <span className="whitespace-nowrap">
             {t(hasMoreHistory ? "resultsCountLoaded" : "resultsCount", {
-              found: filteredJobs.length,
-              total: jobs.length,
+              found: filteredCount,
+              total: totalCount,
             })}
           </span>
           {hasMoreHistory ? (

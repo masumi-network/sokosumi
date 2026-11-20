@@ -1,7 +1,9 @@
 import "./rooms-client-harness";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Activity, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { RoomTranscriptEntry } from "@/app/chat/utils/room-transcript-cache";
 import {
   listenForNavigationStart,
   notifyNavigationStart,
@@ -12,6 +14,7 @@ import {
   RoomRouteBootstrap,
 } from "../persistent-room-view";
 import { RoomCacheProvider } from "../room-cache-provider";
+import { RoomsClient } from "../rooms-client";
 import { roomsClientBaseProps, sampleMessage } from "./rooms-client-harness";
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
@@ -130,5 +133,47 @@ describe("room cache across a hidden app shell", () => {
     } finally {
       stopListening();
     }
+  });
+
+  it("renders only top-level rows without mutating the retained cache or parent state during render", () => {
+    const root = sampleMessage("root message", "msg-root");
+    const leakedReply = {
+      ...sampleMessage("leaked reply", "msg-reply"),
+      parentMessageId: root.id,
+      createdAt: new Date("2026-07-01T12:02:00.000Z"),
+    };
+    const props = roomsClientBaseProps();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const key = ["room-transcript", "user-1", "org-1", "room-channel"];
+    const entry: RoomTranscriptEntry = {
+      bootstrap: props,
+      transcript: {
+        messages: [root, leakedReply],
+        rangeEdges: [{ time: root.createdAt.getTime(), id: root.id }],
+        oldestHasMore: false,
+      },
+      resolved: true,
+      failed: false,
+      dirtyIds: [],
+      revision: 0,
+      lifetime: {},
+    };
+    queryClient.setQueryData(key, entry);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RoomCacheProvider currentUserId="user-1" workspaceId="org-1">
+          <RoomsClient {...props} />
+        </RoomCacheProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("root message")).toBeTruthy();
+    expect(screen.queryByText("leaked reply")).toBeNull();
+    expect(queryClient.getQueryData<RoomTranscriptEntry>(key)?.revision).toBe(
+      0,
+    );
   });
 });

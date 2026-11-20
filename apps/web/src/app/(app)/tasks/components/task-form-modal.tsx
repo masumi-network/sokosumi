@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -80,9 +79,11 @@ export function TaskFormModal({
     [registerHeaderStart],
   );
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (!open) setHeaderStart(null);
-  }, [open]);
+  }
 
   // Clicking outside / pressing Escape closes the modal, except while a submit
   // or upload is in flight (guarded by isDismissDisabled).
