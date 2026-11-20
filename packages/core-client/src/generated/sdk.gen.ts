@@ -6689,7 +6689,7 @@ export const setCmoPresenterForProject = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it. Zero leaves paid ads out.
+ * The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it; while he is busy with the strategy it waits and he plans it when that turn ends. Zero leaves paid ads out.
  */
 export const setCmoAdBudgetForProject = <ThrowOnError extends boolean = false>(options: Options<SetCmoAdBudgetForProjectData, ThrowOnError>): RequestResult<SetCmoAdBudgetForProjectResponses, SetCmoAdBudgetForProjectErrors, ThrowOnError> => (options.client ?? client).post<SetCmoAdBudgetForProjectResponses, SetCmoAdBudgetForProjectErrors, ThrowOnError>({
     responseTransformer: setCmoAdBudgetForProjectResponseTransformer,

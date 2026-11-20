@@ -1,9 +1,9 @@
 import { z } from "@hono/zod-openapi";
 import {
-  brandBrainSchema,
   CMO_BRAND_SECTION_KEYS,
   cmoReportUpdateInputSchema,
   marketingStrategyPlanSchema,
+  storedBrandBrainSchema,
 } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -230,6 +230,17 @@ export const cmoBrandFixStartedSchema = z
       ),
   })
   .openapi("CmoBrandFixStarted");
+
+export const cmoAdBudgetStartedSchema = z
+  .object({
+    turnId: z.union([z.string(), z.null()]),
+    queued: z
+      .boolean()
+      .describe(
+        "Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.",
+      ),
+  })
+  .openapi("CmoAdBudgetStarted");
 
 /** A version of the plan of the Cuso a CMO route acts on. */
 export const cmoTestCopyCheckSchema = z
@@ -722,7 +733,7 @@ export const cmoOverviewSchema = z
     timeZone: z
       .string()
       .describe("The time zone Cuso's routines run in, as the owner set it."),
-    brandBrain: z.union([brandBrainSchema, z.null()]),
+    brandBrain: z.union([storedBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
     brandMedia: z.union([cmoBrandMediaSchema, z.null()]),

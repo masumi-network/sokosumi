@@ -8171,6 +8171,7 @@ export type BrandBrain = {
             note?: string;
             corrected?: boolean;
         }>;
+        promiseByOwner?: boolean;
     } | null;
     /**
      * When the essentials were last saved.
@@ -8582,6 +8583,7 @@ export type BrandBrainRequest = {
             note?: string;
             corrected?: boolean;
         }>;
+        promiseByOwner?: boolean;
     };
 };
 
@@ -13881,6 +13883,7 @@ export type CmoOverview = {
             note?: string;
             corrected?: boolean;
         }>;
+        promiseByOwner?: boolean;
     } | null;
     brandBrainUpdatedAt: Date | null;
     brandBrainConfirmedAt: Date | null;
@@ -14983,6 +14986,14 @@ export type CmoLandingPageLiveRequest = {
 export type CmoPresenterPhoto = {
     photo: string;
     consent: true;
+};
+
+export type CmoAdBudgetStarted = {
+    turnId: string | null;
+    /**
+     * Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.
+     */
+    queued: boolean;
 };
 
 export type CmoAdBudgetRequest = {
@@ -91534,10 +91545,10 @@ export type SetCmoAdBudgetForProjectError = SetCmoAdBudgetForProjectErrors[keyof
 
 export type SetCmoAdBudgetForProjectResponses = {
     /**
-     * Cuso is re-planning
+     * Cuso is re-planning, or will once his current turn ends
      */
     201: {
-        data: CmoTurnStarted;
+        data: CmoAdBudgetStarted;
         meta: {
             timestamp: Date;
             requestId: string;

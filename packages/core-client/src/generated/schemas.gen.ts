@@ -29054,6 +29054,9 @@ export const BrandBrainSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        promiseByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -31342,6 +31345,9 @@ export const BrandBrainRequestSchema = {
                     },
                     maxItems: 6,
                     default: []
+                },
+                promiseByOwner: {
+                    type: 'boolean'
                 }
             },
             required: [
@@ -55128,6 +55134,9 @@ export const CmoOverviewSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        promiseByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -60018,6 +60027,30 @@ export const CmoPresenterPhotoSchema = {
     required: [
         'photo',
         'consent'
+    ]
+} as const;
+
+export const CmoAdBudgetStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        queued: {
+            type: 'boolean',
+            description: 'Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.'
+        }
+    },
+    required: [
+        'turnId',
+        'queued'
     ]
 } as const;
 
