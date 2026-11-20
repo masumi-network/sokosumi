@@ -1,4 +1,7 @@
-import { Ellipsis } from "lucide-react";
+"use client";
+
+import { Ellipsis, ListFilter } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
   TASK_CARD_DENSITY_CLASS,
@@ -11,12 +14,13 @@ import {
 } from "@/app/tasks/types/task-board";
 import { PageSearchActions } from "@/components/page-search-actions";
 import { Button } from "@/components/ui/button";
-import { SEGMENTED_CONTROL_CLASS_NAME } from "@/components/ui/segmented-control-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
 
 import { ColumnHeader } from "./column-header";
+import { TasksToolbarRow } from "./tasks-toolbar-row";
+import { TasksViewSwitcher } from "./tasks-view-switcher";
 
 /** Placeholder cards per board column, so the skeleton reads as a filled board. */
 const BOARD_SKELETON_CARD_COUNTS = [3, 2, 2, 1, 1] as const;
@@ -34,6 +38,8 @@ interface TasksLoadingViewProps {
   /** Matches the `tasks_density` preference, so placeholders take the real size. */
   compact?: boolean;
   labels: TasksLoadingLabels;
+  /** The height the board's toolbar last had here (`readTasksToolbarHeight`). */
+  toolbarMinHeight?: number | null;
 }
 
 /** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
@@ -53,15 +59,18 @@ export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
 export function TasksPageSkeleton({
   viewMode,
   compact,
+  toolbarMinHeight,
 }: {
   viewMode?: TasksViewMode;
   compact?: boolean;
+  toolbarMinHeight?: number | null;
 }) {
   return (
     <div className="w-full">
       <TasksLoadingView
         viewMode={viewMode}
         compact={compact}
+        toolbarMinHeight={toolbarMinHeight}
         labels={TASKS_LOADING_DEFAULT_LABELS}
       />
     </div>
@@ -72,7 +81,9 @@ export function TasksLoadingView({
   viewMode,
   compact = false,
   labels,
+  toolbarMinHeight,
 }: TasksLoadingViewProps) {
+  const t = useTranslations("App.Tasks.Filters");
   const resolvedViewMode = viewMode ?? "board";
 
   return (
@@ -82,21 +93,23 @@ export function TasksLoadingView({
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      {/* The board's toolbar at its real sizes (`TasksViewFilters`): the view
-          switcher, then search, Filters and view options, which wrap under
-          it on a narrow page. A shorter row here drops the board when it
-          loads: 8px from md, 56px on a phone. */}
-      <div className="flex items-start gap-2">
-        <div className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <div
-            aria-hidden
-            data-testid="tasks-view-switcher-skeleton"
-            className={SEGMENTED_CONTROL_CLASS_NAME}
-          >
-            <Skeleton className="h-8 w-11" />
-            <Skeleton className="h-8 w-10 sm:w-24" />
-            <Skeleton className="h-8 w-10 lg:w-24" />
-            <Skeleton className="h-8 w-10 lg:w-24" />
+      {/* The board's toolbar (`TasksViewFilters`) in the same row, with the
+          real switcher and translated labels, so it wraps at the same widths.
+          A shorter toolbar here drops the board when it loads (8px from md,
+          56px on a phone), so it also keeps the height the board's toolbar
+          last had: active filter chips can add rows the skeleton cannot know. */}
+      <div
+        className="flex items-start gap-2"
+        style={toolbarMinHeight ? { minHeight: toolbarMinHeight } : undefined}
+      >
+        <TasksToolbarRow>
+          <div inert className="contents">
+            <TasksViewSwitcher
+              value="all"
+              onChange={() => {}}
+              showMine
+              labels={{ all: t("all"), assignedToMe: t("assignedToMe") }}
+            />
           </div>
           <PageSearchActions>
             <div
@@ -108,7 +121,10 @@ export function TasksLoadingView({
                 className="h-10 w-full @2xl/page-toolbar:h-8"
               />
             </div>
-            <Skeleton aria-hidden className="h-8 w-10 sm:w-22" />
+            <Button variant="outline" size="sm" className="gap-2" disabled>
+              <ListFilter className="size-4" aria-hidden />
+              <span className="max-sm:hidden">{t("title")}</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -119,7 +135,7 @@ export function TasksLoadingView({
               <Ellipsis className="size-4" aria-hidden />
             </Button>
           </PageSearchActions>
-        </div>
+        </TasksToolbarRow>
       </div>
 
       <div

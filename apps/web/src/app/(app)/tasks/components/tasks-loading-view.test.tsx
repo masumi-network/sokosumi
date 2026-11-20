@@ -1,11 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   TASKS_LOADING_DEFAULT_LABELS,
   TasksLoadingView,
 } from "@/app/tasks/components/tasks-loading-view";
 import { TASKS_BOARD_MIN_HEIGHT_CLASS } from "@/app/tasks/constants";
-import { SEGMENTED_CONTROL_CLASS_NAME } from "@/components/ui/segmented-control-classes";
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
 describe("TasksLoadingView", () => {
   it("renders board columns by default", () => {
@@ -60,24 +63,41 @@ describe("TasksLoadingView", () => {
     expect(listShell).not.toHaveClass("-mx-4");
   });
 
-  it("draws the board toolbar's rows at their real heights, so the board does not drop when it loads", () => {
+  it("draws the board's toolbar with its translated labels in the same row, so it wraps where the board's does", () => {
     const { container } = render(
       <TasksLoadingView labels={TASKS_LOADING_DEFAULT_LABELS} />,
     );
 
-    const toolbar = container.querySelector(".\\@container\\/page-toolbar");
-    expect(toolbar).toBeTruthy();
-    // The view switcher: a 40px segmented control of four 32px items.
-    const switcher = screen.getByTestId("tasks-view-switcher-skeleton");
-    expect(switcher).toHaveClass(...SEGMENTED_CONTROL_CLASS_NAME.split(" "));
-    expect(switcher.children).toHaveLength(4);
-    for (const item of switcher.children) expect(item).toHaveClass("h-8");
-    // Search, Filters and view options wrap together under it, as on the board.
+    const row = container.querySelector("[data-tasks-toolbar-row]");
+    expect(row).toBeTruthy();
+    // The real view switcher, in the reader's language, but not usable yet.
+    const switcher = container.querySelector(
+      '[inert] [aria-label="viewLabel"]',
+    );
+    expect(switcher).toBeTruthy();
+    expect(switcher).toHaveTextContent("all");
+    expect(switcher).toHaveTextContent("assignedToMe");
+    // Search, Filters (its translated label) and view options wrap together.
     const search = screen.getByTestId("tasks-search-skeleton");
     expect(search).toHaveClass("h-10", "@2xl/page-toolbar:h-8");
-    expect(search.closest(".ms-auto")).toContainElement(
+    const actions = search.closest(".ms-auto");
+    expect(actions).toHaveTextContent("title");
+    expect(actions).toContainElement(
       screen.getByRole("button", { name: "View options" }),
     );
+  });
+
+  it("reserves the height the board's toolbar last had, so active filter chips do not drop the board", () => {
+    const { container } = render(
+      <TasksLoadingView
+        labels={TASKS_LOADING_DEFAULT_LABELS}
+        toolbarMinHeight={96}
+      />,
+    );
+
+    expect(
+      container.querySelector("[data-tasks-toolbar-row]")?.parentElement,
+    ).toHaveStyle({ minHeight: "96px" });
   });
 
   it("gives the board the height it has once loaded", () => {

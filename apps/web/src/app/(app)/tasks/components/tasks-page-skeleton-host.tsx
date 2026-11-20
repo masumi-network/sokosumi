@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { TasksPageSkeleton } from "@/app/tasks/components/tasks-loading-view";
+import { readTasksToolbarHeight } from "@/app/tasks/components/tasks-toolbar-height";
 import { parseTasksDensityCookieHeader } from "@/lib/ui-preferences/tasks-density";
 import {
   DEFAULT_TASKS_VIEW_MODE_DESKTOP,
@@ -52,5 +53,18 @@ export function TasksPageSkeletonHost() {
     getServerCompact,
   );
 
-  return <TasksPageSkeleton viewMode={viewMode} compact={compact} />;
+  // The server has no window: the skeleton's own toolbar height until hydration.
+  const toolbarMinHeight = useSyncExternalStore(
+    subscribe,
+    readTasksToolbarHeight,
+    () => null,
+  );
+
+  return (
+    <TasksPageSkeleton
+      viewMode={viewMode}
+      compact={compact}
+      toolbarMinHeight={toolbarMinHeight}
+    />
+  );
 }
