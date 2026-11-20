@@ -74,7 +74,7 @@ Shown in the agent selection UI. All fields optional.
   "llm": ["GPT-4o", "Claude 3.5 Sonnet"],
   "hosting": "EU · Frankfurt",
   "capabilities": ["Market Research", "Copywriting"],
-  "examples": ["Plan a multi-channel campaign"]
+  "examples": ["Can you plan our next campaign?"]
 }
 ```
 
@@ -84,6 +84,12 @@ Shown in the agent selection UI. All fields optional.
 | `hosting`      | string   | A chip with an auto-detected region flag           |
 | `capabilities` | string[] | Capability tags                                    |
 | `examples`     | string[] | Example prompts                                    |
+
+`examples` are chat starters. An empty chat with the coworker offers the first
+three as buttons, and a click puts the text in the message box as written. Write
+each one as one short sentence or question someone would type in chat (about 40
+characters), in the coworker's own field. Without `examples`, the chat falls
+back to the offers' full `prompt` text, which is written for a task, not a chat.
 
 ### Model icons are automatic
 
