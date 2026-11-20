@@ -6,7 +6,7 @@ The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the s
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Since 2026-11-17 the app follows the landing page's look (thick lines, larger hard shadows, pills), which the canvas does not show. Where a board and this file disagree, this file wins.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
 - **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` is exempt because it draws the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) and `/design-system/app/<view>` (chat, strategy, calendar, seo, results, competitors, brain, channels, settings; competitors also takes `?state=empty` and `?state=loading`) render each real screen over fixture data (`?theme=dark` pins the theme).
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) `/design-system/app/<view>` (chat, strategy, calendar, seo, results, competitors, brain, channels, settings; competitors also takes `?state=empty` and `?state=loading`) and `/design-system/pages/<page>` (signed-in, invite-only, sign-in-problem, name-setup, error) render each real screen over fixture data (`?theme=dark` pins the theme). The Logo section shows every lockup in use.
 
 ## Five rules
 
@@ -83,7 +83,16 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Components
 
-**Logo.** The approved stacked-text lockup from the Masumi Family Brand Guide (`src/components/logo.tsx`, files in `public/logo/`): the mascot beside "CMO .XYZ" on two lines. The black file on a light page, the white one on a dark page; never recoloured, stretched or given effects. 46px tall in a header, which is 121px wide; a lockup with the mascot is never narrower than 120px. The favicon and app icon are the guide's Iris monogram.
+**Logo.** Approved lockups from the Masumi Family Brand Guide (`Logo` in `src/components/logo.tsx`, files copied unchanged into `public/logo/`), each only on the background the guide approves for it: the file for white on a light page, the file for black on a dark page. Never recoloured, stretched, outlined or given a shadow; a lockup with the mascot is never narrower than 120px. Only `Logo` names the files.
+
+| Lockup  | Where                                       | Light page                 | Dark page            |
+| ------- | ------------------------------------------- | -------------------------- | -------------------- |
+| Stacked | the header, 46px tall (121px wide)          | `stacked-text-black`       | `stacked-text-white` |
+| Primary | beside the lead of the pages around sign in | `mascot-top-outline-black` | `mascot-top-white`   |
+| Framed  | the 404                                     | `framed-black`             | `framed-white`       |
+| Block   | the error page ("Something went wrong.")    | `block-black`              | `block-white`        |
+
+A page that leads with a lockup (the hero pages) hides the header's, so one logo shows at a time: 440px wide beside the copy, 220px above it on a phone. The knockout block's letters are the page showing through, which is why it sits only on the page colour. The favicon and app icon are the guide's Iris monogram. The guide's lockups on Iris stay out of the app until a page puts a logo on an Iris surface.
 
 **Header (onboarding).** Logo left, step markers centre, the site chip right (a pill: green 8px dot with a line edge, then the domain). A 3px ink line below, 14px 32px padding.
 
@@ -169,4 +178,4 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 Raise these with the guide owner rather than drifting further.
 
-Last updated: 2026-11-19
+Last updated: 2026-11-20

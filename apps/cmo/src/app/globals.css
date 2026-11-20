@@ -135,7 +135,7 @@ body {
   padding: 24px 16px;
 }
 
-/* The CMO.XYZ lockup (design-system.md, Logo): the black file on a light page, the white one on a dark page. 46px tall is 121px wide, above the brand guide's 120px minimum. */
+/* The CMO.XYZ lockups (design-system.md, Logo): the file approved on white on a light page, the one approved on black on a dark page. The header's is 46px tall, 121px wide, above the brand guide's 120px minimum. */
 .logo {
   display: inline-flex;
 }
@@ -173,6 +173,7 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
+  align-content: center;
   gap: 32px;
   width: 100%;
   max-width: 1120px;
@@ -188,12 +189,24 @@ body {
   max-width: 560px;
 }
 
-/* Small on a phone, so the copy and both buttons fit on the first screen. */
-.hero .hero-mascot {
+/*
+ * A page that leads with a lockup (sign in, error, 404) shows it in place of
+ * the header's. Small on a phone, so the copy and both buttons fit on the
+ * first screen, and never under the guide's 120px.
+ */
+body:has(.hero-logo) > .site-header {
+  display: none;
+}
+
+.hero .hero-logo {
   order: -1;
   justify-self: center;
-  width: min(170px, 45vw);
-  margin-bottom: 0;
+  width: max(120px, min(220px, 55vw));
+}
+
+.hero .hero-logo img {
+  width: 100%;
+  height: auto;
 }
 
 @media (min-width: 900px) {
@@ -202,10 +215,9 @@ body {
     gap: 48px;
   }
 
-  .hero .hero-mascot {
+  .hero .hero-logo {
     order: 0;
-    width: min(480px, 100%);
-    margin-bottom: 48px;
+    width: min(440px, 100%);
   }
 }
 
@@ -408,23 +420,6 @@ button[aria-busy="true"] {
   font-size: 1rem;
   font-weight: 600;
   overflow-wrap: anywhere;
-}
-
-/* The circle is a frame: a radius on the image itself would clip the drawing. */
-.mascot {
-  display: grid;
-  place-items: center;
-  margin-bottom: 48px;
-  aspect-ratio: 1;
-  border: var(--line-width) solid var(--line);
-  border-radius: 50%;
-  background: var(--stage);
-}
-
-.mascot img {
-  width: 72%;
-  height: 72%;
-  object-fit: contain;
 }
 
 @media (prefers-reduced-motion: reduce) {
