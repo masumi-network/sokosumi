@@ -1,19 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  fireEvent,
-  render as rtlRender,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import type { ReactElement } from "react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
-import { TestQueryProvider } from "@/test/query-provider";
-
-function render(ui: ReactElement) {
-  return rtlRender(ui, { wrapper: TestQueryProvider });
-}
 
 vi.mock("next/image", () => ({
   __esModule: true,
@@ -237,39 +225,5 @@ describe("FileChipWithMetadata", () => {
         "https://files.example/abcdef012345#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
       );
     });
-  });
-
-  it("retries HEAD metadata on remount after a transient failure instead of caching null", async () => {
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    fetchMock
-      .mockRejectedValueOnce(new Error("transient network error"))
-      .mockResolvedValueOnce({
-        ok: true,
-        headers: createHeaders({
-          "content-disposition": 'attachment; filename="recovered.pdf"',
-          "content-length": "2048",
-          "content-type": "application/pdf",
-        }),
-      });
-
-    const first = rtlRender(
-      <QueryClientProvider client={client}>
-        <FileChipWithMetadata url="https://files.example/transient.pdf" />
-      </QueryClientProvider>,
-    );
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    first.unmount();
-
-    rtlRender(
-      <QueryClientProvider client={client}>
-        <FileChipWithMetadata url="https://files.example/transient.pdf" />
-      </QueryClientProvider>,
-    );
-    await waitFor(() => {
-      expect(screen.getByText("recovered.pdf")).toBeInTheDocument();
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

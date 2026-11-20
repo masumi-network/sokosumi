@@ -4,9 +4,8 @@ import {
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,
 } from "@sokosumi/utils";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
@@ -22,67 +21,40 @@ import type {
 } from "../types";
 import { inferOAuthApplicationType } from "../utils";
 
-const OAUTH_CLIENTS_QUERY_KEY = ["developer", "oauth-clients"] as const;
-
 export function useOAuthClients(): UseOAuthClientsReturn {
   const t = useTranslations("App.Account.OAuthClients");
-  const queryClient = useQueryClient();
-  const [isManualInitialRefresh, setIsManualInitialRefresh] = useState(false);
-
-  const clientsQuery = useQuery({
-    queryKey: OAUTH_CLIENTS_QUERY_KEY,
-    retry: false,
-    staleTime: 0,
-    gcTime: 0,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: async (): Promise<OAuthClientRecord[]> => {
-      let result: Awaited<ReturnType<typeof authClient.oauth2.getClients>>;
-      try {
-        result = await authClient.oauth2.getClients();
-      } catch {
-        const errorMessage = t("Messages.loadError");
-        toast.error(errorMessage);
-        throw new Error(errorMessage);
-      }
-
-      if (result.error) {
-        const errorMessage = result.error.message ?? t("Messages.loadError");
-        toast.error(errorMessage);
-        throw new Error(errorMessage);
-      }
-
-      return result.data ?? [];
-    },
-  });
-
-  const clients = clientsQuery.data ?? [];
-  const isInitialLoading = clientsQuery.isPending || isManualInitialRefresh;
-  const error = clientsQuery.isFetching
-    ? null
-    : clientsQuery.isError
-      ? clientsQuery.error instanceof Error
-        ? clientsQuery.error.message
-        : t("Messages.loadError")
-      : null;
-
-  const { refetch: refetchClients } = clientsQuery;
+  const [clients, setClients] = useState<OAuthClientRecord[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(
     async (isInitial = false) => {
       if (isInitial) {
-        setIsManualInitialRefresh(true);
+        setIsInitialLoading(true);
       }
+      setError(null);
+
       try {
-        await queryClient.cancelQueries({ queryKey: OAUTH_CLIENTS_QUERY_KEY });
-        await refetchClients();
+        const result = await authClient.oauth2.getClients();
+        if (result.error) {
+          const errorMessage = result.error.message ?? t("Messages.loadError");
+          setError(errorMessage);
+          toast.error(errorMessage);
+          return;
+        }
+
+        setClients(result.data ?? []);
+      } catch {
+        const errorMessage = t("Messages.loadError");
+        setError(errorMessage);
+        toast.error(errorMessage);
       } finally {
         if (isInitial) {
-          setIsManualInitialRefresh(false);
+          setIsInitialLoading(false);
         }
       }
     },
-    [queryClient, refetchClients],
+    [t],
   );
 
   const create = useCallback(
@@ -120,29 +92,14 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         }
 
         if (result.data) {
-          const createdClient = result.data;
-          await queryClient.cancelQueries({
-            queryKey: OAUTH_CLIENTS_QUERY_KEY,
-          });
-          queryClient.setQueryData<OAuthClientRecord[]>(
-            OAUTH_CLIENTS_QUERY_KEY,
-            (current) => {
-              const existing = current ?? [];
-              return existing.some(
-                (client) => client.client_id === createdClient.client_id,
-              )
-                ? existing
-                : [...existing, createdClient];
-            },
-          );
           toast.success(t("Messages.createSuccess"));
           // Reveal credentials immediately; list refresh is non-blocking.
           void refresh();
           return {
             ok: true,
             value: {
-              clientId: createdClient.client_id,
-              clientSecret: createdClient.client_secret ?? null,
+              clientId: result.data.client_id,
+              clientSecret: result.data.client_secret ?? null,
             },
           };
         }
@@ -162,7 +119,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         };
       }
     },
-    [queryClient, refresh, t],
+    [refresh, t],
   );
 
   const update = useCallback(
@@ -212,19 +169,6 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         }
 
         if (result.data) {
-          const updatedClient = result.data;
-          await queryClient.cancelQueries({
-            queryKey: OAUTH_CLIENTS_QUERY_KEY,
-          });
-          queryClient.setQueryData<OAuthClientRecord[]>(
-            OAUTH_CLIENTS_QUERY_KEY,
-            (current) =>
-              (current ?? []).map((client) =>
-                client.client_id === data.clientId
-                  ? { ...client, ...updatedClient }
-                  : client,
-              ),
-          );
           toast.success(t("Messages.updateSuccess"));
           await refresh();
           return true;
@@ -237,7 +181,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         return false;
       }
     },
-    [queryClient, refresh, t],
+    [refresh, t],
   );
 
   const deleteClient = useCallback(
@@ -252,14 +196,6 @@ export function useOAuthClients(): UseOAuthClientsReturn {
           return false;
         }
 
-        await queryClient.cancelQueries({ queryKey: OAUTH_CLIENTS_QUERY_KEY });
-        queryClient.setQueryData<OAuthClientRecord[]>(
-          OAUTH_CLIENTS_QUERY_KEY,
-          (current) =>
-            (current ?? []).filter(
-              (client) => client.client_id !== data.clientId,
-            ),
-        );
         toast.success(t("Messages.deleteSuccess"));
         await refresh();
         return true;
@@ -268,7 +204,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         return false;
       }
     },
-    [queryClient, refresh, t],
+    [refresh, t],
   );
 
   const rotateSecret = useCallback(
@@ -320,6 +256,10 @@ export function useOAuthClients(): UseOAuthClientsReturn {
     },
     [refresh, t],
   );
+
+  useEffect(() => {
+    void refresh(true);
+  }, [refresh]);
 
   return {
     clients,

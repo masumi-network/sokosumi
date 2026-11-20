@@ -1,16 +1,7 @@
-import {
-  act,
-  renderHook as rtlRenderHook,
-  waitFor,
-} from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useApiKeys } from "@/app/developer/components/api-keys/hooks/use-api-keys";
-import { TestQueryProvider } from "@/test/query-provider";
-
-function renderHook<Result>(callback: () => Result) {
-  return rtlRenderHook(callback, { wrapper: TestQueryProvider });
-}
 
 const listMock = vi.fn();
 const createMock = vi.fn();
@@ -200,87 +191,5 @@ describe("useApiKeys", () => {
 
     expect(result.current.apiKeys[0]?.enabled).toBe(true);
     expect(toast.error).toHaveBeenCalledWith("update failed");
-  });
-
-  it("keeps optimistic Disabled when the follow-up list refetch fails", async () => {
-    listMock
-      .mockResolvedValueOnce({
-        data: { apiKeys: [makeApiKey("key-1")], total: 1 },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: null,
-        error: { message: "list failed" },
-      });
-    updateMock.mockResolvedValueOnce({
-      data: { ...makeApiKey("key-1"), enabled: false },
-      error: null,
-    });
-
-    const { result } = renderHook(() => useApiKeys());
-    await waitFor(() => {
-      expect(result.current.isInitialLoading).toBe(false);
-    });
-
-    await act(async () => {
-      await result.current.update({ keyId: "key-1", enabled: false });
-    });
-
-    expect(result.current.apiKeys[0]?.enabled).toBe(false);
-  });
-
-  it("cancels an in-flight pre-write list before post-delete refetch so stale data cannot restore the deleted key", async () => {
-    let finishStaleRefresh: (value: unknown) => void = () => {};
-    let finishPostDeleteRefresh: (value: unknown) => void = () => {};
-    listMock
-      .mockResolvedValueOnce({
-        data: { apiKeys: [makeApiKey("key-1")], total: 1 },
-        error: null,
-      })
-      .mockImplementationOnce(
-        () => new Promise((resolve) => (finishStaleRefresh = resolve)),
-      )
-      .mockImplementationOnce(
-        () => new Promise((resolve) => (finishPostDeleteRefresh = resolve)),
-      );
-    deleteMock.mockResolvedValueOnce({ data: { success: true }, error: null });
-
-    const { result } = renderHook(() => useApiKeys());
-    await waitFor(() => {
-      expect(result.current.isInitialLoading).toBe(false);
-    });
-
-    // Start a pre-write refresh that stays in flight across the delete.
-    let staleRefreshPromise: Promise<void> = Promise.resolve();
-    act(() => {
-      staleRefreshPromise = result.current.refresh();
-    });
-    await waitFor(() => {
-      expect(listMock).toHaveBeenCalledTimes(2);
-    });
-
-    let deletePromise: Promise<boolean> = Promise.resolve(false);
-    act(() => {
-      deletePromise = result.current.delete({ keyId: "key-1" });
-    });
-
-    // Must cancel the pre-write list and issue a fresh third list call.
-    await waitFor(() => {
-      expect(listMock).toHaveBeenCalledTimes(3);
-    });
-
-    await act(async () => {
-      finishPostDeleteRefresh({ data: { apiKeys: [], total: 0 }, error: null });
-      await deletePromise;
-    });
-    await act(async () => {
-      finishStaleRefresh({
-        data: { apiKeys: [makeApiKey("key-1")], total: 1 },
-        error: null,
-      });
-      await staleRefreshPromise;
-    });
-
-    expect(result.current.apiKeys).toEqual([]);
   });
 });

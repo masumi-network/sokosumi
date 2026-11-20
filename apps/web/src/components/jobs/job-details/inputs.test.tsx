@@ -1,13 +1,7 @@
-import { render as rtlRender, screen, waitFor } from "@testing-library/react";
-import type { ReactElement } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import JobDetailsInputs from "@/components/jobs/job-details/inputs";
-import { TestQueryProvider } from "@/test/query-provider";
-
-function render(ui: ReactElement) {
-  return rtlRender(ui, { wrapper: TestQueryProvider });
-}
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,

@@ -1,8 +1,7 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
@@ -17,81 +16,42 @@ import type {
 } from "../types";
 import { getToggleActionText } from "../utils";
 
-const API_KEYS_QUERY_KEY = ["developer", "api-keys"] as const;
-
 export function useApiKeys(): UseApiKeysReturn {
   const t = useTranslations("App.Account.ApiKeys");
-  const queryClient = useQueryClient();
-  const [isManualInitialRefresh, setIsManualInitialRefresh] = useState(false);
-  const [optimisticEnabled, setOptimisticEnabled] = useState<
-    Record<string, boolean>
-  >({});
+  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   // Keys with a toggle on the wire. A second click on one is dropped until
   // the first has its answer, so two requests for one key cannot cross.
   const updatingKeyIds = useRef(new Set<string>());
 
-  const apiKeysQuery = useQuery({
-    queryKey: API_KEYS_QUERY_KEY,
-    retry: false,
-    staleTime: 0,
-    gcTime: 0,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: async (): Promise<ApiKeyRecord[]> => {
-      try {
-        const result = await authClient.apiKey.list();
-        if (result.data) {
-          return result.data.apiKeys;
-        }
-        const errorMessage = t("Messages.loadError");
-        toast.error(errorMessage);
-        throw new Error(errorMessage);
-      } catch (err) {
-        if (err instanceof Error && err.message === t("Messages.loadError")) {
-          throw err;
-        }
-        const errorMessage = t("Messages.loadError");
-        toast.error(errorMessage);
-        throw new Error(errorMessage);
-      }
-    },
-  });
-
-  const apiKeys = useMemo(
-    () =>
-      (apiKeysQuery.data ?? []).map((key) =>
-        key.id in optimisticEnabled
-          ? { ...key, enabled: optimisticEnabled[key.id] }
-          : key,
-      ),
-    [apiKeysQuery.data, optimisticEnabled],
-  );
-  const isInitialLoading = apiKeysQuery.isPending || isManualInitialRefresh;
-  const error = apiKeysQuery.isFetching
-    ? null
-    : apiKeysQuery.isError
-      ? apiKeysQuery.error instanceof Error
-        ? apiKeysQuery.error.message
-        : t("Messages.loadError")
-      : null;
-
-  const { refetch: refetchApiKeys } = apiKeysQuery;
-
   const refresh = useCallback(
     async (isInitial = false) => {
       if (isInitial) {
-        setIsManualInitialRefresh(true);
+        setIsInitialLoading(true);
       }
+      setError(null);
+
       try {
-        await queryClient.cancelQueries({ queryKey: API_KEYS_QUERY_KEY });
-        await refetchApiKeys();
+        const result = await authClient.apiKey.list();
+        if (result.data) {
+          setApiKeys(result.data.apiKeys);
+        } else {
+          const errorMessage = t("Messages.loadError");
+          setError(errorMessage);
+          toast.error(errorMessage);
+        }
+      } catch {
+        const errorMessage = t("Messages.loadError");
+        setError(errorMessage);
+        toast.error(errorMessage);
       } finally {
         if (isInitial) {
-          setIsManualInitialRefresh(false);
+          setIsInitialLoading(false);
         }
       }
     },
-    [queryClient, refetchApiKeys],
+    [t],
   );
 
   const create = useCallback(
@@ -102,24 +62,13 @@ export function useApiKeys(): UseApiKeysReturn {
         });
 
         if (result.data) {
-          const { key: createdKey, ...createdRecord } = result.data;
-          await queryClient.cancelQueries({ queryKey: API_KEYS_QUERY_KEY });
-          queryClient.setQueryData<ApiKeyRecord[]>(
-            API_KEYS_QUERY_KEY,
-            (current) => {
-              const existing = current ?? [];
-              return existing.some((item) => item.id === createdRecord.id)
-                ? existing
-                : [...existing, createdRecord];
-            },
-          );
           toast.success(t("Messages.createSuccess"));
           // Reveal the one-time key immediately; list refresh is non-blocking.
           void refresh();
           return {
             ok: true,
             value: {
-              key: createdKey,
+              key: result.data.key,
             },
           };
         } else {
@@ -144,7 +93,7 @@ export function useApiKeys(): UseApiKeysReturn {
         };
       }
     },
-    [queryClient, refresh, t],
+    [refresh, t],
   );
 
   const update = useCallback(
@@ -154,15 +103,11 @@ export function useApiKeys(): UseApiKeysReturn {
       }
       updatingKeyIds.current.add(data.keyId);
       const setEnabled = (enabled: boolean) =>
-        setOptimisticEnabled((current) => ({
-          ...current,
-          [data.keyId]: enabled,
-        }));
-      const clearOptimistic = () =>
-        setOptimisticEnabled((current) => {
-          const { [data.keyId]: _dropped, ...rest } = current;
-          return rest;
-        });
+        setApiKeys((keys) =>
+          keys.map((key) =>
+            key.id === data.keyId ? { ...key, enabled } : key,
+          ),
+        );
       // Show the new status at once; a failure puts the old one back.
       setEnabled(data.enabled);
       try {
@@ -173,32 +118,23 @@ export function useApiKeys(): UseApiKeysReturn {
 
         if (result.data) {
           const action = getToggleActionText(!data.enabled);
-          await queryClient.cancelQueries({ queryKey: API_KEYS_QUERY_KEY });
-          queryClient.setQueryData<ApiKeyRecord[]>(
-            API_KEYS_QUERY_KEY,
-            (current) =>
-              (current ?? []).map((key) =>
-                key.id === data.keyId ? { ...key, enabled: data.enabled } : key,
-              ),
-          );
-          clearOptimistic();
           toast.success(t("Messages.updateSuccess", { action }));
           await refresh();
           return true;
         } else {
-          clearOptimistic();
+          setEnabled(!data.enabled);
           toast.error(result.error?.message ?? t("Messages.updateError"));
           return false;
         }
       } catch {
-        clearOptimistic();
+        setEnabled(!data.enabled);
         toast.error(t("Messages.updateError"));
         return false;
       } finally {
         updatingKeyIds.current.delete(data.keyId);
       }
     },
-    [queryClient, refresh, t],
+    [refresh, t],
   );
 
   const deleteApiKey = useCallback(
@@ -209,11 +145,6 @@ export function useApiKeys(): UseApiKeysReturn {
         });
 
         if (result.data) {
-          await queryClient.cancelQueries({ queryKey: API_KEYS_QUERY_KEY });
-          queryClient.setQueryData<ApiKeyRecord[]>(
-            API_KEYS_QUERY_KEY,
-            (current) => (current ?? []).filter((key) => key.id !== data.keyId),
-          );
           toast.success(t("Messages.deleteSuccess"));
           await refresh();
           return true;
@@ -226,8 +157,12 @@ export function useApiKeys(): UseApiKeysReturn {
         return false;
       }
     },
-    [queryClient, refresh, t],
+    [refresh, t],
   );
+
+  useEffect(() => {
+    refresh(true);
+  }, [refresh]);
 
   return {
     apiKeys,
