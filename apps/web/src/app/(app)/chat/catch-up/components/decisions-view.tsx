@@ -4,7 +4,7 @@ import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { Gavel } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffectEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
 import { messageSender } from "@/app/chat/components/room-helpers";
@@ -70,10 +70,7 @@ export function DecisionsView({
     setMessages(initialPage?.messages ?? []);
     setNextCursor(initialPage?.nextCursor ?? null);
   }
-  const currentPage = useRef(initialPage);
-  useEffect(() => {
-    currentPage.current = initialPage;
-  }, [initialPage]);
+  const getCurrentPage = useEffectEvent(() => initialPage);
   const [loadingOlder, setLoadingOlder] = useState(false);
 
   // Live rooms are the reader's access now: a decision whose room left the
@@ -107,7 +104,7 @@ export function DecisionsView({
     const result = await listChatDecisionsAction(nextCursor);
     setLoadingOlder(false);
     // The scope changed while this page was out: it belongs to the old list.
-    if (currentPage.current !== startedOn) return;
+    if (getCurrentPage() !== startedOn) return;
     if (!result.ok) {
       toast.error(result.error.message);
       return;

@@ -46,7 +46,12 @@ describe("useIntentPrefetch", () => {
     [
       "a drag",
       () =>
-        document.dispatchEvent(new PointerEvent("pointermove", { buttons: 1 })),
+        document.dispatchEvent(
+          new PointerEvent("pointermove", {
+            buttons: 1,
+            pointerType: "mouse",
+          }),
+        ),
     ],
   ])(
     "does not take %s under the cursor for an approach",
@@ -75,7 +80,11 @@ describe("useIntentPrefetch", () => {
     const under = vi.fn((_x: number, _y: number): Element | null => link);
     document.elementFromPoint = under;
     document.dispatchEvent(
-      new PointerEvent("pointermove", { clientX: 40, clientY: 60 }),
+      new PointerEvent("pointermove", {
+        clientX: 40,
+        clientY: 60,
+        pointerType: "mouse",
+      }),
     );
 
     document.dispatchEvent(new Event("scroll"));
@@ -100,6 +109,7 @@ describe("useIntentPrefetch", () => {
             clientX: 40,
             clientY: 60,
             buttons: 1,
+            pointerType: "mouse",
           }),
         ),
     ],
@@ -119,7 +129,11 @@ describe("useIntentPrefetch", () => {
       const under = vi.fn((x: number, _y: number) => (x === 40 ? link : null));
       document.elementFromPoint = under;
       document.dispatchEvent(
-        new PointerEvent("pointermove", { clientX: 40, clientY: 60 }),
+        new PointerEvent("pointermove", {
+          clientX: 40,
+          clientY: 60,
+          pointerType: "mouse",
+        }),
       );
 
       leave();
@@ -138,7 +152,11 @@ describe("useIntentPrefetch", () => {
     const link = screen.getByRole("link");
     document.elementFromPoint = () => link;
     document.dispatchEvent(
-      new PointerEvent("pointermove", { clientX: 40, clientY: 60 }),
+      new PointerEvent("pointermove", {
+        clientX: 40,
+        clientY: 60,
+        pointerType: "mouse",
+      }),
     );
 
     document.dispatchEvent(new Event("scroll"));

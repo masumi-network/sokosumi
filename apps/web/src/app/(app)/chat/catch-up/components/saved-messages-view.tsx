@@ -4,7 +4,7 @@ import type { ChatRoom, ChatSavedMessageListItem } from "@sokosumi/core-client";
 import { Bookmark, BookmarkX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffectEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listSavedMessagesAction,
@@ -73,10 +73,7 @@ export function SavedMessagesView({
     setItems(initialPage?.items ?? []);
     setNextCursor(initialPage?.nextCursor ?? null);
   }
-  const currentPage = useRef(initialPage);
-  useEffect(() => {
-    currentPage.current = initialPage;
-  }, [initialPage]);
+  const getCurrentPage = useEffectEvent(() => initialPage);
 
   const [loadingOlder, setLoadingOlder] = useState(false);
   // Saves with an unsave on its way to Core. They are off the list at once
@@ -135,7 +132,7 @@ export function SavedMessagesView({
     const result = await listSavedMessagesAction(nextCursor);
     setLoadingOlder(false);
     // The scope changed while this page was out: it belongs to the old list.
-    if (currentPage.current !== startedOn) return;
+    if (getCurrentPage() !== startedOn) return;
     if (!result.ok) {
       toast.error(result.error.message);
       return;

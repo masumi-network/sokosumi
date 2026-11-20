@@ -16,6 +16,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -565,10 +566,7 @@ export function useTasksViewModel({
     () => ({ filters: serverTasksFiltersResetKey, viewMode }),
     [serverTasksFiltersResetKey, viewMode],
   );
-  const pagingContextRef = useRef(pagingContext);
-  useLayoutEffect(() => {
-    pagingContextRef.current = pagingContext;
-  }, [pagingContext]);
+  const getPagingContext = useEffectEvent(() => pagingContext);
 
   const handleLoadMoreColumn = useCallback(
     async (columnId: KanbanColumnId) => {
@@ -590,7 +588,7 @@ export function useTasksViewModel({
           // Same order as the first page, or the cursor skips Tasks.
           sort: effectiveTasksSort(routeFilters.sort, "board"),
         });
-        if (pagingContextRef.current !== pagingContext) return;
+        if (getPagingContext() !== pagingContext) return;
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
         setColumnHiddenById((prev) => ({
@@ -608,7 +606,7 @@ export function useTasksViewModel({
           [columnId]: nextCursor,
         };
       } catch {
-        if (pagingContextRef.current !== pagingContext) return;
+        if (getPagingContext() !== pagingContext) return;
         setColumnCursorById((prev) => ({
           ...prev,
           [columnId]: null,
@@ -619,7 +617,7 @@ export function useTasksViewModel({
         };
         toast.error(labels.loadMoreError);
       } finally {
-        if (pagingContextRef.current === pagingContext) {
+        if (getPagingContext() === pagingContext) {
           const afterLoading = new Set(loadingColumnIdsRef.current);
           afterLoading.delete(columnId);
           loadingColumnIdsRef.current = afterLoading;
@@ -644,18 +642,18 @@ export function useTasksViewModel({
         cursor,
         ...routeFilters,
       });
-      if (pagingContextRef.current !== pagingContext) return;
+      if (getPagingContext() !== pagingContext) return;
       setItems((prev) => appendUniqueTasks(prev, result.tasks));
       const nextCursor = result.nextCursor;
       setListCursor(nextCursor);
       listCursorRef.current = nextCursor;
     } catch {
-      if (pagingContextRef.current !== pagingContext) return;
+      if (getPagingContext() !== pagingContext) return;
       setListCursor(null);
       listCursorRef.current = null;
       toast.error(labels.loadMoreError);
     } finally {
-      if (pagingContextRef.current === pagingContext) {
+      if (getPagingContext() === pagingContext) {
         isLoadingListMoreRef.current = false;
         setIsLoadingListMore(false);
       }
