@@ -1807,3 +1807,142 @@ export async function cmoDistinctClaims(
   }
   return { claims, costUsd: costUsd + asked };
 }
+
+const pointGroupsSchema = z.object({
+  groups: z.array(z.object({ point: z.string(), pieces: z.array(z.string()) })),
+});
+
+/**
+ * The pieces past the third that argue a point the month already makes,
+ * across every network. Embeddings cannot tell a point from a topic: on
+ * NMKR's month "Show the fee early", "Show the Fee Up Front", "Show fees
+ * before choosing" and "Plan fees before scope" scored 0.59 to 0.82, below
+ * the same-point cutoff and among different points, so a model groups them.
+ */
+async function samePoint(
+  pieces: MarketingStrategyPlan["calendar"],
+  ask: AskCompetitorModel,
+): Promise<{
+  overflow: MarketingStrategyPlan["calendar"];
+  points: string[];
+  costUsd: number;
+}> {
+  if (pieces.length <= MAX_CLAIM_PIECES)
+    return { overflow: [], points: [], costUsd: 0 };
+  const key = (index: number) => `c${index}`;
+  try {
+    const { output, costUsd } = await ask({
+      system:
+        "You read a marketing month's claims and find the points it makes too often. Two claims make the same point when a reader would say they say one thing, whatever the words or the network.",
+      prompt: [
+        "Claims, by key:",
+        ...pieces.map((entry, index) => `${key(index)}: ${entry.claim}`),
+        "",
+        `List only the points that more than ${MAX_CLAIM_PIECES} claims make, each with the keys of every claim that makes it. Leave out every point ${MAX_CLAIM_PIECES} or fewer claims make.`,
+      ].join("\n"),
+      schema: pointGroupsSchema,
+    });
+    const byKey = new Map(pieces.map((entry, index) => [key(index), entry]));
+    const order = new Map(pieces.map((entry, index) => [entry.id, index]));
+    const overflow = output.groups.flatMap((group) =>
+      group.pieces
+        .flatMap((piece) => byKey.get(piece.trim()) ?? [])
+        .sort(
+          (left, right) =>
+            left.date.localeCompare(right.date) ||
+            (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0),
+        )
+        .slice(MAX_CLAIM_PIECES),
+    );
+    return {
+      overflow,
+      points: output.groups.map((group) => group.point),
+      costUsd,
+    };
+  } catch {
+    return { overflow: [], points: [], costUsd: 0 };
+  }
+}
+
+const respreadSchema = z.object({
+  pieces: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      brief: z.string(),
+      claim: z.string(),
+    }),
+  ),
+});
+
+/** A piece Core moved onto a point of its own. */
+export interface CmoRespreadPiece {
+  title: string;
+  brief: string;
+  claim: string;
+}
+
+/**
+ * New points for the pieces past the third on one point, across every
+ * network (cmo-v8): each gets its own title, brief and claim within its
+ * pillar, from the given facts only. Rewording a claim alone kept the point
+ * ("Displaying fees upfront allows teams to commit…" for a fees piece).
+ */
+export async function cmoSpreadPoints(
+  calendar: MarketingStrategyPlan["calendar"],
+  facts: readonly string[],
+  ask: AskCompetitorModel = askCompetitorModel,
+): Promise<{ pieces: Map<string, CmoRespreadPiece>; costUsd: number }> {
+  const pieces = arguing(calendar).filter((entry) => entry.claim?.trim());
+  const { overflow, points, costUsd } = await samePoint(pieces, ask);
+  const redo = overflow.slice(0, MAX_CLAIM_REWRITES);
+  if (redo.length === 0) return { pieces: new Map(), costUsd };
+  const ids = new Set(redo.map((entry) => entry.id));
+  const batches = Array.from(
+    { length: Math.ceil(redo.length / CLAIMS_PER_CALL) },
+    (_, index) =>
+      redo.slice(index * CLAIMS_PER_CALL, (index + 1) * CLAIMS_PER_CALL),
+  );
+  const answers = await Promise.all(
+    batches.map((batch) =>
+      ask({
+        system:
+          "You move pieces of a marketing month onto points of their own. For each piece write a new title (at most 10 words, sentence case), a one-line brief and a claim (one short sentence in plain words a reader can agree or disagree with), within its pillar and its approach, in the language of its title. Use only the facts listed: never add a customer, a number, a quote or a result they do not name, and never build a piece on a complaint or a critical review of the business.",
+        prompt: [
+          "Points the month already makes enough (give no piece any of them, not in other words):",
+          ...points.map((point) => `- ${point}`),
+          "",
+          "Facts you may use:",
+          ...facts.map((fact) => `- ${fact}`),
+          "",
+          "Give each of these pieces, by its id, a different point from the others in this list too:",
+          JSON.stringify(
+            batch.map((entry) => ({
+              id: entry.id,
+              channel: entry.channel,
+              format: entry.format,
+              pillar: entry.pillar,
+              approach: entry.approach,
+              title: entry.title,
+            })),
+          ),
+        ].join("\n"),
+        schema: respreadSchema,
+      }).catch(() => null),
+    ),
+  );
+  const moved = new Map<string, CmoRespreadPiece>();
+  let asked = 0;
+  for (const answer of answers) {
+    if (!answer) continue;
+    asked += answer.costUsd;
+    for (const piece of answer.output.pieces)
+      if (ids.has(piece.id) && piece.title.trim() && piece.claim.trim())
+        moved.set(piece.id, {
+          title: piece.title.trim().slice(0, 400),
+          brief: piece.brief.trim().slice(0, 400),
+          claim: piece.claim.trim().slice(0, 400),
+        });
+  }
+  return { pieces: moved, costUsd: costUsd + asked };
+}

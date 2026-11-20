@@ -33,6 +33,7 @@ import {
   cmoRejectedTerms,
   cmoReplySafety,
   cmoSideChannelFit,
+  cmoSpreadPoints,
   cmoStrategyRules,
   cmoTopVolumeProblems,
   cmoWithOwnerPace,
@@ -1953,6 +1954,74 @@ describe("cmoDistinctClaims", () => {
     );
     expect(claims.size).toBe(0);
     expect(ask).not.toHaveBeenCalled();
+  });
+});
+
+// cmo-v8: NMKR's month argued "show the fee early" in 11 pieces across
+// four networks, each worded its own way.
+describe("cmoSpreadPoints", () => {
+  const entry = (id: string, date: string, claim: string) => ({
+    id,
+    date,
+    channel: id.startsWith("x") ? "x" : "linkedin",
+    format: "post",
+    title: `Title ${id}`,
+    status: "idea" as const,
+    pillar: "Fees",
+    claim,
+  });
+  const calendar = [
+    entry("x1", "2026-11-02", "Show the fee early"),
+    entry("li1", "2026-11-03", "Fees belong up front"),
+    entry("x2", "2026-11-09", "Put the fee before the choice"),
+    entry("li2", "2026-11-16", "A clear fee builds trust"),
+    entry("x3", "2026-11-23", "Royalties pay artists on resale"),
+  ];
+
+  it("moves the pieces past the third on one point onto points of their own", async () => {
+    const ask = vi.fn(async (input: { prompt: string }) =>
+      input.prompt.startsWith("Claims, by key:")
+        ? {
+            output: {
+              groups: [
+                { point: "Show fees early", pieces: ["c0", "c1", "c2", "c3"] },
+              ],
+            },
+            costUsd: 0.000_2,
+          }
+        : {
+            output: {
+              pieces: [
+                {
+                  id: "li2",
+                  title: "A 150 ADA audit before launch",
+                  brief: "What the project audit checks.",
+                  claim: "An audit catches setup mistakes before the mint",
+                },
+              ],
+            },
+            costUsd: 0.000_3,
+          },
+    );
+    const { pieces, costUsd } = await cmoSpreadPoints(
+      calendar,
+      ["NMKR Studio project audit: 150 ADA"],
+      ask as never,
+    );
+    expect([...pieces.keys()]).toEqual(["li2"]);
+    expect(pieces.get("li2")?.title).toBe("A 150 ADA audit before launch");
+    expect(costUsd).toBeCloseTo(0.000_5);
+    const rewrite = (ask.mock.calls[1] as unknown as [{ prompt: string }])[0]
+      .prompt;
+    expect(rewrite).toContain("- Show fees early");
+    expect(rewrite).toContain("- NMKR Studio project audit: 150 ADA");
+  });
+
+  it("moves nothing when no point is made more than three times", async () => {
+    const ask = vi.fn(async () => ({ output: { groups: [] }, costUsd: 0 }));
+    const { pieces } = await cmoSpreadPoints(calendar, [], ask as never);
+    expect(pieces.size).toBe(0);
+    expect(ask).toHaveBeenCalledTimes(1);
   });
 });
 

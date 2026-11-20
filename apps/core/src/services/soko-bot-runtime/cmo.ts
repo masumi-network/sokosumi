@@ -1,5 +1,6 @@
 import { type Prisma } from "@sokosumi/database";
 import {
+  type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
   cmoStrategySaveClears,
   cmoStrategySavePart,
@@ -57,8 +58,10 @@ import {
   cmoRejectedTerms,
   cmoReplySafety,
   cmoSideChannelFit,
+  cmoSpreadPoints,
   cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
+import { cmoProofPoints } from "@/services/cmo-production.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
 import {
   cmoTurnExecutesPlan,
@@ -255,11 +258,30 @@ export async function reviewCmoPlan(
     plan.versionId &&
     cmoCalendarWeeks(strategy.calendar) >= 4
   ) {
+    // Points the month makes too often, across every network: the later
+    // pieces move onto points of their own, from the Brand Brain's facts.
+    const owner = await prisma.sokoBot.findUnique({
+      where: { id: authorized.turn.sokoBotId },
+      select: { projectId: true },
+    });
+    const facts = owner?.projectId
+      ? cmoPointFacts(
+          parseBrandBrain((await getBrandBrain(owner.projectId))?.body),
+        )
+      : [];
+    const spread = await cmoSpreadPoints(strategy.calendar, facts);
+    await chargeCheck(input, COMPETITOR_CHECK_MODEL, spread.costUsd);
+    if (spread.pieces.size > 0)
+      strategy = await withEntries(plan.versionId, spread.pieces, strategy);
     for (let pass = 0; pass < DISTINCT_CLAIM_PASSES; pass++) {
       const distinct = await cmoDistinctClaims(strategy.calendar);
       await chargeCheck(input, COMPETITOR_CHECK_MODEL, distinct.costUsd);
       if (distinct.claims.size === 0) break;
-      strategy = await withClaims(plan.versionId, distinct.claims, strategy);
+      strategy = await withEntries(
+        plan.versionId,
+        new Map([...distinct.claims].map(([id, claim]) => [id, { claim }])),
+        strategy,
+      );
     }
   }
   if (reviewed >= ruleChecks) return null;
@@ -387,10 +409,25 @@ export async function reviewCmoPlan(
 /** New claims, checked again: a rewrite can land close to another claim. */
 const DISTINCT_CLAIM_PASSES = 3;
 
-/** The saved version with these entries' claims replaced; `fallback` when it is gone. */
-async function withClaims(
+/** What a point needs from the Brand Brain: its proof, products and offers. */
+function cmoPointFacts(brain: BrandBrain | null): string[] {
+  if (!brain) return [];
+  return [
+    ...cmoProofPoints(brain),
+    ...brain.products,
+    ...(brain.offers ?? []).map(
+      (offer) => `${offer.name}: ${offer.what} (${offer.price})`,
+    ),
+  ].slice(0, 60);
+}
+
+/** The saved version with these entries' fields replaced; `fallback` when it is gone. */
+async function withEntries(
   versionId: string,
-  claims: ReadonlyMap<string, string>,
+  changes: ReadonlyMap<
+    string,
+    Partial<MarketingStrategyPlan["calendar"][number]>
+  >,
   fallback: MarketingStrategyPlan,
 ): Promise<MarketingStrategyPlan> {
   const version = await prisma.marketingStrategy.findUnique({
@@ -402,8 +439,8 @@ async function withClaims(
   const plan = {
     ...stored,
     calendar: stored.calendar.map((entry) => {
-      const claim = claims.get(entry.id);
-      return claim ? { ...entry, claim } : entry;
+      const change = changes.get(entry.id);
+      return change ? { ...entry, ...change } : entry;
     }),
   };
   await prisma.marketingStrategy.update({
