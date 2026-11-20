@@ -448,7 +448,7 @@ function SeoAgentPanel({
           variant="outline"
           onClick={() => void model.setFilters({ tab: "actions" })}
         >
-          {report("agent.reviewEvidence", { count: evidence.length })}
+          {t("agent.reviewEvidence", { count: evidence.length })}
         </Button>
       )}
       <SeoAutomation model={model} />

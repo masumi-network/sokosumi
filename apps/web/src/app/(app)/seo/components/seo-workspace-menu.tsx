@@ -121,6 +121,7 @@ export function SeoWorkspaceMenu({
       model.data.auditSearchConsole?.some((e) => e.taskId === v.taskId) ||
       model.data.auditSearchConsoleRetryTaskIds?.includes(v.taskId),
   );
+  if (showResults && !consoleVersions.length) setShowResults(false);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const manageTrigger = useRef<HTMLButtonElement>(null);
   const { auditId, auditName, projectId } = model.data;
