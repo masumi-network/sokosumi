@@ -63,6 +63,11 @@ export function SeoSearchConsoleWarning({
           <DialogTitle>{t("analysis.coverage.title")}</DialogTitle>
           <DialogDescription>
             {t(`analysis.coverage.${mode}`)}
+            {price ? (
+              <span className="text-foreground mt-2 block font-medium">
+                {price}
+              </span>
+            ) : null}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -117,7 +122,6 @@ export function SeoSearchConsoleWarning({
             <p className="text-muted-foreground text-sm">
               {t("analysis.coverage.limitedScope")}
             </p>
-            {price ? <p className="text-sm font-medium">{price}</p> : null}
           </section>
         </div>
         <DialogFooter>
