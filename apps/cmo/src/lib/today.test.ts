@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { cmoOverview, cmoStrategyVersion } from "../test-fixtures/cmo";
-import { dayIn, greeting, monthProgress, needsYou, weekOf } from "./today";
+import {
+  dayIn,
+  greeting,
+  monthEntries,
+  monthProgress,
+  needsYou,
+  weekOf,
+} from "./today";
 
 const approved = cmoStrategyVersion(new Date("2026-10-01T09:00:00Z"));
 
@@ -130,4 +137,16 @@ it("counts the month by where each post stands", () => {
       entry("idea"),
     ]),
   ).toEqual({ out: 2, scheduled: 1, written: 1, planned: 1, total: 5 });
+});
+
+it("leaves out the posts the plan bought does not make, as the Calendar does", () => {
+  const overview = cmoOverview();
+  const ids = (overview.strategy?.calendar ?? []).map((entry) => entry.id);
+  const [beyond, ...made] = ids;
+  if (!beyond) throw new Error("fixture has an entry");
+  const month = monthEntries({
+    ...overview,
+    production: { ...overview.production, beyondPlan: [beyond] },
+  });
+  expect(month.map((entry) => entry.id).sort()).toEqual(made.sort());
 });
