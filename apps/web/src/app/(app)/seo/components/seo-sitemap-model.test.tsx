@@ -25,6 +25,14 @@ describe("sitemap XML input and draft export", () => {
       ),
     ).toThrow();
   });
+  it("reads prefixed sitemap entries, ignores nested locations, and validates the whole file", () => {
+    const xml = `<s:urlset xmlns:s="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <s:url><s:loc>${seed}one</s:loc><s:loc>${seed}two</s:loc></s:url>
+      <s:url><s:loc>${seed}three<s:extra/></s:loc></s:url>
+      <s:url><s:loc><![CDATA[${seed}four]]></s:loc></s:url></s:urlset>`;
+    expect(importedSitemapHints(xml, seed)).toEqual([seed + "four"]);
+    expect(() => importedSitemapHints(xml + "<other/>", seed)).toThrow();
+  });
   it("downloads only eligible pages on a single origin in well-formed escaped XML", () => {
     const xml = sitemapDraftXml([
       { targetUrl: seed + "story&one", sitemapEligible: true },

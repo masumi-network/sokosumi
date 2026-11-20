@@ -5,13 +5,21 @@ const PRIVATE_TEXT =
   /[<>@\p{Cc}\u2028\u2029\u202a-\u202e\u2066-\u2069]|(?:https?:\/\/|www\.|\b(?:bearer\s+|(?:password|secret|token|api[_ -]?key)\s*[:=]))/iu;
 const CONTACT_OR_IDENTIFIER =
   /\+[1-9]\d{0,2}[ (.-]*(?:\d[ ().-]*){7,14}\d|\(\d{3}\)\s*\d{3}[- .]\d{4}|\b[a-f\d]{32,}\b|\b[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}\b/iu;
+const TRAILING_PROSE_PUNCTUATION = ".,!?:;";
+
 /** Check route-shaped words without treating ratios, date ranges or a standalone slash as links. */
 function hasPrivateRoute(text: string): boolean {
   if (!/[/\\%]/u.test(text)) return false;
   for (const [word] of text.matchAll(/[^\s<>"'“”‘’()\[\]{}`]+/gu)) {
     if (!/[/\\]|%(?:2f|5c|25)/iu.test(word)) continue;
     try {
-      const path = decodeURIComponent(word.replace(/[.,!?:;]+$/u, ""));
+      let end = word.length;
+      while (
+        end > 0 &&
+        TRAILING_PROSE_PUNCTUATION.includes(word.charAt(end - 1))
+      )
+        end--;
+      const path = decodeURIComponent(word.slice(0, end));
       if (
         /\/\/[^/]|[%\\?#=;]/u.test(path) ||
         PRIVATE_PATH.test(path) ||
