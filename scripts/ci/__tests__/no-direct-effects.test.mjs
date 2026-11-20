@@ -78,7 +78,7 @@ function resolveBiomeBin() {
 }
 
 function escapeBiomeGlob(relPath) {
-  return relPath.replace(/[[\]]/g, "\\$&");
+  return relPath.replace(/[\\[\]]/g, "\\$&");
 }
 
 function toPosixPath(p) {
