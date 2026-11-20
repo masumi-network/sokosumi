@@ -1,8 +1,8 @@
 "use client";
 
 import type { Session } from "@sokosumi/utils";
-import { useContext, useLayoutEffect } from "react";
-import { authClient } from "@/lib/auth/auth.client";
+import { useContext } from "react";
+import { useAuthSessionHydration } from "@/hooks/effects/use-auth-session-hydration";
 import { AuthSessionIdentityContext } from "./auth-session-guard";
 
 interface AuthSessionHydratorProps {
@@ -21,9 +21,6 @@ interface AuthSessionHydratorProps {
  */
 export function AuthSessionHydrator({ session }: AuthSessionHydratorProps) {
   const registerRenderedUser = useContext(AuthSessionIdentityContext);
-  useLayoutEffect(() => {
-    registerRenderedUser?.(session.user.id);
-    authClient.hydrateSession(session as typeof authClient.$Infer.Session);
-  }, [session, registerRenderedUser]);
+  useAuthSessionHydration(session, registerRenderedUser);
   return null;
 }

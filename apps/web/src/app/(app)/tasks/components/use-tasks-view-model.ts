@@ -45,6 +45,7 @@ import {
 import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
+import { usePendingCreatedTasks } from "@/hooks/effects/use-pending-created-tasks";
 import type { TaskEventData } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
@@ -65,7 +66,6 @@ import {
 } from "./task-dnd";
 import { useTasksSearchParams } from "./tasks-search-params";
 import type { TasksViewProps } from "./tasks-view";
-import { usePendingCreatedTasks } from "./use-pending-created-tasks";
 
 interface PendingBoardReopen {
   taskId: string;

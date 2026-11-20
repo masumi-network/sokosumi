@@ -1,7 +1,7 @@
 import { SokoBotStatus } from "@sokosumi/core-client";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
-import { publishFailedSokoBotId } from "@/components/chat/personal-assistant-chrome-store";
+import { useFailedSokoBotIdPublisher } from "@/hooks/effects/use-failed-soko-bot-id-publisher";
 
 const ACTIVITY_ENDPOINT = "/api/personal-assistant/activity";
 /**
@@ -88,12 +88,7 @@ export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
   // Publish before paint (`useLayoutEffect`) so the Direct row updates in the
   // same frame as this row instead of lagging behind a passive effect.
   const failedId = current.status === SokoBotStatus.ERROR ? current.id : null;
-  useLayoutEffect(() => {
-    if (!failedId) {
-      return;
-    }
-    return publishFailedSokoBotId(failedId);
-  }, [failedId]);
+  useFailedSokoBotIdPublisher(failedId);
 
   return current;
 }

@@ -1,38 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useSyncExternalStore } from "react";
+import {
+  useMarkedProjectSnapshot,
+  useProjectScopeMarker,
+} from "@/hooks/effects/use-project-scope-marker";
 
 import { detailPageOf } from "./project-scope-href";
-
-/** A detail page's project, keyed to the detail path that reported it. */
-interface Marked {
-  path: string;
-  projectId: string | null;
-}
-
-let marked: Marked | null = null;
-const listeners = new Set<() => void>();
-
-function publish(next: Marked | null) {
-  marked = next;
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function snapshot(): Marked | null {
-  return marked;
-}
-
-function serverSnapshot(): Marked | null {
-  return null;
-}
 
 /**
  * A task or schedule detail page reports its item's
@@ -45,15 +19,7 @@ export function ProjectScopeMarker({
 }) {
   const path = detailPageOf(usePathname())?.path ?? null;
 
-  useEffect(() => {
-    if (!path) return;
-    const entry = { path, projectId };
-    publish(entry);
-    return () => {
-      // A newer page's marker may already have taken over.
-      if (marked === entry) publish(null);
-    };
-  }, [path, projectId]);
+  useProjectScopeMarker(path, projectId);
 
   return null;
 }
@@ -65,7 +31,7 @@ export function ProjectScopeMarker({
 export function useMarkedProjectId(
   pathname: string,
 ): string | null | undefined {
-  const current = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
+  const current = useMarkedProjectSnapshot();
   const path = detailPageOf(pathname)?.path;
   return current && current.path === path ? current.projectId : undefined;
 }
