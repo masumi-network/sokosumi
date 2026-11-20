@@ -736,8 +736,13 @@ export async function ownMessageProblem(
 const OPENING_REFUSAL = "Rewrite the post's first line";
 const MAX_OPENING_REFUSALS = 2;
 
-/** Below this Jev reads the opening as a miss (see LINKEDIN_HOOK_RULE's calibration). */
-const OPENING_PASS = 0.35;
+/**
+ * Below this Jev reads the opening as a miss. LINKEDIN_HOOK_RULE's labelled
+ * lines split cleanly at 0.35, but on NMKR's real month advice lines ("A
+ * token mint does not finish a launch.") scored 0.36 to 0.45 and failed the
+ * month review.
+ */
+const OPENING_PASS = 0.45;
 
 /**
  * The line a LinkedIn reader decides on before "see more". Two lines once let
@@ -763,6 +768,7 @@ export function linkedInOpening(text: string): string {
 export async function linkedInOpeningProblem(
   input: { postId: string; workspaceId: string; text: string },
   evaluate: typeof evaluateWithJev = evaluateWithJev,
+  embed?: EmbedTexts,
 ): Promise<{ problem: string | null; costUsd: number }> {
   const post = await prisma.socialPost.findFirst({
     where: { id: input.postId, workspaceId: input.workspaceId },
@@ -782,6 +788,34 @@ export async function linkedInOpeningProblem(
   `.catch(() => [{ refused: 0 }]);
   if (refused >= MAX_OPENING_REFUSALS) return { problem: null, costUsd: 0 };
   const opening = linkedInOpening(input.text);
+  // One proof as five posts' first line (NMKR's month opened on Book.io's
+  // 130,000 NFTs again and again) reads as one post.
+  const others = await prisma.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      provider: post.provider,
+      status: { not: "CANCELED" },
+    },
+    select: { text: true, planning: true },
+  });
+  const openings = others.flatMap((other) => {
+    const planning = other.planning as { title?: unknown; brief?: unknown };
+    return other.text === planning?.title || other.text === planning?.brief
+      ? []
+      : [linkedInOpening(other.text)];
+  });
+  const { repeats, costUsd: compared } = await findRepeats(
+    [...openings, opening],
+    "title",
+    embed,
+  );
+  const echoed = openings[repeats.at(-1) ?? -1];
+  if (echoed)
+    return {
+      problem: `${OPENING_REFUSAL}: it opens like another LinkedIn post of the month ("${echoed}"). Open with another true fact from the piece: its own result, number, customer or decision.`,
+      costUsd: compared,
+    };
   try {
     const { answers, costUsd } = await evaluate({
       state: { opening },
@@ -799,8 +833,8 @@ export async function linkedInOpeningProblem(
     return {
       problem: passed
         ? null
-        : `${OPENING_REFUSAL}: "${opening}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
-      costUsd,
+        : `${OPENING_REFUSAL}: "${opening}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a price or another number from the business, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
+      costUsd: costUsd + compared,
     };
   } catch {
     // A quality check: when Jev does not answer, the post is not held up.

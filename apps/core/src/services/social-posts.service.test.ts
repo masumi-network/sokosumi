@@ -3046,6 +3046,7 @@ describe("social posts service", () => {
   describe("linkedInOpeningProblem", () => {
     beforeEach(() => {
       queryRawMock.mockResolvedValue([{ refused: 0 }]);
+      socialPostFindManyMock.mockResolvedValue([]);
     });
     const jev = (probability: number) =>
       vi.fn(async () => ({
@@ -3107,6 +3108,42 @@ describe("social posts service", () => {
           evaluate as never,
         ),
       ).toEqual({ problem: null, costUsd: 0 });
+      expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    // NMKR's month opened on Book.io's 130,000 NFTs again and again.
+    it("refuses a first line another LinkedIn post of the month already opens with", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          text: "Book.io sold 130,000 NFTs on NMKR.\n\nMore.",
+          planning: { title: "Book.io" },
+        },
+      ]);
+      const embed = async (values: readonly string[]) => ({
+        costUsd: 0.000_01,
+        embeddings: values.map((value) => [
+          /book\.io/i.test(value) ? 1 : 0,
+          value.length / 1000,
+        ]),
+      });
+      const { linkedInOpeningProblem } = await loadService();
+      const evaluate = jev(0.9);
+      const result = await linkedInOpeningProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "Book.io reports 130,000 NFTs sold with NMKR.\n\nWhy it matters.",
+        },
+        evaluate as never,
+        embed,
+      );
+      expect(result.problem).toContain(
+        'it opens like another LinkedIn post of the month ("Book.io sold 130,000 NFTs on NMKR.")',
+      );
       expect(evaluate).not.toHaveBeenCalled();
     });
 
