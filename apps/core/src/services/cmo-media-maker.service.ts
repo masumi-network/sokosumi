@@ -66,7 +66,7 @@ import { recordSokoBotCheckUsage } from "@/services/soko-bot-billing.service";
 /**
  * Core makes the month's pictures and videos. Cuso writes each piece's
  * visual (what it shows, and the brand pictures it is made from); Core
- * starts every picture once, within the studio's limit of three at a time,
+ * starts every picture once, six at a time, its own limit beside the studio's three,
  * puts it on its post and schedules the post on a connected network. Runs
  * that made their own media bought 25 files for 14 pieces and put one
  * picture on three posts. Each job's key names its piece, slot and visual,
@@ -731,7 +731,7 @@ export async function advanceCmoMedia(
   const { projectId } = context.cuso;
   const jobs = await listCmoMediaJobs(projectId, context.versionId);
   let capacity =
-    LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT -
+    LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT -
     (await prisma.projectImageJob.count({
       where: { projectId, status: { in: [...LIVE] } },
     }));
@@ -929,6 +929,7 @@ async function start(
     userId: drive.userId,
     sessionId: null,
     idempotencyKey,
+    forCmoMonth: true,
   };
   try {
     if (action.step === "talking") {
@@ -937,6 +938,7 @@ async function start(
         workspaceId: scope.workspaceId,
         userId: scope.userId,
         idempotencyKey,
+        forCmoMonth: true,
         script: piece.script?.trim() ?? "",
         ...(await talkingVoiceAndPresenter(context, drive, piece)),
         languageCode: piece.languageCode ?? "en",
