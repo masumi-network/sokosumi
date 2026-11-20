@@ -8,10 +8,6 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock("next-themes", () => ({
-  useTheme: () => ({ resolvedTheme: "light" }),
-}));
-
 vi.mock("next/image", () => ({
   default: () => null,
 }));
