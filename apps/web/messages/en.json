@@ -3568,6 +3568,7 @@
           "generate": "Generate from website",
           "missingWebsite": "Add a project website before generating brand context.",
           "websiteInvalid": "Enter a website like example.com.",
+          "websiteLabel": "Generate brand context from this website.",
           "open": "Open",
           "edit": "Edit",
           "remove": "Remove",

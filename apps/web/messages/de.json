@@ -3568,6 +3568,7 @@
           "generate": "Aus Website erstellen",
           "missingWebsite": "Füge eine Projektwebsite hinzu, bevor du Markenkontext erstellst.",
           "websiteInvalid": "Gib eine Website wie example.com ein.",
+          "websiteLabel": "Markenkontext aus dieser Website erstellen.",
           "open": "Öffnen",
           "edit": "Bearbeiten",
           "remove": "Entfernen",

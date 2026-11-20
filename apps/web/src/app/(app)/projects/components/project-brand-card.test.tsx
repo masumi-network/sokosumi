@@ -36,6 +36,7 @@ const MESSAGES: Record<string, string> = {
     "This removes the project's DESIGN.md file.",
   "brandCard.removeDialog.cancel": "Cancel",
   "brandCard.websiteInvalid": "Enter a website like example.com.",
+  "brandCard.websiteLabel": "Generate brand context from this website.",
   "errors.brand": "Couldn't update project brand context",
   "errors.update": "Failed to update project",
 };
@@ -317,6 +318,56 @@ describe("ProjectBrandCard", () => {
         "Add a project website before generating brand context.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("lets the owner fix a saved website that generation could not use", async () => {
+    const user = userEvent.setup();
+    mockSavedWebsite();
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    const field = screen.getByRole("textbox", {
+      name: "Generate brand context from this website.",
+    });
+    expect(field).toHaveValue("https://bad.invalid/");
+
+    await user.clear(field);
+    await submitWebsite(user, "springtea.example");
+
+    await waitFor(() =>
+      expect(updateProject).toHaveBeenCalledWith({
+        projectId: "project-1",
+        websiteUrl: "https://springtea.example/",
+      }),
+    );
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        force: true,
+        url: "https://springtea.example/",
+      }),
+    );
+  });
+
+  it("retries the saved website without saving it again", async () => {
+    const user = userEvent.setup();
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://example.com/",
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(generateMock).toHaveBeenCalledWith({
+      force: true,
+      url: "https://example.com/",
+    });
   });
 
   it("saves only the website, then generates exactly once", async () => {

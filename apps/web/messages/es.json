@@ -3568,6 +3568,7 @@
           "generate": "Generar desde el sitio web",
           "missingWebsite": "Añade un sitio web al proyecto antes de generar el contexto de marca.",
           "websiteInvalid": "Introduce un sitio web como example.com.",
+          "websiteLabel": "Genera el contexto de marca a partir de este sitio web.",
           "open": "Abrir",
           "edit": "Editar",
           "remove": "Quitar",

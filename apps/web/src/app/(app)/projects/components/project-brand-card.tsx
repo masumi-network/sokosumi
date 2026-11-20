@@ -192,7 +192,9 @@ export function ProjectBrandCard({
   );
   const hasWebsite = Boolean(websiteUrl);
   const tWebsite = useTranslations("App.Projects.Wizard.name");
-  const [website, setWebsite] = useState("");
+  // Prefilled with the saved website, so a website generation could not use
+  // can be corrected right here instead of in Edit.
+  const [website, setWebsite] = useState(websiteUrl ?? "");
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [isSavingWebsite, startSaveWebsite] = useTransition();
   const menuBusy =
@@ -206,7 +208,8 @@ export function ProjectBrandCard({
   // An explicit Generate: save only the website (a name from this render
   // could undo someone's rename), then start generation here. Marking the
   // auto-start as used keeps the provider from starting a second one when
-  // the revalidated page passes the website in.
+  // the revalidated page passes the website in. The saved website unchanged
+  // is a plain retry.
   function handleSaveWebsite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const url = normalizeWebsiteUrl(website);
@@ -215,6 +218,10 @@ export function ProjectBrandCard({
       return;
     }
     setWebsiteError(null);
+    if (websiteUrl && url === normalizeWebsiteUrl(websiteUrl)) {
+      handleGenerate();
+      return;
+    }
     startSaveWebsite(async () => {
       try {
         const result = await updateProject({ projectId, websiteUrl: url });
@@ -356,13 +363,15 @@ export function ProjectBrandCard({
           </Badge>
         </div>
 
-        {!hasWebsite && !readOnly && !designMd && !generation.isRunning ? (
+        {!readOnly && !designMd && !generation.isRunning ? (
           <form noValidate onSubmit={handleSaveWebsite} className="space-y-2">
             <label
               htmlFor="project-brand-website"
               className="text-muted-foreground block text-xs"
             >
-              {t("brandCard.missingWebsite")}
+              {hasWebsite
+                ? t("brandCard.websiteLabel")
+                : t("brandCard.missingWebsite")}
             </label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
@@ -415,35 +424,18 @@ export function ProjectBrandCard({
           </p>
         ) : null}
 
-        {!readOnly &&
-        !designMd &&
-        !generation.isRunning &&
-        (hasWebsite || !showUpload) ? (
+        {!readOnly && !designMd && !generation.isRunning && !showUpload ? (
           <div className="flex flex-wrap gap-2">
-            {hasWebsite ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={menuBusy}
-                onClick={handleGenerate}
-              >
-                <RefreshCw aria-hidden />
-                {t("brandCard.generate")}
-              </Button>
-            ) : null}
-            {showUpload ? null : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={menuBusy}
-                onClick={() => setShowUpload(true)}
-              >
-                <Upload aria-hidden />
-                {t("brandCard.upload")}
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={menuBusy}
+              onClick={() => setShowUpload(true)}
+            >
+              <Upload aria-hidden />
+              {t("brandCard.upload")}
+            </Button>
           </div>
         ) : null}
 
