@@ -134,6 +134,12 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
       .filter((keyword) => keyword.saved)
       .map((keyword) => normalizeQuery(keyword.keyword)),
   );
+  if (!source && !hasQueries)
+    return (
+      <p className="text-muted-foreground px-2 text-sm">
+        {t("traffic.noQueryData")}
+      </p>
+    );
   return (
     <SeoSection
       title={t("queries.title")}
@@ -171,12 +177,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
           onView={setBrandView}
         />
       ) : null}
-      {!source && !hasQueries ? (
-        <SeoEmpty
-          title={t("traffic.noQueryData")}
-          body={t("traffic.noQueryDataBody")}
-        />
-      ) : !source && !empty ? (
+      {!source && !empty ? (
         <SeoEmpty
           title={t("statistics.search_console")}
           body={

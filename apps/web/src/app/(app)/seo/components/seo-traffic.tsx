@@ -2,6 +2,7 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
@@ -26,19 +27,36 @@ import { SeoSearchQueries } from "./seo-search-queries";
 import { SeoSearchTypeFilter } from "./seo-search-type-filter";
 import {
   SEO_STACKED_TABLE_CLASS,
+  SeoFoldSummary,
   SeoPageLink,
   SeoPeriod,
   SeoSection,
+  seoSiteUrl,
 } from "./seo-shared";
 import { SeoSiteTrafficReportView } from "./seo-site-traffic";
 import { seoQueryPeriod } from "./seo-statistics-model";
-import { seoKeyEvents } from "./seo-traffic-model";
+import { seoKeyEvents, seoTrafficPageOptions } from "./seo-traffic-model";
+import { SeoTrafficPageFilter } from "./seo-traffic-page-filter";
 import { useSeoSiteTraffic } from "./use-seo-site-traffic";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const trafficScopes = ["site", "selected"] as const;
 
 export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
+  return (
+    <SeoTrafficContent
+      key={JSON.stringify([
+        model.data.auditId,
+        model.data.projectId,
+        model.data.websiteUrl,
+        model.filters.pageId,
+        model.filters.scopeId,
+      ])}
+      model={model}
+    />
+  );
+}
+function SeoTrafficContent({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const [choice, setChoice] = useQueryState(
     "trafficScope",
@@ -49,71 +67,100 @@ export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
     (model.filters.pageId || model.filters.scopeId || model.filters.channel
       ? "selected"
       : "site");
-  const { query, available, pending, tooMany } = useSeoSiteTraffic(
+  const [urls, setUrls] = useState<string[]>();
+  const whole = useSeoSiteTraffic(model, "site");
+  const { selected, options, selectedIds } = seoTrafficPageOptions(
+    model.data,
+    seoSiteUrl(model.data),
+    whole.query.data?.pages ?? [],
+    urls,
+  );
+  const selection = useSeoSiteTraffic(
     model,
-    scope,
+    "selected",
+    selected,
+    scope === "selected",
+    selectedIds,
+  );
+  const { query, available, pending, tooMany, canChooseScope, retry } =
+    scope === "site" ? whole : selection;
+  const live = available && !query.isError ? query.data : undefined;
+  const hasReport =
+    live &&
+    (live.totals !== null ||
+      live.pages.length > 0 ||
+      Boolean(live.daily?.length));
+  // Nothing measured yet: one card says what to connect. A second empty card would ask for the same account.
+  const hasSaved = Boolean(
+    model.data.metrics.length ||
+      model.data.searchQueries ||
+      model.data.landingEngagementChange ||
+      model.data.searchBreakdown ||
+      model.data.landingPages,
+  );
+  const saved = (
+    <>
+      <SeoMeasurements model={model} />
+      {hasSaved && <SeoSelectedTraffic model={model} />}
+    </>
   );
   return (
     <div className="space-y-6">
       <SeoSearchTypeFilter model={model} />
-      <div
-        role="group"
-        aria-label={t("siteTraffic.scope")}
-        className="flex flex-wrap gap-2"
-      >
-        {trafficScopes.map((value) => (
-          <Button
-            key={value}
-            variant={value === scope ? "secondary" : "outline"}
-            aria-pressed={value === scope}
-            onClick={() => void setChoice(value)}
-          >
-            {t(`siteTraffic.${value}`)}
-          </Button>
-        ))}
-      </div>
-      {available && query.data && !query.isError ? (
-        <SeoSiteTrafficReportView
-          key={scope + query.data.site}
-          report={query.data}
-        />
-      ) : available && query.isError ? (
-        <div role="status">
-          {t("siteTraffic.failed")}{" "}
-          <Button variant="outline" onClick={() => void query.refetch()}>
-            {t("retry")}
-          </Button>
-        </div>
-      ) : (
-        <p role="status">
-          {tooMany
-            ? t("selectPagesLimit", { count: SEO_MAX_PAGES })
-            : t(
-                pending || available
-                  ? "siteTraffic.loading"
-                  : "siteTraffic.unavailable",
-              )}
-        </p>
+      {canChooseScope && (
+        <>
+          <SeoTrafficPageFilter
+            scope={scope}
+            onScope={(v) => void setChoice(v)}
+            options={options}
+            selected={selected}
+            onApply={setUrls}
+          />
+          {hasReport ? (
+            <SeoSiteTrafficReportView key={scope + live.site} report={live} />
+          ) : live ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {t("siteTraffic.noRows")}
+            </p>
+          ) : retry ? (
+            <div role="status">
+              {t("siteTraffic.failed")}{" "}
+              <Button variant="outline" onClick={() => void retry()}>
+                {t("retry")}
+              </Button>
+            </div>
+          ) : (
+            <p role="status">
+              {tooMany
+                ? t("selectPagesLimit", { count: SEO_MAX_PAGES })
+                : t(
+                    pending || available
+                      ? "siteTraffic.loading"
+                      : "siteTraffic.unavailable",
+                  )}
+            </p>
+          )}
+        </>
       )}
-      <section aria-label={t("siteTraffic.saved")} className="space-y-4">
-        <h2 className="font-semibold">{t("siteTraffic.saved")}</h2>
-        <SeoSelectedTraffic model={model} />
-      </section>
+      {hasSaved ? (
+        <details className="space-y-3" open={canChooseScope ? undefined : true}>
+          <SeoFoldSummary
+            className={canChooseScope ? "py-3 text-sm font-medium" : "hidden"}
+          >
+            {t("siteTraffic.savedReports")}
+          </SeoFoldSummary>
+          {saved}
+        </details>
+      ) : hasReport ? null : (
+        saved
+      )}
     </div>
   );
 }
 
 function SeoSelectedTraffic({ model }: { model: SeoWorkspaceModel }) {
-  // Nothing measured yet: one card says what to connect. A second empty card would ask for the same account.
-  if (
-    !model.data.metrics.length &&
-    !model.data.searchQueries &&
-    !model.data.landingEngagementChange
-  )
-    return <SeoMeasurements model={model} />;
   return (
     <div className="stagger space-y-6">
-      <SeoMeasurements model={model} />
       {model.data.landingEngagementChange && (
         <SeoLandingEngagement change={model.data.landingEngagementChange} />
       )}

@@ -26,6 +26,9 @@ const TRAFFIC_FRESH_MS = 5 * 60_000;
 export function useSeoSiteTraffic(
   model: SeoWorkspaceModel,
   scope: SeoSiteTrafficInput["scope"],
+  pageUrls?: string[],
+  enabled = true,
+  selectedIds: string[] = [],
 ) {
   const { data: session } = useSession();
   const connection = useSeoConnectionStatus("search_console").status;
@@ -34,18 +37,22 @@ export function useSeoSiteTraffic(
   const siteUrl = seoSiteUrl(model.data);
   const site = siteUrl && seoSearchSiteHost(siteUrl);
   // A site's aggregate and ranked URLs come from Google. The tracked pages only identify known aliases.
-  const pageIds =
-    scope === "site"
-      ? model.data.pages
-          .filter((page) => seoSearchSiteHost(page.url) === site)
-          .slice(0, SEO_MAX_PAGES)
-          .map((page) => page.id)
-      : model.data.scope.pageIds;
-  const tooMany = pageIds.length > SEO_MAX_PAGES;
+  const anchors = model.data.pages
+    .filter((page) => seoSearchSiteHost(page.url) === site)
+    .slice(0, SEO_MAX_PAGES)
+    .map((page) => page.id);
+  const pageIds = selectedIds.length
+    ? selectedIds.slice(0, SEO_MAX_PAGES)
+    : anchors;
+  const tooMany =
+    scope === "selected" &&
+    (!pageUrls?.length || pageUrls.length > SEO_MAX_PAGES);
   const choice = useSeoStatisticsProperties(
     { ...model.data, scope: { ...model.data.scope, pageIds } },
     "search_console",
     connected,
+    undefined,
+    pageUrls,
   );
   const owner = seoWorkspaceOwner(model.data);
   const dates =
@@ -56,6 +63,8 @@ export function useSeoSiteTraffic(
     scope,
     propertyId: choice.propertyId,
     pageIds: [...pageIds].sort(),
+    ...(pageUrls && { pageUrls: [...pageUrls].sort() }),
+    includeDaily: true,
     searchType: model.filters.searchType ?? "web",
     from: model.filters.from ?? dates.from,
     to: model.filters.to ?? dates.to,
@@ -79,7 +88,7 @@ export function useSeoSiteTraffic(
       connection.data?.connectionVersion,
       body,
     ],
-    enabled: available,
+    enabled: enabled && available,
     staleTime: TRAFFIC_FRESH_MS,
     retry: false,
     queryFn: async ({ signal }) => {
@@ -112,6 +121,19 @@ export function useSeoSiteTraffic(
     query,
     available,
     tooMany,
+    retry:
+      connection.isError || connection.data?.status === "unavailable"
+        ? connection.refetch
+        : connected && choice.propertiesUnavailable
+          ? choice.properties.refetch
+          : available && query.isError
+            ? query.refetch
+            : null,
+    canChooseScope:
+      model.data.availableActions.canSyncMetrics &&
+      (connected ||
+        connection.isError ||
+        connection.data?.status === "unavailable"),
     pending:
       connection.isFetching || (connected && choice.properties.isFetching),
   };

@@ -13190,9 +13190,9 @@
         "savedActions": "Gespeicherte Audit-Maßnahmen",
         "title": "Strategische Planung",
         "paint": "Ladezeit verbessern ({device})",
-        "labLcp": "Lighthouse hat für den Largest Contentful Paint {seconds} s gemessen.",
-        "trace": "Das größte sichtbare Element im Leistungsprofil ermitteln und seinen Ladebeginn prüfen.",
-        "retest": "Den Lighthouse-Test für {device} unter gleichen Bedingungen wiederholen und den LCP vergleichen.",
+        "labLcp": "Das größte Element wurde im Test nach {seconds} s sichtbar.",
+        "trace": "Suche das größte Bild oder Textfeld. Prüfe, was seine Anzeige verzögert.",
+        "retest": "Wiederhole denselben Test ({device}) und vergleiche die Zeiten.",
         "inspectionHistory": "Prüfverlauf"
       },
       "research": {
@@ -13209,7 +13209,7 @@
         "verified": "Geprüft",
         "deferredCount": "Zurückgestellt",
         "otherTargets": "Weitere untersuchte Ziele ({count})",
-        "unknownResponse": "Ungeprüft",
+        "unknownResponse": "Antwort unbekannt",
         "linkingPages": "{count, plural, one {# verlinkende Seite in der Stichprobe} other {# verlinkende Seiten in der Stichprobe}}",
         "discovered": "Geeignete URLs: {count}. Öffentlich verifizierte Antworten: {checked}. Zurückgestellt: {deferred}.",
         "deferred": "Zurückgestellte URLs ({count} angezeigt)",
@@ -13224,25 +13224,25 @@
         "suppliedSitemap_read": "Das Audit hat die angegebene Sitemap gelesen.",
         "suppliedSitemap_blocked": "Das Audit konnte Website-Zugehörigkeit und Crawling-Erlaubnis für die angegebene Sitemap nicht bestätigen.",
         "suppliedSitemap_unavailable": "Die angegebene Sitemap war nicht verfügbar oder konnte innerhalb der Audit-Grenzen nicht gelesen werden.",
-        "downloadSitemap": "XML-Sitemap-Entwurf mit geprüften Seiten dieser Stichprobe herunterladen",
+        "downloadSitemap": "Sitemap-Entwurf für geprüfte Seiten herunterladen",
         "heading": "Interne Links und Indexierung",
         "coverage": "Öffentliche Stichprobe am {date}: {pages} Seiten und {targets} Ziel-URLs.",
         "partial": "Das Audit konnte nur einen Teil der Stichprobe erfassen.",
         "sampledPages": "Öffentliche Seiten der Stichprobe",
         "response": "Das Ziel lieferte HTTP {status}.",
-        "unverified": "Der HTTP-Status des Ziels ist ungeprüft.",
+        "unverified": "Die Antwort der Seite ist noch nicht bestätigt.",
         "destination": "Endgültiges Ziel:",
         "google": "Google-URL-Prüfung: {reason}.",
         "trend": "Verlinkende Seiten in der Stichprobe: {previous} am {date}, jetzt {current}.",
         "decline": "In drei aufeinanderfolgenden Prüfungen verlinkten immer weniger Stichprobenseiten auf dieses Ziel",
         "linkCount": "{date}: {count, plural, one {# verlinkende Seite} other {# verlinkende Seiten}}",
-        "lostDonors": "Seiten, die früher auf dieses Ziel verlinkten und in der letzten Stichprobe keinen Link enthielten",
+        "lostDonors": "Seiten, auf denen der Link nicht mehr gefunden wurde",
         "unknownDonors": "Die Linkabdeckung ist unbekannt, da keine Quellseiten geprüft wurden.",
         "partialDonors": "Verlinkende Seiten in dieser unvollständigen Stichprobe: {count}.",
         "baseline": "Verlinkende Seiten in der Stichprobe: {count}. Keine vergleichbare frühere Stichprobe.",
-        "donors": "Seiten mit Link auf dieses Ziel",
+        "donors": "Seiten mit einem Link hierher",
         "content": "(Link im Seiteninhalt)",
-        "sitemaps": "Sitemaps mit diesem Ziel"
+        "sitemaps": "Sitemaps mit dieser Seite"
       },
       "discovery": {
         "actionsHeading": "Aktionen in der Search Console",
@@ -13263,7 +13263,7 @@
         "submitted": "Last submitted: {date}.",
         "read": "Last downloaded by Google: {date}.",
         "crawl": "Last crawled by Google: {date}.",
-        "canonical": "Google canonical: {url}",
+        "canonical": "Von Google bevorzugte URL: {url}",
         "inspections": "Inspected URLs in this audit ({count})"
       },
       "pageDiscovery": {
@@ -14128,7 +14128,7 @@
           "peakMonths": "Spitzenmonate",
           "seasonal": "Saisonal",
           "trend": "Trend",
-          "change": "Veränderungsfaktor",
+          "change": "Änderung im Jahresverlauf",
           "evidence": "Beleg",
           "visible": "Sichtbar",
           "outside_first_screen": "Außerhalb des ersten Bildschirms",
@@ -14155,7 +14155,19 @@
         "testsAll": "Jeder Test hat ein Ergebnis"
       },
       "siteTraffic": {
-        "scope": "Umfang der Search Console",
+        "noMatches": "Keine passenden Seiten",
+        "clear": "Auswahl aufheben",
+        "filter": "Traffic-Filter",
+        "choose": "Seiten auswählen ({count})",
+        "find": "Seite suchen",
+        "apply": "Filter anwenden",
+        "savedReports": "Gespeicherte Berichte für erfasste Seiten",
+        "trend": "Täglicher Suchtraffic",
+        "pages": "Traffic nach Seite",
+        "seenWithoutClicks": "<page></page> wurde {count, plural, one {einmal} other {# Mal}} angezeigt und erhielt keinen Klick.",
+        "clicks": "Klicks",
+        "impressions": "Einblendungen",
+        "addresses": "Weitere Adressen",
         "site": "Gesamte Website",
         "selected": "Ausgewählte Seiten",
         "sort": "Seiten sortieren nach",
@@ -14167,7 +14179,7 @@
         "loading": "Suchzugriffe werden geladen.",
         "failed": "Die Suchzugriffe für diese Auswahl konnten nicht geladen werden.",
         "unavailable": "Für aktuelle Suchzugriffe ist eine passende Search Console-Property für diese Website erforderlich.",
-        "saved": "Gespeicherte Messwerte für ausgewählte Seiten"
+        "saved": "Traffic der ausgewählten Seiten"
       },
       "traffic": {
         "periodInsight": {
@@ -14207,7 +14219,6 @@
         "sessions": "Sitzungen",
         "keyEventsShort": "Schlüsselereignisse",
         "noAiData": "Keine Daten im Kanal „AI Assistant“",
-        "noAiDataBody": "Google Analytics hat in diesem Zeitraum für diese Seiten keine Sitzungen im Kanal „AI Assistant“ gemeldet.",
         "brandSplit": "Marken-Aufteilung",
         "brandViews": {
           "all": "Alle Suchanfragen",
@@ -14223,7 +14234,6 @@
         "cancelBrandTerms": "Abbrechen",
         "brandSaved": "Markenbegriffe gespeichert",
         "noQueryData": "Für diesen Suchtyp gibt es keine Suchanfragen",
-        "noQueryDataBody": "Für Discover und Google News werden keine Suchanfragen gelesen. Klicks und Impressionen für diesen Typ stehen oben.",
         "keyEventsNotRead": "Nicht gelesen: teilt einen Landingpage-Pfad mit einer anderen ausgewählten Seite"
       },
       "export": {
@@ -14584,8 +14594,8 @@
         "overTarget": "Über dem Laborziel von 2,5 s",
         "withinTarget": "Innerhalb des Laborziels von 2,5 s",
         "title": "Page speed",
-        "lab": "Lighthouse lab test",
-        "field": "Real-user measurements from CrUX",
+        "lab": "Lighthouse-Test",
+        "field": "Ladezeit bei echten Besuchen",
         "scope": {
           "url": "This URL",
           "origin": "Entire origin",
@@ -14593,10 +14603,10 @@
         },
         "scores": "Lighthouse scores (out of 100)",
         "unavailable": "Google could not return usable measurements.",
-        "not_checked": "This audit did not check this source.",
+        "not_checked": "In diesem Audit nicht geprüft.",
         "no_data": "Google reported no real-user data for this URL.",
-        "quota": "Google’s PageSpeed quota was exhausted.",
-        "deadline": "The time budget expired.",
+        "quota": "Das Testlimit von Google wurde erreicht.",
+        "deadline": "Die Testzeit ist abgelaufen.",
         "single": "One run",
         "multiple": "Median of {ok} usable runs out of {runs}",
         "score": {
@@ -14607,11 +14617,11 @@
           "agenticBrowsing": "Agentic browsing"
         },
         "metricsTitle": {
-          "lcp": "Largest contentful paint",
-          "fcp": "First contentful paint",
+          "lcp": "Größtes Element sichtbar (LCP)",
+          "fcp": "Erster Inhalt sichtbar (FCP)",
           "tbt": "Total blocking time",
           "si": "Speed index",
-          "cls": "Cumulative layout shift",
+          "cls": "Unerwartete Layoutverschiebungen (CLS)",
           "inp": "Interaction to next paint",
           "ttfb": "Time to first byte"
         },
@@ -14619,7 +14629,8 @@
         "p75": "75th percentile",
         "date": "Audit date",
         "budget": "The audit used its PageSpeed request budget.",
-        "unsafe": "The audit could not verify a public landing page."
+        "unsafe": "The audit could not verify a public landing page.",
+        "paintTime": "{device} · größtes Element nach {time} sichtbar"
       }
     },
     "AdDataConsent": {

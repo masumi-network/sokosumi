@@ -1,7 +1,9 @@
 import type {
   ProjectSeoMetric,
   ProjectSeoWorkspace,
+  SeoSiteTrafficReport,
 } from "@sokosumi/core-client";
+import { seoSearchSiteHost } from "@sokosumi/utils";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export type SeoTrafficChannel = ProjectSeoMetric["channel"];
@@ -95,4 +97,45 @@ export function seoAiAssistants(landing: ProjectSeoWorkspace["landingPages"]) {
     truncated: landing.truncated === true,
     period: { from: landing.from, to: landing.to },
   };
+}
+
+export function seoTrafficPageOptions(
+  data: ProjectSeoWorkspace,
+  siteUrl: string | null,
+  sitePages: SeoSiteTrafficReport["pages"],
+  urls?: string[],
+) {
+  const site = siteUrl && seoSearchSiteHost(siteUrl);
+  const tracked = data.pages.filter(
+    (page) => seoSearchSiteHost(page.url) === site,
+  );
+  const defaults = tracked
+    .filter((p) => data.scope.pageIds.includes(p.id))
+    .map((p) => p.url);
+  const submittedByUrl = new Map(
+    sitePages.map((page) => [page.url, page.submitted]),
+  );
+  const aliases = new Map(
+    sitePages.flatMap((page) =>
+      page.submitted.map((url) => [url, page.url] as const),
+    ),
+  );
+  const selected = [
+    ...new Set((urls ?? defaults).map((url) => aliases.get(url) ?? url)),
+  ];
+  const options = [
+    ...new Set([
+      ...tracked.map((page) => aliases.get(page.url) ?? page.url),
+      ...sitePages.map((page) => page.url),
+      ...selected,
+    ]),
+  ].sort();
+  const selectedIds = tracked
+    .filter(
+      (page) =>
+        selected.includes(page.url) ||
+        selected.some((url) => submittedByUrl.get(url)?.includes(page.url)),
+    )
+    .map((page) => page.id);
+  return { selected, options, selectedIds };
 }

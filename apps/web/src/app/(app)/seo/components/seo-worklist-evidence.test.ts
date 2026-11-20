@@ -64,7 +64,7 @@ it("prioritizes slow mobile lab paint once, including when a saved device-specif
   expect(others).toHaveLength(0);
   expect(mobile).toMatchObject({ bucket: "high", url: pageUrl });
   expect(mobile.title.toLowerCase()).toContain("mobile");
-  expect(mobile.facts.join(" ")).toMatch(/7.35 s.*Repeat the Lighthouse test/);
+  expect(mobile.facts.join(" ")).toMatch(/7.35 s.*Rerun the same Mobile test/);
   const finding = {
     id: "paint",
     observationId: audit.id,

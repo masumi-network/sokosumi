@@ -37,9 +37,10 @@ export function pageSpeedSummary(
     const timings = rows.flatMap(({ device, lab }) =>
       lab.status === "measured" && lab.median.lcp != null
         ? [
-            t(`breakdown.devices.${device}`) +
-              " LCP " +
-              formattedMetric("lcp", lab.median.lcp),
+            t("pageSpeed.paintTime", {
+              device: t(`breakdown.devices.${device}`),
+              time: formattedMetric("lcp", lab.median.lcp),
+            }),
           ]
         : [],
     );
@@ -168,12 +169,19 @@ export function SeoPageSpeed({
               <details key={device} className="border-t">
                 <SeoFoldSummary className="min-h-12 gap-3 py-2 font-medium tabular-nums">
                   <span className="min-w-0 flex-1">
-                    {t(`breakdown.devices.${device}`)} ·{" "}
-                    {lab.status === "measured" && lab.median.lcp !== null
-                      ? "LCP " + formattedMetric("lcp", lab.median.lcp)
-                      : lab.status === "measured"
-                        ? t("pageSpeed.lab")
-                        : t(`pageSpeed.${lab.status}`)}
+                    {lab.status === "measured" && lab.median.lcp !== null ? (
+                      t("pageSpeed.paintTime", {
+                        device: t(`breakdown.devices.${device}`),
+                        time: formattedMetric("lcp", lab.median.lcp),
+                      })
+                    ) : (
+                      <>
+                        {t(`breakdown.devices.${device}`)} ·{" "}
+                        {lab.status === "measured"
+                          ? t("pageSpeed.lab")
+                          : t(`pageSpeed.${lab.status}`)}
+                      </>
+                    )}
                   </span>
                   {lab.status === "measured" && lab.median.lcp != null && (
                     <span className="text-xs font-normal text-muted-foreground">

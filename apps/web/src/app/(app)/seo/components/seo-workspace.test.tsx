@@ -6219,6 +6219,7 @@ describe("SEO workspace integration", () => {
         automatic: true,
       }),
     );
+    fireEvent.click(await screen.findByText("Saved reports for tracked pages"));
     expect(await screen.findByText("41")).toBeVisible();
   });
 

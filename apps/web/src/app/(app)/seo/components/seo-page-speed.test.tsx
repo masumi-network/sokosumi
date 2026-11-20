@@ -55,14 +55,20 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
       </SeoResultMessagesProvider>
     </NextIntlClientProvider>,
   );
-  expect(screen.getByText("Mobile LCP 7.4 s")).toBeVisible();
+  expect(
+    screen.getByText("Mobile · largest item appeared in 7.4 s", {
+      selector: "summary span > span",
+    }),
+  ).toBeVisible();
   fireEvent.click(
     screen.getByText("Page speed", { selector: "summary span > span" }),
   );
   const panel = within(screen.getByRole("region", { name: "Page speed" }));
-  expect(panel.getByText("Mobile · LCP 7.4 s")).toBeVisible();
+  expect(
+    panel.getByText("Mobile · largest item appeared in 7.4 s"),
+  ).toBeVisible();
   expect(panel.getByText("Over the 2.5 s lab target")).toBeVisible();
-  fireEvent.click(panel.getByText("Mobile · LCP 7.4 s"));
+  fireEvent.click(panel.getByText("Mobile · largest item appeared in 7.4 s"));
   fireEvent.click(panel.getByText("Unused JavaScript"));
   fireEvent.click(panel.getByText(messages.App.Seo.pageSpeed.scores));
   expect(panel.getByText("108 KiB could be saved.")).toBeVisible();
@@ -72,7 +78,7 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
     panel.getByText("Google reported no real-user data for this URL."),
   ).toBeVisible();
   expect(
-    panel.getByText("Desktop · Google’s PageSpeed quota was exhausted."),
+    panel.getByText("Desktop · Google’s test limit was reached."),
   ).toBeVisible();
 });
 

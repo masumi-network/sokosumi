@@ -13190,9 +13190,9 @@
         "savedActions": "Saved audit actions",
         "title": "Strategic planning",
         "paint": "Improve {device} loading speed",
-        "labLcp": "Largest contentful paint took {seconds} s in Lighthouse.",
-        "trace": "Identify the largest visible element in the performance trace and check when it starts loading.",
-        "retest": "Repeat the Lighthouse test on {device} under the same conditions and compare LCP.",
+        "labLcp": "The largest item appeared after {seconds} s in the test.",
+        "trace": "Find the largest image or text block. Check what delays it.",
+        "retest": "Rerun the same {device} test and compare times.",
         "inspectionHistory": "Inspection history"
       },
       "research": {
@@ -13209,7 +13209,7 @@
         "verified": "Verified",
         "deferredCount": "Deferred",
         "otherTargets": "Other sampled targets ({count})",
-        "unknownResponse": "Unverified",
+        "unknownResponse": "Response unknown",
         "linkingPages": "{count, plural, one {# sampled linking page} other {# sampled linking pages}}",
         "discovered": "Eligible URLs: {count}. Public responses verified: {checked}. Deferred: {deferred}.",
         "deferred": "Deferred URLs ({count} shown)",
@@ -13224,25 +13224,25 @@
         "suppliedSitemap_read": "The audit read the supplied sitemap.",
         "suppliedSitemap_blocked": "The audit could not confirm site scope and crawl permission for the supplied sitemap.",
         "suppliedSitemap_unavailable": "The supplied sitemap was unavailable or could not be read within the audit limits.",
-        "downloadSitemap": "Download draft sitemap XML for verified pages in this sample",
+        "downloadSitemap": "Download draft sitemap for verified pages",
         "heading": "Internal links and indexing",
         "coverage": "Public sample on {date}: {pages} pages and {targets} target URLs.",
         "partial": "The audit collected only part of the sample.",
         "sampledPages": "Sampled public pages",
         "response": "Target returned HTTP {status}.",
-        "unverified": "The target’s HTTP status is unverified.",
+        "unverified": "The page’s response hasn’t been verified.",
         "destination": "Final destination:",
         "google": "Google’s recorded index status was {reason}.",
         "trend": "Sampled pages linking here: {previous} on {date}, now {current}.",
         "decline": "Fewer sampled pages linked here in three consecutive checks",
         "linkCount": "{date}: {count, plural, one {# linking page} other {# linking pages}}",
-        "lostDonors": "Pages that linked here before but had no link in the latest sample",
+        "lostDonors": "Pages where the link no longer appeared",
         "unknownDonors": "Link coverage is unknown because no source pages were sampled.",
         "partialDonors": "Linking pages observed in this partial sample: {count}.",
         "baseline": "Sampled pages linking here: {count}. No comparable earlier sample.",
-        "donors": "Pages linking to this target",
+        "donors": "Pages linking here",
         "content": "(link in page content)",
-        "sitemaps": "Sitemaps listing this target"
+        "sitemaps": "Sitemaps listing this page"
       },
       "discovery": {
         "actionsHeading": "Search Console actions",
@@ -13263,7 +13263,7 @@
         "submitted": "Last submitted: {date}.",
         "read": "Last downloaded by Google: {date}.",
         "crawl": "Last crawled by Google: {date}.",
-        "canonical": "Google canonical: {url}",
+        "canonical": "Google’s preferred URL: {url}",
         "inspections": "Inspected URLs in this audit ({count})"
       },
       "pageDiscovery": {
@@ -14128,7 +14128,7 @@
           "peakMonths": "Peak months",
           "seasonal": "Seasonal",
           "trend": "Trend",
-          "change": "Change ratio",
+          "change": "Change over the year",
           "evidence": "Evidence",
           "visible": "Visible",
           "outside_first_screen": "Outside the first screen",
@@ -14155,7 +14155,19 @@
         "testsAll": "Every test gave a result"
       },
       "siteTraffic": {
-        "scope": "Search Console scope",
+        "noMatches": "No matching pages",
+        "clear": "Clear selection",
+        "filter": "Traffic filter",
+        "choose": "Choose pages ({count})",
+        "find": "Find a page",
+        "apply": "Apply filter",
+        "savedReports": "Saved reports for tracked pages",
+        "trend": "Daily search traffic",
+        "pages": "Traffic by page",
+        "seenWithoutClicks": "<page></page> appeared {count, plural, one {once} other {# times}} without a click.",
+        "clicks": "Clicks",
+        "impressions": "Times shown",
+        "addresses": "Other addresses",
         "site": "Whole site",
         "selected": "Selected pages",
         "sort": "Order pages by",
@@ -14167,7 +14179,7 @@
         "loading": "Loading Search Console traffic.",
         "failed": "Could not read traffic for this selection.",
         "unavailable": "Live traffic requires a matching Search Console property for this website.",
-        "saved": "Saved measurements for selected pages"
+        "saved": "Traffic for selected pages"
       },
       "traffic": {
         "periodInsight": {
@@ -14207,7 +14219,6 @@
         "sessions": "Sessions",
         "keyEventsShort": "Key events",
         "noAiData": "No AI Assistant channel data",
-        "noAiDataBody": "Google Analytics reported no sessions in its AI Assistant channel for these pages in this period.",
         "brandSplit": "Brand split",
         "brandViews": {
           "all": "All queries",
@@ -14223,7 +14234,6 @@
         "cancelBrandTerms": "Cancel",
         "brandSaved": "Brand terms saved",
         "noQueryData": "This search type has no query data",
-        "noQueryDataBody": "Query rows are not read for Discover and Google News. Clicks and impressions for this type show above.",
         "keyEventsNotRead": "Not read: shares a landing path with another selected page"
       },
       "export": {
@@ -14584,8 +14594,8 @@
         "overTarget": "Over the 2.5 s lab target",
         "withinTarget": "Within the 2.5 s lab target",
         "title": "Page speed",
-        "lab": "Lighthouse lab test",
-        "field": "Real-user measurements from CrUX",
+        "lab": "Lighthouse test",
+        "field": "Speed for real visitors",
         "scope": {
           "url": "This URL",
           "origin": "Entire origin",
@@ -14593,10 +14603,10 @@
         },
         "scores": "Lighthouse scores (out of 100)",
         "unavailable": "Google could not return usable measurements.",
-        "not_checked": "This audit did not check this source.",
+        "not_checked": "Not checked in this audit.",
         "no_data": "Google reported no real-user data for this URL.",
-        "quota": "Google’s PageSpeed quota was exhausted.",
-        "deadline": "The time budget expired.",
+        "quota": "Google’s test limit was reached.",
+        "deadline": "The test ran out of time.",
         "single": "One run",
         "multiple": "Median of {ok} usable runs out of {runs}",
         "score": {
@@ -14607,11 +14617,11 @@
           "agenticBrowsing": "Agentic browsing"
         },
         "metricsTitle": {
-          "lcp": "Largest contentful paint",
-          "fcp": "First contentful paint",
+          "lcp": "Largest item appears (LCP)",
+          "fcp": "First content appears (FCP)",
           "tbt": "Total blocking time",
           "si": "Speed index",
-          "cls": "Cumulative layout shift",
+          "cls": "Unexpected layout shifts (CLS)",
           "inp": "Interaction to next paint",
           "ttfb": "Time to first byte"
         },
@@ -14619,7 +14629,8 @@
         "p75": "75th percentile",
         "date": "Audit date",
         "budget": "The audit used its PageSpeed request budget.",
-        "unsafe": "The audit could not verify a public landing page."
+        "unsafe": "The audit could not verify a public landing page.",
+        "paintTime": "{device} · largest item appeared in {time}"
       }
     },
     "AdDataConsent": {

@@ -12,7 +12,9 @@ import { gscNumberSchema } from "./native-gsc-queries";
 import {
   escapeRegex,
   gscPageFilterArguments,
+  SEO_STATS_MAX_DAYS,
   unwrapNativeStatistics,
+  withinPeriod,
 } from "./native-statistics";
 
 const PAGE_BATCH = 250;
@@ -26,7 +28,10 @@ const response = z.object({
   rows: z.array(row).max(PAGE_BATCH).default([]),
   responseAggregationType: z.string().optional(),
 });
-function readRows(value: unknown) {
+const dailyResponse = response.extend({
+  rows: z.array(row).max(SEO_STATS_MAX_DAYS).default([]),
+});
+function readRows(value: unknown, schema = response) {
   const payload = unwrapNativeStatistics(value, [
     "rows",
     "responseAggregationType",
@@ -37,7 +42,7 @@ function readRows(value: unknown) {
     !("responseAggregationType" in payload)
   )
     throw new Error("Unrecognized Search Console traffic response");
-  return response.parse(payload).rows;
+  return schema.parse(payload).rows;
 }
 /** Every provider call, including the headline total, carries the same site boundary. */
 export async function readSiteTraffic(
@@ -63,7 +68,18 @@ export async function readSiteTraffic(
     );
     targets.set(url, page.measuredUrl);
   }
-  const allowed = new Set([...selected, ...targets.values()]);
+  const selection = input.pageUrls ?? selected;
+  if (
+    input.pageUrls &&
+    (input.scope !== "selected" ||
+      !gscPropertyCovers(input.propertyId, selection) ||
+      selection.some((url) => seoSearchSiteHost(url) !== site))
+  )
+    throw new Error("Page filter must belong to this website and property");
+  const chosen = new Set(selection.map((url) => targets.get(url) ?? url));
+  const allowed = new Set([...selection, ...chosen]);
+  for (const [submitted, measured] of targets)
+    if (chosen.has(measured)) allowed.add(submitted);
   const siteExpression = input.propertyId.startsWith("sc-domain:")
     ? "^https?://(?:www\\.)?" + escapeRegex(site) + "/"
     : "^" + escapeRegex(new URL(input.propertyId).href);
@@ -80,9 +96,15 @@ export async function readSiteTraffic(
       "includingRegex",
       expression,
     );
-  const [totalRows, first] = await Promise.all([
+  const [totalRows, first, dailyRows] = await Promise.all([
     read(args([], 0, 1)).then(readRows),
     read(args(["page"], 0, PAGE_BATCH)).then(readRows),
+    input.includeDaily
+      ? read(args(["date"], 0, SEO_STATS_MAX_DAYS)).then(
+          (value) => readRows(value, dailyResponse),
+          () => undefined,
+        )
+      : undefined,
   ]);
   if (totalRows.length > 1 || totalRows.some((r) => r.keys.length))
     throw new Error("Unexpected totals grouping");
@@ -131,12 +153,22 @@ export async function readSiteTraffic(
       await read(args(["page"], batchNumber * PAGE_BATCH, PAGE_BATCH)),
     );
   }
+  const daily = dailyRows
+    ?.map(({ keys, clicks, impressions }) => {
+      if (keys.length !== 1 || !withinPeriod(keys[0], input))
+        throw new Error("Unexpected traffic date");
+      return { date: keys[0], clicks, impressions };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (daily && new Set(daily.map((day) => day.date)).size !== daily.length)
+    throw new Error("Duplicate traffic date");
   const total = totalRows[0];
   return {
     site,
     propertyId: input.propertyId,
     from: input.from,
     to: input.to,
+    ...(daily && { daily }),
     limited,
     totals: total
       ? { clicks: total.clicks, impressions: total.impressions }
