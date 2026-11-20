@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import {
   createContext,
   type ReactNode,
@@ -24,7 +23,6 @@ interface AuthSessionGuardProps {
 }
 
 export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
-  const router = useRouter();
   const isRedirectingRef = useRef(false);
   const mountedRef = useRef(true);
   const probeGenerationRef = useRef(0);
@@ -115,7 +113,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
 
     isRedirectingRef.current = true;
     const returnUrl = encodeURIComponent(getReturnUrlFromCurrentLocation());
-    router.replace(`/signin?returnUrl=${returnUrl}`);
+    window.location.replace(`/signin?returnUrl=${returnUrl}`);
   });
 
   const registerRenderedUser = useCallback(
@@ -155,6 +153,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
   useEventListener("document", "visibilitychange", () => {
     if (document.visibilityState === "visible") {
       reloadAskedRef.current = false;
+      isRedirectingRef.current = false;
       void validateSession();
     }
   });
