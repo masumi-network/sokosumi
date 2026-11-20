@@ -29,6 +29,9 @@ it("says plainly that something failed and lets the person try again", async () 
     expect(button?.textContent).toBe("Try again");
     await act(async () => button?.click());
     expect(retry).toHaveBeenCalledOnce();
+    expect(container.querySelector(".logo-on-light")?.getAttribute("src")).toBe(
+      "/logo/cmo-xyz-lockup-block-black.svg",
+    );
   } finally {
     await act(async () => root.unmount());
     container.remove();
