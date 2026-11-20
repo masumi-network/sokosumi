@@ -361,13 +361,13 @@
 }
 
 .ds-statuses {
-  display: grid;
-  max-width: 240px;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 48px;
 }
 
 .ds-statuses .cuso-status {
-  margin: 0;
+  width: 216px;
 }
 
 .ds-avatars {

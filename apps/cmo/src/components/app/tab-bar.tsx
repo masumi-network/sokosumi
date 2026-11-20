@@ -4,6 +4,7 @@ import { LogOut, Menu, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import type { View } from "../../lib/views";
+import { type CusoArt, cusoArt } from "../cuso";
 import { ThemeToggle } from "../theme-toggle";
 import { VIEWS } from "./sidebar";
 import { ViewLink } from "./view-link";
@@ -16,6 +17,8 @@ interface TabBarProps {
   onSelect: (view: View) => void;
   /** What needs the owner, counted on Today. */
   needs: number;
+  /** Cuso's pose for his state: on a phone he stands in his own tab. */
+  pose: CusoArt;
   manyCusos?: boolean;
   signOut?: () => Promise<void>;
 }
@@ -28,6 +31,7 @@ export function TabBar({
   view,
   onSelect,
   needs,
+  pose,
   manyCusos = false,
   signOut,
 }: TabBarProps) {
@@ -103,7 +107,11 @@ export function TabBar({
           aria-current={view === id ? "page" : undefined}
         >
           <span className="tab-icon">
-            <Icon size={20} aria-hidden="true" />
+            {id === "chat" ? (
+              <img className="tab-cuso" src={cusoArt(pose)} alt="" />
+            ) : (
+              <Icon size={20} aria-hidden="true" />
+            )}
             {id === "today" && needs > 0 ? (
               <span className="count num" aria-label={`${needs} need you`}>
                 {needs}

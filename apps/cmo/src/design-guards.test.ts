@@ -602,3 +602,37 @@ describe("visual system", () => {
     });
   });
 });
+
+describe("Cuso on every page", () => {
+  const css = FILES.find((file) => file.rel === STYLESHEET)?.text ?? "";
+  const rule = (selector: string) =>
+    css.match(
+      new RegExp(`\\n${selector.replace(/[.*]/g, "\\$&")} \\{([^}]*)\\}`),
+    )?.[1] ?? "";
+
+  it("never takes a press: only his bubble does", () => {
+    expect(rule(".cuso-status")).toContain("pointer-events: none");
+    expect(rule(".cuso-says")).toContain("pointer-events: auto");
+  });
+
+  it("stands on his light stage in both themes, so his black line reads", () => {
+    expect(rule(".cuso-stage")).toContain("background: var(--stage)");
+  });
+
+  it("moves only when motion is allowed", () => {
+    const moving = [
+      ...css.matchAll(/\n( *)\.cuso-stage img \{[^}]*animation/g),
+    ];
+    expect(moving).toHaveLength(1);
+    const before = css.slice(0, moving[0]?.index);
+    expect(
+      before.lastIndexOf("@media (prefers-reduced-motion: no-preference)"),
+    ).toBeGreaterThan(before.lastIndexOf("\n}"));
+  });
+
+  it("steps back while a sheet or dialog is open", () => {
+    expect(css).toMatch(
+      /\.app:has\(\.sheet-scrim, \[role="dialog"\]\) \.cuso-stage \{[^}]*opacity: 0/,
+    );
+  });
+});
