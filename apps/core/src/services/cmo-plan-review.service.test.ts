@@ -27,9 +27,9 @@ import {
   cmoPlanProblems,
   cmoPlanProblemsSince,
   cmoPlanRuleProblems,
+  cmoPromiseGaps,
   cmoRejectedTermProblems,
   cmoRejectedTerms,
-  cmoPromiseGaps,
   cmoReplySafety,
   cmoSideChannelFit,
   cmoStrategyRules,
@@ -1929,7 +1929,7 @@ describe("an owner's correction", () => {
     const problems = cmoRejectedTermProblems(strategy, ["ballcap", "jackets"]);
     expect(problems).toHaveLength(2);
     expect(problems[0]).toContain(
-      '"ballcap" is what the owner said is not true, and it is still in questions, b1\'s title or brief.',
+      '"ballcap" is what the owner said is not true, and it is still in questions, b1\'s words.',
     );
     expect(problems[0]).not.toContain("changes");
     expect(problems[0]).not.toContain("b3");

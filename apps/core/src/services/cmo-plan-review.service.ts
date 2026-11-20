@@ -1702,10 +1702,15 @@ export function cmoRejectedTermProblems(
     ...strategy.calendar
       .filter((entry) => entry.status !== "skipped")
       .map((entry) => ({
-        place: `${entry.id}'s title or brief`,
-        texts: [entry.title, entry.brief, entry.story, entry.claim].flatMap(
-          (text) => text ?? [],
-        ),
+        place: `${entry.id}'s words`,
+        texts: [
+          entry.title,
+          entry.brief,
+          entry.why,
+          entry.hook,
+          entry.story,
+          entry.claim,
+        ].flatMap((text) => text ?? []),
       })),
   ];
   return terms.flatMap((term) => {
