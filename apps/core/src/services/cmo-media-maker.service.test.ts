@@ -525,18 +525,20 @@ describe("advanceCmoMedia", () => {
     });
   });
 
-  it("starts each piece's picture once, within the studio's limit, from the brand's pictures", async () => {
+  it("starts each piece's picture once, within the month's limit, from the brand's pictures", async () => {
     jobFindMany.mockResolvedValue([]);
+    jobCount.mockResolvedValue(4);
     await advanceCmoMedia(context, [
       piece({ id: "a", socialPostId: "a" }),
       piece({ id: "b", socialPostId: "b", visualFileIds: ["f-photo"] }),
       piece({ id: "c", socialPostId: "c" }),
       piece({ id: "d", socialPostId: "d", visual: undefined }),
     ]);
-    // One job already runs in the Project: two more fit.
+    // Four jobs already run in the Project: two more fit of the month's six.
     expect(createImageJob).toHaveBeenCalledTimes(2);
     expect(createImageJob.mock.calls[0]?.[0]).toMatchObject({
       userId: "runner-1",
+      forCmoMonth: true,
       referenceFileIds: ["f-photo", "f-home"],
       settings: { aspectRatio: "16:9", outputFormat: "jpeg" },
       idempotencyKey: expect.stringMatching(
