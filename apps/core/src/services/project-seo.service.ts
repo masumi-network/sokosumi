@@ -465,7 +465,7 @@ async function loadSeoWorkspaceObservations(
       ? await prisma.projectSeoObservation.findMany({
           where: {
             ...where,
-            kind: "index_triage",
+            kind: { in: ["index_triage", "site_evidence", "index_inspection"] },
             ownerId: actor.userId,
             visibility: "PRIVATE",
             sourceTaskId: { in: taskIds },
@@ -475,8 +475,8 @@ async function loadSeoWorkspaceObservations(
             { createdAt: "desc" },
             { id: "desc" },
           ],
-          distinct: ["sourceTaskId"],
-          take: SEO_WORKSPACE_EVIDENCE_LIMIT,
+          distinct: ["sourceTaskId", "kind"],
+          take: SEO_WORKSPACE_EVIDENCE_LIMIT * 3,
         })
       : [];
   return {

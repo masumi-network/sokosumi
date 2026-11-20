@@ -12,8 +12,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoAuditSearchConsole } from "./seo-audit-search-console";
+import { SeoConsoleExports } from "./seo-console-exports";
 import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SeoSiteEvidence } from "./seo-site-evidence";
 import {
   type SeoReportFileProps,
   useSeoReportFiles,
@@ -67,6 +70,7 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
     recoverMarkets,
     recoverPageSpeed,
     evidence,
+    siteEvidence,
     fullAudit,
     recoverSearch,
     recovering,
@@ -94,8 +98,15 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
           {t("reportFiles.historyLimit")}
         </p>
       )}
+      {siteEvidence && <SeoSiteEvidence evidence={siteEvidence} />}
       {evidence ? (
-        <SeoAuditSearchConsole evidence={evidence} />
+        <>
+          <SeoAuditSearchConsole evidence={evidence} />
+          <SeoConsoleExports
+            owner={seoWorkspaceOwner(model.data)}
+            taskId={taskId}
+          />
+        </>
       ) : fullAudit || recoverSearch ? (
         <p className="text-muted-foreground text-sm">
           {t("reportFiles.missingSearchConsole")}

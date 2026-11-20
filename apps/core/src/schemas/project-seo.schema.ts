@@ -16,6 +16,7 @@ import {
   seoDeviceSchema,
   seoObservationSchema,
 } from "./seo-audit-coverage.schema";
+import { publicSitemapInputFields } from "./seo-sitemap-evidence.schema";
 
 export {
   seoDeviceSchema,
@@ -48,7 +49,6 @@ import {
 import { seoAuditPerformanceSchema } from "./seo-audit-performance.schema";
 import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
 import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
-
 import {
   SEO_MAX_PAGES,
   seoBriefAction,
@@ -57,6 +57,7 @@ import {
   seoScopeSchema,
   seoUrlSchema,
 } from "./seo-page.schema";
+import { workspaceSiteEvidenceFields } from "./seo-site-evidence.schema";
 
 export {
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -207,6 +208,8 @@ export const requestSeoAnalysisSchema = z
     fullAuditPrice: seoCostPlusPriceSchema.optional(),
     searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
     allowLimitedAudit: z.literal(true).optional(),
+    includeSitemaps: z.literal(true).optional(),
+    ...publicSitemapInputFields,
     setupGoal: z
       .strictObject({
         pageId: seoIdSchema,
@@ -261,6 +264,12 @@ export const requestSeoAnalysisSchema = z
           ? input.sharedBrief.revision === input.setupGoal.expectedRevision
           : input.sharedBrief.revision > 0)),
     "Share goals from the reviewed brief revision in a full audit",
+  )
+  .refine(
+    (input) =>
+      !input.includeSitemaps ||
+      (input.kind === "audit_full" && !input.allowLimitedAudit),
+    "Submitted sitemaps require a full audit with Search Console access",
   )
   .openapi("RequestProjectSeoAnalysisRequest");
 export const saveSeoKeywordSchema = z
@@ -696,6 +705,7 @@ export const projectSeoWorkspaceSchema = z
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** Private indexing assessment for the current viewer's audit and selected pages. */
     indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
+    ...workspaceSiteEvidenceFields,
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     landingEngagementChange: seoLandingEngagementChange.optional(),

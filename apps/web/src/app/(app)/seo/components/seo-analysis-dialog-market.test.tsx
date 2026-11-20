@@ -139,6 +139,11 @@ describe("SEO check defaults", () => {
       dialog = showDialog(workspace());
     const summary = within(dialog).getByTestId("seo-analysis-summary");
     expect(within(summary).getByText("Full audit")).toBeVisible();
+    expect(
+      within(dialog).getByText(
+        messages.App.Seo.analysis.publicLinkScope.replaceAll("{limit}", "10"),
+      ),
+    ).toBeVisible();
     // One line: the market of the saved keyword, by name, and the one keyword a full audit takes. Both
     // devices are the default and go unsaid.
     expect(summary).toHaveTextContent(
@@ -161,6 +166,37 @@ describe("SEO check defaults", () => {
       languageCode: "de",
       keywords: ["Akku Zustand"],
       devices: ["mobile", "desktop"],
+    });
+  });
+
+  it("starts with a public sitemap and only the public page hints reviewed from a local XML file", async () => {
+    const user = userEvent.setup();
+    const dialog = within(showDialog(workspace()));
+    await user.click(dialog.getByRole("button", { name: "Change options" }));
+    const base = "https://example.com/";
+    const sitemapUrl = base + "public-map.xml";
+    await user.type(
+      dialog.getByLabelText("Public sitemap URL (optional)"),
+      sitemapUrl,
+    );
+    const xml =
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+      [base + "guide", base + "profile/person", "https://away.example/x"]
+        .map((url) => `<url><loc>${url}</loc></url>`)
+        .join("") +
+      "</urlset>";
+    await user.upload(
+      dialog.getByLabelText("Import a sitemap XML file (optional)"),
+      new File([xml], "pages.xml", { type: "application/xml" }),
+    );
+    expect(await dialog.findByText(base + "guide")).toBeVisible();
+    expect(dialog.queryByText(base + "profile/person")).toBeNull();
+    await user.click(dialog.getByRole("button", { name: "Start check" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      kind: "audit_full",
+      publicSitemapUrl: sitemapUrl,
+      sitemapPageHints: [base + "guide"],
     });
   });
 
@@ -246,6 +282,8 @@ describe("Search Console audit launch", () => {
       );
       const first = monitor ? initial.analysis : initial;
       const next = monitor ? limited.analysis : limited;
+      expect(first.includeSitemaps).toBe(true);
+      expect(next.includeSitemaps).toBeUndefined();
       expect(first.allowLimitedAudit).toBeUndefined();
       expect(next).toMatchObject({
         idempotencyKey: first.idempotencyKey,
@@ -297,6 +335,46 @@ describe("uncertain audit launches", () => {
       mutate.mock.calls[2][0].command.body.allowLimitedAudit,
     ).toBeUndefined();
   });
+
+  it.each([false, true])(
+    "keeps a changed sitemap choice separate from an uncertain request (monitor %s)",
+    async (monitor) => {
+      mutate.mockRejectedValueOnce(new Error("Response lost after commit"));
+      const user = userEvent.setup();
+      const dialog = showDialog(workspace(), monitor);
+      const choice = within(dialog).getByRole("checkbox", {
+        name: messages.App.Seo.analysis.includeSitemaps,
+      });
+      const start = within(dialog).getByRole("button", {
+        name: monitor
+          ? messages.App.Seo.monitor.create
+          : messages.App.Seo.analysis.submit,
+      });
+      expect(choice).toBeChecked();
+      await user.click(start);
+      await waitFor(() => expect(toastError).toHaveBeenCalled());
+      await user.click(choice);
+      await user.click(start);
+      expect(mutate).toHaveBeenCalledTimes(1);
+      const retry = toastError.mock.lastCall?.[1]?.action;
+      mutate.mockResolvedValueOnce({
+        ok: false,
+        error: { kind: "seo_gsc_property", status: 409 },
+      });
+      await act(async () => retry.onClick());
+      expect(mutate.mock.calls[1][0]).toEqual(mutate.mock.calls[0][0]);
+      await user.click(start);
+      const first = mutate.mock.calls[0][0].command.body;
+      const changed = mutate.mock.calls[2][0].command.body;
+      expect((monitor ? first.analysis : first).includeSitemaps).toBe(true);
+      expect(
+        (monitor ? changed.analysis : changed).includeSitemaps,
+      ).toBeUndefined();
+      expect((monitor ? changed.analysis : changed).idempotencyKey).not.toBe(
+        (monitor ? first.analysis : first).idempotencyKey,
+      );
+    },
+  );
 
   it.each([false, true])(
     "replays the exact limited request after an uncertain acknowledgement (monitor %s)",
@@ -378,7 +456,9 @@ describe("full-audit price terms", () => {
     // A full audit has a minimum and no maximum: the line never says "up to".
     expect(within(dialog).queryByText(/Up to/)).toBeNull();
     expect(within(dialog).queryByRole("spinbutton")).toBeNull();
-    expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    expect(
+      within(dialog).queryByRole("checkbox", { name: /price|credits/i }),
+    ).toBeNull();
     await user.click(
       within(dialog).getByRole("button", { name: "Start check" }),
     );

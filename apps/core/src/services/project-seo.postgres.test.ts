@@ -826,6 +826,7 @@ describe.skipIf(!enabled)(
           },
           analysis: requestSeoAnalysisSchema.parse({
             kind: "audit_full",
+            includeSitemaps: true,
             pageIds: [page.id],
             fullAuditPrice: seoFullAuditPrice(),
             countryCode: "US",
@@ -838,6 +839,7 @@ describe.skipIf(!enabled)(
           where: { id: monitor.id },
         });
         expect(schedule.description).not.toContain(property);
+        expect(schedule.description).not.toContain("includeSitemaps");
         const saved = await prisma.projectSeoObservation.findFirstOrThrow({
           where: {
             sourceKey: `monitor-approval:${monitor.id}`,
@@ -849,6 +851,7 @@ describe.skipIf(!enabled)(
         const access = seoAuditSearchConsoleAccessSchema.parse(
           (saved.payload as Record<string, unknown>).searchConsoleAccess,
         );
+        expect(access.includeSitemaps).toBe(true);
         const workspace = await getProjectSeoWorkspace(actor, {
           pageId: page.id,
         });
@@ -877,6 +880,7 @@ describe.skipIf(!enabled)(
           searchConsoleAccess: {
             propertyId: property,
             connectionVersion: expect.stringMatching(/^[a-f0-9]{64}$/),
+            includeSitemaps: true,
           },
         });
         const app = createTaskScheduleTestApp(
@@ -1008,6 +1012,7 @@ describe.skipIf(!enabled)(
           );
         };
         const newAccount = await proofFor(reconnectedTask);
+        expect(newAccount.includeSitemaps).toBeUndefined();
         expect(newAccount.propertyId).toBe(property);
         expect(newAccount.connectionVersion).not.toBe(access.connectionVersion);
         await prisma.task.update({
