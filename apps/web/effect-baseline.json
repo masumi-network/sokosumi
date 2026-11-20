@@ -28,6 +28,7 @@
   "src/app/(app)/chat/components/transcript-viewport.tsx": 5,
   "src/app/(app)/chat/components/use-room-panel-slide.ts": 1,
   "src/app/(app)/chat/hooks/use-clamped-overflow.tsx": 1,
+  "src/app/(app)/chat/hooks/use-compose-draft.ts": 3,
   "src/app/(app)/chat/hooks/use-coworker-direct-room-stream.ts": 3,
   "src/app/(app)/chat/hooks/use-message-param-jump.ts": 1,
   "src/app/(app)/chat/hooks/use-quiet-hover-while-scrolling.ts": 1,

@@ -113,7 +113,6 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-analytics-user-id` (`useAnalyticsUserId`) — pushes GA4 `set_user_id` into `window.dataLayer` when the signed-in user id changes
 - `use-track-purchase` (`useTrackPurchase`) — fires the GTM `purchase` event at most once per checkout session id once analytics consent is granted
 - `use-report-route-error` (`useReportRouteError`, `useGlobalRouteError`) — reports route error boundary failures to Sentry and handles one-shot stale-deployment refresh in the global error boundary
-- `use-compose-draft` (`usePersistComposeDraft`) — debounced chat composer draft persistence and hydration in browser storage
 - `use-url-timezone` (`useUrlTimezone`) — seeds the browser's IANA time zone into a calendar URL that lacks a valid one
 - `use-push-preference` (`usePushPreference`) — browser Web Push capability, permission, subscription, and repair state synchronization
 - `use-record-project-visit` (`useRecordProjectVisit`) — records visited project IDs in the per-user/per-workspace `localStorage` visit log
