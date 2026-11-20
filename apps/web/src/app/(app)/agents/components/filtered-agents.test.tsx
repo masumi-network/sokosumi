@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
+import useGalleryFilter from "@/hooks/use-gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { createMockCatalogBrowseAgent } from "@/lib/helpers/__tests__/fixtures/catalog-browse-agent";
 import type { Category } from "@/lib/types/category";
@@ -43,16 +45,29 @@ const categories: Category[] = [
   { name: "Other", slug: SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, priority: 0 },
 ];
 
+// Stands in for the hero's Show control, which lives in the coworker tier.
+function ShowAgents() {
+  const { setScope } = useGalleryFilter();
+  return (
+    <button type="button" onClick={() => void setScope("agents")}>
+      showAgents
+    </button>
+  );
+}
+
 function renderAt(searchParams: string) {
   return render(
-    <FilteredAgents
-      agents={agents}
-      ratingStatsMap={{}}
-      categories={categories}
-      title="All agents"
-      subtitle="Every agent"
-    />,
-    { wrapper: withNuqsTestingAdapter({ searchParams }) },
+    <>
+      <ShowAgents />
+      <FilteredAgents
+        agents={agents}
+        ratingStatsMap={{}}
+        categories={categories}
+        title="All agents"
+        subtitle="Every agent"
+      />
+    </>,
+    { wrapper: withNuqsTestingAdapter({ searchParams, hasMemory: true }) },
   );
 }
 
@@ -82,5 +97,22 @@ describe("FilteredAgents", () => {
     expect(
       screen.queryByRole("heading", { name: /All agents/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("announces in the same status node when Show moves from Coworkers to Agents", async () => {
+    const user = userEvent.setup();
+    renderAt("?query=news&show=coworkers");
+    const status = await screen.findByRole("status");
+    expect(status).toBeEmptyDOMElement();
+
+    await user.click(screen.getByRole("button", { name: "showAgents" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "All agents · n1" }),
+    ).toBeInTheDocument();
+    // A region inserted already filled is often not read; the old node must
+    // receive the new text.
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toHaveTextContent("agentsFound:1");
   });
 });

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -27,7 +28,7 @@ vi.mock("@/app/tasks/components/create-task-modal", () => ({
 
 function renderAt(searchParams: string) {
   return render(<CoworkerGallerySection coworkers={[]} />, {
-    wrapper: withNuqsTestingAdapter({ searchParams }),
+    wrapper: withNuqsTestingAdapter({ searchParams, hasMemory: true }),
   });
 }
 
@@ -46,8 +47,23 @@ describe("CoworkerGallerySection with no coworkers", () => {
   it("says so, and announces it, when Coworkers is shown", () => {
     renderAt("?show=coworkers");
 
-    expect(screen.getByText("noCoworkers")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "all" })).toBeInTheDocument();
+    expect(
+      screen.getByText("noCoworkers", { selector: "p:not([role=status])" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("noCoworkers");
+  });
+
+  it("announces no coworkers in the same status node on choosing Coworkers", async () => {
+    const user = userEvent.setup();
+    renderAt("");
+    const status = screen.getByRole("status");
+    expect(status).toBeEmptyDOMElement();
+
+    await user.click(screen.getByRole("radio", { name: "coworkers" }));
+
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toHaveTextContent("noCoworkers");
   });
 
   it("announces how many coworkers match a search", () => {

@@ -557,7 +557,9 @@ function CoworkerGallerySectionInner({
             message={
               isSearching && scope !== "agents"
                 ? t("coworkersFound", { count: matchingCoworkers })
-                : ""
+                : scope === "coworkers" && vendorGroups.length === 0
+                  ? t("noCoworkers")
+                  : ""
             }
           />
           {suggestions.length > 0 ? (
