@@ -255,22 +255,24 @@ export function TaskActivitySection({
     setPendingJumpId(null);
   }, [taskId]);
 
-  useEffect(() => {
-    // Same task: merge so expanded older pages survive truncated refresh.
-    // Drop optimistic rows — the refreshed prop carries the persisted event.
-    // Different task: replace the feed entirely.
-    setLocalEvents((prev) => {
-      const sameTask =
-        prev.length > 0 && prev.every((event) => event.taskId === taskId);
-      if (!sameTask) {
-        return events;
-      }
-      return mergeTaskActivityEvents(
-        prev.filter((event) => !event.id.startsWith("optimistic:")),
-        events,
-      );
-    });
-  }, [events, taskId]);
+  const [prevEventsSync, setPrevEventsSync] = useState({ events, taskId });
+  // Same task: merge so expanded older pages survive truncated refresh.
+  // Drop optimistic rows — the refreshed prop carries the persisted event.
+  // Different task: replace the feed entirely.
+  if (prevEventsSync.events !== events || prevEventsSync.taskId !== taskId) {
+    setPrevEventsSync({ events, taskId });
+    const sameTask =
+      localEvents.length > 0 &&
+      localEvents.every((event) => event.taskId === taskId);
+    setLocalEvents(
+      sameTask
+        ? mergeTaskActivityEvents(
+            localEvents.filter((event) => !event.id.startsWith("optimistic:")),
+            events,
+          )
+        : events,
+    );
+  }
 
   const localCommentCount = localEvents.filter(
     (event) => event.comment != null,

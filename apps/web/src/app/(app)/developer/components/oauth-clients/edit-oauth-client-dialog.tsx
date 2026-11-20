@@ -6,7 +6,6 @@ import {
   hasOfflineAccessOAuthScope,
 } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -34,49 +33,43 @@ import { Textarea } from "@/components/ui/textarea";
 import type {
   EditOAuthClientDialogProps,
   EditOAuthClientFormData,
+  OAuthClientRecord,
 } from "./types";
 import {
-  DEFAULT_EDIT_FORM_VALUES,
   editOAuthClientSchema,
   isPublicOAuthClient,
   parseRedirectUris,
 } from "./utils";
 
-export function EditOAuthClientDialog({
+function EditOAuthClientForm({
   client,
-  open,
   onOpenChange,
   onSuccess,
   updateClient,
-}: EditOAuthClientDialogProps) {
+}: {
+  client: OAuthClientRecord;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+  updateClient: EditOAuthClientDialogProps["updateClient"];
+}) {
   const t = useTranslations("App.Account.OAuthClients");
   const schema = editOAuthClientSchema(t);
 
   const form = useForm<EditOAuthClientFormData>({
     resolver: zodResolver(schema),
-    defaultValues: DEFAULT_EDIT_FORM_VALUES,
+    defaultValues: {
+      name: client.client_name ?? "",
+      redirectUris: (client.redirect_uris ?? []).join("\n"),
+      clientUri: client.client_uri ?? "",
+      logoUri: client.logo_uri ?? "",
+      includeCoreApi: hasCoreApiOAuthScope(client.scope),
+      includeOfflineAccess: hasOfflineAccessOAuthScope(client.scope),
+    },
   });
-
-  useEffect(() => {
-    if (client) {
-      form.reset({
-        name: client.client_name ?? "",
-        redirectUris: (client.redirect_uris ?? []).join("\n"),
-        clientUri: client.client_uri ?? "",
-        logoUri: client.logo_uri ?? "",
-        includeCoreApi: hasCoreApiOAuthScope(client.scope),
-        includeOfflineAccess: hasOfflineAccessOAuthScope(client.scope),
-      });
-    }
-  }, [client, form]);
 
   const { isSubmitting } = form.formState;
 
   const onSubmit = async (values: EditOAuthClientFormData) => {
-    if (!client) {
-      return;
-    }
-
     const success = await updateClient({
       clientId: client.client_id,
       name: values.name,
@@ -94,15 +87,192 @@ export function EditOAuthClientDialog({
     }
   };
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    onOpenChange(nextOpen);
-    if (!nextOpen) {
-      form.reset();
-    }
-  };
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div>
+          <p className="text-sm font-medium">
+            {t("CreatedSuccess.clientIdLabel")}
+          </p>
+          <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
+            {client.client_id}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium">
+            {t("EditDialog.clientTypeLabel")}
+          </p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {isPublicOAuthClient(client)
+              ? t("EditDialog.clientTypePublic")
+              : t("EditDialog.clientTypeConfidential")}
+          </p>
+        </div>
+
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("EditDialog.nameLabel")}</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder={t("EditDialog.namePlaceholder")}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="redirectUris"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("EditDialog.redirectUrisLabel")}</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder={t("EditDialog.redirectUrisPlaceholder")}
+                  className="min-h-20"
+                  {...field}
+                />
+              </FormControl>
+              <p className="text-muted-foreground text-xs">
+                {t("EditDialog.redirectUrisHelp")}
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="clientUri"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("EditDialog.clientUriLabel")}</FormLabel>
+              <FormControl>
+                <Input
+                  inputMode="url"
+                  placeholder={t("EditDialog.clientUriPlaceholder")}
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>{t("EditDialog.clientUriHelp")}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="logoUri"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("EditDialog.logoUriLabel")}</FormLabel>
+              <FormControl>
+                <Input
+                  inputMode="url"
+                  placeholder={t("EditDialog.logoUriPlaceholder")}
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>{t("EditDialog.logoUriHelp")}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="includeCoreApi"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-start gap-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={(checked) => {
+                      field.onChange(checked === true);
+                    }}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <div className="space-y-1">
+                  <FormLabel className="font-normal">
+                    {t("EditDialog.includeCoreApiLabel")}
+                  </FormLabel>
+                  <FormDescription>
+                    {t("EditDialog.includeCoreApiHelp")}
+                  </FormDescription>
+                </div>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="includeOfflineAccess"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-start gap-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={(checked) => {
+                      field.onChange(checked === true);
+                    }}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <div className="space-y-1">
+                  <FormLabel className="font-normal">
+                    {t("EditDialog.includeOfflineAccessLabel")}
+                  </FormLabel>
+                  <FormDescription>
+                    {t("EditDialog.includeOfflineAccessHelp")}
+                  </FormDescription>
+                </div>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
+            {t("EditDialog.cancelButton")}
+          </Button>
+          <Button type="submit" loading={isSubmitting}>
+            {t("EditDialog.saveButton")}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+export function EditOAuthClientDialog({
+  client,
+  open,
+  onOpenChange,
+  onSuccess,
+  updateClient,
+}: EditOAuthClientDialogProps) {
+  const t = useTranslations("App.Account.OAuthClients");
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="app-scrollbar max-h-[90dvh] overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>{t("EditDialog.title")}</DialogTitle>
@@ -110,181 +280,13 @@ export function EditOAuthClientDialog({
         </DialogHeader>
 
         {client ? (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">
-                  {t("CreatedSuccess.clientIdLabel")}
-                </p>
-                <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
-                  {client.client_id}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium">
-                  {t("EditDialog.clientTypeLabel")}
-                </p>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {isPublicOAuthClient(client)
-                    ? t("EditDialog.clientTypePublic")
-                    : t("EditDialog.clientTypeConfidential")}
-                </p>
-              </div>
-
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("EditDialog.nameLabel")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("EditDialog.namePlaceholder")}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="redirectUris"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("EditDialog.redirectUrisLabel")}</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder={t("EditDialog.redirectUrisPlaceholder")}
-                        className="min-h-20"
-                        {...field}
-                      />
-                    </FormControl>
-                    <p className="text-muted-foreground text-xs">
-                      {t("EditDialog.redirectUrisHelp")}
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="clientUri"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("EditDialog.clientUriLabel")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        inputMode="url"
-                        placeholder={t("EditDialog.clientUriPlaceholder")}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("EditDialog.clientUriHelp")}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="logoUri"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("EditDialog.logoUriLabel")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        inputMode="url"
-                        placeholder={t("EditDialog.logoUriPlaceholder")}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("EditDialog.logoUriHelp")}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="includeCoreApi"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-start gap-3">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={(checked) => {
-                            field.onChange(checked === true);
-                          }}
-                          disabled={isSubmitting}
-                        />
-                      </FormControl>
-                      <div className="space-y-1">
-                        <FormLabel className="font-normal">
-                          {t("EditDialog.includeCoreApiLabel")}
-                        </FormLabel>
-                        <FormDescription>
-                          {t("EditDialog.includeCoreApiHelp")}
-                        </FormDescription>
-                      </div>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="includeOfflineAccess"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-start gap-3">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={(checked) => {
-                            field.onChange(checked === true);
-                          }}
-                          disabled={isSubmitting}
-                        />
-                      </FormControl>
-                      <div className="space-y-1">
-                        <FormLabel className="font-normal">
-                          {t("EditDialog.includeOfflineAccessLabel")}
-                        </FormLabel>
-                        <FormDescription>
-                          {t("EditDialog.includeOfflineAccessHelp")}
-                        </FormDescription>
-                      </div>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleOpenChange(false)}
-                  disabled={isSubmitting}
-                >
-                  {t("EditDialog.cancelButton")}
-                </Button>
-                <Button type="submit" loading={isSubmitting}>
-                  {t("EditDialog.saveButton")}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <EditOAuthClientForm
+            key={`${client.client_id}:${client.client_name ?? ""}:${(client.redirect_uris ?? []).join(",")}:${client.client_uri ?? ""}:${client.logo_uri ?? ""}:${client.scope ?? ""}:${open ? "open" : "closed"}`}
+            client={client}
+            onOpenChange={onOpenChange}
+            onSuccess={onSuccess}
+            updateClient={updateClient}
+          />
         ) : null}
       </DialogContent>
     </Dialog>

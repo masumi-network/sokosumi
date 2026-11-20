@@ -320,15 +320,17 @@ function PostPreview({
 }) {
   const channel = entry.channel.toLowerCase();
   const [editing, setEditing] = useState(false);
+  const [prevText, setPrevText] = useState(text);
   const [words, setWords] = useState(text);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
   // Stepping to another post, or a save, shows that post's own words.
-  useEffect(() => {
+  if (prevText !== text) {
+    setPrevText(text);
     setWords(text);
     setEditing(false);
     setRefusal(null);
-  }, [text]);
+  }
   const pictureFirst = channel === "instagram";
   const picture = <PieceMedia entry={entry} media={media} />;
   return (
