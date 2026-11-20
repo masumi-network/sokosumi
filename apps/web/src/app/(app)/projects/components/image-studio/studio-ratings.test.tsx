@@ -19,13 +19,12 @@ const mocks = vi.hoisted(() => ({
   hide: vi.fn(),
   viewed: vi.fn(),
   toast: vi.fn(),
-  replace: vi.fn(),
 }));
 // happy-dom has no layout for next/image to measure a `fill` parent by.
 vi.mock("next/image", () => import("@/test/next-image"));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: mocks.replace }),
+  useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/studio",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -33,6 +32,13 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "today" }),
 }));
+vi.mock("nuqs", async (importOriginal) => {
+  const { useState } = await import("react");
+  return {
+    ...(await importOriginal<typeof import("nuqs")>()),
+    useQueryState: () => useState("newest"),
+  };
+});
 vi.mock("sonner", () => ({ toast: { error: mocks.toast } }));
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
@@ -240,52 +246,6 @@ describe("studio ratings", () => {
     expect(
       screen.queryByRole("button", { name: "groupByProduct" }),
     ).not.toBeInTheDocument();
-  });
-
-  it("keeps sort updates shallow and preserves sort=best when clicking a version before navigation settles", async () => {
-    const best = {
-      ...ASSET,
-      id: "best",
-      version: 2,
-      score: 1.8,
-    };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            assets: [best, ASSET],
-            jobs: [],
-            nextCursor: null,
-          }),
-        ),
-      ),
-    );
-    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
-    mount([ASSET, best]);
-
-    fireEvent.change(screen.getByRole("combobox", { name: "sort" }), {
-      target: { value: "best" },
-    });
-
-    expect(mocks.replace).not.toHaveBeenCalled();
-    expect(replaceStateSpy).toHaveBeenLastCalledWith(
-      window.history.state,
-      "",
-      "/studio?sort=best",
-    );
-
-    // Click a version while useSearchParams() still holds the previous committed query.
-    fireEvent.click(
-      screen.getByRole("button", { name: /^openDetails — version 2/ }),
-    );
-
-    expect(mocks.replace).toHaveBeenCalledTimes(1);
-    const [nextUrl] = mocks.replace.mock.calls[0] as [string];
-    const params = new URL(nextUrl, "https://example.test").searchParams;
-    expect(params.get("v")).toBe("best");
-    expect(params.get("sort")).toBe("best");
-    replaceStateSpy.mockRestore();
   });
 
   it("soft-hides an ad from the menu and keeps it out of the gallery", async () => {

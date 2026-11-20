@@ -6,7 +6,6 @@ import { useSession } from "@/lib/auth/auth.client";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleAccounts } from "./seo-google-accounts";
 import {
-  type SeoConnection,
   type SeoConnectionProvider,
   useSeoConnectionStatus,
 } from "./use-seo-connection";
@@ -22,8 +21,8 @@ type GoogleConnectionProps = {
    * and the notes are in the views that have a column for them.
    */
   inRow?: boolean;
-  /** Shared Search Console connection owned by the caller so it can render errors itself. */
-  model?: SeoConnection;
+  /** The view shows a failed Search Console action itself. See SeoConnectionButton. */
+  onError?: (message: string | null) => void;
   /** Opens the statistics settings from the account card's menu. */
   onSettings?: () => void;
 };
@@ -56,7 +55,7 @@ function GoogleConnectionStep({
   variant = "outline",
   onConnected,
   inRow,
-  model,
+  onError,
   onSettings,
 }: GoogleConnectionProps) {
   const t = useTranslations("App.Seo");
@@ -83,7 +82,7 @@ function GoogleConnectionStep({
         analyticsStarted ? undefined : t("connections.connectGoogle")
       }
       onConnected={() => onConnected?.("search_console")}
-      model={model}
+      onError={onError}
     />
   );
   const analyticsButton = (

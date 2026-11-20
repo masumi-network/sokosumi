@@ -354,41 +354,16 @@ export function ImageStudio({
       ? null
       : modelById(catalog, target.modelIds[0]);
 
-  const urlSort: "newest" | "best" =
-    searchParams.get("sort") === "best" ? "best" : "newest";
-  const urlVersion = searchParams.get("v");
-
-  // Track latest intended query params synchronously so a shallow sort update
-  // and an in-flight version replace compose instead of clobbering each other.
-  const desiredSortRef = useRef<"newest" | "best">(urlSort);
-  const syncedUrlSortRef = useRef(urlSort);
-  if (syncedUrlSortRef.current !== urlSort) {
-    syncedUrlSortRef.current = urlSort;
-    desiredSortRef.current = urlSort;
-  }
-  const desiredVersionRef = useRef<string | null>(urlVersion);
-  const syncedUrlVersionRef = useRef(urlVersion);
-  if (syncedUrlVersionRef.current !== urlVersion) {
-    syncedUrlVersionRef.current = urlVersion;
-    desiredVersionRef.current = urlVersion;
-  }
-
   const syncSelectionToUrl = useCallback(
     (assetId: string | null) => {
       // A saved image selection needs an explicit project scope.
       if (!projectId) return;
-      desiredVersionRef.current = assetId;
       const next = new URLSearchParams(searchParams.toString());
       if (assetId) next.set("v", assetId);
       else next.delete("v");
-      if (desiredSortRef.current === "best") next.set("sort", "best");
-      else next.delete("sort");
-      const queryString = next.toString();
       // `replace` with scroll off: this is a view cursor, not navigation, and
       // it must not push an entry for every arrow key.
-      router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
-        scroll: false,
-      });
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
     },
     [pathname, projectId, router, searchParams],
   );
@@ -409,32 +384,8 @@ export function ImageStudio({
     projectId: activeProjectId,
     initialState: projectId ? initialState : EMPTY_STUDIO_STATE,
     initialSelectedAssetId: projectId ? initialSelectedAssetId : null,
-    urlSort,
     onSelectionChange: syncSelectionToUrl,
   });
-
-  const handleSortChange = useCallback(
-    (nextSort: "newest" | "best") => {
-      desiredSortRef.current = nextSort;
-      studio.setSort(nextSort);
-      const next = new URLSearchParams(searchParams.toString());
-      if (projectId) {
-        if (desiredVersionRef.current) next.set("v", desiredVersionRef.current);
-        else next.delete("v");
-      }
-      if (nextSort === "best") next.set("sort", "best");
-      else next.delete("sort");
-      const queryString = next.toString();
-      // Keep the sort URL update shallow so it never triggers an RSC round-trip
-      // or races ahead of a subsequent version selection replace.
-      window.history.replaceState(
-        window.history.state,
-        "",
-        queryString ? `${pathname}?${queryString}` : pathname,
-      );
-    },
-    [pathname, projectId, searchParams, studio],
-  );
 
   const {
     selectedAsset,
@@ -1515,7 +1466,7 @@ export function ImageStudio({
               catalog={catalog}
               labels={labels}
               sort={studio.sort}
-              onSortChange={handleSortChange}
+              onSortChange={studio.setSort}
               onRate={readOnly ? undefined : handleRate}
               onHide={readOnly ? undefined : handleHide}
               ratingBusyIds={ratingBusyIds}

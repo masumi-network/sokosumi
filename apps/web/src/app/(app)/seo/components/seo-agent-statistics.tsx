@@ -2,12 +2,12 @@
 
 import { ChartColumn, Settings2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { seoAuditName } from "./seo-audit-name";
 import { SeoConnectionButton } from "./seo-connection-button";
 import type { SeoAnalyticsLine } from "./use-seo-analytics-line";
-import { useSeoConnection } from "./use-seo-connection";
 import { useSeoFocusHandoff } from "./use-seo-focus-handoff";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -23,12 +23,7 @@ export function SeoAgentStatistics({
   line: SeoAnalyticsLine;
 }) {
   const t = useTranslations("App.Seo");
-  const showConnect = !hidden && action === "connect";
-  const ga4Connection = useSeoConnection("ga4", undefined, showConnect, true);
-  const connectError =
-    showConnect && ga4Connection.status.data?.status !== "unavailable"
-      ? ga4Connection.error
-      : null;
+  const [connectError, setConnectError] = useState<string | null>(null);
   const page = model.data.pages.find((item) =>
     model.data.scope.pageIds.includes(item.id),
   );
@@ -39,7 +34,7 @@ export function SeoAgentStatistics({
   );
   // A status that is not read yet gets the connect button, which shows its wait and its own Try again.
   const control = hidden ? null : action === "connect" ? (
-    <SeoConnectionButton provider="ga4" model={ga4Connection} compact />
+    <SeoConnectionButton provider="ga4" onError={setConnectError} compact />
   ) : action ? (
     <Button
       size="sm"

@@ -13,7 +13,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -30,7 +30,7 @@ import {
   SeoActionName,
   SeoSeverity,
 } from "./seo-shared";
-import { useSeoConnection } from "./use-seo-connection";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /** A step with a sentence and its own button. An action and the strategy actions are rows that lead to a card. */
@@ -62,21 +62,16 @@ export function SeoStepRow({
   const t = useTranslations("App.Seo");
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const variant = first ? "primary" : "outline";
+  // A connection that failed says so in the place of the step's text: nothing in the row moves.
+  const [connectError, setConnectError] = useState<string | null>(null);
   // A connected account with nothing synced: the step asks for the sync, not for the account.
   // The account's own actions are in the sync dialog.
   const connectStep = step.kind === "connect";
-  const connection = useSeoConnection(
-    connectStep ? step.provider : "search_console",
-    undefined,
-    connectStep,
-    true,
-  );
-  const sync = connectStep && connection.status.data?.status === "connected";
-  // A connection that failed says so in the place of the step's text: nothing in the row moves.
-  const connectError =
-    connectStep && !sync && connection.status.data?.status !== "unavailable"
-      ? connection.error
-      : null;
+  const sync =
+    useSeoConnectionStatus(
+      connectStep ? step.provider : "search_console",
+      connectStep,
+    ).status.data?.status === "connected" && connectStep;
   const [body, control] =
     step.kind === "refresh"
       ? [
@@ -105,7 +100,7 @@ export function SeoStepRow({
               <SeoGoogleConnection
                 key="connect"
                 variant={variant}
-                model={connection}
+                onError={setConnectError}
                 inRow
               />
             ) : (
@@ -113,7 +108,7 @@ export function SeoStepRow({
                 key="connect"
                 provider={step.provider}
                 variant={variant}
-                model={connection}
+                onError={setConnectError}
               />
             ),
           ]

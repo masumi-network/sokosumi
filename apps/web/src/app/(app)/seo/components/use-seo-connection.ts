@@ -81,60 +81,29 @@ export function useSearchConsoleConnected(enabled = true) {
 export function useSeoConnection(
   provider: SeoConnectionProvider,
   onConnected?: () => void,
-  enabled = true,
-  cancelWhenConnected = false,
 ) {
   const t = useTranslations("App.Seo.connections");
   const { data: session } = useSession();
   const queryClient = useQueryClient();
-  const { runPopupOAuth, cancelPopupOAuth } = useComposioOAuthPopup();
+  const { runPopupOAuth } = useComposioOAuthPopup();
   // The action in flight, so only the pressed button shows and announces progress.
   const [busy, setBusy] = useState<SeoConnectionAction | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const identity = JSON.stringify([
-    session?.user.id,
-    session?.session.activeOrganizationId,
-    provider,
-  ]);
+  const busyRef = useRef(false);
+  const alive = useRef(true);
+  useLayoutEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const actor = {
     viewerId: session?.user.id ?? "",
     organizationId: session?.session.activeOrganizationId ?? null,
   };
-  const { status, queryKey } = useSeoConnectionStatus(provider, enabled);
-  const canConnect =
-    enabled && (!cancelWhenConnected || status.data?.status !== "connected");
-  const [prevScope, setPrevScope] = useState({ identity, canConnect });
-  if (prevScope.identity !== identity || prevScope.canConnect !== canConnect) {
-    setPrevScope({ identity, canConnect });
-    if (error !== null) setError(null);
-    if (busy !== null) setBusy(null);
-  }
-  const busyRef = useRef(false);
-  const alive = useRef(true);
-  const flowGenRef = useRef(0);
-  useLayoutEffect(() => {
-    if (!canConnect) {
-      flowGenRef.current += 1;
-      alive.current = false;
-      busyRef.current = false;
-      cancelPopupOAuth();
-      return;
-    }
-    const gen = ++flowGenRef.current;
-    alive.current = true;
-    return () => {
-      if (flowGenRef.current === gen) {
-        flowGenRef.current += 1;
-      }
-      alive.current = false;
-      busyRef.current = false;
-      cancelPopupOAuth();
-    };
-  }, [canConnect, identity, cancelPopupOAuth]);
+  const { status, queryKey } = useSeoConnectionStatus(provider);
   async function connect() {
-    if (!canConnect || busyRef.current) return;
-    const gen = flowGenRef.current;
-    const isCurrent = () => alive.current && flowGenRef.current === gen;
+    if (busyRef.current) return;
     busyRef.current = true;
     setError(null);
     try {
@@ -154,7 +123,7 @@ export function useSeoConnection(
               nonce: flow.nonce,
             }),
           });
-          if (!isCurrent()) return { kind: "cancelled" };
+          if (!alive.current) return { kind: "cancelled" };
           if (!initiation.ok)
             return {
               kind: "failed",
@@ -163,7 +132,7 @@ export function useSeoConnection(
             };
           flow.navigate(initiation.value.redirectUrl);
           const callback = await flow.waitForCallback();
-          if (!isCurrent() || callback.kind === "cancelled")
+          if (!alive.current || callback.kind === "cancelled")
             return { kind: "cancelled" };
           if (callback.kind === "timeout") return { kind: "timeout" };
           if (
@@ -184,7 +153,7 @@ export function useSeoConnection(
             : { kind: "failed", stage: "finalize", error: result.error };
         },
       );
-      if (!isCurrent()) return;
+      if (!alive.current) return;
       const outcome = run.kind === "completed" ? run.value : { kind: run.kind };
       if (outcome.kind === "connected") {
         queryClient.setQueryData(queryKey, outcome.value);
@@ -211,24 +180,20 @@ export function useSeoConnection(
         await status.refetch();
       }
     } catch (error) {
-      if (isCurrent())
+      if (alive.current)
         setError(
           t(seoConnectionErrorKey(toActionRejectionError(error)), {
             provider: status.data?.name ?? provider,
           }),
         );
     } finally {
-      if (flowGenRef.current === gen) {
-        busyRef.current = false;
-        if (alive.current) setBusy(null);
-      }
+      busyRef.current = false;
+      if (alive.current) setBusy(null);
     }
   }
   async function resume() {
     const connectionId = status.data?.pendingConnectionId;
-    if (!canConnect || !connectionId || busyRef.current) return;
-    const gen = flowGenRef.current;
-    const isCurrent = () => alive.current && flowGenRef.current === gen;
+    if (!connectionId || busyRef.current) return;
     busyRef.current = true;
     setBusy("resume");
     setError(null);
@@ -238,7 +203,7 @@ export function useSeoConnection(
         provider,
         connectionId,
       });
-      if (!isCurrent()) return;
+      if (!alive.current) return;
       if (!result.ok) {
         setError(
           t(seoConnectionErrorKey(result.error), {
@@ -252,23 +217,19 @@ export function useSeoConnection(
       onConnected?.();
       await queryClient.invalidateQueries({ queryKey: ["seo-properties"] });
     } catch (error) {
-      if (isCurrent())
+      if (alive.current)
         setError(
           t(seoConnectionErrorKey(toActionRejectionError(error)), {
             provider: status.data?.name ?? provider,
           }),
         );
     } finally {
-      if (flowGenRef.current === gen) {
-        busyRef.current = false;
-        if (alive.current) setBusy(null);
-      }
+      busyRef.current = false;
+      if (alive.current) setBusy(null);
     }
   }
   async function disconnect() {
-    if (!canConnect || busyRef.current) return;
-    const gen = flowGenRef.current;
-    const isCurrent = () => alive.current && flowGenRef.current === gen;
+    if (busyRef.current) return;
     busyRef.current = true;
     setBusy("disconnect");
     setError(null);
@@ -277,7 +238,7 @@ export function useSeoConnection(
         ...actor,
         provider,
       });
-      if (!isCurrent()) return;
+      if (!alive.current) return;
       if (!result.ok) {
         setError(
           t("disconnectFailed", { provider: status.data?.name ?? provider }),
@@ -289,15 +250,13 @@ export function useSeoConnection(
         await queryClient.resetQueries({ queryKey, exact: true });
       await queryClient.invalidateQueries({ queryKey: ["seo-properties"] });
     } catch {
-      if (isCurrent())
+      if (alive.current)
         setError(
           t("disconnectFailed", { provider: status.data?.name ?? provider }),
         );
     } finally {
-      if (flowGenRef.current === gen) {
-        busyRef.current = false;
-        if (alive.current) setBusy(null);
-      }
+      busyRef.current = false;
+      if (alive.current) setBusy(null);
     }
   }
   return { status, busy, error, connect, resume, disconnect };

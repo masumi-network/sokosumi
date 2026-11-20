@@ -9,11 +9,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComposioOAuthPopupFlow } from "@/lib/composio/use-composio-oauth-popup";
 import messages from "../../../../../messages/en.json";
-import { SeoAgentStatistics } from "./seo-agent-statistics";
 import { SeoStepRow } from "./seo-agent-steps";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { seoTestWorkspace } from "./seo-test-fixture";
-import { useSeoConnection, useSeoConnectionStatus } from "./use-seo-connection";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const m = vi.hoisted(() => ({
@@ -22,14 +21,11 @@ const m = vi.hoisted(() => ({
   disconnect: vi.fn(),
   complete: vi.fn(),
   popup: vi.fn(),
-  cancelPopup: vi.fn(),
   navigate: vi.fn(),
   callback: vi.fn(),
   error: vi.fn(),
   status: "not_connected",
   resumable: false,
-  userId: "owner",
-  orgId: "org",
 }));
 vi.mock("@/lib/actions/seo-connections/action", () => ({
   connectSeoStatisticsAction: m.initiate,
@@ -41,17 +37,11 @@ vi.mock("@/lib/actions/composio/action", () => ({
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
-    data: {
-      session: { activeOrganizationId: m.orgId },
-      user: { id: m.userId },
-    },
+    data: { session: { activeOrganizationId: "org" }, user: { id: "owner" } },
   }),
 }));
 vi.mock("@/lib/composio/use-composio-oauth-popup", () => ({
-  useComposioOAuthPopup: () => ({
-    runPopupOAuth: m.popup,
-    cancelPopupOAuth: m.cancelPopup,
-  }),
+  useComposioOAuthPopup: () => ({ runPopupOAuth: m.popup }),
 }));
 vi.mock("sonner", () => ({ toast: { error: m.error } }));
 
@@ -80,8 +70,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.status = "not_connected";
   m.resumable = false;
-  m.userId = "owner";
-  m.orgId = "org";
   m.popup.mockImplementation(
     async (run: (flow: ComposioOAuthPopupFlow) => unknown) => ({
       kind: "completed",
@@ -219,55 +207,31 @@ describe("native SEO connection consent", () => {
     ).toBeEnabled();
   });
 
-  it("lets a shared-model view render the error itself without duplicating an inline alert", async () => {
+  it("gives its error to the view that shows it, and takes it back when it leaves", async () => {
     m.popup.mockResolvedValue({ kind: "popup_blocked" });
+    const onError = vi.fn();
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
     clients.push(client);
-    function Host({ enabled }: { enabled: boolean }) {
-      const connection = useSeoConnection("search_console", undefined, enabled);
-      return (
-        <>
-          {enabled && connection.error ? (
-            <p data-testid="host-error">{connection.error}</p>
-          ) : null}
-          {enabled ? (
-            <SeoConnectionButton provider="search_console" model={connection} />
-          ) : null}
-        </>
-      );
-    }
-    const { rerender } = render(
+    const { unmount } = render(
       <QueryClientProvider client={client}>
         <NextIntlClientProvider locale="en" messages={messages}>
-          <Host enabled />
+          <SeoConnectionButton provider="search_console" onError={onError} />
         </NextIntlClientProvider>
       </QueryClientProvider>,
     );
     await userEvent.click(await connectButton());
-    expect(await screen.findByTestId("host-error")).toHaveTextContent(
-      "Allow popups to connect Search Console, then try again.",
+    await waitFor(() =>
+      expect(onError).toHaveBeenLastCalledWith(
+        "Allow popups to connect Search Console, then try again.",
+      ),
     );
     // The view has the one copy of the message.
     expect(screen.queryByRole("alert")).toBeNull();
-    // Leaving the connect state clears the error so it does not return on re-entry.
-    rerender(
-      <QueryClientProvider client={client}>
-        <NextIntlClientProvider locale="en" messages={messages}>
-          <Host enabled={false} />
-        </NextIntlClientProvider>
-      </QueryClientProvider>,
-    );
-    expect(screen.queryByTestId("host-error")).toBeNull();
-    rerender(
-      <QueryClientProvider client={client}>
-        <NextIntlClientProvider locale="en" messages={messages}>
-          <Host enabled />
-        </NextIntlClientProvider>
-      </QueryClientProvider>,
-    );
-    expect(screen.queryByTestId("host-error")).toBeNull();
+    // A control that is gone can clear nothing later: it clears on its way out.
+    unmount();
+    expect(onError).toHaveBeenLastCalledWith(null);
   });
 
   it("reports blocked popups without creating an authorization attempt", async () => {
@@ -506,116 +470,5 @@ describe("native SEO connection consent", () => {
       "temporarily unavailable",
     );
     expect(screen.queryByText("Search Console connected")).toBeNull();
-  });
-
-  it("cancels an in-flight SeoStepRow popup when a refetch reports connected from another tab", async () => {
-    const callback = Promise.withResolvers<{
-      kind: "callback";
-      payload: { status: "success"; connectionId: string; sessionUri: string };
-    }>();
-    m.callback.mockReturnValue(callback.promise);
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    clients.push(client);
-    const model = { data: seoTestWorkspace(), openStatistics: vi.fn() };
-    render(
-      <QueryClientProvider client={client}>
-        <NextIntlClientProvider locale="en" messages={messages}>
-          <SeoStepRow
-            step={{ kind: "connect", provider: "search_console" }}
-            model={model as unknown as SeoWorkspaceModel}
-            first
-          />
-        </NextIntlClientProvider>
-      </QueryClientProvider>,
-    );
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Connect Google" }),
-    );
-    await waitFor(() => expect(m.callback).toHaveBeenCalledTimes(1));
-
-    // Google approval completed in a second tab; a refetch reports connected and unmounts Connect.
-    m.status = "connected";
-    await client.invalidateQueries();
-    expect(
-      await screen.findByRole("button", { name: "Google connections" }),
-    ).toBeVisible();
-    expect(m.cancelPopup).toHaveBeenCalled();
-
-    // Even if the stale callback resolves afterwards, the old flow must not finalise.
-    callback.resolve({
-      kind: "callback",
-      payload: {
-        status: "success",
-        connectionId: "ca-search",
-        sessionUri: "https://backend.composio.dev/session/one",
-      },
-    });
-    await Promise.resolve();
-    expect(m.finalize).not.toHaveBeenCalled();
-  });
-
-  it("cancels an in-flight SeoAgentStatistics popup when connect deactivates", async () => {
-    const callback = Promise.withResolvers<{
-      kind: "callback";
-      payload: { status: "success"; connectionId: string; sessionUri: string };
-    }>();
-    m.callback.mockReturnValue(callback.promise);
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    clients.push(client);
-    const model = {
-      data: seoTestWorkspace(),
-      dialog: null,
-      openStatistics: vi.fn(),
-    } as unknown as SeoWorkspaceModel;
-    const baseLine = {
-      analytics: "missing" as const,
-      count: 0,
-      property: "",
-      hidden: false,
-    };
-    const { rerender } = render(
-      <QueryClientProvider client={client}>
-        <NextIntlClientProvider locale="en" messages={messages}>
-          <SeoAgentStatistics
-            model={model}
-            line={{ ...baseLine, action: "connect" }}
-          />
-        </NextIntlClientProvider>
-      </QueryClientProvider>,
-    );
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Connect Google Analytics" }),
-    );
-    await waitFor(() => expect(m.callback).toHaveBeenCalledTimes(1));
-
-    rerender(
-      <QueryClientProvider client={client}>
-        <NextIntlClientProvider locale="en" messages={messages}>
-          <SeoAgentStatistics
-            model={model}
-            line={{ ...baseLine, action: "manage" }}
-          />
-        </NextIntlClientProvider>
-      </QueryClientProvider>,
-    );
-    expect(
-      await screen.findByRole("button", { name: "Google connections" }),
-    ).toBeVisible();
-    expect(m.cancelPopup).toHaveBeenCalled();
-
-    callback.resolve({
-      kind: "callback",
-      payload: {
-        status: "success",
-        connectionId: "ca-search",
-        sessionUri: "https://backend.composio.dev/session/one",
-      },
-    });
-    await Promise.resolve();
-    expect(m.finalize).not.toHaveBeenCalled();
   });
 });

@@ -67,23 +67,13 @@ export function useStudioState(options: {
   projectId: string | null;
   initialState: StudioState;
   initialSelectedAssetId: string | null;
-  urlSort?: "newest" | "best";
   onSelectionChange?: (assetId: string | null) => void;
 }): StudioStateHook {
-  const { projectId, initialState, initialSelectedAssetId, urlSort } = options;
+  const { projectId, initialState, initialSelectedAssetId } = options;
   const [state, setState] = useState<StudioState>(initialState);
-  const [sort, setSort] = useState<"newest" | "best">(urlSort ?? "newest");
-  const [syncedUrlSort, setSyncedUrlSort] = useState(urlSort);
-  const effectiveSort =
-    urlSort !== undefined && urlSort !== syncedUrlSort ? urlSort : sort;
-  if (urlSort !== undefined && urlSort !== syncedUrlSort) {
-    setSyncedUrlSort(urlSort);
-    if (urlSort !== sort) {
-      setSort(urlSort);
-    }
-  }
-  const sortRef = useRef(effectiveSort);
-  sortRef.current = effectiveSort;
+  const [sort, setSort] = useState<"newest" | "best">("newest");
+  const sortRef = useRef(sort);
+  sortRef.current = sort;
   const pendingOlder = useRef<string | null>(null);
   const loadedSortRef = useRef<"newest" | "best">("newest");
   const removedAssetIds = useRef(new Set<string>());
@@ -280,15 +270,12 @@ export function useStudioState(options: {
   // tightens while something is in flight and relaxes when nothing is.
   useEffect(() => {
     if (!projectId) return;
-    if (loadedSortRef.current !== effectiveSort) {
-      void refresh();
-    }
     const period = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
     const timer = setInterval(() => {
       void refresh();
     }, period);
     return () => clearInterval(timer);
-  }, [projectId, hasActive, effectiveSort, refresh]);
+  }, [projectId, hasActive, refresh]);
 
   /**
    * Fetch the next page of older versions and keep what is already shown.
@@ -390,11 +377,15 @@ export function useStudioState(options: {
     setState(next);
   }, []);
 
-  const changeSort = useCallback((nextSort: "newest" | "best") => {
-    if (nextSort === sortRef.current) return;
-    sortRef.current = nextSort;
-    setSort(nextSort);
-  }, []);
+  const changeSort = useCallback(
+    (nextSort: "newest" | "best") => {
+      if (nextSort === sortRef.current) return;
+      sortRef.current = nextSort;
+      setSort(nextSort);
+      void refresh();
+    },
+    [refresh],
+  );
 
   const selectAsset = useCallback(
     (assetId: string) => {
@@ -409,7 +400,7 @@ export function useStudioState(options: {
     null;
 
   return {
-    sort: effectiveSort,
+    sort,
     setSort: changeSort,
     updateRating,
     removeAsset,
@@ -419,8 +410,7 @@ export function useStudioState(options: {
     activeJobs,
     refresh,
     loadOlder,
-    hasOlder:
-      shownState.nextCursor !== null && effectiveSort === loadedSortRef.current,
+    hasOlder: shownState.nextCursor !== null && sort === loadedSortRef.current,
     isRefreshing: switching ? false : isRefreshing,
     error: switching ? null : error,
   };
