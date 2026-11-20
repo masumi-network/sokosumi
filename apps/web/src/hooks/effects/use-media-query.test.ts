@@ -1,4 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -153,6 +155,20 @@ describe("useMediaQuery", () => {
 
     const { result } = renderHook(() => useMediaQuery("(min-width: 64rem)"));
     expect(result.current).toBe(false);
+  });
+
+  it("preserves an explicit undefined server snapshot during SSR", () => {
+    function Probe({ explicitUndefined }: { explicitUndefined?: boolean }) {
+      const value = explicitUndefined
+        ? useMediaQuery("(max-width: 767px)", undefined)
+        : useMediaQuery("(max-width: 767px)");
+      return createElement("span", null, String(value));
+    }
+
+    expect(
+      renderToString(createElement(Probe, { explicitUndefined: true })),
+    ).toBe("<span>undefined</span>");
+    expect(renderToString(createElement(Probe))).toBe("<span>false</span>");
   });
 });
 

@@ -2,6 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useMediaQuery } from "./use-media-query";
@@ -123,5 +124,18 @@ describe("useMediaQuery (CMO)", () => {
       mql.setMatches(true);
     });
     expect(container.textContent).toBe("true");
+
+    await act(async () => root.unmount());
+    expect(mql.removeListener).toHaveBeenCalledTimes(1);
+    root = createRoot(container);
+  });
+
+  it("preserves an explicit undefined serverSnapshot during SSR", () => {
+    function UnresolvedProbe() {
+      const matches = useMediaQuery("(prefers-color-scheme: dark)", undefined);
+      return <span>{String(matches)}</span>;
+    }
+
+    expect(renderToString(<UnresolvedProbe />)).toBe("<span>undefined</span>");
   });
 });

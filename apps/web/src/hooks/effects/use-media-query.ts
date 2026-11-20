@@ -41,10 +41,11 @@ export function useMediaQuery<T extends boolean | null | undefined>(
   query: string,
   serverSnapshot: T,
 ): boolean | T;
-export function useMediaQuery<T extends boolean | null | undefined = false>(
+export function useMediaQuery(
   query: string,
-  serverSnapshot = false as T,
-): boolean | T {
+  ...rest: [serverSnapshot?: boolean | null | undefined]
+): boolean | null | undefined {
+  const serverSnapshot = rest.length === 0 ? false : rest[0];
   const subscribe = useCallback(
     (onStoreChange: () => void) => subscribeMediaQuery(query, onStoreChange),
     [query],

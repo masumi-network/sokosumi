@@ -1,35 +1,47 @@
 import { act, renderHook } from "@testing-library/react";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOBILE_BREAKPOINT, useIsMobile, useIsMobileMedia } from "./use-mobile";
 
-function mockMatchMedia(matches: boolean) {
+function mockMatchMedia(matches: boolean, options?: { legacyOnly?: boolean }) {
   const listeners = new Set<() => void>();
   const mql = {
     matches,
     media: `(max-width: ${MOBILE_BREAKPOINT - 1}px)`,
     onchange: null,
-    addEventListener: vi.fn((_type: string, listener: () => void) => {
+    addEventListener: options?.legacyOnly
+      ? undefined
+      : vi.fn((_type: string, listener: () => void) => {
+          listeners.add(listener);
+        }),
+    removeEventListener: options?.legacyOnly
+      ? undefined
+      : vi.fn((_type: string, listener: () => void) => {
+          listeners.delete(listener);
+        }),
+    dispatchEvent: vi.fn(),
+    addListener: vi.fn((listener: () => void) => {
       listeners.add(listener);
     }),
-    removeEventListener: vi.fn((_type: string, listener: () => void) => {
+    removeListener: vi.fn((listener: () => void) => {
       listeners.delete(listener);
     }),
-    dispatchEvent: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    dispatch() {
+    dispatch(nextMatches?: boolean) {
+      if (nextMatches !== undefined) {
+        mql.matches = nextMatches;
+      }
       for (const listener of listeners) {
         listener();
       }
     },
   };
 
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    configurable: true,
-    value: vi.fn(() => mql),
-  });
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => mql),
+  );
 
   return mql;
 }
@@ -95,9 +107,33 @@ describe("useIsMobileMedia", () => {
       value: MOBILE_BREAKPOINT - 1,
     });
     act(() => {
-      mql.dispatch();
+      mql.dispatch(true);
     });
     expect(result.current).toBe(true);
+  });
+
+  it("stays undefined during SSR", () => {
+    function Probe() {
+      return createElement("span", null, String(useIsMobileMedia()));
+    }
+
+    expect(renderToString(createElement(Probe))).toBe("<span>undefined</span>");
+  });
+
+  it("supports legacy addListener-only MediaQueryList", () => {
+    const mql = mockMatchMedia(false, { legacyOnly: true });
+
+    const { result, unmount } = renderHook(() => useIsMobileMedia());
+    expect(result.current).toBe(false);
+    expect(mql.addListener).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      mql.dispatch(true);
+    });
+    expect(result.current).toBe(true);
+
+    unmount();
+    expect(mql.removeListener).toHaveBeenCalledTimes(1);
   });
 });
 
