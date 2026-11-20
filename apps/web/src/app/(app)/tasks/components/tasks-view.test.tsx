@@ -12,7 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { type ComponentProps, cloneElement, type ReactNode } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadMoreTasksColumn } from "@/app/tasks/actions";
+import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
 import type {
   KanbanColumnId,
   TaskWithCoworker,
@@ -173,8 +173,21 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
   ),
 }));
 vi.mock("./task-list-view", () => ({
-  TaskListView: ({ compact }: { compact: boolean }) => (
-    <div data-testid="list-density" data-compact={compact} />
+  TaskListView: ({
+    tasks,
+    compact,
+    footer,
+  }: {
+    tasks: TaskWithCoworker[];
+    compact: boolean;
+    footer?: ReactNode;
+  }) => (
+    <div data-testid="list-density" data-compact={compact}>
+      {tasks.map((task) => (
+        <div key={task.id} data-testid={`list-row-${task.id}`} />
+      ))}
+      {footer}
+    </div>
   ),
 }));
 vi.mock("./task-list-item", () => ({
@@ -790,6 +803,67 @@ it("discards a slow page for the previous tag after the board switches tags", as
       screen.queryByTestId("board-card-old-research"),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
+});
+
+it("keeps the new list cursor when a filter changes during a pending Load more", async () => {
+  const stalePage =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksList>>>();
+  const nextPage =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksList>>>();
+  vi.mocked(loadMoreTasksList)
+    .mockReturnValueOnce(stalePage.promise)
+    .mockReturnValueOnce(nextPage.promise);
+
+  const taggedList = (tag: string, listNextCursor: string | null) => {
+    searchParamsRef.current = new URLSearchParams({ tag });
+    return cloneElement(boardView([TASK]), {
+      defaultViewMode: "list" as const,
+      listNextCursor,
+      initialFilters: { ...EMPTY_FILTERS, tag },
+    });
+  };
+
+  try {
+    const { rerender } = render(taggedList("research", "research-cursor-1"));
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(loadMoreTasksList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: "research-cursor-1",
+        tag: "research",
+      }),
+    );
+
+    rerender(taggedList("writing", "writing-cursor-1"));
+
+    await act(async () => {
+      stalePage.resolve({
+        tasks: [{ ...CANCELED_TASK, id: "old-research-list" }],
+        nextCursor: null,
+      });
+      await stalePage.promise;
+    });
+
+    expect(
+      screen.queryByTestId("list-row-old-research-list"),
+    ).not.toBeInTheDocument();
+
+    const loadMore = screen.getByRole("button", { name: "Load more" });
+    expect(loadMore).toBeEnabled();
+    act(() => loadMore.click());
+    expect(loadMoreTasksList).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cursor: "writing-cursor-1",
+        tag: "writing",
+      }),
+    );
+
+    await act(async () => {
+      nextPage.resolve({ tasks: [], nextCursor: null });
+      await nextPage.promise;
+    });
   } finally {
     searchParamsRef.current = new URLSearchParams();
   }

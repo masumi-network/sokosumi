@@ -19,6 +19,7 @@ import {
   msUntilIntentSettled,
   useIntentPrefetch,
 } from "@/hooks/effects/use-intent-prefetch";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { prefetchRouteContent } from "@/lib/navigation/prefetch-route-content";
 
 /**
@@ -116,10 +117,7 @@ export function RestingIntentLink({
   const keyboardFocused = useRef(false);
   // A reload asks for the page the link leads to now, and only while it
   // still loads content: a new href or the current page starts over.
-  const loads = useRef({ href, prefetchContent });
-  useEffect(() => {
-    loads.current = { href, prefetchContent };
-  });
+  const loads = useLatestRef({ href, prefetchContent });
   const keepLoadedFor = (loadedHref: string) => () =>
     (hovering.current || keyboardFocused.current) &&
     loads.current.prefetchContent &&

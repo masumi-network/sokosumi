@@ -71,3 +71,4 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
 - `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
 - `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries
+- `use-latest-ref` (`useLatestRef`) — ref synced to the latest committed value in a layout effect

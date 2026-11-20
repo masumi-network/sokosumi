@@ -1,7 +1,9 @@
 "use client";
 
 import { type CallbackInvokedEvent, ForesightManager } from "js.foresight";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
+
+import { useLatestRef } from "./use-latest-ref";
 
 /**
  * How long after a scroll, or a move with a mouse button down, a prediction
@@ -127,10 +129,7 @@ export function useIntentPrefetch<T extends Element>(
   { reactivateAfter, enabled = true }: IntentPrefetchOptions,
 ) {
   // The element registers once, so it calls whichever `prefetch` is current.
-  const latest = useRef(prefetch);
-  useEffect(() => {
-    latest.current = prefetch;
-  });
+  const latest = useLatestRef(prefetch);
   return useCallback(
     (element: T | null) => {
       if (!element || !enabled) return;
