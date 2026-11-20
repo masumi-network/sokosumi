@@ -10,7 +10,7 @@ const NAME_MAX = 100;
 const TITLE_MAX = 160;
 const CELL_MAX = 20000;
 
-/** A table a Files Table cannot hold whole: more columns, a longer column name or cell, or a row over 1 MB. */
+/** A table a Files Table cannot hold whole: more columns, a longer column name or cell, or a row over 1 MB. Its message names every one of these limits. */
 export class TaskResultTableTooLarge extends Error {}
 
 /**

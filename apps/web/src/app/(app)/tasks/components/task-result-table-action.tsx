@@ -88,12 +88,16 @@ function SaveableTable({
     }
   }
 
-  // Below the clamp the action would take focus and clicks while nobody can see it.
-  if (clipped) return <MarkdownTable ref={table} {...props} />;
   return (
     <>
       <MarkdownTable ref={table} {...props} />
-      <div className="not-prose -mt-1.5 mb-3 flex justify-end">
+      {/* Below the clamp the action would take focus and clicks while nobody can see it, so it turns
+      inert there. It keeps its place: removing it would change the height the clamp is measured on. */}
+      <div
+        data-table-action
+        inert={clipped}
+        className="not-prose -mt-1.5 mb-3 flex justify-end"
+      >
         {savedId ? (
           <Button asChild variant="ghost" size="sm">
             <Link href={`/drive/tables/${savedId}`}>

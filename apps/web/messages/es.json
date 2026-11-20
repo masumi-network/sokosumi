@@ -2279,7 +2279,7 @@
           "saved": "{count, plural, one {Se guardó # fila en una tabla nueva.} other {Se guardaron # filas en una tabla nueva.}}",
           "partial": "Se guardaron {saved} de {total} filas. Pulsa Guardar como tabla otra vez para terminar.",
           "failed": "No se pudo guardar la tabla. Inténtalo de nuevo.",
-          "tooLarge": "Esta tabla es demasiado grande para guardarla. Una tabla admite hasta 100 columnas, nombres de columna de hasta 100 caracteres y hasta 20.000 caracteres por celda."
+          "tooLarge": "Esta tabla es demasiado grande para guardarla. Una tabla admite hasta 100 columnas, nombres de columna de hasta 100 caracteres, celdas de hasta 20.000 caracteres y filas de hasta 1 MB de texto. Acorta las celdas o filas más largas e inténtalo de nuevo."
         }
       },
       "NewTask": {

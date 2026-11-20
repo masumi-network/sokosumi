@@ -147,10 +147,7 @@ function Collapsible() {
   );
 }
 
-it("keeps the action out of reach while the table is clipped, and offers it once expanded", async () => {
-  // happy-dom lays nothing out: report content taller than the clamp.
-  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(1000);
-  const user = userEvent.setup();
+function renderCollapsible() {
   render(
     <NextIntlClientProvider
       locale="en"
@@ -161,14 +158,37 @@ it("keeps the action out of reach while the table is clipped, and offers it once
       <Collapsible />
     </NextIntlClientProvider>,
   );
+}
+
+/** The action row, which stays in the layout whether or not the activity is clipped. */
+const actionRow = () =>
+  screen.getByText("Save as table").closest("div") as HTMLElement;
+
+it("keeps the action out of reach while the table is clipped, and offers it once expanded", async () => {
+  // happy-dom lays nothing out: report content taller than the clamp.
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(1000);
+  const user = userEvent.setup();
+  renderCollapsible();
   const expand = await screen.findByRole("button", { name: "Expand" });
-  expect(
-    screen.queryByRole("button", { name: "Save as table" }),
-  ).not.toBeInTheDocument();
-  await user.tab();
-  expect(expand).toHaveFocus();
+  expect(actionRow()).toHaveAttribute("inert");
 
   await user.click(expand);
+  expect(actionRow()).not.toHaveAttribute("inert");
   await user.click(screen.getByRole("button", { name: "Save as table" }));
   expect(m.create).toHaveBeenCalledTimes(1);
+});
+
+it("lays out the same whether clipped or not, so the action alone cannot flip the clamp", async () => {
+  // Only the action's height pushes the content past the clamp.
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.querySelector("[data-table-action]") ? 1000 : 0;
+    },
+  );
+  renderCollapsible();
+  await screen.findByRole("button", { name: "Expand" });
+  // Clipping keeps the action in the layout (inert), so the measure that clipped it still holds.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(screen.getByRole("button", { name: "Expand" })).toBeInTheDocument();
+  expect(actionRow()).toHaveAttribute("inert");
 });
