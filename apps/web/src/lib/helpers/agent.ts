@@ -1,7 +1,5 @@
 import type { Agent, AgentExampleOutput } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { categoryStylesSchema } from "@/lib/schemas/category";
-import type { CategoryStyles } from "@/lib/types/category";
 import { type CoreAgentDto, isCoreAgentDetail } from "@/lib/types/core-dto";
 
 interface AgentJobAgentSource {
@@ -163,51 +161,4 @@ export function getAgentExampleOutputs(
   agent: CoreAgentDto,
 ): AgentExampleOutput[] {
   return isCoreAgentDetail(agent) ? agent.exampleOutputs : [];
-}
-
-const DEFAULT_CATEGORY_STYLES: CategoryStyles = {
-  light: {
-    color: "text-default-foreground",
-  },
-  dark: {
-    color: "text-default-foreground",
-  },
-};
-
-interface AgentCategoryStylesSource {
-  categories: Array<{ styles: unknown }>;
-}
-
-export function getAgentCategoryStyles(
-  agent: AgentCategoryStylesSource,
-): CategoryStyles {
-  if (!agent.categories || agent.categories.length === 0) {
-    return DEFAULT_CATEGORY_STYLES;
-  }
-
-  const firstCategory = agent.categories.filter(
-    (category) => category.styles,
-  )[0];
-
-  if (!firstCategory?.styles) {
-    return DEFAULT_CATEGORY_STYLES;
-  }
-
-  try {
-    let rawStyles: unknown;
-    if (typeof firstCategory.styles === "string") {
-      rawStyles = JSON.parse(firstCategory.styles);
-    } else {
-      rawStyles = firstCategory.styles;
-    }
-
-    const validationResult = categoryStylesSchema.safeParse(rawStyles);
-    if (validationResult.success) {
-      return validationResult.data;
-    }
-
-    return DEFAULT_CATEGORY_STYLES;
-  } catch {
-    return DEFAULT_CATEGORY_STYLES;
-  }
 }
