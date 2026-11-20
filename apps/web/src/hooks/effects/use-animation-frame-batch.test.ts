@@ -125,7 +125,10 @@ describe("useAnimationFrameBatch", () => {
     }
 
     const { rerender } = render(
-      createElement(Activity, { mode: "visible" }, createElement(StatusBadge)),
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(StatusBadge),
+      }),
     );
 
     // Enqueue before paint, then hide the Activity before the frame runs.
@@ -135,13 +138,19 @@ describe("useAnimationFrameBatch", () => {
     expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
 
     rerender(
-      createElement(Activity, { mode: "hidden" }, createElement(StatusBadge)),
+      createElement(Activity, {
+        mode: "hidden",
+        children: createElement(StatusBadge),
+      }),
     );
     expect(window.cancelAnimationFrame).toHaveBeenCalledWith(1);
 
     // Reveal the Activity and push a new update; it must schedule and render.
     rerender(
-      createElement(Activity, { mode: "visible" }, createElement(StatusBadge)),
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(StatusBadge),
+      }),
     );
     act(() => {
       pushUpdate?.("live-after-reveal");
