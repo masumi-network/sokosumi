@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -112,22 +112,24 @@ export function ProjectDetailActions({
       ? labels.pin
       : null;
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const closeAttemptRef = useRef<{
+  const [closeAttempt, setCloseAttempt] = useState<{
     operationId: string;
     reason?: string;
   } | null>(null);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [isClosing, startCloseTransition] = useTransition();
+  const [prevClosingOrClosed, setPrevClosingOrClosed] =
+    useState(isClosingOrClosed);
 
-  useEffect(() => {
-    if (!isClosingOrClosed) {
-      return;
+  if (prevClosingOrClosed !== isClosingOrClosed) {
+    setPrevClosingOrClosed(isClosingOrClosed);
+    if (isClosingOrClosed) {
+      setCloseAttempt(null);
+      setCloseReason("");
+      setIsCloseDialogOpen(false);
     }
-    closeAttemptRef.current = null;
-    setCloseReason("");
-    setIsCloseDialogOpen(false);
-  }, [isClosingOrClosed]);
+  }
 
   function handleCloseProject() {
     if (projectRevision === undefined) {
@@ -135,24 +137,24 @@ export function ProjectDetailActions({
     }
 
     const normalizedReason = closeReason.trim() || undefined;
-    let closeAttempt = closeAttemptRef.current;
-    if (!closeAttempt || closeAttempt.reason !== normalizedReason) {
-      closeAttempt = {
+    let nextCloseAttempt = closeAttempt;
+    if (!nextCloseAttempt || nextCloseAttempt.reason !== normalizedReason) {
+      nextCloseAttempt = {
         operationId: crypto.randomUUID(),
         reason: normalizedReason,
       };
+      setCloseAttempt(nextCloseAttempt);
     }
-    closeAttemptRef.current = closeAttempt;
 
     startCloseTransition(async () => {
       try {
         await closeProject({
           projectId,
-          operationId: closeAttempt.operationId,
+          operationId: nextCloseAttempt.operationId,
           expectedProjectRevision: projectRevision,
           ...(normalizedReason ? { reason: normalizedReason } : {}),
         });
-        closeAttemptRef.current = null;
+        setCloseAttempt(null);
         setIsCloseDialogOpen(false);
         setCloseReason("");
         toast.success(labels.closeDialog.success);

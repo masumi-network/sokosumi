@@ -209,67 +209,43 @@ export function useTaskFormModel(
     [coworkerOptions, initialValues?.assigneeSokoBotId],
   );
 
-  const coworkerTouchedRef = useRef(false);
-  const statusTouchedRef = useRef(initialValues?.status !== undefined);
-  const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
-  const initialRunAt = initialValues?.runAt ?? null;
-  // Only an agent can hold a Run at (Queued is agent-only), so a Calendar
-  // prefill for a person is dropped rather than sent and refused by Core.
-  const [runAt, setRunAt] = useState<string | null>(() =>
-    isAgentAssigneeFields(
-      resolveTaskAssigneeFields(
-        defaultAssigneeId,
-        coworkerOptions,
-        knownSokoBotId,
-        initialValues?.assigneeUserId,
-      ),
-    )
-      ? initialRunAt
-      : null,
+  const [coworkerTouched, setCoworkerTouched] = useState(false);
+  const [statusTouched, setStatusTouched] = useState(
+    initialValues?.status !== undefined,
   );
-  const [status, setStatus] = useState<TaskStatus>(() => {
-    if (initialValues?.status !== undefined) {
-      return initialValues.status;
-    }
-    const fields = resolveTaskAssigneeFields(
+  const [pickedAssigneeId, setPickedAssigneeId] = useState(defaultAssigneeId);
+  const assigneeId = coworkerTouched ? pickedAssigneeId : defaultAssigneeId;
+  const initialRunAt = initialValues?.runAt ?? null;
+  const isDefaultAgent = isAgentAssigneeFields(
+    resolveTaskAssigneeFields(
       defaultAssigneeId,
       coworkerOptions,
       knownSokoBotId,
       initialValues?.assigneeUserId,
-    );
+    ),
+  );
+  // Only an agent can hold a Run at (Queued is agent-only), so a Calendar
+  // prefill for a person is dropped rather than sent and refused by Core.
+  const [pickedRunAt, setPickedRunAt] = useState<string | null>(() =>
+    isDefaultAgent ? initialRunAt : null,
+  );
+  const runAt = !coworkerTouched && !isDefaultAgent ? null : pickedRunAt;
+  const [pickedStatus, setPickedStatus] = useState<TaskStatus>(() => {
+    if (initialValues?.status !== undefined) {
+      return initialValues.status;
+    }
     return resolveStatusForAssigneeAndRunAt({
-      isAgent: isAgentAssigneeFields(fields),
+      isAgent: isDefaultAgent,
       hasRunAt: initialRunAt !== null,
     });
   });
-
-  useLayoutEffect(() => {
-    if (coworkerTouchedRef.current) return;
-    setAssigneeId(defaultAssigneeId);
-    const isAgent = isAgentAssigneeFields(
-      resolveTaskAssigneeFields(
-        defaultAssigneeId,
-        coworkerOptions,
-        knownSokoBotId,
-        initialValues?.assigneeUserId,
-      ),
-    );
-    if (!isAgent) setRunAt(null);
-    if (!statusTouchedRef.current) {
-      setStatus(
-        resolveStatusForAssigneeAndRunAt({
-          isAgent,
-          hasRunAt: isAgent && runAt !== null,
-        }),
-      );
-    }
-  }, [
-    defaultAssigneeId,
-    coworkerOptions,
-    knownSokoBotId,
-    initialValues?.assigneeUserId,
-    runAt,
-  ]);
+  const status =
+    !coworkerTouched && !statusTouched
+      ? resolveStatusForAssigneeAndRunAt({
+          isAgent: isDefaultAgent,
+          hasRunAt: isDefaultAgent && runAt !== null,
+        })
+      : pickedStatus;
 
   const [isRunAtModalOpen, setIsRunAtModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -308,7 +284,7 @@ export function useTaskFormModel(
 
   const handleCoworkerSelect = useCallback(
     (id: string) => {
-      coworkerTouchedRef.current = true;
+      setCoworkerTouched(true);
       const previousFields = resolveTaskAssigneeFields(
         assigneeId,
         coworkerOptions,
@@ -316,7 +292,7 @@ export function useTaskFormModel(
         initialValues?.assigneeUserId,
       );
       const previousIsAgent = isAgentAssigneeFields(previousFields);
-      setAssigneeId(id);
+      setPickedAssigneeId(id);
       const fields = resolveTaskAssigneeFields(
         id,
         coworkerOptions,
@@ -332,25 +308,23 @@ export function useTaskFormModel(
 
       // Queued is agent-only, so a person or no one cannot keep a Run at.
       const keptRunAt = isAgent ? runAt : null;
-      if (keptRunAt !== runAt) {
-        setRunAt(null);
-      }
+      setPickedRunAt(keptRunAt);
 
       const shouldResolveStatus =
-        (!isCopy && (!statusTouchedRef.current || assigneeKindChanged)) ||
+        (!isCopy && (!statusTouched || assigneeKindChanged)) ||
         (status === TaskStatus.QUEUED &&
           !canSelectQueuedTaskStatus({
             isAgent,
             hasRunAt: keptRunAt !== null,
           }));
-      if (shouldResolveStatus) {
-        setStatus(
-          resolveStatusForAssigneeAndRunAt({
-            isAgent,
-            hasRunAt: keptRunAt !== null,
-          }),
-        );
-      }
+      setPickedStatus(
+        shouldResolveStatus
+          ? resolveStatusForAssigneeAndRunAt({
+              isAgent,
+              hasRunAt: keptRunAt !== null,
+            })
+          : status,
+      );
     },
     [
       assigneeId,
@@ -360,15 +334,16 @@ export function useTaskFormModel(
       initialValues?.assigneeUserId,
       runAt,
       status,
+      statusTouched,
     ],
   );
 
   const handleStatusSelect = useCallback((value: TaskStatus) => {
-    statusTouchedRef.current = true;
-    setStatus(value);
+    setStatusTouched(true);
+    setPickedStatus(value);
     // A Run at only exists on a Queued Task; leaving Queued drops it.
     if (value !== TaskStatus.QUEUED) {
-      setRunAt(null);
+      setPickedRunAt(null);
     }
   }, []);
 
@@ -597,15 +572,15 @@ export function useTaskFormModel(
   };
 
   function handleRunAtApply(value: string) {
-    setRunAt(value);
-    setStatus(TaskStatus.QUEUED);
+    setPickedRunAt(value);
+    setPickedStatus(TaskStatus.QUEUED);
   }
 
   function handleRunAtClear() {
-    setRunAt(null);
+    setPickedRunAt(null);
     // Removing the time on a saved Task must not start it: like Core's
     // PATCH, it goes back to Draft. A new Task takes the usual default.
-    setStatus(
+    setPickedStatus(
       mode === "edit"
         ? TaskStatus.DRAFT
         : resolveStatusForAssigneeAndRunAt({

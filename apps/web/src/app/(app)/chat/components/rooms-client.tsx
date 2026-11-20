@@ -1544,12 +1544,9 @@ function RoomView({
 
   // Purge leaked thread replies from room state so consumers of messagesState
   // (pending-mention poll, search props) never see them after a prior leak.
-  useEffect(() => {
-    if (topLevelRoomMessages.length === messagesState.length) {
-      return;
-    }
+  if (topLevelRoomMessages.length !== messagesState.length) {
     setMessagesState(topLevelRoomMessages);
-  }, [messagesState, topLevelRoomMessages]);
+  }
 
   const reactionViewer = useMemo(
     () => ({

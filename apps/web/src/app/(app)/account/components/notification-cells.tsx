@@ -2,7 +2,7 @@
 
 import { Bell, type LucideIcon, Mail, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
+import { type ReactNode, useId, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -275,31 +275,26 @@ export function KindCells({
   } | null>(null);
   const [awaiting, setAwaiting] = useState(false);
 
-  useEffect(() => {
-    if (awaiting) {
-      if (saving) {
-        return;
-      }
+  if (awaiting && !saving) {
+    const on = cellSpecs
+      .filter((spec) => channels.includes(spec.id))
+      .map((spec) => t(spec.labelKey));
 
-      const on = cellSpecs
-        .filter((spec) => channels.includes(spec.id))
-        .map((spec) => t(spec.labelKey));
-
-      setAwaiting(false);
-      setArrival({
-        channels,
-        text: t("channelsAnnounce", {
-          kind: label,
-          channels: on.length > 0 ? on.join(", ") : t("channelsNone"),
-        }),
-      });
-      return;
-    }
-
-    if (arrival && !sameChannels(arrival.channels, channels)) {
-      setArrival(null);
-    }
-  }, [arrival, awaiting, saving, cellSpecs, channels, label, t]);
+    setAwaiting(false);
+    setArrival({
+      channels,
+      text: t("channelsAnnounce", {
+        kind: label,
+        channels: on.length > 0 ? on.join(", ") : t("channelsNone"),
+      }),
+    });
+  } else if (
+    !awaiting &&
+    arrival &&
+    !sameChannels(arrival.channels, channels)
+  ) {
+    setArrival(null);
+  }
 
   /**
    * The email column on this row, which is one of two different things.
