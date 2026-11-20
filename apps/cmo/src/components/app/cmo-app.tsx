@@ -7,6 +7,7 @@ import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCmoAppInitialUrl } from "../../hooks/effects/use-cmo-app-initial-url";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
 import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
@@ -293,11 +294,7 @@ export function CmoApp({
   const end = useRef<HTMLDivElement>(null);
 
   // A connection redirect lands on /?step=connect; show the page's own address.
-  useEffect(() => {
-    if (window.location.search) {
-      window.history.replaceState(null, "", VIEW_PATHS[initialView]);
-    }
-  }, [initialView]);
+  useCmoAppInitialUrl(initialView);
 
   const refresh = useCallback(async () => {
     // On its own: the chat still shows when one of the two reads fails.
