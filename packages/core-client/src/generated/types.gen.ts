@@ -1785,6 +1785,9 @@ export type AdminAdEvalsDashboard = {
 
 export type AdEvalsLeaderboardRow = {
     model: string;
+    route: ImageStudioRoute | null;
+    routeInferred: boolean;
+    experimentArm: StudioRouterArm | null;
     template: string | null;
     aspect: string | null;
     workspaceCount: number;
@@ -1809,6 +1812,21 @@ export type AdEvalsLeaderboardRow = {
         upper: number;
     } | null;
 };
+
+export const ImageStudioRoute = {
+    PHOTO_AD: 'photo_ad',
+    TEXT_HEAVY: 'text_heavy',
+    VECTOR: 'vector',
+    SVG_DIAGRAM: 'svg_diagram',
+    MAKE_REALISTIC: 'make_realistic',
+    EDIT: 'edit'
+} as const;
+
+export type ImageStudioRoute = typeof ImageStudioRoute[keyof typeof ImageStudioRoute];
+
+export const StudioRouterArm = { ROUTER_SONNET_5: 'router:sonnet-5', ROUTER_OPUS_5_5: 'router:opus-5.5' } as const;
+
+export type StudioRouterArm = typeof StudioRouterArm[keyof typeof StudioRouterArm];
 
 export type AdEvalsAgreementRow = {
     criterion: string;

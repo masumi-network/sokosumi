@@ -1,4 +1,6 @@
 import { defineAgent } from "eve";
+import { defineDynamic } from "eve/models";
+import { studioRouterForSession } from "./lib/router-trial";
 
 /**
  * The Project image studio agent.
@@ -27,5 +29,7 @@ export default defineAgent({
    * off also means the agent needs no sandbox at all.
    */
   defaultTools: false,
-  model: "anthropic/claude-sonnet-5",
+  model: defineDynamic(
+    ({ session }) => studioRouterForSession(session.id).model,
+  ),
 });

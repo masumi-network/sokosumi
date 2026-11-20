@@ -1,4 +1,3 @@
-import { z } from "@hono/zod-openapi";
 import { productBrief } from "@sokosumi/utils";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -10,7 +9,7 @@ import {
   IMAGE_PROMPT_MAX_LENGTH,
 } from "@/lib/image-studio/request-validation";
 
-import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
+import { createAgentImageJobSchema } from "@/schemas/project-image-studio.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
   getAsset,
@@ -46,18 +45,6 @@ import { authorizeAgentGrant as authorize } from "./authorize";
  */
 
 const app = new Hono();
-const createAgentImageJobSchema = createImageJobRequestSchema
-  .omit({
-    exportHeadline: true,
-    useProductCutout: true,
-    letterExistingBackdrop: true,
-  })
-  .extend({
-    catalogProductId: z.string().uuid().optional(),
-    modelId: z
-      .enum(["gemini-pro", "ideogram-v3", "recraft-v4-1-text-to-vector"])
-      .default("gemini-pro"),
-  });
 
 /**
  * Confirm the grant's user still has access to the grant's project.
@@ -225,6 +212,8 @@ app.post("/generations", async (c) => {
       prompt,
       ...(product ? { product } : {}),
       modelId: input.modelId,
+      route: input.route,
+      experimentArm: input.experimentArm,
       settings: { ...DEFAULT_SETTINGS, ...input.settings },
       referenceAssetIds: input.referenceAssetIds,
       ...(photoId ? { referenceFileIds: [photoId] } : {}),

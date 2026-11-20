@@ -1,14 +1,17 @@
+import { ImageStudioRoute } from "@sokosumi/core-client";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import { startGeneration } from "../lib/core";
 import { idempotencyKeyFor, identityFrom } from "../lib/identity";
 import { CURATED_IMAGE_MODEL_IDS } from "../lib/models";
+import { studioRouterForSession } from "../lib/router-trial";
 
 export default defineTool({
   description:
     "Generate a new image from a description. Use this for a genuinely new idea. To change an image that already exists, use refine_image instead so the original is preserved and the lineage stays intact.",
   inputSchema: z.object({
+    route: z.enum(ImageStudioRoute).optional(),
     catalogProductId: z
       .string()
       .uuid()
@@ -57,6 +60,8 @@ export default defineTool({
     const identity = identityFrom(ctx);
     const { job } = await startGeneration(identity, {
       prompt: input.prompt,
+      route: input.route,
+      experimentArm: studioRouterForSession(ctx.session.id).arm,
       parentAssetId: null,
       referenceAssetIds: [],
       aspectRatio: input.aspectRatio,
