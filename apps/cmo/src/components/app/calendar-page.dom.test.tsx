@@ -82,10 +82,10 @@ it("says a written post waits for its network, with the way to connect it", asyn
   );
   expect(card?.textContent).toContain("Waiting for Facebook");
   expect(card?.textContent).not.toContain("Written");
-  expect(text()).toContain(
-    "1 post is written and waits for Facebook. Connect it and it goes out on schedule.",
-  );
-  await press("Connect Facebook");
+  // One line for every network posts wait for, and one way to Channels.
+  expect(container.querySelectorAll(".cal-waits")).toHaveLength(1);
+  expect(text()).toContain("1 post waits for Facebook.");
+  await press("Connect");
   expect(onConnect).toHaveBeenCalled();
 });
 

@@ -9,6 +9,7 @@ import type {
 import { Check, Copy, Download, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
+import { seoLead } from "../../lib/page-lead";
 import {
   pageChangeCopy,
   plainIssueDetail,
@@ -18,6 +19,7 @@ import { DraftText } from "../draft-text";
 import { LocalDay } from "../local-day";
 import { StatusText } from "../status";
 import { SubmitButton } from "../submit-button";
+import { PageLead } from "./page-lead";
 
 import { KeywordSearch, SearchConsoleCard } from "./seo-research";
 import { day, pagePath } from "./seo-research-format";
@@ -558,18 +560,21 @@ export function SeoPage({
 
   if (!seo)
     return (
-      <div className="page-body">
-        {failed ? (
-          <p className="alert" role="alert">
-            The SEO tab could not load. It tries again in a moment.
-          </p>
-        ) : (
-          <div className="empty">
-            <Loader2 size={20} className="spin" aria-hidden="true" />
-            <span>Loading</span>
-          </div>
-        )}
-      </div>
+      <>
+        <PageLead kicker="SEO" title="Reading your audit." />
+        <div className="page-body">
+          {failed ? (
+            <p className="alert" role="alert">
+              The SEO tab could not load. It tries again in a moment.
+            </p>
+          ) : (
+            <div className="empty">
+              <Loader2 size={20} className="spin" aria-hidden="true" />
+              <span>Loading</span>
+            </div>
+          )}
+        </div>
+      </>
     );
 
   const setStatus =
@@ -598,95 +603,98 @@ export function SeoPage({
   const articles = seo.articles.filter((a) => a.status !== "dismissed");
 
   return (
-    <div className="page-body">
-      {note ? (
-        <p className="alert" role="status">
-          {note}
-        </p>
-      ) : null}
-      <AuditCard seo={seo} timeZone={timeZone} />
-      <section className={open.length > 0 ? "card card-focus" : "card"}>
-        <h3>Page changes</h3>
-        <p className="muted">
-          What to change on your site, with the exact new text to copy. Mark one
-          done once it is live and the next weekly audit checks it.
-        </p>
-        {changes.length === 0 ? (
-          <p className="note">
-            Nothing to change yet. The weekly audit and Search Console add
-            changes here.
+    <>
+      <PageLead {...seoLead(seo, timeZone)} />
+      <div className="page-body">
+        {note ? (
+          <p className="alert" role="status">
+            {note}
           </p>
-        ) : (
-          <ul className="list">
-            {changes.map((change) => (
-              <PageChange
-                key={change.id}
-                change={change}
-                setStatus={setStatus(change.id)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-      <section className="card">
-        <div className="seo-head">
-          <h3>Articles to write</h3>
-          <form action={() => ask()}>
-            <SubmitButton className="button button-secondary button-small">
-              More article ideas
-            </SubmitButton>
-          </form>
-        </div>
-        <p className="muted">
-          Articles people search for, each built on real search numbers.{" "}
-          {AGENT_NAME} writes the full text when you ask, ready to copy into
-          your site.
-        </p>
-        {articles.length === 0 ? (
-          <p className="note">
-            No article ideas yet. Ask for some and {AGENT_NAME} researches what
-            your buyers search for.
-          </p>
-        ) : (
-          <ul className="list">
-            {articles.map((article) => (
-              <Article
-                key={article.id}
-                article={article}
-                write={() => ask(article.id)}
-                setStatus={setStatus(article.id)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-      {landingPages.length > 0 ? (
-        <section className="card">
-          <h3>Landing pages</h3>
+        ) : null}
+        <section className={open.length > 0 ? "card card-focus" : "card"}>
+          <h3>Page changes</h3>
           <p className="muted">
-            Pages for people comparing you with a competitor, each with the
-            search in its heading and first paragraph. Publish one on your site,
-            then say where it is live: the search ad for that search sends
-            people there from then on.
+            What to change on your site, with the exact new text to copy. Mark
+            one done once it is live and the next weekly audit checks it.
           </p>
-          <ul className="list">
-            {landingPages.map((page) => (
-              <LandingPage
-                key={page.id}
-                page={page}
-                markLive={markLive(page.id)}
-                setStatus={setStatus(page.id)}
-              />
-            ))}
-          </ul>
+          {changes.length === 0 ? (
+            <p className="note">
+              Nothing to change yet. The weekly audit and Search Console add
+              changes here.
+            </p>
+          ) : (
+            <ul className="list">
+              {changes.map((change) => (
+                <PageChange
+                  key={change.id}
+                  change={change}
+                  setStatus={setStatus(change.id)}
+                />
+              ))}
+            </ul>
+          )}
         </section>
-      ) : null}
-      <KeywordSearch
-        seo={seo}
-        search={actions.searchKeywords}
-        onSearched={refresh}
-      />
-      <SearchConsoleCard seo={seo} connect={actions.connectSearchConsole} />
-    </div>
+        <AuditCard seo={seo} timeZone={timeZone} />
+        <section className="card">
+          <div className="seo-head">
+            <h3>Articles to write</h3>
+            <form action={() => ask()}>
+              <SubmitButton className="button button-secondary button-small">
+                More article ideas
+              </SubmitButton>
+            </form>
+          </div>
+          <p className="muted">
+            Articles people search for, each built on real search numbers.{" "}
+            {AGENT_NAME} writes the full text when you ask, ready to copy into
+            your site.
+          </p>
+          {articles.length === 0 ? (
+            <p className="note">
+              No article ideas yet. Ask for some and {AGENT_NAME} researches
+              what your buyers search for.
+            </p>
+          ) : (
+            <ul className="list">
+              {articles.map((article) => (
+                <Article
+                  key={article.id}
+                  article={article}
+                  write={() => ask(article.id)}
+                  setStatus={setStatus(article.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+        {landingPages.length > 0 ? (
+          <section className="card">
+            <h3>Landing pages</h3>
+            <p className="muted">
+              Pages for people comparing you with a competitor, each with the
+              search in its heading and first paragraph. Publish one on your
+              site, then say where it is live: the search ad for that search
+              sends people there from then on.
+            </p>
+            <ul className="list">
+              {landingPages.map((page) => (
+                <LandingPage
+                  key={page.id}
+                  page={page}
+                  markLive={markLive(page.id)}
+                  setStatus={setStatus(page.id)}
+                />
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        <KeywordSearch
+          seo={seo}
+          search={actions.searchKeywords}
+          onSearched={refresh}
+        />
+        <SearchConsoleCard seo={seo} connect={actions.connectSearchConsole} />
+      </div>
+    </>
   );
 }
