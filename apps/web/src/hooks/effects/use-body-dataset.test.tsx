@@ -21,8 +21,8 @@ describe("useBodyDataset", () => {
     delete document.body.dataset.sokoBotCreating;
   });
 
-  it("sets document.body.dataset on mount and clears it on unmount", () => {
-    expect(document.body.dataset.agentFullbleed).toBeUndefined();
+  it("sets document.body.dataset on mount and restores the pre-existing value on unmount", () => {
+    document.body.dataset.agentFullbleed = "initial";
 
     const { unmount } = renderHook(() =>
       useBodyDataset("agentFullbleed", "true"),
@@ -30,6 +30,20 @@ describe("useBodyDataset", () => {
 
     expect(document.body.dataset.agentFullbleed).toBe("true");
     expect(document.body.getAttribute("data-agent-fullbleed")).toBe("true");
+
+    unmount();
+
+    expect(document.body.dataset.agentFullbleed).toBe("initial");
+  });
+
+  it("clears the attribute on unmount when none existed before", () => {
+    expect(document.body.dataset.agentFullbleed).toBeUndefined();
+
+    const { unmount } = renderHook(() =>
+      useBodyDataset("agentFullbleed", "true"),
+    );
+
+    expect(document.body.dataset.agentFullbleed).toBe("true");
 
     unmount();
 
@@ -67,27 +81,86 @@ describe("useBodyDataset", () => {
     expect(document.body.dataset.sokoBotCreating).toBeUndefined();
   });
 
-  it("removes the attribute when hidden under React Activity and restores it on reveal", () => {
-    const { rerender } = render(
-      <Activity mode="visible">
-        <DatasetMarker datasetKey="sokoBotCreating" value="true" />
-      </Activity>,
+  it("restores the outer owner when an inner Activity owner hides, and reveals back to inner", () => {
+    const { rerender, unmount } = render(
+      <>
+        <Activity mode="visible">
+          <DatasetMarker datasetKey="sokoBotCreating" value="outer" />
+        </Activity>
+        <Activity mode="visible">
+          <DatasetMarker datasetKey="sokoBotCreating" value="inner" />
+        </Activity>
+      </>,
     );
 
-    expect(document.body.dataset.sokoBotCreating).toBe("true");
+    expect(document.body.dataset.sokoBotCreating).toBe("inner");
 
     rerender(
-      <Activity mode="hidden">
-        <DatasetMarker datasetKey="sokoBotCreating" value="true" />
-      </Activity>,
+      <>
+        <Activity mode="visible">
+          <DatasetMarker datasetKey="sokoBotCreating" value="outer" />
+        </Activity>
+        <Activity mode="hidden">
+          <DatasetMarker datasetKey="sokoBotCreating" value="inner" />
+        </Activity>
+      </>,
     );
+    expect(document.body.dataset.sokoBotCreating).toBe("outer");
+
+    rerender(
+      <>
+        <Activity mode="visible">
+          <DatasetMarker datasetKey="sokoBotCreating" value="outer" />
+        </Activity>
+        <Activity mode="visible">
+          <DatasetMarker datasetKey="sokoBotCreating" value="inner" />
+        </Activity>
+      </>,
+    );
+    expect(document.body.dataset.sokoBotCreating).toBe("inner");
+
+    unmount();
     expect(document.body.dataset.sokoBotCreating).toBeUndefined();
+  });
+
+  it("keeps the inner owner's value when the outer Activity owner hides first", () => {
+    document.body.dataset.sokoBotCreating = "base";
+
+    const { rerender } = render(
+      <>
+        <Activity mode="visible">
+          <DatasetMarker datasetKey="sokoBotCreating" value="outer" />
+        </Activity>
+        <Activity mode="visible">
+          <DatasetMarker datasetKey="sokoBotCreating" value="inner" />
+        </Activity>
+      </>,
+    );
+
+    expect(document.body.dataset.sokoBotCreating).toBe("inner");
 
     rerender(
-      <Activity mode="visible">
-        <DatasetMarker datasetKey="sokoBotCreating" value="true" />
-      </Activity>,
+      <>
+        <Activity mode="hidden">
+          <DatasetMarker datasetKey="sokoBotCreating" value="outer" />
+        </Activity>
+        <Activity mode="visible">
+          <DatasetMarker datasetKey="sokoBotCreating" value="inner" />
+        </Activity>
+      </>,
     );
-    expect(document.body.dataset.sokoBotCreating).toBe("true");
+    expect(document.body.dataset.sokoBotCreating).toBe("inner");
+
+    rerender(
+      <>
+        <Activity mode="hidden">
+          <DatasetMarker datasetKey="sokoBotCreating" value="outer" />
+        </Activity>
+        <Activity mode="hidden">
+          <DatasetMarker datasetKey="sokoBotCreating" value="inner" />
+        </Activity>
+      </>,
+    );
+    expect(document.body.dataset.sokoBotCreating).toBe("base");
   });
 });
