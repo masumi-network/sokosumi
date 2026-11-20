@@ -90,6 +90,9 @@ three as buttons, and a click puts the text in the message box as written. Write
 each one as one short sentence or question someone would type in chat (about 40
 characters), in the coworker's own field. Without `examples`, the chat falls
 back to the offers' full `prompt` text, which is written for a task, not a chat.
+The default Coworkers' examples ship as a data migration
+(`20261120130000_default_coworker_chat_examples`) that sets only
+`profile.examples` by slug.
 
 ### Model icons are automatic
 
