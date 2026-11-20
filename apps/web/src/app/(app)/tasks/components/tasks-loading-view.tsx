@@ -179,7 +179,7 @@ function TaskCardSkeleton({ compact }: { compact: boolean }) {
 }
 
 /** One blank text line, so the bar takes the real line height of its type size. */
-function TextLineSkeleton({ className }: { className: string }) {
+export function TextLineSkeleton({ className }: { className: string }) {
   return (
     <Skeleton className={cn("text-transparent select-none", className)}>
       &nbsp;

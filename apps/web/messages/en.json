@@ -1868,7 +1868,9 @@
         "searchResultsLimited": "Showing the latest {shown, number} of {total, number} archived tasks that match “{query}”.",
         "noProject": "No project",
         "archivedOn": "Archived {date}",
-        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
+        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it.",
+        "loading": "Loading archived tasks…",
+        "loadingTask": "Loading archived task…"
       },
       "NotFound": {
         "title": "This task isn’t here",

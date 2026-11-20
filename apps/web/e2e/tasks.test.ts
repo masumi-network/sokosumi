@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium, type Page } from "playwright";
+import { type Browser, chromium, type Page, type Route } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 
@@ -69,6 +69,141 @@ async function shot(page: Page, size: string, step: string) {
   await page.screenshot({ path: `${RESULTS_DIR}tasks-${size}-${step}.png` });
 }
 
+const PREFETCH_HEADERS = [
+  "next-router-prefetch",
+  "next-router-segment-prefetch",
+];
+
+function isPrefetch(headers: Record<string, string>) {
+  return PREFETCH_HEADERS.some((name) => name in headers);
+}
+
+/**
+ * Paths whose page shell the app has prefetched in this page, as links come
+ * into view. Counts only a successful answer that carries a segment, not the
+ * route tree alone. The shell is the same for every search of a route, so the
+ * path is the key.
+ */
+const prefetchedPaths = new WeakMap<Page, Set<string>>();
+
+function trackPrefetches(page: Page) {
+  const paths = new Set<string>();
+  prefetchedPaths.set(page, paths);
+  page.on("response", (response) => {
+    const headers = response.request().headers();
+    const segment = headers["next-router-segment-prefetch"];
+    if (response.ok() && isPrefetch(headers) && segment !== "/_tree") {
+      paths.add(new URL(response.url()).pathname);
+    }
+  });
+}
+
+/**
+ * Holds the server's answer for one page's content while `navigate` runs, so
+ * its loading shell stays on screen. Only the navigation's own request is
+ * held, and only once the app has prefetched the page's shell: a held cold
+ * request would hold back the shell itself. Records where `shellSelector`
+ * first paints, waits until the page has loaded, and returns both tops: what
+ * loads must open where its shell stood.
+ */
+async function measureShellToPage(
+  page: Page,
+  options: {
+    pathname: string;
+    navigate: () => Promise<unknown>;
+    shellSelector: string;
+    loadedSelector: string;
+  },
+) {
+  const prefetched = prefetchedPaths.get(page);
+  for (let i = 0; i < 30 && !prefetched?.has(options.pathname); i++) {
+    await page.waitForTimeout(500);
+  }
+  assert.ok(
+    prefetched?.has(options.pathname),
+    `the app never prefetched the shell of ${options.pathname}`,
+  );
+  const holdContent = async (route: Route) => {
+    if (!isPrefetch(route.request().headers())) {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+    }
+    await route.fallback();
+  };
+  const isHeld = (url: URL) =>
+    url.pathname === options.pathname && url.searchParams.has("_rsc");
+  await page.route(isHeld, holdContent);
+  try {
+    await page.evaluate((selector) => {
+      const record = window as unknown as { __shellTop?: number };
+      delete record.__shellTop;
+      const started = performance.now();
+      const tick = () => {
+        const shell = document.querySelector(selector);
+        if (shell) {
+          record.__shellTop = Math.round(shell.getBoundingClientRect().top);
+          return;
+        }
+        if (performance.now() - started < 30_000) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, options.shellSelector);
+    await options.navigate();
+    // The target page itself, not the page we left: it can stay on screen
+    // while the held answer is pending.
+    await page.waitForFunction(
+      ({ pathname, selector }) =>
+        location.pathname === pathname && !!document.querySelector(selector),
+      { pathname: options.pathname, selector: options.loadedSelector },
+      { timeout: 60_000 },
+    );
+  } finally {
+    await page.unroute(isHeld, holdContent);
+  }
+  return page.evaluate((selector) => {
+    const shellTop = (window as unknown as { __shellTop?: number }).__shellTop;
+    const loaded = document.querySelector(selector);
+    return {
+      shellTop,
+      loadedTop: loaded ? Math.round(loaded.getBoundingClientRect().top) : 0,
+    };
+  }, options.loadedSelector);
+}
+
+/** The board opens where its loading shell drew the columns. */
+async function assertBoardLoadsInPlace(
+  page: Page,
+  navigate: () => Promise<unknown>,
+) {
+  const { shellTop, loadedTop } = await measureShellToPage(page, {
+    pathname: "/tasks",
+    navigate,
+    shellSelector: 'main section:has([data-testid="task-card-skeleton"])',
+    loadedSelector:
+      'main [data-column-id="backlog"]:not(:has([data-testid="task-card-skeleton"]))',
+  });
+  assert.ok(shellTop, "the loading shell never painted a column");
+  assert.ok(loadedTop > 0, "the loaded board has no column");
+  assert.equal(
+    loadedTop,
+    shellTop,
+    `the board's columns move while it loads (top ${shellTop} -> ${loadedTop}px)`,
+  );
+}
+
+/**
+ * Tasks in the sidebar, or the phone tab bar; the tablet opens the sidebar.
+ * Shown before the click, so the app can prefetch the board's shell.
+ */
+async function showTasksLink(page: Page) {
+  const tasksLink = page
+    .getByRole("link", { name: "Tasks", exact: true })
+    .filter({ visible: true });
+  if ((await tasksLink.count()) === 0) {
+    await page.getByRole("button", { name: "Show sidebar" }).click();
+  }
+  return tasksLink.first();
+}
+
 let browser: Browser;
 before(async () => {
   mkdirSync(RESULTS_DIR, { recursive: true });
@@ -85,6 +220,7 @@ for (const { name: size, ...viewport } of PROJECTS) {
       page.setDefaultTimeout(30_000);
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
+      trackPrefetches(page);
 
       const inbox = await createInbox();
       await page.goto(`${BASE_URL}/signup`);
@@ -100,17 +236,11 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByRole("link", { name: "Later" }).click();
       await page.waitForURL(`${BASE_URL}/`);
 
-      await page.goto(`${BASE_URL}/tasks`);
-      await page.getByRole("heading", { name: "Backlog" }).waitFor();
+      const tasksLink = await showTasksLink(page);
+      await assertBoardLoadsInPlace(page, () => tasksLink.click());
       // From md up the loaded board fits the screen: the page itself does not
-      // scroll. Measured once the board, not its skeleton, is on screen.
+      // scroll.
       if (viewport.width >= 768) {
-        await page.waitForFunction(
-          () =>
-            location.pathname === "/tasks" &&
-            document.querySelector('[role="radiogroup"]') &&
-            !document.querySelector('[data-testid="task-card-skeleton"]'),
-        );
         const pageScroll = await page.evaluate(() => {
           const main = document.querySelector("main");
           return main ? main.scrollHeight - main.clientHeight : -1;
@@ -242,7 +372,27 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "View options" })
         .filter({ visible: true })
         .click();
-      await page.getByRole("link", { name: "Archived", exact: true }).click();
+      // Archived draws its heading, search and row frames at once; the rows
+      // fill in where their frames stood.
+      const archived = await measureShellToPage(page, {
+        pathname: "/tasks/archived",
+        navigate: async () => {
+          await page
+            .getByRole("link", { name: "Archived", exact: true })
+            .click();
+          await page
+            .getByRole("heading", { level: 1, name: "Archived tasks" })
+            .waitFor({ timeout: 2000 });
+        },
+        shellSelector: "main ul > li:has(.animate-pulse)",
+        loadedSelector: "main ul > li:has(a)",
+      });
+      assert.ok(archived.shellTop, "Archived painted no row placeholders");
+      assert.equal(
+        archived.loadedTop,
+        archived.shellTop,
+        `Archived rows move when they load (top ${archived.shellTop} -> ${archived.loadedTop}px)`,
+      );
       const row = page.getByRole("link", { name: LONG_NAME });
       await row.waitFor();
       const nameStyle = await row
@@ -294,6 +444,28 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
+
+      // A filtered board draws its chips in the toolbar. Back from a task
+      // returns to it, and its loading shell draws the same toolbar from the
+      // URL, chips included, so the columns stay put.
+      await page.goto(`${BASE_URL}/tasks?status=DRAFT`);
+      await page
+        .getByRole("list", { name: "Active filters" })
+        .filter({ visible: true })
+        .waitFor();
+      await page.getByRole("link", { name: LONG_NAME }).click();
+      await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
+      await assertBoardLoadsInPlace(page, () =>
+        page
+          .getByRole("link", { name: "Back to tasks" })
+          .or(page.getByRole("link", { name: "Back", exact: true }))
+          .filter({ visible: true })
+          .click(),
+      );
+      assert.ok(
+        page.url().includes("status=DRAFT"),
+        `Back returned to ${page.url()}, not the filtered board`,
+      );
 
       const overflow = await page.evaluate(
         () =>
