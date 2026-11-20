@@ -28,6 +28,7 @@ import {
   seoAnalysisAdmissionCredits,
 } from "@/lib/seo/analysis-price";
 import { fullAuditBillingContext } from "@/lib/seo/audit-settlement";
+import { auditSitemapInput } from "@/lib/seo/audit-sitemap-input";
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
 import { seoPageComparisonKey } from "@/lib/seo/related-page-selection";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
@@ -122,6 +123,7 @@ export function seoTaskPacket(
           requestId,
           pageUrls,
           ...(price ? { price, inspectRelated: true } : {}),
+          ...auditSitemapInput(input, pageUrls),
           ...(input.keywords[0] ? { keyword: input.keywords[0] } : {}),
           countryCode: input.countryCode,
           languageCode: input.languageCode,
@@ -163,6 +165,7 @@ export function validateSeoAnalysis(
     input.kind !== "audit_full"
   )
     throw badRequest("Search Console audit choices apply only to a full audit");
+  auditSitemapInput(input, pageUrls);
   if (!pageUrls.length || pageUrls.length > SEO_MAX_PAGES)
     throw badRequest("Select between one and ten pages for an analysis");
   if (new Set(input.devices).size !== input.devices.length)

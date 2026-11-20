@@ -96,6 +96,14 @@ describe("private public-site evidence", () => {
         responses: [{ pageUrl: target, status: 301, finalUrl: seed }],
       }),
     );
+    const unresolved = project(
+      snapshot(currentAt, {
+        ...sample,
+        responses: [{ pageUrl: target, status: 301 }],
+      }),
+    );
+    expect(unresolved?.action).toContain("Verify the destination");
+    expect(redirect?.action).toContain(seed);
     expect(redirect).toMatchObject({
       status: "review_redirect",
       finalUrl: seed,
@@ -287,6 +295,34 @@ describe("private public-site evidence", () => {
       googleReason: "Not found (404)",
       googleCheckedAt: previousAt,
     });
+    const stored = receipt.payload as { receipt: { pages: unknown[] } };
+    const alternate = {
+      ...receipt,
+      payload: {
+        ...stored,
+        receipt: {
+          ...stored.receipt,
+          pages: [
+            {
+              ...page,
+              verdict: "NEUTRAL",
+              coverageState: null,
+              googleCanonical: hub,
+            },
+          ],
+        },
+      },
+    } as ProjectSeoObservation;
+    expect(
+      project(
+        snapshot(currentAt, {
+          ...sample,
+          observations: [],
+          responses: [{ pageUrl: target, status: 200 }],
+        }),
+        alternate,
+      )?.action,
+    ).toContain("Google reported a duplicate or alternate page");
     expect(
       project(snapshot(), { ...receipt, ownerId: "another" })?.googleReason,
     ).toBeUndefined();
@@ -338,4 +374,89 @@ describe("private public-site evidence", () => {
       ),
     ).toBeUndefined();
   });
+});
+
+it("exposes draft eligibility only on directly sampled HTTP 200 pages", () => {
+  const good = {
+    ...sample,
+    sampledPages: [target],
+    responses: [
+      { pageUrl: target, status: 200, sitemapEligible: true as const },
+    ],
+  };
+  expect(project(snapshot(currentAt, good))?.sitemapEligible).toBe(true);
+  for (const invalid of [
+    {
+      ...good,
+      responses: [
+        { pageUrl: target, status: 302, sitemapEligible: true as const },
+      ],
+    },
+    { ...good, sampledPages: [] },
+  ]) {
+    expect(() =>
+      validateSeoSiteEvidence(
+        { ...invalid, observations: [] },
+        [seed, target],
+        undefined,
+      ),
+    ).toThrow(/draft sitemap/);
+  }
+});
+
+it("uses a directly sampled alternate canonical before recommending new internal links", () => {
+  const preferred = seed + "guide";
+  const evidence = {
+    ...sample,
+    sampledPages: [hub, target],
+    observations: [],
+    responses: [{ pageUrl: target, status: 200, declaredCanonical: preferred }],
+  };
+  validateSeoSiteEvidence(evidence, [seed, target], null);
+  const result = project(snapshot(currentAt, evidence));
+  expect(result).toMatchObject({
+    status: "review",
+    declaredCanonical: preferred,
+    action: expect.stringContaining(preferred),
+  });
+  expect(result?.action).toContain("declares");
+  for (const invalid of [
+    target,
+    "https://other.test/page",
+    seed + "private/page",
+  ]) {
+    expect(() =>
+      validateSeoSiteEvidence(
+        {
+          ...evidence,
+          responses: [
+            { ...evidence.responses[0]!, declaredCanonical: invalid },
+          ],
+        },
+        [seed, target],
+        null,
+      ),
+    ).toThrow();
+  }
+});
+
+it("excludes executable downloads from sitemap drafts at admission and on historical reads", () => {
+  const file = seed + "download.dmg";
+  const evidence: SeoSiteEvidence = {
+    ...sample,
+    sampledPages: [file],
+    observations: [],
+    responses: [{ pageUrl: file, status: 200, sitemapEligible: true }],
+  };
+  expect(() => validateSeoSiteEvidence(evidence, [seed, file], null)).toThrow();
+  const renewed = projectSiteEvidence(
+    [audit, snapshot(currentAt, evidence, [seed, file])],
+    new Set([seed]),
+    {},
+  );
+  const observed = renewed.siteEvidence?.targets.find(
+    (row) => row.targetUrl === file,
+  );
+  expect(observed?.httpStatus).toBe(200);
+  expect(observed?.sitemapEligible).toBeUndefined();
 });

@@ -9,10 +9,12 @@ import {
 } from "@/lib/seo/related-page-selection";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { storedSeoFullAuditPriceSchema } from "@/schemas/seo-audit-price.schema";
+import { storedSiteEvidenceSchema } from "@/schemas/seo-site-evidence.schema";
 import {
   type SeoTaskRelatedPagesRequest,
   seoRelatedIndexingSelectionSchema,
 } from "@/schemas/seo-task-pages.schema";
+import type { TaskWorkerContext } from "@/schemas/task-worker-context.schema";
 import { seoOwnerData, sha256 } from "./project-seo-store";
 import { seoAuditInspectionPages } from "./seo-audit-related-pages";
 import { requireSeoTaskAuditContext } from "./seo-task-audit-context";
@@ -21,7 +23,77 @@ const indexingRequest = z.object({
   inspectRelated: z.literal(true),
   price: storedSeoFullAuditPriceSchema,
   pageUrls: z.array(z.string()),
+  publicSitemapUrl: z.string().optional(),
+  sitemapPageHints: z.array(z.string()).optional(),
 });
+
+function continuationScope(
+  expected: TaskWorkerContext,
+  packet: z.infer<typeof indexingRequest>,
+) {
+  return sha256(
+    JSON.stringify([
+      expected.ownerId,
+      expected.organizationId,
+      expected.workspaceId,
+      packet.pageUrls,
+      packet.publicSitemapUrl ?? null,
+      packet.sitemapPageHints ?? [],
+    ]),
+  );
+}
+
+/** Only prior public-discovery URLs from this requester, project, workspace and approved selection. */
+export function readSeoDeferredDiscovery(
+  auth: AuthenticationContext,
+  taskId: string,
+  expected: TaskWorkerContext,
+) {
+  return serializableTransaction(async (tx) => {
+    const { actor, analysis, task } = await requireSeoTaskAuditContext(
+      auth,
+      taskId,
+      expected,
+      tx,
+    );
+    const packet = indexingRequest.safeParse(
+      originalSeoAuditPacket(analysis.request),
+    );
+    if (task.status !== "RUNNING" || !packet.success)
+      throw conflict("A running audit with approved discovery is required");
+    const scope = continuationScope(expected, packet.data);
+    const prior = await tx.projectSeoObservation.findFirst({
+      where: {
+        ...seoOwnerData(actor),
+        ownerId: actor.userId,
+        visibility: "PRIVATE",
+        source: "seo_worker",
+        kind: "site_evidence",
+        sourceTaskId: { not: taskId },
+        scopeVersion: analysis.scopeVersion,
+        pageIds: { equals: analysis.pageIds },
+        payload: { path: ["continuationScope"], equals: scope },
+      },
+      orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+      select: { payload: true },
+    });
+    const data = storedSiteEvidenceSchema.safeParse(prior?.payload);
+    const leads = data.success
+      ? (data.data.evidence.coverage?.deferred ?? [])
+      : [];
+    return {
+      taskId,
+      urls: leads
+        .filter(
+          (lead) =>
+            lead.reason === "page_limit" ||
+            lead.reason === "read_limit" ||
+            lead.reason === "deadline",
+        )
+        .map((lead) => lead.url),
+    };
+  }, "The audit discovery scope changed. Please retry.");
+}
 
 /** Freeze only the private inspection targets. The original audit page IDs, URLs and price never change. */
 export function freezeSeoTaskRelatedIndexing(
@@ -99,6 +171,12 @@ export function freezeSeoTaskRelatedIndexing(
         publicOrigin,
       );
       const payload = {
+        ...(input.siteEvidence.coverage && {
+          continuationScope: continuationScope(
+            input.expectedContext,
+            packet.data,
+          ),
+        }),
         auditPageUrl: pageUrls[0]!,
         targetUrls: publicTargets,
         evidence: input.siteEvidence,

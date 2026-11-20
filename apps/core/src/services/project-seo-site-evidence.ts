@@ -1,4 +1,5 @@
 import type { ProjectSeoObservation } from "@sokosumi/database";
+import { isPublicSeoSitemapPage } from "@sokosumi/utils";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import { googleReturnedUnknown } from "@/lib/seo/inspection-provenance";
 import { seoPageComparisonKey as key } from "@/lib/seo/related-page-selection";
@@ -59,6 +60,7 @@ function recommendation(
   sampled: string[],
   response?: NonNullable<SeoSiteEvidence["responses"]>[number],
   googleReason?: string,
+  googleChoseAlternate = false,
 ) {
   const donor = links.donorUrls[0];
   const sitemap = links.sitemapUrls[0];
@@ -73,14 +75,20 @@ function recommendation(
       action: `Check whether ${target} should exist. It returned HTTP ${response.status}.`,
     };
   }
-  if (response && [301, 302, 303, 307, 308].includes(response.status))
+  if (response && [301, 302, 303, 307, 308].includes(response.status)) {
+    const source = donor ?? sitemap;
+    let action =
+      "Verify the destination of this redirect before changing any links.";
+    if (response.finalUrl) {
+      action = source
+        ? `Confirm the redirect to ${response.finalUrl} is intentional. If so, update ${source} to link directly there.`
+        : `Confirm that ${response.finalUrl} is the intended destination.`;
+    }
     return {
       status: "review_redirect" as const,
-      action:
-        donor || sitemap
-          ? `Confirm the redirect is intentional. If so, update ${donor ?? sitemap} to point directly to the verified destination.`
-          : "Confirm the redirect destination is intentional. A redirect alone does not require restoring the old page.",
+      action,
     };
+  }
   if (response && (response.status < 200 || response.status >= 300))
     return {
       status: "review" as const,
@@ -92,6 +100,21 @@ function recommendation(
       action: response
         ? "Compare Google's recorded crawl with the current response before changing this URL."
         : "Check the current HTTP response before acting on Google's recorded crawl.",
+    };
+  if (response?.declaredCanonical)
+    return {
+      status: "review" as const,
+      action: `The page declares ${response.declaredCanonical} as canonical. Confirm that this is the intended primary page before changing internal links or sitemap entries.`,
+    };
+  if (
+    googleChoseAlternate ||
+    (googleReason &&
+      /alternate page|duplicate|different canonical/i.test(googleReason))
+  )
+    return {
+      status: "review" as const,
+      action:
+        "Google reported a duplicate or alternate page. Compare the declared and Google-selected canonicals before changing links to this URL.",
     };
   const possibleDonor = sampled.find((url) => key(url) !== key(target));
   if (
@@ -246,6 +269,10 @@ export function projectSiteEvidence(
       observedAt,
       sampledPages: evidence.sampledPages,
       complete: evidence.complete,
+      ...(evidence.suppliedSitemap && {
+        suppliedSitemap: evidence.suppliedSitemap,
+      }),
+      ...(evidence.coverage && { coverage: evidence.coverage }),
       targets: data.targetUrls.map((targetUrl) => {
         const links = sources(evidence, targetUrl);
         const inspection = receipt?.receipt.pages.find(
@@ -276,6 +303,11 @@ export function projectSiteEvidence(
           evidence.sampledPages,
           response,
           googleReason,
+          Boolean(
+            googleReason &&
+              inspection?.googleCanonical &&
+              key(inspection.googleCanonical) !== key(targetUrl),
+          ),
         );
         if (
           trend?.decline &&
@@ -292,7 +324,21 @@ export function projectSiteEvidence(
           ...(response && {
             httpStatus: response.status,
             finalUrl: response.finalUrl,
+            ...(response.declaredCanonical && {
+              declaredCanonical: response.declaredCanonical,
+            }),
           }),
+          ...(response?.sitemapEligible &&
+            isPublicSeoSitemapPage(targetUrl) &&
+            response.status === 200 &&
+            !response.finalUrl &&
+            (!inspection ||
+              inspection.verdict === "VERDICT_UNSPECIFIED" ||
+              (inspection.verdict === "PASS" &&
+                (!inspection.googleCanonical ||
+                  key(inspection.googleCanonical) === key(targetUrl)))) && {
+              sitemapEligible: true as const,
+            }),
           ...(examples?.referringPages && {
             googleReferringPages: examples.referringPages,
           }),

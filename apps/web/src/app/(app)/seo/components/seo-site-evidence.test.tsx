@@ -19,6 +19,11 @@ it("shows dated public link evidence in English without a Google result", () => 
             auditPageUrl: page,
             observedAt: new Date("2026-11-20T12:00:00Z"),
             complete: false,
+            coverage: {
+              discovered: 25,
+              deferredCount: 24,
+              deferred: [{ url: page + "/next", reason: "read_limit" }],
+            },
             sampledPages: [page],
             targets: [
               {
@@ -48,6 +53,15 @@ it("shows dated public link evidence in English without a Google result", () => 
   expect(
     screen.getByText("The audit collected only part of the sample."),
   ).toBeVisible();
+  expect(
+    screen.getByText(
+      "Eligible URLs: 25. Public responses verified: 1. Deferred: 24.",
+    ),
+  ).toBeVisible();
+  expect(screen.getByText("Deferred URLs (1 shown)")).toBeVisible();
+  expect(
+    screen.getByText("The audit reached its public request limit."),
+  ).toBeInTheDocument();
   expect(screen.getByText("Target returned HTTP 404.")).toBeVisible();
   expect(
     screen.getByText("Replace the broken link on the guide page."),

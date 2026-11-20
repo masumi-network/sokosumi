@@ -16,6 +16,7 @@ import {
   seoDeviceSchema,
   seoObservationSchema,
 } from "./seo-audit-coverage.schema";
+import { publicSitemapInputFields } from "./seo-sitemap-evidence.schema";
 
 export {
   seoDeviceSchema,
@@ -203,6 +204,7 @@ export const requestSeoAnalysisSchema = z
     searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
     allowLimitedAudit: z.literal(true).optional(),
     includeSitemaps: z.literal(true).optional(),
+    ...publicSitemapInputFields,
     setupGoal: z
       .strictObject({
         pageId: seoIdSchema,

@@ -40,8 +40,10 @@ import {
   SEO_MAX_MONITOR_RUNS,
   SEO_MAX_PAGES,
   seoAnalysisMaxCredits,
+  seoScopePage,
 } from "./seo-form-model";
 import { SeoSearchConsoleWarning } from "./seo-search-console-warning";
+import { SeoSitemapInput } from "./seo-sitemap-input";
 import { useSeoAnalysisForm } from "./use-seo-analysis";
 import { useSeoAnalysisMarket } from "./use-seo-analysis-market";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -68,6 +70,10 @@ export function SeoAnalysisDialog({
   const [keepSetupSelection, setKeepSetupSelection] = useState(true);
   const full = form.kind === "audit_full";
   const noService = !form.serviceAvailable;
+  const sitemapSeed =
+    full && form.workspace.scope.pageIds.length < SEO_MAX_PAGES
+      ? seoScopePage(form.workspace)?.url
+      : undefined;
   const market = useSeoAnalysisMarket(
     form.workspace.keywords,
     full ? SEO_FULL_AUDIT_KEYWORDS : undefined,
@@ -222,6 +228,9 @@ export function SeoAnalysisDialog({
                 }))}
               />
             </SeoField>
+            {sitemapSeed && (
+              <SeoSitemapInput key={sitemapSeed} seed={sitemapSeed} />
+            )}
             {form.kind === "audit_lite" && form.canUsePaidSearchData ? (
               <fieldset className="space-y-3">
                 <legend className="mb-2 text-sm font-medium">

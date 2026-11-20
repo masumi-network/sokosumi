@@ -169,6 +169,37 @@ describe("SEO check defaults", () => {
     });
   });
 
+  it("starts with a public sitemap and only the public page hints reviewed from a local XML file", async () => {
+    const user = userEvent.setup();
+    const dialog = within(showDialog(workspace()));
+    await user.click(dialog.getByRole("button", { name: "Change options" }));
+    const base = "https://example.com/";
+    const sitemapUrl = base + "public-map.xml";
+    await user.type(
+      dialog.getByLabelText("Public sitemap URL (optional)"),
+      sitemapUrl,
+    );
+    const xml =
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+      [base + "guide", base + "profile/person", "https://away.example/x"]
+        .map((url) => `<url><loc>${url}</loc></url>`)
+        .join("") +
+      "</urlset>";
+    await user.upload(
+      dialog.getByLabelText("Import a sitemap XML file (optional)"),
+      new File([xml], "pages.xml", { type: "application/xml" }),
+    );
+    expect(await dialog.findByText(base + "guide")).toBeVisible();
+    expect(dialog.queryByText(base + "profile/person")).toBeNull();
+    await user.click(dialog.getByRole("button", { name: "Start check" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      kind: "audit_full",
+      publicSitemapUrl: sitemapUrl,
+      sitemapPageHints: [base + "guide"],
+    });
+  });
+
   it("keeps the summary true to a changed field, and shows the fields when a value is refused", async () => {
     const data = workspace();
     data.keywords = [];

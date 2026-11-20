@@ -11,6 +11,7 @@ import { seoRelatedIndexingSelectionSchema } from "@/schemas/seo-task-pages.sche
 export function seoAuditInspectionPages(
   request: unknown,
   pageUrls: string[],
+  completed = false,
 ): string[] {
   const metadata = z
     .object({
@@ -20,7 +21,7 @@ export function seoAuditInspectionPages(
     })
     .parse(request);
   if (metadata.relatedIndexingSelection === undefined) {
-    if (metadata.inspectRelated)
+    if (metadata.inspectRelated && !completed)
       throw conflict("Prepare the related indexing targets before inspection");
     return pageUrls;
   }

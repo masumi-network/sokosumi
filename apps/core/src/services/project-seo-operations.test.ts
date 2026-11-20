@@ -195,3 +195,28 @@ describe("SEO worker request compatibility before Task dispatch", () => {
     expect(JSON.stringify(packet).length).toBeLessThan(SEO_MAX_PACKET_CHARS);
   });
 });
+
+it("retains approved same-origin sitemap hints and refuses off-site or private inputs before dispatch", () => {
+  const base = {
+    ...request(),
+    kind: "audit_full" as const,
+    analyses: undefined,
+    devices: ["desktop", "mobile"] as ("desktop" | "mobile")[],
+    fullAuditCredits: 750 as const,
+  };
+  const inputs = {
+    publicSitemapUrl: "https://example.test/maps/custom.xml",
+    sitemapPageHints: ["https://example.test/topic"],
+  };
+  expect(
+    seoTaskPacket({ ...base, ...inputs }, [page], "audit-id"),
+  ).toMatchObject({ ...inputs, inspectRelated: true, pageUrls: [page] });
+  for (const rejected of [
+    { ...base, publicSitemapUrl: "https://other.test/sitemap.xml" },
+    { ...base, publicSitemapUrl: "https://example.test/private/map.xml" },
+    { ...base, sitemapPageHints: [page + "?token=x"] },
+    { ...base, fullAuditCredits: undefined, ...inputs },
+    { ...base, kind: "page_check" as const, ...inputs },
+  ])
+    expect(() => validateSeoAnalysis(rejected, [page])).toThrow();
+});

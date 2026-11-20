@@ -5,10 +5,33 @@ import { SEO_MAX_PAGES, seoUrlSchema } from "./seo-page.schema";
 export const SEO_DECLINE_DATES = 3;
 export const SEO_DECLINE_DONOR_LIMIT = 3;
 export const SEO_SITE_HISTORY_LIMIT = 20;
+export const SEO_MAX_DEFERRED_LEADS = 20;
+const discoveryCoverageSchema = z.strictObject({
+  discovered: z.number().int().nonnegative(),
+  deferredCount: z.number().int().nonnegative(),
+  deferred: z
+    .array(
+      z.strictObject({
+        url: seoUrlSchema,
+        reason: z.enum([
+          "page_limit",
+          "read_limit",
+          "deadline",
+          "robots",
+          "access_limit",
+          "unavailable",
+        ]),
+      }),
+    )
+    .max(SEO_MAX_DEFERRED_LEADS),
+});
 const urls = z.array(seoUrlSchema).max(SEO_MAX_PAGES);
+const suppliedSitemap = z.enum(["read", "blocked", "unavailable"]).optional();
 export const seoSiteEvidenceSchema = z.strictObject({
   version: z.literal(1),
   complete: z.boolean(),
+  suppliedSitemap,
+  coverage: discoveryCoverageSchema.optional(),
   sampledPages: urls,
   observations: z
     .array(
@@ -26,6 +49,8 @@ export const seoSiteEvidenceSchema = z.strictObject({
         pageUrl: seoUrlSchema,
         status: z.number().int().min(100).max(599),
         finalUrl: seoUrlSchema.optional(),
+        declaredCanonical: seoUrlSchema.optional(),
+        sitemapEligible: z.literal(true).optional(),
       }),
     )
     .max(SEO_MAX_PAGES)
@@ -34,6 +59,10 @@ export const seoSiteEvidenceSchema = z.strictObject({
 export type SeoSiteEvidence = z.infer<typeof seoSiteEvidenceSchema>;
 
 export const storedSiteEvidenceSchema = z.strictObject({
+  continuationScope: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
   auditPageUrl: seoUrlSchema,
   targetUrls: urls,
   evidence: seoSiteEvidenceSchema,
@@ -46,6 +75,8 @@ const workspaceSiteEvidenceSchema = z
     observedAt: dateTimeSchema,
     sampledPages: urls,
     complete: z.boolean(),
+    suppliedSitemap,
+    coverage: discoveryCoverageSchema.optional(),
     targets: z
       .array(
         z.strictObject({
@@ -62,7 +93,9 @@ const workspaceSiteEvidenceSchema = z
           ]),
           action: z.string(),
           httpStatus: z.number().int().optional(),
+          sitemapEligible: z.literal(true).optional(),
           finalUrl: seoUrlSchema.optional(),
+          declaredCanonical: seoUrlSchema.optional(),
           googleReferringPages: urls.optional(),
           googleSitemapUrls: urls.optional(),
           googleReason: z.string().optional(),

@@ -35,7 +35,7 @@ export async function requireSeoTaskIndexingContext(
   tx: Prisma.TransactionClient,
   auditPageUrlHint?: string,
 ) {
-  const { actor, analysis, pageUrls } = await requireSeoTaskAuditContext(
+  const { actor, analysis, pageUrls, task } = await requireSeoTaskAuditContext(
     auth,
     taskId,
     expected,
@@ -49,6 +49,7 @@ export async function requireSeoTaskIndexingContext(
   const inspectionPageUrls = seoAuditInspectionPages(
     analysis.request,
     pageUrls,
+    task.status === "COMPLETED",
   );
 
   const { searchConsoleAccess } = storedSeoAuditSearchConsoleSchema.parse(

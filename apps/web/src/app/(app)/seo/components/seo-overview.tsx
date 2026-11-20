@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -19,7 +18,6 @@ import {
   SeoSection,
   SeoSeverity,
   SeoSource,
-  SeoState,
   seoPageLabel,
   seoPageName,
   seoSiteUrl,
@@ -193,34 +191,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
         <p className="text-muted-foreground px-2 text-sm">
           {result("actions.checksIncompleteBody")}
         </p>
-      ) : null}
-      {overview.recentChecks.length ? (
-        <SeoSection title={t("overview.recentChecks")}>
-          {overview.recentChecks.map((item) => (
-            <div
-              key={item.id}
-              className={cn(
-                HOLDER_ITEM_CLASS,
-                "flex flex-wrap items-center justify-between gap-3 p-4",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">
-                  {t(`analysis.${item.kind}`)}
-                </span>
-                <SeoState>{t(`analysis.${item.status}`)}</SeoState>
-              </div>
-              {item.taskId ? (
-                <Link
-                  href={`/tasks/${encodeURIComponent(item.taskId)}`}
-                  className="text-sm underline underline-offset-4"
-                >
-                  {t("openTask")}
-                </Link>
-              ) : null}
-            </div>
-          ))}
-        </SeoSection>
       ) : null}
       <SeoPages model={model} />
     </div>

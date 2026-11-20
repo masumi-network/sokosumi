@@ -1,18 +1,21 @@
-import { isValidHttpUrl } from "@sokosumi/utils";
+import {
+  isPublicSeoSitemapPage,
+  isSeoUtilityOrFilePath,
+  isValidHttpUrl,
+} from "@sokosumi/utils";
 import { z } from "zod";
 import { badRequest, conflict } from "@/helpers/error";
 import { publicExplorationUrl } from "@/helpers/project-seo-exploration-privacy";
 import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
 import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
-import type { SeoSiteEvidence } from "@/schemas/seo-site-evidence.schema";
+import {
+  SEO_MAX_DEFERRED_LEADS,
+  type SeoSiteEvidence,
+} from "@/schemas/seo-site-evidence.schema";
 import { seoAuditSearchConsoleAccessSchema } from "@/schemas/seo-task-indexing.schema";
 import { seoRelatedIndexingSelectionSchema } from "@/schemas/seo-task-pages.schema";
 
 const requestObject = z.record(z.string(), z.json());
-const PRIVATE_PAGE =
-  /(?:^|\/)(?:accounts?|my[-_]account|login|log-in|logout|log-out|sign-in|sign-out|sign-up|signin|signout|signup|register|admin|wp-admin|wp-login|auth|oauth|session|dashboard|settings|profile|billing|checkout|cart|basket|subscribe|unsubscribe|privacy(?:-policy)?|terms(?:-of-(?:use|service)|-and-conditions)?|cookies?(?:-policy)?|legal|impressum)(?:\.[a-z0-9]+)?(?:\/|$)/i;
-const FILE_PAGE =
-  /\.(?:pdf|zip|gz|tar|json|xml|csv|txt|jpe?g|png|gif|svg|webp|mp[34]|css|js|woff2?|ttf|docx?|xlsx?)$/i;
 
 function normalized(value: string) {
   const url = new URL(value);
@@ -82,7 +85,7 @@ export function selectSeoRelatedPages(
     } catch {
       throw badRequest("Related page URLs contain invalid encoding");
     }
-    if (url.search !== "" || PRIVATE_PAGE.test(path) || FILE_PAGE.test(path))
+    if (url.search !== "" || isSeoUtilityOrFilePath(path))
       throw badRequest(
         "Related pages cannot be private, utility, query or file URLs",
       );
@@ -212,7 +215,53 @@ export function validateSeoSiteEvidence(
     if (responded.has(key))
       throw badRequest("Each response must name a distinct page");
     responded.add(key);
+    if (
+      response.sitemapEligible &&
+      (response.status !== 200 ||
+        response.finalUrl ||
+        !donors.has(key) ||
+        !isPublicSeoSitemapPage(response.pageUrl))
+    )
+      throw badRequest(
+        "A draft sitemap entry requires a directly verified, sampled page",
+      );
+    if (response.declaredCanonical) {
+      checkUrl(response.declaredCanonical);
+      if (
+        response.status !== 200 ||
+        response.finalUrl ||
+        response.sitemapEligible ||
+        !donors.has(key) ||
+        new URL(response.declaredCanonical).origin !==
+          new URL(response.pageUrl).origin ||
+        seoPageComparisonKey(response.declaredCanonical) === key
+      )
+        throw badRequest(
+          "An alternate canonical requires a directly sampled page and a different same-origin URL",
+        );
+    }
     if (response.finalUrl) checkUrl(response.finalUrl);
+  }
+  if (evidence.coverage) {
+    const { discovered, deferredCount, deferred } = evidence.coverage;
+    if (
+      deferredCount !== discovered - responded.size ||
+      discovered < selectedKeys.size ||
+      deferred.length !== Math.min(deferredCount, SEO_MAX_DEFERRED_LEADS)
+    )
+      throw badRequest(
+        "Discovery counts must match the recorded responses and deferred sample",
+      );
+    const deferredKeys = new Set<string>();
+    for (const lead of deferred) {
+      checkUrl(lead.url);
+      const key = seoPageComparisonKey(lead.url);
+      if (deferredKeys.has(key) || responded.has(key))
+        throw badRequest(
+          "Deferred leads must be distinct from recorded responses",
+        );
+      deferredKeys.add(key);
+    }
   }
 }
 

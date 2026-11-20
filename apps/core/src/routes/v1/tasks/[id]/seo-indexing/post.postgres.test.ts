@@ -446,6 +446,105 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     ).toBe("seo_audit: " + JSON.stringify(original));
   });
 
+  it("resumes deferred public leads only for a new audit with the same owner, page scope and workspace", async () => {
+    const lead = "https://example.test/article";
+    const priorPacket = await approveDiscovery(PAGE_URLS);
+    const deferred = () =>
+      createTaskScheduleTestApp(mountPages, actor, null).request(
+        `http://localhost/${taskId}/seo-indexing/deferred/context-v1`,
+        jsonRequest("POST", { expectedContext }),
+      );
+    const siteEvidence = {
+      version: 1,
+      complete: true,
+      sampledPages: [PAGE_URLS[0]],
+      observations: [],
+      responses: PAGE_URLS.map((pageUrl) => ({ pageUrl, status: 200 })),
+      coverage: {
+        discovered: 3,
+        deferredCount: 1,
+        deferred: [{ url: lead, reason: "page_limit" }],
+      },
+    };
+    const forged = await selectPages([], {
+      siteEvidence: {
+        ...siteEvidence,
+        coverage: {
+          ...siteEvidence.coverage,
+          deferred: [
+            { url: "https://foreign.test/private", reason: "page_limit" },
+          ],
+        },
+      },
+    });
+    expect(forged.status).toBe(400);
+    expect((await selectPages([], { siteEvidence })).status).toBe(200);
+    expect((await (await deferred()).json()).data.urls).toEqual([]);
+    const priorTaskId = taskId;
+    const prior = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+    });
+    const next = await prisma.task.create({
+      data: {
+        ownerId,
+        organizationId,
+        workspaceId,
+        assigneeId: coworkerId,
+        name: "Second indexing check",
+        status: "RUNNING",
+        description: `seo_audit: ${JSON.stringify(priorPacket)}`,
+      },
+    });
+    taskId = next.id;
+    createdTaskIds.push(taskId);
+    const nextAnalysis = await prisma.projectSeoAnalysis.create({
+      data: {
+        auditId,
+        taskId,
+        requestedBy: ownerId,
+        kind: "audit_full",
+        requestHash: "second",
+        idempotencyKey: randomUUID(),
+        pageIds: prior.pageIds,
+        request: priorPacket,
+      },
+    });
+    const resumed = await deferred();
+    expect(resumed.status, await resumed.clone().text()).toBe(200);
+    expect((await resumed.json()).data.urls).toEqual([lead]);
+    const where = { sourceTaskId: priorTaskId, kind: "site_evidence" };
+    await prisma.projectSeoObservation.updateMany({
+      where,
+      data: { ownerId: otherOwnerId },
+    });
+    expect((await (await deferred()).json()).data.urls).toEqual([]);
+    await prisma.projectSeoObservation.updateMany({
+      where,
+      data: { ownerId, visibility: "SHARED" },
+    });
+    expect((await (await deferred()).json()).data.urls).toEqual([]);
+    await prisma.projectSeoObservation.updateMany({
+      where,
+      data: { visibility: "PRIVATE" },
+    });
+    const otherWorkspace = await createTaskScheduleTestApp(
+      mountPages,
+      actor,
+      null,
+    ).request(
+      `http://localhost/${taskId}/seo-indexing/deferred/context-v1`,
+      jsonRequest("POST", {
+        expectedContext: { ...expectedContext, workspaceId: otherWorkspaceId },
+      }),
+    );
+    expect(otherWorkspace.status).toBeGreaterThanOrEqual(400);
+    await prisma.projectSeoAnalysis.update({
+      where: { id: nextAnalysis.id },
+      data: { scopeVersion: 1 },
+    });
+    expect((await (await deferred()).json()).data.urls).toEqual([]);
+  });
+
   it("keeps the connected property's Google examples for the exact dynamic target outside the worker receipt", async () => {
     const target = "https://example.test/guide",
       referring = "https://example.test/library",
@@ -1123,6 +1222,24 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
         .filter((read) => read.slug === INSPECT_TOOL)
         .map((read) => read.input.arguments.inspection_url),
     ).toEqual([PAGE_URLS[1]]);
+  });
+
+  it("recovers only the approved seeds after completion when no related selection arrived", async () => {
+    await approveDiscovery([PAGE_URLS[1]!]);
+    expect((await request()).status).toBe(409);
+    expect(reads).toHaveLength(0);
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "COMPLETED" },
+    });
+    const saved = await receipt();
+    expect(saved.pages.map((page) => page.pageUrl)).toEqual([PAGE_URLS[1]]);
+    expect(
+      reads
+        .filter((read) => read.slug === INSPECT_TOOL)
+        .map((read) => read.input.arguments.inspection_url),
+    ).toEqual([PAGE_URLS[1]]);
+    expect((await selectPages(["https://example.test/late"])).status).toBe(409);
   });
 
   it("keeps saved related children outside an explicitly selected primary page", async () => {

@@ -2,6 +2,11 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 
+import {
+  seoFirstScreen,
+  seoKeywordTrends,
+} from "./seo-research-details.schema";
+
 export const seoDeviceSchema = z.enum(["mobile", "desktop"]);
 
 export const storedSeoChecklist = z
@@ -25,6 +30,8 @@ const researchStage = z.object({
 export const seoResearchCoverage = z.object({
   pageUrl: seoUrlSchema,
   scope: z.enum(["page", "site"]),
+  firstScreen: seoFirstScreen.optional(),
+  trends: seoKeywordTrends.optional(),
   rankedKeywordIdeas: z.boolean().optional(),
   stages: z.array(researchStage).max(3),
 });

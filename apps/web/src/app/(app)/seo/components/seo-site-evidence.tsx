@@ -2,6 +2,8 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoFoldSummary, SeoPageLink } from "./seo-shared";
 
+import { sitemapDraftXml } from "./seo-sitemap-model";
+
 type SiteEvidence = NonNullable<ProjectSeoWorkspace["siteEvidence"]>;
 
 const day = (date: Date | string) => new Date(date).toISOString().slice(0, 10);
@@ -9,6 +11,7 @@ const day = (date: Date | string) => new Date(date).toISOString().slice(0, 10);
 export function SeoSiteEvidence({ evidence }: { evidence: SiteEvidence }) {
   const t = useSeoResultTranslations("App.Seo.siteEvidence");
   const google = useSeoResultTranslations("App.Seo.discovery");
+  const sitemapDraft = sitemapDraftXml(evidence.targets);
   return (
     <section lang="en" className="space-y-2 text-sm">
       <h3 className="font-semibold">{t("heading")}</h3>
@@ -19,6 +22,44 @@ export function SeoSiteEvidence({ evidence }: { evidence: SiteEvidence }) {
           targets: evidence.targets.length,
         })}
       </p>
+      {evidence.suppliedSitemap && (
+        <p>{t(`suppliedSitemap_${evidence.suppliedSitemap}`)}</p>
+      )}
+      {sitemapDraft && (
+        <a
+          className="underline underline-offset-4"
+          download="sitemap-draft.xml"
+          href={`data:application/xml;charset=utf-8,${encodeURIComponent(sitemapDraft)}`}
+        >
+          {t("downloadSitemap")}
+        </a>
+      )}
+      {evidence.coverage && (
+        <div className="space-y-1">
+          <p>
+            {t("discovered", {
+              count: evidence.coverage.discovered,
+              checked:
+                evidence.coverage.discovered - evidence.coverage.deferredCount,
+              deferred: evidence.coverage.deferredCount,
+            })}
+          </p>
+          {evidence.coverage.deferred.length > 0 && (
+            <details>
+              <SeoFoldSummary>
+                {t("deferred", { count: evidence.coverage.deferred.length })}
+              </SeoFoldSummary>
+              <ul className="space-y-1">
+                {evidence.coverage.deferred.map((lead) => (
+                  <li key={lead.url}>
+                    <SeoPageLink url={lead.url} /> {t(`reasons.${lead.reason}`)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
       {!evidence.complete && <p>{t("partial")}</p>}
       {evidence.sampledPages.length > 0 && (
         <details>
