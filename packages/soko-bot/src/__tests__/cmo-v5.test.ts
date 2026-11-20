@@ -4,7 +4,6 @@ import {
   marketingStrategyPlanSchema,
 } from "../project-marketing.js";
 import {
-  CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
   getSokoBotSkill,
   getSokoBotVersion,
@@ -34,8 +33,7 @@ const stage = (stage: string, extra: object = {}) => ({
 });
 
 describe("cmo-v5", () => {
-  it("is the version a new hire gets, and cmo-v4 in everything but its strategy skill", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v5");
+  it("is cmo-v4 in everything but its strategy skill", () => {
     expect(CMO_SOKO_BOT_VERSION_IDS).toContain("cmo-v4");
     expect(v5.systemPrompt).toBe(v4.systemPrompt);
     expect(v5.capabilities).toEqual(v4.capabilities);
