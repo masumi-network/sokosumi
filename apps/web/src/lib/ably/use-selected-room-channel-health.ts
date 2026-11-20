@@ -6,8 +6,6 @@ import { useAbly } from "ably/react";
 import { useEffect, useRef } from "react";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
-import { useAblyConnectionHealthPublisher } from "./use-ably-connection-health-publisher";
-
 interface UseSelectedRoomChannelHealthOptions {
   /** The open room; null reports unhealthy and listens to nothing. */
   selectedRoomId: string | null;
@@ -32,7 +30,6 @@ export function useSelectedRoomChannelHealth({
   onContinuityLost,
 }: UseSelectedRoomChannelHealthOptions): void {
   const ably = useAbly();
-  useAblyConnectionHealthPublisher();
   const onHealthChangeRef = useRef(onHealthChange);
   onHealthChangeRef.current = onHealthChange;
   const onContinuityLostRef = useRef(onContinuityLost);

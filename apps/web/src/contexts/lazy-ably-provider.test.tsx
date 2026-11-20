@@ -1,6 +1,6 @@
 import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, screen } from "@testing-library/react";
-import { Component, type ReactNode } from "react";
+import { Activity, Component, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockAblyProvider = vi.fn(
@@ -135,5 +135,56 @@ describe("LazyAblyProvider", () => {
     expect(mockAblyProvider).not.toHaveBeenCalled();
     expect(screen.queryByText("realtime-child")).not.toBeInTheDocument();
     expect(screen.queryByTestId("ably-provider")).not.toBeInTheDocument();
+  });
+
+  it("reads the loaded provider immediately when revealed from React Activity", async () => {
+    let releaseImport!: () => void;
+    const importGate = new Promise<void>((resolve) => {
+      releaseImport = resolve;
+    });
+
+    vi.doMock("@/contexts/ably-provider", async () => {
+      await importGate;
+      return {
+        __esModule: true,
+        default: mockAblyProvider,
+      };
+    });
+
+    const { default: LazyAblyProvider } = await import(
+      "@/contexts/lazy-ably-provider"
+    );
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <LazyAblyProvider>
+          <span>realtime-child</span>
+        </LazyAblyProvider>
+      </Activity>,
+    );
+
+    rerender(
+      <Activity mode="hidden">
+        <LazyAblyProvider>
+          <span>realtime-child</span>
+        </LazyAblyProvider>
+      </Activity>,
+    );
+
+    await act(async () => {
+      releaseImport();
+      await Promise.resolve();
+    });
+
+    rerender(
+      <Activity mode="visible">
+        <LazyAblyProvider>
+          <span>realtime-child</span>
+        </LazyAblyProvider>
+      </Activity>,
+    );
+
+    expect(screen.getByTestId("ably-provider")).toBeInTheDocument();
+    expect(screen.getByText("realtime-child")).toBeInTheDocument();
   });
 });
