@@ -23248,6 +23248,7 @@ export const ProjectImageJobSchema = {
                 'submission_uncertain',
                 'reference_not_sendable',
                 'product_cutout_unavailable',
+                'invalid_vector_image',
                 'voice_unavailable',
                 'request_not_supported',
                 'cancelled',

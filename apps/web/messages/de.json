@@ -4989,6 +4989,7 @@
         "provider_unreachable": "Der Bildanbieter war so lange nicht erreichbar, dass das Studio nicht weiter gewartet hat.",
         "submission_uncertain": "Der Bildanbieter hat den Empfang dieser Anfrage nicht bestätigt, sie kann also gelaufen sein oder nicht.",
         "reference_not_sendable": "Ein Referenzbild konnte nicht an den Bildanbieter gesendet werden.",
+        "invalid_vector_image": "Studio konnte die erstellte Grafik nicht sicher in ein PNG umwandeln.",
         "product_cutout_unavailable": "Das Originalfoto muss ein zugängliches, statisches PNG mit transparentem Hintergrund sein.",
         "voice_unavailable": "Die Stimme für dieses Video konnte nicht erzeugt werden, daher wurde nichts gesendet.",
         "request_not_supported": "Dieses Modell oder diese Einstellungen sind beim Bildanbieter nicht mehr verfügbar.",

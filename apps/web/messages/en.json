@@ -4989,6 +4989,7 @@
         "provider_unreachable": "The image provider could not be reached for long enough that the studio stopped waiting.",
         "submission_uncertain": "The image provider did not confirm it received this request, so it may or may not have run.",
         "reference_not_sendable": "A reference image could not be sent to the image provider.",
+        "invalid_vector_image": "Studio could not safely convert the generated artwork to PNG.",
         "product_cutout_unavailable": "The original product photo must be an accessible, still PNG with a transparent background.",
         "voice_unavailable": "The voice for this video could not be made, so nothing was sent.",
         "request_not_supported": "This model, or these settings, are no longer available from the image provider.",

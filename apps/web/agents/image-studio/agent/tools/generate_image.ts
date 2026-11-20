@@ -36,7 +36,7 @@ export default defineTool({
       .enum(CURATED_IMAGE_MODEL_IDS)
       .default("gemini-pro")
       .describe(
-        "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images. An Advanced model selection overrides this choice.",
+        "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images. Use recraft-v4-1-text-to-vector only for logos, icons and flat diagrams, with PNG output and no seed. An Advanced model selection overrides this choice.",
       ),
     placementId: z
       .string()

@@ -1,4 +1,7 @@
-import { applyCatalogOverrides } from "./catalog-overrides";
+import {
+  applyCatalogOverrides,
+  RECRAFT_VECTOR_ENDPOINT,
+} from "./catalog-overrides";
 import { excludeUnpriceableModels } from "./fal-catalog-fetch";
 import snapshot from "./fal-catalog-snapshot.json";
 import {
@@ -109,10 +112,17 @@ export function setResolvedImageCatalog(
 }
 
 /** The one accessor. Everything else in the studio reads through this. */
-export function getImageCatalog(): ImageCatalog {
+export function getImageCatalog(
+  audience: "public" | "agent" = "public",
+): ImageCatalog {
   return {
     defaultModelId: defaultModelId(),
-    models: resolvedModels,
+    models:
+      audience === "agent"
+        ? resolvedModels
+        : resolvedModels.filter(
+            (model) => model.generateEndpoint !== RECRAFT_VECTOR_ENDPOINT,
+          ),
     snapshotDate: SNAPSHOT.generatedAt,
     refreshedAt,
   };

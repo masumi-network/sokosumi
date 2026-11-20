@@ -216,8 +216,12 @@ describe("image generation tools", () => {
       if (!(schema instanceof z.ZodObject))
         throw new Error("Expected Zod schema");
       const sourceVersionId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
-      const input = { prompt: "A calm coffee campaign", sourceVersionId };
+      const input = { prompt: "A coffee cup icon", sourceVersionId };
       expect(schema.parse(input).modelId).toBe("gemini-pro");
+      expect(
+        schema.safeParse({ ...input, modelId: "recraft-v4-1-text-to-vector" })
+          .success,
+      ).toBe(tool === generate);
       for (const modelId of ["gemini-pro", "ideogram-v3"]) {
         expect(schema.safeParse({ ...input, modelId }).success).toBe(true);
       }
@@ -398,6 +402,18 @@ describe("image generation tools", () => {
     expect(startGeneration).not.toHaveBeenCalled();
   });
 
+  it("stops after a vector conversion failure", async () => {
+    readGeneration.mockResolvedValue({
+      job: { status: "FAILED", failureReason: "invalid_vector_image" },
+      version: null,
+    });
+    expect(await check.execute({ jobId: "job-1" }, ctx)).toMatchObject({
+      status: "FAILED",
+      guidance: expect.stringContaining("Do not start another generation"),
+    });
+    expect(startGeneration).not.toHaveBeenCalled();
+  });
+
   it("propagates a refused job without retrying", async () => {
     startGeneration.mockRejectedValue(new Error("Project busy"));
     await expect(generate.execute(base, ctx)).rejects.toThrow("Project busy");
@@ -417,6 +433,7 @@ describe("non-billed agent behavior contract", () => {
       "Default to one image",
       "gemini-pro, 1:1",
       "Use ideogram-v3 for",
+      "For logos, icons and flat diagrams, use recraft-v4-1-text-to-vector with brand colors; never use it for posters, ads or photos. The person gets a PNG.",
       "An Advanced model selection overrides your choice",
       "Do not\nstart a second generation to add lettering yourself",
       "greetings, critique/review-only",

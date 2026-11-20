@@ -2022,14 +2022,16 @@ export function FailedJob({
           <p className="mt-1 font-mono text-xs break-words">{providerError}</p>
         ) : null}
       </details>
-      <Button
-        className="col-start-2 row-start-1 shrink-0"
-        onClick={onRetry}
-        size="sm"
-        variant="secondary"
-      >
-        {labels.tryAgain}
-      </Button>
+      {job.failureReason !== "invalid_vector_image" && (
+        <Button
+          className="col-start-2 row-start-1 shrink-0"
+          onClick={onRetry}
+          size="sm"
+          variant="secondary"
+        >
+          {labels.tryAgain}
+        </Button>
+      )}
       <div className="col-start-3 row-start-1 mt-1 shrink-0">{dismiss}</div>
     </div>
   );

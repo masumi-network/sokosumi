@@ -317,29 +317,33 @@ export const imageStudioSessionSchema = z
   })
   .openapi("ProjectImageSession");
 
+export function studioModelIdSchema(audience: "public" | "agent") {
+  /**
+   * A catalog model id.
+   *
+   * Not a Zod enum, because the catalog is read from fal and moves without a
+   * deploy: a fixed list compiled into the schema would reject a model the
+   * studio is already offering. The refinement reads the *resolved* catalog at
+   * parse time instead, so a model that appeared in the last refresh is
+   * accepted and an unknown id is still a 400 rather than reaching the
+   * reservation. `resolveImageSettings` checks it again before anything is
+   * charged, because the schema is not the only way into that code.
+   */
+  return z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .default(DEFAULT_IMAGE_MODEL_ID)
+    .refine(
+      (id) => getImageCatalog(audience).models.some((model) => model.id === id),
+      { message: "Unknown image model. Choose one from the studio catalog." },
+    );
+}
+
 export const createImageJobRequestSchema = z
   .object({
-    /**
-     * A catalog model id.
-     *
-     * Not a Zod enum, because the catalog is read from fal and moves without a
-     * deploy: a fixed list compiled into the schema would reject a model the
-     * studio is already offering. The refinement reads the *resolved* catalog at
-     * parse time instead, so a model that appeared in the last refresh is
-     * accepted and an unknown id is still a 400 rather than reaching the
-     * reservation. `resolveImageSettings` checks it again before anything is
-     * charged, because the schema is not the only way into that code.
-     */
-    modelId: z
-      .string()
-      .trim()
-      .min(1)
-      .max(200)
-      .default(DEFAULT_IMAGE_MODEL_ID)
-      .refine(
-        (id) => getImageCatalog().models.some((model) => model.id === id),
-        { message: "Unknown image model. Choose one from the studio catalog." },
-      ),
+    modelId: studioModelIdSchema("public"),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     templateId: z.string().trim().min(1).max(100).optional(),
     creativeDirection: z.string().trim().min(1).max(100).optional(),
