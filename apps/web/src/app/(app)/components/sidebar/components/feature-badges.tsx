@@ -22,6 +22,7 @@ import {
 import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { markBadgeCampaignSeenAction } from "@/lib/actions/badge-campaign/action";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
@@ -204,14 +205,13 @@ function useCampaigns(value: FeatureBadgesValue) {
       .map((campaign) => campaign.endsAt.getTime())
       .filter((end) => end > Date.now()),
   );
-  useEffect(() => {
-    if (!Number.isFinite(nextEnd)) return;
-    const timer = window.setTimeout(
-      () => tick((current) => current + 1),
-      Math.min(nextEnd - Date.now(), 2_147_483_647),
-    );
-    return () => window.clearTimeout(timer);
-  }, [nextEnd]);
+  useTimeout(
+    () => tick((current) => current + 1),
+    Number.isFinite(nextEnd)
+      ? Math.min(nextEnd - Date.now(), 2_147_483_647)
+      : null,
+    nextEnd,
+  );
   const active = useMemo(() => {
     // A timer tick expires the data even when the browser has not fetched.
     void clockTick;

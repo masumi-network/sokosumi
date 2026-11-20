@@ -9,7 +9,7 @@ import {
 import { Check, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { revokeOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
 
 const COPIED_RESET_MS = 2000;
@@ -129,33 +130,23 @@ function InviteLinkRow({
   onRevoked,
 }: InviteLinkRowProps) {
   const [copied, setCopied] = useState(false);
+  const [copiedCount, setCopiedCount] = useState(0);
   const [revoking, setRevoking] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const copiedResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
   const status = evaluateInviteLinkStatus(link);
   const statusLabel = t(statusLabelKey(status));
 
-  useEffect(() => {
-    return () => {
-      if (copiedResetTimeoutRef.current !== null) {
-        clearTimeout(copiedResetTimeoutRef.current);
-      }
-    };
-  }, []);
+  useTimeout(
+    () => setCopied(false),
+    copied ? COPIED_RESET_MS : null,
+    copiedCount,
+  );
 
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(link.url);
       setCopied(true);
-      if (copiedResetTimeoutRef.current !== null) {
-        clearTimeout(copiedResetTimeoutRef.current);
-      }
-      copiedResetTimeoutRef.current = setTimeout(() => {
-        copiedResetTimeoutRef.current = null;
-        setCopied(false);
-      }, COPIED_RESET_MS);
+      setCopiedCount((count) => count + 1);
     } catch {
       toast.error(t("copyError"));
     }

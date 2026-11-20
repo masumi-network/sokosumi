@@ -3,9 +3,10 @@
 import { Square } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useInterval } from "@/hooks/effects/use-interval";
 import { cancelAdminEvalRunAction } from "@/lib/actions/admin-evals/action";
 
 const REFRESH_MS = 15_000;
@@ -14,10 +15,7 @@ const REFRESH_MS = 15_000;
 export function EvalRunRefresh() {
   const router = useRouter();
   // Syncs with the browser's clock: an external system, not derived state.
-  useEffect(() => {
-    const timer = window.setInterval(() => router.refresh(), REFRESH_MS);
-    return () => window.clearInterval(timer);
-  }, [router]);
+  useInterval(() => router.refresh(), REFRESH_MS);
   return null;
 }
 

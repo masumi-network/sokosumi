@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { cn } from "@/lib/utils";
 
 /** Cycles short phrases with a fade so long waits read as alive, not stuck. */
@@ -16,22 +17,22 @@ export function RotatingMessages({
 }) {
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
+  const delay = messages.length > 0 ? intervalMs : null;
+  const cycleKey = `${index}:${messages.length}`;
 
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const fadeOut = window.setTimeout(
-      () => setVisible(false),
-      intervalMs - 400,
-    );
-    const advance = window.setTimeout(() => {
+  useTimeout(
+    () => setVisible(false),
+    delay !== null ? delay - 400 : null,
+    cycleKey,
+  );
+  useTimeout(
+    () => {
       setIndex((i) => (i + 1) % messages.length);
       setVisible(true);
-    }, intervalMs);
-    return () => {
-      window.clearTimeout(fadeOut);
-      window.clearTimeout(advance);
-    };
-  }, [index, messages.length, intervalMs]);
+    },
+    delay,
+    cycleKey,
+  );
 
   if (messages.length === 0) return null;
 

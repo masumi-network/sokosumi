@@ -1,8 +1,9 @@
 "use client";
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PageSearchHint } from "@/components/page-search-field";
+import { useInterval } from "@/hooks/effects/use-interval";
 import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { usePageSearchShortcut } from "@/hooks/effects/use-page-search-shortcut";
 
@@ -31,14 +32,10 @@ export function CoworkerGallerySearch({
   const [hintIdx, setHintIdx] = useState(0);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const reduceMotion = usePrefersReducedMotion();
-  useEffect(() => {
-    if (rotatingHints.length <= 1 || reduceMotion) return;
-    const id = window.setInterval(
-      () => setHintIdx((index) => (index + 1) % rotatingHints.length),
-      3000,
-    );
-    return () => window.clearInterval(id);
-  }, [reduceMotion, rotatingHints.length]);
+  useInterval(
+    () => setHintIdx((index) => (index + 1) % rotatingHints.length),
+    rotatingHints.length <= 1 || reduceMotion ? null : 3000,
+  );
 
   return (
     <>
