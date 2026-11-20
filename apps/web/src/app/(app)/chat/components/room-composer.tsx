@@ -285,7 +285,6 @@ export function RoomComposer({
   sokoBotsBySlug,
   channels = [],
   channelLinks = [],
-  onSelectedKeysChange,
   placeholder,
   attachments,
   onAttachmentsChange,
@@ -330,7 +329,6 @@ export function RoomComposer({
   sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
-  onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
   attachments: RoomComposerAttachment[];
   onAttachmentsChange: Dispatch<SetStateAction<RoomComposerAttachment[]>>;
@@ -381,9 +379,6 @@ export function RoomComposer({
   const contentOverLimit = isRoomComposerContentOverLimit(composedContent);
   const showContentCount = isRoomComposerContentCountVisible(composedContent);
   const composerMentions = showMentionShortcut ? mentions : {};
-  const handleSelectedKeysChange = showMentionShortcut
-    ? onSelectedKeysChange
-    : undefined;
   const mentionDisplay = useMemo(
     () =>
       composerMentionDisplayNames({
@@ -867,7 +862,6 @@ export function RoomComposer({
           value={value}
           onChange={onValueChange}
           onBlur={onEditorBlur}
-          onSelectedKeysChange={handleSelectedKeysChange}
           mentions={composerMentions}
           mentionDisplayByKey={mentionDisplay.byKey}
           mentionDisplayBySlug={mentionDisplay.bySlug}

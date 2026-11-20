@@ -1,12 +1,12 @@
 import { usePresence } from "motion/react";
 import { type RefObject, useEffect, useEffectEvent, useRef } from "react";
 
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 /** The enter pairing dialogs use (`duration-200 ease-out-strong`). */
 const SLIDE_MS = 200;
 const SLIDE_EASING_TOKEN = "--ease-out-strong";
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 /** Marks the header's actions, which end at the section's right edge. */
 export const ROOM_HEADER_ACTIONS_SLOT = "room-header-actions";
@@ -34,10 +34,12 @@ export function useRoomPanelSlideOut(
   panelRef: RefObject<HTMLDivElement | null>,
 ) {
   const [isPresent, safeToRemove] = usePresence();
+  const reduceMotion = usePrefersReducedMotion();
   // `safeToRemove` is new on every render. As an effect dependency, each render
   // during the slide would restart it, and a streaming room would never let the
   // panel unmount.
   const removePanel = useEffectEvent(() => safeToRemove?.());
+  const shouldReduceMotion = useEffectEvent(() => reduceMotion);
 
   // Not a layout effect: `AnimatePresence` registers the exit in its own layout
   // effect, after this child's, and ignores a removal that comes before it.
@@ -46,11 +48,7 @@ export function useRoomPanelSlideOut(
     const panel = panelRef.current;
     // Below `lg` the slot is `display: contents` and has no box: the panel
     // overlays the room, so it just goes.
-    if (
-      !panel ||
-      panel.offsetWidth === 0 ||
-      window.matchMedia(REDUCED_MOTION_QUERY).matches
-    ) {
+    if (!panel || panel.offsetWidth === 0 || shouldReduceMotion()) {
       removePanel();
       return;
     }
@@ -88,6 +86,8 @@ export function useRoomPanelSlide() {
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = usePrefersReducedMotion();
+  const shouldReduceMotion = useEffectEvent(() => reduceMotion);
 
   useMountEffect(() => {
     const main = mainRef.current;
@@ -96,7 +96,6 @@ export function useRoomPanelSlide() {
     // Read on every resize: `wrapColumn` (the file drop zone) can remount the
     // column body, so the nodes from mount may be gone.
     const columns = () => [listRef.current, composerRef.current];
-    const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
     const easing = readSlideEasing();
     const slides = new WeakMap<HTMLElement, Animation>();
     const slide = (node: HTMLElement, distance: number) => {
@@ -138,7 +137,7 @@ export function useRoomPanelSlide() {
       const to = columnLeft();
       if (
         nextWidth === mainWidth &&
-        !reducedMotion.matches &&
+        !shouldReduceMotion() &&
         !(panelDocked && nextPanelDocked)
       ) {
         // A height-only resize leaves the column where it is: let a running

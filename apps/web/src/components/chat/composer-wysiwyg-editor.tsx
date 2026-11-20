@@ -84,7 +84,7 @@ import {
   matchExactEmojiShortcodeClosed,
 } from "@/lib/utils/emoji-shortcodes";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
-import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
+import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 type SuggestionUiState =
   | { open: false }
@@ -137,7 +137,6 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   ariaLabel?: string;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
-  onSelectedKeysChange?: (selectedKeys: string[]) => void;
   renderMentionItem?: (
     mention: NormalizedMention<TData>,
     isActive: boolean,
@@ -234,7 +233,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
   ariaLabel,
   onLinkShortcut,
   onActiveFormatsChange,
-  onSelectedKeysChange,
   renderMentionItem,
   groupMentions,
 }: ComposerWysiwygEditorProps<TData>) {
@@ -282,14 +280,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
     const map = new Map<string, string>();
     for (const mention of normalizedMentions) {
       if (mention.slug) map.set(mention.slug, mention.value);
-    }
-    return map;
-  }, [normalizedMentions]);
-
-  const slugToKey = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const mention of normalizedMentions) {
-      if (mention.slug) map.set(mention.slug, mention.key);
     }
     return map;
   }, [normalizedMentions]);
@@ -357,39 +347,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       : suggestionKind === "channel"
         ? channelMatches.length
         : selectableMentions.length;
-
-  const selectedKeys = useMemo(() => {
-    const parsed = parseMentions(value);
-    const uniqueKeys: string[] = [];
-    const seenKeys = new Set<string>();
-    for (const mention of parsed) {
-      const directKey = keyToValue.has(mention.id) ? mention.id : null;
-      const slugKey =
-        slugToKey.get(mention.slug) ??
-        slugToKey.get(slugifyMentionValue(mention.id));
-      const resolvedKey = directKey ?? slugKey ?? null;
-      if (!resolvedKey) continue;
-      if (seenKeys.has(resolvedKey)) continue;
-      seenKeys.add(resolvedKey);
-      uniqueKeys.push(resolvedKey);
-    }
-    return uniqueKeys;
-  }, [keyToValue, slugToKey, value]);
-
-  const lastSelectedKeysRef = useRef<string[]>([]);
-  useEffect(() => {
-    if (!onSelectedKeysChange) return;
-    const previousKeys = lastSelectedKeysRef.current;
-    if (
-      previousKeys.length === selectedKeys.length &&
-      previousKeys.every((key, index) => key === selectedKeys[index])
-    ) {
-      return;
-    }
-
-    lastSelectedKeysRef.current = selectedKeys;
-    onSelectedKeysChange(selectedKeys);
-  }, [onSelectedKeysChange, selectedKeys]);
 
   const openSuggestions = useCallback(
     ({
