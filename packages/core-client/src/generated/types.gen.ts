@@ -11913,6 +11913,51 @@ export type ProjectSeoWorkspace = {
     timeline: Array<ProjectSeoTimelineItem>;
     runs?: Array<ProjectSeoRun>;
     analyses: Array<ProjectSeoAnalysis>;
+    auditSearchConsole?: Array<{
+        clicks: number | null;
+        impressions: number | null;
+        ctr: number | null;
+        averagePosition: number | null;
+        from: Date;
+        to: Date;
+        taskId: string;
+        propertyId: string;
+        pageUrls: Array<string>;
+        measuredPages: Array<{
+            pageUrl: string;
+            measuredUrl: string;
+            basis: 'selected' | 'google_canonical' | 'unverified';
+        }>;
+        coverage: 'complete' | 'partial' | 'unavailable';
+        opportunities: Array<{
+            id: string;
+            title: string;
+            why: string;
+            pageUrl: string;
+            expectedEffect: string;
+            evidence: Array<string>;
+        }>;
+        previous: {
+            clicks: number | null;
+            impressions: number | null;
+            ctr: number | null;
+            averagePosition: number | null;
+            from: Date;
+            to: Date;
+        } | null;
+        queries: {
+            rows: Array<{
+                query: string;
+                pageUrl: string;
+                clicks: number;
+                impressions: number;
+                ctr: number;
+                averagePosition: number;
+            }>;
+            truncated: boolean;
+        } | null;
+    }>;
+    auditSearchConsoleRetryTaskIds?: Array<string>;
     monitors: Array<ProjectSeoMonitor>;
     availableActions: {
         canEdit: boolean;
@@ -79581,7 +79626,9 @@ export type ListProjectSeoStatisticsPropertiesResponses = {
 export type ListProjectSeoStatisticsPropertiesResponse = ListProjectSeoStatisticsPropertiesResponses[keyof ListProjectSeoStatisticsPropertiesResponses];
 
 export type SyncProjectSeoStatisticsData = {
-    body?: SyncProjectSeoStatisticsRequest;
+    body?: SyncProjectSeoStatisticsRequest | {
+        auditTaskId: string;
+    };
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -82458,7 +82505,9 @@ export type ListSeoAuditStatisticsPropertiesResponses = {
 export type ListSeoAuditStatisticsPropertiesResponse = ListSeoAuditStatisticsPropertiesResponses[keyof ListSeoAuditStatisticsPropertiesResponses];
 
 export type SyncSeoAuditStatisticsData = {
-    body?: SyncProjectSeoStatisticsRequest;
+    body?: SyncProjectSeoStatisticsRequest | {
+        auditTaskId: string;
+    };
     headers?: {
         /**
          * Optional organization slug to set the organization context.

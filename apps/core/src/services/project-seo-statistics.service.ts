@@ -15,6 +15,7 @@ import {
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { auditPerformancePage } from "@/lib/seo/audit-performance-pages";
 import { ga4LandingPlan } from "@/lib/seo/native-ga4-landing";
 import {
   type GscBreakdownDimension,
@@ -74,6 +75,7 @@ import {
   readIntegrationTool,
 } from "@/services/composio-integration-tools.service";
 import {
+  connectionVersion,
   recordSeoConnectionFailure,
   resolveSeoStatisticsIntegration,
   type SeoStatisticsIntegration,
@@ -256,6 +258,7 @@ export async function syncProjectSeoStatistics(
   actor: SeoActor,
   raw: SyncProjectSeoStatistics,
   hooks: SeoMutationHooks = {},
+  audit?: { taskId: string; connectionVersion: string; pageUrls: string[] },
 ) {
   const input = syncProjectSeoStatisticsSchema.parse(raw);
   await requireSeoOwner(actor, prisma, true);
@@ -283,6 +286,16 @@ export async function syncProjectSeoStatistics(
   const integration = await integrationFor(actor, input.provider);
   if (!integration)
     throw unprocessableEntity("Connect this account in SEO statistics");
+  if (
+    audit &&
+    (input.provider !== "search_console" ||
+      connectionVersion(integration) !== audit.connectionVersion ||
+      pageUrls.length !== audit.pageUrls.length ||
+      pageUrls.some((url) => !audit.pageUrls.includes(url)))
+  )
+    throw conflict(
+      "The approved audit pages or Search Console account changed.",
+    );
   const readWorkspace = () =>
     getProjectSeoWorkspace(actor, {
       ...(input.scopeId
@@ -314,6 +327,7 @@ export async function syncProjectSeoStatistics(
       );
     await recordNativeSeoMetrics(actor, snapshot, {
       ...mutationHooks,
+      auditTaskId: audit?.taskId,
       outcomes,
       ...(input.provider === "ga4" && {
         outcomeAccountKey: landingOutcomeAccountKey(integration),
@@ -328,6 +342,7 @@ export async function syncProjectSeoStatistics(
   };
   return withAutomaticSeoStatistics({
     actor,
+    auditTaskId: audit?.taskId,
     input,
     integration,
     pageIds,
@@ -390,7 +405,22 @@ export async function syncProjectSeoStatistics(
         integration,
         input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
       );
-      const query: NativeStatisticsQuery = { ...input, pageUrls };
+      const inspections = audit ? await collectIndexedPages() : null;
+      const measuredPages = inspections
+        ? pageUrls.map((url) =>
+            auditPerformancePage(
+              input.propertyId,
+              url,
+              inspections.indexedPages.find((p) => p.pageUrl === url),
+            ),
+          )
+        : null;
+      const query: NativeStatisticsQuery = {
+        ...input,
+        pageUrls: measuredPages
+          ? [...new Set(measuredPages.map((page) => page.measuredUrl))]
+          : pageUrls,
+      };
       const build =
         input.provider === "ga4"
           ? ga4StatisticsArguments
@@ -423,7 +453,7 @@ export async function syncProjectSeoStatistics(
       const collectPrevious = async () => {
         // GA4 totals cover the requested period. A missing daily row means no traffic, not an earlier period end.
         let end = query.to;
-        if (input.provider === "search_console") {
+        if (input.provider === "search_console" && !audit) {
           const reported = normalize(query, null, await dailyRead, "")
             .metrics.flatMap((metric) => metric.points)
             .filter((point) => point.value !== null)
@@ -486,9 +516,10 @@ export async function syncProjectSeoStatistics(
       // Organic key events per landing page. Google Analytics only.
       const landingPlan =
         input.provider === "ga4" ? ga4LandingPlan(query) : null;
-      const tracked = readsQueries
-        ? selectTrackedKeywords(workspace.keywords)
-        : { groups: [], leftOut: [] };
+      const tracked =
+        readsQueries && !audit
+          ? selectTrackedKeywords(workspace.keywords)
+          : { groups: [], leftOut: [] };
       // One read per keyword country; any failed read drops the whole series, so no country reads as partial.
       const collectKeywordSeries =
         async (): Promise<NativeKeywordSeries | null> => {
@@ -534,7 +565,9 @@ export async function syncProjectSeoStatistics(
         collectPrevious(),
         collectBreakdown("country"),
         collectBreakdown("device"),
-        input.provider === "search_console" ? collectIndexedPages() : null,
+        input.provider === "search_console" && !audit
+          ? collectIndexedPages()
+          : null,
         collectLandingPages(
           query,
           landingPlan,
@@ -635,6 +668,27 @@ export async function syncProjectSeoStatistics(
               SEO_KEYWORD_SERIES_MAX_COUNTRIES,
             ),
           );
+      }
+      if (measuredPages && inspections) {
+        // The evidence belongs to the approved page records. Query rows retain Google's measured URLs.
+        metrics.pageUrls = pageUrls;
+        metrics.auditMeasuredPages = measuredPages;
+        metrics.auditPerformanceComplete =
+          inspections.indexedPages.length === pageUrls.length &&
+          [period, daily, previous, queries].every(
+            (result) => result.status === "fulfilled",
+          );
+        if (
+          metrics.auditPerformanceComplete &&
+          metrics.metrics.find((metric) => metric.key === "impressions")
+            ?.value != null &&
+          metrics.metrics.find((metric) => metric.key === "impressions")
+            ?.previous?.value != null &&
+          (metrics.metrics.some((metric) => metric.points.length > 0) ||
+            metrics.metrics.find((metric) => metric.key === "impressions")
+              ?.value === 0)
+        )
+          metrics.coverage = "complete";
       }
       metrics.collectionFingerprint = fingerprint;
       metrics.collectedAt = metrics.observedAt;

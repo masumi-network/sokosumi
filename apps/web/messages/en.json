@@ -13126,6 +13126,16 @@
         "home": "Home page"
       },
       "reportFiles": {
+        "recommendations": "Recommendations from this check",
+        "recoverSearch": "Recover Search Console results",
+        "recoverSearchFailed": "Could not recover Search Console results. Try again.",
+        "auditedUrls": "Audited URLs",
+        "googleCanonical": "Measured Google canonical URL: {url}",
+        "canonicalUnverified": "The audit measured the submitted URL. Its canonical URL is unverified.",
+        "withSearchConsole": "Reports and Search Console",
+        "missingSearchConsole": "No Search Console results are available for this check.",
+        "period": "{from} to {to}",
+        "previousPeriod": "Previous period",
         "title": "Report files",
         "run": "Check",
         "version": "{checkType} · {date}",

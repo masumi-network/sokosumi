@@ -34,6 +34,7 @@ import {
   seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
+import { seoAuditPerformanceSchema } from "./seo-audit-performance.schema";
 import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
 import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
 
@@ -718,6 +719,8 @@ export const projectSeoWorkspaceSchema = z
     /** Every check of the selected pages. The period does not cut this list. */
     runs: z.array(seoRunSchema).optional(),
     analyses: z.array(seoJobSchema),
+    auditSearchConsole: z.array(seoAuditPerformanceSchema).optional(),
+    auditSearchConsoleRetryTaskIds: z.array(z.string()).optional(),
     monitors: z.array(seoMonitorSchema),
     availableActions: z.object({
       canEdit: z.boolean(),

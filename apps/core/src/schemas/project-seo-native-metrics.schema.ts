@@ -17,6 +17,7 @@ import {
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
 } from "./project-seo-traffic.schema";
+import { auditMeasuredPageSchema } from "./seo-audit-performance.schema";
 
 /** Native metrics are owner-only, never part of a public Coworker result. */
 export const nativeSeoMetricsSchema = z
@@ -38,6 +39,11 @@ export const nativeSeoMetricsSchema = z
       .string()
       .regex(/^[a-f0-9]{64}$/)
       .optional(),
+    auditMeasuredPages: z
+      .array(auditMeasuredPageSchema)
+      .max(SEO_MAX_PAGES)
+      .optional(),
+    auditPerformanceComplete: z.boolean().optional(),
     coverage: z.enum(["complete", "partial", "unavailable"]),
     notes: z.array(z.string().max(2000)).max(50),
     metrics: z

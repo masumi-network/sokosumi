@@ -45345,6 +45345,269 @@ export const ProjectSeoWorkspaceSchema = {
                 $ref: '#/components/schemas/ProjectSeoAnalysis'
             }
         },
+        auditSearchConsole: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    clicks: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    impressions: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    ctr: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    averagePosition: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    from: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    to: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    taskId: {
+                        type: 'string'
+                    },
+                    propertyId: {
+                        type: 'string'
+                    },
+                    pageUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    measuredPages: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                pageUrl: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                },
+                                measuredUrl: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                },
+                                basis: {
+                                    type: 'string',
+                                    enum: [
+                                        'selected',
+                                        'google_canonical',
+                                        'unverified'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'pageUrl',
+                                'measuredUrl',
+                                'basis'
+                            ]
+                        },
+                        maxItems: 10
+                    },
+                    coverage: {
+                        type: 'string',
+                        enum: [
+                            'complete',
+                            'partial',
+                            'unavailable'
+                        ]
+                    },
+                    opportunities: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                id: {
+                                    type: 'string'
+                                },
+                                title: {
+                                    type: 'string'
+                                },
+                                why: {
+                                    type: 'string'
+                                },
+                                pageUrl: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                },
+                                expectedEffect: {
+                                    type: 'string'
+                                },
+                                evidence: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string'
+                                    }
+                                }
+                            },
+                            required: [
+                                'id',
+                                'title',
+                                'why',
+                                'pageUrl',
+                                'expectedEffect',
+                                'evidence'
+                            ]
+                        }
+                    },
+                    previous: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            clicks: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            impressions: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            ctr: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            averagePosition: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            from: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            to: {
+                                type: 'string',
+                                format: 'date'
+                            }
+                        },
+                        required: [
+                            'clicks',
+                            'impressions',
+                            'ctr',
+                            'averagePosition',
+                            'from',
+                            'to'
+                        ]
+                    },
+                    queries: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            rows: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        query: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 2048
+                                        },
+                                        pageUrl: {
+                                            type: 'string',
+                                            maxLength: 4096,
+                                            format: 'uri'
+                                        },
+                                        clicks: {
+                                            type: 'number',
+                                            minimum: 0
+                                        },
+                                        impressions: {
+                                            type: 'number',
+                                            minimum: 0
+                                        },
+                                        ctr: {
+                                            type: 'number',
+                                            minimum: 0,
+                                            maximum: 1
+                                        },
+                                        averagePosition: {
+                                            type: 'number',
+                                            minimum: 1
+                                        }
+                                    },
+                                    required: [
+                                        'query',
+                                        'pageUrl',
+                                        'clicks',
+                                        'impressions',
+                                        'ctr',
+                                        'averagePosition'
+                                    ]
+                                },
+                                maxItems: 10
+                            },
+                            truncated: {
+                                type: 'boolean'
+                            }
+                        },
+                        required: [
+                            'rows',
+                            'truncated'
+                        ]
+                    }
+                },
+                required: [
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'averagePosition',
+                    'from',
+                    'to',
+                    'taskId',
+                    'propertyId',
+                    'pageUrls',
+                    'measuredPages',
+                    'coverage',
+                    'opportunities',
+                    'previous',
+                    'queries'
+                ]
+            }
+        },
+        auditSearchConsoleRetryTaskIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
         monitors: {
             type: 'array',
             items: {

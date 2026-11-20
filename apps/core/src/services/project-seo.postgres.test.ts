@@ -29,6 +29,7 @@ import {
   type SeoActor,
 } from "@/schemas/project-seo.schema";
 import { type NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
+import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { seoAuditSearchConsoleAccessSchema } from "@/schemas/seo-task-indexing.schema";
 import {
   focusedRankingsReport,
@@ -77,6 +78,12 @@ import {
   runTaskScheduleNow,
   updateTaskSchedule,
 } from "./task-schedule.service";
+
+const pendingDelivery = vi.hoisted(() => [] as Promise<unknown>[]);
+vi.mock("@vercel/functions", async (original) => ({
+  ...(await original<typeof import("@vercel/functions")>()),
+  waitUntil: (work: Promise<unknown>) => pendingDelivery.push(work),
+}));
 
 // Notification and Task events publish after the test that made them: keep them off the network of later tests.
 vi.mock("@/clients/composio.client", async (original) => ({
@@ -903,6 +910,19 @@ describe.skipIf(!enabled)(
         const repaired = await start();
         expect(repaired.status).toBe(201);
         expect(await transactions()).toBe(before);
+        await Promise.all(pendingDelivery.splice(0));
+        const performance = await prisma.projectSeoObservation.findFirst({
+          where: { sourceTaskId: first!.id, kind: AUDIT_PERFORMANCE_KIND },
+        });
+        expect(performance).toMatchObject({
+          ownerId: userId,
+          visibility: "PRIVATE",
+          payload: {
+            provider: "search_console",
+            propertyId: property,
+            pageUrls: [url],
+          },
+        });
         await prisma.task.update({
           where: { id: first!.id },
           data: { status: "COMPLETED" },

@@ -87,7 +87,7 @@ export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
       const workspace = await getProjectSeoWorkspace(
         actor,
         c.req.valid("query"),
-        { includePrivateReviews: true },
+        { includePrivateReviews: true, includeAuditPerformance: true },
       );
       // A shared statistics snapshot can belong to another member. Only this user's selected property guides setup.
       return ok(c, {

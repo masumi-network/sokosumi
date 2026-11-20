@@ -4790,6 +4790,17 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
         data.runs = data.runs.map((item: any) => projectSeoRunSchemaResponseTransformer(item));
     }
     data.analyses = data.analyses.map((item: any) => projectSeoAnalysisSchemaResponseTransformer(item));
+    if (data.auditSearchConsole) {
+        data.auditSearchConsole = data.auditSearchConsole.map((item: any) => {
+            item.from = new Date(item.from);
+            item.to = new Date(item.to);
+            if (item.previous) {
+                item.previous.from = new Date(item.previous.from);
+                item.previous.to = new Date(item.previous.to);
+            }
+            return item;
+        });
+    }
     data.monitors = data.monitors.map((item: any) => projectSeoMonitorSchemaResponseTransformer(item));
     return data;
 };

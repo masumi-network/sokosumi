@@ -13126,6 +13126,16 @@
         "home": "Página de inicio"
       },
       "reportFiles": {
+        "recommendations": "Recomendaciones de esta comprobación",
+        "recoverSearch": "Recuperar resultados de Search Console",
+        "recoverSearchFailed": "No se pudieron recuperar los resultados de Search Console. Vuelve a intentarlo.",
+        "auditedUrls": "URLs auditadas",
+        "googleCanonical": "URL canónica de Google medida: {url}",
+        "canonicalUnverified": "Se midió la URL enviada. No se verificó la URL canónica.",
+        "withSearchConsole": "Informes y Search Console",
+        "missingSearchConsole": "No hay resultados de Search Console disponibles para esta comprobación.",
+        "period": "Del {from} al {to}",
+        "previousPeriod": "Periodo anterior",
         "title": "Archivos del informe",
         "run": "Comprobación",
         "version": "{checkType} · {date}",
