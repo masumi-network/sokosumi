@@ -229,6 +229,7 @@ async function styledChatPicture(
       job: { ...row, id: job.id, assetId: job.assetId },
       styleReferenceId: referenceId,
       headline: asked.success ? (asked.data.headline ?? null) : null,
+      scene: asked.success ? asked.data.prompt : null,
     });
     if (finished.passed)
       return {
