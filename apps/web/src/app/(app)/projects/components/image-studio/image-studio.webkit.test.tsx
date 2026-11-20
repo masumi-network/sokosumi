@@ -26,8 +26,8 @@ import { buildStudioLabels } from "./studio-labels";
 import type { StudioJob } from "./types";
 
 vi.mock("@/lib/auth/auth.client", () => ({ authClient: {} }));
-vi.mock("./studio-approved-headlines", () => ({
-  readApprovedStudioHeadlines: vi.fn(),
+vi.mock("./studio-headline-kit", () => ({
+  readStudioHeadlineKit: vi.fn(),
 }));
 
 const WEB_ROOT = path.resolve(import.meta.dirname, "../../../../../..");

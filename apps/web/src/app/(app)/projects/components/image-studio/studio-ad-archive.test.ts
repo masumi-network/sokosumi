@@ -2,11 +2,14 @@ import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createStudioAdArchive } from "./studio-ad-download";
+import { renderStudioHeadline } from "./studio-ad-headline";
 import type { StudioAsset } from "./types";
 
 vi.mock("./studio-ad-headline", () => ({
-  renderStudioHeadline: async (image: Blob, headline: string) =>
-    new Blob([await image.text(), headline], { type: "image/png" }),
+  renderStudioHeadline: vi.fn(
+    async (image: Blob, headline: string) =>
+      new Blob([await image.text(), headline], { type: "image/png" }),
+  ),
 }));
 
 const ASSET: StudioAsset = {
@@ -37,7 +40,10 @@ const ASSET: StudioAsset = {
 };
 
 describe("downloading selected Studio ads", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
 
   it("keeps Ideogram lettering bytes without adding another headline overlay", async () => {
     vi.stubGlobal(
@@ -99,7 +105,7 @@ describe("downloading selected Studio ads", () => {
       await createStudioAdArchive(
         [
           ASSET,
-          { ...ASSET, id: "asset-b" },
+          { ...ASSET, id: "asset-b", projectId: "project-b" },
           {
             ...ASSET,
             id: "asset-c",
@@ -109,6 +115,11 @@ describe("downloading selected Studio ads", () => {
         ],
         undefined,
         { "asset-a": "First claim", "asset-b": "Second claim" },
+        [],
+        {
+          "project-a": { colors: ["#A33421"], fonts: ["Playfair Display"] },
+          "project-b": { colors: ["#123456"], fonts: ["Inter"] },
+        },
       ),
     );
 
@@ -119,6 +130,20 @@ describe("downloading selected Studio ads", () => {
       "two Second claim",
     );
     expect(await zip.file("ad-3-1080x1350.webp")?.async("text")).toBe("three");
+    expect(renderStudioHeadline).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Blob),
+      "First claim",
+      undefined,
+      { colors: ["#A33421"], fonts: ["Playfair Display"] },
+    );
+    expect(renderStudioHeadline).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Blob),
+      "Second claim",
+      undefined,
+      { colors: ["#123456"], fonts: ["Inter"] },
+    );
   });
 
   it("fails the entire export when a selected image is unavailable", async () => {

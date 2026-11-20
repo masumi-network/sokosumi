@@ -2,7 +2,10 @@ import type { StudioLogoPosition } from "@sokosumi/core-client";
 import { useEffect, useState } from "react";
 
 import { fetchStudioAd } from "./studio-ad-download";
-import { renderStudioHeadline } from "./studio-ad-headline";
+import {
+  renderStudioHeadline,
+  type StudioHeadlineLook,
+} from "./studio-ad-headline";
 import { usesExactFontOverlay } from "./studio-lettering";
 import type { PlacementRatio } from "./studio-placements";
 import type { StudioAsset, StudioJob } from "./types";
@@ -20,6 +23,7 @@ export function useStudioHeadlineImage(
     StudioJob,
     "parentAssetId" | "lettering" | "status"
   >[] = [],
+  look?: StudioHeadlineLook,
 ) {
   const { id, projectId } = asset;
   const overlayHeadline = usesExactFontOverlay(asset, jobs)
@@ -33,6 +37,7 @@ export function useStudioHeadlineImage(
     placement,
     logo,
     overlayHeadline,
+    look,
     attempt,
   ]);
   const [previousKey, setPreviousKey] = useState(key);
@@ -56,6 +61,7 @@ export function useStudioHeadlineImage(
           await response.blob(),
           text,
           logo,
+          look,
         );
         if (request.signal.aborted) return;
         url = URL.createObjectURL(blob);
@@ -69,7 +75,7 @@ export function useStudioHeadlineImage(
       request.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [overlayHeadline, id, key, logo, placement, projectId]);
+  }, [overlayHeadline, id, key, logo, placement, projectId, look]);
 
   return {
     result: overlayHeadline && result?.key === key ? result : null,
