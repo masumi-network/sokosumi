@@ -2318,8 +2318,10 @@ body:has(.ob) .site-header {
     right: 58%;
   }
 
+  /* Its right edge keeps the screen's 16px gutter, whatever the width. */
   .ob-tilt-b {
-    left: 58%;
+    left: auto;
+    right: calc(16px - (100vw - 200px) / 2);
   }
 
   .ob-tilt-c {
