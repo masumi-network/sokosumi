@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useRevokeObjectUrl } from "@/hooks/effects/use-revoke-object-url";
 
 import { mermaidSourceError } from "./mermaid-policy";
 
@@ -124,12 +125,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
 
   // Retain the last image until its replacement arrives, including when a
   // streamed block briefly reopens. Never reuse an already revoked URL.
-  useEffect(() => {
-    const objectUrl = result?.url;
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [result?.url]);
+  useRevokeObjectUrl(result?.url);
 
   async function handleCopy() {
     try {

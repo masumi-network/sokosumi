@@ -65,6 +65,9 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-event-listener` (`useEventListener`) — typed window, document, or element DOM event listener using the latest handler (CMO has `useEventListener` under `apps/cmo/src/hooks/effects/use-event-listener.ts`)
 - `use-interval` (`useInterval`) — repeating timer paused on `null` delay (CMO has `useInterval` under `apps/cmo/src/hooks/effects/use-interval.ts`)
 - `use-timeout` (`useTimeout`) — one-shot timer paused on `null` delay with optional `resetKey` (CMO has `useTimeout` under `apps/cmo/src/hooks/effects/use-timeout.ts`)
+- `use-scheduled-timeout` (`useScheduledTimeout`, `useScheduledTimeoutMap`) — imperative handler-started timeout(s) with synchronous cancel and unmount cleanup
+- `use-abort-controller` (`useAbortController`, `useAbortControllers`) — imperative handler-started `AbortController`(s) aborted on unmount or `resetKey` change
+- `use-revoke-object-url` (`useRevokeObjectUrl`) — revokes a blob/object URL when replaced, cleared, or unmounted
 - `use-replace-route-on-media` (`useReplaceRouteOnMedia`) — one-shot `router.replace` when a CSS media query matches
 - `use-keyboard-open` (`useKeyboardOpen`) — soft keyboard open state via `visualViewport`
 - `use-clipboard` (`useClipboard`, `copyTextWithToast`) — clipboard write with toast feedback and timed reset
