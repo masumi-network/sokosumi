@@ -63,7 +63,7 @@ describe("admin ad-evals aggregation", () => {
 
   it("separates agent decisions from inferred labels before counting workspaces", async () => {
     const assets = ratedAssets(5);
-    assets[0].job.promptSnapshot!.brandLook = { route: "text_heavy" };
+    assets[0].job.promptSnapshot!.route = "text_heavy";
     assets[1].model = "fal-ai/gemini-3-pro-image-preview";
     assets[2].job.kind = "EDIT";
     assets[3].model = "unknown";

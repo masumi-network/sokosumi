@@ -164,7 +164,7 @@ async function evaluateSettledAd(jobId: string): Promise<void> {
     image,
     referenceImage,
     finalPrompt: snapshot.finalPrompt,
-    brandLook: look.success ? look.data : null,
+    brandLook: snapshot.brandLook,
     headline: asset.job.exportHeadline,
     approvedLines,
     useProductCutout: asset.job.useProductCutout,

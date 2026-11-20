@@ -89,8 +89,8 @@ describe("ad evals JSONL export", () => {
         promptSnapshot: {
           templateId: "Acme",
           creativeDirection: "jane@acme.example",
+          route: "vector",
           brandLook: {
-            route: "vector",
             colors: ["#23453C", "Acme"],
             fonts: ["Inter", "Jane Smith", "jane@acme.example"],
             headline: "Acme secret",

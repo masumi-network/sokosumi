@@ -49,6 +49,7 @@ const adEvalAssetSelect = {
           templateId: true,
           creativeDirection: true,
           brandLook: true,
+          route: true,
         },
       },
     },
@@ -122,7 +123,7 @@ export function adAssetRoute(asset: AdEvalAsset): {
   route: ImageStudioRoute | null;
   routeInferred: boolean;
 } {
-  const recorded = readImageStudioRoute(asset.job.promptSnapshot?.brandLook);
+  const recorded = readImageStudioRoute(asset.job.promptSnapshot);
   if (recorded) return { route: recorded, routeInferred: false };
   if (asset.job.kind === "EDIT") return { route: "edit", routeInferred: true };
   const model = findImageModelForEndpoint(asset.model)?.id ?? asset.model;

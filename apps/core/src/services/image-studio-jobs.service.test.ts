@@ -1073,6 +1073,7 @@ describe("image studio job submission", () => {
           )
           .digest("hex"),
         brandLook: Prisma.DbNull,
+        route: null,
         assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
         templateId: null,
         creativeDirection: null,
@@ -1113,7 +1114,8 @@ describe("image studio job submission", () => {
       create: expect.objectContaining({
         ...context,
         finalPrompt,
-        brandLook: { ...look, route: settings.route },
+        brandLook: look,
+        route: settings.route,
         brandContextHash: createHash("sha256")
           .update(
             [
@@ -1128,7 +1130,8 @@ describe("image studio job submission", () => {
       update: expect.objectContaining({
         ...context,
         finalPrompt,
-        brandLook: { ...look, route: settings.route },
+        brandLook: look,
+        route: settings.route,
       }),
     });
   });

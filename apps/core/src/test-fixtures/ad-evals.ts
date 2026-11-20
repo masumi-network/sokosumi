@@ -15,6 +15,7 @@ export function adEvalAsset(overrides: Partial<AdEvalAsset> = {}): AdEvalAsset {
       promptSnapshot: {
         templateId: "ad",
         creativeDirection: "spotlight",
+        route: null,
         brandLook: { colors: ["#23453C"], fonts: ["Inter"] },
       },
     },

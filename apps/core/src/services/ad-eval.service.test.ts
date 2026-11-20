@@ -67,7 +67,7 @@ const ASSET = {
     promptSnapshot: {
       finalPrompt:
         "Follow this project's brand.\n\nApproved ad copy (use where relevant):\nMake it count\n\nBrief:\nA red ad with Make it count",
-      brandLook: { colors: ["#ff0000"], fonts: ["Inter"], route: "photo_ad" },
+      brandLook: { colors: ["#ff0000"], fonts: ["Inter"] },
     },
   },
 };

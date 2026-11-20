@@ -1774,7 +1774,6 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         job.model,
       );
     }
-    const route = readImageStudioRoute(job.settings);
     snapshot = {
       jobId: job.id,
       finalPrompt,
@@ -1782,10 +1781,8 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         .createHash("sha256")
         .update(studioBrandPromptBlock(promptBrand))
         .digest("hex"),
-      brandLook:
-        brand.look || route
-          ? jsonInput({ ...brand.look, ...(route && { route }) })
-          : Prisma.DbNull,
+      brandLook: brand.look ? jsonInput(brand.look) : Prisma.DbNull,
+      route: readImageStudioRoute(job.settings) ?? null,
       assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
       templateId: job.templateId ?? null,
       creativeDirection: job.creativeDirection ?? null,
