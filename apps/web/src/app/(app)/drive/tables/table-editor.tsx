@@ -93,6 +93,7 @@ import {
   TableRow as TableRowShell,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { useSession } from "@/lib/auth/auth.client";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
@@ -222,23 +223,21 @@ function ReorderHandle({
 function TableDescription({ text }: { text: string }) {
   const t = useTranslations("App.Tables");
   const id = useId();
-  const ref = useRef<HTMLParagraphElement>(null);
+  const [element, setElement] = useState<HTMLParagraphElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
-  useEffect(() => {
-    const element = ref.current;
-    if (!element || expanded) return;
-    const measure = () =>
+  useResizeObserver(
+    expanded ? null : element,
+    () => {
+      if (!element) return;
       setOverflows(element.scrollHeight > element.clientHeight + 1);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [expanded, text]);
+    },
+    { immediate: true, resetKey: text },
+  );
   return (
     <div className="mt-1 max-w-2xl text-sm">
       <p
-        ref={ref}
+        ref={setElement}
         id={id}
         className={cn("text-muted-foreground", !expanded && "line-clamp-1")}
       >

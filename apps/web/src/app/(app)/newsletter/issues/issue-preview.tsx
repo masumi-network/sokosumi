@@ -5,13 +5,13 @@ import type { NewsletterBrand } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Monitor, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useDebounce } from "use-debounce";
 import { z } from "zod";
 import { PreviewFrame } from "@/components/common/preview-frame";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { newsletterIssuePreviewSchema } from "@/lib/schemas/newsletter-issues";
 
 export function NewsletterIssuePreview({
@@ -26,44 +26,37 @@ export function NewsletterIssuePreview({
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const [device, setDevice] = useState("desktop");
-  const frameRef = useRef<HTMLElement>(null);
+  const [frame, setFrame] = useState<HTMLElement | null>(null);
   const [availableWidth, setAvailableWidth] = useState(0);
-  useMountEffect(() => {
-    const frame = frameRef.current;
-    if (!frame) return;
-    const observer = new ResizeObserver(([entry]) => {
-      setAvailableWidth(entry.contentRect.width);
-    });
-    observer.observe(frame);
-    return () => observer.disconnect();
+  useResizeObserver(frame, ([entry]) => {
+    if (entry) setAvailableWidth(entry.contentRect.width);
   });
   const [contentHeight, setContentHeight] = useState(640);
-  const contentObserver = useRef<ResizeObserver>(null);
-  useMountEffect(() => () => contentObserver.current?.disconnect());
-  function measureContent(iframe: HTMLIFrameElement) {
-    contentObserver.current?.disconnect();
+  const [contentMeasure, setContentMeasure] = useState<{
+    iframe: HTMLIFrameElement;
+    targets: readonly Element[];
+  } | null>(null);
+  function updateContentHeight(iframe: HTMLIFrameElement) {
     const doc = iframe.contentDocument;
     if (!doc?.body) return;
     const { body, documentElement } = doc;
     // Collapse the iframe before reading scrollHeight: scrollHeight never drops below the viewport, and
     // `height: 100%` emails report only the viewport, so a measure at full height could clip or never shrink.
-    const update = () => {
-      const height = iframe.style.height;
-      iframe.style.height = "0px";
-      const next = Math.max(body.scrollHeight, documentElement.scrollHeight);
-      iframe.style.height = height;
-      if (next > 0) setContentHeight(next);
-    };
-    update();
+    const height = iframe.style.height;
+    iframe.style.height = "0px";
+    const next = Math.max(body.scrollHeight, documentElement.scrollHeight);
+    iframe.style.height = height;
+    if (next > 0) setContentHeight(next);
+  }
+  function measureContent(iframe: HTMLIFrameElement) {
+    const doc = iframe.contentDocument;
+    if (!doc?.body) return;
+    updateContentHeight(iframe);
     // Re-measure on reflow (late images, device width change), coalesced to one measure per frame.
-    let frame = 0;
-    contentObserver.current = new ResizeObserver(() => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(update);
+    setContentMeasure({
+      iframe,
+      targets: [iframe, doc.documentElement, doc.body],
     });
-    for (const target of [iframe, documentElement, body]) {
-      contentObserver.current.observe(target);
-    }
   }
   const viewportWidth = device === "mobile" ? 375 : 720;
   const scale =
@@ -91,6 +84,13 @@ export function NewsletterIssuePreview({
       return z.object({ html: z.string() }).parse(await response.json());
     },
   });
+  useResizeObserver(
+    preview.data && parsed.success ? contentMeasure?.targets : null,
+    () => {
+      if (contentMeasure) updateContentHeight(contentMeasure.iframe);
+    },
+    { coalesceFrame: true },
+  );
   return (
     <aside
       aria-label={t("Preview.title")}
@@ -134,7 +134,7 @@ export function NewsletterIssuePreview({
         </div>
       ) : null}
       <PreviewFrame
-        ref={frameRef}
+        ref={setFrame}
         hidden={!preview.data || !parsed.success}
         className="mx-auto w-full"
         style={{

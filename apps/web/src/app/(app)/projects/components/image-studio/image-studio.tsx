@@ -22,8 +22,6 @@ import { useTranslations } from "next-intl";
 import {
   type RefObject,
   useCallback,
-  useEffect,
-  useLayoutEffect,
   useMemo,
   useOptimistic,
   useRef,
@@ -35,6 +33,8 @@ import { toast } from "sonner";
 import { switchScopeHref } from "@/app/components/project-scope/project-scope-href";
 import { openProjectScope } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { Button } from "@/components/ui/button";
+import { useIntersectionObserver } from "@/hooks/effects/use-intersection-observer";
+import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -1243,24 +1243,17 @@ export function ImageStudio({
   // Chat-style feed: the scroller is `flex-col-reverse`, so scrollTop 0 is the
   // newest image and prepending older pages never moves what is on screen. The
   // top sentinel asks for the next older page as it nears the viewport.
-  const topRef = useRef<HTMLDivElement>(null);
-  const loadOlderRef = useRef(loadOlder);
-  loadOlderRef.current = loadOlder;
-  useEffect(() => {
-    const node = topRef.current;
-    if (!node || !hasOlder) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          void loadOlderRef.current();
-        }
-      },
-      { rootMargin: "400px 0px 0px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-    // Re-armed per page: a page that does not fill the viewport must fire again.
-  }, [hasOlder, state.assets.length]);
+  const [topSentinel, setTopSentinel] = useState<HTMLDivElement | null>(null);
+  // Re-armed per page: a page that does not fill the viewport must fire again.
+  useIntersectionObserver(
+    hasOlder ? topSentinel : null,
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void loadOlder();
+      }
+    },
+    { rootMargin: "400px 0px 0px 0px", resetKey: state.assets.length },
+  );
 
   const dock = useSteadyDock(promptRef, showsNothing);
   const assistantOpen = assistant?.open === true;
@@ -1429,7 +1422,7 @@ export function ImageStudio({
               : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
           )}
         >
-          {studio.sort !== "best" ? <div ref={topRef} /> : null}
+          {studio.sort !== "best" ? <div ref={setTopSentinel} /> : null}
           {hasOlder ? (
             <p className="text-muted-foreground text-center text-xs">
               {labels.loadOlder}
@@ -1499,7 +1492,7 @@ export function ImageStudio({
             />
           )}
 
-          {studio.sort === "best" ? <div ref={topRef} /> : null}
+          {studio.sort === "best" ? <div ref={setTopSentinel} /> : null}
 
           {queue.failed.map((failure) => (
             <StudioFailedSubmission
@@ -1650,7 +1643,7 @@ export function ImageStudio({
           "relative shrink-0",
           showsNothing && "mx-auto mb-auto w-full max-w-3xl pb-14",
         )}
-        ref={dock.slotRef}
+        style={dock.slotStyle}
       >
         <div
           className={cn(
@@ -1889,30 +1882,25 @@ function useSteadyDock(
   promptRef: RefObject<HTMLTextAreaElement | null>,
   floating: boolean,
 ) {
-  const slotRef = useRef<HTMLDivElement>(null);
-  const dockRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const slot = slotRef.current;
-    const dock = dockRef.current;
-    if (!slot || !dock) return;
-    if (floating) {
-      slot.style.height = "";
-      return;
-    }
-    const sync = () => {
+  const [dockElement, setDockElement] = useState<HTMLDivElement | null>(null);
+  const [slotHeight, setSlotHeight] = useState<number | null>(null);
+  useLayoutResizeObserver(
+    floating ? null : dockElement,
+    () => {
+      if (!dockElement) return;
       const prompt = promptRef.current;
       const growth = prompt
         ? prompt.offsetHeight -
           Number.parseFloat(getComputedStyle(prompt).minHeight)
         : 0;
-      slot.style.height = `${dock.offsetHeight - (growth > 0 ? growth : 0)}px`;
-    };
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(dock);
-    return () => observer.disconnect();
-  }, [promptRef, floating]);
-  return { slotRef, dockRef };
+      const next = dockElement.offsetHeight - (growth > 0 ? growth : 0);
+      setSlotHeight((current) => (current === next ? current : next));
+    },
+    { immediate: true },
+  );
+  const slotStyle =
+    floating || slotHeight === null ? undefined : { height: `${slotHeight}px` };
+  return { dockRef: setDockElement, slotStyle };
 }
 
 /**
