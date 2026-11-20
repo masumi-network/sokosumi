@@ -74,18 +74,25 @@ for (const { name: size, ...viewport } of PROJECTS) {
       const search = page.getByRole("textbox", {
         name: "Search agents, coworkers, and offers",
       });
-      assert.equal(await page.getByRole("textbox").count(), 1);
+      await search.waitFor();
+      assert.equal(
+        await page.getByRole("main").getByRole("textbox").count(),
+        1,
+        "the page has one search field",
+      );
       await search.fill("research");
       await page.getByRole("radio", { name: "Agents", exact: true }).click();
       await page.waitForURL(/show=agents/);
-      assert.equal(
-        await page.getByRole("heading", { name: "Your AI coworkers" }).count(),
-        0,
-        "Agents scope hides the coworkers group",
-      );
       await page
         .getByRole("heading", { name: /^Browse all agents · \d+$/ })
         .waitFor();
+      assert.equal(
+        await page.getByRole("heading", { name: /^Your AI coworkers/ }).count(),
+        0,
+        "Agents scope hides the coworkers group",
+      );
+      await search.scrollIntoViewIfNeeded();
+      await shot("0-search");
       const card = page.locator('main a[href^="/agents/"]').first();
       await card.scrollIntoViewIfNeeded();
       await shot("1-gallery");
