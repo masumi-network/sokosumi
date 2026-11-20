@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -31,25 +31,32 @@ describe("useFormatToolbarOpenPreference", () => {
     expect(html).toContain(">false<");
   });
 
-  it("applies a stored open preference synchronously before paint", () => {
+  it("hydrates server-rendered HTML and applies a stored open preference synchronously before paint", () => {
     window.localStorage.setItem(FORMAT_TOOLBAR_OPEN_STORAGE_KEY, "true");
+    const html = renderToString(<Harness />);
+    expect(html).toContain(">false<");
+
     const host = document.createElement("div");
+    host.innerHTML = html;
     document.body.append(host);
-    const root = createRoot(host);
+    let root: Root | null = null;
 
     try {
-      // flushSync runs render + layout effects synchronously without flushing
-      // passive effects, matching the DOM state before browser paint.
+      // flushSync runs hydration and layout effects synchronously without
+      // flushing passive effects, matching the DOM state before browser paint.
       flushSync(() => {
-        root.render(<Harness />);
+        root = hydrateRoot(host, <Harness />);
       });
       expect(
         host.querySelector('[data-testid="toolbar-open"]')?.textContent,
       ).toBe("true");
     } finally {
-      act(() => {
-        root.unmount();
-      });
+      if (root) {
+        const mountedRoot: Root = root;
+        act(() => {
+          mountedRoot.unmount();
+        });
+      }
       host.remove();
     }
   });

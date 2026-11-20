@@ -246,20 +246,45 @@ export function CmoApp({
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
   const [work, setWork] = useState(initialWork);
-  const [view, setView] = useState<View>(initialView);
-  // Each page has its own address, so reload, Back and new tabs land on it.
-  const go = useCallback((next: View) => {
-    setView(next);
-    if (window.location.pathname !== VIEW_PATHS[next]) {
-      window.history.pushState(null, "", VIEW_PATHS[next]);
-    }
+  const [nav, setNav] = useState({
+    view: initialView,
+    connectError,
+    adsError,
+    measureError,
+  });
+  const { view } = nav;
+  // Leaving the landing view consumes its one-shot OAuth return notice so
+  // returning later on the clean URL does not show it again.
+  const selectView = useCallback((next: View) => {
+    setNav((current) =>
+      current.view === next
+        ? current
+        : {
+            view: next,
+            connectError:
+              current.view === "channels" ? null : current.connectError,
+            adsError: current.view === "channels" ? null : current.adsError,
+            measureError:
+              current.view === "results" ? null : current.measureError,
+          },
+    );
   }, []);
+  // Each page has its own address, so reload, Back and new tabs land on it.
+  const go = useCallback(
+    (next: View) => {
+      selectView(next);
+      if (window.location.pathname !== VIEW_PATHS[next]) {
+        window.history.pushState(null, "", VIEW_PATHS[next]);
+      }
+    },
+    [selectView],
+  );
   useEffect(() => {
     const onPop = () =>
-      setView(viewFromPath(window.location.pathname) ?? "today");
+      selectView(viewFromPath(window.location.pathname) ?? "today");
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  }, [selectView]);
   const [draft, setDraft] = useState("");
   // A post opened from Today opens on the Calendar.
   const [focusEntry, setFocusEntry] = useState<string | null>(null);
@@ -596,7 +621,7 @@ export function CmoApp({
                   connectMeasurement={(provider) =>
                     actions.connectMeasurement(provider, "app")
                   }
-                  measureError={measureError}
+                  measureError={nav.measureError}
                   ads={actions}
                   onChange={setOverview}
                   openView={go}
@@ -627,8 +652,8 @@ export function CmoApp({
                   connectAds={actions.connectAds}
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
-                  connectError={connectError}
-                  adsError={adsError}
+                  connectError={nav.connectError}
+                  adsError={nav.adsError}
                   change={actions.changeChannel}
                   openSeo={() => go("seo")}
                   connectSearchConsole={() =>

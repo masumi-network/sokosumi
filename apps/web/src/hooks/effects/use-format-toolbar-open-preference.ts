@@ -1,14 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 
 import {
   getFormatToolbarOpenPreference,
   setFormatToolbarOpenPreference,
 } from "@/app/chat/utils/format-toolbar-preference-storage";
-
-const usePrePaintEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
  * Reads the persisted Slack-style Aa formatting toolbar preference before
@@ -21,7 +18,7 @@ export function useFormatToolbarOpenPreference(): readonly [
 ] {
   const [open, setOpenState] = useState(false);
 
-  usePrePaintEffect(() => {
+  useLayoutEffect(() => {
     const stored = getFormatToolbarOpenPreference();
     if (stored !== null) {
       setOpenState(stored);

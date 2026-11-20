@@ -148,4 +148,105 @@ describe("CMO OAuth return errors during hydration", () => {
       expectedError,
     );
   });
+
+  it("clears Channels return notices after leaving Channels and returning on the clean URL", async () => {
+    const expectedError = "That ad connection didn't finish. Try again.";
+    window.history.replaceState(
+      null,
+      "",
+      "/channels?ads=failed&project=project-1",
+    );
+    const element = (
+      <CmoApp
+        overview={cmoOverview()}
+        messages={[]}
+        name="Ada"
+        email="ada@example.com"
+        initialView="channels"
+        connectError="That connection didn't finish. Try again."
+        adsError={expectedError}
+        actions={stubActions()}
+      />
+    );
+    host.innerHTML = renderToString(element);
+
+    await act(async () => {
+      root = hydrateRoot(host, element);
+    });
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+      expectedError,
+    );
+
+    const todayLink = host.querySelector<HTMLAnchorElement>(
+      'nav[aria-label="Main"] a[href="/"]',
+    );
+    const channelsLink = host.querySelector<HTMLAnchorElement>(
+      'nav[aria-label="Main"] a[href="/channels"]',
+    );
+    expect(todayLink).not.toBeNull();
+    expect(channelsLink).not.toBeNull();
+
+    await act(async () => {
+      todayLink?.click();
+    });
+    expect(window.location.pathname).toBe("/");
+
+    await act(async () => {
+      channelsLink?.click();
+    });
+    expect(window.location.pathname).toBe("/channels");
+    expect(window.location.search).toBe("");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it("clears Results measurement error after leaving Results and returning on the clean URL", async () => {
+    const expectedError = "That connection didn't finish. Try again.";
+    window.history.replaceState(
+      null,
+      "",
+      "/results?measure=failed&project=project-1",
+    );
+    const element = (
+      <CmoApp
+        overview={cmoOverview()}
+        messages={[]}
+        name="Ada"
+        email="ada@example.com"
+        initialView="results"
+        measureError={expectedError}
+        actions={stubActions()}
+      />
+    );
+    host.innerHTML = renderToString(element);
+
+    await act(async () => {
+      root = hydrateRoot(host, element);
+    });
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+      expectedError,
+    );
+
+    const todayLink = host.querySelector<HTMLAnchorElement>(
+      'nav[aria-label="Main"] a[href="/"]',
+    );
+    const resultsLink = host.querySelector<HTMLAnchorElement>(
+      'nav[aria-label="Main"] a[href="/results"]',
+    );
+    expect(todayLink).not.toBeNull();
+    expect(resultsLink).not.toBeNull();
+
+    await act(async () => {
+      todayLink?.click();
+    });
+    expect(window.location.pathname).toBe("/");
+
+    await act(async () => {
+      resultsLink?.click();
+    });
+    expect(window.location.pathname).toBe("/results");
+    expect(window.location.search).toBe("");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
 });
