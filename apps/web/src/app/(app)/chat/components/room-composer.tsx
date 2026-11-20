@@ -27,7 +27,6 @@ import {
   type Ref,
   type SetStateAction,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -63,6 +62,7 @@ import {
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useFormatToolbarOpenPreference } from "@/hooks/effects/use-format-toolbar-open-preference";
 import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { transcribeVoiceRecording } from "@/lib/services/voice-transcription.browser";
@@ -434,15 +434,7 @@ export function RoomComposer({
   );
 
   // Re-run when focusOnMount flips true (e.g. progressive history ready).
-  useEffect(() => {
-    if (!focusOnMount) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      editorRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [focusOnMount]);
+  useFocusWhen(editorRef, focusOnMount, { deferToFrame: true });
 
   const handleActiveFormatsChange = useCallback(
     (formats: ComposerActiveFormats) => {

@@ -2,15 +2,10 @@
 
 import { CalendarRange, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useId, useMemo, useRef, useState } from "react";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
+import { useScrollChildIntoViewX } from "@/hooks/effects/use-scroll-child-into-view-x";
+import { useScrollToEnd } from "@/hooks/effects/use-scroll-to-end";
 import {
   useSeoResultFormatter,
   useSeoResultTranslations,
@@ -107,23 +102,21 @@ export function SeoRuns({
   const titleId = useId();
   const next = shown ? seoNextScheduledCheck(model.data.monitors, now) : null;
   // On a phone the line scrolls sideways: its right end starts in view, with the newest day.
-  useEffect(() => {
-    const bar = line.current;
-    if (bar && days.length) bar.scrollLeft = bar.scrollWidth;
-  }, [days.length, running, next !== null]);
+  useScrollToEnd(line, `${days.length}:${running}:${next !== null}`, {
+    axis: "horizontal",
+    enabled: days.length > 0,
+  });
   // A picked older day comes into view; a pick already in view does not move the line.
-  useEffect(() => {
-    const bar = line.current;
-    const stop = pickedDay
-      ? bar?.querySelector<HTMLElement>(`time[datetime="${pickedDay}"]`)
-      : null;
-    if (!bar || !stop) return;
-    const outer = bar.getBoundingClientRect();
-    const inner = stop.getBoundingClientRect();
-    if (inner.left < outer.left) bar.scrollLeft -= outer.left - inner.left;
-    else if (inner.right > outer.right)
-      bar.scrollLeft += inner.right - outer.right;
-  }, [pickedDay]);
+  useScrollChildIntoViewX(
+    line,
+    () =>
+      pickedDay
+        ? line.current?.querySelector<HTMLElement>(
+            `time[datetime="${pickedDay}"]`,
+          )
+        : null,
+    pickedDay,
+  );
   const showReports =
     versions.length > 0 ||
     (model.updating &&

@@ -7,10 +7,10 @@ import { useActionState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
+import { useFocusFirstInvalid } from "../hooks/effects/use-focus-first-invalid";
 import { AGENT_NAME } from "../lib/agent";
 import { AccountMenu } from "./account-menu";
 import { cusoArt } from "./cuso";
-import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
 import { StepMarkers } from "./onboarding/step-markers";
 
