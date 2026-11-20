@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { TaskSchedulesView } from "./task-schedules-view";
 
@@ -161,9 +162,11 @@ function renderView(
     />,
     {
       wrapper: ({ children }) => (
-        <NuqsTestingAdapter searchParams={searchParamsRef.current}>
-          {children}
-        </NuqsTestingAdapter>
+        <TestQueryProvider>
+          <NuqsTestingAdapter searchParams={searchParamsRef.current} hasMemory>
+            {children}
+          </NuqsTestingAdapter>
+        </TestQueryProvider>
       ),
     },
   );

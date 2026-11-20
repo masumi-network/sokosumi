@@ -1,10 +1,12 @@
 "use client";
 
 import type { DiscoverableChatRoom } from "@sokosumi/core-client";
+import { useQuery } from "@tanstack/react-query";
 import { List, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "use-debounce";
 import {
   joinRoomAction,
   listDiscoverableChannelsAction,
@@ -31,43 +33,38 @@ export function BrowseChannelsDialog({
   const t = useTranslations("App.Channels.Browse");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [rooms, setRooms] = useState<DiscoverableChatRoom[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [debouncedQuery] = useDebounce(query, 200);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [_isJoining, startJoinTransition] = useTransition();
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    let cancelled = false;
-    const timeoutId = window.setTimeout(async () => {
-      setIsLoading(true);
-      const result = await listDiscoverableChannelsAction({ q: query });
-      if (cancelled) {
-        return;
-      }
-      setIsLoading(false);
+  const effectiveQuery = query === "" ? "" : debouncedQuery;
+  const channelsQuery = useQuery({
+    queryKey: ["chat", "discoverable-channels", effectiveQuery],
+    queryFn: async () => {
+      const result = await listDiscoverableChannelsAction({
+        q: effectiveQuery,
+      });
       if (!result.ok) {
-        toast.error(result.error.message || t("loadError"));
-        setRooms([]);
-        return;
+        const message = result.error.message || t("loadError");
+        toast.error(message);
+        throw new Error(message);
       }
-      setRooms(result.value);
-    }, 200);
+      return result.value;
+    },
+    enabled: open,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [open, query, t]);
+  const rooms = open ? (channelsQuery.data ?? []) : [];
+  const isLoading = open && channelsQuery.isFetching;
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (!nextOpen) {
       setQuery("");
-      setRooms([]);
       setJoiningRoomId(null);
     }
   }

@@ -1,8 +1,13 @@
 "use client";
 
 import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { BellOff, Loader2, X } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   listThreadsAction,
   markAllUnreadThreadsReadAction,
@@ -68,93 +73,69 @@ export function ThreadListPanel({
   onClose,
   onAllThreadsLooked,
 }: ThreadListPanelProps) {
-  const [items, setItems] = useState<ChatRoomThread[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [olderFailed, setOlderFailed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = ["chat", "room-threads", roomId] as const;
+  const [markAllErrorState, setMarkAllErrorState] = useState<{
+    roomId: string;
+    message: string;
+  } | null>(null);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
-  const listRequestIdRef = useRef(0);
   const { formatTimeAgo } = useLocalizedDateTime();
 
-  const loadFirstPage = useEffectEvent(async () => {
-    const requestId = ++listRequestIdRef.current;
-    setIsLoading(true);
-    setError(null);
-    setOlderFailed(false);
-    try {
-      const result = await listThreadsAction(roomId);
-      if (requestId !== listRequestIdRef.current) {
-        return;
-      }
+  const threadsQuery = useInfiniteQuery({
+    queryKey,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const result = pageParam
+        ? await listThreadsAction(roomId, { cursor: pageParam })
+        : await listThreadsAction(roomId);
       if (!result.ok) {
-        setItems([]);
-        setNextCursor(null);
-        setError(result.error.message || labels.error);
-        return;
+        throw new Error(result.error.message || labels.error);
       }
-      setItems(result.value.threads);
-      setNextCursor(result.value.nextCursor);
-    } catch {
-      if (requestId !== listRequestIdRef.current) {
-        return;
-      }
-      setItems([]);
-      setNextCursor(null);
-      setError(labels.error);
-    } finally {
-      if (requestId === listRequestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
+      return result.value;
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
-  useEffect(() => {
-    void loadFirstPage();
-    return () => {
-      listRequestIdRef.current += 1;
-    };
-  }, [roomId]);
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const deduped: ChatRoomThread[] = [];
+    for (const page of threadsQuery.data?.pages ?? []) {
+      for (const item of page.threads) {
+        if (!seen.has(item.parentMessage.id)) {
+          seen.add(item.parentMessage.id);
+          deduped.push(item);
+        }
+      }
+    }
+    return deduped;
+  }, [threadsQuery.data]);
+
+  const markAllError =
+    markAllErrorState?.roomId === roomId ? markAllErrorState.message : null;
+  const firstPageError =
+    threadsQuery.isError && !threadsQuery.isFetchNextPageError
+      ? threadsQuery.error instanceof Error && threadsQuery.error.message
+        ? threadsQuery.error.message
+        : labels.error
+      : null;
+  const error = markAllError ?? firstPageError;
+  const isLoading = threadsQuery.isPending;
+  const isLoadingOlder = threadsQuery.isFetchingNextPage;
+  const olderFailed = threadsQuery.isFetchNextPageError;
+  const hasNextPage = threadsQuery.hasNextPage;
 
   async function handleLoadOlder() {
     // Mark all holds the boundary too, but an observer entry queued before
     // that hold landed can still call in here.
-    if (!nextCursor || isLoadingOlder || isMarkingAllRead) {
+    if (!hasNextPage || isLoadingOlder || isMarkingAllRead) {
       return;
     }
-    const requestId = ++listRequestIdRef.current;
-    setIsLoadingOlder(true);
-    setOlderFailed(false);
-    try {
-      const result = await listThreadsAction(roomId, { cursor: nextCursor });
-      if (requestId !== listRequestIdRef.current) {
-        return;
-      }
-      if (!result.ok) {
-        // Kept off the list's own error: that one is the first page and Mark
-        // all. A failed older page stays on this row, and a retry that lands
-        // has to leave the row idle or scroll-loading never resumes.
-        setOlderFailed(true);
-        return;
-      }
-      setItems((current) => {
-        const seen = new Set(current.map((item) => item.parentMessage.id));
-        return [
-          ...current,
-          ...result.value.threads.filter(
-            (item) => !seen.has(item.parentMessage.id),
-          ),
-        ];
-      });
-      setNextCursor(result.value.nextCursor);
-    } catch {
-      if (requestId === listRequestIdRef.current) {
-        setOlderFailed(true);
-      }
-    } finally {
-      setIsLoadingOlder(false);
-    }
+    await threadsQuery.fetchNextPage();
   }
 
   async function handleMarkAllRead() {
@@ -162,11 +143,14 @@ export function ThreadListPanel({
       return;
     }
     setIsMarkingAllRead(true);
-    setError(null);
+    setMarkAllErrorState(null);
     try {
       const result = await markAllUnreadThreadsReadAction(roomId);
       if (!result.ok) {
-        setError(result.error.message || labels.markAllReadError);
+        setMarkAllErrorState({
+          roomId,
+          message: result.error.message || labels.markAllReadError,
+        });
         return;
       }
       onAllThreadsLooked?.(
@@ -176,9 +160,29 @@ export function ThreadListPanel({
           )
           .map((item) => item.parentMessage.id),
       );
-      await loadFirstPage();
+      await queryClient.cancelQueries({ queryKey });
+      const reloadResult = await listThreadsAction(roomId);
+      if (!reloadResult.ok) {
+        queryClient.setQueryData<
+          InfiniteData<{ threads: ChatRoomThread[]; nextCursor: string | null }>
+        >(queryKey, { pages: [], pageParams: [] });
+        setMarkAllErrorState({
+          roomId,
+          message: reloadResult.error.message || labels.error,
+        });
+        return;
+      }
+      queryClient.setQueryData<
+        InfiniteData<{ threads: ChatRoomThread[]; nextCursor: string | null }>
+      >(queryKey, {
+        pages: [reloadResult.value],
+        pageParams: [undefined],
+      });
     } catch {
-      setError(labels.markAllReadError);
+      setMarkAllErrorState({
+        roomId,
+        message: labels.markAllReadError,
+      });
     } finally {
       setIsMarkingAllRead(false);
     }
@@ -351,7 +355,7 @@ export function ThreadListPanel({
             {earlierItems.map(renderRow)}
           </>
         ) : null}
-        {nextCursor ? (
+        {hasNextPage ? (
           <ThreadListLoadMore
             boundaryKey={items.at(-1)?.parentMessage.id ?? ""}
             // Held while Mark all runs: an older page that starts during the

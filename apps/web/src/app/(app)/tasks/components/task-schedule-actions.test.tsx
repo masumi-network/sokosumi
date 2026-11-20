@@ -2,6 +2,7 @@ import type { ProjectListItem, TaskSchedule } from "@sokosumi/core-client";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { TaskScheduleActions } from "./task-schedule-actions";
 
@@ -116,6 +117,7 @@ function renderActions(state: TaskSchedule["state"]) {
       projectOptions={[]}
       canCreatePrivate={false}
     />,
+    { wrapper: TestQueryProvider },
   );
 }
 
@@ -146,6 +148,7 @@ function renderCopyToProject() {
       projectOptions={[]}
       canCreatePrivate={false}
     />,
+    { wrapper: TestQueryProvider },
   );
 }
 
@@ -277,7 +280,9 @@ describe("TaskScheduleActions", () => {
         projectOptions: [],
         canCreatePrivate: false,
       };
-      const { rerender } = render(<TaskScheduleActions {...props} />);
+      const { rerender } = render(<TaskScheduleActions {...props} />, {
+        wrapper: TestQueryProvider,
+      });
       await user.click(screen.getByRole("button", { name: "more" }));
       await user.click(screen.getByRole("menuitem", { name: action }));
       expect(await screen.findByRole("dialog")).toBeInTheDocument();

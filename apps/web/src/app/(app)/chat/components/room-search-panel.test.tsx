@@ -2,6 +2,7 @@ import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
+import { TestQueryProvider } from "@/test/query-provider";
 
 const getChatRoomMessagesMock = vi.fn();
 
@@ -70,6 +71,7 @@ function renderPanel(onJumpToMessage = vi.fn()) {
       labels={labels}
       onJumpToMessage={onJumpToMessage}
     />,
+    { wrapper: TestQueryProvider },
   );
   return onJumpToMessage;
 }
@@ -340,6 +342,7 @@ describe("RoomSearchPanel", () => {
           labels={labels}
           onJumpToMessage={vi.fn()}
         />,
+        { wrapper: TestQueryProvider },
       );
 
       expect(screen.getByText("⌘F")).toBeInTheDocument();

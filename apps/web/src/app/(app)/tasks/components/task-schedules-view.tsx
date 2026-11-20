@@ -1,18 +1,12 @@
 "use client";
 
 import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
+import { useQuery } from "@tanstack/react-query";
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import {
-  useEffect,
-  useEffectEvent,
-  useOptimistic,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
 import {
   taskScheduleAssigneeId,
@@ -113,6 +107,7 @@ export function TaskSchedulesView({
   const [more, setMore] = useState<TaskSchedulesPage | null>(null);
   const additionalPage = more ?? { schedules: [], nextCursor };
   const pageGeneration = useRef(0);
+  const [refreshGeneration, setRefreshGeneration] = useState(0);
   const [isRefreshing, startRefreshing] = useTransition();
   const [isLoadingMore, startLoadingMore] = useTransition();
   const [hasFailed, setHasFailed] = useState(false);
@@ -159,6 +154,7 @@ export function TaskSchedulesView({
 
   function handleScheduleChanged() {
     pageGeneration.current += 1;
+    setRefreshGeneration((generation) => generation + 1);
     setHasFailed(false);
     startRefreshing(() => {
       setMore(null);
@@ -166,9 +162,49 @@ export function TaskSchedulesView({
     });
   }
 
+  const searchDrainStartCursor = additionalPage.nextCursor;
+  const searchDrainQuery = useQuery({
+    queryKey: [
+      "tasks",
+      "schedules-search-drain",
+      selectedProjectId,
+      selectedState,
+      refreshGeneration,
+      searchDrainStartCursor,
+    ],
+    enabled:
+      searching &&
+      Boolean(searchDrainStartCursor) &&
+      !hasFailed &&
+      !isLoadingMore &&
+      !isRefreshing,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }) => {
+      const drained: TaskSchedule[] = [];
+      let cursor: string | null = searchDrainStartCursor;
+      while (cursor && !signal.aborted) {
+        const page = await loadMoreTaskSchedules({
+          cursor,
+          projectId: selectedProjectId,
+          state: selectedState,
+        });
+        drained.push(...page.schedules);
+        cursor = page.nextCursor;
+      }
+      return { schedules: drained, nextCursor: cursor };
+    },
+  });
+
   function handleLoadMore() {
-    const cursor = additionalPage.nextCursor;
-    if (!cursor || isRefreshing || isLoadingMore) return;
+    if (searchDrainQuery.isError && searching) {
+      void searchDrainQuery.refetch();
+      return;
+    }
+    const cursor = effectiveNextCursor;
+    if (!cursor || isRefreshing || effectiveIsLoadingMore) return;
     const generation = pageGeneration.current;
     setHasFailed(false);
     startLoadingMore(async () => {
@@ -191,13 +227,29 @@ export function TaskSchedulesView({
     });
   }
 
+  const effectiveNextCursor =
+    searchDrainQuery.data !== undefined
+      ? searchDrainQuery.data.nextCursor
+      : additionalPage.nextCursor;
+  const effectiveHasFailed = hasFailed || searchDrainQuery.isError;
+  const effectiveIsLoadingMore = isLoadingMore || searchDrainQuery.isFetching;
+
   // A refresh can bring back rows a "Load more" already appended.
-  const loaded = [
-    ...schedules,
-    ...additionalPage.schedules.filter(
-      (extra) => !schedules.some((row) => row.id === extra.id),
-    ),
-  ];
+  const loaded = (() => {
+    const seen = new Set<string>();
+    const combined: TaskSchedule[] = [];
+    for (const row of [
+      ...schedules,
+      ...additionalPage.schedules,
+      ...(searchDrainQuery.data?.schedules ?? []),
+    ]) {
+      if (!seen.has(row.id)) {
+        seen.add(row.id);
+        combined.push(row);
+      }
+    }
+    return combined;
+  })();
 
   const rows = rankPageItems(loaded, query, (schedule) => ({
     primary: [schedule.name],
@@ -210,14 +262,6 @@ export function TaskSchedulesView({
       )?.name,
     ],
   }));
-  const searchNextPage = useEffectEvent(handleLoadMore);
-  const searchCursor =
-    searching && !hasFailed && !isLoadingMore && !isRefreshing
-      ? additionalPage.nextCursor
-      : null;
-  useEffect(() => {
-    if (searchCursor) searchNextPage();
-  }, [searchCursor]);
 
   const shownValue = shownState ?? ALL_STATES;
   // The first-use text stays for a workspace with no schedules at all.
@@ -228,10 +272,10 @@ export function TaskSchedulesView({
   useLoadWhenVisible(boundaryRef, {
     armed:
       !searching &&
-      Boolean(additionalPage.nextCursor) &&
-      !isLoadingMore &&
+      Boolean(effectiveNextCursor) &&
+      !effectiveIsLoadingMore &&
       !isRefreshing &&
-      !hasFailed,
+      !effectiveHasFailed,
     // A new last row means a moved boundary, which asks for the next page.
     boundaryKey: loaded.at(-1)?.id ?? "",
     onVisible: handleLoadMore,
@@ -304,8 +348,8 @@ export function TaskSchedulesView({
             className="text-muted-foreground p-4 text-center text-sm"
             role="status"
           >
-            {additionalPage.nextCursor
-              ? hasFailed
+            {effectiveNextCursor
+              ? effectiveHasFailed
                 ? null
                 : tSearch("searching")
               : tSearch("noMatches")}
@@ -373,7 +417,7 @@ export function TaskSchedulesView({
           </ul>
         )}
 
-        {additionalPage.nextCursor ? (
+        {effectiveNextCursor ? (
           // Loads on its own as it scrolls into view, and stays a button so a
           // click works where no observer runs.
           <div
@@ -381,14 +425,14 @@ export function TaskSchedulesView({
             data-testid="schedules-load-more"
             ref={boundaryRef}
           >
-            {hasFailed ? (
+            {effectiveHasFailed ? (
               <p className="text-destructive text-xs" role="alert">
                 {t("loadMoreError")}
               </p>
             ) : null}
             <Button
               disabled={isRefreshing}
-              loading={isLoadingMore}
+              loading={effectiveIsLoadingMore}
               onClick={handleLoadMore}
               size="sm"
               variant="outline"

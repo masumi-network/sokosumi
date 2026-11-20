@@ -1,8 +1,10 @@
 "use client";
 
 import type { ChatRoomMessage } from "@sokosumi/core-client";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,14 +46,11 @@ export function RoomSearchPanel({
   onJumpToMessage,
 }: RoomSearchPanelProps) {
   const [open, setOpen] = useState(false);
+  const [openSession, setOpenSession] = useState(0);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [results, setResults] = useState<ChatRoomMessage[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeSelection, setActiveSelection] = useState({ key: "", index: 0 });
   const [isFocused, setIsFocused] = useState(false);
-  const requestIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -72,54 +71,46 @@ export function RoomSearchPanel({
   // because it only mounts inside the popover.
   const isExpanded = isMobile || isFocused || open || query !== "";
 
-  const searchMessages = useEffectEvent(async (searchQuery: string) => {
-    const requestId = ++requestIdRef.current;
-    if (!searchQuery) {
-      setResults([]);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
+  const scheduleDebouncedQuery = useDebouncedCallback((nextQuery: string) => {
+    setDebouncedQuery(nextQuery);
+  }, SEARCH_DEBOUNCE_MS);
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  const searchQuery = useQuery({
+    queryKey: ["chat", "room-search", roomId, openSession, debouncedQuery],
+    queryFn: async () => {
       const response = await coreClient.getChatRoomMessages(roomId, {
-        q: searchQuery,
+        q: debouncedQuery,
         limit: SEARCH_PAGE_SIZE,
       });
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-      setResults(response.data);
-      setActiveIndex(0);
-    } catch {
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-      setResults([]);
-      setError(labels.error);
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
+      return response.data;
+    },
+    enabled: open && Boolean(debouncedQuery),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedQuery(query.trim());
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [query]);
+  const results =
+    open && Boolean(debouncedQuery) ? (searchQuery.data ?? []) : [];
+  const isLoading = open && Boolean(debouncedQuery) && searchQuery.isFetching;
+  const error =
+    open && Boolean(debouncedQuery) && searchQuery.isError
+      ? labels.error
+      : null;
+  const currentResultsKey = `${roomId}:${openSession}:${debouncedQuery}`;
+  const activeIndex =
+    activeSelection.key === currentResultsKey ? activeSelection.index : 0;
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    void searchMessages(debouncedQuery);
-  }, [debouncedQuery, open, roomId]);
+  function setActiveIndex(updater: number | ((index: number) => number)) {
+    setActiveSelection((current) => ({
+      key: currentResultsKey,
+      index:
+        typeof updater === "function"
+          ? updater(current.key === currentResultsKey ? current.index : 0)
+          : updater,
+    }));
+  }
 
   function focusField() {
     // On mobile the field only mounts with the popover, so wait a frame.
@@ -181,14 +172,8 @@ export function RoomSearchPanel({
     // query itself does survive, because the field stays on screen and
     // emptying it under the user would look like data loss; reopening
     // re-runs the search from that query.
-    setResults([]);
-    setActiveIndex(0);
-    setError(null);
-    // A surviving query means the next open starts a fetch, so hand the
-    // reopen a loading state. Without it the first frame reads "no matches"
-    // for a query that has hits.
-    setIsLoading(Boolean(debouncedQuery));
-    requestIdRef.current += 1;
+    setOpenSession((session) => session + 1);
+    setActiveSelection({ key: "", index: 0 });
     setOpen(false);
   }
 
@@ -210,6 +195,7 @@ export function RoomSearchPanel({
 
   /** Escape means "clear", wherever focus happens to be when it is pressed. */
   function clearQuery() {
+    scheduleDebouncedQuery.cancel();
     setQuery("");
     setDebouncedQuery("");
   }
@@ -308,20 +294,19 @@ export function RoomSearchPanel({
         value={query}
         onChange={(event) => {
           const nextQuery = event.target.value;
+          const trimmedNextQuery = nextQuery.trim();
           setQuery(nextQuery);
-          if (nextQuery.trim() !== "") {
+          if (trimmedNextQuery !== "") {
+            scheduleDebouncedQuery(trimmedNextQuery);
             setOpen(true);
             return;
           }
           // Hits must not outlive the query, or the next keystroke reopens
           // on the previous fetch. Mobile keeps the popover because the
           // field lives inside it.
+          scheduleDebouncedQuery.cancel();
           setDebouncedQuery("");
-          setResults([]);
-          setActiveIndex(0);
-          setError(null);
-          setIsLoading(false);
-          requestIdRef.current += 1;
+          setActiveSelection({ key: "", index: 0 });
           if (!isMobile) {
             setOpen(false);
           }

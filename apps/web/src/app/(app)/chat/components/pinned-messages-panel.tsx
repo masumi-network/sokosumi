@@ -7,8 +7,13 @@ import type {
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
 import type { ChannelLinkTarget } from "@sokosumi/utils";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Loader2, Pin, PinOff, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { listPinnedMessagesAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -96,17 +101,38 @@ export function PinnedMessagesPanel({
   onJump,
   onUnpin,
 }: PinnedMessagesPanelProps) {
-  const [loadedItems, setItems] = useState<ChatRoomPinnedMessageListItem[]>([]);
+  const queryClient = useQueryClient();
+  const queryKey = ["chat", "pinned-messages", roomId, listGeneration] as const;
   const [unpinningIds, setUnpinningIds] = useState<readonly string[]>([]);
+  const [jumpingMessageId, setJumpingMessageId] = useState<string | null>(null);
+  const { formatTimeAgo } = useLocalizedDateTime();
+
+  const pinnedQuery = useInfiniteQuery({
+    queryKey,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const result = pageParam
+        ? await listPinnedMessagesAction(roomId, { cursor: pageParam })
+        : await listPinnedMessagesAction(roomId);
+      if (!result.ok) {
+        throw new Error(labels.error);
+      }
+      return result.value;
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const loadedItems =
+    pinnedQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const items = loadedItems.filter(
     (item) => !unpinningIds.includes(item.messageId),
   );
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [jumpingMessageId, setJumpingMessageId] = useState<string | null>(null);
-  const { formatTimeAgo } = useLocalizedDateTime();
+  const isLoading = pinnedQuery.isPending;
+  const error = pinnedQuery.isError ? labels.error : null;
 
   // The panel stays up while the window loads, with the tapped row marked, so
   // the tap is seen to do something. It closes only once the message is on
@@ -125,39 +151,6 @@ export function PinnedMessagesPanel({
       );
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
-    setNextCursor(null);
-    void listPinnedMessagesAction(roomId)
-      .then((result) => {
-        if (cancelled) {
-          return;
-        }
-        if (!result.ok) {
-          setError(labels.error);
-          setItems([]);
-          setIsLoading(false);
-          return;
-        }
-        setItems(result.value.items);
-        setNextCursor(result.value.nextCursor);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-        setError(labels.error);
-        setItems([]);
-        setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [labels.error, listGeneration, roomId]);
 
   return (
     <aside
@@ -212,10 +205,23 @@ export function PinnedMessagesPanel({
                   .catch(() => false)
                   .then((removed) => {
                     if (removed) {
-                      setItems((current) =>
-                        current.filter(
-                          (pin) => pin.messageId !== item.messageId,
-                        ),
+                      queryClient.setQueryData<
+                        InfiniteData<{
+                          items: ChatRoomPinnedMessageListItem[];
+                          nextCursor: string | null;
+                        }>
+                      >(queryKey, (current) =>
+                        current
+                          ? {
+                              ...current,
+                              pages: current.pages.map((page) => ({
+                                ...page,
+                                items: page.items.filter(
+                                  (pin) => pin.messageId !== item.messageId,
+                                ),
+                              })),
+                            }
+                          : current,
                       );
                     }
                     setUnpinningIds((current) =>
@@ -321,31 +327,14 @@ export function PinnedMessagesPanel({
             </div>
           );
         })}
-        {nextCursor ? (
+        {pinnedQuery.hasNextPage ? (
           <Button
             type="button"
             variant="ghost"
             className="w-full"
-            disabled={isLoadingOlder}
+            disabled={pinnedQuery.isFetchingNextPage}
             onClick={() => {
-              void (async () => {
-                setIsLoadingOlder(true);
-                try {
-                  const result = await listPinnedMessagesAction(roomId, {
-                    cursor: nextCursor,
-                  });
-                  if (!result.ok) {
-                    setError(labels.error);
-                    return;
-                  }
-                  setItems((current) => [...current, ...result.value.items]);
-                  setNextCursor(result.value.nextCursor);
-                } catch {
-                  setError(labels.error);
-                } finally {
-                  setIsLoadingOlder(false);
-                }
-              })();
+              void pinnedQuery.fetchNextPage();
             }}
           >
             {labels.loadOlder}

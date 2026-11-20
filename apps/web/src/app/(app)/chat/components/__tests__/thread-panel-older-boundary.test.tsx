@@ -2,6 +2,7 @@ import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode, Ref } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import type { RoomComposerHandle } from "../room-composer";
 import { ThreadPanel } from "../thread-panel";
@@ -142,6 +143,7 @@ function renderThreadPanel(
       onToggleReaction={() => undefined}
       roomId="room-1"
     />,
+    { wrapper: TestQueryProvider },
   );
 }
 

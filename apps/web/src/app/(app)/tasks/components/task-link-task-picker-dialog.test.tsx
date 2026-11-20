@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { ListTree } from "lucide-react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 import { TaskLinkTaskPickerDialog } from "./task-link-task-picker-dialog";
 
 vi.mock("next-intl", () => ({
@@ -46,7 +47,9 @@ describe("TaskLinkTaskPickerDialog", () => {
       event.preventDefault();
       screen.getByRole("button", { name: "Actions", hidden: true }).focus();
     };
-    const { rerender } = render(picker(true, focusActions));
+    const { rerender } = render(picker(true, focusActions), {
+      wrapper: TestQueryProvider,
+    });
     await screen.findByRole("dialog");
 
     rerender(picker(false, focusActions));
@@ -57,7 +60,10 @@ describe("TaskLinkTaskPickerDialog", () => {
   });
 
   it("shows the picker's title and what picking does", async () => {
-    render(picker(true, () => {}));
+    render(
+      picker(true, () => {}),
+      { wrapper: TestQueryProvider },
+    );
 
     const heading = await screen.findByRole("heading", {
       name: "Move under a task",

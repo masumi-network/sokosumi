@@ -8,6 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 import { ThreadListPanel } from "./thread-list-panel";
 
 const listThreadsActionMock = vi.fn();
@@ -130,6 +131,7 @@ function renderPanel(
       onClose={options.onClose ?? vi.fn()}
       onAllThreadsLooked={options.onAllThreadsLooked}
     />,
+    { wrapper: TestQueryProvider },
   );
 }
 

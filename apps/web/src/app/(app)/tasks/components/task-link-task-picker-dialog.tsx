@@ -4,10 +4,12 @@ import type {
   GetTasksResponse,
   UserWritableTaskLinkRelation,
 } from "@sokosumi/core-client";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { Link2, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useState } from "react";
+import { useDebounce } from "use-debounce";
 import {
   CommandDialog,
   CommandEmpty,
@@ -93,122 +95,58 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
 }: TaskPickerBodyProps<TOption>) {
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const [taskPickerQuery, setTaskPickerQuery] = useState("");
-  const [debouncedTaskPickerQuery, setDebouncedTaskPickerQuery] = useState("");
-  const [taskPickerResults, setTaskPickerResults] = useState<TaskPickerTask[]>(
-    [],
-  );
-  const [taskPickerNextCursor, setTaskPickerNextCursor] = useState<
-    string | null
-  >(null);
-  const [taskPickerError, setTaskPickerError] = useState<string | null>(null);
-  const [isTaskPickerLoading, setIsTaskPickerLoading] = useState(false);
-  const [isTaskPickerLoadingMore, setIsTaskPickerLoadingMore] = useState(false);
-  const taskPickerRequestIdRef = useRef(0);
+  const [debouncedTaskPickerQuery] = useDebounce(taskPickerQuery.trim(), 250);
+  const includeSubtasks = Boolean(selectedOption?.includeSubtasks);
 
-  const loadTaskPickerTasks = useEffectEvent(
-    async ({
-      query,
-      cursor,
-      append,
-    }: {
-      query: string;
-      cursor?: string | null;
-      append: boolean;
-    }) => {
-      const requestId = ++taskPickerRequestIdRef.current;
+  const tasksQuery = useInfiniteQuery({
+    queryKey: [
+      "tasks",
+      "link-picker",
+      taskId,
+      includeSubtasks,
+      debouncedTaskPickerQuery,
+    ],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) =>
+      (await coreClient.getTasks({
+        q: debouncedTaskPickerQuery || undefined,
+        cursor: pageParam,
+        limit: TASK_PICKER_PAGE_SIZE,
+        ...(includeSubtasks ? { includeSubtasks: "true" as const } : {}),
+      })) as GetTasksResponse,
+    getNextPageParam: (lastPage) =>
+      lastPage.meta?.pagination?.nextCursor ?? undefined,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
-      if (append) {
-        setIsTaskPickerLoadingMore(true);
-      } else {
-        setIsTaskPickerLoading(true);
-      }
-
-      setTaskPickerError(null);
-
-      try {
-        const response = (await coreClient.getTasks({
-          q: query || undefined,
-          cursor: cursor ?? undefined,
-          limit: TASK_PICKER_PAGE_SIZE,
-          ...(selectedOption?.includeSubtasks
-            ? { includeSubtasks: "true" as const }
-            : {}),
-        })) as GetTasksResponse;
-
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        const nextTasks = response.data
-          .map(mapTaskListItemToTaskPickerTask)
-          .filter(
-            (taskOption) =>
-              taskOption.id !== taskId &&
-              !excludeTaskIds.includes(taskOption.id),
-          );
-
-        setTaskPickerResults((currentResults) =>
-          append ? [...currentResults, ...nextTasks] : nextTasks,
-        );
-        setTaskPickerNextCursor(response.meta?.pagination?.nextCursor ?? null);
-      } catch (_error) {
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        const message = append
-          ? tDetailActions("taskPickerLoadMoreError")
-          : tDetailActions("taskPickerError");
-
-        if (!append) {
-          setTaskPickerResults([]);
-          setTaskPickerNextCursor(null);
-        }
-
-        setTaskPickerError(message);
-      } finally {
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        if (append) {
-          setIsTaskPickerLoadingMore(false);
-        } else {
-          setIsTaskPickerLoading(false);
-        }
-      }
-    },
-  );
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedTaskPickerQuery(taskPickerQuery.trim());
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [taskPickerQuery]);
-
-  useEffect(() => {
-    void loadTaskPickerTasks({
-      query: debouncedTaskPickerQuery,
-      append: false,
-    });
-  }, [debouncedTaskPickerQuery]);
+  const taskPickerResults: TaskPickerTask[] = (tasksQuery.data?.pages ?? [])
+    .flatMap((page) => page.data)
+    .map(mapTaskListItemToTaskPickerTask)
+    .filter(
+      (taskOption) =>
+        taskOption.id !== taskId && !excludeTaskIds.includes(taskOption.id),
+    );
+  const isTaskPickerLoading = tasksQuery.isPending;
+  const isTaskPickerLoadingMore = tasksQuery.isFetchingNextPage;
+  const taskPickerError = tasksQuery.isFetchNextPageError
+    ? tDetailActions("taskPickerLoadMoreError")
+    : tasksQuery.isError
+      ? tDetailActions("taskPickerError")
+      : null;
 
   function handleLoadMoreTaskOptions() {
     if (
-      !taskPickerNextCursor ||
+      !tasksQuery.hasNextPage ||
       isTaskPickerLoadingMore ||
       isTaskPickerLoading
     ) {
       return;
     }
 
-    void loadTaskPickerTasks({
-      query: debouncedTaskPickerQuery,
-      cursor: taskPickerNextCursor,
-      append: true,
-    });
+    void tasksQuery.fetchNextPage();
   }
 
   return (
@@ -268,7 +206,7 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
           </div>
         ) : null}
 
-        {taskPickerNextCursor ? (
+        {tasksQuery.hasNextPage ? (
           <CommandItem
             value="load-more"
             disabled={isTaskPickerLoadingMore || isTaskPickerLoading}

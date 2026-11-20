@@ -1,15 +1,10 @@
 "use client";
 
 import { TaskStatus } from "@sokosumi/core-client";
+import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import { toast } from "sonner";
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import { taskHref } from "@/app/tasks/utils/task-href";
@@ -274,8 +269,32 @@ export function CreateTaskModal({
   // Bumped to remount the form with a clean slate for "Create another task".
   const [resetKey, setResetKey] = useState(0);
   const ownsCreateData = agentNameByIdProp !== undefined;
-  const [loadedCreateData, setLoadedCreateData] =
-    useState<LoadedCreateData | null>(null);
+  const shouldLoadCreateData =
+    !ownsCreateData && !isLoadingOptions && (open || initialCreateTaskOpen);
+
+  const createDataQuery = useQuery<LoadedCreateData>({
+    queryKey: ["tasks", "create-modal-data"],
+    queryFn: async () => {
+      try {
+        const data = await loadCreateTaskModalData();
+        return {
+          agentNameById: new Map(Object.entries(data.agentNameById)),
+          designMdAttachment: data.designMdAttachment,
+          projectOptions: data.projectOptions,
+        };
+      } catch (error) {
+        toast.error(tTasksErrors("loadCreateTask"));
+        throw error;
+      }
+    },
+    enabled: shouldLoadCreateData,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const loadedCreateData = createDataQuery.data ?? null;
   const agentNameById = agentNameByIdProp ?? loadedCreateData?.agentNameById;
   const initialDesignMdAttachment =
     initialDesignMdAttachmentProp ??
@@ -285,38 +304,6 @@ export function CreateTaskModal({
     projectOptions ?? loadedCreateData?.projectOptions;
   const selectedProjectId =
     projectOverrideId !== undefined ? projectOverrideId : defaultProjectId;
-
-  useEffect(() => {
-    if (ownsCreateData || isLoadingOptions) return;
-    if (!open && !initialCreateTaskOpen) return;
-    if (loadedCreateData) return;
-
-    let cancelled = false;
-    void loadCreateTaskModalData()
-      .then((data) => {
-        if (cancelled) return;
-        setLoadedCreateData({
-          agentNameById: new Map(Object.entries(data.agentNameById)),
-          designMdAttachment: data.designMdAttachment,
-          projectOptions: data.projectOptions,
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        toast.error(tTasksErrors("loadCreateTask"));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    initialCreateTaskOpen,
-    isLoadingOptions,
-    loadedCreateData,
-    open,
-    ownsCreateData,
-    tTasksErrors,
-  ]);
 
   const stripCreateTaskSearchParams = useCallback(() => {
     if (typeof window === "undefined") return;

@@ -2,6 +2,7 @@ import type { ChatRoom, Member } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 import { CreateChannelDialog } from "./create-channel-dialog";
 
 const {
@@ -98,7 +99,7 @@ describe("CreateChannelDialog", () => {
 
   it("opens in place without navigating", async () => {
     const user = userEvent.setup();
-    render(<CreateChannelDialog />);
+    render(<CreateChannelDialog />, { wrapper: TestQueryProvider });
 
     expect(screen.queryByRole("link")).toBeNull();
     await user.click(screen.getByRole("button", { name: "createChannel" }));
@@ -112,7 +113,7 @@ describe("CreateChannelDialog", () => {
       error: { code: "INTERNAL_SERVER_ERROR", message: "Roster down" },
     });
     const user = userEvent.setup();
-    render(<CreateChannelDialog />);
+    render(<CreateChannelDialog />, { wrapper: TestQueryProvider });
 
     await user.click(screen.getByRole("button", { name: "createChannel" }));
     await screen.findByText("Empty.rosterLoadFailedTitle");
@@ -134,7 +135,7 @@ describe("CreateChannelDialog", () => {
       },
     });
     const user = userEvent.setup();
-    render(<CreateChannelDialog />);
+    render(<CreateChannelDialog />, { wrapper: TestQueryProvider });
 
     await user.click(screen.getByRole("button", { name: "createChannel" }));
     await screen.findByText("Empty.membersLoadFailedTitle");
@@ -164,7 +165,7 @@ describe("CreateChannelDialog", () => {
 
   it("creates a channel in place, then opens the room", async () => {
     const user = userEvent.setup();
-    render(<CreateChannelDialog />);
+    render(<CreateChannelDialog />, { wrapper: TestQueryProvider });
 
     await user.click(screen.getByRole("button", { name: "createChannel" }));
     await screen.findByLabelText("slugLabel");
