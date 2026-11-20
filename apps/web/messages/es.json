@@ -11440,6 +11440,8 @@
         "week": "Semana",
         "agenda": "Agenda"
       },
+      "showAndFilter": "Mostrar y filtrar",
+      "activeFilters": "{count, plural, one {# filtro activo} other {# filtros activos}}",
       "show": {
         "label": "Mostrar",
         "tasks": "Tareas",

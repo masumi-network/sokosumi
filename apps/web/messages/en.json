@@ -11440,6 +11440,8 @@
         "week": "Week",
         "agenda": "Agenda"
       },
+      "showAndFilter": "Show & filter",
+      "activeFilters": "{count, plural, one {# active filter} other {# active filters}}",
       "show": {
         "label": "Show",
         "tasks": "Tasks",

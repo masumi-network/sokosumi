@@ -74,7 +74,7 @@ export default async function CalendarPage({
           currentUserId={page.currentUserId}
           initialDate={page.initialDate}
           items={items}
-          key={page.calendarKey}
+          calendarKey={page.calendarKey}
           latestDate={page.latestDate}
           newsletterEnabled={page.newsletterEnabled}
           pagination={page.pagination}

@@ -84,11 +84,7 @@ import {
   TASK_SCHEDULES_PATH,
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
-import {
-  FilterDropdownMenu,
-  type FilterDropdownMenuSection,
-} from "@/components/common/filter-dropdown-menu";
-import { PageSearchActions } from "@/components/page-search-actions";
+import { type FilterDropdownMenuSection } from "@/components/common/filter-dropdown-menu";
 import {
   SOCIAL_POST_PROVIDERS,
   socialPlatformFilterSection,
@@ -116,7 +112,10 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
-import { CalendarShowFilter } from "./calendar-show-filter";
+import {
+  type CalendarFilterSurface,
+  CalendarFilters,
+} from "./calendar-filters";
 import {
   type BotRunHandlers,
   type ChangeableBotRun,
@@ -1034,6 +1033,24 @@ function CalendarView({
 }
 
 export function WorkspaceCalendar({
+  calendarKey,
+  ...props
+}: WorkspaceCalendarProps & { calendarKey?: string }) {
+  // Choosing features reloads the data scope. Keep its open controls across that remount.
+  const [surface, setSurface] = useState<CalendarFilterSurface>(null);
+  return (
+    <WorkspaceCalendarView
+      key={calendarKey}
+      {...props}
+      surface={surface}
+      setSurface={setSurface}
+    />
+  );
+}
+
+function WorkspaceCalendarView({
+  surface,
+  setSurface,
   searchField,
   activeOrganizationId = null,
   currentUserId = null,
@@ -1049,7 +1066,10 @@ export function WorkspaceCalendar({
   workspaceId = null,
   types,
   newsletterEnabled = false,
-}: WorkspaceCalendarProps) {
+}: WorkspaceCalendarProps & {
+  surface: CalendarFilterSurface;
+  setSurface: (next: CalendarFilterSurface) => void;
+}) {
   const t = useTranslations("App.Calendar");
   const locale = useLocale();
   const tFilters = useTranslations("App.Tasks.Filters");
@@ -1701,82 +1721,80 @@ export function WorkspaceCalendar({
           className={cn(
             "ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between",
             socialOnly && "max-md:order-1 max-md:w-full max-md:justify-between",
+            searchField && "max-sm:justify-end",
           )}
         >
-          <ToggleGroup
-            type="single"
-            aria-label={t("view.label")}
-            value={view}
-            onValueChange={(value) => {
-              const nextView = views.find((candidate) => candidate === value);
-              if (nextView) {
-                handleViewChange(nextView);
-              }
-            }}
-            className={cn(
-              "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
-              socialOnly && "min-h-11 md:min-h-8",
-            )}
-            data-testid="calendar-views"
+          <div
+            className={
+              searchField
+                ? "flex w-full min-w-0 max-w-full flex-wrap items-center justify-end gap-2 @2xl/page-toolbar:w-auto"
+                : "contents"
+            }
           >
-            {views.map((calendarView) => (
-              <ToggleGroupItem
-                className={cn(
-                  "max-sm:px-1.5 max-sm:text-xs",
-                  socialOnly && "min-h-11 shrink-0 md:min-h-8",
-                )}
-                key={calendarView}
-                value={calendarView}
-              >
-                {t(`view.${calendarView}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <PageSearchActions className={searchField ? undefined : "contents"}>
             {searchField}
-            {types ? null : (
-              <CalendarShowFilter
-                available={availableTypes}
-                selected={shownTypes}
-                onChange={handleTypesChange}
-              />
-            )}
-            {lockedProjectId && !socialOnly ? (
-              <Button asChild size="sm" variant="outline">
-                <Link
-                  href={`${TASK_SCHEDULES_PATH}?projectId=${encodeURIComponent(lockedProjectId)}`}
-                >
-                  <Repeat aria-hidden className="size-4" />
-                  {t("schedules.link")}
-                </Link>
-              </Button>
-            ) : null}
-            <div>
-              <FilterDropdownMenu
-                buttonLabel={tFilters("title")}
-                emptyResultsLabel={tFilters("emptyResults")}
-                searchPlaceholder={tFilters("searchPlaceholder")}
-                sections={filterSections}
-                triggerClassName={
-                  socialOnly
-                    ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
-                    : undefined
+            <ToggleGroup
+              type="single"
+              aria-label={t("view.label")}
+              value={view}
+              onValueChange={(value) => {
+                const nextView = views.find((candidate) => candidate === value);
+                if (nextView) {
+                  handleViewChange(nextView);
                 }
-                showActiveIndicator={filtersActive}
-              />
-            </div>
-            {canCreate ? (
-              // Phones have the + button; a day click is pointer-only.
-              <Button
-                className="max-md:hidden"
-                type="button"
-                onClick={handleAgendaCreate}
+              }}
+              className={cn(
+                "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                socialOnly && "min-h-11 md:min-h-8",
+              )}
+              data-testid="calendar-views"
+            >
+              {views.map((calendarView) => (
+                <ToggleGroupItem
+                  className={cn(
+                    "max-sm:px-1.5 max-sm:text-xs",
+                    socialOnly && "min-h-11 shrink-0 md:min-h-8",
+                  )}
+                  key={calendarView}
+                  value={calendarView}
+                >
+                  {t(`view.${calendarView}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+          {lockedProjectId && !socialOnly ? (
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href={`${TASK_SCHEDULES_PATH}?projectId=${encodeURIComponent(lockedProjectId)}`}
               >
-                <Plus aria-hidden />
-                {t("create.fab")}
-              </Button>
-            ) : null}
-          </PageSearchActions>
+                <Repeat aria-hidden className="size-4" />
+                {t("schedules.link")}
+              </Link>
+            </Button>
+          ) : null}
+          <div>
+            <CalendarFilters
+              available={availableTypes}
+              selected={shownTypes}
+              onChange={types ? undefined : handleTypesChange}
+              sections={filterSections}
+              filtersActive={filtersActive}
+              socialOnly={socialOnly}
+              surface={surface}
+              setSurface={setSurface}
+            />
+          </div>
+          {canCreate ? (
+            // Phones have the + button; a day click is pointer-only.
+            <Button
+              className="max-md:hidden"
+              type="button"
+              onClick={handleAgendaCreate}
+            >
+              <Plus aria-hidden />
+              {t("create.fab")}
+            </Button>
+          ) : null}
         </div>
       </div>
       {canCreate ? (
