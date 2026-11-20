@@ -58,7 +58,7 @@ function Metrics({
 }) {
   const t = useSeoResultTranslations("App.Seo.pageSpeed");
   return (
-    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-lg bg-muted/50 p-4 sm:grid-cols-3 lg:grid-cols-5">
+    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-lg bg-muted p-4 sm:grid-cols-3 lg:grid-cols-5">
       {keys.map((key) => {
         const value = values[key];
         return value == null ? null : (

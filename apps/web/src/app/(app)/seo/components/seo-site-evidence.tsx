@@ -47,7 +47,7 @@ export function SeoSiteEvidence({
       )}
       {evidence.coverage && (
         <div className="space-y-3">
-          <dl className="grid grid-cols-3 gap-3 rounded-lg bg-muted/50 px-4 py-3">
+          <dl className="grid grid-cols-3 gap-3 rounded-lg bg-muted px-4 py-3">
             {(
               [
                 ["eligible", evidence.coverage.discovered],
@@ -148,7 +148,7 @@ function TargetList({
                 )}
               </span>
             </SeoFoldSummary>
-            <div className="space-y-3 rounded-md bg-muted/40 p-4">
+            <div className="space-y-3 rounded-md bg-muted p-4">
               <SeoPageLink url={target.targetUrl} />
               <p className="font-medium">{target.action}</p>
 
