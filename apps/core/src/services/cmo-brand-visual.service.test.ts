@@ -103,6 +103,37 @@ describe("the brand's logo files", () => {
     ]);
   });
 
+  // Sites often paint a header logo white with CSS on a dark hero; the
+  // DESIGN.md then names that white file as the logo for a light page.
+  const WHITE_WORDMARK = WORDMARK.replace('fill="#000"', 'fill="white"');
+  const logoOnly = (srcDark?: string) =>
+    [
+      "---",
+      "name: Acme",
+      "logo:",
+      "  src: https://acme.io/logo.svg",
+      ...(srcDark ? [`  srcDark: ${srcDark}`] : []),
+      "---",
+    ].join("\n");
+
+  it("keeps a white-only logo as the version for a dark background", async () => {
+    mocks.fetch.mockImplementation(async () => new Response(WHITE_WORDMARK));
+    expect(await saveCmoBrandLogo(cuso, logoOnly())).toBe(1);
+    expect(mocks.save.mock.calls.map(([, target]) => target)).toEqual([
+      { folder: "Brand research/Logo", filename: "logo-dark.png" },
+    ]);
+  });
+
+  it("drops a white-only logo when the DESIGN.md names a dark version too", async () => {
+    mocks.fetch.mockImplementation(async () => new Response(WHITE_WORDMARK));
+    expect(
+      await saveCmoBrandLogo(cuso, logoOnly("https://acme.io/logo-white.svg")),
+    ).toBe(1);
+    expect(mocks.save.mock.calls.map(([, target]) => target)).toEqual([
+      { folder: "Brand research/Logo", filename: "logo-dark.png" },
+    ]);
+  });
+
   it("saves nothing for a DESIGN.md without a logo", async () => {
     expect(await saveCmoBrandLogo(cuso, "---\nname: Acme\n---\n")).toBe(0);
     expect(mocks.fetch).not.toHaveBeenCalled();
