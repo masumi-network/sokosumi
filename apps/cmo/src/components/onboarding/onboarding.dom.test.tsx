@@ -1112,6 +1112,33 @@ const active = {
   personalProfile: false,
 };
 
+it("brings a failed connection's reason into view, below the networks", async () => {
+  const scrolled = vi.fn();
+  const original = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = scrolled;
+  await act(async () =>
+    root.render(
+      <LaunchStep
+        overview={draft({ ...cmoStrategyVersion(new Date()), channels: [] })}
+        onConnect={async () => ({
+          url: null,
+          error: "Could not start connecting",
+        })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
+        onGoToday={() => {}}
+      />,
+    ),
+  );
+  expect(scrolled).not.toHaveBeenCalled();
+  await press("Connect");
+  const alert = container.querySelector('[role="alert"]');
+  expect(alert?.textContent).toBe("Could not start connecting");
+  expect(scrolled.mock.contexts).toContain(alert);
+  Element.prototype.scrollIntoView = original;
+});
+
 it("celebrates on Launch without a failure in between, then opens the app on Go to Today", async () => {
   const goToday = vi.fn();
   await act(async () =>
