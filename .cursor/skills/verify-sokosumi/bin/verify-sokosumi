@@ -79,6 +79,7 @@ Commands:
   sign-in             Authenticate into agent-browser (VERIFY_* / fixtures, then coworker vault).
   cleanup             Stop processes started by launch (keeps proof artifacts).
   core-smoke          GET Core OpenAPI JSON; exit 0 if HTTP 200.
+  self-check          Run offline assertions on browser engine and argument helpers.
 
 sign-in options:
   --email <email>       default alice@sokosumi.test (or VERIFY_SOKOSUMI_EMAIL)
@@ -97,7 +98,10 @@ Env overrides:
   AGENT_BROWSER_SESSION_NAME  preferred: sokosumi (session cookie reuse)
   AGENT_BROWSER_SESSION        agent-browser 0.35+ session id; harness aliases
                                SESSION_NAME → SESSION when SESSION is unset
-  AGENT_BROWSER_ARGS  Chrome flags; HTTPS named URLs auto-add --ignore-certificate-errors
+  AGENT_BROWSER_ENGINE  default: chrome (overrides ~/.agent-browser/config.json lightpanda);
+                        explicit non-chrome engines skip AGENT_BROWSER_ARGS
+  AGENT_BROWSER_ARGS    comma- or newline-separated Chrome flags; HTTPS URLs auto-add
+                        --ignore-certificate-errors, and restricted Linux auto-adds --no-sandbox
 EOF
 }
 
@@ -412,27 +416,103 @@ function fixture_probe() {
   return 1
 }
 
-function ensure_agent_browser_tls_args() {
-  # Chromium on Linux cloud VMs often ignores the portless system CA, so
-  # https://*.sokosumi.localhost fails with ERR_CERT_AUTHORITY_INVALID.
-  # Default AGENT_BROWSER_ARGS for HTTPS drives (portless named URLs).
+function agent_browser_args_has() {
+  # agent-browser splits AGENT_BROWSER_ARGS on newlines or commas before a flag,
+  # never on spaces. Check exact token match across both delimiters.
+  local flag="$1"
+  local normalized="${AGENT_BROWSER_ARGS:-}"
+  normalized="${normalized//$'\r'/}"
+  normalized="${normalized//$'\n'/,}"
+  case ",${normalized}," in
+    *,"${flag}",*) return 0 ;;
+  esac
+  return 1
+}
+
+function append_agent_browser_arg() {
+  local flag="$1"
+  if agent_browser_args_has "$flag"; then
+    return 0
+  fi
+  if [[ -n "${AGENT_BROWSER_ARGS:-}" ]]; then
+    local trimmed="${AGENT_BROWSER_ARGS%"${AGENT_BROWSER_ARGS##*[![:space:],]}"}"
+    if [[ -n "$trimmed" ]]; then
+      export AGENT_BROWSER_ARGS="${trimmed},${flag}"
+    else
+      export AGENT_BROWSER_ARGS="$flag"
+    fi
+  else
+    export AGENT_BROWSER_ARGS="$flag"
+  fi
+}
+
+function linux_needs_chrome_no_sandbox() {
+  # Cheap Linux check for environments where agent-browser's downloaded Chrome
+  # dies with "No usable sandbox!" (root, Ubuntu 23.10+ AppArmor userns
+  # restriction whose /etc/apparmor.d/chrome only covers /opt/google/chrome/chrome,
+  # disabled unprivileged_userns_clone, or container seccomp blocking unshare).
+  local os="${_VERIFY_OS:-$(uname -s)}"
+  [[ "$os" == "Linux" ]] || return 1
+
+  local uid="${_VERIFY_UID:-$(id -u)}"
+  if [[ "$uid" -eq 0 ]]; then
+    return 0
+  fi
+
+  local apparmor_sysctl="${_VERIFY_APPARMOR_USERNS_FILE:-/proc/sys/kernel/apparmor_restrict_unprivileged_userns}"
+  if [[ -r "$apparmor_sysctl" ]] && [[ "$(cat "$apparmor_sysctl" 2>/dev/null || true)" == "1" ]]; then
+    return 0
+  fi
+
+  local clone_sysctl="${_VERIFY_USERNS_CLONE_FILE:-/proc/sys/kernel/unprivileged_userns_clone}"
+  if [[ -r "$clone_sysctl" ]] && [[ "$(cat "$clone_sysctl" 2>/dev/null || true)" == "0" ]]; then
+    return 0
+  fi
+
+  if [[ -n "${_VERIFY_UNSHARE_USER_OK:-}" ]]; then
+    [[ "$_VERIFY_UNSHARE_USER_OK" == "0" ]] && return 0
+    return 1
+  fi
+  if command -v unshare >/dev/null 2>&1 && ! unshare --user true >/dev/null 2>&1; then
+    return 0
+  fi
+
+  return 1
+}
+
+function ensure_agent_browser_args() {
+  # Default to Chrome when AGENT_BROWSER_ENGINE is unset: ~/.agent-browser/config.json
+  # may select Lightpanda, which rejects Chrome --args, has no layout/CSS for proof
+  # screenshots, and cannot complete the Turnstile-backed /signin UI flow.
+  # Respect an explicit non-chrome AGENT_BROWSER_ENGINE override without injecting
+  # Chrome --args (use AGENT_BROWSER_IGNORE_HTTPS_ERRORS=1 for HTTPS instead).
+  export AGENT_BROWSER_ENGINE="${AGENT_BROWSER_ENGINE:-chrome}"
+
   local url="${WEB_URL:-${VERIFY_SOKOSUMI_WEB_URL:-}}"
   if [[ -z "$url" && -f "$PID_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$PID_FILE"
     url="${web_url:-}"
   fi
+  local needs_https_ignore=0
   if [[ "$url" == https://* ]] || [[ -z "$url" ]]; then
-    case " ${AGENT_BROWSER_ARGS:-} " in
-      *" --ignore-certificate-errors "*) ;;
-      *)
-        if [[ -n "${AGENT_BROWSER_ARGS:-}" ]]; then
-          export AGENT_BROWSER_ARGS="${AGENT_BROWSER_ARGS} --ignore-certificate-errors"
-        else
-          export AGENT_BROWSER_ARGS="--ignore-certificate-errors"
-        fi
-        ;;
-    esac
+    needs_https_ignore=1
+  fi
+
+  if [[ "$AGENT_BROWSER_ENGINE" != "chrome" ]]; then
+    if [[ "$needs_https_ignore" -eq 1 && -z "${AGENT_BROWSER_IGNORE_HTTPS_ERRORS:-}" ]]; then
+      export AGENT_BROWSER_IGNORE_HTTPS_ERRORS=1
+    fi
+    return 0
+  fi
+
+  # Chromium on Linux cloud VMs often ignores the portless system CA, so
+  # https://*.sokosumi.localhost fails with ERR_CERT_AUTHORITY_INVALID.
+  if [[ "$needs_https_ignore" -eq 1 ]]; then
+    append_agent_browser_arg "--ignore-certificate-errors"
+  fi
+  if linux_needs_chrome_no_sandbox; then
+    append_agent_browser_arg "--no-sandbox"
   fi
 }
 
@@ -452,7 +532,7 @@ function require_agent_browser() {
     echo "Cloud Agent fallback: computer-use with the same auth rules (see SKILL.md)." >&2
     return 1
   fi
-  ensure_agent_browser_tls_args
+  ensure_agent_browser_args
   ensure_agent_browser_session
   return 0
 }
@@ -998,7 +1078,12 @@ function doctor() {
 
   if command -v agent-browser >/dev/null 2>&1; then
     echo "agent_browser=$(command -v agent-browser)"
+    ensure_agent_browser_args
     ensure_agent_browser_session
+    echo "agent_browser_engine=${AGENT_BROWSER_ENGINE}"
+    if [[ -n "${AGENT_BROWSER_ARGS:-}" ]]; then
+      echo "agent_browser_args=${AGENT_BROWSER_ARGS}"
+    fi
     echo "agent_browser_session=${AGENT_BROWSER_SESSION}"
     local vp ve
     vp="$(vault_profile)"
@@ -1042,6 +1127,131 @@ function core_smoke() {
   [[ "$code" =~ ^[23] ]]
 }
 
+function self_check() {
+  local tmp failed=0 count=0
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "${tmp:-}"' RETURN
+
+  local f_zero="$tmp/zero" f_one="$tmp/one" f_missing="$tmp/missing"
+  printf '0\n' >"$f_zero"
+  printf '1\n' >"$f_one"
+
+  function _assert_eq() {
+    local label="$1" actual="$2" expected="$3"
+    count=$((count + 1))
+    if [[ "$actual" != "$expected" ]]; then
+      echo "FAIL [$label]: expected '$expected', got '$actual'" >&2
+      failed=$((failed + 1))
+    fi
+  }
+
+  local out
+  # 1. Default engine (unset) + HTTPS + Linux AppArmor → chrome + comma-joined TLS + no-sandbox
+  out="$(
+    unset AGENT_BROWSER_ENGINE AGENT_BROWSER_ARGS AGENT_BROWSER_IGNORE_HTTPS_ERRORS
+    WEB_URL="https://web.sokosumi.localhost"
+    _VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_one" \
+      _VERIFY_USERNS_CLONE_FILE="$f_one" _VERIFY_UNSHARE_USER_OK=1 \
+      ensure_agent_browser_args
+    printf '%s|%s|%s' "${AGENT_BROWSER_ENGINE:-}" "${AGENT_BROWSER_ARGS:-}" "${AGENT_BROWSER_IGNORE_HTTPS_ERRORS:-}"
+  )"
+  _assert_eq "default-linux-apparmor" "$out" "chrome|--ignore-certificate-errors,--no-sandbox|"
+
+  # 2. Chrome + existing --no-sandbox + HTTPS + Linux AppArmor → comma-joined, no duplicate
+  out="$(
+    unset AGENT_BROWSER_IGNORE_HTTPS_ERRORS
+    export AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--no-sandbox"
+    WEB_URL="https://web.sokosumi.localhost"
+    _VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_one" \
+      _VERIFY_USERNS_CLONE_FILE="$f_one" _VERIFY_UNSHARE_USER_OK=1 \
+      ensure_agent_browser_args
+    printf '%s|%s' "${AGENT_BROWSER_ENGINE:-}" "${AGENT_BROWSER_ARGS:-}"
+  )"
+  _assert_eq "chrome-comma-join-dedup" "$out" "chrome|--no-sandbox,--ignore-certificate-errors"
+
+  # 3. Value containing commas preserved + macOS skips --no-sandbox
+  out="$(
+    export AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--disable-features=Translate,HttpsUpgrades"
+    WEB_URL="https://web.sokosumi.localhost"
+    _VERIFY_OS=Darwin ensure_agent_browser_args
+    printf '%s' "${AGENT_BROWSER_ARGS:-}"
+  )"
+  _assert_eq "preserve-value-commas-macos" "$out" "--disable-features=Translate,HttpsUpgrades,--ignore-certificate-errors"
+
+  # 4. Newline-separated existing args deduplicate cleanly
+  out="$(
+    export AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS=$'--no-sandbox\n--ignore-certificate-errors'
+    WEB_URL="https://web.sokosumi.localhost"
+    _VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_one" \
+      _VERIFY_USERNS_CLONE_FILE="$f_one" _VERIFY_UNSHARE_USER_OK=1 \
+      ensure_agent_browser_args
+    printf '%s' "${AGENT_BROWSER_ARGS:-}"
+  )"
+  _assert_eq "newline-dedup" "$out" $'--no-sandbox\n--ignore-certificate-errors'
+
+  # 5. Prefix-similar flag does not block appending --ignore-certificate-errors
+  out="$(
+    export AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--ignore-certificate-errors-spki-list=abc"
+    WEB_URL="https://web.sokosumi.localhost"
+    _VERIFY_OS=Darwin ensure_agent_browser_args
+    printf '%s' "${AGENT_BROWSER_ARGS:-}"
+  )"
+  _assert_eq "no-prefix-collision" "$out" "--ignore-certificate-errors-spki-list=abc,--ignore-certificate-errors"
+
+  # 6. Explicit lightpanda skips AGENT_BROWSER_ARGS and sets AGENT_BROWSER_IGNORE_HTTPS_ERRORS=1
+  out="$(
+    unset AGENT_BROWSER_ARGS AGENT_BROWSER_IGNORE_HTTPS_ERRORS
+    export AGENT_BROWSER_ENGINE=lightpanda
+    WEB_URL="https://web.sokosumi.localhost"
+    _VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_one" \
+      _VERIFY_USERNS_CLONE_FILE="$f_one" _VERIFY_UNSHARE_USER_OK=1 \
+      ensure_agent_browser_args
+    printf '%s|%s|%s' "${AGENT_BROWSER_ENGINE:-}" "${AGENT_BROWSER_ARGS:-}" "${AGENT_BROWSER_IGNORE_HTTPS_ERRORS:-}"
+  )"
+  _assert_eq "explicit-lightpanda-no-args" "$out" "lightpanda||1"
+
+  # 7. Explicit obscura skips AGENT_BROWSER_ARGS and sets AGENT_BROWSER_IGNORE_HTTPS_ERRORS=1
+  out="$(
+    unset AGENT_BROWSER_ARGS AGENT_BROWSER_IGNORE_HTTPS_ERRORS
+    export AGENT_BROWSER_ENGINE=obscura
+    WEB_URL="https://web.sokosumi.localhost"
+    _VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_one" \
+      _VERIFY_USERNS_CLONE_FILE="$f_one" _VERIFY_UNSHARE_USER_OK=1 \
+      ensure_agent_browser_args
+    printf '%s|%s|%s' "${AGENT_BROWSER_ENGINE:-}" "${AGENT_BROWSER_ARGS:-}" "${AGENT_BROWSER_IGNORE_HTTPS_ERRORS:-}"
+  )"
+  _assert_eq "explicit-obscura-no-args" "$out" "obscura||1"
+
+  # 8. Plain HTTP on unrestricted Linux adds neither flag
+  out="$(
+    unset AGENT_BROWSER_ENGINE AGENT_BROWSER_ARGS AGENT_BROWSER_IGNORE_HTTPS_ERRORS
+    WEB_URL="http://localhost:3000"
+    _VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_zero" \
+      _VERIFY_USERNS_CLONE_FILE="$f_one" _VERIFY_UNSHARE_USER_OK=1 \
+      ensure_agent_browser_args
+    printf '%s|%s' "${AGENT_BROWSER_ENGINE:-}" "${AGENT_BROWSER_ARGS:-}"
+  )"
+  _assert_eq "http-unrestricted-linux" "$out" "chrome|"
+
+  # 9. Linux sandbox detector signals (root, userns_clone=0, unshare blocked, missing sysctl ok)
+  local rc
+  (_VERIFY_OS=Linux _VERIFY_UID=0 _VERIFY_APPARMOR_USERNS_FILE="$f_missing" _VERIFY_USERNS_CLONE_FILE="$f_missing" _VERIFY_UNSHARE_USER_OK=1 linux_needs_chrome_no_sandbox) && rc=0 || rc=1
+  _assert_eq "linux-root" "$rc" "0"
+  (_VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_missing" _VERIFY_USERNS_CLONE_FILE="$f_zero" _VERIFY_UNSHARE_USER_OK=1 linux_needs_chrome_no_sandbox) && rc=0 || rc=1
+  _assert_eq "linux-userns-clone-0" "$rc" "0"
+  (_VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_missing" _VERIFY_USERNS_CLONE_FILE="$f_missing" _VERIFY_UNSHARE_USER_OK=0 linux_needs_chrome_no_sandbox) && rc=0 || rc=1
+  _assert_eq "linux-unshare-blocked" "$rc" "0"
+  (_VERIFY_OS=Linux _VERIFY_UID=1001 _VERIFY_APPARMOR_USERNS_FILE="$f_missing" _VERIFY_USERNS_CLONE_FILE="$f_missing" _VERIFY_UNSHARE_USER_OK=1 linux_needs_chrome_no_sandbox) && rc=0 || rc=1
+  _assert_eq "linux-unrestricted" "$rc" "1"
+
+  if [[ "$failed" -gt 0 ]]; then
+    echo "self-check fail ($failed/$count failed)" >&2
+    return 1
+  fi
+  echo "self-check ok ($count assertions)"
+  return 0
+}
+
 case "${1:-}" in
   launch) launch ;;
   doctor) doctor ;;
@@ -1052,6 +1262,7 @@ case "${1:-}" in
     ;;
   cleanup) cleanup ;;
   core-smoke) core_smoke ;;
+  self-check) self_check ;;
   run_dev_core) run_dev_core ;;
   run_dev_web) run_dev_web ;;
   -h | --help | help | "") usage ;;

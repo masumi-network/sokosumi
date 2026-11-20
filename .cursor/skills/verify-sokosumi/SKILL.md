@@ -168,12 +168,13 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi doctor
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi core-smoke
+.cursor/skills/verify-sokosumi/bin/verify-sokosumi self-check
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi cleanup
 ```
 
 Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD` (unset VERIFY_* copies `login_email` / `login_pwd` when those runtime secrets exist), `VERIFY_SOKOSUMI_VAULT_PROFILE`. `AGENT_BROWSER_SESSION_NAME` (preferred `sokosumi`) is aliased to `AGENT_BROWSER_SESSION` when the latter is unset.
 
-`sign-in` / doctor UI paths auto-export `AGENT_BROWSER_ARGS=--ignore-certificate-errors` for HTTPS named URLs when unset (Chromium on Linux often rejects the portless CA). Override with your own `AGENT_BROWSER_ARGS` if needed — the helper appends the flag when missing.
+`sign-in` and `doctor` default `AGENT_BROWSER_ENGINE=chrome` when unset (overriding `"engine": "lightpanda"` in `~/.agent-browser/config.json`, which rejects `--args`, lacks layout/CSS for screenshots, and cannot complete the Turnstile-backed `/signin` UI). For Chrome, the harness comma-joins `--ignore-certificate-errors` on HTTPS named URLs (Chromium on Linux often rejects the portless CA) and `--no-sandbox` on Linux hosts where root, AppArmor (`apparmor_restrict_unprivileged_userns=1`, e.g. Ubuntu 23.10+ and containers), `unprivileged_userns_clone=0`, or blocked `unshare --user` prevent Chromium's sandbox (`No usable sandbox!`). If you explicitly export a non-Chrome `AGENT_BROWSER_ENGINE` (such as `lightpanda` or `obscura`), the harness leaves `AGENT_BROWSER_ARGS` untouched and sets `AGENT_BROWSER_IGNORE_HTTPS_ERRORS=1` for HTTPS instead.
 
 ## Isolate
 
@@ -185,7 +186,7 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - One-time on a machine: `pnpm exec portless trust` (CA) if `portless doctor` says the CA is untrusted. Then `pnpm portless:proxy`.
 - Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.agent-db/db.env` exists
 - Drive `$WEB_URL` from doctor, not `localhost:3000`. Cookie inject uses `--secure` on https named hosts.
-- **Portless TLS + agent-browser:** if navigation fails with `ERR_CERT_AUTHORITY_INVALID`, ensure `pnpm exec portless trust`, then rely on harness `AGENT_BROWSER_ARGS=--ignore-certificate-errors` (auto for `verify-sokosumi sign-in`) or export it yourself for manual drives.
+- **Portless TLS + Linux sandbox + agent-browser:** if navigation fails with `ERR_CERT_AUTHORITY_INVALID`, ensure `pnpm exec portless trust`. For manual `agent-browser` commands after `verify-sokosumi sign-in`, export the `agent_browser_engine` and comma-separated `agent_browser_args` printed by `doctor` (for example `AGENT_BROWSER_ENGINE=chrome AGENT_BROWSER_ARGS="--ignore-certificate-errors,--no-sandbox"` on AppArmor-restricted Linux) — `agent-browser` splits `AGENT_BROWSER_ARGS` only on commas or newlines (not spaces), and omitting matching engine/args on a follow-up call restarts the session daemon.
 - **`BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` (or any production domain) on localhost** → cookies never stick; disable it before blaming the form
 - Copying `.env.example` without replacing `<…>` placeholders → Core/Web fail Zod at boot (“missing env”)
 - Optional URL env vars (`AGENT_HIRED_WEBHOOK`, Sentry DSN) set to non-URL dummies → Web crashes after Ready (`z.url()`); omit or use a real URL
