@@ -5,7 +5,10 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { SeoActionWorklist } from "./seo-action-worklist";
 import { SeoArticleDates } from "./seo-article-dates";
-import { SeoCurrentDiscoveryActions } from "./seo-audit-discovery";
+import {
+  currentDiscoveryResult,
+  SeoCurrentDiscoveryActions,
+} from "./seo-audit-discovery";
 import { SeoBriefPagePriority } from "./seo-brief-summary";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoActionsExport } from "./seo-export-model";
@@ -32,15 +35,26 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   // The recheck rule matters only once a Task exists for an action.
   const tracked = overview.actions.some((action) => Boolean(action.taskId));
   // "No recommended actions" above the strategy actions would say two things at once.
+  const searchResult = currentDiscoveryResult(
+    model.data,
+    Boolean(model.filters.pageId || model.filters.scopeId),
+  );
   const hasAdditionalActions =
-    strategyFollows || Boolean(model.data.siteEvidence?.targets.length);
+    strategyFollows ||
+    Boolean(
+      searchResult?.discovery?.actions.length ||
+        searchResult?.pageDiscovery?.pages.some((page) => page.suggestion),
+    );
   const additionalActionsOnly =
     !overview.actions.length && hasAdditionalActions;
   if (additionalActionsOnly)
     return (
       <div className="space-y-5">
         <SeoBriefPagePriority model={model} />
-        <SeoCurrentDiscoveryActions workspace={model.data} />
+        <SeoCurrentDiscoveryActions
+          workspace={model.data}
+          result={searchResult}
+        />
         <SeoStrategyActions model={model} />
         <SeoPageDetails model={model} standalone />
         <SeoArticleDates workspace={model.data} />
@@ -49,17 +63,9 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
     );
   return (
     <div className="space-y-5">
-      <SeoBriefPagePriority model={model} />
-      <SeoCurrentDiscoveryActions workspace={model.data} />
       <SeoSection
         title={t("actions.listTitle")}
-        description={
-          tracked
-            ? t("actions.help")
-            : overview.actions.length
-              ? t("actions.listHint")
-              : undefined
-        }
+        description={tracked ? t("actions.help") : undefined}
         // The export stands on the title line, so the list starts with its rows.
         actions={overview.actions.length ? csv : undefined}
         // An empty list says its state in its own title, so the section title would say it twice.
@@ -129,7 +135,12 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         {/* The page details are what the checks measured on the pages: they close the list of what to do. */}
         <SeoPageDetails model={model} />
       </SeoSection>
+      <SeoBriefPagePriority model={model} />
       <SeoStrategyActions model={model} afterFixes />
+      <SeoCurrentDiscoveryActions
+        workspace={model.data}
+        result={searchResult}
+      />
       <SeoArticleDates workspace={model.data} />
       <SeoStrategyPlaceNotes model={model} />
     </div>

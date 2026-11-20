@@ -28,11 +28,20 @@ describe("SEO worker request compatibility before Task dispatch", () => {
     const approved = requestSeoAnalysisSchema.parse({
       ...base,
       includeSitemaps: true,
+      includePropertyTotals: true,
+      includePageDiscovery: true,
     });
     expect(seoTaskPacket(approved, [page], "audit-id")).not.toHaveProperty(
       "includeSitemaps",
     );
+    expect(seoTaskPacket(approved, [page], "audit-id")).not.toHaveProperty(
+      "includePropertyTotals",
+    );
+    expect(seoTaskPacket(approved, [page], "audit-id")).not.toHaveProperty(
+      "includePageDiscovery",
+    );
     for (const request of [
+      { ...base, includePageDiscovery: true },
       { ...approved, allowLimitedAudit: true },
       { ...approved, kind: "page_check" },
     ])

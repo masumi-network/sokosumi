@@ -5,6 +5,7 @@ import {
   seoSearchQueryRowSchema,
 } from "./project-seo-traffic.schema";
 import { SEO_MAX_PAGES, seoUrlSchema } from "./seo-page.schema";
+import { seoPageDiscoverySchema } from "./seo-page-discovery.schema";
 
 import {
   auditDiscoverySchema,
@@ -18,13 +19,38 @@ export const auditMeasuredPageSchema = z.object({
   measuredUrl: seoUrlSchema,
   basis: z.enum(["selected", "google_canonical", "unverified"]),
 });
-const totals = z.object({
+export const auditSearchConsoleInputFields = {
+  searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
+  allowLimitedAudit: z.literal(true).optional(),
+  includeSitemaps: z.literal(true).optional(),
+  includePropertyTotals: z.literal(true).optional(),
+  includePageDiscovery: z.literal(true).optional(),
+};
+
+export function validPrivateAuditScope(input: {
+  kind: string;
+  allowLimitedAudit?: boolean;
+  includeSitemaps?: boolean;
+  includePropertyTotals?: boolean;
+  includePageDiscovery?: boolean;
+}) {
+  return (
+    (!input.includePageDiscovery || !!input.includePropertyTotals) &&
+    (!(input.includeSitemaps || input.includePropertyTotals) ||
+      (input.kind === "audit_full" && !input.allowLimitedAudit))
+  );
+}
+
+export const auditTotalsSchema = z.object({
   clicks: z.number().nullable(),
   impressions: z.number().nullable(),
   ctr: z.number().nullable(),
   averagePosition: z.number().nullable(),
 });
-const periodTotals = totals.extend({ from: z.iso.date(), to: z.iso.date() });
+const periodTotals = auditTotalsSchema.extend({
+  from: z.iso.date(),
+  to: z.iso.date(),
+});
 export const auditClickHistorySchema = z.object({
   reason: z.enum(["recent_click_decline", "recent_click_growth"]),
   from: z.iso.date(),
@@ -56,6 +82,9 @@ export const seoAuditPerformanceSchema = periodTotals.extend({
     }),
   ),
   previous: periodTotals.nullable(),
+  propertyDataExpired: z.literal(true).optional(),
+  propertyTotals: auditTotalsSchema.optional(),
+  pageDiscovery: seoPageDiscoverySchema.optional(),
   history: auditClickHistorySchema.optional(),
   discovery: auditDiscoverySchema
     .extend({

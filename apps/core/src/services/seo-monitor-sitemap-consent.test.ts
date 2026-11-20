@@ -74,7 +74,11 @@ describe("manual SEO monitor sitemap consent", () => {
       boundary.approval.mockResolvedValue({
         propertyId: "sc-domain:example.test",
         connectionVersion: "a".repeat(64),
-        ...(consent && { includeSitemaps: true }),
+        ...(consent && {
+          includeSitemaps: true,
+          includePropertyTotals: true,
+          includePageDiscovery: true,
+        }),
       });
       boundary.google.mockResolvedValue({
         propertyId,
@@ -87,6 +91,16 @@ describe("manual SEO monitor sitemap consent", () => {
       );
       expect(
         result && typeof result === "object" && result.access?.includeSitemaps,
+      ).toBe(expected);
+      expect(
+        result &&
+          typeof result === "object" &&
+          result.access?.includePageDiscovery,
+      ).toBe(expected);
+      expect(
+        result &&
+          typeof result === "object" &&
+          result.access?.includePropertyTotals,
       ).toBe(expected);
     },
   );

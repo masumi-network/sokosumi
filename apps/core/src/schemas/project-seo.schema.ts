@@ -1,9 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import {
-  SEO_FULL_AUDIT_CREDITS,
-  SEO_FULL_AUDIT_MAX_SECONDS,
-  SEO_MIN_AUDIT_USD,
-} from "@sokosumi/utils";
+import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
   seoArticleDates,
@@ -46,8 +42,15 @@ import {
   seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
-import { seoAuditPerformanceSchema } from "./seo-audit-performance.schema";
-import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
+import {
+  auditSearchConsoleInputFields,
+  seoAuditPerformanceSchema,
+  validPrivateAuditScope,
+} from "./seo-audit-performance.schema";
+import {
+  seoCostPlusPriceSchema,
+  seoFullAuditLimitsSchema,
+} from "./seo-audit-price.schema";
 import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
 import {
   SEO_MAX_PAGES,
@@ -206,9 +209,7 @@ export const requestSeoAnalysisSchema = z
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
     fullAuditPrice: seoCostPlusPriceSchema.optional(),
-    searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
-    allowLimitedAudit: z.literal(true).optional(),
-    includeSitemaps: z.literal(true).optional(),
+    ...auditSearchConsoleInputFields,
     ...publicSitemapInputFields,
     setupGoal: z
       .strictObject({
@@ -223,14 +224,7 @@ export const requestSeoAnalysisSchema = z
         pageIds: z.array(seoIdSchema).min(1).max(SEO_MAX_PAGES),
       })
       .optional(),
-    fullAuditLimits: z
-      .object({
-        usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
-        // 90 minutes: the worker contract accepts this owner-set site limit (owner, 2026-11-13).
-        seconds: z.number().int().min(60).max(SEO_FULL_AUDIT_MAX_SECONDS),
-      })
-      .strict()
-      .optional(),
+    fullAuditLimits: seoFullAuditLimitsSchema.optional(),
     idempotencyKey: z.string().trim().min(8).max(128),
     coworkerId: z.string().min(1).max(128).optional(),
   })
@@ -266,10 +260,8 @@ export const requestSeoAnalysisSchema = z
     "Share goals from the reviewed brief revision in a full audit",
   )
   .refine(
-    (input) =>
-      !input.includeSitemaps ||
-      (input.kind === "audit_full" && !input.allowLimitedAudit),
-    "Submitted sitemaps require a full audit with Search Console access",
+    validPrivateAuditScope,
+    "Property data requires a full audit with Search Console access",
   )
   .openapi("RequestProjectSeoAnalysisRequest");
 export const saveSeoKeywordSchema = z

@@ -32,6 +32,7 @@ import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
+import { SeoPropertyPerformance } from "./seo-property-performance";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning } from "./seo-setup-model";
@@ -80,13 +81,23 @@ function SeoAgentPanel({
   const reportFormat = useSeoResultFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
+  const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
     model.data,
     model.filters,
-    lastRuleCheck(model.data)?.id ?? null,
+    check?.id ?? null,
   );
   // How the pages do in search sits next to whether they are healthy.
-  const traffic = seoSearchTraffic(model.data.metrics);
+  const auditReport =
+    !model.filters.pageId &&
+    !model.filters.scopeId &&
+    !model.filters.from &&
+    check?.sourceTaskId
+      ? model.data.auditSearchConsole?.find(
+          (row) => row.taskId === check.sourceTaskId && row.propertyTotals,
+        )
+      : undefined;
+  const traffic = auditReport ? null : seoSearchTraffic(model.data.metrics);
   const rarelyShown = Boolean(
     traffic && seoRarelyShown(traffic.impressions, traffic.period),
   );
@@ -329,6 +340,7 @@ function SeoAgentPanel({
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
+          {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
           <SeoAgentFigures
             model={model}
             traffic={traffic}

@@ -269,20 +269,64 @@ export function gscSearchAnalyticsArguments(
   if (expression.length > 4096)
     throw new Error("Select fewer pages for this Search Console query");
   return {
-    site_url: query.propertyId,
-    start_date: query.from,
-    end_date: query.to,
-    dimensions,
-    search_type: query.searchType ?? "web",
-    data_state: "final",
+    ...gscReportArguments(query, dimensions, rowLimit),
     dimension_filter_groups: [
       {
         groupType: "and",
         filters: [{ dimension: "page", operator, expression }],
       },
     ],
+  };
+}
+
+export function gscReportArguments(
+  query: Pick<
+    NativeStatisticsQuery,
+    "propertyId" | "from" | "to" | "searchType"
+  >,
+  dimensions: string[],
+  rowLimit: number,
+) {
+  return {
+    site_url: query.propertyId,
+    start_date: query.from,
+    end_date: query.to,
+    dimensions,
+    search_type: query.searchType ?? "web",
+    data_state: "final",
     row_limit: rowLimit,
     start_row: 0,
+  };
+}
+
+export async function readGscPropertyTotals(
+  query: Pick<NativeStatisticsQuery, "propertyId" | "from" | "to">,
+  read: (args: Record<string, unknown>) => Promise<unknown>,
+) {
+  if (!withinSearchConsoleRetention(query.from))
+    throw new Error("Audit period is outside Search Console retention");
+  const body = unwrapNativeStatistics(
+    await read({
+      ...gscReportArguments({ ...query, searchType: "web" }, [], 1),
+      aggregation_type: "byProperty",
+    }),
+    ["rows", "responseAggregationType"],
+  );
+  if (
+    (body.responseAggregationType !== undefined &&
+      body.responseAggregationType !== "byProperty") ||
+    (!Array.isArray(body.rows) && body.responseAggregationType !== "byProperty")
+  )
+    throw new Error("Missing property aggregate");
+  const { rows } = gscReportSchema.parse(body);
+  if (rows.length > 1 || rows[0]?.keys.length)
+    throw new Error("Unexpected property grouping");
+  const row = rows[0];
+  return {
+    clicks: row?.clicks ?? 0,
+    impressions: row?.impressions ?? 0,
+    ctr: row ? gscValue(row, "ctr") : null,
+    averagePosition: row ? gscValue(row, "position") : null,
   };
 }
 
@@ -509,4 +553,28 @@ export function normalizeGscStatistics(
         })),
     })),
   };
+}
+
+export function applyPreviousSeoPeriod(
+  metrics: NativeSeoMetrics,
+  totals: NativeSeoMetrics,
+  window: { from: string; to: string },
+) {
+  const previousNotes = totals.notes;
+  if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE)) {
+    metrics.coverage = "partial";
+    if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE))
+      metrics.notes.push(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE);
+  }
+  if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)) {
+    metrics.coverage = "partial";
+    if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE))
+      metrics.notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
+  }
+  for (const metric of metrics.metrics) {
+    const before = totals.metrics.find(
+      (candidate) => candidate.key === metric.key,
+    );
+    if (before) metric.previous = { ...window, value: before.value };
+  }
 }

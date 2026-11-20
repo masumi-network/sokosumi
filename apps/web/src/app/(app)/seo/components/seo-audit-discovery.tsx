@@ -2,8 +2,8 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoConsoleExportActions } from "./seo-console-export-actions";
-import { SeoFoldSummary } from "./seo-shared";
-import { SeoSiteEvidence } from "./seo-site-evidence";
+import { SeoPropertyPageDiscovery } from "./seo-property-page-discovery";
+import { SEO_ROW_LIST_CLASS, SeoFoldSummary, SeoSection } from "./seo-shared";
 
 type Evidence = NonNullable<
   NonNullable<ProjectSeoWorkspace["auditSearchConsole"]>[number]["discovery"]
@@ -138,11 +138,10 @@ export function SeoAuditDiscovery({ evidence }: { evidence: Evidence }) {
   );
 }
 
-export function SeoCurrentDiscoveryActions({
-  workspace,
-}: {
-  workspace: ProjectSeoWorkspace;
-}) {
+export function currentDiscoveryResult(
+  workspace: ProjectSeoWorkspace,
+  filterPages = false,
+) {
   const selected = new Set(workspace.scope.pageIds);
   const urls = new Set(
     workspace.pages.filter((p) => selected.has(p.id)).map((p) => p.url),
@@ -166,11 +165,58 @@ export function SeoCurrentDiscoveryActions({
         row.taskId === latest.sourceTaskId &&
         row.pageUrls.every((url) => urls.has(url)),
     );
-  const site = workspace.siteEvidence;
+  if (!filterPages || !result?.pageDiscovery) return result;
+  return {
+    ...result,
+    pageDiscovery: {
+      ...result.pageDiscovery,
+      pages: result.pageDiscovery.pages.filter((page) =>
+        urls.has(page.pageUrl),
+      ),
+    },
+  };
+}
+
+export function SeoCurrentDiscoveryActions({
+  workspace,
+  result,
+}: {
+  workspace: ProjectSeoWorkspace;
+  result: ReturnType<typeof currentDiscoveryResult>;
+}) {
+  const t = useSeoResultTranslations("App.Seo.discovery");
+  const actions = result?.discovery?.actions ?? [];
   return (
     <>
-      {site && <SeoSiteEvidence evidence={site} />}
-      {result?.discovery && <SeoDiscoveryActions evidence={result.discovery} />}
+      {result && <SeoPropertyPageDiscovery report={result} actionsOnly />}
+      {actions.length > 0 && (
+        <SeoSection lang="en" title={t("actionsHeading")}>
+          <ul className={SEO_ROW_LIST_CLASS}>
+            {actions.map((item) => (
+              <li key={item.url + item.action} className="p-3">
+                <details>
+                  <SeoFoldSummary className="min-h-10 justify-between gap-3">
+                    <span className="min-w-0 space-y-1">
+                      <span className="block text-sm font-medium">
+                        {item.action}
+                      </span>
+                      <span
+                        className="block break-all text-xs text-muted-foreground"
+                        dir="auto"
+                      >
+                        {item.url}
+                      </span>
+                    </span>
+                  </SeoFoldSummary>
+                  <p className="pt-2 text-sm text-muted-foreground">
+                    {item.evidence}
+                  </p>
+                </details>
+              </li>
+            ))}
+          </ul>
+        </SeoSection>
+      )}
       {result && (
         <SeoConsoleExportActions
           owner={seoWorkspaceOwner(workspace)}

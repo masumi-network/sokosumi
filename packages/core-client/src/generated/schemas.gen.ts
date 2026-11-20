@@ -45973,6 +45973,270 @@ export const ProjectSeoWorkspaceSchema = {
                             'to'
                         ]
                     },
+                    propertyDataExpired: {
+                        type: 'boolean',
+                        enum: [
+                            true
+                        ]
+                    },
+                    propertyTotals: {
+                        type: 'object',
+                        properties: {
+                            clicks: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            impressions: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            ctr: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            averagePosition: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'clicks',
+                            'impressions',
+                            'ctr',
+                            'averagePosition'
+                        ]
+                    },
+                    pageDiscovery: {
+                        type: 'object',
+                        properties: {
+                            recent: {
+                                type: 'object',
+                                properties: {
+                                    from: {
+                                        type: 'string',
+                                        format: 'date'
+                                    },
+                                    to: {
+                                        type: 'string',
+                                        format: 'date'
+                                    }
+                                },
+                                required: [
+                                    'from',
+                                    'to'
+                                ]
+                            },
+                            previous: {
+                                type: 'object',
+                                properties: {
+                                    from: {
+                                        type: 'string',
+                                        format: 'date'
+                                    },
+                                    to: {
+                                        type: 'string',
+                                        format: 'date'
+                                    }
+                                },
+                                required: [
+                                    'from',
+                                    'to'
+                                ]
+                            },
+                            limited: {
+                                type: 'boolean'
+                            },
+                            comparisonIncomplete: {
+                                type: 'boolean',
+                                enum: [
+                                    true
+                                ]
+                            },
+                            topClickedPages: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        clicks: {
+                                            type: 'integer',
+                                            minimum: 0
+                                        },
+                                        impressions: {
+                                            type: 'integer',
+                                            minimum: 0
+                                        },
+                                        pageUrl: {
+                                            type: 'string',
+                                            maxLength: 4096,
+                                            format: 'uri'
+                                        }
+                                    },
+                                    required: [
+                                        'clicks',
+                                        'impressions',
+                                        'pageUrl'
+                                    ]
+                                },
+                                maxItems: 5
+                            },
+                            pages: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        pageUrl: {
+                                            type: 'string',
+                                            maxLength: 4096,
+                                            format: 'uri'
+                                        },
+                                        reason: {
+                                            type: 'string',
+                                            enum: [
+                                                'lostClicks',
+                                                'gainingImpressions',
+                                                'lowCtr'
+                                            ]
+                                        },
+                                        totals: {
+                                            type: 'object',
+                                            properties: {
+                                                clicks: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                },
+                                                impressions: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'clicks',
+                                                'impressions'
+                                            ]
+                                        },
+                                        recent: {
+                                            type: 'object',
+                                            properties: {
+                                                clicks: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                },
+                                                impressions: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'clicks',
+                                                'impressions'
+                                            ]
+                                        },
+                                        previous: {
+                                            type: 'object',
+                                            properties: {
+                                                clicks: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                },
+                                                impressions: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'clicks',
+                                                'impressions'
+                                            ]
+                                        },
+                                        query: {
+                                            type: [
+                                                'object',
+                                                'null'
+                                            ],
+                                            properties: {
+                                                query: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 2048
+                                                },
+                                                pageUrl: {
+                                                    type: 'string',
+                                                    maxLength: 4096,
+                                                    format: 'uri'
+                                                },
+                                                clicks: {
+                                                    type: 'number',
+                                                    minimum: 0
+                                                },
+                                                impressions: {
+                                                    type: 'number',
+                                                    minimum: 0
+                                                },
+                                                ctr: {
+                                                    type: 'number',
+                                                    minimum: 0,
+                                                    maximum: 1
+                                                },
+                                                averagePosition: {
+                                                    type: 'number',
+                                                    minimum: 1
+                                                }
+                                            },
+                                            required: [
+                                                'query',
+                                                'pageUrl',
+                                                'clicks',
+                                                'impressions',
+                                                'ctr',
+                                                'averagePosition'
+                                            ]
+                                        },
+                                        queryUnavailable: {
+                                            type: 'boolean',
+                                            enum: [
+                                                true
+                                            ]
+                                        },
+                                        expectedEffect: {
+                                            type: 'string',
+                                            maxLength: 2500
+                                        },
+                                        suggestion: {
+                                            type: [
+                                                'string',
+                                                'null'
+                                            ],
+                                            maxLength: 2500
+                                        }
+                                    },
+                                    required: [
+                                        'pageUrl',
+                                        'reason',
+                                        'totals',
+                                        'recent',
+                                        'previous',
+                                        'query',
+                                        'suggestion'
+                                    ]
+                                },
+                                maxItems: 5
+                            }
+                        },
+                        required: [
+                            'recent',
+                            'previous',
+                            'limited',
+                            'pages'
+                        ]
+                    },
                     history: {
                         type: 'object',
                         properties: {
@@ -50911,6 +51175,18 @@ export const RequestProjectSeoAnalysisRequestSchema = {
             ]
         },
         includeSitemaps: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        includePropertyTotals: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        includePageDiscovery: {
             type: 'boolean',
             enum: [
                 true

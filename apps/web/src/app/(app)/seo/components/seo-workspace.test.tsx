@@ -598,6 +598,9 @@ describe("SEO workspace integration", () => {
     const measurement = screen.getByText("Title length measured:");
     expect(measurement).toBeVisible();
     expect(measurement.closest("details")).toHaveAttribute("open");
+    await user.click(
+      screen.getByText("Check details", { selector: "summary" }),
+    );
     expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
@@ -874,9 +877,8 @@ describe("SEO workspace integration", () => {
     });
     expect(within(row).getByText("High impact")).toBeVisible();
     // The row names the page and what the check found in one line; the reasons wait in the dialog.
-    expect(row).toHaveTextContent(
-      "Home · Issue: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
-    );
+    expect(within(row).getByText("Home")).toBeVisible();
+    expect(row).not.toHaveTextContent("The markup says 6.99");
     expect(screen.queryByText("The two prices differ.")).toBeNull();
     await user.click(row);
     const dialog = await screen.findByRole("dialog", {
@@ -3957,7 +3959,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText(/^Nothing is waiting/)).toBeNull();
   });
 
-  it("says whether Google indexes the page in view and names another canonical", () => {
+  it("says whether Google indexes the page in view and names another canonical", async () => {
     const workspace = seoTestWorkspace();
     const url = workspace.pages[0].url;
     // A second page in view that no sync could inspect.
@@ -3999,6 +4001,9 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=health");
+    await userEvent.click(
+      screen.getByText("Check details", { selector: "summary" }),
+    );
     const section = screen
       .getByRole("heading", { name: "Google index" })
       .closest("section");
@@ -4393,6 +4398,51 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       "No issues found in the last check",
     );
+  });
+
+  it("shows saved property totals on the Agent tab only in the full audit view", () => {
+    const workspace = seoTestCheckedAudit();
+    const taskId = "full-audit";
+    workspace.observations[0] = {
+      ...workspace.observations[0],
+      kind: "audit_full",
+      sourceTaskId: taskId,
+    };
+    workspace.auditSearchConsole = [
+      {
+        taskId,
+        propertyId: "sc-domain:example.com",
+        from: new Date("2025-10-01"),
+        to: new Date("2025-12-31"),
+        pageUrls: [workspace.pages[0].url],
+        measuredPages: [],
+        coverage: "complete",
+        clicks: 0,
+        impressions: 2,
+        ctr: 0,
+        averagePosition: 4,
+        propertyTotals: {
+          clicks: 9,
+          impressions: 675,
+          ctr: 9 / 675,
+          averagePosition: 6.7,
+        },
+        opportunities: [],
+        previous: null,
+        queries: { rows: [], truncated: false },
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const view = renderWorkspace(workspace);
+    const title = "Web search performance for the entire property";
+    expect(screen.getByRole("heading", { name: title })).toBeVisible();
+    expect(screen.getByText("675")).toBeVisible();
+    view.unmount();
+    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}`);
+    expect(screen.queryByRole("heading", { name: title })).toBeNull();
   });
 
   it("does not judge a position change on a handful of impressions", async () => {
@@ -6933,7 +6983,21 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
+    workspace.observations = [seoTestObservation(workspace)];
     const first = renderWorkspace(workspace, "?tab=actions");
+    const tab = screen.getByRole("tabpanel", { name: "Actions" });
+    const details = within(tab)
+      .getByText("Check details", { selector: "summary" })
+      .closest("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toContainElement(
+      within(tab).getByTestId("seo-summary-tiles"),
+    );
+    const row = within(tab).getByRole("button", { name: "Fix the page title" });
+    expect(row.compareDocumentPosition(details!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(row).not.toHaveTextContent("A descriptive search result");
     // Alone on the tab, the fixes keep their title and its line: the export menu stands beside them.
     expect(
       await screen.findByRole("button", { name: /^Fix the page title/ }),
@@ -6943,7 +7007,7 @@ describe("SEO workspace integration", () => {
         .getByRole("heading", { name: "Recommended actions" })
         .closest(".sr-only"),
     ).toBeNull();
-    expect(screen.getByText("Changes our agent recommends.")).toBeVisible();
+
     // The export menu stands on the title line, inside the header of the section.
     expect(
       screen
@@ -8399,6 +8463,9 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     // The tests tile splits the tests without a result the way the Timeline row of the check does.
     await userEvent.click(screen.getByRole("tab", { name: "Actions" }));
+    await userEvent.click(
+      screen.getByText("Check details", { selector: "summary" }),
+    );
     const tests = screen.getByTestId("seo-summary-tests");
     expect(within(tests).getByText("2 tests gave no result")).toBeVisible();
     expect(within(tests).getByText("1 unavailable")).toBeVisible();
@@ -8560,6 +8627,9 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     // The Actions tab leads with the numbers of the page check, and not with the keyword numbers.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
+    await userEvent.click(
+      screen.getByText("Check details", { selector: "summary" }),
+    );
     const issues = screen.getByTestId("seo-summary-issues");
     expect(issues).toHaveTextContent(/^1/);
     expect(within(issues).getByText("1 high impact")).toBeVisible();

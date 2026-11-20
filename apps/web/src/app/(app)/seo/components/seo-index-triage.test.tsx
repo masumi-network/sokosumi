@@ -57,7 +57,8 @@ describe("indexing review notes", () => {
     workspace.indexTriage = { assessments: [bare] };
     const initial = renderNotes(workspace);
     expect(screen.getByText("Indexed")).toBeVisible();
-    expect(screen.getByText("Not checked")).toBeVisible();
+    expect(screen.queryByText("Not checked")).toBeNull();
+    expect(screen.getByText(/Index result from/)).toBeVisible();
     initial.unmount();
     const confirmed = { ...bare, googleReturnedUnknown: true as const };
     const related = {

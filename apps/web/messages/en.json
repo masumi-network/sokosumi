@@ -13039,7 +13039,7 @@
       "actions": {
         "title": "Actions",
         "listTitle": "Recommended actions",
-        "listHint": "Changes our agent recommends.",
+        "checkDetails": "Check details",
         "empty": "No recommended actions",
         "emptyBody": "Actions come from issues a check finds and from your Search Console searches. Run a check, or ask the SEO agent what to do next.",
         "emptyBodyOff": "Actions come from issues a check finds and from your Search Console searches. Ask the SEO agent what to do next.",
@@ -13221,6 +13221,7 @@
         "sitemaps": "Sitemaps listing this target"
       },
       "discovery": {
+        "actionsHeading": "Search Console actions",
         "reportedSitemaps": "Sitemaps Google associates with this URL",
         "referringPages": "Examples of direct or indirect referring URLs from Google",
         "exportActions": "Actions from your Search Console exports",
@@ -13241,10 +13242,39 @@
         "canonical": "Google canonical: {url}",
         "inspections": "Inspected URLs in this audit ({count})"
       },
+      "pageDiscovery": {
+        "partial": "Some page comparisons could not be loaded.",
+        "queryUnavailable": "The search queries for this page could not be loaded.",
+        "title": "Pages to review in Search Console",
+        "reviews": "Reviews from Google Search",
+        "empty": "No pages met the review criteria in the returned results.",
+        "lowCtr": "Frequent appearances with few clicks",
+        "lostClicks": "Clicks decreased",
+        "gainingImpressions": "Impressions increased",
+        "audit": "Audit period",
+        "recent": "Recent 28 days",
+        "previous": "Previous 28 days",
+        "query": "Search query in the recent period",
+        "counts": "{clicks, plural, one {# click} other {# clicks}} · {impressions, plural, one {# impression} other {# impressions}}",
+        "position": "Average position {value}",
+        "range": "{from} to {to}",
+        "observe": "Monitor this page. The available query evidence does not support a specific edit.",
+        "openPage": "Open page",
+        "limited": "Showing a selection of Google’s returned results."
+      },
       "reportFiles": {
         "recommendations": "Recommendations from this check",
         "recoverSearch": "Recover Search Console results",
         "recoverSearchFailed": "Could not recover Search Console results. Try again.",
+        "crawlDetails": "Crawl details",
+        "performanceScope": "Page evidence below covers the audited URLs.",
+        "topClickedPages": "Top pages by search clicks",
+        "propertyPerformance": "Web search performance for the entire property",
+        "propertyTotalsFailed": "Some property performance data could not be loaded. Try again.",
+        "propertyDataExpired": "This period is outside Search Console’s data retention window. You can still view the saved results.",
+        "loadPropertyTotals": "Load property totals and page insights",
+        "unverifiedPagePerformance": "Page performance is unverified.",
+        "pagePerformance": "Web search performance for audited pages",
         "auditedUrls": "Audited URLs",
         "googleCanonical": "Measured Google canonical URL: {url}",
         "canonicalUnverified": "The audit measured the submitted URL. Its canonical URL is unverified.",
@@ -13375,6 +13405,7 @@
         "importSitemapHelp": "Review the first {count} eligible page URLs below. Starting the audit shares those URLs. The XML file stays on your device.",
         "sitemapReading": "Reading sitemap…",
         "sitemapInvalid": "Choose a sitemap URL set under 512 KiB with public pages from this site.",
+        "includePropertyTotals": "Include property-wide web search totals, pages, and search queries in my private report.",
         "includeSitemaps": "Include Google’s submitted sitemap status for this property in my private report.",
         "alreadyRunning": "A check is running. Wait for its result before you start the next one.",
         "noPermission": "A check cannot be requested for these pages.",
@@ -13860,6 +13891,7 @@
         "lastCrawled": "Last crawled by Google"
       },
       "index": {
+        "resultDate": "Index result from",
         "title": "Google index",
         "state": {
           "indexed": "Indexed",
@@ -14065,7 +14097,6 @@
         "researchDetails": {
           "visitor": "Visitor action check",
           "trends": "Google Trends",
-          "evidenceRecord": "Evidence: {record}",
           "caption": "Google Trends results for audited keywords",
           "keyword": "Keyword",
           "status": "Status",

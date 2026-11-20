@@ -37,7 +37,18 @@ export function createSeoStatisticsSyncRouter(ownerKind: "project" | "audit") {
             "application/json": {
               schema: z.union([
                 syncProjectSeoStatisticsSchema,
-                z.strictObject({ auditTaskId: z.uuid() }),
+                z
+                  .strictObject({
+                    auditTaskId: z.uuid(),
+                    includePropertyTotals: z.literal(true).optional(),
+                    includePageDiscovery: z.literal(true).optional(),
+                  })
+                  .refine(
+                    (input) =>
+                      !input.includePageDiscovery ||
+                      input.includePropertyTotals,
+                    "Page discovery requires property performance access",
+                  ),
               ]),
             },
           },
@@ -70,6 +81,8 @@ export function createSeoStatisticsSyncRouter(ownerKind: "project" | "audit") {
         const pageIds = await collectSeoAuditPerformance(
           input.auditTaskId,
           actor,
+          input.includePropertyTotals,
+          input.includePageDiscovery,
         );
         const workspace = await getProjectSeoWorkspace(
           actor,

@@ -32,16 +32,19 @@ function description(packet: object): string {
 }
 
 describe("SEO monitor owner protocol", () => {
-  it("rejects a public monitor template that claims private sitemap consent", () => {
-    const packet = {
-      version: 1,
-      ...plan,
-      analysis: { ...plan.analysis, kind: "audit_full", includeSitemaps: true },
-    };
-    expect(() => parseSeoMonitorPlan(description(packet))).toThrow(
-      /bounded public analysis/,
-    );
-  });
+  it.each(["includeSitemaps", "includePropertyTotals", "includePageDiscovery"])(
+    "rejects a public monitor template that claims %s consent",
+    (field) => {
+      const packet = {
+        version: 1,
+        ...plan,
+        analysis: { ...plan.analysis, kind: "audit_full", [field]: true },
+      };
+      expect(() => parseSeoMonitorPlan(description(packet))).toThrow(
+        /bounded public analysis/,
+      );
+    },
+  );
   it("retains an independent Audit identity without exposing protocol details in user copy", () => {
     const body = description({ version: 2, auditId: AUDIT_ID, ...plan });
     expect(parseSeoMonitorPlan(body)).toMatchObject({

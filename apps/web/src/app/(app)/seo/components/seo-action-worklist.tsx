@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/segmented-control-classes";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
-import { useSeoActionFinding } from "./seo-action-finding";
 import { SeoActionDialog } from "./seo-agent-steps";
 import {
   SEO_ACTION_FILTER_LABEL,
@@ -28,6 +27,8 @@ import {
   SeoSeverity,
   SeoState,
   seoPageLabel,
+  seoPageName,
+  seoSiteUrl,
 } from "./seo-shared";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
@@ -217,7 +218,9 @@ function SeoWorklistRow({
   onOpen: () => void;
 }) {
   const t = useSeoResultTranslations("App.Seo");
-  const finding = useSeoActionFinding(action, model);
+  const page =
+    seoPageLabel(model.data, action.pageUrl) ??
+    seoPageName(action.pageUrl, seoSiteUrl(model.data), t("pages.home"));
   const titleId = useId();
   const factsId = useId();
   const labelsId = useId();
@@ -252,7 +255,7 @@ function SeoWorklistRow({
               id={factsId}
               className="text-muted-foreground line-clamp-2 block text-xs break-words"
             >
-              {seoPageLabel(model.data, action.pageUrl)} · {finding}
+              {page}
             </span>
           </span>
           <span
