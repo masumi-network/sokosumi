@@ -165,6 +165,25 @@ describe("voice", () => {
   });
 });
 
+describe("logo", () => {
+  /**
+   * design-system.md, Logo: each lockup only on the background the brand
+   * guide approves for it. `Logo` pairs the files, so nothing else names one.
+   */
+  it("shows the logo files only through Logo", () => {
+    const outside = findLines(
+      SOURCE.filter(
+        (file) =>
+          file.rel !== "components/logo.tsx" &&
+          !file.rel.startsWith("test-fixtures/"),
+      ),
+      /\/logo\//,
+    );
+
+    expect(outside).toEqual([]);
+  });
+});
+
 describe("accessibility", () => {
   it("gives every image an alt attribute", () => {
     const missing: string[] = [];

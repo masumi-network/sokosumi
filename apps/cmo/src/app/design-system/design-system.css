@@ -91,11 +91,25 @@
   min-width: 0;
 }
 
-.ds-logo {
+.ds-logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 32px;
   margin: 0;
-  font-size: 1rem;
-  line-height: 1;
-  color: var(--foreground);
+  padding: 0;
+  list-style: none;
+}
+
+.ds-logos li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-logos .logo img {
+  width: auto;
+  height: 120px;
 }
 
 .ds-checklist {
