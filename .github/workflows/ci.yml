@@ -483,9 +483,17 @@ jobs:
         env:
           MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ] && git rev-parse --verify --quiet HEAD^1 >/dev/null; then
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            if ! git rev-parse --verify --quiet HEAD^1 >/dev/null; then
+              echo "::error::HEAD^1 is missing on pull_request (fetch-depth: 2 is required so the effect baseline can compare against the base branch)."
+              exit 1
+            fi
             export EFFECT_BASELINE_BASE_REF="HEAD^1"
-          elif [ "$GITHUB_EVENT_NAME" = merge_group ] && [ -n "$MERGE_GROUP_BASE_SHA" ]; then
+          elif [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            if [ -z "$MERGE_GROUP_BASE_SHA" ]; then
+              echo "::error::MERGE_GROUP_BASE_SHA is empty on merge_group."
+              exit 1
+            fi
             git fetch --no-tags --depth=1 origin "$MERGE_GROUP_BASE_SHA"
             export EFFECT_BASELINE_BASE_REF="$MERGE_GROUP_BASE_SHA"
           fi

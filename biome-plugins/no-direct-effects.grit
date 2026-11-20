@@ -5,9 +5,39 @@ or {
   `useEffect($args)`,
   `useLayoutEffect($args)`,
   `useMountEffect($args)`,
-  `React.useEffect($args)`,
-  `React.useLayoutEffect($args)`,
-  `React.useMountEffect($args)`
-} as $call where {
-  register_diagnostic(span=$call, message="Effects live only in src/hooks/effects/. Compute during render, use an event handler, reset with key, or call a named hook from that folder. See docs/agents/web-ui.md#effects.", severity="error")
+  `$obj.useEffect($args)`,
+  `$obj.useLayoutEffect($args)`,
+  `$obj.useMountEffect($args)`,
+  `$obj["useEffect"]($args)`,
+  `$obj["useLayoutEffect"]($args)`,
+  `$obj["useMountEffect"]($args)`,
+  `$obj['useEffect']($args)`,
+  `$obj['useLayoutEffect']($args)`,
+  `$obj['useMountEffect']($args)`,
+  `useEffect as $alias`,
+  `useLayoutEffect as $alias`,
+  `useMountEffect as $alias`,
+  JsExportNamedSpecifier() as $spec where {
+    $spec <: r"^(?:useEffect|useLayoutEffect|useMountEffect)\s+as\s+\S+$"
+  },
+  JsExportNamedFromSpecifier() as $spec where {
+    $spec <: r"^(?:useEffect|useLayoutEffect|useMountEffect)\s+as\s+\S+$"
+  },
+  `$id = useEffect`,
+  `$id = useLayoutEffect`,
+  `$id = useMountEffect`,
+  `$id = $obj.useEffect`,
+  `$id = $obj.useLayoutEffect`,
+  `$id = $obj.useMountEffect`,
+  `$id = $obj["useEffect"]`,
+  `$id = $obj["useLayoutEffect"]`,
+  `$id = $obj["useMountEffect"]`,
+  `$id = $obj['useEffect']`,
+  `$id = $obj['useLayoutEffect']`,
+  `$id = $obj['useMountEffect']`,
+  `$pat = $_` where {
+    $pat <: r"^\{[\s\S]*\b(?:useEffect|useLayoutEffect|useMountEffect)\b[\s\S]*\}$"
+  }
+} as $match where {
+  register_diagnostic(span=$match, message="Effects live only in src/hooks/effects/. Compute during render, use an event handler, reset with key, or call a named hook from that folder. See docs/agents/web-ui.md#effects.", severity="error")
 }

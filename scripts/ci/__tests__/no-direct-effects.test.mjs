@@ -58,12 +58,15 @@ const APPS = [
   },
 ];
 
-// Matches Biome suppression directives that silence the effect plugin:
-// broad `lint`, `lint/plugin`, `plugin`, or `no-direct-effects`.
-// Specific non-plugin rules (`biome-ignore lint/correctness/...`) and prose
-// backticks (`` `biome-ignore` ``) are not matched.
-const EFFECT_SUPPRESSION_RE =
-  /\bbiome-ignore(?:-(?:all|start))?\s+(?:lint(?:\/plugin)?|plugin|no-direct-effects)(?=\s|:|$)/;
+// Captures the category list of any Biome suppression directive up to `:`,
+// `*/`, or end-of-line so multi-category headers (e.g.
+// `biome-ignore lint/correctness/noUnusedVariables lint/plugin/no-direct-effects: ...`)
+// are inspected category by category.
+const BIOME_SUPPRESSION_HEADER_RE =
+  /\bbiome-ignore(?:-(?:all|start))?[ \t]+([^:\n<]+?)(?=:|<|\*\/|$)/g;
+
+const FORBIDDEN_SUPPRESSION_CATEGORY_RE =
+  /^(?:lint|lint\/plugin|lint\/plugin\/no-direct-effects|plugin|plugin\/no-direct-effects|no-direct-effects)$/;
 
 const SCRIPT_FILE_RE = /\.(?:[cm]?[jt]sx?)$/;
 
@@ -125,7 +128,7 @@ function runBiomeJson(args, cwd) {
 }
 
 /**
- * Counts direct effect calls per checked product file in `appDir` by running
+ * Counts direct effect calls per checked product file in `app.dir` by running
  * Biome with only `no-direct-effects.grit` and no baseline exclusions.
  */
 function countActualEffects(app) {
@@ -177,9 +180,14 @@ function findEffectSuppressionsInFiles(filesByRelPath) {
   const findings = [];
   for (const [relPath, text] of filesByRelPath) {
     text.split("\n").forEach((line, index) => {
-      const match = EFFECT_SUPPRESSION_RE.exec(line);
-      if (match) {
-        findings.push(`${relPath}:${index + 1} ${match[0]}`);
+      for (const match of line.matchAll(BIOME_SUPPRESSION_HEADER_RE)) {
+        const categories = match[1].trim().split(/[ \t]+/);
+        for (const category of categories) {
+          if (FORBIDDEN_SUPPRESSION_CATEGORY_RE.test(category)) {
+            findings.push(`${relPath}:${index + 1} ${match[0].trim()}`);
+            break;
+          }
+        }
       }
     });
   }
@@ -264,27 +272,107 @@ function findBaselineGrowth(currentBaseline, baseBaseline) {
   return errors;
 }
 
-function readBaseBaseline(baseRef, appName) {
-  try {
-    const raw = execFileSync(
-      "git",
-      ["show", `${baseRef}:apps/${appName}/effect-baseline.json`],
-      { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+/**
+ * Reads `apps/<appName>/effect-baseline.json` from `baseRef`.
+ * Returns `null` ONLY when `baseRef` is a valid commit that predates the file;
+ * invalid refs, git errors, and malformed JSON all throw.
+ */
+function readBaseBaseline(
+  baseRef,
+  appName,
+  { cwd = ROOT, env = process.env } = {},
+) {
+  const verify = spawnSync(
+    "git",
+    ["rev-parse", "--verify", "--quiet", `${baseRef}^{commit}`],
+    { cwd, env, encoding: "utf8" },
+  );
+  if (verify.error) throw verify.error;
+  if (verify.status !== 0) {
+    throw new Error(
+      `Invalid EFFECT_BASELINE_BASE_REF "${baseRef}": ${verify.stderr.trim() || "commit not found"}`,
     );
-    return JSON.parse(raw);
-  } catch {
+  }
+
+  const relPath = `apps/${appName}/effect-baseline.json`;
+  const lsTree = spawnSync(
+    "git",
+    ["ls-tree", "--name-only", baseRef, "--", relPath],
+    { cwd, env, encoding: "utf8" },
+  );
+  if (lsTree.error) throw lsTree.error;
+  if (lsTree.status !== 0) {
+    throw new Error(
+      `Failed to inspect ${relPath} at ${baseRef}: ${lsTree.stderr.trim()}`,
+    );
+  }
+  if (!lsTree.stdout.trim()) {
     return null;
   }
+
+  const raw = execFileSync("git", ["show", `${baseRef}:${relPath}`], {
+    cwd,
+    env,
+    encoding: "utf8",
+  });
+  return JSON.parse(raw);
+}
+
+function checkAppDir(app) {
+  const baselinePath = join(app.dir, "effect-baseline.json");
+  const biomePath = join(app.dir, "biome.json");
+  assert.ok(existsSync(baselinePath), `missing ${baselinePath}`);
+
+  const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+  const biomeConfig = JSON.parse(readFileSync(biomePath, "utf8"));
+  const effectOverride = (biomeConfig.overrides ?? []).find(
+    (override) =>
+      Array.isArray(override.plugins) &&
+      override.plugins.includes(PLUGIN_REL_FROM_APP),
+  );
+  assert.ok(
+    effectOverride,
+    `apps/${app.name}/biome.json must attach ${PLUGIN_REL_FROM_APP} via an override`,
+  );
+
+  const suppressions = findEffectSuppressions(app);
+  const actualCounts = countActualEffects(app);
+  const violations = findBaselineViolations({
+    actualCounts,
+    baseline,
+    overrideIncludes: effectOverride.includes ?? [],
+    baseIncludes: app.baseIncludes,
+  });
+
+  return { baseline, suppressions, violations };
 }
 
 describe("no-direct-effects Grit plugin", () => {
-  test("flags named imports and React.* forms at error severity and passes exempt paths in both apps", () => {
+  test("flags named imports, React.*, namespace, computed-member, alias, destructuring, and renamed re-export forms at error severity and passes exempt paths in both apps", () => {
     const sample = [
-      'import React, { useEffect, useEffectEvent, useLayoutEffect } from "react";',
-      'import { useMountEffect } from "@/hooks/use-mount-effect";',
+      'import * as R from "react";',
+      "import React, {",
+      "  useEffect,",
+      "  useEffect as ue,",
+      "  useEffectEvent,",
+      "  useLayoutEffect,",
+      "  useLayoutEffect as ule,",
+      '} from "react";',
+      'import { useMountEffect, useMountEffect as ume } from "@/hooks/use-mount-effect";',
+      'export { useEffect as reexportedEffect } from "react";',
+      'export { useLayoutEffect as reexportedLayoutEffect, useState as okReexport } from "react";',
+      'export { useMountEffect as reexportedMountEffect } from "@/hooks/use-mount-effect";',
+      "export { useEffect as localReexport, useEffectEvent as okLocalReexport };",
       "",
       "export function Sample() {",
       "  const onTick = useEffectEvent(() => {});",
+      "  const { useEffect: destructuredEffect } = R;",
+      "  let { useLayoutEffect: destructuredLayout } = React;",
+      "  const { useMountEffect: destructuredMount } = R;",
+      "  const { useEffectEvent: okEvent } = R;",
+      "  const assignedEffect = useEffect;",
+      "  const assignedMember = R.useLayoutEffect;",
+      '  const assignedComputed = R["useMountEffect"];',
       "  useEffect(() => {",
       "    onTick();",
       "  }, [onTick]);",
@@ -293,10 +381,18 @@ describe("no-direct-effects Grit plugin", () => {
       "  React.useEffect(() => {}, []);",
       "  React.useLayoutEffect(() => {});",
       "  React.useMountEffect(() => {});",
-      "  return null;",
+      "  R.useEffect(() => {}, []);",
+      "  R.useLayoutEffect(() => {});",
+      '  React["useEffect"](() => {}, []);',
+      "  React['useLayoutEffect'](() => {});",
+      '  R["useMountEffect"](() => {});',
+      "  return [ue, ule, ume, destructuredEffect, destructuredLayout, destructuredMount, okEvent, assignedEffect, assignedMember, assignedComputed];",
       "}",
       "",
     ].join("\n");
+
+    // 3 import aliases + 4 renamed re-exports + 3 destructurings + 3 assignments + 11 calls = 24 errors.
+    const expectedCount = 24;
 
     for (const app of APPS) {
       const fixture = mkdtempSync(join(tmpdir(), `effect-rule-${app.name}-`));
@@ -361,8 +457,8 @@ describe("no-direct-effects Grit plugin", () => {
 
         assert.equal(
           pluginDiagnostics.length,
-          6,
-          `${app.name}: expected 6 errors from src/clean.tsx only, got ${JSON.stringify(pluginDiagnostics)}`,
+          expectedCount,
+          `${app.name}: expected ${expectedCount} errors from src/clean.tsx only, got ${pluginDiagnostics.length}: ${JSON.stringify(pluginDiagnostics)}`,
         );
         for (const diagnostic of pluginDiagnostics) {
           assert.equal(diagnostic.severity, "error");
@@ -375,6 +471,112 @@ describe("no-direct-effects Grit plugin", () => {
       } finally {
         rmSync(fixture, { recursive: true, force: true });
       }
+    }
+  });
+
+  test("rejects every real Biome suppression form for no-direct-effects end-to-end", () => {
+    const suppressionFixtures = [
+      [
+        "line-lint",
+        'import { useEffect } from "react";\nexport function A() {\n  // biome-ignore lint: bypass\n  useEffect(() => {}, []);\n  return null;\n}\n',
+      ],
+      [
+        "line-lint-plugin",
+        'import { useEffect } from "react";\nexport function A() {\n  // biome-ignore lint/plugin: bypass\n  useEffect(() => {}, []);\n  return null;\n}\n',
+      ],
+      [
+        "line-lint-plugin-named",
+        'import { useEffect } from "react";\nexport function A() {\n  // biome-ignore lint/plugin/no-direct-effects: bypass\n  useEffect(() => {}, []);\n  return null;\n}\n',
+      ],
+      [
+        "file-all-lint-plugin-named",
+        '// biome-ignore-all lint/plugin/no-direct-effects: bypass\nimport { useEffect } from "react";\nexport function A() {\n  useEffect(() => {}, []);\n  return null;\n}\n',
+      ],
+      [
+        "range-start-lint-plugin-named",
+        'import { useEffect } from "react";\nexport function A() {\n  // biome-ignore-start lint/plugin/no-direct-effects: bypass\n  useEffect(() => {}, []);\n  // biome-ignore-end lint/plugin/no-direct-effects: bypass\n  return null;\n}\n',
+      ],
+      [
+        "block-comment-named",
+        'import { useEffect } from "react";\nexport function A() {\n  /* biome-ignore lint/plugin/no-direct-effects: bypass */\n  useEffect(() => {}, []);\n  return null;\n}\n',
+      ],
+      [
+        "second-category-lint-plugin",
+        'import { useEffect } from "react";\nexport function A() {\n  // biome-ignore lint/correctness/noUnusedVariables lint/plugin: bypass\n  useEffect(() => {}, []);\n  return null;\n}\n',
+      ],
+      [
+        "second-category-lint-plugin-named",
+        'import { useEffect } from "react";\nexport function A() {\n  // biome-ignore lint/correctness/noUnusedVariables lint/plugin/no-direct-effects: bypass\n  useEffect(() => {}, []);\n  return null;\n}\n',
+      ],
+      [
+        "second-category-lint",
+        'import { useEffect } from "react";\nexport function A() {\n  // biome-ignore lint/correctness/noUnusedVariables lint: bypass\n  useEffect(() => {}, []);\n  return null;\n}\n',
+      ],
+    ];
+
+    const fixture = mkdtempSync(join(tmpdir(), "effect-suppress-e2e-"));
+    try {
+      mkdirSync(join(fixture, "biome-plugins"), { recursive: true });
+      writeFileSync(
+        join(fixture, "biome-plugins/no-direct-effects.grit"),
+        readFileSync(PLUGIN_PATH, "utf8"),
+      );
+      writeFileSync(
+        join(fixture, "biome.jsonc"),
+        JSON.stringify({
+          linter: { enabled: true, rules: { preset: "none" } },
+        }),
+      );
+
+      for (const [name, source] of suppressionFixtures) {
+        const appDir = join(fixture, "apps", name);
+        mkdirSync(join(appDir, "src"), { recursive: true });
+        writeFileSync(join(appDir, "src/bypass.tsx"), source);
+        writeFileSync(join(appDir, "effect-baseline.json"), "{}\n");
+        writeFileSync(
+          join(appDir, "biome.json"),
+          JSON.stringify({
+            root: false,
+            extends: "//",
+            overrides: [
+              {
+                includes: COMMON_BASE_INCLUDES,
+                plugins: [PLUGIN_REL_FROM_APP],
+              },
+            ],
+          }),
+        );
+
+        // First prove Biome itself actually silenced the plugin diagnostic,
+        // so we know each fixture exercises a real Biome suppression form.
+        const report = runBiomeJson(
+          ["lint", "--reporter=json", "--max-diagnostics=none", "."],
+          appDir,
+        );
+        const pluginErrors = report.diagnostics.filter(
+          (d) => d.category === "plugin",
+        );
+        assert.equal(
+          pluginErrors.length,
+          0,
+          `${name}: expected Biome to silence plugin error so the suppression guard is exercised`,
+        );
+
+        // Now verify the baseline checker rejects the suppression end-to-end.
+        const { suppressions } = checkAppDir({
+          name,
+          dir: appDir,
+          baseIncludes: COMMON_BASE_INCLUDES,
+          exemptUi: false,
+        });
+        assert.equal(
+          suppressions.length,
+          1,
+          `${name}: expected suppression check to fail on real Biome suppression`,
+        );
+      }
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
     }
   });
 });
@@ -461,61 +663,107 @@ describe("effect baseline invariants", () => {
     assert.match(grew[1], /src\/new\.tsx.*grew from 0 to 1/);
   });
 
-  test("fails on any biome-ignore targeting the effect rule", () => {
+  test("allows unrelated suppressions and prose while rejecting all effect-rule suppressions", () => {
     const findings = findEffectSuppressionsInFiles(
       new Map([
         [
-          "src/bad.tsx",
+          "src/mixed.tsx",
           [
             "// biome-ignore lint: bypass",
             "// biome-ignore lint/plugin: bypass",
+            "// biome-ignore lint/plugin/no-direct-effects: bypass",
             "// biome-ignore plugin: bypass",
-            "// biome-ignore-all lint: bypass",
-            "// biome-ignore-start lint/plugin: bypass",
-            "/* biome-ignore no-direct-effects: bypass */",
+            "// biome-ignore-all lint/plugin/no-direct-effects: bypass",
+            "// biome-ignore-start lint/plugin/no-direct-effects: bypass",
+            "/* biome-ignore lint/correctness/noUnusedVariables lint/plugin/no-direct-effects: bypass */",
             "// biome-ignore lint/correctness/noUnusedVariables: unrelated",
+            "// biome-ignore lint/plugin/named-clock-formats: unrelated plugin",
             "// `biome-ignore` in prose is fine",
           ].join("\n"),
         ],
       ]),
     );
-    assert.equal(findings.length, 6);
+    assert.equal(findings.length, 7);
+  });
+
+  test("readBaseBaseline bootstraps only on a valid commit predating the file and throws on invalid refs or JSON", () => {
+    const repo = mkdtempSync(join(tmpdir(), "effect-base-ref-"));
+    const env = {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+      ),
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_AUTHOR_NAME: "test",
+      GIT_AUTHOR_EMAIL: "test@example.invalid",
+      GIT_COMMITTER_NAME: "test",
+      GIT_COMMITTER_EMAIL: "test@example.invalid",
+    };
+    const git = (...args) =>
+      execFileSync("git", args, { cwd: repo, env, encoding: "utf8" }).trim();
+
+    try {
+      git("init", "-q");
+      writeFileSync(join(repo, "README.md"), "before baseline\n");
+      git("add", "-f", ".");
+      git("commit", "-q", "-m", "predates baseline");
+      const preBaselineSha = git("rev-parse", "HEAD");
+
+      // Valid commit predating the baseline file -> null bootstrap.
+      assert.equal(
+        readBaseBaseline(preBaselineSha, "web", { cwd: repo, env }),
+        null,
+      );
+
+      // Bogus / missing ref -> must throw instead of silently skipping.
+      assert.throws(
+        () =>
+          readBaseBaseline("refs/heads/does-not-exist", "web", {
+            cwd: repo,
+            env,
+          }),
+        /Invalid EFFECT_BASELINE_BASE_REF/,
+      );
+
+      // Valid commit with valid JSON -> returns parsed object.
+      mkdirSync(join(repo, "apps/web"), { recursive: true });
+      writeFileSync(
+        join(repo, "apps/web/effect-baseline.json"),
+        '{"src/a.tsx": 2}\n',
+      );
+      git("add", "-f", ".");
+      git("commit", "-q", "-m", "valid baseline");
+      const validSha = git("rev-parse", "HEAD");
+      assert.deepEqual(readBaseBaseline(validSha, "web", { cwd: repo, env }), {
+        "src/a.tsx": 2,
+      });
+
+      // Valid commit with invalid JSON -> must throw.
+      writeFileSync(join(repo, "apps/web/effect-baseline.json"), "{not-json");
+      git("add", "-f", ".");
+      git("commit", "-q", "-m", "corrupt baseline");
+      const corruptSha = git("rev-parse", "HEAD");
+      assert.throws(
+        () => readBaseBaseline(corruptSha, "web", { cwd: repo, env }),
+        SyntaxError,
+      );
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });
 
 describe("live repo effect baseline", () => {
   for (const app of APPS) {
     test(`apps/${app.name} matches its effect-baseline.json with no suppressions`, () => {
-      const baselinePath = join(app.dir, "effect-baseline.json");
-      const biomePath = join(app.dir, "biome.json");
-      assert.ok(existsSync(baselinePath), `missing ${baselinePath}`);
+      const { baseline, suppressions, violations } = checkAppDir(app);
 
-      const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
-      const biomeConfig = JSON.parse(readFileSync(biomePath, "utf8"));
-      const effectOverride = (biomeConfig.overrides ?? []).find(
-        (override) =>
-          Array.isArray(override.plugins) &&
-          override.plugins.includes(PLUGIN_REL_FROM_APP),
-      );
-      assert.ok(
-        effectOverride,
-        `apps/${app.name}/biome.json must attach ${PLUGIN_REL_FROM_APP} via an override`,
-      );
-
-      const suppressions = findEffectSuppressions(app);
       assert.deepEqual(
         suppressions,
         [],
         `apps/${app.name} has forbidden biome-ignore suppression(s) for the effect rule:\n${suppressions.join("\n")}`,
       );
 
-      const actualCounts = countActualEffects(app);
-      const violations = findBaselineViolations({
-        actualCounts,
-        baseline,
-        overrideIncludes: effectOverride.includes ?? [],
-        baseIncludes: app.baseIncludes,
-      });
       assert.deepEqual(
         violations,
         [],
