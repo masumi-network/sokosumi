@@ -1,6 +1,6 @@
 import {
-  CMO_BATCHED_PRODUCTION_SKILL,
   CMO_PRODUCTION_TURN_PREFIX,
+  cmoWritesMonthAtOnce,
   getSokoBotVersion,
   type MarketingStrategyPlan,
   type ScenarioCheck,
@@ -31,6 +31,11 @@ import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import { ADS_CASE_BUDGET } from "@/services/evals/eval-cmo-funnel";
+import {
+  claimChecks,
+  linkedInOpeningChecks,
+  pictureVarietyChecks,
+} from "@/services/evals/eval-cmo-variety";
 import {
   approveMarketingStrategy,
   isMarketingFilePiece,
@@ -1063,7 +1068,13 @@ async function pollMonth(
   });
   const posts = await prisma.socialPost.findMany({
     where: { marketingStrategyId: strategyId, status: { not: "CANCELED" } },
-    select: { provider: true, text: true, planning: true, media: true },
+    select: {
+      id: true,
+      provider: true,
+      text: true,
+      planning: true,
+      media: true,
+    },
   });
   const plan = parseMarketingPlan(version.plan) as MarketingStrategyPlan | null;
   const pieces = plan?.calendar.length ?? 0;
@@ -1103,8 +1114,8 @@ async function pollMonth(
     where: { id: lane.cusoBotId },
     select: { versionId: true },
   });
-  const coreWrites = getSokoBotVersion(bot?.versionId).skills.includes(
-    CMO_BATCHED_PRODUCTION_SKILL,
+  const coreWrites = cmoWritesMonthAtOnce(
+    getSokoBotVersion(bot?.versionId).skills,
   );
   const reads = Object.entries(review?.writing ?? {});
   const flagged = reads.filter(
@@ -1157,6 +1168,12 @@ async function pollMonth(
           },
         ]),
     ...(await monthPictureChecks(lane, strategyId, evalCase.pictures ?? false)),
+    ...(evalCase.variety
+      ? await pictureVarietyChecks(strategyId, lane.cusoProjectId)
+      : []),
+    ...(evalCase.openings
+      ? linkedInOpeningChecks(posts, review?.writing ?? {})
+      : []),
     ...(evalCase.newsletter ? [newsletterIssueCheck(plan, files)] : []),
     ...(coreWrites
       ? [
@@ -1307,6 +1324,8 @@ export async function pollCmoCase(
         ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
         : {},
     );
+    if (evalCase.brand.focus === "claims" && strategy)
+      checks.push(...(await claimChecks(strategy)));
     if (evalCase.brand.testerCredits && strategy) {
       const level = await cmoPlanLevel(projectId, await databaseNow());
       const made = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);

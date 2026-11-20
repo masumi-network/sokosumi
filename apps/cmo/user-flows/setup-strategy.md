@@ -13,6 +13,8 @@
 
 - A month they could picture: how many posts, where, about what, how many videos.
 - Changes reflected without starting over.
+- A "No" or a correction reaches the whole strategy: the goal, the funnel, the questions, the ads line and every post title that rested on it, and the Brand Brain's summary, audience and offers say the corrected thing too. Nothing still names what they said no to (cmo-v8).
+- Every post makes its own point: no two posts in a week argue the same thing, and no point comes back more than three times in the month (cmo-v8).
 - To understand what they will have to do themselves.
 - No ads, no ad budget and no question about ads unless they said yes.
 - To see what Cuso does for their website (the weekly audit, page fixes, articles when they ask), though it is not on the calendar, and to find it in the funnel.

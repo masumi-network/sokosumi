@@ -1,10 +1,17 @@
 import {
   type BrandBrain,
   CMO_AIDA_STAGES,
+  CMO_CLAIMS_STRATEGY_SKILL,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
+import { z } from "zod";
+
+import {
+  type AskCompetitorModel,
+  askCompetitorModel,
+} from "@/lib/competitors/model";
 import type { EmbedTexts } from "@/lib/embeddings";
 import { findRepeats } from "@/lib/repeats";
 import { bannedCopyProblems } from "@/lib/social-post-writing";
@@ -249,6 +256,7 @@ export function cmoPlanProblems(
       problems.push(...roleProblems(strategy.channels, pieces, weeks));
     problems.push(...crowdedNetworks(pieces));
     problems.push(...storyProblems(pieces));
+    if (options.claims) problems.push(...claimProblems(pieces));
     problems.push(...repeatedTitles(pieces));
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
@@ -299,6 +307,8 @@ export function cmoPlanProblemsSince(
 export interface PlanReviewOptions {
   /** The Cuso saves a long month week by week (cmo-v3's strategy skill). */
   weekly?: boolean;
+  /** Every entry argues its own claim (cmo-v8's strategy skill). */
+  claims?: boolean;
   /** The Cuso writes the funnel in AIDA's four stages (cmo-v5's strategy skill). */
   aida?: boolean;
   /** The Cuso plans every live social network CMO offers (cmo-v5's strategy skill). */
@@ -313,11 +323,14 @@ export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
 
 /** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
 export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
-  const everyNetwork = skills.includes(EVERY_NETWORK_STRATEGY_SKILL);
+  // cmo-v8's strategy skill is cmo-v5's with claims and corrections.
+  const claims = skills.includes(CMO_CLAIMS_STRATEGY_SKILL);
+  const everyNetwork = claims || skills.includes(EVERY_NETWORK_STRATEGY_SKILL);
   return {
     weekly: everyNetwork || skills.includes(WEEKLY_STRATEGY_SKILL),
     aida: everyNetwork,
     everyNetwork,
+    claims,
   };
 }
 
@@ -979,6 +992,26 @@ function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
   ];
 }
 
+/** Entries Core compares by their claim: a talking video's copies are its own piece. */
+function arguing(
+  pieces: MarketingStrategyPlan["calendar"],
+): MarketingStrategyPlan["calendar"] {
+  return pieces.filter((entry) => entry.status !== "skipped" && !entry.videoOf);
+}
+
+function claimProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
+  const missing = arguing(pieces).filter((entry) => !entry.claim?.trim());
+  if (missing.length === 0) return [];
+  return [
+    `${missing.length} calendar entries have no claim (${missing
+      .slice(0, 12)
+      .map((entry) => entry.id)
+      .join(
+        ", ",
+      )}${missing.length > 12 ? ", …" : ""}); give each the one sentence it argues, a point no other piece that week makes.`,
+  ];
+}
+
 /** "2 a day", "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
 function cadenceRange(cadence: string): [number, number] | null {
   const match = cadence
@@ -1085,10 +1118,11 @@ async function sameMessage(
   entries: MarketingStrategyPlan["calendar"],
   text: (entry: MarketingStrategyPlan["calendar"][number]) => string,
   embed?: EmbedTexts,
+  kind: "title" | "claim" = "title",
 ): Promise<{ groups: MarketingStrategyPlan["calendar"][]; costUsd: number }> {
   const { repeats, costUsd } = await findRepeats(
     entries.map(text),
-    "title",
+    kind,
     embed,
   );
   // Each text joins the message of the earlier text it repeats.
@@ -1120,12 +1154,18 @@ export async function cmoCalendarRepeats(
   embed?: EmbedTexts,
 ): Promise<{ problems: string[]; costUsd: number }> {
   const planned = calendar.filter((entry) => entry.status !== "skipped");
-  const [titles, stories] = await Promise.all([
+  const [titles, stories, claims] = await Promise.all([
     sameMessage(planned, (entry) => entry.title, embed),
     sameMessage(
       planned.filter((entry) => entry.story?.trim()),
       (entry) => entry.story ?? "",
       embed,
+    ),
+    sameMessage(
+      arguing(planned).filter((entry) => entry.claim?.trim()),
+      (entry) => entry.claim ?? "",
+      embed,
+      "claim",
     ),
   ]);
   const ids = (entries: MarketingStrategyPlan["calendar"]) =>
@@ -1143,8 +1183,67 @@ export async function cmoCalendarRepeats(
         (entries) =>
           `${ids(entries)} tell one story ("${entries[0]?.story}"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.`,
       ),
+    ...claims.groups.flatMap((entries) => {
+      const repeated = repeatedClaim(entries);
+      return repeated
+        ? [
+            `${ids(repeated)} argue one claim ("${entries[0]?.claim}"); ${MAX_CLAIM_PIECES} pieces a month at most, never two in one week. Keep ${repeated[0]?.id} and give the others their own claim from their pillar.`,
+          ]
+        : [];
+    }),
   ];
-  return { problems, costUsd: titles.costUsd + stories.costUsd };
+  return {
+    problems,
+    costUsd: titles.costUsd + stories.costUsd + claims.costUsd,
+  };
+}
+
+/**
+ * The points a month argues more than its limits allow: each entry's claim,
+ * or its title where it has none (a plan before cmo-v8), by meaning.
+ */
+export async function cmoRepeatedMessages(
+  calendar: MarketingStrategyPlan["calendar"],
+  embed?: EmbedTexts,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const point = (entry: MarketingStrategyPlan["calendar"][number]) =>
+    entry.claim?.trim() || entry.title;
+  const { groups, costUsd } = await sameMessage(
+    arguing(calendar),
+    point,
+    embed,
+    "claim",
+  );
+  const problems = groups.flatMap((entries) => {
+    const repeated = repeatedClaim(entries);
+    return repeated && entries[0]
+      ? [
+          `${repeated.map((entry) => entry.id).join(", ")} argue one point ("${point(entries[0])}")`,
+        ]
+      : [];
+  });
+  return { problems, costUsd };
+}
+
+/** Pieces one claim may carry in a month, in different weeks (cmo-v8). */
+const MAX_CLAIM_PIECES = 3;
+
+/**
+ * The pieces of one claim that break its limits, or null: two in one week
+ * (counted from the calendar's first day), or more than three in the month.
+ */
+function repeatedClaim(
+  entries: MarketingStrategyPlan["calendar"],
+): MarketingStrategyPlan["calendar"] | null {
+  if (entries.length < 2) return null;
+  if (entries.length > MAX_CLAIM_PIECES) return entries;
+  const first = Math.min(...entries.map((entry) => Date.parse(entry.date)));
+  const week = (entry: MarketingStrategyPlan["calendar"][number]) =>
+    Math.floor((Date.parse(entry.date) - first) / (7 * 86_400_000));
+  const sameWeek = entries.filter((entry) =>
+    entries.some((other) => other !== entry && week(other) === week(entry)),
+  );
+  return sameWeek.length > 0 ? sameWeek : null;
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */
@@ -1400,4 +1499,115 @@ export async function cmoReplySafety(input: {
   } catch {
     return { safe: false, costUsd: 0 };
   }
+}
+
+const rejectedSchema = z.object({ rejected: z.array(z.string()) });
+
+/** Each turn's rejected words, asked once: a turn saves several times. */
+const rejectedByTurn = new Map<
+  string,
+  Promise<{ terms: string[]; costUsd: number }>
+>();
+const MAX_REMEMBERED_TURNS = 200;
+
+/**
+ * The words naming what the owner's correction in a turn's request rejects
+ * ("ballcaps" in "No, we don't sell ballcaps anymore, push the jackets"),
+ * as a plan would spell them. None when the request rejects nothing.
+ */
+export function cmoRejectedTerms(
+  turnId: string,
+  request: string,
+  ask: AskCompetitorModel = askCompetitorModel,
+): Promise<{ terms: string[]; costUsd: number }> {
+  const known = rejectedByTurn.get(turnId);
+  if (known) return known.then((found) => ({ ...found, costUsd: 0 }));
+  const asked = ask({
+    system:
+      "You read a business owner's request to their marketing lead and list what the owner says is not true or no longer wanted, as the words a marketing plan would use for it.",
+    prompt: [
+      "Request:",
+      request.slice(0, 6_000),
+      "",
+      'List the words or short phrases (one to three words each, in the language the plan is written in) that name only what the owner rejected: a product, audience, market, place or claim that must no longer appear anywhere in the marketing strategy. Give the forms a plan would use ("ballcap", "ballcaps", "baseball caps"). Never a word the corrected truth also uses, never the business\'s own name, never a common word ("team", "price", "customers"). An empty list when the owner rejects nothing (a change of pace, a new idea, a budget, a request to add something).',
+    ].join("\n"),
+    schema: rejectedSchema,
+  })
+    .then(({ output, costUsd }) => ({
+      terms: [
+        ...new Set(
+          output.rejected
+            .map((term) => term.trim().toLowerCase())
+            .filter((term) => term.length >= 3),
+        ),
+      ].slice(0, 8),
+      costUsd,
+    }))
+    .catch(() => {
+      rejectedByTurn.delete(turnId);
+      return { terms: [], costUsd: 0 };
+    });
+  rejectedByTurn.set(turnId, asked);
+  while (rejectedByTurn.size > MAX_REMEMBERED_TURNS) {
+    const oldest = rejectedByTurn.keys().next().value;
+    if (oldest === undefined) break;
+    rejectedByTurn.delete(oldest);
+  }
+  return asked;
+}
+
+/** Fields that record the plan's history or other options, not what it says now. */
+const NOT_THE_PLAN = new Set([
+  "changes",
+  "patched",
+  "previews",
+  "alternatives",
+  "leftOut",
+  "contentLanguage",
+]);
+
+function textsIn(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(textsIn);
+  if (value && typeof value === "object")
+    return Object.values(value).flatMap(textsIn);
+  return [];
+}
+
+/**
+ * Where the strategy still names what the owner rejected (cmo-v8): every
+ * field but its history, and each planned entry's title, brief, story and
+ * claim. A correction is true everywhere, so each place is named.
+ */
+export function cmoRejectedTermProblems(
+  strategy: MarketingStrategyPlan,
+  terms: readonly string[],
+): string[] {
+  const places: { place: string; texts: string[] }[] = [
+    ...Object.entries(strategy)
+      .filter(([key]) => key !== "calendar" && !NOT_THE_PLAN.has(key))
+      .map(([key, value]) => ({ place: key, texts: textsIn(value) })),
+    ...strategy.calendar
+      .filter((entry) => entry.status !== "skipped")
+      .map((entry) => ({
+        place: `${entry.id}'s title or brief`,
+        texts: [entry.title, entry.brief, entry.story, entry.claim].flatMap(
+          (text) => text ?? [],
+        ),
+      })),
+  ];
+  return terms.flatMap((term) => {
+    const pattern = new RegExp(
+      `(?<![\\p{L}\\p{N}])${RegExp.escape(term)}(?:s|es)?(?![\\p{L}\\p{N}])`,
+      "iu",
+    );
+    const found = places
+      .filter(({ texts }) => texts.some((text) => pattern.test(text)))
+      .map(({ place }) => place);
+    if (found.length === 0) return [];
+    const shown = found.slice(0, 8).join(", ");
+    return [
+      `"${term}" is what the owner said is not true, and it is still in ${shown}${found.length > 8 ? ` and ${found.length - 8} more` : ""}. A correction is true everywhere: rewrite each of these so none names it, not even to say it is out, and save with part patch.`,
+    ];
+  });
 }

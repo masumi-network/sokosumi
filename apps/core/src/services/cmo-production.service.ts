@@ -1,9 +1,9 @@
 import type { SokoBotTurnStatus } from "@sokosumi/database";
 import {
   type BrandBrain,
-  CMO_BATCHED_PRODUCTION_SKILL,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
+  cmoWritesMonthAtOnce,
   getSokoBotVersion,
   type MarketingStrategyPlan,
   SOKO_BOT_CMO_RHYTHMS,
@@ -289,6 +289,7 @@ export function cmoPieceLine(piece: CmoPiece, failed: boolean): string {
       ? `brief: ${piece.brief}`
       : "(no brief: write it from its title, approach and pillar)",
     piece.story ? `story: ${piece.story}` : "",
+    piece.claim ? `claim: ${piece.claim}` : "",
     slides > 0
       ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
       : "",
@@ -438,9 +439,7 @@ async function cmoCoreWritesMonth(sokoBotId: string): Promise<boolean> {
     where: { id: sokoBotId },
     select: { versionId: true },
   });
-  return getSokoBotVersion(bot?.versionId).skills.includes(
-    CMO_BATCHED_PRODUCTION_SKILL,
-  );
+  return cmoWritesMonthAtOnce(getSokoBotVersion(bot?.versionId).skills);
 }
 
 /** The turn a run hangs under: the newest top-level turn of Cuso's bot. */

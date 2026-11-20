@@ -3004,6 +3004,71 @@ describe("social posts service", () => {
       expect(result.problem).toBeNull();
     });
 
+    // cmo-v8: posts with other words and the same point passed the word
+    // compare on NMKR's month (2026-11-20); each piece argues its own claim.
+    it("refuses a post that argues another piece's claim instead of its own", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        planning: { id: "stake", claim: "Staking rewards arrive every epoch" },
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        // Not written yet: its claim still counts.
+        {
+          text: "Governance",
+          planning: {
+            title: "Governance",
+            claim: "Holders vote on governance proposals",
+          },
+        },
+      ]);
+      const { ownMessageProblem } = await loadService();
+
+      const off = await ownMessageProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "Every holder can vote on the next governance step.",
+        },
+        embed,
+      );
+      expect(off.problem).toBe(
+        'Rewrite the post: it argues another piece\'s claim ("Holders vote on governance proposals"), not its own ("Staking rewards arrive every epoch"). Make the post argue its own claim.',
+      );
+
+      const own = await ownMessageProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "Rewards land in your wallet every epoch.",
+        },
+        embed,
+      );
+      expect(own.problem).toBeNull();
+    });
+
+    it("compares no claims on a plan without them", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        planning: { id: "stake" },
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          text: "Governance",
+          planning: { title: "Governance", claim: "Holders vote on proposals" },
+        },
+      ]);
+      const { ownMessageProblem } = await loadService();
+      const result = await ownMessageProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "Every holder can vote on the next governance step.",
+        },
+        embed,
+      );
+      expect(result.problem).toBeNull();
+    });
+
     it("checks nothing for a post outside a marketing month", async () => {
       socialPostFindFirstMock.mockResolvedValue({ marketingStrategyId: null });
       const { ownMessageProblem } = await loadService();
@@ -3015,6 +3080,90 @@ describe("social posts service", () => {
 
       expect(result).toEqual({ problem: null, costUsd: 0 });
       expect(socialPostFindManyMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // cmo-v8: cal.com's LinkedIn posts (2026-11-20) opened on advice and
+  // failed Jev's hook rule on 2 of 2 runs.
+  describe("linkedInOpeningProblem", () => {
+    const jev = (probability: number) =>
+      vi.fn(async () => ({
+        answers: new Map([["hook", { type: "boolean", probability }]]),
+        costUsd: 0.000_1,
+      }));
+
+    it("refuses a month's LinkedIn post that opens on advice", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      const { linkedInOpeningProblem } = await loadService();
+      const evaluate = jev(0.1);
+      const result = await linkedInOpeningProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "A booking flow should start with the team.\n\nHere is why.\n\nMore text.",
+        },
+        evaluate as never,
+      );
+      expect(result.problem).toContain(
+        'Rewrite the post\'s first two lines: "A booking flow should start with the team." gives no reason to tap "see more".',
+      );
+      expect(result.costUsd).toBe(0.000_1);
+      expect(evaluate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: {
+            opening: "A booking flow should start with the team.\nHere is why.",
+          },
+        }),
+      );
+    });
+
+    it("lets a result through, and checks no other network", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      const { linkedInOpeningProblem } = await loadService();
+      const text = "Deel cut its booking back-and-forth by 70% in a week.";
+      expect(
+        (
+          await linkedInOpeningProblem(
+            { postId: POST_ID, workspaceId: WORKSPACE_ID, text },
+            jev(0.9) as never,
+          )
+        ).problem,
+      ).toBeNull();
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "x",
+      });
+      const evaluate = jev(0.1);
+      expect(
+        await linkedInOpeningProblem(
+          { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Tips." },
+          evaluate as never,
+        ),
+      ).toEqual({ problem: null, costUsd: 0 });
+      expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    it("never holds a post up when Jev does not answer", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      const { linkedInOpeningProblem } = await loadService();
+      const evaluate = vi.fn(async () => {
+        throw new Error("timeout");
+      });
+      expect(
+        await linkedInOpeningProblem(
+          { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Tips." },
+          evaluate as never,
+        ),
+      ).toEqual({ problem: null, costUsd: 0 });
     });
   });
 

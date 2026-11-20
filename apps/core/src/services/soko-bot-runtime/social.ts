@@ -18,6 +18,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { SOCIAL_POST_WRITING_GUIDES } from "@/lib/social-post-writing";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
+import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import {
   BEARER_USER_SELECT,
@@ -27,6 +28,7 @@ import { projectPostingInstructionsSchema } from "@/schemas/project.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
+import { cmoKeepsPicturesVaried } from "@/services/cmo-media-maker.service";
 import {
   listProjectSocialConnections,
   requireScopedProject,
@@ -44,6 +46,7 @@ import {
   cancelSocialPost,
   createSocialPost,
   getSocialPost,
+  linkedInOpeningProblem,
   listSocialPosts,
   ownMessageProblem,
   prepareSocialPostMutationMedia,
@@ -318,6 +321,15 @@ export async function executeSocialTool(
           });
           await chargeCheck(input, EMBEDDING_MODEL, own.costUsd);
           if (own.problem) throw badRequest(own.problem);
+          if (cmoKeepsPicturesVaried(authorized.turn.versionId)) {
+            const opening = await linkedInOpeningProblem({
+              postId: params.postId,
+              workspaceId,
+              text: params.text,
+            });
+            await chargeCheck(input, SOKO_BOT_JEV_MODEL, opening.costUsd);
+            if (opening.problem) throw badRequest(opening.problem);
+          }
         }
       }
       if (

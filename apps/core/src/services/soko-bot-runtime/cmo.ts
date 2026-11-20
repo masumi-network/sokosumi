@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import { COMPETITOR_CHECK_MODEL } from "@/lib/competitors/model";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
@@ -36,6 +37,7 @@ import {
   requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
+import { cmoKeepsPicturesVaried } from "@/services/cmo-media-maker.service";
 import {
   CMO_CALENDAR_REVIEWS_PER_TURN,
   CMO_PLAN_REVIEWS_PER_TURN,
@@ -48,6 +50,8 @@ import {
   cmoNewNetworkProblems,
   cmoPlanDrift,
   cmoPlanProblemsSince,
+  cmoRejectedTermProblems,
+  cmoRejectedTerms,
   cmoReplySafety,
   cmoSideChannelFit,
   cmoStrategyRules,
@@ -254,13 +258,26 @@ export async function reviewCmoPlan(
   // the top volume whatever the month before it had.
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: authorized.turn.id },
-    select: { clientTurnId: true, userMessage: true },
+    select: { clientTurnId: true, userMessage: true, source: true },
   });
   const fresh =
     turn?.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) === true &&
     cmoChangeKind(turn.clientTurnId) === null &&
     !turn.userMessage.includes("The owner asked: ");
   const problems = cmoPlanProblemsSince(strategy, earlier, { ...rules, fresh });
+  // cmo-v8: what the owner's correction rejected is gone from every field.
+  if (
+    rules.claims &&
+    turn &&
+    (cmoChangeKind(turn.clientTurnId) !== null || turn.source === "CHAT")
+  ) {
+    const rejected = await cmoRejectedTerms(
+      authorized.turn.id,
+      turn.userMessage,
+    );
+    await chargeCheck(input, COMPETITOR_CHECK_MODEL, rejected.costUsd);
+    problems.push(...cmoRejectedTermProblems(strategy, rejected.terms));
+  }
   if (reviewed >= budget) {
     return {
       save: saves,
@@ -477,6 +494,7 @@ export async function saveCmoRecord(
               part,
               executing,
               clear: cmoStrategySaveClears(input.input),
+              pictureKinds: cmoKeepsPicturesVaried(authorized.turn.versionId),
               // A plan, change or patch that breaks a hard rule is refused
               // at save time. A rhythm's save sees only 31 days of the
               // calendar, so the review only advises it.

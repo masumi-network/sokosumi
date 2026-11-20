@@ -64,12 +64,13 @@ import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { EmbedTexts } from "@/lib/embeddings";
-import { findRepeats } from "@/lib/repeats";
+import { findRepeats, similarities } from "@/lib/repeats";
 import {
   socialPostFormattingError,
   stackedCaveatsProblem,
   tagOwnLinks,
 } from "@/lib/social-post-writing";
+import { evaluateWithJev } from "@/lib/soko-bot/jev";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
@@ -723,10 +724,120 @@ export async function ownMessageProblem(
     embed,
   );
   const repeated = written[repeats.at(-1) ?? -1];
+  if (repeated)
+    return {
+      problem: `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`,
+      costUsd,
+    };
+  const argued = await otherClaimArgued(
+    input.text,
+    claimOf(post.planning),
+    siblings
+      .filter(
+        (sibling) => video === null || videoOf(sibling.planning) !== video,
+      )
+      .flatMap((sibling) => claimOf(sibling.planning) ?? []),
+    embed,
+  );
+  return { problem: argued.problem, costUsd: costUsd + argued.costUsd };
+}
+
+/** Below this Jev is fairly sure the opening misses; a coin flip is not worth a rewrite. */
+const OPENING_PASS = 0.35;
+
+/** What a LinkedIn reader sees before "see more": about two lines. */
+export function linkedInOpening(text: string): string {
+  return text
+    .trim()
+    .split(/\n+/)
+    .filter((line) => line.trim())
+    .slice(0, 2)
+    .join("\n")
+    .slice(0, 220);
+}
+
+/**
+ * cmo-v8: a LinkedIn post in a month opens on a result, a number, a named
+ * customer or a surprising decision. cal.com's month (2026-11-20) failed
+ * Jev's hook rule on 2 of 2 runs with openings that gave advice.
+ */
+export async function linkedInOpeningProblem(
+  input: { postId: string; workspaceId: string; text: string },
+  evaluate: typeof evaluateWithJev = evaluateWithJev,
+): Promise<{ problem: string | null; costUsd: number }> {
+  const post = await prisma.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true, provider: true },
+  });
+  if (!post?.marketingStrategyId || post.provider.toLowerCase() !== "linkedin")
+    return { problem: null, costUsd: 0 };
+  const opening = linkedInOpening(input.text);
+  try {
+    const { answers, costUsd } = await evaluate({
+      state: { opening },
+      questions: {
+        hook: {
+          type: "boolean",
+          instructions:
+            "Do the opening lines state something specific that happened: a result with its number, a number from the business, a named customer or company and what they did, or a decision that sounds surprising at first? Advice, a tip, a definition, a general truth about the category, a question to the reader, or what the reader should do is not.",
+        },
+      },
+      timeoutMs: 15_000,
+    });
+    const answer = answers.get("hook");
+    const passed =
+      answer?.type !== "boolean" || answer.probability >= OPENING_PASS;
+    return {
+      problem: passed
+        ? null
+        : `Rewrite the post's first two lines: "${opening.split("\n")[0]}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
+      costUsd,
+    };
+  } catch {
+    // A quality check: when Jev does not answer, the post is not held up.
+    return { problem: null, costUsd: 0 };
+  }
+}
+
+/**
+ * How much closer to another piece's claim than to its own a post must be
+ * to argue that one instead (cmo-v8), and how close at least.
+ */
+export const CLAIM_MARGIN = 0.05;
+export const CLAIM_FLOOR = 0.6;
+
+const claimOf = (planning: unknown) => {
+  const claim = (planning as { claim?: unknown } | null)?.claim;
+  return typeof claim === "string" && claim.trim() ? claim.trim() : null;
+};
+
+/**
+ * A post whose words argue another piece's claim rather than its own: the
+ * same point in other words, which a word-by-word compare misses.
+ */
+export async function otherClaimArgued(
+  text: string,
+  own: string | null,
+  claims: readonly string[],
+  embed?: EmbedTexts,
+): Promise<{ problem: string | null; costUsd: number }> {
+  const theirs = [...new Set(claims)].filter((claim) => claim !== own);
+  if (!own || theirs.length === 0) return { problem: null, costUsd: 0 };
+  const { scores, costUsd } = await similarities(text, [own, ...theirs], embed);
+  if (!scores) return { problem: null, costUsd };
+  const [ownScore = 0, ...others] = scores;
+  const best = others.reduce(
+    (top, score, index) => (score > top.score ? { score, index } : top),
+    { score: 0, index: -1 },
+  );
+  const claim = theirs[best.index];
   return {
-    problem: repeated
-      ? `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`
-      : null,
+    problem:
+      claim &&
+      best.score >= CLAIM_FLOOR &&
+      best.score >= ownScore + CLAIM_MARGIN
+        ? `Rewrite the post: it argues another piece's claim ("${claim}"), not its own ("${own}"). Make the post argue its own claim.`
+        : null,
     costUsd,
   };
 }

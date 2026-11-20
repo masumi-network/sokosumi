@@ -13,7 +13,7 @@ import {
 } from "../policy.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import { CMO_MODEL_TRIALS } from "./cmo-model-trials.js";
-import { CMO_BATCHED_PRODUCTION_SKILL } from "./cmo-skills.js";
+import { cmoWritesMonthAtOnce } from "./cmo-skills.js";
 import { cmoV1 } from "./cmo-v1.js";
 import { cmoV2 } from "./cmo-v2.js";
 import { cmoV3 } from "./cmo-v3.js";
@@ -21,6 +21,7 @@ import { cmoV4 } from "./cmo-v4.js";
 import { cmoV5 } from "./cmo-v5.js";
 import { cmoV6 } from "./cmo-v6.js";
 import { cmoV7 } from "./cmo-v7.js";
+import { cmoV8 } from "./cmo-v8.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -112,6 +113,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV5,
   cmoV6,
   cmoV7,
+  cmoV8,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
@@ -226,7 +228,7 @@ export function applyVersionCapabilities(
         ...SOKO_BOT_CMO_CAPABILITIES.filter(
           (capability) =>
             capability !== "write_month_pieces" ||
-            version.skills.includes(CMO_BATCHED_PRODUCTION_SKILL),
+            cmoWritesMonthAtOnce(version.skills),
         ),
         ...SOKO_BOT_COMPETITOR_CAPABILITIES,
       ]

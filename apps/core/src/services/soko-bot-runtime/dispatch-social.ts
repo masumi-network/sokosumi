@@ -12,8 +12,10 @@ import {
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
+import { cmoKeepsPicturesVaried } from "@/services/cmo-media-maker.service";
 import {
   findStyleReferences,
+  infographicSuits,
   monthStyleReferenceIds,
   referenceLibraryAvailable,
 } from "@/services/reference-library.service";
@@ -131,7 +133,15 @@ export async function dispatchSocialTools(
       // A Cuso's month gives every piece its own reference: offer only free ones.
       const cuso = await findCusoForBot(authorized.turn.sokoBotId);
       const exclude = cuso ? await monthStyleReferenceIds(cuso.projectId) : [];
-      return { references: await findStyleReferences({ ...query, exclude }) };
+      return {
+        references: await findStyleReferences({
+          ...query,
+          exclude,
+          infographics:
+            !cmoKeepsPicturesVaried(authorized.turn.versionId) ||
+            infographicSuits(query.purpose),
+        }),
+      };
     }
 
     case "read_social_profile": {
