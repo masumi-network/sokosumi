@@ -1733,8 +1733,9 @@ const distinctClaimsSchema = z.object({
   claims: z.array(z.object({ id: z.string(), claim: z.string() })),
 });
 
-/** Entries one call gives new claims; a month rarely repeats more. */
+/** Entries one review gives new claims; a month rarely repeats more. */
 const MAX_CLAIM_REWRITES = 40;
+const CLAIMS_PER_CALL = 12;
 
 /**
  * New claims for the entries that repeat another's (cmo-v8), each its own
@@ -1763,40 +1764,46 @@ export async function cmoDistinctClaims(
   const kept = pieces
     .filter((entry) => !ids.has(entry.id))
     .map((entry) => entry.claim);
-  try {
-    const { output, costUsd: asked } = await ask({
-      system:
-        "You give pieces of a marketing month their own point. Each claim is one sentence a reader can agree or disagree with, in the language of the claims below, specific to the piece's title and brief.",
-      prompt: [
-        "Claims the month already makes (never repeat one, not in other words):",
-        ...kept.map((claim) => `- ${claim}`),
-        "",
-        "Write one new claim for each of these pieces, by its id:",
-        JSON.stringify(
-          redo.map((entry) => ({
-            id: entry.id,
-            channel: entry.channel,
-            title: entry.title,
-            brief: entry.brief,
-            pillar: entry.pillar,
-            approach: entry.approach,
-            oldClaim: entry.claim,
-          })),
-        ),
-      ].join("\n"),
-      schema: distinctClaimsSchema,
-    });
-    return {
-      claims: new Map(
-        output.claims.flatMap(({ id, claim }) =>
-          ids.has(id) && claim.trim()
-            ? [[id, claim.trim().slice(0, 400)] as const]
-            : [],
-        ),
-      ),
-      costUsd: costUsd + asked,
-    };
-  } catch {
-    return { claims: new Map(), costUsd };
+  // A few pieces a call: forty at once ran past the check model's 25 s.
+  const batches = Array.from(
+    { length: Math.ceil(redo.length / CLAIMS_PER_CALL) },
+    (_, index) =>
+      redo.slice(index * CLAIMS_PER_CALL, (index + 1) * CLAIMS_PER_CALL),
+  );
+  const answers = await Promise.all(
+    batches.map((batch) =>
+      ask({
+        system:
+          "You give pieces of a marketing month their own point. Each claim is one short sentence in plain words a reader can agree or disagree with, in the language of the claims below, specific to the piece's title and brief. Use only facts the piece's title, brief and old claim state: never add a customer, a number, a quote or a result they do not name.",
+        prompt: [
+          "Claims the month already makes (never repeat one, not in other words):",
+          ...kept.map((claim) => `- ${claim}`),
+          "",
+          "Write one new claim for each of these pieces, by its id. Give each a different point from the others in this list too:",
+          JSON.stringify(
+            batch.map((entry) => ({
+              id: entry.id,
+              channel: entry.channel,
+              title: entry.title,
+              brief: entry.brief,
+              pillar: entry.pillar,
+              approach: entry.approach,
+              oldClaim: entry.claim,
+            })),
+          ),
+        ].join("\n"),
+        schema: distinctClaimsSchema,
+      }).catch(() => null),
+    ),
+  );
+  const claims = new Map<string, string>();
+  let asked = 0;
+  for (const answer of answers) {
+    if (!answer) continue;
+    asked += answer.costUsd;
+    for (const { id, claim } of answer.output.claims)
+      if (ids.has(id) && claim.trim())
+        claims.set(id, claim.trim().slice(0, 400));
   }
+  return { claims, costUsd: costUsd + asked };
 }

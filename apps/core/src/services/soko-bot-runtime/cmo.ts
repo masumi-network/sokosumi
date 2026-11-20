@@ -385,7 +385,7 @@ export async function reviewCmoPlan(
 }
 
 /** New claims, checked again: a rewrite can land close to another claim. */
-const DISTINCT_CLAIM_PASSES = 2;
+const DISTINCT_CLAIM_PASSES = 3;
 
 /** The saved version with these entries' claims replaced; `fallback` when it is gone. */
 async function withClaims(
