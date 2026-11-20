@@ -247,6 +247,21 @@ export async function reviewCmoPlan(
     2 * budget +
     (weekly && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0) +
     (rules.claims && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0);
+  // cmo-v8: once the month is in, Core gives each repeated claim's later
+  // pieces their own claim on the saved version, on every save: a month of
+  // twenty saves once used up the reviews before its fourth week was in.
+  if (
+    rules.claims &&
+    plan.versionId &&
+    cmoCalendarWeeks(strategy.calendar) >= 4
+  ) {
+    for (let pass = 0; pass < DISTINCT_CLAIM_PASSES; pass++) {
+      const distinct = await cmoDistinctClaims(strategy.calendar);
+      await chargeCheck(input, COMPETITOR_CHECK_MODEL, distinct.costUsd);
+      if (distinct.claims.size === 0) break;
+      strategy = await withClaims(plan.versionId, distinct.claims, strategy);
+    }
+  }
   if (reviewed >= ruleChecks) return null;
   // The plan this turn built on, as it was before the turn touched it.
   const before =
@@ -296,14 +311,6 @@ export async function reviewCmoPlan(
   // hears every one. Named all at once on every weekly save, they kept him
   // fixing old weeks and his months came out short.
   const monthIn = cmoCalendarWeeks(strategy.calendar) >= 4;
-  // cmo-v8: once the month is in, Core gives each repeated claim's later
-  // pieces their own claim, on the saved version.
-  if (rules.claims && monthIn && plan.versionId) {
-    const distinct = await cmoDistinctClaims(strategy.calendar);
-    await chargeCheck(input, COMPETITOR_CHECK_MODEL, distinct.costUsd);
-    if (distinct.claims.size > 0)
-      strategy = await withClaims(plan.versionId, distinct.claims, strategy);
-  }
   const whole = reviewed < budget || (rules.claims === true && monthIn);
   if (whole || rules.claims) {
     const [repeats, had] = await Promise.all([
@@ -376,6 +383,9 @@ export async function reviewCmoPlan(
   });
   return review;
 }
+
+/** New claims, checked again: a rewrite can land close to another claim. */
+const DISTINCT_CLAIM_PASSES = 2;
 
 /** The saved version with these entries' claims replaced; `fallback` when it is gone. */
 async function withClaims(
