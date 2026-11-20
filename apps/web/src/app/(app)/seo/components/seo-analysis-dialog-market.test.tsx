@@ -144,10 +144,6 @@ describe("SEO check defaults", () => {
     expect(summary).toHaveTextContent(
       "Full audit · All pages · Germany · German · Akku Zustand",
     );
-    // A full audit has a minimum and no maximum: the line never says "up to".
-    expect(
-      within(dialog).getByText("At least 750 credits, only if it succeeds"),
-    ).toBeVisible();
     // No field asks for a choice until the reader wants one.
     expect(
       within(dialog).getByRole("button", { name: "Change options" }),
@@ -234,7 +230,7 @@ describe("Search Console audit launch", () => {
       ).toHaveAccessibleDescription(
         monitor
           ? /At least 750 credits per successful run/
-          : /At least 750 credits, only if it succeeds/,
+          : /Approximately 750 credits/,
       );
       expect(screen.queryByText(/private account diagnostic/)).toBeNull();
       expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
@@ -372,16 +368,14 @@ describe("full-audit price terms", () => {
     minimumCredits: 750,
     markupPercent: 50,
   };
-  it("states the cost-plus terms with no maximum before the audit starts", async () => {
+  it("shows one price estimate and submits the full-audit price terms", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace());
-    // The terms show with the fields closed: the one submit is the consent, so no extra checkbox.
-    expect(dialog).toHaveTextContent(
-      "After a successful audit, you pay its model and data API costs plus 50%. This includes Vercel AI Gateway. The minimum is 750 credits. There is no maximum.",
+    expect(within(dialog).getByText("Approximately 750 credits")).toBeVisible();
+    expect(dialog).not.toHaveTextContent(
+      /api costs|there is no maximum|for example, usd/i,
     );
-    expect(dialog).toHaveTextContent(
-      "For example, USD 4 in costs bills 750 credits. USD 10 bills 1,500 credits.",
-    );
+    // A full audit has a minimum and no maximum: the line never says "up to".
     expect(within(dialog).queryByText(/Up to/)).toBeNull();
     expect(within(dialog).queryByRole("spinbutton")).toBeNull();
     expect(within(dialog).queryByRole("checkbox")).toBeNull();
@@ -397,6 +391,7 @@ describe("full-audit price terms", () => {
   it("approves the same terms per run for a schedule of full audits", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace(), true);
+    // The terms show with the fields closed: the one submit is the consent, so no extra checkbox.
     expect(dialog).toHaveTextContent(
       "After each successful run, you pay its model and data API costs plus 50%. This includes Vercel AI Gateway. The minimum per run is 750 credits. There is no maximum.",
     );
