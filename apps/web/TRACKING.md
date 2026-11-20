@@ -72,8 +72,8 @@ outside it; see above.
 
 ## Events
 
-GA4 records `page_view` on every route by itself — no code (except the
-telemetry-blocked routes). On top of that we
+GA4 records `page_view` automatically, with no code (see [The GTM container](#the-gtm-container)
+for the telemetry-blocked routes). On top of that we
 push a small set of business events to the dataLayer. In this app they all go
 through **`lib/gtm-events`** (`fireGTMEvent.*`, which wraps `sendGTMEvent`).
 Consent Mode gates whether GTM forwards them to GA4/Ads.
@@ -341,8 +341,9 @@ It contains, at minimum:
   History Change triggers. Every History Change trigger (including the one on
   `GA4 - config`) must fire on **Some History Changes** with both rows:
   `Page Path` does not match RegEx `^/reset-password(/|$)` and `Page Path`
-  does not match RegEx `^/n/[^/]+/embed/?$`. Check both blocked paths and a
-  normal route in Tag Assistant Preview. **Not yet applied in GTM
+  does not match RegEx `^/n/[^/]+/embed/?$`. In Tag Assistant Preview, navigate within
+  one document (then Back): neither blocked path fires the trigger, and a
+  normal route still does. **Not yet applied in GTM
   (2026-11-20).**
 
 Test changes with **Tag Assistant** (Preview) before publishing, and confirm
