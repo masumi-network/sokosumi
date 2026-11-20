@@ -953,6 +953,7 @@ async function attach(
         {
           styleReferenceId: piece.styleReferenceId,
           headline: cmoStyleHeadline(piece, job.slot) ?? undefined,
+          visual: piece.slides?.[job.slot]?.trim() || piece.visual,
         },
         job,
         style,
@@ -1047,7 +1048,7 @@ async function attach(
  */
 async function checkAndBrand(
   context: { cuso: Pick<Cuso, "sokoBotId"> },
-  piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline">,
+  piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline" | "visual">,
   job: Pick<CmoMediaJob, "id" | "assetId">,
   style: StyleBrand,
 ): Promise<"rejected" | { bytes: Buffer; contentType: string }> {
@@ -1064,6 +1065,7 @@ async function checkAndBrand(
     picture,
     reference: reference.bytes,
     headline: piece.headline ?? null,
+    scene: piece.visual ?? null,
     colours: style.colours,
     brandPictures: await jobBrandPictures(job.id),
   });
@@ -1138,6 +1140,8 @@ export async function finishCmoChatPicture(input: {
   job: { id: string; assetId: string; prompt: string; error: string | null };
   styleReferenceId: string;
   headline: string | null;
+  /** What Cuso asked the picture to show. */
+  scene?: string | null;
 }): Promise<
   | { passed: true; file: { id: string; name: string } }
   | { passed: false; problems: string }
@@ -1156,6 +1160,7 @@ export async function finishCmoChatPicture(input: {
           {
             styleReferenceId: input.styleReferenceId,
             headline: input.headline ?? undefined,
+            visual: input.scene ?? undefined,
           },
           job,
           await loadStyleBrand(input.cuso.projectId),
