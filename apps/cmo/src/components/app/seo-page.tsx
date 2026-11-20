@@ -174,7 +174,17 @@ function AuditCard({ seo, timeZone }: { seo: CmoSeo; timeZone: string }) {
       {audit.lastFailedAt ? (
         <p className="alert" role="status">
           The audit on {day(audit.lastFailedAt)} did not finish, so nothing was
-          charged. The next one runs on schedule.
+          charged.{" "}
+          {audit.retryAt ? (
+            <>
+              It runs again on{" "}
+              <LocalDay at={audit.retryAt} serverZone={timeZone} time />.
+            </>
+          ) : audit.failedTries > 1 ? (
+            `It failed ${audit.failedTries} times in a row, so the next try is the weekly audit.`
+          ) : (
+            "The next one runs on schedule."
+          )}
         </p>
       ) : null}
       {latest ? (

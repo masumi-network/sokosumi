@@ -4949,9 +4949,6 @@ export type DataRoomCompany = {
     formationPath?: string;
 };
 
-/**
- * GDPR Art. 27 representative in the EU.
- */
 export type DataRoomCompanyRepresentative = {
     name?: string;
     email?: string;
@@ -14880,6 +14877,8 @@ export type CmoSeoAudit = {
         }>;
     } | null;
     lastFailedAt: Date | null;
+    retryAt: Date | null;
+    failedTries: number;
 };
 
 export type CmoSearchConsole = {

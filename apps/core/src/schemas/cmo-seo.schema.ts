@@ -158,6 +158,10 @@ export const cmoSeoAuditSchema = z
       })
       .nullable(),
     lastFailedAt: at.nullable(),
+    /** When a first audit that failed runs again; null when none is due. */
+    retryAt: at.nullable(),
+    /** Failed tries of a first audit that never finished; 0 once one did. */
+    failedTries: z.number().int(),
   })
   .openapi("CmoSeoAudit");
 export type CmoSeoAudit = z.infer<typeof cmoSeoAuditSchema>;

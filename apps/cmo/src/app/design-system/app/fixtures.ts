@@ -681,6 +681,8 @@ export const seo: CmoSeo = {
     running: false,
     skipped: [],
     lastFailedAt: null,
+    retryAt: null,
+    failedTries: 0,
     latest: {
       observedAt: seoAt("2026-11-16T06:12:00Z"),
       checked: 110,
