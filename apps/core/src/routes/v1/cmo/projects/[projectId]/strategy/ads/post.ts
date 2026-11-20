@@ -6,8 +6,8 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { rethrow } from "@/routes/v1/cmo/helpers";
 import {
   cmoAdBudgetRequestSchema,
+  cmoAdBudgetStartedSchema,
   cmoProjectParamsSchema,
-  cmoTurnStartedSchema,
 } from "@/schemas/cmo.schema";
 import { setCmoAdBudget } from "@/services/cmo-strategy.service";
 
@@ -17,7 +17,7 @@ const route = createRoute({
   operationId: "setCmoAdBudgetForProject",
   tags: ["CMO"],
   description:
-    "The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it. Zero leaves paid ads out.",
+    "The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it; while he is busy with the strategy it waits and he plans it when that turn ends. Zero leaves paid ads out.",
   request: {
     params: cmoProjectParamsSchema,
     body: {
@@ -25,7 +25,10 @@ const route = createRoute({
     },
   },
   responses: {
-    201: jsonSuccessResponse(cmoTurnStartedSchema, "Cuso is re-planning"),
+    201: jsonSuccessResponse(
+      cmoAdBudgetStartedSchema,
+      "Cuso is re-planning, or will once his current turn ends",
+    ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet"),
@@ -42,6 +45,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       projectId,
       ...c.req.valid("json"),
     }).catch(rethrow);
-    return created(c, cmoTurnStartedSchema.parse(started));
+    return created(c, cmoAdBudgetStartedSchema.parse(started));
   });
 }

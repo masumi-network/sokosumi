@@ -81,6 +81,7 @@ type CusoFixture = {
   brandBrain?: unknown;
   brandBrainUpdatedAt?: Date | null;
   brandBrainConfirmedAt?: Date | null;
+  pendingAdBudget?: unknown;
 };
 
 /**
@@ -98,6 +99,7 @@ export function asCusoBot(cuso: unknown) {
       id: fixture.projectId ?? "project-1",
       workspaceId: fixture.workspaceId ?? "ws-1",
       websiteUrl: fixture.websiteUrl ?? "https://acme.io",
+      cmoPendingAdBudget: fixture.pendingAdBudget ?? null,
       workspace: { organizationId: "org-1" },
       brandBrain: fixture.brandBrain
         ? {

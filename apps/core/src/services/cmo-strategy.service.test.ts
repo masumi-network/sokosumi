@@ -1,3 +1,4 @@
+import { Prisma } from "@sokosumi/database";
 import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import {
   afterEach,
@@ -23,6 +24,7 @@ import {
   postFindFirst,
   postFindMany,
   postUpdate,
+  projectUpdate,
   referenceFindMany,
   resetCmoServiceMocks,
   revised,
@@ -403,6 +405,31 @@ describe("the plan starts when the research ends", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
+  it("plans an ad budget the owner set while Cuso was busy, once his turn ends", async () => {
+    vi.useFakeTimers({ now, toFake: ["Date"] });
+    seedStrategy(strategy);
+    cusoFind.mockResolvedValue({
+      ...cuso,
+      pendingAdBudget: { monthly: 300, currency: "USD", userId: "user-1" },
+    });
+    turnFindFirst.mockResolvedValue(planTurn(1, "COMPLETED"));
+    startTurn.mockResolvedValue({ turnId: "ads-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "ads-1" });
+    expect(JSON.stringify(startTurn.mock.calls[0])).toContain(
+      "My ad budget is USD 300 a month",
+    );
+    expect(projectUpdate).toHaveBeenCalledWith({
+      where: { id: "project-1" },
+      data: { cmoPendingAdBudget: Prisma.DbNull },
+    });
+  });
+
   it("moves the month on when a production run ends, without waiting for the sync", async () => {
     await expect(
       afterCmoTurn({
@@ -609,7 +636,7 @@ describe("the plan starts when the research ends", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
-  it("refuses an ad budget while the plan is still being written", async () => {
+  it("keeps an ad budget set while the plan is being written, for when it lands", async () => {
     // The budget reads the clock itself.
     vi.useFakeTimers({ now, toFake: ["Date"] });
     turnFindFirst.mockResolvedValue(planTurn(2));
@@ -621,8 +648,14 @@ describe("the plan starts when the research ends", () => {
         monthly: 500,
         currency: "eur",
       }),
-    ).rejects.toThrow("still writing the strategy");
+    ).resolves.toEqual({ turnId: null, queued: true });
     expect(startTurn).not.toHaveBeenCalled();
+    expect(projectUpdate).toHaveBeenCalledWith({
+      where: { id: "project-1" },
+      data: {
+        cmoPendingAdBudget: { monthly: 500, currency: "EUR", userId: "user-1" },
+      },
+    });
   });
 });
 

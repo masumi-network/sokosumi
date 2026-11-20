@@ -1,4 +1,4 @@
-import { type MarketingStrategy, type Prisma } from "@sokosumi/database";
+import { type MarketingStrategy, Prisma } from "@sokosumi/database";
 import {
   type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
@@ -134,8 +134,9 @@ export async function setCmoAdBudget(
     monthly: number;
     currency: string;
   },
-): Promise<{ turnId: string }> {
-  const cuso = await requireCuso(input);
+  known?: Cuso,
+): Promise<{ turnId: string | null; queued: boolean }> {
+  const cuso = known ?? (await requireCuso(input));
   const strategy = parseMarketingPlan(
     (await newestMarketingStrategy(cuso.projectId))?.plan,
   );
@@ -143,6 +144,22 @@ export async function setCmoAdBudget(
     throw new CmoConflictError("Cuso has not written the strategy yet");
   }
   const currency = input.currency.toUpperCase();
+  // Busy writing or changing the strategy: the budget waits on the Project,
+  // and Cuso plans it as soon as that turn ends (afterCmoTurn).
+  const budget = { monthly: input.monthly, currency, userId: input.userId };
+  if (await strategyTurnRunning(cuso.sokoBotId)) {
+    await prisma.project.update({
+      where: { id: cuso.projectId },
+      data: { cmoPendingAdBudget: budget },
+    });
+    return { turnId: null, queued: true };
+  }
+  if (cuso.pendingAdBudget) {
+    await prisma.project.update({
+      where: { id: cuso.projectId },
+      data: { cmoPendingAdBudget: Prisma.DbNull },
+    });
+  }
   const started = await requestStrategyForCuso(cuso, {
     userId: input.userId,
     patch: true,
@@ -178,7 +195,20 @@ export async function setCmoAdBudget(
       ),
     },
   });
-  return started;
+  return { turnId: started.turnId, queued: false };
+}
+
+/** Plans the ad budget the owner set while Cuso was busy, now that he is free. */
+async function startQueuedAdBudget(
+  cuso: Cuso,
+): Promise<{ turnId: string } | null> {
+  const budget = cuso.pendingAdBudget;
+  if (!budget) return null;
+  const started = await setCmoAdBudget(
+    { projectId: cuso.projectId, ...budget },
+    cuso,
+  );
+  return started.turnId ? { turnId: started.turnId } : null;
 }
 
 /**
@@ -399,7 +429,8 @@ export async function afterCmoTurn(input: {
   return (
     (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
     (await startCmoMonthFinish(input, cuso)) ??
-    (await startNextCmoChange(input, cuso))
+    (await startNextCmoChange(input, cuso)) ??
+    (await startQueuedAdBudget(cuso))
   );
 }
 
