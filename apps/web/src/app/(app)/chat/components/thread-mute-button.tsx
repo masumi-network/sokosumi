@@ -1,9 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Bell, BellOff } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -36,50 +35,36 @@ export function ThreadMuteButton({
 }) {
   const t = useTranslations("App.Channels.Thread");
   const threadKey = `${roomId}:${parentMessageId}`;
-  const [override, setOverride] = useState<{
-    key: string;
-    muted: boolean;
-  } | null>(null);
-  const [resolved, setResolved] = useState<{
-    key: string;
-    muted: boolean;
-  } | null>(null);
+  const [known, setKnown] = useState<{ key: string; muted: boolean | null }>({
+    key: threadKey,
+    muted: null,
+  });
   // Another thread's answer says nothing about this one.
-  const knownMuted =
-    override?.key === threadKey
-      ? override.muted
-      : resolved?.key === threadKey
-        ? resolved.muted
-        : null;
+  const muted = known.key === threadKey ? known.muted : null;
   const [isPending, startTransition] = useTransition();
 
-  // Only read while the state is unknown. A reply landing mid-toggle must
-  // not race the write it would overtake.
-  const threadQuery = useQuery({
-    queryKey: ["chat", "thread-mute", roomId, parentMessageId, replyCount],
-    queryFn: async () => {
-      const result = await getRoomThreadAction(roomId, parentMessageId);
-      if (!result.ok) {
-        throw new Error(result.error.message ?? undefined);
-      }
-      return result.value.mutedAt !== null;
-    },
-    enabled: knownMuted === null,
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: 0,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
-
-  if (
-    knownMuted === null &&
-    threadQuery.data !== undefined &&
-    resolved?.key !== threadKey
-  ) {
-    setResolved({ key: threadKey, muted: threadQuery.data });
-  }
-
-  const muted = knownMuted ?? threadQuery.data ?? null;
+  useEffect(() => {
+    // Only read while the state is unknown. A reply landing mid-toggle must
+    // not race the write it would overtake.
+    if (muted !== null) {
+      return;
+    }
+    let active = true;
+    void getRoomThreadAction(roomId, parentMessageId)
+      .then((result) => {
+        if (!active || !result.ok) {
+          return;
+        }
+        setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
+      })
+      // A server action rejects instead of answering with a result when the
+      // POST comes back as something other than RSC. Leave the state unknown,
+      // exactly as a failed read does, so the button stays hidden.
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [muted, roomId, parentMessageId, threadKey, replyCount]);
 
   if (muted === null) {
     return null;
@@ -90,7 +75,7 @@ export function ThreadMuteButton({
   function handleClick() {
     const next = !muted;
     // Answer the click now; the request only confirms it.
-    setOverride({ key: threadKey, muted: next });
+    setKnown({ key: threadKey, muted: next });
     startTransition(async () => {
       try {
         const result = await setThreadMutedAction(
@@ -99,13 +84,13 @@ export function ThreadMuteButton({
           next,
         );
         if (!result.ok) {
-          setOverride({ key: threadKey, muted: !next });
+          setKnown({ key: threadKey, muted: !next });
           return;
         }
-        setOverride({ key: threadKey, muted: result.value.mutedAt !== null });
+        setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
         onChanged?.();
       } catch {
-        setOverride({ key: threadKey, muted: !next });
+        setKnown({ key: threadKey, muted: !next });
       }
     });
   }

@@ -4,10 +4,15 @@ import type {
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
 } from "@sokosumi/core-client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Link2, Loader2, Trash2, UserPlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { type FormEvent, useState, useTransition } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import {
   createRoomGuestInviteLinkAction,
@@ -57,17 +62,14 @@ interface GuestInviteSectionProps {
  * Parent mounts this only while the add dialog shows it (and keys by room id)
  * so reopen remounts and refetches pending invites — no open-synced useEffect.
  */
-interface GuestInvitesData {
-  invitations: ChatRoomInvitation[];
-  inviteLinks: ChatRoomGuestInviteLink[];
-}
-
 export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
   const t = useTranslations("App.Channels.GuestInvite");
   const format = useFormatter();
-  const queryClient = useQueryClient();
-  const queryKey = ["chat", "guest-invites", roomId] as const;
   const [email, setEmail] = useState("");
+  const [invitations, setInvitations] = useState<ChatRoomInvitation[]>([]);
+  const [inviteLinks, setInviteLinks] = useState<ChatRoomGuestInviteLink[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkExpiry, setLinkExpiry] = useState<string>("7");
@@ -75,34 +77,31 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingToken, setRevokingToken] = useState<string | null>(null);
 
-  const invitesQuery = useQuery<GuestInvitesData>({
-    queryKey,
-    queryFn: async () => {
-      const [invitationsResult, linksResult] = await Promise.all([
-        listRoomInvitationsAction(roomId),
-        listRoomGuestInviteLinksAction(roomId),
-      ]);
-      if (!invitationsResult.ok || !linksResult.ok) {
-        throw new Error("Failed to load guest invitations");
-      }
-      return {
-        invitations: invitationsResult.value.filter(
-          (inv) => inv.status === "pending",
-        ),
-        // Show non-revoked links (expired/depleted still useful for audit until host revokes).
-        inviteLinks: linksResult.value.filter((link) => !link.revokedAt),
-      };
-    },
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const loadInvitations = useCallback(async () => {
+    setIsLoading(true);
+    setLoadFailed(false);
+    const [invitationsResult, linksResult] = await Promise.all([
+      listRoomInvitationsAction(roomId),
+      listRoomGuestInviteLinksAction(roomId),
+    ]);
+    setIsLoading(false);
+    if (!invitationsResult.ok || !linksResult.ok) {
+      setLoadFailed(true);
+      setInvitations([]);
+      setInviteLinks([]);
+      return;
+    }
+    setInvitations(
+      invitationsResult.value.filter((inv) => inv.status === "pending"),
+    );
+    // Show non-revoked links (expired/depleted still useful for audit until host revokes).
+    setInviteLinks(linksResult.value.filter((link) => !link.revokedAt));
+  }, [roomId]);
 
-  const invitations = invitesQuery.data?.invitations ?? [];
-  const inviteLinks = invitesQuery.data?.inviteLinks ?? [];
-  const isLoading = invitesQuery.isFetching;
-  const loadFailed = invitesQuery.isError && !invitesQuery.isFetching;
+  // Mount-only fetch; parent remounts on dialog open so reopen is fresh.
+  useEffect(() => {
+    void loadInvitations();
+  }, [loadInvitations]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -120,17 +119,11 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
       }
       toast.success(t("inviteSuccess", { email: result.value.email }));
       setEmail("");
-      queryClient.setQueryData<GuestInvitesData>(queryKey, (prev) => {
-        const currentInvitations = prev?.invitations ?? [];
-        const nextInvitations = currentInvitations.some(
-          (inv) => inv.id === result.value.id,
-        )
-          ? currentInvitations
-          : [result.value, ...currentInvitations];
-        return {
-          invitations: nextInvitations,
-          inviteLinks: prev?.inviteLinks ?? [],
-        };
+      setInvitations((prev) => {
+        if (prev.some((inv) => inv.id === result.value.id)) {
+          return prev;
+        }
+        return [result.value, ...prev];
       });
     });
   }
@@ -145,16 +138,7 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
       return;
     }
     toast.success(t("revokeSuccess"));
-    queryClient.setQueryData<GuestInvitesData>(queryKey, (prev) =>
-      prev
-        ? {
-            ...prev,
-            invitations: prev.invitations.filter(
-              (inv) => inv.id !== invitationId,
-            ),
-          }
-        : prev,
-    );
+    setInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
   }
 
   async function handleCreateLink() {
@@ -194,10 +178,7 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
       toast.error(result.error.message);
       return;
     }
-    queryClient.setQueryData<GuestInvitesData>(queryKey, (prev) => ({
-      invitations: prev?.invitations ?? [],
-      inviteLinks: [result.value, ...(prev?.inviteLinks ?? [])],
-    }));
+    setInviteLinks((prev) => [result.value, ...prev]);
     try {
       await navigator.clipboard.writeText(result.value.url);
       toast.success(t("linkCreateCopySuccess"));
@@ -225,16 +206,7 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
       return;
     }
     toast.success(t("linkRevokeSuccess"));
-    queryClient.setQueryData<GuestInvitesData>(queryKey, (prev) =>
-      prev
-        ? {
-            ...prev,
-            inviteLinks: prev.inviteLinks.filter(
-              (link) => link.token !== token,
-            ),
-          }
-        : prev,
-    );
+    setInviteLinks((prev) => prev.filter((link) => link.token !== token));
   }
 
   return (
@@ -302,7 +274,7 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => void invitesQuery.refetch()}
+                onClick={() => void loadInvitations()}
               >
                 {t("retry")}
               </Button>

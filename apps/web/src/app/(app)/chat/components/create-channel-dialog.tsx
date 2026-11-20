@@ -1,12 +1,16 @@
 "use client";
 
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
-import { useDebounce } from "use-debounce";
 import {
   checkChannelSlugAvailabilityAction,
   createChannelAction,
@@ -74,43 +78,9 @@ export function CreateChannelDialog({
     useChatComposeRoster();
   const [wizard, setWizard] =
     useState<CreateChannelWizard>(createInitialWizard);
-  const [submitTakenSlug, setSubmitTakenSlug] = useState<string | null>(null);
+  const [availability, setAvailability] =
+    useState<ChannelSlugCheckState>("invalid");
   const [isPending, startTransition] = useTransition();
-
-  const createStepSlug = wizard.step === "create" ? wizard.slug : "";
-  const [debouncedSlug] = useDebounce(createStepSlug, 300);
-
-  const slugAvailabilityQuery = useQuery<ChannelSlugCheckState>({
-    queryKey: ["chat", "channel-slug-availability", debouncedSlug],
-    queryFn: async () => {
-      const result = await checkChannelSlugAvailabilityAction(debouncedSlug);
-      if (!result.ok) {
-        return "error";
-      }
-      return result.value.status;
-    },
-    enabled:
-      open &&
-      wizard.step === "create" &&
-      Boolean(createStepSlug) &&
-      debouncedSlug === createStepSlug &&
-      submitTakenSlug !== createStepSlug,
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
-
-  const availability: ChannelSlugCheckState =
-    wizard.step !== "create" || !createStepSlug
-      ? "invalid"
-      : submitTakenSlug === createStepSlug
-        ? "taken"
-        : debouncedSlug !== createStepSlug || slugAvailabilityQuery.isFetching
-          ? "unknown"
-          : slugAvailabilityQuery.isError
-            ? "error"
-            : (slugAvailabilityQuery.data ?? "unknown");
 
   const {
     members,
@@ -137,7 +107,7 @@ export function CreateChannelDialog({
 
   function resetDialog() {
     setWizard(createInitialWizard());
-    setSubmitTakenSlug(null);
+    setAvailability("invalid");
     resetRoster();
   }
 
@@ -158,6 +128,35 @@ export function CreateChannelDialog({
     resetDialog();
     window.location.assign(`/chat/rooms/${roomId}`);
   }
+
+  const createStepSlug = wizard.step === "create" ? wizard.slug : "";
+
+  useEffect(() => {
+    if (wizard.step !== "create") {
+      return;
+    }
+    if (!createStepSlug) {
+      setAvailability("invalid");
+      return;
+    }
+    setAvailability("unknown");
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      const result = await checkChannelSlugAvailabilityAction(createStepSlug);
+      if (cancelled) {
+        return;
+      }
+      if (!result.ok) {
+        setAvailability("error");
+        return;
+      }
+      setAvailability(result.value.status);
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [wizard.step, createStepSlug]);
 
   function handleAdvanceToPeople() {
     if (
@@ -197,7 +196,7 @@ export function CreateChannelDialog({
       if (!result.ok) {
         inFlightRef.current = false;
         if (result.error.code === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN) {
-          setSubmitTakenSlug(fields.slug);
+          setAvailability("taken");
           setWizard(backToCreate(wizard));
           return;
         }
@@ -314,10 +313,9 @@ export function CreateChannelDialog({
                 <Input
                   id="create-channel-slug"
                   value={wizard.slug}
-                  onChange={(event) => {
-                    setSubmitTakenSlug(null);
-                    setWizard(setSlug(wizard, event.target.value));
-                  }}
+                  onChange={(event) =>
+                    setWizard(setSlug(wizard, event.target.value))
+                  }
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();

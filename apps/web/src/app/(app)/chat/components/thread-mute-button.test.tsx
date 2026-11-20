@@ -6,7 +6,6 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TestQueryProvider } from "@/test/query-provider";
 
 import { ThreadMuteButton } from "./thread-mute-button";
 
@@ -51,7 +50,6 @@ function renderButton(replyCount = 2) {
       replyCount={replyCount}
       onChanged={onChanged}
     />,
-    { wrapper: TestQueryProvider },
   );
 }
 

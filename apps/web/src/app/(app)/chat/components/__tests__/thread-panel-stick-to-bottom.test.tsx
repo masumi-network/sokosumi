@@ -2,7 +2,6 @@ import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { act, render, screen } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TestQueryProvider } from "@/test/query-provider";
 
 import type { RoomComposerHandle } from "../room-composer";
 import { ThreadPanel } from "../thread-panel";
@@ -134,7 +133,6 @@ function renderThreadPanel(replies: ChatRoomMessage[] = [replyMessage("r1")]) {
       onToggleReaction={() => undefined}
       roomId="room-1"
     />,
-    { wrapper: TestQueryProvider },
   );
 }
 
