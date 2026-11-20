@@ -274,6 +274,7 @@ export async function reviewCmoPlan(
     const rejected = await cmoRejectedTerms(
       authorized.turn.id,
       turn.userMessage,
+      earlier,
     );
     await chargeCheck(input, COMPETITOR_CHECK_MODEL, rejected.costUsd);
     problems.push(...cmoRejectedTermProblems(strategy, rejected.terms));

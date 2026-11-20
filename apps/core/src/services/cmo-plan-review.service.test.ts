@@ -1828,10 +1828,10 @@ describe("an owner's correction", () => {
     }));
     const request = "No, we don't sell ballcaps anymore. Push the jackets.";
     await expect(
-      cmoRejectedTerms("turn-ballcaps", request, ask as never),
+      cmoRejectedTerms("turn-ballcaps", request, null, ask as never),
     ).resolves.toEqual({ terms: ["ballcaps", "ballcap"], costUsd: 0.000_3 });
     await expect(
-      cmoRejectedTerms("turn-ballcaps", request, ask as never),
+      cmoRejectedTerms("turn-ballcaps", request, null, ask as never),
     ).resolves.toEqual({ terms: ["ballcaps", "ballcap"], costUsd: 0 });
     expect(ask).toHaveBeenCalledTimes(1);
   });
@@ -1841,7 +1841,7 @@ describe("an owner's correction", () => {
       throw new Error("gateway down");
     });
     await expect(
-      cmoRejectedTerms("turn-down", "No caps.", ask as never),
+      cmoRejectedTerms("turn-down", "No caps.", null, ask as never),
     ).resolves.toEqual({ terms: [], costUsd: 0 });
   });
 });

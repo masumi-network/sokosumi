@@ -1518,6 +1518,11 @@ const MAX_REMEMBERED_TURNS = 200;
 export function cmoRejectedTerms(
   turnId: string,
   request: string,
+  /**
+   * The strategy before the correction: the owner says "revenue operations
+   * leaders", the plan said "revenue teams", and only its words find it.
+   */
+  before: MarketingStrategyPlan | null,
   ask: AskCompetitorModel = askCompetitorModel,
 ): Promise<{ terms: string[]; costUsd: number }> {
   const known = rejectedByTurn.get(turnId);
@@ -1528,8 +1533,11 @@ export function cmoRejectedTerms(
     prompt: [
       "Request:",
       request.slice(0, 6_000),
+      ...(before
+        ? ["", "The strategy before the request:", planWords(before)]
+        : []),
       "",
-      'List the words or short phrases (one to three words each, in the language the plan is written in) that name only what the owner rejected: a product, audience, market, place or claim that must no longer appear anywhere in the marketing strategy. Give the forms a plan would use ("ballcap", "ballcaps", "baseball caps"). Never a word the corrected truth also uses, never the business\'s own name, never a common word ("team", "price", "customers"). An empty list when the owner rejects nothing (a change of pace, a new idea, a budget, a request to add something).',
+      'List the words or short phrases (one to three words each, in the language the plan is written in) that name only what the owner rejected: a product, audience, market, place or claim that must no longer appear anywhere in the marketing strategy. Give the forms a plan would use ("ballcap", "ballcaps", "baseball caps"), and every phrase the strategy above uses for the same thing (it may say "revenue teams" where the owner said "revenue operations leaders"). Never a word the corrected truth also uses, never the business\'s own name, never a common word ("team", "teams", "price", "customers"). An empty list when the owner rejects nothing (a change of pace, a new idea, a budget, a request to add something).',
     ].join("\n"),
     schema: rejectedSchema,
   })
@@ -1554,6 +1562,19 @@ export function cmoRejectedTerms(
     rejectedByTurn.delete(oldest);
   }
   return asked;
+}
+
+/** What a strategy says about whom it serves and what it sells, for reading its words. */
+function planWords(plan: MarketingStrategyPlan): string {
+  const { calendar, ...fields } = plan;
+  return [
+    ...Object.entries(fields)
+      .filter(([key]) => !NOT_THE_PLAN.has(key))
+      .flatMap(([, value]) => textsIn(value)),
+    ...calendar.map((entry) => entry.title),
+  ]
+    .join("\n")
+    .slice(0, 6_000);
 }
 
 /** Fields that record the plan's history or other options, not what it says now. */
@@ -1607,7 +1628,7 @@ export function cmoRejectedTermProblems(
     if (found.length === 0) return [];
     const shown = found.slice(0, 8).join(", ");
     return [
-      `"${term}" is what the owner said is not true, and it is still in ${shown}${found.length > 8 ? ` and ${found.length - 8} more` : ""}. A correction is true everywhere: rewrite each of these so none names it, not even to say it is out, and save with part patch.`,
+      `"${term}" is what the owner said is not true, and it is still in ${shown}${found.length > 8 ? ` and ${found.length - 8} more` : ""}. A correction is true everywhere: rewrite each of these so none names it, not even to say it is out, and save with part patch. Send a field you change whole, with its other items as they are: an empty list keeps what is saved, so to drop a whole list also name it in clear.`,
     ];
   });
 }
