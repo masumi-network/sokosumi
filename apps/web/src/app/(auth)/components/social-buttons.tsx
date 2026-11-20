@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { authClient } from "@/lib/auth/auth.client";
 import { buildSocialCallbackUrls } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -105,13 +106,9 @@ export default function SocialButtons({
   }
 
   // Back from the provider restores this page as it was left, mid sign-in.
-  useEffect(() => {
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) changePendingMethod(null);
-    };
-    window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
-  }, []);
+  useEventListener("window", "pageshow", (event) => {
+    if (event.persisted) changePendingMethod(null);
+  });
 
   const finishPasskeySignIn = useCallback(
     (result: unknown) =>

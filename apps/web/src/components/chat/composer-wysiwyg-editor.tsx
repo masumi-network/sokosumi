@@ -48,6 +48,7 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -1274,21 +1275,15 @@ export function ComposerWysiwygEditor<TData = unknown>({
     tryFlushTrailingEmoticon,
   ]);
 
-  useEffect(() => {
-    const onSelectionChange = () => {
-      publishActiveFormats();
-      const editor = editorRef.current;
-      if (!editor) return;
-      const caretOffset = getCaretOffset(editor);
-      if (caretOffset != null) {
-        savedCaretOffsetRef.current = caretOffset;
-      }
-    };
-    document.addEventListener("selectionchange", onSelectionChange);
-    return () => {
-      document.removeEventListener("selectionchange", onSelectionChange);
-    };
-  }, [publishActiveFormats]);
+  useEventListener("document", "selectionchange", () => {
+    publishActiveFormats();
+    const editor = editorRef.current;
+    if (!editor) return;
+    const caretOffset = getCaretOffset(editor);
+    if (caretOffset != null) {
+      savedCaretOffsetRef.current = caretOffset;
+    }
+  });
 
   useEffect(() => {
     if (!onActiveFormatsChange) return;
@@ -1303,13 +1298,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
     activeItem?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, isOpen]);
 
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    // Capture-phase listener: contentEditable arrow keys are more reliable
-    // here than React's delegated onKeyDown alone.
-    function onNativeKeyDown(event: KeyboardEvent) {
+  // Capture-phase listener: contentEditable arrow keys are more reliable
+  // here than React's delegated onKeyDown alone.
+  useEventListener(
+    editorRef,
+    "keydown",
+    (event) => {
       const currentEditor = editorRef.current;
       if (!currentEditor) return;
       if (event.defaultPrevented || event.isComposing) return;
@@ -1330,13 +1324,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
       requestAnimationFrame(() => {
         publishActiveFormats();
       });
-    }
-
-    editor.addEventListener("keydown", onNativeKeyDown, true);
-    return () => {
-      editor.removeEventListener("keydown", onNativeKeyDown, true);
-    };
-  }, [handleInput, publishActiveFormats]);
+    },
+    true,
+  );
 
   useEffect(() => {
     return () => {
