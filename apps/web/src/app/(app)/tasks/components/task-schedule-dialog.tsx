@@ -671,7 +671,14 @@ function ScheduleNameDate({
         {text}
       </p>
       {hasDate ? null : (
-        <Button type="button" variant="ghost" size="sm" onClick={onAddDate}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          // No side padding: wrapped under the hint, it lines up with it.
+          className="px-0 underline-offset-4 hover:bg-transparent hover:underline"
+          onClick={onAddDate}
+        >
           {t("add")}
         </Button>
       )}
