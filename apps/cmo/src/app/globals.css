@@ -4602,6 +4602,20 @@ button.cal-card:hover {
     -webkit-line-clamp: 1;
   }
 
+  .today .week-nets,
+  .today .week-post-extra,
+  .today .more-wide {
+    display: none;
+  }
+
+  .today .more-short {
+    display: inline;
+  }
+
+  .today .week button.week-more.week-more-short {
+    display: grid;
+  }
+
   .needs .needs-row {
     padding: 10px 16px;
   }
@@ -4839,6 +4853,12 @@ button.week-post svg {
   line-height: 1.3;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+/* The short window's count; the full one shows elsewhere. */
+.more-short,
+button.week-more.week-more-short {
+  display: none;
 }
 
 button.week-more {

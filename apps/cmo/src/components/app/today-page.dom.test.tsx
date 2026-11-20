@@ -100,7 +100,9 @@ it("keeps a full week short: per network counts, three posts a day, the rest on 
   ]);
   expect(wednesday.querySelectorAll(".week-post")).toHaveLength(3);
   const more = wednesday.querySelector<HTMLButtonElement>(".week-more");
-  expect(more?.textContent).toBe("+3 more");
+  expect(more?.querySelector(".more-wide")?.textContent).toBe("+3 more");
+  // A short window shows two and counts the rest from there.
+  expect(more?.querySelector(".more-short")?.textContent).toBe("+4 more");
   // Every day shows at most three.
   for (const day of container.querySelectorAll(".week-day")) {
     expect(day.querySelectorAll(".week-post").length).toBeLessThanOrEqual(3);
@@ -137,4 +139,11 @@ it("keeps a week without posts short and says nothing needs the owner", async ()
   expect(container.querySelector(".today-week-empty")).not.toBeNull();
   expect(container.querySelector(".today-week")).toBeNull();
   expect(container.querySelector(".today-needs")).toBeNull();
+});
+
+it("speaks about each page while nothing needs the owner", async () => {
+  await act(async () => root.render(<FixtureApp view="chat" state="quiet" />));
+  expect(container.querySelector(".cuso-says")?.textContent).toContain(
+    "I'm listening",
+  );
 });

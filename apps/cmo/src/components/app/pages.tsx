@@ -18,7 +18,7 @@ import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { nextWeeklyReview } from "../../lib/page-lead";
 import { strategyApproved } from "../../lib/strategy";
-import { monthEntries } from "../../lib/today";
+import { monthEntries, waitingLine } from "../../lib/today";
 import type { View } from "../../lib/views";
 import {
   type AdActions,
@@ -93,6 +93,7 @@ export function ResultsPage({
     (entry) => waitsForNetwork(entry, networks) ?? [],
   );
   const drafts = written.length - waits.length;
+  const waitsLine = waitingLine(overview);
   const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
@@ -114,15 +115,10 @@ export function ResultsPage({
           <Kpi label="Failed" value={posts.failed} />
         ) : null}
       </div>
-      {waits.length > 0 ? (
+      {waitsLine ? (
         <p className="cal-waits">
           <StatusDisc status="warn" decorative />
-          <span className="grow">
-            {waits.length === 1
-              ? "1 post is written and waits"
-              : `${waits.length} posts are written and wait`}{" "}
-            for {[...new Set(waits)].map(channelLabel).join(" and ")}.
-          </span>
+          <span className="grow">{waitsLine}</span>
           <button
             type="button"
             className="button button-secondary button-small"

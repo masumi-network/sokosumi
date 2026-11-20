@@ -193,7 +193,7 @@ export function seoLead(
     return {
       kicker,
       title: `${count(open.length, "change", "changes")} to make.`,
-      line: `${latest ? `${latest.passed} of ${latest.checked} checks passed. ` : ""}Each one has the exact new text to copy.`,
+      line: `${latest ? `${latest.passed} of ${latest.checked} checks passed. ` : ""}${open.length === 1 ? "The change below comes" : "Each change below comes"} with the exact new text to copy.`,
     };
   }
   if (latest) {

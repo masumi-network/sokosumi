@@ -116,6 +116,15 @@ export function waitingByNetwork(overview: CmoOverview): Map<string, number> {
   return waiting;
 }
 
+/** "27 posts wait for YouTube, Instagram and TikTok.", or null when none wait. */
+export function waitingLine(overview: CmoOverview): string | null {
+  const waiting = waitingByNetwork(overview);
+  if (waiting.size === 0) return null;
+  const count = [...waiting.values()].reduce((sum, n) => sum + n, 0);
+  const names = listed([...waiting.keys()].map(channelLabel));
+  return `${plural(count, "post waits", "posts wait")} for ${names}.`;
+}
+
 /** The owner's day (YYYY-MM-DD) in Cuso's time zone. */
 export function dayIn(timeZone: string, now: Date = new Date()): string {
   try {
@@ -159,7 +168,7 @@ export function monthProgress(month: Entry[]): MonthProgress {
   };
 }
 
-/** "Good morning" by the hour in Cuso's time zone. */
+/** "Good morning" by the hour in Cuso's time zone (the owner's, set at hire or in Settings). */
 export function greeting(timeZone: string, now: Date = new Date()): string {
   let hour = now.getUTCHours();
   try {
@@ -171,7 +180,8 @@ export function greeting(timeZone: string, now: Date = new Date()): string {
       }).format(now),
     );
   } catch {}
-  if (hour < 5) return "Good evening";
+  // Past midnight, "Good evening" reads wrong and "Good night" is a goodbye.
+  if (hour < 5) return "Hello";
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";

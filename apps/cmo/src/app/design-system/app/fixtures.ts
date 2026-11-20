@@ -506,6 +506,7 @@ export const quietOverview: CmoOverview = (() => {
     approvedStrategy: strategy,
     drafts: [],
     posts: { draft: 0, scheduled: 0, published: 0, failed: 0 },
+    production: { ...overview.production, state: "ready" as const },
   };
 })();
 
