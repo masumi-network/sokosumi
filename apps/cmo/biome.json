@@ -39,8 +39,7 @@
         "!src/components/onboarding/flow.tsx",
         "!src/components/onboarding/launch-step.tsx",
         "!src/components/onboarding/tiles.tsx",
-        "!src/components/strategy-core.tsx",
-        "!src/components/theme-toggle.tsx"
+        "!src/components/strategy-core.tsx"
       ],
       "plugins": ["../../biome-plugins/no-direct-effects.grit"]
     },

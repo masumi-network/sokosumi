@@ -17,6 +17,5 @@
   "src/components/onboarding/flow.tsx": 3,
   "src/components/onboarding/launch-step.tsx": 1,
   "src/components/onboarding/tiles.tsx": 2,
-  "src/components/strategy-core.tsx": 1,
-  "src/components/theme-toggle.tsx": 1
+  "src/components/strategy-core.tsx": 1
 }

@@ -9,6 +9,8 @@ import {
   usePageSearchQuery,
 } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
+import { useAnimationFrame } from "@/hooks/effects/use-animation-frame";
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { STUDIO_EMPTY_ADS } from "./studio-empty-ads";
 import { TemplateButton } from "./studio-template-picker";
@@ -68,6 +70,7 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
   const drag = useRef<Drag | null>(null);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
+  const reduceMotion = usePrefersReducedMotion();
 
   function paint() {
     const current = wallRef.current;
@@ -90,6 +93,13 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
     offset.current.y += y;
     paint();
   }
+
+  useAnimationFrame(!reduceMotion, (deltaSeconds) => {
+    if (!pausedRef.current && !drag.current) {
+      const seconds = Math.min(deltaSeconds, 0.064);
+      pan(seconds * 12, seconds * 4);
+    }
+  });
 
   useMountEffect(() => {
     const canvas = canvasRef.current;
@@ -119,32 +129,9 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
       pan(-event.deltaX * factor, -event.deltaY * factor);
     }
 
-    const motion = window.matchMedia("(prefers-reduced-motion: no-preference)");
-    let frame = 0;
-    let lastTime: number | null = null;
-
-    function drift(time: number) {
-      if (lastTime !== null && !pausedRef.current && !drag.current) {
-        const seconds = Math.min(time - lastTime, 64) / 1000;
-        pan(seconds * 12, seconds * 4);
-      }
-      lastTime = time;
-      frame = requestAnimationFrame(drift);
-    }
-
-    function updateMotion() {
-      cancelAnimationFrame(frame);
-      lastTime = null;
-      if (motion.matches) frame = requestAnimationFrame(drift);
-    }
-
-    updateMotion();
-    motion.addEventListener("change", updateMotion);
     canvas.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
       observer.disconnect();
-      cancelAnimationFrame(frame);
-      motion.removeEventListener("change", updateMotion);
       canvas.removeEventListener("wheel", handleWheel);
     };
   });

@@ -20,6 +20,7 @@ import { useQueryState } from "nuqs";
 import {
   type ReactNode,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
@@ -129,14 +131,17 @@ function ScheduleRow({
   focused: boolean;
 }) {
   const row = useRef<HTMLLIElement>(null);
-  useEffect(() => {
-    if (!focused) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const reduceMotion = usePrefersReducedMotion();
+  const focusRow = useEffectEvent(() => {
     row.current?.scrollIntoView({
       block: "center",
-      behavior: reduce.matches ? "auto" : "smooth",
+      behavior: reduceMotion ? "auto" : "smooth",
     });
     row.current?.focus({ preventScroll: true });
+  });
+  useEffect(() => {
+    if (!focused) return;
+    focusRow();
   }, [focused]);
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();

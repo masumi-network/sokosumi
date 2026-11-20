@@ -2,10 +2,10 @@
 
 import { useRef } from "react";
 
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const GRADIENT_COLOR_TOKENS = [
   "--gradient-1",
   "--gradient-2",
@@ -88,6 +88,7 @@ export function gradientUnit(ratio: number): number {
  */
 export function GradientBackground({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   useMountEffect(() => {
     const canvas = canvasRef.current;
@@ -108,7 +109,6 @@ export function GradientBackground({ className }: { className?: string }) {
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     const uniform = (name: string) => gl.getUniformLocation(program, name);
 
-    const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
     let frame = 0;
     let visible = true;
     let colorsStale = true;
