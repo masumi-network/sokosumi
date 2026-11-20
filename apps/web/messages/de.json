@@ -13911,6 +13911,9 @@
       },
       "summary": {
         "issues": "Probleme",
+        "issuesAcrossChecks": "Probleme aus mehreren Prüfungen",
+        "issuesInCheck": "{count, plural, one {# Problem in dieser Prüfung} other {# Probleme in dieser Prüfung}}",
+        "issueSources": "{latest, number} aus der letzten Prüfung, {earlier, number} aus früheren Prüfungen",
         "issuesNone": "Keine gefunden",
         "severityCount": "{count} {severity, select, critical {kritisch} major {mit großer Auswirkung} other {mit geringer Auswirkung}}",
         "of": "von {total}",

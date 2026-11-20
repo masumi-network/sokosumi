@@ -54,6 +54,9 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
       check && !(incomplete && issues.length === 0)
         ? {
             total: issues.length,
+            fromEarlierChecks: issues.filter(
+              (issue) => issue.observationId !== check.id,
+            ).length,
             parts: SEO_ISSUE_SEVERITY_NAMES.map((severity) => ({
               severity,
               count: issues.filter((issue) => issue.severity === severity)

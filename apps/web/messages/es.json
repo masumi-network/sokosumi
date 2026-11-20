@@ -13911,6 +13911,9 @@
       },
       "summary": {
         "issues": "Problemas",
+        "issuesAcrossChecks": "Problemas de varias comprobaciones",
+        "issuesInCheck": "{count, plural, one {# problema en esta comprobación} other {# problemas en esta comprobación}}",
+        "issueSources": "{latest, number} de la última comprobación, {earlier, number} de comprobaciones anteriores",
         "issuesNone": "Ninguno encontrado",
         "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {de impacto alto} other {de impacto bajo}}",
         "of": "de {total}",

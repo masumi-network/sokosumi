@@ -2000,9 +2000,9 @@ describe("SEO workspace integration", () => {
         .getAllByRole("button", { pressed: undefined })
         .map((button) => button.textContent),
     ).toEqual([
-      "Oct 287 issues",
-      "Nov 106 issues",
-      "Nov 125 issues",
+      "Oct 287 issues in this check",
+      "Nov 106 issues in this check",
+      "Nov 125 issues in this check",
       "Other dates",
     ]);
     // The timeline holds the one date filter: the header and the filter block have none.
@@ -2108,7 +2108,11 @@ describe("SEO workspace integration", () => {
       within(within(runs).getByRole("list"))
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Oct 287 issues", "Nov 105 issues", "Nov 12"]);
+    ).toEqual([
+      "Oct 287 issues in this check",
+      "Nov 105 issues in this check",
+      "Nov 12",
+    ]);
   });
 
   it("boxes in the calendar the day the line of checks marks", async () => {
@@ -8308,9 +8312,15 @@ describe("SEO workspace integration", () => {
       devices: ["mobile", "desktop"],
       rulebookVersion: "html-v1",
       artifactHash: "checked-html",
-      issues: 2,
+      issues: 1,
       coverage: { checked: 201, skipped: 30, failed: 0 },
     });
+    const older = {
+      ...workspace.observations[0],
+      id: "51fd7134-4a26-42a8-b8d3-631684028a27",
+      observedAt: new Date("2026-01-01T12:00:00Z"),
+    };
+    workspace.observations.push(older);
     const failed = {
       observationId,
       pageUrl: workspace.pages[0].url,
@@ -8339,6 +8349,8 @@ describe("SEO workspace integration", () => {
       {
         ...failed,
         id: "alt",
+        observationId: older.id,
+        observedAt: older.observedAt,
         device: "desktop",
         rowId: "P-06",
         title: "Images have alt text",
@@ -8440,6 +8452,12 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     const issues = screen.getByTestId("seo-summary-issues");
     expect(issues).toHaveTextContent(/^2/);
+    expect(screen.getByText("Issues across checks")).toBeVisible();
+    expect(
+      within(issues).getByText(
+        "1 from the latest check, 1 from earlier checks",
+      ),
+    ).toBeVisible();
     expect(within(issues).getByText("1 high impact")).toBeVisible();
     expect(within(issues).getByText("1 low impact")).toBeVisible();
     // Tests without a result are part of the total, not hidden. With one kind of them the total says it:

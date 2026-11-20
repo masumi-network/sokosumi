@@ -112,10 +112,22 @@ export function SeoSummaryTiles({
     >
       {issues ? (
         <Tile
-          label={result("summary.issues")}
+          label={result(
+            issues.fromEarlierChecks
+              ? "summary.issuesAcrossChecks"
+              : "summary.issues",
+          )}
           value={format.number(issues.total)}
           testId="seo-summary-issues"
         >
+          {issues.fromEarlierChecks > 0 && (
+            <p>
+              {result("summary.issueSources", {
+                latest: issues.total - issues.fromEarlierChecks,
+                earlier: issues.fromEarlierChecks,
+              })}
+            </p>
+          )}
           {/* No bar: the two counts under the number and the issue rows of the tab already show the split. */}
           {issues.parts.length ? (
             <ul className="flex flex-wrap gap-x-3 gap-y-0.5">

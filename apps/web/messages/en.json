@@ -13911,6 +13911,9 @@
       },
       "summary": {
         "issues": "Issues",
+        "issuesAcrossChecks": "Issues across checks",
+        "issuesInCheck": "{count, plural, one {# issue in this check} other {# issues in this check}}",
+        "issueSources": "{latest, number} from the latest check, {earlier, number} from earlier checks",
         "issuesNone": "None found",
         "severityCount": "{count} {severity, select, critical {critical} major {high impact} other {low impact}}",
         "of": "of {total}",

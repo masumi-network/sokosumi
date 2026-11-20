@@ -111,6 +111,7 @@ describe("seoSummary", () => {
     const summary = seoSummary(workspace);
     expect(summary.issues).toEqual({
       total: 3,
+      fromEarlierChecks: 0,
       parts: [
         { severity: "major", count: 2 },
         { severity: "minor", count: 1 },
@@ -133,7 +134,11 @@ describe("seoSummary", () => {
     workspace.observations = [
       check(CHECK, { checked: 12, skipped: 0, failed: 0 }),
     ];
-    expect(seoSummary(workspace).issues).toEqual({ total: 0, parts: [] });
+    expect(seoSummary(workspace).issues).toEqual({
+      total: 0,
+      fromEarlierChecks: 0,
+      parts: [],
+    });
   });
 
   it("sums the monthly searches of the read keywords and says how many have a number", () => {
