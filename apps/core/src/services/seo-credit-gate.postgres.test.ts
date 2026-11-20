@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   CORE_API_ERROR_KINDS,
   seoFullAuditPrice,
@@ -592,6 +592,62 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
         (await prisma.task.findUniqueOrThrow({ where: { id: task.id } }))
           .status,
       ).toBe("READY");
+      const latest = await prisma.taskEvent.findFirstOrThrow({
+        where: { taskId: task.id },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      });
+      const guarded = () =>
+        app.request(
+          `http://localhost/${task.id}/events/start-admission-v1`,
+          jsonRequest("POST", {
+            status: "RUNNING",
+            comment: "Starting the approved audit.",
+            expectedContext: {
+              workspaceId,
+              ownerId: userId,
+              organizationId: null,
+            },
+            admission: {
+              eventId: latest.id,
+              inputFingerprint: createHash("sha256")
+                .update(
+                  JSON.stringify({
+                    description: task.description,
+                    name: task.name,
+                  }),
+                )
+                .digest("hex"),
+            },
+          }),
+        );
+      // The probe runs outside the transaction. An owner edit can commit here.
+      read.mockImplementationOnce(async () => {
+        await prisma.task.update({
+          where: { id: task.id },
+          data: { name: "Edited during inspection" },
+        });
+        return {
+          siteEntry: [
+            {
+              siteUrl: input.searchConsolePropertyId,
+              permissionLevel: "siteOwner",
+            },
+          ],
+        };
+      });
+      expect((await guarded()).status).toBe(409);
+      const edited = await prisma.task.findUniqueOrThrow({
+        where: { id: task.id },
+      });
+      expect(edited).toMatchObject({
+        name: "Edited during inspection",
+        status: "READY",
+      });
+      expect(
+        await prisma.taskEvent.count({
+          where: { taskId: task.id, status: "RUNNING" },
+        }),
+      ).toBe(0);
       const started = await Promise.all([start(), start()]);
       expect(
         started.filter((response) => response.status === 201),

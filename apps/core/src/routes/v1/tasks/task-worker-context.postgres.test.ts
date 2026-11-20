@@ -1,5 +1,5 @@
 /** Real Task authorization and PostgreSQL locking. Only external boundaries are local fixtures. */
-import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
+import { createHash, generateKeyPairSync, randomUUID, sign } from "node:crypto";
 import { TaskStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { Hono } from "hono";
@@ -733,6 +733,108 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
     await expectNoWrites();
   });
 
+  describe("SEO start admission", () => {
+    let admission: { eventId: string; inputFingerprint: string };
+
+    beforeEach(async () => {
+      fixtureEnv.globalCoworkerId = coworkerId;
+      await markNativeTask();
+      const { description, name } = await prisma.task.update({
+        where: { id: taskId },
+        data: { status: "READY" },
+      });
+      const ready = await prisma.taskEvent.create({
+        data: { taskId, status: "READY", userId: ownerId },
+      });
+      admission = {
+        eventId: ready.id,
+        inputFingerprint: createHash("sha256")
+          .update(JSON.stringify({ description, name }))
+          .digest("hex"),
+      };
+    });
+
+    function start() {
+      return app.request(`/v1/tasks/${taskId}/events/start-admission-v1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "RUNNING",
+          comment: "Starting the approved audit.",
+          expectedContext: expectedContext(),
+          admission,
+        }),
+      });
+    }
+
+    const starts = () =>
+      prisma.taskEvent.count({ where: { taskId, status: "RUNNING" } });
+
+    it("commits one start when two workers retry the same approval", async () => {
+      const responses = await Promise.all([start(), start()]);
+      expect(responses.map((response) => response.status).sort()).toEqual([
+        201, 409,
+      ]);
+      expect(await starts()).toBe(1);
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id: taskId },
+      });
+      expect(task.status).toBe("RUNNING");
+    });
+
+    it("starts from the current owner's reply while input is required", async () => {
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { status: "INPUT_REQUIRED" },
+      });
+      await prisma.taskEvent.create({
+        data: {
+          taskId,
+          status: "INPUT_REQUIRED",
+          coworkerId,
+          comment: "Confirm the audit.",
+        },
+      });
+      const reply = await prisma.taskEvent.create({
+        data: { taskId, userId: ownerId, comment: "Run the audit." },
+      });
+      admission.eventId = reply.id;
+      expect((await start()).status).toBe(201);
+      expect(await starts()).toBe(1);
+    });
+
+    it.each(["rename", "edit", "cancel", "comment"] as const)(
+      "refuses a retry after a Task %s",
+      async (change) => {
+        if (change === "comment") {
+          await prisma.taskEvent.create({
+            data: { taskId, userId: ownerId, comment: "Wait." },
+          });
+        } else {
+          const data =
+            change === "rename"
+              ? { name: "Another task" }
+              : change === "edit"
+                ? { description: "Different audit" }
+                : { status: TaskStatus.CANCELED };
+          await prisma.task.update({ where: { id: taskId }, data });
+        }
+        expect((await start()).status).toBe(409);
+        expect(await starts()).toBe(0);
+        const task = await prisma.task.findUniqueOrThrow({
+          where: { id: taskId },
+        });
+        expect(task.status).toBe(change === "cancel" ? "CANCELED" : "READY");
+      },
+    );
+
+    it("requires an active Vendor grant when the workspace has revoked access", async () => {
+      await vendorGrant("REVOKED");
+      expect((await start()).status).toBe(403);
+      expect(await starts()).toBe(0);
+    });
+  });
+
   describe("failed SEO admission", () => {
     const comment = "This SEO audit could not start.";
     // Known-answer hash from the worker for name "Guarded Task delivery" and this input.
@@ -765,6 +867,24 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
           ...over,
         }),
       });
+
+    it("refuses a stale failure after an owner comment and accepts the updated event snapshot", async () => {
+      const reply = await prisma.taskEvent.create({
+        data: { taskId, userId: ownerId, comment: "I changed the approval." },
+      });
+      expect(
+        (await failAdmission({ expectedLatestEventId: readyEventId })).status,
+      ).toBe(409);
+      expect(
+        await prisma.taskEvent.count({ where: { taskId, status: "FAILED" } }),
+      ).toBe(0);
+      expect(
+        (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status,
+      ).toBe("READY");
+      expect(
+        (await failAdmission({ expectedLatestEventId: reply.id })).status,
+      ).toBe(201);
+    });
 
     it("writes one uncharged failure after intervening comments and rejects its replay", async () => {
       await prisma.taskEvent.create({ data: { taskId, comment: "Progress" } });

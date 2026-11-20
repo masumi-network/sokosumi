@@ -253,6 +253,17 @@ describe("SEO audit first run", () => {
       return screen.findByRole("dialog", { name: "Search Console coverage" });
     }
     const first = await start();
+    expect(
+      within(first).getByRole("heading", { name: "Without Search Console" }),
+    ).toBeVisible();
+    expect(
+      within(first).getByText(
+        /skip Search Console clicks, impressions and indexing data/,
+      ),
+    ).toBeVisible();
+    expect(
+      within(first).queryByRole("button", { name: "Retry and start audit" }),
+    ).toBeNull();
     expect(within(first).getByRole("alert")).toHaveTextContent(
       "every selected page",
     );
