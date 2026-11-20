@@ -6,9 +6,9 @@ import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
-import { channelKey, formatMedia } from "../../lib/channels";
+import { channelInfo, channelKey, formatMedia } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
-import { monthPostCount } from "../../lib/strategy";
+import { monthAdCount, monthPostCount } from "../../lib/strategy";
 import { LegalNotice } from "../legal-notice";
 import { money } from "../strategy-core";
 import { type SkipSubscription, SkipSubscriptionButton } from "../top-up";
@@ -81,12 +81,18 @@ function monthOf(strategy: Strategy) {
   const media = live
     .filter((entry) => !entry.videoOf)
     .map((entry) => formatMedia(entry.channel, entry.format));
+  // The networks the posts go out on; ads are named on their own line.
   const channels = [
-    ...new Set(live.map((entry) => channelKey(entry.channel) ?? entry.channel)),
+    ...new Set(
+      live
+        .filter((entry) => channelInfo(entry.channel)?.group !== "ads")
+        .map((entry) => channelKey(entry.channel) ?? entry.channel),
+    ),
   ].map(channelLabel);
   return {
     pieces: monthPostCount(strategy.calendar),
     channels,
+    ads: monthAdCount(strategy.calendar),
     pictures: media.filter((kind) => kind === "image" || kind === "images")
       .length,
     videos: media.filter((kind) => kind === "video").length,
@@ -211,6 +217,17 @@ export function CheckoutStep({
               , written in your voice
             </span>
           </li>
+          {month.ads > 0 ? (
+            <li>
+              <Check size={16} aria-hidden="true" />
+              <span>
+                <b>
+                  {month.ads} {month.ads === 1 ? "ad" : "ads"}
+                </b>
+                , live only when you launch them
+              </span>
+            </li>
+          ) : null}
           {month.pictures + month.videos > 0 ? (
             <li>
               <Check size={16} aria-hidden="true" />
