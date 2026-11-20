@@ -170,7 +170,8 @@
       "othersCategory": "Others",
       "ActionButtons": {
         "back": "Back",
-        "close": "Close"
+        "close": "Close",
+        "startTask": "Start a task"
       }
     },
     "UserAvatar": {

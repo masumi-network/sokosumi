@@ -170,7 +170,8 @@
       "othersCategory": "Otros",
       "ActionButtons": {
         "back": "Atrás",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "startTask": "Iniciar una tarea"
       }
     },
     "UserAvatar": {
