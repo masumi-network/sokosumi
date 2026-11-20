@@ -3,13 +3,13 @@
 - Status: Accepted
 - Date: 2026-11-20
 
-Product code in Web and CMO never calls `useEffect`, `useLayoutEffect` or `useMountEffect` directly. An effect lives only in a hook under the app's `src/hooks/effects/` that is named for one job (`useEventListener`, `useInterval`), has a test, and takes no general effect callback. A GritQL Biome plugin warns on direct calls across product files (aliases and indirections stay Biome errors), and `pnpm effects:check` (run in Husky pre-commit and CI) enforces each app's per-file `effect-baseline.json` whose counts may only shrink.
+Product code in Web and CMO never calls `useEffect`, `useLayoutEffect` or `useMountEffect` directly. An effect lives only in a hook under the app's `src/hooks/effects/` that is named for one job (`useEventListener`, `useInterval`), has a test, and takes no general effect callback. A GritQL Biome plugin warns on direct calls across product files (aliases and indirections stay Biome errors); locally, `pnpm effects:check` (run in Husky pre-commit) checks the live repo against each app's per-file `effect-baseline.json`, and CI's `Biome` job runs the full `scripts/ci/__tests__/no-direct-effects.test.mjs` suite with `EFFECT_BASELINE_BASE_REF` set to the base SHA so counts may only shrink.
 
 **Why:** agents copy what they find. Effects were the most copied workaround (496 call sites, about 15% not needed at all per [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)), and a late effect caused the #7747 race. A deterministic check holds where a line in a prose rule does not.
 
 ## Decisions
 
-- **Single-source enforcement through `effect-baseline.json`.** `no-direct-effects.grit` runs across all product files at `warn` severity with no per-file list in `biome.json`; `no-effect-aliases.grit` stays `error` everywhere. `pnpm effects:check` (in Husky pre-commit and CI) is the sole per-file baseline enforcer against the sorted, one-entry-per-line `effect-baseline.json`.
+- **Single-source enforcement through `effect-baseline.json`.** `no-direct-effects.grit` runs across all product files at `warn` severity with no per-file list in `biome.json`; `no-effect-aliases.grit` stays `error` everywhere. Locally, `pnpm effects:check` (in Husky pre-commit) checks the live repo against the sorted, one-entry-per-line `effect-baseline.json`; in CI, the `Biome` job runs the full `scripts/ci/__tests__/no-direct-effects.test.mjs` suite against the base SHA (`EFFECT_BASELINE_BASE_REF`) to also reject any baseline growth.
 - **The baseline is per file and never rises.** A new file starts at zero. A real need adds a named hook to `effects/`, never a baseline entry.
 - **No `biome-ignore` for the effect rule.** The CI test that checks the baseline fails on one.
 - **`useMountEffect` counts as an effect.** A general callback hook, in or out of `effects/`, would bypass the rule.

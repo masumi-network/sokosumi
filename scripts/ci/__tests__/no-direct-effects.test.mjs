@@ -70,7 +70,7 @@ const BIOME_SUPPRESSION_HEADER_RE =
 const FORBIDDEN_SUPPRESSION_CATEGORY_RE =
   /^(?:lint|lint\/plugin|lint\/plugin\/no-direct-effects|lint\/plugin\/no-effect-aliases|plugin|plugin\/no-direct-effects|plugin\/no-effect-aliases|no-direct-effects|no-effect-aliases)$/;
 
-const SCRIPT_FILE_RE = /\.(?:[cm]?[jt]sx?)$/;
+const SCRIPT_FILE_RE = /\.(?:[cm]?[jt]sx?)$/i;
 
 function resolveBiomeBin() {
   const local = join(ROOT, "node_modules/.bin/biome");
@@ -237,8 +237,9 @@ function runBiomeJson(args, cwd) {
 }
 
 /**
- * Runs both Grit plugins in a single Biome pass over `apps`'s `src` trees with
- * no baseline exclusions, skipping exempt paths and non-JS/TS files. Direct
+ * Runs both Grit plugins in a single Biome pass over every non-exempt file
+ * under `apps`'s `src` trees (selected via app-relative `isExemptPath`, with no
+ * extension allowlist so Biome checks every file type it supports). Direct
  * calls (`no-direct-effects.grit`, warn) and alias/indirection hits
  * (`no-effect-aliases.grit`, error) are separated by diagnostic severity.
  */
@@ -260,46 +261,24 @@ function scanAppsWithPlugins(apps) {
       join(tempConfigDir, "no-effect-aliases.grit"),
       readFileSync(ALIAS_PLUGIN_PATH, "utf8"),
     );
-
-    const uiExcludes = apps
-      .filter((app) => app.exemptUi)
-      .map((app) =>
-        toPosixPath(relative(ROOT, join(app.dir, "src/components/ui"))),
-      )
-      .filter((rel) => !rel.startsWith(".."))
-      .map((rel) => `!${rel}/**`);
-
     writeFileSync(
       join(tempConfigDir, "biome.json"),
       JSON.stringify({
-        files: {
-          ignoreUnknown: true,
-          includes: [
-            "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
-            "!**/src/hooks/effects/**",
-            ...uiExcludes,
-            "!**/*.test.*",
-            "!**/*.spec.*",
-            "!**/__tests__/**",
-            "!**/src/test/**",
-            "!**/src/test-fixtures/**",
-            "!**/fixtures/**",
-            "!**/*-fixture.*",
-            "!**/*-fixtures.*",
-            "!**/*.fixture.*",
-            "!**/*.fixtures.*",
-            "!**/fixtures.*",
-            "!**/fixture-*.*",
-          ],
-        },
+        files: { ignoreUnknown: true },
         linter: { enabled: true, rules: { preset: "none" } },
         plugins: ["./no-direct-effects.grit", "./no-effect-aliases.grit"],
       }),
     );
 
-    const targets = apps
-      .map((app) => join(app.dir, "src"))
-      .filter((srcDir) => existsSync(srcDir));
+    const targets = [];
+    for (const app of apps) {
+      for (const absPath of walkFiles(join(app.dir, "src"))) {
+        const relPath = toPosixPath(relative(app.dir, absPath));
+        if (isExemptPath(relPath, app)) continue;
+        const fromRoot = relative(ROOT, absPath);
+        targets.push(fromRoot.startsWith("..") ? absPath : fromRoot);
+      }
+    }
     if (targets.length === 0) return results;
 
     const report = runBiomeJson(
@@ -892,6 +871,32 @@ describe("no-direct-effects Grit plugins", () => {
         assert.equal(cleanViolationCheck.violations.length, 1);
         assert.match(cleanViolationCheck.violations[0], /src\/clean\.tsx/);
         assert.ok(cleanViolationCheck.violations[0].includes(EXPECTED_MESSAGE));
+
+        // Nested folders mirroring app-root exempt paths and Biome-supported
+        // uppercase extensions must NOT be silently skipped by the scanner.
+        const nestedAndUpperFiles = [
+          "src/lib/local/src/hooks/effects/x.tsx",
+          "src/lib/local/src/test/x.tsx",
+          "src/lib/local/src/test-fixtures/x.tsx",
+          "src/components/UPPER.TS",
+        ];
+        for (const rel of nestedAndUpperFiles) {
+          const full = join(cleanFixtureAppDir, rel);
+          mkdirSync(dirname(full), { recursive: true });
+          writeFileSync(full, directCallSrc);
+        }
+        const nestedAndUpperCheck = checkAppDir({
+          ...app,
+          dir: cleanFixtureAppDir,
+        });
+        for (const rel of ["src/clean.tsx", ...nestedAndUpperFiles]) {
+          assert.ok(
+            nestedAndUpperCheck.violations.some(
+              (v) => v.startsWith(`${rel}: `) && v.includes(EXPECTED_MESSAGE),
+            ),
+            `${app.name}: expected violation for ${rel}, got: ${JSON.stringify(nestedAndUpperCheck.violations)}`,
+          );
+        }
       }
     } finally {
       rmSync(fixture, { recursive: true, force: true });
