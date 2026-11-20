@@ -62,6 +62,7 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
+import { useTaskResultTableComponents } from "./task-result-table-action";
 import {
   getTaskStatusDotColorClass,
   TaskStatusInline,
@@ -105,6 +106,8 @@ interface TaskActivityProps {
   mentionableUsers?: readonly MentionableUser[];
   /** Sits in the header beside Jump to latest: follow and participant controls. */
   headerAction?: ReactNode;
+  /** The Task's name and project: tables in the activity offer Save as table to a reader who can comment. */
+  tableSource?: { title: string; projectId: string | null };
 }
 
 export interface MentionableUser {
@@ -212,8 +215,12 @@ export function TaskActivitySection({
   canComment = true,
   mentionableUsers = NO_MENTIONABLE_USERS,
   headerAction,
+  tableSource,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
+  const markdownComponents = useTaskResultTableComponents(
+    canComment ? (tableSource ?? null) : null,
+  );
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const resolvedAgentNameById = useMemo(
     () => agentNameById ?? new Map<string, string>(),
@@ -708,6 +715,7 @@ export function TaskActivitySection({
                         collapseLabel={collapseLabel}
                         fadeClassName="to-transparent"
                         defaultOpen={shouldHighlightDoneBorder}
+                        components={markdownComponents}
                       />
                     ) : null}
                     {shouldShowBillingPlaceholder ? (

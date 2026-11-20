@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
+import type { Components } from "react-markdown";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,8 @@ interface ExpandableMarkdownProps {
   /** Starts already expanded — e.g. a Completed event's summary should be
    * readable without an extra click. */
   defaultOpen?: boolean;
+  /** Replaces Markdown elements; keep the object stable, it is part of the render memo. */
+  components?: Components;
 }
 
 export function ExpandableMarkdown({
@@ -43,6 +45,7 @@ export function ExpandableMarkdown({
   fadeClassName,
   highlightTerm,
   defaultOpen = false,
+  components,
 }: ExpandableMarkdownProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [isExpandable, setIsExpandable] = useState(false);
@@ -98,7 +101,11 @@ export function ExpandableMarkdown({
               shouldFade && COLLAPSED_FADE_CLASS,
             )}
           >
-            <Markdown className={className} highlightTerm={highlightTerm}>
+            <Markdown
+              className={className}
+              highlightTerm={highlightTerm}
+              components={components}
+            >
               {content}
             </Markdown>
           </div>
