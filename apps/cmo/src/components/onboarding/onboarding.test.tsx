@@ -360,6 +360,55 @@ describe("Brand", () => {
     expect(html).toContain("Rocket Pro");
   });
 
+  it("shows who buys as the owner corrected it", () => {
+    const html = render(
+      draft({
+        brandBrain: {
+          ...brain,
+          reveal: {
+            positioning: "Rockets for founders",
+            insights: [],
+            buyers: [{ role: "Home brewer", wants: "Fresh beans", worry: "" }],
+          },
+          profile: {
+            customers: {
+              headline: "Cafe regulars come first",
+              answer:
+                "Most customers are cafe regulars; home brewers come second.",
+              findings: [],
+              openQuestions: [],
+              fix: { note: "Regulars first", at: "2026-11-20", fixed: true },
+            },
+          },
+        },
+      }),
+    );
+    expect(html).toContain("Cafe regulars come first");
+    expect(html).not.toContain("Home brewer<");
+    expect(html).not.toContain("Wants: Fresh beans");
+  });
+
+  it("shows what they sell as the owner corrected it", () => {
+    const html = render(
+      draft({
+        brandBrain: {
+          ...brain,
+          profile: {
+            offer: {
+              headline: "Rocket rentals by the day",
+              answer: "Acme rents rockets by the day; it sells none.",
+              findings: [],
+              openQuestions: [],
+              fix: { note: "We rent", at: "2026-11-20", fixed: true },
+            },
+          },
+        },
+      }),
+    );
+    expect(html).toContain("Rocket rentals by the day");
+    expect(html).toContain("Acme rents rockets by the day; it sells none.");
+  });
+
   it("keeps tile values short and puts the long text in the detail", () => {
     const html = render(
       draft({
