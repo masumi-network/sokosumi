@@ -1,11 +1,20 @@
 import { act, render, screen } from "@testing-library/react";
+import { useEffect } from "react";
 import { flushSync } from "react-dom";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FORMAT_TOOLBAR_OPEN_STORAGE_KEY } from "@/app/chat/utils/format-toolbar-preference-storage";
 import { useFormatToolbarOpenPreference } from "./use-format-toolbar-open-preference";
+
+function PassivePhaseMarker({ phases }: { phases: string[] }) {
+  useEffect(() => {
+    phases.push("passive");
+  }, [phases]);
+
+  return null;
+}
 
 function Harness() {
   const [open, setOpen] = useFormatToolbarOpenPreference();
@@ -20,9 +29,23 @@ function Harness() {
   );
 }
 
+function HydrationTree({ phases }: { phases: string[] }) {
+  return (
+    <>
+      <PassivePhaseMarker phases={phases} />
+      <Harness />
+    </>
+  );
+}
+
 describe("useFormatToolbarOpenPreference", () => {
   beforeEach(() => {
-    window.localStorage.clear();
+    // Give each test a fresh Storage instance so happy-dom's bound getItem
+    // on an earlier test's storage never hides a spy in a later test.
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: new Storage(),
+    });
   });
 
   it("renders closed during SSR for hydration safety", () => {
@@ -31,10 +54,23 @@ describe("useFormatToolbarOpenPreference", () => {
     expect(html).toContain(">false<");
   });
 
-  it("hydrates server-rendered HTML and applies a stored open preference synchronously before paint", () => {
+  it("hydrates server-rendered HTML and reads a stored open preference before a preceding sibling's passive effect", () => {
     window.localStorage.setItem(FORMAT_TOOLBAR_OPEN_STORAGE_KEY, "true");
-    const html = renderToString(<Harness />);
+    const phases: string[] = [];
+    const html = renderToString(<HydrationTree phases={phases} />);
     expect(html).toContain(">false<");
+    expect(phases).toEqual([]);
+
+    const storage = window.localStorage;
+    const originalGetItem = storage.getItem.bind(storage);
+    const getItemSpy = vi
+      .spyOn(storage, "getItem")
+      .mockImplementation((key: string) => {
+        if (key === FORMAT_TOOLBAR_OPEN_STORAGE_KEY) {
+          phases.push("read-preference");
+        }
+        return originalGetItem(key);
+      });
 
     const host = document.createElement("div");
     host.innerHTML = html;
@@ -42,15 +78,24 @@ describe("useFormatToolbarOpenPreference", () => {
     let root: Root | null = null;
 
     try {
-      // flushSync runs hydration and layout effects synchronously without
-      // flushing passive effects, matching the DOM state before browser paint.
+      // flushSync commits hydration and layout effects synchronously. A
+      // useSyncExternalStore or passive useEffect implementation reads the
+      // preference only after the preceding sibling's passive effect runs.
       flushSync(() => {
-        root = hydrateRoot(host, <Harness />);
+        root = hydrateRoot(host, <HydrationTree phases={phases} />);
       });
       expect(
         host.querySelector('[data-testid="toolbar-open"]')?.textContent,
       ).toBe("true");
+      act(() => {});
+
+      const readIndex = phases.indexOf("read-preference");
+      const passiveIndex = phases.indexOf("passive");
+      expect(readIndex).toBeGreaterThanOrEqual(0);
+      expect(passiveIndex).toBeGreaterThanOrEqual(0);
+      expect(readIndex).toBeLessThan(passiveIndex);
     } finally {
+      getItemSpy.mockRestore();
       if (root) {
         const mountedRoot: Root = root;
         act(() => {

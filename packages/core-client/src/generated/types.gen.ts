@@ -11747,6 +11747,60 @@ export type ProjectImageStudioCaption = {
     text: string;
 };
 
+export type SeoConsoleExportSummary = {
+    kind: 'linked_pages' | 'internal_pages' | 'linking_sites' | 'anchor_text' | 'indexing_examples';
+    reason: 'discovered_not_indexed' | 'crawled_not_indexed' | 'blocked_robots' | 'excluded_noindex' | 'not_found' | 'redirect' | 'alternate_canonical' | null;
+    date: string;
+    sampleSize: number;
+    actions?: Array<{
+        id: string;
+        title: string;
+        why: string;
+        nextCheck: string;
+        subject?: string;
+    }>;
+    previousDate: string | null;
+    newInSample: number | null;
+    absentFromSample: number | null;
+    entries: Array<{
+        key: string;
+        counts: {
+            incomingLinks?: number;
+            internalLinks?: number;
+            linkingSites?: number;
+            linkingPages?: number;
+            targetPages?: number;
+            anchorLinks?: number;
+        };
+        auditedUrl: boolean;
+        inspection?: {
+            status: 'observed' | 'unavailable';
+            checkedAt: string;
+            verdict?: string;
+        };
+        previousCounts: {
+            incomingLinks?: number;
+            internalLinks?: number;
+            linkingSites?: number;
+            linkingPages?: number;
+            targetPages?: number;
+            anchorLinks?: number;
+        } | null;
+    }>;
+};
+
+export type SeoConsoleExportInput = {
+    kind: 'linked_pages' | 'internal_pages' | 'linking_sites' | 'anchor_text';
+    date: string;
+    csv: string;
+} | {
+    kind: 'indexing_examples';
+    reason: 'discovered_not_indexed' | 'crawled_not_indexed' | 'blocked_robots' | 'excluded_noindex' | 'not_found' | 'redirect' | 'alternate_canonical';
+    inspectExamples?: true;
+    date: string;
+    csv: string;
+};
+
 export type ProjectSeoWorkspace = {
     searchConsolePropertyId?: string | null;
     sharing?: 'organization' | 'personal';
@@ -11782,6 +11836,8 @@ export type ProjectSeoWorkspace = {
     landingPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
+    siteEvidence?: ProjectSeoSiteEvidence | null;
+    auditSiteEvidence?: Array<ProjectSeoSiteEvidence>;
     strategy?: ProjectSeoStrategy | null;
     landingEngagementChange?: {
         propertyId: string;
@@ -11955,6 +12011,43 @@ export type ProjectSeoWorkspace = {
             clicks: number | null;
             decision: 'investigate_loss' | 'investigate_growth' | 'monitor' | 'insufficient_history';
         };
+        discovery?: {
+            checkedAt: Date;
+            status: 'available' | 'partial' | 'unavailable';
+            sitemaps: Array<{
+                path: string;
+                type: string | null;
+                index: boolean;
+                pending: boolean | null;
+                submittedAt: Date | null;
+                downloadedAt: Date | null;
+                errors: number | null;
+                warnings: number | null;
+                webUrls: number | null;
+            }>;
+            inspections: Array<{
+                page: string;
+                reason: string | null;
+                verdict: string;
+                canonical: string | null;
+                crawledAt: string | null;
+                checkedAt: Date;
+                reportedSitemaps?: Array<string>;
+                referringPages?: Array<string>;
+            }>;
+            changes: Array<{
+                url: string;
+                previousDay: Date;
+                currentDay?: Date;
+                text: string;
+            }>;
+            publicSitemaps: Array<string>;
+            actions: Array<{
+                url: string;
+                action: string;
+                evidence: string;
+            }>;
+        };
         countries?: {
             rowLimit: number;
             truncated: boolean;
@@ -12031,6 +12124,25 @@ export type ProjectSeoObservation = {
         research: Array<{
             pageUrl: string;
             scope: 'page' | 'site';
+            firstScreen?: {
+                probe: 'mobile_first_screen' | 'desktop_first_screen';
+                label: string;
+                state: 'visible' | 'outside_first_screen' | 'unknown';
+                record: string;
+                reason: string;
+            };
+            trends?: {
+                keywords: Array<{
+                    keyword: string;
+                    status: 'read' | 'not read' | 'failed' | 'not determined';
+                    peakMonths: Array<'January' | 'February' | 'March' | 'April' | 'May' | 'June' | 'July' | 'August' | 'September' | 'October' | 'November' | 'December'>;
+                    seasonal: boolean | null;
+                    trend: 'rising' | 'falling' | 'flat' | 'not determined';
+                    change: number | null;
+                    note: string;
+                }>;
+                note: string;
+            };
             rankedKeywordIdeas?: boolean;
             stages: Array<{
                 name: 'seasonal' | 'editorial' | 'exploration';
@@ -12396,6 +12508,51 @@ export type ProjectSeoIndexAssessedPage = {
     auditPageUrl?: string;
 };
 
+export type ProjectSeoSiteEvidence = {
+    taskId: string;
+    auditPageUrl: string;
+    observedAt: Date;
+    sampledPages: Array<string>;
+    complete: boolean;
+    suppliedSitemap?: 'read' | 'blocked' | 'unavailable';
+    coverage?: {
+        discovered: number;
+        deferredCount: number;
+        deferred: Array<{
+            url: string;
+            reason: 'page_limit' | 'read_limit' | 'deadline' | 'robots' | 'access_limit' | 'unavailable';
+        }>;
+    };
+    targets: Array<{
+        targetUrl: string;
+        donorUrls: Array<string>;
+        contentDonorUrls: Array<string>;
+        sitemapUrls: Array<string>;
+        status: 'fix_link' | 'review_redirect' | 'strengthen_links' | 'review' | 'observed';
+        action: string;
+        httpStatus?: number;
+        sitemapEligible?: true;
+        finalUrl?: string;
+        declaredCanonical?: string;
+        googleReferringPages?: Array<string>;
+        googleSitemapUrls?: Array<string>;
+        googleReason?: string;
+        googleCheckedAt?: Date;
+        trend?: {
+            previousAt: Date;
+            previousCount: number;
+            currentCount: number;
+            decline?: {
+                points: Array<{
+                    at: Date;
+                    count: number;
+                }>;
+                missingDonorUrls: Array<string>;
+            };
+        };
+    }>;
+};
+
 export type ProjectSeoStrategy = {
     markets?: {
         rows: Array<{
@@ -12717,6 +12874,9 @@ export type RequestProjectSeoAnalysisRequest = {
     };
     searchConsolePropertyId?: string;
     allowLimitedAudit?: true;
+    includeSitemaps?: true;
+    publicSitemapUrl?: string;
+    sitemapPageHints?: Array<string>;
     setupGoal?: {
         pageId: string;
         expectedRevision: number;
@@ -16592,6 +16752,33 @@ export type SeoTaskRelatedPagesReceipt = {
 };
 
 export type SeoTaskRelatedPagesRequest = {
+    siteEvidence?: {
+        version: 1;
+        complete: boolean;
+        suppliedSitemap?: 'read' | 'blocked' | 'unavailable';
+        coverage?: {
+            discovered: number;
+            deferredCount: number;
+            deferred: Array<{
+                url: string;
+                reason: 'page_limit' | 'read_limit' | 'deadline' | 'robots' | 'access_limit' | 'unavailable';
+            }>;
+        };
+        sampledPages: Array<string>;
+        observations: Array<{
+            sourceUrl: string;
+            targetUrl: string;
+            sourceKind: 'link' | 'sitemap';
+            location: 'content' | 'template' | 'body' | 'sitemap';
+        }>;
+        responses?: Array<{
+            pageUrl: string;
+            status: number;
+            finalUrl?: string;
+            declaredCanonical?: string;
+            sitemapEligible?: true;
+        }>;
+    };
     expectedContext: TaskWorkerContext;
     seedPageUrls: Array<string>;
     relatedPageUrls: Array<string>;
@@ -78308,6 +78495,230 @@ export type PatchProjectsByIdResponses = {
 
 export type PatchProjectsByIdResponse = PatchProjectsByIdResponses[keyof PatchProjectsByIdResponses];
 
+export type GetProjectConsoleExportsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/console-exports/{taskId}';
+};
+
+export type GetProjectConsoleExportsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Audit not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict or CMO Project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid export
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectConsoleExportsError = GetProjectConsoleExportsErrors[keyof GetProjectConsoleExportsErrors];
+
+export type GetProjectConsoleExportsResponses = {
+    /**
+     * Owner-private Search Console export samples
+     */
+    200: {
+        data: Array<SeoConsoleExportSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectConsoleExportsResponse = GetProjectConsoleExportsResponses[keyof GetProjectConsoleExportsResponses];
+
+export type ImportProjectConsoleExportData = {
+    body: SeoConsoleExportInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/console-exports/{taskId}';
+};
+
+export type ImportProjectConsoleExportErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Audit not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict or CMO Project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid export
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ImportProjectConsoleExportError = ImportProjectConsoleExportErrors[keyof ImportProjectConsoleExportErrors];
+
+export type ImportProjectConsoleExportResponses = {
+    /**
+     * Owner-private Search Console export samples
+     */
+    200: {
+        data: Array<SeoConsoleExportSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ImportProjectConsoleExportResponse = ImportProjectConsoleExportResponses[keyof ImportProjectConsoleExportResponses];
+
 export type GetProjectSeoWorkspaceData = {
     body?: never;
     headers?: {
@@ -81320,6 +81731,230 @@ export type SetSeoAuditArchivedResponses = {
 };
 
 export type SetSeoAuditArchivedResponse = SetSeoAuditArchivedResponses[keyof SetSeoAuditArchivedResponses];
+
+export type GetAuditConsoleExportsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/console-exports/{taskId}';
+};
+
+export type GetAuditConsoleExportsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Audit not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict or CMO Project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid export
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAuditConsoleExportsError = GetAuditConsoleExportsErrors[keyof GetAuditConsoleExportsErrors];
+
+export type GetAuditConsoleExportsResponses = {
+    /**
+     * Owner-private Search Console export samples
+     */
+    200: {
+        data: Array<SeoConsoleExportSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAuditConsoleExportsResponse = GetAuditConsoleExportsResponses[keyof GetAuditConsoleExportsResponses];
+
+export type ImportAuditConsoleExportData = {
+    body: SeoConsoleExportInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/console-exports/{taskId}';
+};
+
+export type ImportAuditConsoleExportErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Audit not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict or CMO Project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid export
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ImportAuditConsoleExportError = ImportAuditConsoleExportErrors[keyof ImportAuditConsoleExportErrors];
+
+export type ImportAuditConsoleExportResponses = {
+    /**
+     * Owner-private Search Console export samples
+     */
+    200: {
+        data: Array<SeoConsoleExportSummary>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ImportAuditConsoleExportResponse = ImportAuditConsoleExportResponses[keyof ImportAuditConsoleExportResponses];
 
 export type AddSeoAuditPageData = {
     body: AddProjectSeoPageRequest;
@@ -105518,6 +106153,131 @@ export type PostTasksByIdSeoIndexingResultContextV1Responses = {
 };
 
 export type PostTasksByIdSeoIndexingResultContextV1Response = PostTasksByIdSeoIndexingResultContextV1Responses[keyof PostTasksByIdSeoIndexingResultContextV1Responses];
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Data = {
+    body: {
+        expectedContext: TaskWorkerContext;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-indexing/deferred/context-v1';
+};
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Error = PostTasksByIdSeoIndexingDeferredContextV1Errors[keyof PostTasksByIdSeoIndexingDeferredContextV1Errors];
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Responses = {
+    /**
+     * Deferred public leads
+     */
+    200: {
+        data: {
+            taskId: string;
+            urls: Array<string>;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Response = PostTasksByIdSeoIndexingDeferredContextV1Responses[keyof PostTasksByIdSeoIndexingDeferredContextV1Responses];
 
 export type PostTasksByIdSeoIndexingRelatedPagesContextV1Data = {
     body: SeoTaskRelatedPagesRequest;

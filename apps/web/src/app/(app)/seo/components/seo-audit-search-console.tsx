@@ -6,6 +6,7 @@ import {
   useSeoResultFormatter,
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
+import { SeoAuditDiscovery } from "./seo-audit-discovery";
 import { SeoFoldSummary } from "./seo-shared";
 
 type Evidence = NonNullable<ProjectSeoWorkspace["auditSearchConsole"]>[number];
@@ -110,6 +111,9 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
           ))}
         </tbody>
       </table>
+      {evidence.discovery && (
+        <SeoAuditDiscovery evidence={evidence.discovery} />
+      )}
       {evidence.history && (
         <section className="space-y-1">
           <h4 className="font-medium">

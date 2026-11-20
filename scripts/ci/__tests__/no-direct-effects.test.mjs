@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, sep } from "node:path";
-import { describe, test } from "node:test";
+import { before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -70,15 +70,23 @@ const BIOME_SUPPRESSION_HEADER_RE =
 const FORBIDDEN_SUPPRESSION_CATEGORY_RE =
   /^(?:lint|lint\/plugin|lint\/plugin\/no-direct-effects|lint\/plugin\/no-effect-aliases|plugin|plugin\/no-direct-effects|plugin\/no-effect-aliases|no-direct-effects|no-effect-aliases)$/;
 
-const SCRIPT_FILE_RE = /\.(?:[cm]?[jt]sx?)$/;
+const SCRIPT_FILE_RE = /\.(?:[cm]?[jt]sx?)$/i;
 
 function resolveBiomeBin() {
   const local = join(ROOT, "node_modules/.bin/biome");
   return existsSync(local) ? local : "biome";
 }
 
-function escapeBiomeGlob(relPath) {
-  return relPath.replace(/[\\[\]]/g, "\\$&");
+function sortBaselineKeys(keys) {
+  return [...keys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+function formatEffectBaseline(baseline) {
+  const sorted = {};
+  for (const key of sortBaselineKeys(Object.keys(baseline))) {
+    sorted[key] = baseline[key];
+  }
+  return `${JSON.stringify(sorted, null, 2)}\n`;
 }
 
 function toPosixPath(p) {
@@ -229,23 +237,51 @@ function runBiomeJson(args, cwd) {
 }
 
 /**
- * Runs a single Grit plugin over `app.dir/src` with no baseline exclusions and
- * returns a map of checked product file -> diagnostic locations/counts.
+ * Runs both Grit plugins in a single Biome pass over every non-exempt file
+ * under `apps`'s `src` trees (selected via app-relative `isExemptPath`, with no
+ * extension allowlist so Biome checks every file type it supports). Direct
+ * calls (`no-direct-effects.grit`, warn) and alias/indirection hits
+ * (`no-effect-aliases.grit`, error) are separated by diagnostic severity.
  */
-function scanAppWithPlugin(app, pluginPath, pluginFileName) {
+function scanAppsWithPlugins(apps) {
   const tempConfigDir = mkdtempSync(join(tmpdir(), "effect-scan-"));
+  const results = new Map(
+    apps.map((app) => [
+      app.name,
+      { directCounts: new Map(), aliasCounts: new Map() },
+    ]),
+  );
+
   try {
     writeFileSync(
-      join(tempConfigDir, pluginFileName),
-      readFileSync(pluginPath, "utf8"),
+      join(tempConfigDir, "no-direct-effects.grit"),
+      readFileSync(DIRECT_PLUGIN_PATH, "utf8"),
+    );
+    writeFileSync(
+      join(tempConfigDir, "no-effect-aliases.grit"),
+      readFileSync(ALIAS_PLUGIN_PATH, "utf8"),
     );
     writeFileSync(
       join(tempConfigDir, "biome.json"),
       JSON.stringify({
+        files: { ignoreUnknown: true },
         linter: { enabled: true, rules: { preset: "none" } },
-        plugins: [`./${pluginFileName}`],
+        plugins: ["./no-direct-effects.grit", "./no-effect-aliases.grit"],
       }),
     );
+
+    // Passing non-exempt paths skips ~1.5k test/ui/fixture files (~2x faster);
+    // ~150 KiB argv stays well below Linux (2 MiB) and macOS (1 MiB) ARG_MAX.
+    const targets = [];
+    for (const app of apps) {
+      for (const absPath of walkFiles(join(app.dir, "src"))) {
+        const relPath = toPosixPath(relative(app.dir, absPath));
+        if (isExemptPath(relPath, app)) continue;
+        const fromRoot = relative(ROOT, absPath);
+        targets.push(fromRoot.startsWith("..") ? absPath : fromRoot);
+      }
+    }
+    if (targets.length === 0) return results;
 
     const report = runBiomeJson(
       [
@@ -253,12 +289,11 @@ function scanAppWithPlugin(app, pluginPath, pluginFileName) {
         `--config-path=${tempConfigDir}`,
         "--reporter=json",
         "--max-diagnostics=none",
-        join(app.dir, "src"),
+        ...targets,
       ],
       ROOT,
     );
 
-    const counts = new Map();
     for (const diagnostic of report.diagnostics) {
       if (diagnostic.category !== "plugin") continue;
       if (diagnostic.message !== EXPECTED_MESSAGE) continue;
@@ -267,31 +302,42 @@ function scanAppWithPlugin(app, pluginPath, pluginFileName) {
       const absPath = diagPath.startsWith("/")
         ? diagPath
         : join(ROOT, diagPath);
-      const relPath = toPosixPath(relative(app.dir, absPath));
-      if (isExemptPath(relPath, app)) continue;
-      counts.set(relPath, (counts.get(relPath) ?? 0) + 1);
+      const owner = apps.find(
+        (app) => absPath === app.dir || absPath.startsWith(`${app.dir}${sep}`),
+      );
+      if (!owner) continue;
+      const relPath = toPosixPath(relative(owner.dir, absPath));
+      if (isExemptPath(relPath, owner)) continue;
+
+      const bucket = results.get(owner.name);
+      if (diagnostic.severity === "warning") {
+        bucket.directCounts.set(
+          relPath,
+          (bucket.directCounts.get(relPath) ?? 0) + 1,
+        );
+      } else if (diagnostic.severity === "error") {
+        bucket.aliasCounts.set(
+          relPath,
+          (bucket.aliasCounts.get(relPath) ?? 0) + 1,
+        );
+      } else {
+        assert.fail(
+          `Unexpected effect plugin severity "${diagnostic.severity}" for ${relPath}`,
+        );
+      }
     }
-    return counts;
+    return results;
   } finally {
     rmSync(tempConfigDir, { recursive: true, force: true });
   }
 }
 
-function countActualEffects(app) {
-  return scanAppWithPlugin(app, DIRECT_PLUGIN_PATH, "no-direct-effects.grit");
-}
-
-function findAliasViolations(app) {
-  const hits = scanAppWithPlugin(
-    app,
-    ALIAS_PLUGIN_PATH,
-    "no-effect-aliases.grit",
-  );
+function formatAliasViolations(hits) {
   return [...hits.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(
       ([file, count]) =>
-        `${file}: ${count} forbidden effect alias/indirection match(es). Aliases, namespace/computed members, destructuring, and renamed re-exports are never grandfathered.`,
+        `${file}: ${count} forbidden effect alias/indirection match(es). Aliases, namespace/computed members, destructuring, and renamed re-exports are never grandfathered. ${EXPECTED_MESSAGE}`,
     );
 }
 
@@ -332,14 +378,37 @@ function findEffectSuppressions(app) {
   return findEffectSuppressionsInFiles(files);
 }
 
+function findBaselineFormatViolations(rawBaselineText, baseline) {
+  const errors = [];
+  const keys = Object.keys(baseline);
+  const sortedKeys = sortBaselineKeys(keys);
+  if (JSON.stringify(keys) !== JSON.stringify(sortedKeys)) {
+    errors.push(
+      "effect-baseline.json keys must be sorted in ascending code-point order so parallel migration PRs merge cleanly.",
+    );
+  }
+  const canonical = formatEffectBaseline(baseline);
+  if (rawBaselineText !== canonical) {
+    errors.push(
+      "effect-baseline.json must use canonical conflict-friendly JSON formatting (sorted keys, one entry per line, 2-space indent, trailing newline).",
+    );
+  }
+  return errors;
+}
+
 function findBaselineViolations({
   actualCounts,
   baseline,
+  rawBaselineText,
   overrideIncludes,
   aliasOverrideIncludes,
   baseIncludes,
 }) {
   const errors = [];
+
+  if (rawBaselineText !== undefined) {
+    errors.push(...findBaselineFormatViolations(rawBaselineText, baseline));
+  }
 
   for (const [file, limit] of Object.entries(baseline)) {
     if (!Number.isInteger(limit) || limit <= 0) {
@@ -351,11 +420,11 @@ function findBaselineViolations({
     const actual = actualCounts.get(file) ?? 0;
     if (actual === 0) {
       errors.push(
-        `${file}: has 0 direct effects; remove it from effect-baseline.json and biome.json.`,
+        `${file}: has 0 direct effects; remove it from effect-baseline.json.`,
       );
     } else if (actual > limit) {
       errors.push(
-        `${file}: direct effects grew from ${limit} to ${actual}. Move new effects into src/hooks/effects/.`,
+        `${file}: direct effects grew from ${limit} to ${actual}. ${EXPECTED_MESSAGE}`,
       );
     } else if (actual < limit) {
       errors.push(
@@ -367,20 +436,14 @@ function findBaselineViolations({
   for (const [file, actual] of actualCounts) {
     if (actual > 0 && !(file in baseline)) {
       errors.push(
-        `${file}: ${actual} direct effect(s) in a non-baselined file. Move effects into src/hooks/effects/.`,
+        `${file}: ${actual} direct effect(s) in a non-baselined file. ${EXPECTED_MESSAGE}`,
       );
     }
   }
 
-  const expectedIncludes = [
-    ...baseIncludes,
-    ...Object.keys(baseline)
-      .sort()
-      .map((file) => `!${escapeBiomeGlob(file)}`),
-  ];
-  if (JSON.stringify(overrideIncludes) !== JSON.stringify(expectedIncludes)) {
+  if (JSON.stringify(overrideIncludes) !== JSON.stringify(baseIncludes)) {
     errors.push(
-      "biome.json effect-rule override includes do not match effect-baseline.json.",
+      "biome.json effect-rule override includes must match baseIncludes with no per-file exemptions (effect-baseline.json is the single source of truth).",
     );
   }
 
@@ -402,7 +465,7 @@ function findBaselineGrowth(currentBaseline, baseBaseline) {
     const previous = baseBaseline[file] ?? 0;
     if (count > previous) {
       errors.push(
-        `${file}: baseline grew from ${previous} to ${count}. The baseline may only shrink.`,
+        `${file}: baseline grew from ${previous} to ${count}. The baseline may only shrink. ${EXPECTED_MESSAGE}`,
       );
     }
   }
@@ -455,12 +518,13 @@ function readBaseBaseline(
   return JSON.parse(raw);
 }
 
-function checkAppDir(app) {
+function checkAppDir(app, precomputedScan) {
   const baselinePath = join(app.dir, "effect-baseline.json");
   const biomePath = join(app.dir, "biome.json");
   assert.ok(existsSync(baselinePath), `missing ${baselinePath}`);
 
-  const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+  const rawBaselineText = readFileSync(baselinePath, "utf8");
+  const baseline = JSON.parse(rawBaselineText);
   const biomeConfig = JSON.parse(readFileSync(biomePath, "utf8"));
   const effectOverride = (biomeConfig.overrides ?? []).find(
     (override) =>
@@ -483,11 +547,12 @@ function checkAppDir(app) {
   );
 
   const suppressions = findEffectSuppressions(app);
-  const aliases = findAliasViolations(app);
-  const actualCounts = countActualEffects(app);
+  const scan = precomputedScan ?? scanAppsWithPlugins([app]).get(app.name);
+  const aliases = formatAliasViolations(scan.aliasCounts);
   const violations = findBaselineViolations({
-    actualCounts,
+    actualCounts: scan.directCounts,
     baseline,
+    rawBaselineText,
     overrideIncludes: effectOverride.includes ?? [],
     aliasOverrideIncludes: aliasOverride.includes ?? [],
     baseIncludes: app.baseIncludes,
@@ -515,7 +580,7 @@ function writeTempPlugins(fixture) {
 }
 
 describe("no-direct-effects Grit plugins", () => {
-  test("flags direct calls and any scoped value/alias/member/re-export reference (conditionals, arrays, objects, arguments, returns) at error severity while allowing non-React objects, useEffectEvent, and exempt paths in both apps", () => {
+  test("flags direct calls at warn severity and any scoped value/alias/member/re-export reference at error severity while allowing non-React objects, useEffectEvent, and exempt paths in both apps", () => {
     const badSample = [
       'import * as R from "react";',
       "import React, {",
@@ -599,17 +664,19 @@ describe("no-direct-effects Grit plugins", () => {
       "",
     ].join("\n");
 
-    // 7 direct calls (`no-direct-effects.grit`):
+    // 7 direct calls (`no-direct-effects.grit`, warn severity):
     //   useEffect, useLayoutEffect, useMountEffect, useEffect?.,
     //   React.useEffect, React.useLayoutEffect, React.useMountEffect
-    // 41 alias/value/indirection matches (`no-effect-aliases.grit`):
+    // 41 alias/value/indirection matches (`no-effect-aliases.grit`, error severity):
     //   5 import aliases + 5 renamed re-exports
     //   + 6 conditional value refs (useEffect, useLayoutEffect, R.useEffect, R.useLayoutEffect, React.useEffect, React.useLayoutEffect)
     //   + 3 destructurings
     //   + 4 array value refs + 4 object value refs + 3 function argument value refs
     //   + 3 assignments + 1 arrow return value ref
     //   + 7 namespace/computed/optional calls
-    const expectedCount = 48;
+    const expectedDirectWarnings = 7;
+    const expectedAliasErrors = 41;
+    const expectedCount = expectedDirectWarnings + expectedAliasErrors;
 
     for (const app of APPS) {
       const fixture = mkdtempSync(join(tmpdir(), `effect-rule-${app.name}-`));
@@ -648,11 +715,7 @@ describe("no-direct-effects Grit plugins", () => {
           overrides: [
             {
               includes: app.baseIncludes,
-              plugins: [DIRECT_PLUGIN_REL_FROM_APP],
-            },
-            {
-              includes: app.baseIncludes,
-              plugins: [ALIAS_PLUGIN_REL_FROM_APP],
+              plugins: [DIRECT_PLUGIN_REL_FROM_APP, ALIAS_PLUGIN_REL_FROM_APP],
             },
           ],
         };
@@ -672,10 +735,15 @@ describe("no-direct-effects Grit plugins", () => {
         assert.equal(
           pluginDiagnostics.length,
           expectedCount,
-          `${app.name}: expected ${expectedCount} errors from src/clean.tsx only, got ${pluginDiagnostics.length}: ${JSON.stringify(pluginDiagnostics)}`,
+          `${app.name}: expected ${expectedCount} diagnostics from src/clean.tsx only, got ${pluginDiagnostics.length}: ${JSON.stringify(pluginDiagnostics)}`,
         );
+        const warnings = pluginDiagnostics.filter(
+          (d) => d.severity === "warning",
+        );
+        const errors = pluginDiagnostics.filter((d) => d.severity === "error");
+        assert.equal(warnings.length, expectedDirectWarnings);
+        assert.equal(errors.length, expectedAliasErrors);
         for (const diagnostic of pluginDiagnostics) {
-          assert.equal(diagnostic.severity, "error");
           assert.equal(diagnostic.message, EXPECTED_MESSAGE);
           assert.equal(
             toPosixPath(diagnostic.location.path),
@@ -688,7 +756,7 @@ describe("no-direct-effects Grit plugins", () => {
     }
   });
 
-  test("never grandfathers aliases or conditional value refs in a baselined file", () => {
+  test("warns on direct effects in baselined files, errors on aliases, and fails baseline check on a new effect in a clean Web or CMO file", () => {
     const fixture = mkdtempSync(join(tmpdir(), "effect-baselined-alias-"));
     try {
       writeTempPlugins(fixture);
@@ -711,7 +779,7 @@ describe("no-direct-effects Grit plugins", () => {
       );
       writeFileSync(
         join(appDir, "effect-baseline.json"),
-        JSON.stringify({ "src/legacy.tsx": 1 }, null, 2) + "\n",
+        formatEffectBaseline({ "src/legacy.tsx": 1 }),
       );
       writeFileSync(
         join(appDir, "biome.json"),
@@ -720,32 +788,32 @@ describe("no-direct-effects Grit plugins", () => {
           extends: "//",
           overrides: [
             {
-              includes: [...COMMON_BASE_INCLUDES, "!src/legacy.tsx"],
-              plugins: [DIRECT_PLUGIN_REL_FROM_APP],
-            },
-            {
               includes: COMMON_BASE_INCLUDES,
-              plugins: [ALIAS_PLUGIN_REL_FROM_APP],
+              plugins: [DIRECT_PLUGIN_REL_FROM_APP, ALIAS_PLUGIN_REL_FROM_APP],
             },
           ],
         }),
       );
 
-      // Biome itself flags both the import alias and the conditional value refs
-      // inside the baselined file (1 import alias + 2 conditional refs = 3).
+      // Biome warns on the direct call (1) and errors on the import alias +
+      // conditional value refs (3) without any per-file biome.json list.
       const report = runBiomeJson(
         ["lint", "--reporter=json", "--max-diagnostics=none", "."],
         appDir,
       );
-      const pluginErrors = report.diagnostics.filter(
+      const pluginDiagnostics = report.diagnostics.filter(
         (d) => d.category === "plugin",
       );
+      const pluginWarnings = pluginDiagnostics.filter(
+        (d) => d.severity === "warning",
+      );
+      const pluginErrors = pluginDiagnostics.filter(
+        (d) => d.severity === "error",
+      );
+      assert.equal(pluginWarnings.length, 1);
       assert.equal(pluginErrors.length, 3);
-      for (const error of pluginErrors) {
-        assert.equal(error.severity, "error");
-      }
 
-      // And the seam checker rejects them even though the direct call count is 1.
+      // And the seam checker rejects the aliases even though the direct call count is 1.
       const { aliases, violations } = checkAppDir({
         name: "web",
         dir: appDir,
@@ -755,6 +823,83 @@ describe("no-direct-effects Grit plugins", () => {
       assert.deepEqual(violations, []);
       assert.equal(aliases.length, 1);
       assert.match(aliases[0], /src\/legacy\.tsx.*3 forbidden/);
+      assert.ok(aliases[0].includes(EXPECTED_MESSAGE));
+
+      // Baselined file with only direct calls passes both Biome (exit 0, warn-only)
+      // and checkAppDir, while adding an effect to a clean file fails checkAppDir
+      // in both Web and CMO layouts with the rule message and docs link.
+      for (const app of APPS) {
+        const cleanFixtureAppDir = join(fixture, `clean-${app.name}`);
+        mkdirSync(join(cleanFixtureAppDir, "src"), { recursive: true });
+        const directCallSrc =
+          'import { useEffect } from "react";\nexport function A() {\n  useEffect(() => {}, []);\n  return null;\n}\n';
+        writeFileSync(
+          join(cleanFixtureAppDir, "src/baselined.tsx"),
+          directCallSrc,
+        );
+        writeFileSync(
+          join(cleanFixtureAppDir, "effect-baseline.json"),
+          formatEffectBaseline({ "src/baselined.tsx": 1 }),
+        );
+        writeFileSync(
+          join(cleanFixtureAppDir, "biome.json"),
+          JSON.stringify({
+            root: false,
+            extends: "//",
+            overrides: [
+              {
+                includes: app.baseIncludes,
+                plugins: [
+                  DIRECT_PLUGIN_REL_FROM_APP,
+                  ALIAS_PLUGIN_REL_FROM_APP,
+                ],
+              },
+            ],
+          }),
+        );
+
+        const baselinedCheck = checkAppDir({
+          ...app,
+          dir: cleanFixtureAppDir,
+        });
+        assert.deepEqual(baselinedCheck.violations, []);
+        assert.deepEqual(baselinedCheck.aliases, []);
+
+        writeFileSync(join(cleanFixtureAppDir, "src/clean.tsx"), directCallSrc);
+        const cleanViolationCheck = checkAppDir({
+          ...app,
+          dir: cleanFixtureAppDir,
+        });
+        assert.equal(cleanViolationCheck.violations.length, 1);
+        assert.match(cleanViolationCheck.violations[0], /src\/clean\.tsx/);
+        assert.ok(cleanViolationCheck.violations[0].includes(EXPECTED_MESSAGE));
+
+        // Nested folders mirroring app-root exempt paths and Biome-supported
+        // uppercase extensions must NOT be silently skipped by the scanner.
+        const nestedAndUpperFiles = [
+          "src/lib/local/src/hooks/effects/x.tsx",
+          "src/lib/local/src/test/x.tsx",
+          "src/lib/local/src/test-fixtures/x.tsx",
+          "src/components/UPPER.TS",
+        ];
+        for (const rel of nestedAndUpperFiles) {
+          const full = join(cleanFixtureAppDir, rel);
+          mkdirSync(dirname(full), { recursive: true });
+          writeFileSync(full, directCallSrc);
+        }
+        const nestedAndUpperCheck = checkAppDir({
+          ...app,
+          dir: cleanFixtureAppDir,
+        });
+        for (const rel of ["src/clean.tsx", ...nestedAndUpperFiles]) {
+          assert.ok(
+            nestedAndUpperCheck.violations.some(
+              (v) => v.startsWith(`${rel}: `) && v.includes(EXPECTED_MESSAGE),
+            ),
+            `${app.name}: expected violation for ${rel}, got: ${JSON.stringify(nestedAndUpperCheck.violations)}`,
+          );
+        }
+      }
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
@@ -936,25 +1081,27 @@ describe("effect baseline invariants", () => {
     });
     assert.equal(errors.length, 1);
     assert.match(errors[0], /non-baselined file/);
+    assert.ok(errors[0].includes(EXPECTED_MESSAGE));
   });
 
   test("fails on a baselined file whose count grows", () => {
     const errors = findBaselineViolations({
       actualCounts: new Map([["src/existing.tsx", 3]]),
       baseline: { "src/existing.tsx": 2 },
-      overrideIncludes: [...baseIncludes, "!src/existing.tsx"],
+      overrideIncludes: [...baseIncludes],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
     assert.equal(errors.length, 1);
     assert.match(errors[0], /grew from 2 to 3/);
+    assert.ok(errors[0].includes(EXPECTED_MESSAGE));
   });
 
   test("fails on a zero-count entry left in the baseline", () => {
     const explicitZero = findBaselineViolations({
       actualCounts: new Map(),
       baseline: { "src/migrated.tsx": 0 },
-      overrideIncludes: [...baseIncludes, "!src/migrated.tsx"],
+      overrideIncludes: [...baseIncludes],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
@@ -964,7 +1111,7 @@ describe("effect baseline invariants", () => {
     const staleEntry = findBaselineViolations({
       actualCounts: new Map(),
       baseline: { "src/migrated.tsx": 1 },
-      overrideIncludes: [...baseIncludes, "!src/migrated.tsx"],
+      overrideIncludes: [...baseIncludes],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
@@ -976,7 +1123,7 @@ describe("effect baseline invariants", () => {
     const errors = findBaselineViolations({
       actualCounts: new Map([["src/existing.tsx", 1]]),
       baseline: { "src/existing.tsx": 2 },
-      overrideIncludes: [...baseIncludes, "!src/existing.tsx"],
+      overrideIncludes: [...baseIncludes],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
@@ -984,26 +1131,53 @@ describe("effect baseline invariants", () => {
     assert.match(errors[0], /dropped from 2 to 1/);
   });
 
-  test("fails when biome.json overrides drift from effect-baseline.json or grandfather aliases", () => {
+  test("fails when biome.json overrides carry per-file exemptions or grandfather aliases", () => {
     const directDrift = findBaselineViolations({
       actualCounts: new Map([["src/existing.tsx", 1]]),
       baseline: { "src/existing.tsx": 1 },
-      overrideIncludes: [...baseIncludes],
+      overrideIncludes: [...baseIncludes, "!src/existing.tsx"],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
     assert.equal(directDrift.length, 1);
-    assert.match(directDrift[0], /override includes do not match/);
+    assert.match(directDrift[0], /no per-file exemptions/);
 
     const aliasDrift = findBaselineViolations({
       actualCounts: new Map([["src/existing.tsx", 1]]),
       baseline: { "src/existing.tsx": 1 },
-      overrideIncludes: [...baseIncludes, "!src/existing.tsx"],
+      overrideIncludes: [...baseIncludes],
       aliasOverrideIncludes: [...baseIncludes, "!src/existing.tsx"],
       baseIncludes,
     });
     assert.equal(aliasDrift.length, 1);
     assert.match(aliasDrift[0], /no baselined exemptions/);
+  });
+
+  test("fails when effect-baseline.json is unsorted or not formatted one entry per line", () => {
+    const unsortedRaw = '{\n  "src/b.tsx": 1,\n  "src/a.tsx": 1\n}\n';
+    const unsorted = findBaselineFormatViolations(
+      unsortedRaw,
+      JSON.parse(unsortedRaw),
+    );
+    assert.ok(unsorted.some((e) => /sorted/.test(e)));
+
+    const singleLineRaw = '{"src/a.tsx": 1, "src/b.tsx": 1}\n';
+    const singleLine = findBaselineFormatViolations(
+      singleLineRaw,
+      JSON.parse(singleLineRaw),
+    );
+    assert.equal(singleLine.length, 1);
+    assert.match(singleLine[0], /one entry per line/);
+
+    const canonicalRaw = formatEffectBaseline({
+      "src/b.tsx": 2,
+      "src/a.tsx": 1,
+    });
+    assert.equal(canonicalRaw, '{\n  "src/a.tsx": 1,\n  "src/b.tsx": 2\n}\n');
+    assert.deepEqual(
+      findBaselineFormatViolations(canonicalRaw, JSON.parse(canonicalRaw)),
+      [],
+    );
   });
 
   test("fails on any baseline increase relative to the base branch", () => {
@@ -1114,9 +1288,18 @@ describe("effect baseline invariants", () => {
 });
 
 describe("live repo effect baseline", () => {
+  let liveScan;
+
+  before(() => {
+    liveScan = scanAppsWithPlugins(APPS);
+  });
+
   for (const app of APPS) {
     test(`apps/${app.name} matches its effect-baseline.json with no suppressions or aliases`, () => {
-      const { baseline, suppressions, aliases, violations } = checkAppDir(app);
+      const { baseline, suppressions, aliases, violations } = checkAppDir(
+        app,
+        liveScan.get(app.name),
+      );
 
       assert.deepEqual(
         suppressions,
@@ -1150,4 +1333,18 @@ describe("live repo effect baseline", () => {
       }
     });
   }
+
+  test("package.json wires effects:check into Husky precommit", () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    assert.match(
+      pkg.scripts["effects:check"] ?? "",
+      /no-direct-effects\.test\.mjs/,
+      'package.json must define "effects:check" backed by no-direct-effects.test.mjs',
+    );
+    assert.match(
+      pkg.scripts.precommit ?? "",
+      /\bpnpm check\b.*\bpnpm effects:check\b/,
+      'package.json "precommit" must run pnpm effects:check next to pnpm check',
+    );
+  });
 });

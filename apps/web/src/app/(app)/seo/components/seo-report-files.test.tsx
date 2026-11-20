@@ -113,6 +113,23 @@ function openRuns(
     };
   }
   if (withEvidence) {
+    data.siteEvidence = {
+      taskId: "older",
+      auditPageUrl: "https://example.com/shop",
+      observedAt: new Date("2026-11-01T10:30Z"),
+      complete: true,
+      sampledPages: ["https://example.com/shop"],
+      targets: [],
+    };
+    data.auditSiteEvidence = [
+      {
+        ...data.siteEvidence,
+        taskId: "newer",
+        sampledPages: ["https://example.com/newer-report"],
+      },
+      data.siteEvidence,
+    ];
+    data.siteEvidence = data.auditSiteEvidence[0];
     data.metrics = [{ ...seoTestMetric(), value: 876543 }];
     data.auditSearchConsole = [
       {
@@ -240,6 +257,10 @@ describe("SEO report file versions", () => {
       screen.getByRole("button", { name: "Reports and Search Console" }),
     );
     const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByText("Sampled public pages"));
+    expect(
+      dialog.getByRole("link", { name: "https://example.com/newer-report" }),
+    ).toBeVisible();
     const evidence = within(
       dialog.getByRole("region", { name: "Search Console" }),
     );
@@ -298,6 +319,13 @@ describe("SEO report file versions", () => {
     ).toBeVisible();
     await user.click(dialog.getByRole("combobox", { name: "Check" }));
     await user.click(await screen.findByRole("option", { name: /Full audit/ }));
+    expect(dialog.getByText("Internal links and indexing")).toBeVisible();
+    expect(
+      dialog.queryByRole("link", { name: "https://example.com/newer-report" }),
+    ).toBeNull();
+    expect(
+      dialog.getByRole("link", { name: "https://example.com/shop" }),
+    ).toBeVisible();
     expect(dialog.queryByText("sc-domain:example.com")).toBeNull();
     expect(dialog.queryByText("Review the shop snippet")).toBeNull();
     expect(

@@ -15,19 +15,19 @@ import {
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import { collectAuditClickHistory } from "@/lib/seo/audit-click-history";
+import { auditClickHistoryFromSearchAnalytics } from "@/lib/seo/audit-click-history";
 import { auditPerformancePage } from "@/lib/seo/audit-performance-pages";
+import {
+  GSC_LIST_SITEMAPS,
+  type inspectionDiscoverySources,
+} from "@/lib/seo/audit-sitemaps";
 import { ga4LandingPlan } from "@/lib/seo/native-ga4-landing";
 import {
   type GscBreakdownDimension,
   gscBreakdownArguments,
   normalizeGscBreakdown,
 } from "@/lib/seo/native-gsc-breakdown";
-import {
-  GSC_INSPECT_TOOL,
-  gscInspectionArguments,
-  normalizeGscInspection,
-} from "@/lib/seo/native-gsc-inspection";
+import { GSC_INSPECT_TOOL } from "@/lib/seo/native-gsc-inspection";
 import {
   gscPropertyCovers,
   readableGscProperties,
@@ -90,8 +90,10 @@ import {
   applyStatisticsInspections,
   collectStatisticsInspections,
   inspectionCacheKey,
+  inspectStatisticsPage,
 } from "./project-seo-statistics-inspections";
 import { requireSeoOwner, type SeoMutationHooks } from "./project-seo-store";
+import { collectAuditDiscovery } from "./seo-audit-discovery";
 import {
   collectLandingPages,
   landingOutcomeAccountKey,
@@ -259,7 +261,12 @@ export async function syncProjectSeoStatistics(
   actor: SeoActor,
   raw: SyncProjectSeoStatistics,
   hooks: SeoMutationHooks = {},
-  audit?: { taskId: string; connectionVersion: string; pageUrls: string[] },
+  audit?: {
+    taskId: string;
+    connectionVersion: string;
+    pageUrls: string[];
+    includeSitemaps?: true;
+  },
 ) {
   const input = syncProjectSeoStatisticsSchema.parse(raw);
   await requireSeoOwner(actor, prisma, true);
@@ -344,6 +351,7 @@ export async function syncProjectSeoStatistics(
   return withAutomaticSeoStatistics({
     actor,
     auditTaskId: audit?.taskId,
+    includeSitemaps: audit?.includeSitemaps,
     input,
     integration,
     pageIds,
@@ -373,26 +381,51 @@ export async function syncProjectSeoStatistics(
           "The Search Console property does not cover the selected pages",
         );
       let inspectionTool: Promise<SeoNativeTool> | undefined;
+      const discoverySources = new Map<
+        string,
+        ReturnType<typeof inspectionDiscoverySources>
+      >();
       const collectIndexedPages = () =>
         collectStatisticsInspections(
           actor,
           inspectionCacheKey(actor, integration, input.propertyId),
           pageUrls,
-          async (pageUrl) => {
-            inspectionTool ??= toolFor(integration, GSC_INSPECT_TOOL);
-            const raw = await read(
-              integration,
-              await inspectionTool,
-              gscInspectionArguments(input.propertyId, pageUrl),
-            );
-            return normalizeGscInspection(
-              pageUrl,
-              unwrapNativeStatistics(raw, ["inspectionResult"]),
-            );
-          },
+          (url) =>
+            inspectStatisticsPage(
+              input.propertyId,
+              url,
+              audit?.includeSitemaps ? discoverySources : undefined,
+              async (args) => {
+                inspectionTool ??= toolFor(integration, GSC_INSPECT_TOOL);
+                return read(integration, await inspectionTool, args);
+              },
+            ),
           cached,
+          audit?.includeSitemaps ? discoverySources : undefined,
         );
-      if (cached) {
+      let sitemapTool: Promise<SeoNativeTool> | undefined;
+      const discovery = (
+        taskId: string,
+        data: Parameters<typeof collectAuditDiscovery>[2],
+      ) =>
+        collectAuditDiscovery(
+          actor,
+          taskId,
+          data,
+          discoverySources,
+          async (args) => {
+            sitemapTool ??= toolFor(integration, GSC_LIST_SITEMAPS);
+            return read(integration, await sitemapTool, args);
+          },
+          cached?.auditDiscovery,
+        );
+      if (cached && audit?.includeSitemaps && cached.auditPerformanceComplete) {
+        return retain(
+          { ...cached, auditDiscovery: await discovery(audit.taskId, cached) },
+          collectionHooks,
+        );
+      }
+      if (cached && !audit) {
         const inspections = await collectIndexedPages();
         const updated = {
           ...cached,
@@ -674,6 +707,10 @@ export async function syncProjectSeoStatistics(
         // The evidence belongs to the approved page records. Query rows retain Google's measured URLs.
         metrics.pageUrls = pageUrls;
         metrics.auditMeasuredPages = measuredPages;
+        if (audit?.includeSitemaps) {
+          applyStatisticsInspections(metrics, inspections);
+          metrics.auditDiscovery = await discovery(audit.taskId, metrics);
+        }
         metrics.auditPerformanceComplete =
           inspections.indexedPages.length === pageUrls.length &&
           [period, daily, previous, queries].every(
@@ -694,29 +731,10 @@ export async function syncProjectSeoStatistics(
           metrics.coverage === "complete" &&
           measuredPages.every((page) => page.basis !== "unverified")
         ) {
-          metrics.auditClickHistory = await collectAuditClickHistory(
-            metrics,
-            async (window) => {
-              const historical = { ...query, ...window };
-              const result = unwrapNativeStatistics(
-                await read(
-                  integration,
-                  tool,
-                  gscStatisticsArguments(historical, true),
-                ),
-                ["rows"],
-              );
-              return (
-                normalizeGscStatistics(
-                  historical,
-                  null,
-                  result,
-                  metrics.observedAt,
-                ).metrics.find((metric) => metric.key === "clicks")?.points ??
-                []
-              );
-            },
-          );
+          metrics.auditClickHistory =
+            await auditClickHistoryFromSearchAnalytics(metrics, query, (args) =>
+              read(integration, tool, args),
+            );
         }
       }
       metrics.collectionFingerprint = fingerprint;

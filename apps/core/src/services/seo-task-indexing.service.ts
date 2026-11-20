@@ -17,6 +17,7 @@ import {
 } from "@/lib/seo/native-gsc-property";
 import {
   normalizeGscTaskInspection,
+  privateInspectionDiscoverySources,
   unavailableGscTaskInspection,
 } from "@/lib/seo/native-gsc-task-inspection";
 import {
@@ -237,24 +238,35 @@ async function collect(
         : [],
     );
     const results = await Promise.allSettled(
-      context.inspectionPageUrls.map(async (pageUrl) =>
-        !gscPropertyCovers(property, [pageUrl])
-          ? unavailableGscTaskInspection(pageUrl)
-          : (retained.get(pageUrl)?.page ??
-            normalizeGscTaskInspection(
-              pageUrl,
-              unwrapNativeStatistics(
-                await read(
-                  inspectionTool,
-                  gscInspectionArguments(property, pageUrl),
-                ),
-                ["inspectionResult"],
-              ),
-            )),
-      ),
+      context.inspectionPageUrls.map(async (pageUrl) => {
+        if (!gscPropertyCovers(property, [pageUrl]))
+          return { page: unavailableGscTaskInspection(pageUrl) };
+        const reused = retained.get(pageUrl);
+        if (reused)
+          return {
+            page: reused.page,
+            sources: previous?.discoverySources?.find(
+              (entry) => entry.pageUrl === pageUrl,
+            ),
+          };
+        const raw = unwrapNativeStatistics(
+          await read(inspectionTool, gscInspectionArguments(property, pageUrl)),
+          ["inspectionResult"],
+        );
+        const page = normalizeGscTaskInspection(pageUrl, raw);
+        const sources =
+          context.includeDiscoverySources && context.searchConsoleAccess
+            ? privateInspectionDiscoverySources(
+                pageUrl,
+                raw,
+                context.searchConsoleAccess,
+              )
+            : undefined;
+        return { page, sources };
+      }),
     );
     const pages = results.map((result, index) =>
-      result.status === "fulfilled" ? result.value : base.pages[index]!,
+      result.status === "fulfilled" ? result.value.page : base.pages[index]!,
     );
     const collected = makeReceipt(
       context,
@@ -270,6 +282,12 @@ async function collect(
         ? Object.fromEntries([...retained].map(([url, item]) => [url, item.at]))
         : undefined,
     );
+    const discoverySources = results.flatMap((result) =>
+      result.status === "fulfilled" && result.value.sources
+        ? [result.value.sources]
+        : [],
+    );
+    if (discoverySources.length) collected.discoverySources = discoverySources;
     // Preserve the legacy storage shape unless Google's explicit unknown would look like a failed read.
     if (
       results.every((result) => result.status === "fulfilled") &&
@@ -280,9 +298,9 @@ async function collect(
       // A mixed batch cannot use the receipt-wide marker. Record only the unknowns Google actually returned.
       const answered = results.flatMap((result) =>
         result.status === "fulfilled" &&
-        result.value.verdict === "VERDICT_UNSPECIFIED" &&
-        gscPropertyCovers(property, [result.value.pageUrl])
-          ? [result.value.pageUrl]
+        result.value.page.verdict === "VERDICT_UNSPECIFIED" &&
+        gscPropertyCovers(property, [result.value.page.pageUrl])
+          ? [result.value.page.pageUrl]
           : [],
       );
       if (answered.length) collected.answeredUnknownPageUrls = answered;

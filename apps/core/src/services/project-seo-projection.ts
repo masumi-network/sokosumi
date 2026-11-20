@@ -49,6 +49,7 @@ import {
   projectSearchEvidence,
   type SearchEvidenceSource,
 } from "./project-seo-search-projection";
+import { projectSiteEvidence } from "./project-seo-site-evidence";
 import {
   canConfirmSeoCompetitor,
   matchesSeoPeriod,
@@ -181,7 +182,10 @@ export function projectSeoProjection(
   };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
-    if (row.kind === "index_triage") continue;
+    if (
+      ["index_triage", "index_inspection", "site_evidence"].includes(row.kind)
+    )
+      continue;
     if (row.kind === "page_change") {
       if (!matchesSeoPeriod(row.observedAt, query)) continue;
       const event = seoPageChangePayloadSchema.parse(row.payload);
@@ -702,6 +706,9 @@ export function projectSeoProjection(
     ),
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     indexTriage: indexing.triage,
+    ...(input.privateMetricsAllowed
+      ? projectSiteEvidence(input.observations, selectedUrls, query)
+      : { siteEvidence: null, auditSiteEvidence: [] }),
     strategy,
     ...decisions.workspaceEvidence,
     metricsStatus: !metrics.length

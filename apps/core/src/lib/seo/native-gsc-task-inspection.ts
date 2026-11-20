@@ -3,7 +3,10 @@ import {
   type SeoTaskIndexedPage,
   seoTaskIndexedPageSchema,
 } from "@/schemas/seo-task-indexing.schema";
+import { inspectionDiscoverySources } from "./audit-sitemaps";
 import { normalizeGscInspection } from "./native-gsc-inspection";
+import { gscPropertyCovers } from "./native-gsc-property";
+import { requireSeoEvidenceUrl } from "./related-page-selection";
 
 const detailsSchema = z.object({
   inspectionResult: z.object({
@@ -48,5 +51,32 @@ export function unavailableGscTaskInspection(
     lastCrawlTime: null,
     googleCanonical: null,
     userCanonical: null,
+  };
+}
+
+/** Keep Google's limited, property-covered examples private. These never become crawl or inspection targets. */
+export function privateInspectionDiscoverySources(
+  pageUrl: string,
+  raw: Record<string, unknown>,
+  access: { propertyId: string; connectionVersion: string },
+) {
+  const examples = inspectionDiscoverySources(raw);
+  const safe = (values: string[] | undefined, sitemap: boolean) =>
+    values?.filter((value) => {
+      if (!gscPropertyCovers(access.propertyId, [value])) return false;
+      try {
+        requireSeoEvidenceUrl(value, pageUrl, sitemap, access);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  const reportedSitemaps = safe(examples.reportedSitemaps, true);
+  const referringPages = safe(examples.referringPages, false);
+  if (!reportedSitemaps?.length && !referringPages?.length) return;
+  return {
+    pageUrl,
+    ...(reportedSitemaps?.length && { reportedSitemaps }),
+    ...(referringPages?.length && { referringPages }),
   };
 }

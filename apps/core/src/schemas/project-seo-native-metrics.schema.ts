@@ -22,6 +22,8 @@ import {
   auditMeasuredPageSchema,
 } from "./seo-audit-performance.schema";
 
+import { auditDiscoverySchema } from "./seo-sitemap-evidence.schema";
+
 /** Native metrics are owner-only, never part of a public Coworker result. */
 export const nativeSeoMetricsSchema = z
   .object({
@@ -46,6 +48,7 @@ export const nativeSeoMetricsSchema = z
       .array(auditMeasuredPageSchema)
       .max(SEO_MAX_PAGES)
       .optional(),
+    auditDiscovery: auditDiscoverySchema.optional(),
     auditClickHistory: auditClickHistorySchema.optional(),
     auditPerformanceComplete: z.boolean().optional(),
     coverage: z.enum(["complete", "partial", "unavailable"]),

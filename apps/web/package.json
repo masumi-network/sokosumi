@@ -115,6 +115,7 @@
     "remark-math": "6.0.0",
     "remark-parse": "11.0.0",
     "sanitize-html": "2.18.2",
+    "saxes": "6.0.0",
     "server-only": "0.0.1",
     "sonner": "2.0.8",
     "tailwind-merge": "3.7.1",

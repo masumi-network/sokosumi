@@ -6,6 +6,11 @@ import {
 } from "./project-seo-traffic.schema";
 import { SEO_MAX_PAGES, seoUrlSchema } from "./seo-page.schema";
 
+import {
+  auditDiscoverySchema,
+  sitemapAddress,
+} from "./seo-sitemap-evidence.schema";
+
 export const AUDIT_PERFORMANCE_KIND = "audit_search_performance";
 export const AUDIT_QUERY_PREVIEW_LIMIT = 10;
 export const auditMeasuredPageSchema = z.object({
@@ -52,6 +57,20 @@ export const seoAuditPerformanceSchema = periodTotals.extend({
   ),
   previous: periodTotals.nullable(),
   history: auditClickHistorySchema.optional(),
+  discovery: auditDiscoverySchema
+    .extend({
+      publicSitemaps: z.array(sitemapAddress).max(3),
+      actions: z
+        .array(
+          z.object({
+            url: sitemapAddress,
+            action: z.string(),
+            evidence: z.string(),
+          }),
+        )
+        .max(63),
+    })
+    .optional(),
   countries: seoPositionedSearchBreakdownSchema.optional(),
   queries: z
     .object({

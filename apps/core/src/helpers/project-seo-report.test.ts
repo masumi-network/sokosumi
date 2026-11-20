@@ -939,3 +939,53 @@ it("rejects owner-only Bing evidence in a full page or a nested site result befo
     );
   }
 });
+
+it("uses only exact public sitemap roots from the first page of a delivered audit", () => {
+  const url = new URL("/maps/index.xml", SEO_TEST_PAGE).href;
+  const page = { ...legacyReport(), publicSitemaps: [url] };
+  expect(parsePublicSeoArtifact(page).publicSitemaps).toEqual([url]);
+  const site = {
+    ...siteStrategyReport(),
+    pages: [
+      page,
+      {
+        ...legacyReport(),
+        publicSitemaps: [new URL("/other.xml", SEO_TEST_PAGE).href],
+      },
+    ],
+  };
+  expect(parsePublicSeoArtifact(site).publicSitemaps).toEqual([url]);
+  for (const value of [
+    [url + "?session=abc"],
+    ["https://foreign.test/sitemap.xml"],
+    [new URL("/admin/map.xml", SEO_TEST_PAGE).href],
+  ]) {
+    expect(
+      parsePublicSeoArtifact({ ...page, publicSitemaps: value }).publicSitemaps,
+    ).toBeUndefined();
+  }
+});
+
+it("accepts a www homepage root only when the delivery reports the verified mobile final URL", () => {
+  const page = legacyReport(),
+    home = "https://example.test/",
+    twin = "https://www.example.test/";
+  const input = {
+    ...page,
+    request: { ...page.request, url: home },
+    publicSitemaps: [twin + "map.xml"],
+  };
+  expect(parsePublicSeoArtifact(input).publicSitemaps).toBeUndefined();
+  expect(
+    parsePublicSeoArtifact({
+      ...input,
+      header: { ...page.header, finalUrl: { mobile: twin } },
+    }).publicSitemaps,
+  ).toEqual(input.publicSitemaps);
+  expect(
+    parsePublicSeoArtifact({
+      ...input,
+      header: { ...page.header, finalUrl: { mobile: twin + "pricing" } },
+    }).publicSitemaps,
+  ).toBeUndefined();
+});

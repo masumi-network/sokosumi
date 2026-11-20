@@ -98,10 +98,11 @@ Other available scripts:
 
 - `pnpm build` — TypeScript build
 - `pnpm check` — Biome check
+- `pnpm effects:check` — Direct-effect baseline check for Web and CMO
 - `pnpm typecheck` — workspace typecheck
 - `pnpm format` — Write Biome formatting (not the gate)
 
-The husky hook runs `pnpm precommit` (`pnpm check && pnpm typecheck`). CI gates the same pair as `Biome` and `Typecheck`.
+The husky hook runs `pnpm precommit` (`pnpm check && pnpm effects:check && pnpm typecheck`). CI gates `Biome` (which runs `biome check .` and the full `no-direct-effects` suite against the base SHA) and `Typecheck`.
 
 ## Testing
 

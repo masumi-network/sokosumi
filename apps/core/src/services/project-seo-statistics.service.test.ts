@@ -23,6 +23,7 @@ const state = vi.hoisted(() => {
     auditAccess: null as {
       propertyId: string;
       connectionVersion: string;
+      includeSitemaps?: true;
     } | null,
     auditPageUrls: [] as string[],
     briefGoal: null as string | null,
@@ -327,6 +328,11 @@ vi.mock(
           },
           required: ["property"],
         },
+      },
+      {
+        slug: "GOOGLE_SEARCH_CONSOLE_LIST_SITEMAPS",
+        readOnly: true,
+        inputSchema: { properties: { site_url: {}, sitemap_index: {} } },
       },
       {
         slug: "GOOGLE_SEARCH_CONSOLE_LIST_SITES",
@@ -1072,6 +1078,197 @@ describe("Search Console query rows", () => {
       };
     };
   }
+
+  it("reads submitted sitemaps only for a bound consenting audit and shows concrete actions privately", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    state.auditPageUrls = [state.pageUrl];
+    const integration = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(integration!),
+      includeSitemaps: true,
+    };
+    const fallback = gsc({ rows: [] });
+    const map = "https://example.test/sitemap.xml";
+    state.answer = (slug, args) =>
+      slug.endsWith("LIST_SITEMAPS")
+        ? { sitemap: [{ path: map, errors: "2", warnings: "0" }] }
+        : slug.endsWith("INSPECT_URL")
+          ? {
+              inspectionResult: {
+                indexStatusResult: {
+                  verdict: "NEUTRAL",
+                  coverageState: "Crawled - currently not indexed",
+                },
+              },
+            }
+          : fallback(slug, args);
+    await collectSeoAuditPerformance("audit-task");
+    const read = state.reads.filter((r) => r.slug.endsWith("LIST_SITEMAPS"));
+    expect(read.map((r) => r.args)).toEqual([
+      { site_url: gscInput.propertyId },
+    ]);
+    const summary = await readAuditPerformanceSummaries(owner, ["audit-task"]);
+    expect(summary.auditSearchConsole[0].discovery).toMatchObject({
+      status: "available",
+      actions: [
+        { url: map, evidence: "Google reported 2 errors." },
+        {
+          url: state.pageUrl,
+          evidence: expect.stringContaining("Crawled - currently not indexed"),
+        },
+      ],
+    });
+    expect(
+      (await readAuditPerformanceSummaries(actor, ["audit-task"]))
+        .auditSearchConsole,
+    ).toEqual([]);
+    expect(state.observations[0]).toMatchObject({
+      ownerId: "owner",
+      visibility: "PRIVATE",
+    });
+    await collectSeoAuditPerformance("audit-task");
+    expect(
+      state.reads.filter((r) => r.slug.endsWith("LIST_SITEMAPS")),
+    ).toHaveLength(1);
+  });
+
+  it("retries a failed sitemap inventory without recollecting performance or dating its evidence again", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    state.auditPageUrls = [state.pageUrl];
+    const account = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(account!),
+      includeSitemaps: true,
+    };
+    const healthy = gsc({ rows: [] });
+    const sitemap = "https://example.test/sitemap.xml";
+    let recovered = false;
+    state.answer = (slug, args) => {
+      if (slug.endsWith("LIST_SITEMAPS"))
+        return recovered
+          ? { sitemap: [{ path: sitemap }] }
+          : { error: "unavailable" };
+      if (slug.endsWith("INSPECT_URL"))
+        return {
+          inspectionResult: {
+            indexStatusResult: { verdict: "PASS", sitemap: [sitemap] },
+          },
+        };
+      return healthy(slug, args);
+    };
+    await collectSeoAuditPerformance("audit-task", owner);
+    const summary = () =>
+      readAuditPerformanceSummaries(owner, ["audit-task"], ["audit-task"]);
+    expect((await summary()).auditSearchConsoleRetryTaskIds).toEqual([
+      "audit-task",
+    ]);
+    const initial = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    const date = "2026-01-22T12:00:00.000Z";
+    vi.setSystemTime(new Date(date));
+    recovered = true;
+    state.reads.length = 0;
+    await collectSeoAuditPerformance("audit-task", owner);
+    expect(
+      state.reads
+        .filter((r) => !r.slug.endsWith("LIST_SITES"))
+        .map((r) => r.slug),
+    ).toEqual(["GOOGLE_SEARCH_CONSOLE_LIST_SITEMAPS"]);
+    expect(
+      nativeSeoMetricsSchema.parse(state.observations[0].payload),
+    ).toMatchObject({
+      observedAt: initial.observedAt,
+      metrics: initial.metrics,
+      auditDiscovery: {
+        checkedAt: date,
+        status: "available",
+        inspections: [
+          { checkedAt: initial.observedAt, reportedSitemaps: [sitemap] },
+        ],
+      },
+    });
+    expect((await summary()).auditSearchConsoleRetryTaskIds).toEqual([]);
+  });
+
+  it("keeps private inspection sources across a dashboard cache hit and retries only the missing page", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    const other = {
+      id: "77777777-7777-4777-8777-777777777777",
+      url: "https://example.test/b",
+    };
+    const referring = "https://example.test/posts";
+    state.extraPages.push(other);
+    state.auditPageUrls = [state.pageUrl, other.url];
+    const account = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(account!),
+      includeSitemaps: true,
+    };
+    const healthy = gsc({ rows: [] });
+    let available = false;
+    state.answer = (slug, args) => {
+      if (slug.endsWith("LIST_SITEMAPS")) return {};
+      if (slug.endsWith("INSPECT_URL")) {
+        if (args.inspection_url === other.url && !available)
+          throw Error("unavailable");
+        return {
+          inspectionResult: {
+            indexStatusResult: { verdict: "PASS", referringUrls: [referring] },
+          },
+        };
+      }
+      return healthy(slug, args);
+    };
+    await syncProjectSeoStatistics(owner, { ...gscInput, automatic: true });
+    const dashboard = state.observations.find((row) => row.kind === "metrics");
+    expect(JSON.stringify(dashboard)).not.toContain(referring);
+    state.reads.length = 0;
+    await collectSeoAuditPerformance("audit-task", owner);
+    const reads = () =>
+      state.reads
+        .filter((r) => r.slug.endsWith("INSPECT_URL"))
+        .map((r) => r.args.inspection_url);
+    expect(reads().sort()).toEqual([state.pageUrl, other.url].sort());
+    state.reads.length = 0;
+    await collectSeoAuditPerformance("audit-task", owner);
+    expect(reads()).toEqual([]);
+    vi.setSystemTime(new Date("2026-01-20T13:01:00Z"));
+    available = true;
+    await collectSeoAuditPerformance("audit-task", owner);
+    expect(reads()).toEqual([other.url]);
+    expect(state.reads.filter((r) => r.slug.endsWith("LIST_SITEMAPS"))).toEqual(
+      [],
+    );
+    const summary = await readAuditPerformanceSummaries(
+      owner,
+      ["audit-task"],
+      ["audit-task"],
+    );
+    expect(summary.auditSearchConsoleRetryTaskIds).toEqual([]);
+    expect(summary.auditSearchConsole[0].discovery?.inspections).toMatchObject([
+      {
+        page: state.pageUrl,
+        referringPages: [referring],
+        checkedAt: "2026-01-20T12:00:00.000Z",
+      },
+      {
+        page: other.url,
+        referringPages: [referring],
+        checkedAt: "2026-01-20T13:01:00.000Z",
+      },
+    ]);
+  });
 
   it("collects the original 90 days under Google's www canonical once and keeps the selected URLs in private audit evidence", async () => {
     const owner = { ...actor, sokoBotId: undefined };
