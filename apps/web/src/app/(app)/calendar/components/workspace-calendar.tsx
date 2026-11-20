@@ -1819,7 +1819,7 @@ function WorkspaceCalendarView({
         {/* The grid's period, not the whole loaded range: an empty week next
             to a busy one still says so. */}
         {view !== "agenda" && !visibleItems.some(inShownPeriod) ? (
-          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+          <div className="bg-card-background text-muted-foreground rounded-xl p-8 text-center text-sm">
             {emptyState}
           </div>
         ) : null}
