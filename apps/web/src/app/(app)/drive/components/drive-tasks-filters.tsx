@@ -43,6 +43,7 @@ interface DriveTasksFiltersProps {
     taskLabel: string;
     noProjectLabel: string;
     loadMore: string;
+    retryLoadMore?: string;
   };
   hideMobileTrigger?: boolean;
   sheetOpen?: boolean;
@@ -183,17 +184,16 @@ export function DriveTasksFilters({
   const coworkers = coworkersQuery.isError ? [] : (coworkersQuery.data ?? []);
   const projects = useMemo(
     () =>
-      projectsQuery.isError
-        ? []
-        : (projectsQuery.data?.pages ?? []).flatMap((page) =>
-            mapDriveTasksToProjectOptions(page.items, labels.noProjectLabel),
-          ),
-    [projectsQuery.data?.pages, projectsQuery.isError, labels.noProjectLabel],
+      (projectsQuery.data?.pages ?? []).flatMap((page) =>
+        mapDriveTasksToProjectOptions(page.items, labels.noProjectLabel),
+      ),
+    [projectsQuery.data?.pages, labels.noProjectLabel],
   );
   const projectsNextCursor = projectsQuery.hasNextPage
     ? (projectsQuery.data?.pages.at(-1)?.nextCursor ?? null)
     : null;
   const projectsLoadingMore = projectsQuery.isFetchingNextPage;
+  const projectsLoadMoreFailed = projectsQuery.isFetchNextPageError;
 
   const needsSelectedProjectFetch =
     Boolean(projectId) &&
@@ -266,18 +266,19 @@ export function DriveTasksFilters({
 
   const tasks = useMemo(
     () =>
-      !projectId || tasksQuery.isError
+      !projectId
         ? []
         : (tasksQuery.data?.pages ?? []).flatMap((page) =>
             mapDriveTasksToTaskOptions(page.items),
           ),
-    [projectId, tasksQuery.data?.pages, tasksQuery.isError],
+    [projectId, tasksQuery.data?.pages],
   );
   const tasksNextCursor =
     projectId && tasksQuery.hasNextPage
       ? (tasksQuery.data?.pages.at(-1)?.nextCursor ?? null)
       : null;
   const tasksLoadingMore = tasksQuery.isFetchingNextPage;
+  const tasksLoadMoreFailed = tasksQuery.isFetchNextPageError;
 
   const needsSelectedTaskFetch =
     Boolean(taskId) &&
@@ -378,7 +379,9 @@ export function DriveTasksFilters({
               void loadMoreProjects();
             },
             isLoadingMore: projectsLoadingMore,
-            loadMoreLabel: labels.loadMore,
+            loadMoreLabel: projectsLoadMoreFailed
+              ? (labels.retryLoadMore ?? labels.loadMore)
+              : labels.loadMore,
           }
         : undefined,
     });
@@ -409,7 +412,9 @@ export function DriveTasksFilters({
                 void loadMoreTasks();
               },
               isLoadingMore: tasksLoadingMore,
-              loadMoreLabel: labels.loadMore,
+              loadMoreLabel: tasksLoadMoreFailed
+                ? (labels.retryLoadMore ?? labels.loadMore)
+                : labels.loadMore,
             }
           : undefined,
       });
@@ -424,10 +429,12 @@ export function DriveTasksFilters({
     projects,
     projectsNextCursor,
     projectsLoadingMore,
+    projectsLoadMoreFailed,
     selectedProjectName,
     tasks,
     tasksNextCursor,
     tasksLoadingMore,
+    tasksLoadMoreFailed,
     selectedTaskName,
     handleFilterChange,
     loadMoreProjects,
@@ -435,6 +442,7 @@ export function DriveTasksFilters({
     labels.all,
     labels.coworkerLabel,
     labels.loadMore,
+    labels.retryLoadMore,
     labels.projectLabel,
     labels.taskLabel,
     labels.noProjectLabel,

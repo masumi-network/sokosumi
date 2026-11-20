@@ -1,8 +1,6 @@
-import { render as rtlRender, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TestQueryProvider } from "@/test/query-provider";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -14,19 +12,12 @@ const api = vi.hoisted(() => ({
 }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
-vi.mock("@/lib/auth/auth.client", () => ({
-  useSession: () => ({ data: { user: { id: "user-1" } } }),
-}));
 vi.mock("@/lib/utils/file-search.client", () => ({
   ...api,
   driveShareUrl: (token: string) => `https://app.test/share/files/${token}`,
 }));
 
 import { DriveShareDialog } from "./drive-share-dialog";
-
-function render(ui: ReactElement) {
-  return rtlRender(ui, { wrapper: TestQueryProvider });
-}
 
 const store = { scope: "org" as const, organizationId: "org_1" };
 const item = {
@@ -140,26 +131,5 @@ describe("DriveShareDialog", () => {
     );
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("saveFailed"));
-  });
-
-  it("does not toast a load error for an abandoned item after closing", async () => {
-    let rejectLoad!: (error: Error) => void;
-    api.fetchDriveShare.mockReturnValueOnce(
-      new Promise((_, reject) => {
-        rejectLoad = reject;
-      }),
-    );
-    const { rerender } = render(
-      <DriveShareDialog store={store} item={item} onOpenChange={() => {}} />,
-    );
-    await waitFor(() => expect(api.fetchDriveShare).toHaveBeenCalledTimes(1));
-
-    rerender(
-      <DriveShareDialog store={store} item={null} onOpenChange={() => {}} />,
-    );
-    rejectLoad(new Error("network down"));
-    await Promise.resolve();
-
-    expect(toast.error).not.toHaveBeenCalled();
   });
 });

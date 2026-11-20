@@ -351,12 +351,10 @@ function shareTargetFields(target: DriveShareTarget) {
 export async function fetchDriveShare(input: {
   store: FileStore;
   target: DriveShareTarget;
-  signal?: AbortSignal;
 }): Promise<DriveShare | null> {
   const { data } = await getDriveShares({
     client: getBrowserCoreClient(),
     query: { ...storeQuery(input.store), ...shareTargetFields(input.target) },
-    signal: input.signal,
     throwOnError: true,
   });
   return data.data.share;

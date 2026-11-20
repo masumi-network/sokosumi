@@ -348,6 +348,9 @@ function DrivePageWorkspace({
     null,
   );
   const [movingItem, setMovingItem] = useState(false);
+  /** Every folder path in the store, nested ones included. */
+  const [allFolders, setAllFolders] = useState<string[]>([]);
+  const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
@@ -365,6 +368,9 @@ function DrivePageWorkspace({
     () => new Map(),
   );
 
+  const loadAllFoldersAbortRef = useRef<AbortController | null>(null);
+  const workspaceIdRef = useRef(activeOrganizationId);
+  workspaceIdRef.current = activeOrganizationId;
   const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
     setDebouncedSearchQuery(value);
   }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
@@ -381,6 +387,9 @@ function DrivePageWorkspace({
     setMoveDialogOpen(false);
     setItemToMove(null);
     setSelectedDestination(null);
+    loadAllFoldersAbortRef.current?.abort();
+    setAllFolders([]);
+    setLoadingAllFolders(false);
     debouncedSetSearchQuery.cancel();
     setSearchQuery("");
     setDebouncedSearchQuery("");
@@ -776,43 +785,11 @@ function DrivePageWorkspace({
     },
   });
 
-  /** Every folder path in the store, nested ones included. */
-  const moveFoldersKey = [
-    "drive",
-    "move-folders",
-    viewerId,
-    driveStore.scope,
-    driveStore.scope === "org" ? driveStore.organizationId : null,
-  ] as const;
-  const moveFoldersKeyString = JSON.stringify(moveFoldersKey);
-  const activeMoveFoldersKeyRef = useRef<string | null>(null);
-  activeMoveFoldersKeyRef.current = moveDialogOpen
-    ? moveFoldersKeyString
-    : null;
-  const allFoldersQuery = useQuery({
-    queryKey: moveFoldersKey,
-    enabled: moveDialogOpen,
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
-      const keyAtStart = moveFoldersKeyString;
-      try {
-        return await fetchWorkspaceFolders({ store: driveStore, signal });
-      } catch (err) {
-        if (!signal.aborted && activeMoveFoldersKeyRef.current === keyAtStart) {
-          console.error("Failed to load all folders", err);
-        }
-        throw err;
-      }
-    },
-  });
-  const allFolders = allFoldersQuery.isError
-    ? []
-    : (allFoldersQuery.data ?? []);
-  const loadingAllFolders = moveDialogOpen && allFoldersQuery.isPending;
+  useEffect(() => {
+    return () => {
+      loadAllFoldersAbortRef.current?.abort();
+    };
+  }, [activeOrganizationId]);
 
   /**
    * Run one upload at a time, busy from the moment files arrive: reading a
@@ -1208,6 +1185,7 @@ function DrivePageWorkspace({
     setMoveNewFolderName("");
     setSelectedDestination(null);
     setMoveDialogOpen(true);
+    void loadAllFolders();
   }
 
   function openMoveFilesDialog(files: { pathname: string; name: string }[]) {
@@ -1216,6 +1194,7 @@ function DrivePageWorkspace({
     setMoveNewFolderName("");
     setSelectedDestination(null);
     setMoveDialogOpen(true);
+    void loadAllFolders();
   }
 
   /** Moving several ticked files: each on its own, failures reported once. */
@@ -1237,6 +1216,43 @@ function DrivePageWorkspace({
     if (failed.length > 0)
       toast.error(t("moveFilesPartialError", { count: failed.length }));
     else toast.success(t("movedFiles", { count: filesToMove.length }));
+  }
+
+  async function loadAllFolders() {
+    loadAllFoldersAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAllFoldersAbortRef.current = controller;
+    const requestedWorkspaceId = activeOrganizationId;
+    setLoadingAllFolders(true);
+    try {
+      const loaded = await fetchWorkspaceFolders({
+        store: driveStore,
+        signal: controller.signal,
+      });
+      if (
+        controller.signal.aborted ||
+        workspaceIdRef.current !== requestedWorkspaceId
+      ) {
+        return;
+      }
+
+      setAllFolders(loaded);
+    } catch (err) {
+      if (controller.signal.aborted) {
+        return;
+      }
+      console.error("Failed to load all folders", err);
+      if (workspaceIdRef.current === requestedWorkspaceId) {
+        setAllFolders([]);
+      }
+    } finally {
+      if (
+        !controller.signal.aborted &&
+        workspaceIdRef.current === requestedWorkspaceId
+      ) {
+        setLoadingAllFolders(false);
+      }
+    }
   }
 
   async function handleMoveConfirm() {
@@ -1482,6 +1498,7 @@ function DrivePageWorkspace({
     taskLabel: t("filterTaskLabel"),
     noProjectLabel: t("noProject"),
     loadMore: t("loadMore"),
+    retryLoadMore: t("Files.retry"),
   };
 
   const driveTablesFilterLabels = {

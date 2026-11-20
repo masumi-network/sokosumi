@@ -1,12 +1,5 @@
-import {
-  render as rtlRender,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
-import type { ReactElement } from "react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TestQueryProvider } from "@/test/query-provider";
 
 vi.mock("@/components/back-link", () => ({
   BackLink: ({
@@ -71,10 +64,6 @@ vi.mock("sonner", () => ({
 }));
 
 import { FileDetailClient } from "./file-detail-client";
-
-function render(ui: ReactElement) {
-  return rtlRender(ui, { wrapper: TestQueryProvider });
-}
 
 const resource = {
   id: "resource-1",

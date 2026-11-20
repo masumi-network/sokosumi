@@ -1,10 +1,16 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { FileResource } from "@sokosumi/core-client";
 import { Check, Loader2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
@@ -88,94 +94,82 @@ export function FileDetailView({
   headingAs = "h1",
 }: FileDetailViewProps) {
   const t = useTranslations("App.Drive.Files");
-  const queryClient = useQueryClient();
   const { data: session, isPending: sessionPending } = useSession();
-  const viewerId = session?.user?.id ?? null;
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const store: FileStore =
     driveStore.scope === "org"
       ? { scope: "org", organizationId: driveStore.organizationId }
       : { scope: "me" };
-  const storeOrganizationId =
-    store.scope === "org" ? (store.organizationId ?? null) : null;
 
+  const [resource, setResource] = useState<FileResource | null>(null);
+  const [related, setRelated] = useState<FileResource[]>([]);
+  const [relatedState, setRelatedState] = useState<string>("ok");
+  const [loading, setLoading] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
   const [busy, setBusy] = useState(false);
 
   /**
-   * Keyed by the store's two fields, not the object identity, which changes on
-   * every render.
+   * Which load is current.
    *
    * Two loads can be in flight at once, because the store changes the moment
-   * the session resolves. Keying each scope separately guarantees a stale
-   * personal-scope 404 cannot overwrite a newer organization reply with "File
-   * unavailable".
+   * the session resolves. Without this, a stale reply could land last and
+   * win: a personal-scope request for an organization file 404s quickly, and
+   * it was overwriting the successful organization reply with "File
+   * unavailable". Only the newest run may write state.
    */
-  const resourceQueryKey = [
-    "drive",
-    "file-resource",
-    viewerId,
-    resourceId,
-    store.scope,
-    storeOrganizationId,
-  ] as const;
+  const runRef = useRef(0);
 
-  const resourceQuery = useQuery({
-    queryKey: resourceQueryKey,
+  const load = useCallback(async () => {
+    const run = ++runRef.current;
+    const current = () => run === runRef.current;
+
+    setLoading(true);
+    try {
+      const next = await fetchFileResource({ store, resourceId });
+      if (!current()) return;
+      setResource(next);
+      setUnavailable(false);
+    } catch {
+      // A missing document and a denied one look the same on purpose: the
+      // screen must not confirm that a file exists to someone who cannot
+      // open it.
+      if (current()) setUnavailable(true);
+    } finally {
+      if (current()) setLoading(false);
+    }
+
+    try {
+      const relatedResult = await fetchRelatedFiles({ store, resourceId });
+      if (!current()) return;
+      setRelated(relatedResult.items);
+      setRelatedState(relatedResult.state);
+    } catch {
+      if (current()) setRelatedState("unavailable");
+    }
+    // The dependency is the store's two *fields*, not the object identity,
+    // which changes on every render.
+    //
+    // There was an `eslint-disable-next-line react-hooks/exhaustive-deps`
+    // here. This repo lints with Biome, which does not read it — and its
+    // own rule does not fire on this hook either, so the correct
+    // `biome-ignore` is reported as an ineffective suppression. A comment
+    // that explains the choice is all this needs; a suppression that
+    // suppresses nothing only looks like protection.
+  }, [resourceId, store.scope, store.organizationId]);
+
+  useEffect(() => {
     // Waiting costs a moment of the loading state. Not waiting asks for the
     // file in the personal drive before the active organization is known,
     // which is a request we already know the answer to.
-    enabled: !sessionPending,
-    staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: ({ signal }) => fetchFileResource({ store, resourceId, signal }),
-  });
-
-  const relatedQueryKey = [
-    "drive",
-    "file-related",
-    viewerId,
-    resourceId,
-    store.scope,
-    storeOrganizationId,
-  ] as const;
-
-  const relatedQuery = useQuery({
-    queryKey: relatedQueryKey,
-    enabled: !sessionPending && resourceQuery.isSuccess,
-    staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: ({ signal }) => fetchRelatedFiles({ store, resourceId, signal }),
-  });
-
-  const resource = resourceQuery.data ?? null;
-  const loading = sessionPending || resourceQuery.isPending;
-  // A missing document and a denied one look the same on purpose: the
-  // screen must not confirm that a file exists to someone who cannot
-  // open it.
-  const unavailable = !loading && (resourceQuery.isError || !resource);
-  const related = relatedQuery.data?.items ?? [];
-  const relatedState = relatedQuery.isError
-    ? "unavailable"
-    : (relatedQuery.data?.state ?? "ok");
-
-  async function reload() {
-    await Promise.all([
-      queryClient.cancelQueries({ queryKey: resourceQueryKey }),
-      queryClient.cancelQueries({ queryKey: relatedQueryKey }),
-    ]);
-    await Promise.all([resourceQuery.refetch(), relatedQuery.refetch()]);
-  }
+    if (sessionPending) return;
+    void load();
+  }, [load, sessionPending]);
 
   async function decide(suggestionId: string, decision: "accept" | "reject") {
     if (!resource) return;
     setBusy(true);
     try {
-      await queryClient.cancelQueries({ queryKey: resourceQueryKey });
       const next = await decideSuggestion({
         store,
         resourceId,
@@ -183,10 +177,10 @@ export function FileDetailView({
         decision,
         expectedMetadataRevision: resource.metadataRevision,
       });
-      queryClient.setQueryData(resourceQueryKey, next);
+      setResource(next);
     } catch {
       toast.error(t("saveConflict"));
-      await reload();
+      await load();
     } finally {
       setBusy(false);
     }
@@ -208,21 +202,20 @@ export function FileDetailView({
     if (!resource) return;
     setBusy(true);
     try {
-      await queryClient.cancelQueries({ queryKey: resourceQueryKey });
       const next = await updateFileMetadata({
         store,
         resourceId,
         expectedMetadataRevision: resource.metadataRevision,
         allowSuggestionsForLabelIds: [labelId],
       });
-      queryClient.setQueryData(resourceQueryKey, next);
+      setResource(next);
       toast.success(t("labelReopened"));
     } catch {
       // The revision this view holds is from whenever it last loaded, so a
       // conflict means somebody else edited the file and the only honest thing
       // to show is the current state.
       toast.error(t("saveConflict"));
-      await reload();
+      await load();
     } finally {
       setBusy(false);
     }
@@ -232,18 +225,17 @@ export function FileDetailView({
     if (!resource) return;
     setBusy(true);
     try {
-      await queryClient.cancelQueries({ queryKey: resourceQueryKey });
       const next = await updateFileMetadata({
         store,
         resourceId,
         expectedMetadataRevision: resource.metadataRevision,
         removeTagLabelIds: [labelId],
       });
-      queryClient.setQueryData(resourceQueryKey, next);
+      setResource(next);
       toast.success(t("tagRemoved"));
     } catch {
       toast.error(t("saveConflict"));
-      await reload();
+      await load();
     } finally {
       setBusy(false);
     }
@@ -512,11 +504,7 @@ export function FileDetailView({
             <p className="text-muted-foreground text-sm">
               {t("relatedUnavailable")}
             </p>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => void relatedQuery.refetch()}
-            >
+            <Button size="sm" variant="ghost" onClick={() => void load()}>
               {t("retry")}
             </Button>
           </div>

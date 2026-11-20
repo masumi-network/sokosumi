@@ -2,10 +2,9 @@
 
 import type { DriveShare } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Link2, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +18,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useClipboard } from "@/hooks/effects/use-clipboard";
-import { useSession } from "@/lib/auth/auth.client";
 import {
   type DriveShareTarget,
   driveShareUrl,
@@ -45,10 +43,8 @@ export function DriveShareDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations("App.Drive.Share");
-  const queryClient = useQueryClient();
-  const { data: session } = useSession();
-  const viewerId = session?.user?.id ?? null;
   const passwordId = useId();
+  const [share, setShare] = useState<DriveShare | null | undefined>(undefined);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   // Read through a ref so a new `t` never refetches the link.
@@ -59,71 +55,28 @@ export function DriveShareDialog({
     copyErrorMessage: t("copyFailed"),
   });
 
-  const target = item?.target ?? null;
-  const storeOrgId =
-    store.scope === "org" ? (store.organizationId ?? null) : null;
-  const targetKey = target
-    ? target.kind === "file"
-      ? `file:${target.resourceId}`
-      : `folder:${target.folderPath}`
-    : null;
-  const itemKey = targetKey
-    ? `${viewerId ?? ""}:${store.scope}:${storeOrgId ?? ""}:${targetKey}`
-    : null;
-  const [prevItemKey, setPrevItemKey] = useState(itemKey);
-  if (prevItemKey !== itemKey) {
-    setPrevItemKey(itemKey);
+  useEffect(() => {
+    if (!item) return;
+    let current = true;
+    setShare(undefined);
     setPassword("");
-  }
-
-  const activeItemKeyRef = useRef<string | null>(null);
-  activeItemKeyRef.current = item !== null ? itemKey : null;
-
-  const shareQueryKey = [
-    "drive",
-    "share",
-    viewerId,
-    store.scope,
-    storeOrgId,
-    targetKey,
-  ] as const;
-
-  const shareQuery = useQuery({
-    queryKey: shareQueryKey,
-    enabled: item !== null,
-    staleTime: 0,
-    retry: false,
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
-      if (!target) return null;
-      const keyAtStart = itemKey;
-      try {
-        return await fetchDriveShare({ store, target, signal });
-      } catch (error) {
-        if (!signal.aborted && activeItemKeyRef.current === keyAtStart) {
-          toast.error(loadFailedMessage.current);
-        }
-        throw error;
-      }
-    },
-  });
-
-  const share: DriveShare | null | undefined =
-    item === null
-      ? undefined
-      : shareQuery.isPending
-        ? undefined
-        : shareQuery.isError
-          ? null
-          : (shareQuery.data ?? null);
+    fetchDriveShare({ store, target: item.target })
+      .then((found) => {
+        if (current) setShare(found);
+      })
+      .catch(() => {
+        if (current) setShare(null);
+        toast.error(loadFailedMessage.current);
+      });
+    return () => {
+      current = false;
+    };
+  }, [item, store]);
 
   async function run(action: () => Promise<DriveShare | null>, done: string) {
     setBusy(true);
     try {
-      await queryClient.cancelQueries({ queryKey: shareQueryKey });
-      const next = await action();
-      queryClient.setQueryData<DriveShare | null>(shareQueryKey, next);
+      setShare(await action());
       setPassword("");
       toast.success(done);
     } catch (error) {
@@ -138,6 +91,7 @@ export function DriveShareDialog({
     }
   }
 
+  const target = item?.target;
   const url = share ? driveShareUrl(share.token) : "";
   const passwordValid = password.length >= 4;
 
