@@ -44,6 +44,7 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import type { TaskEventData } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
@@ -565,10 +566,7 @@ export function useTasksViewModel({
     () => ({ filters: serverTasksFiltersResetKey, viewMode }),
     [serverTasksFiltersResetKey, viewMode],
   );
-  const pagingContextRef = useRef(pagingContext);
-  useLayoutEffect(() => {
-    pagingContextRef.current = pagingContext;
-  }, [pagingContext]);
+  const pagingContextRef = useLatestRef(pagingContext);
 
   const handleLoadMoreColumn = useCallback(
     async (columnId: KanbanColumnId) => {

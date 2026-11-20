@@ -3,7 +3,7 @@
 import "./onboarding/onboarding.css";
 
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
@@ -13,6 +13,11 @@ import { cusoArt } from "./cuso";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
 import { StepMarkers } from "./onboarding/step-markers";
+
+const subscribeNoop = () => () => {};
+const getBrowserTimeZone = () =>
+  Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+const getServerTimeZone = () => "";
 
 interface OnboardingProps {
   /** The website a CMO sign-up link carried, to start the field with. */
@@ -52,10 +57,11 @@ export function Onboarding({
   const formRef = useFocusFirstInvalid(state.attempt);
   // The owner's time zone, so Cuso's routines run at their local times. Read
   // after mount: the server does not know it.
-  const [timeZone, setTimeZone] = useState("");
-  useEffect(() => {
-    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone ?? "");
-  }, []);
+  const timeZone = useSyncExternalStore(
+    subscribeNoop,
+    getBrowserTimeZone,
+    getServerTimeZone,
+  );
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
   return (
     <div className="ob">

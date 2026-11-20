@@ -119,16 +119,14 @@ export function ProjectDetailActions({
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [isClosing, startCloseTransition] = useTransition();
-  const [prevClosingOrClosed, setPrevClosingOrClosed] =
-    useState(isClosingOrClosed);
 
-  if (prevClosingOrClosed !== isClosingOrClosed) {
-    setPrevClosingOrClosed(isClosingOrClosed);
-    if (isClosingOrClosed) {
-      setCloseAttempt(null);
-      setCloseReason("");
-      setIsCloseDialogOpen(false);
-    }
+  if (
+    isClosingOrClosed &&
+    (isCloseDialogOpen || closeReason !== "" || closeAttempt !== null)
+  ) {
+    setCloseAttempt(null);
+    setCloseReason("");
+    setIsCloseDialogOpen(false);
   }
 
   function handleCloseProject() {

@@ -29,16 +29,11 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
-import {
-  getFormatToolbarOpenPreference,
-  setFormatToolbarOpenPreference,
-} from "@/app/chat/utils/format-toolbar-preference-storage";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { ComposerAddLinkDialog } from "@/components/chat/composer-add-link-dialog";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
@@ -67,6 +62,7 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
+import { useFormatToolbarOpenPreference } from "@/hooks/effects/use-format-toolbar-open-preference";
 import { transcribeVoiceRecording } from "@/lib/services/voice-transcription.browser";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
@@ -369,11 +365,8 @@ export function RoomComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
-  /**
-   * Slack Aa toggle: formatting strip above the editor.
-   * SSR + first paint start closed (hydration-safe). Preference persisted via localStorage on Aa.
-   */
-  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
+  const [formatToolbarOpen, setFormatToolbarOpen] =
+    useFormatToolbarOpenPreference();
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
     EMPTY_COMPOSER_ACTIVE_FORMATS,
   );
@@ -407,13 +400,6 @@ export function RoomComposer({
       usersBySlug,
     ],
   );
-
-  // Stored pref wins; else closed until the reader opens it with Aa.
-  // useLayoutEffect: apply before paint so Instant → real composer does not
-  // grow a second time when the format strip opens after first paint.
-  useLayoutEffect(() => {
-    setFormatToolbarOpen(getFormatToolbarOpenPreference() ?? false);
-  }, []);
 
   // Keep toasts just above the composer (incl. mobile keyboard).
   useEffect(() => {
@@ -810,7 +796,6 @@ export function RoomComposer({
               onClick={() => {
                 const next = !formatToolbarOpen;
                 setFormatToolbarOpen(next);
-                setFormatToolbarOpenPreference(next);
                 if (!next) {
                   setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
                 }

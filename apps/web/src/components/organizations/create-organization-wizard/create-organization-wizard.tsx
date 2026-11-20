@@ -204,19 +204,19 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
 }
 
 export function CreateOrganizationWizard(props: CreateOrganizationWizardProps) {
-  const [prevOpen, setPrevOpen] = useState(props.open);
+  const [wasOpen, setWasOpen] = useState(props.open);
   const [sessionKey, setSessionKey] = useState(0);
-  // Remount a fresh wizard session whenever the dialog (re)opens.
-  if (prevOpen !== props.open) {
-    setPrevOpen(props.open);
+  // Reset to a clean slate whenever the wizard is (re)opened.
+  if (props.open !== wasOpen) {
+    setWasOpen(props.open);
     if (props.open) {
-      setSessionKey((key) => key + 1);
+      setSessionKey((count) => count + 1);
     }
   }
-  return <CreateOrganizationWizardSession key={sessionKey} {...props} />;
+  return <CreateOrganizationWizardContent key={sessionKey} {...props} />;
 }
 
-function CreateOrganizationWizardSession({
+function CreateOrganizationWizardContent({
   open,
   onOpenChange,
   onOrganizationReady,

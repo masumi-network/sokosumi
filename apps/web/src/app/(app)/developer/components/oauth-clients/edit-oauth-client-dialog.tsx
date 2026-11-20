@@ -41,17 +41,19 @@ import {
   parseRedirectUris,
 } from "./utils";
 
+interface EditOAuthClientFormProps {
+  client: OAuthClientRecord;
+  onOpenChange: EditOAuthClientDialogProps["onOpenChange"];
+  onSuccess: EditOAuthClientDialogProps["onSuccess"];
+  updateClient: EditOAuthClientDialogProps["updateClient"];
+}
+
 function EditOAuthClientForm({
   client,
   onOpenChange,
   onSuccess,
   updateClient,
-}: {
-  client: OAuthClientRecord;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-  updateClient: EditOAuthClientDialogProps["updateClient"];
-}) {
+}: EditOAuthClientFormProps) {
   const t = useTranslations("App.Account.OAuthClients");
   const schema = editOAuthClientSchema(t);
 
