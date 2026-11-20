@@ -63,6 +63,8 @@ for (const { name: size, ...viewport } of PROJECTS) {
           .getByRole("link", { name: "Agents", exact: true })
           .click();
       } else {
+        const showSidebar = page.getByRole("button", { name: "Show sidebar" });
+        if (await showSidebar.isVisible()) await showSidebar.click();
         await page.getByRole("link", { name: "Agents", exact: true }).click();
       }
       await page.waitForURL(`${BASE_URL}/agents**`);
@@ -84,6 +86,12 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       const find = page.getByRole("searchbox", { name: "Find on this page" });
       await find.waitFor();
+      // Arriving from a scrolled gallery, the router scrolls the profile's
+      // own content into view, so the Find bar above it starts just out of
+      // sight. Scroll up like a person would before looking for it.
+      await page.mouse.move(viewport.width / 2, viewport.height / 2);
+      await page.mouse.wheel(0, -5000);
+      await page.waitForTimeout(500);
       const findVisible = await find.evaluate((input) => {
         const r = input.getBoundingClientRect();
         const hit = document.elementFromPoint(
