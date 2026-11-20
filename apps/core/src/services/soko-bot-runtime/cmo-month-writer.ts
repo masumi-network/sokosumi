@@ -16,6 +16,7 @@ import { sokoBotTurnPurpose } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
+import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import { RuntimeEventLog, runtimeEvent } from "@/lib/soko-bot/turn-loop";
 import {
@@ -42,6 +43,7 @@ import {
   cmoConnectedChannels,
   cmoMixLedger,
   cmoPieceLine,
+  cmoPraiseOnly,
   cmoProofPoints,
   cmoWriterPieces,
   readCmoProduction,
@@ -334,9 +336,13 @@ export async function writeCmoMonthPieces(
     };
 
   const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
-  const proof = cmoProofPoints(brain);
-  const styles = referenceLibraryAvailable();
   const varied = cmoMakesVariedMonth(authorized.turn.versionId);
+  const praise = varied
+    ? await cmoPraiseOnly(cmoProofPoints(brain))
+    : { points: cmoProofPoints(brain), costUsd: 0 };
+  await chargeCheck(input, SOKO_BOT_JEV_MODEL, praise.costUsd);
+  const proof = praise.points;
+  const styles = referenceLibraryAvailable();
   const system = cmoWriterSystem({
     businessName: cuso.businessName,
     strategy,

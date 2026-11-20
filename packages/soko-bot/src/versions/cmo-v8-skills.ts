@@ -52,7 +52,7 @@ const STORIES_AFTER =
 const STORY_REVIEW_BEFORE =
   "The strategy review refuses a LinkedIn piece without one.";
 const STORY_REVIEW_AFTER =
-  "The strategy review refuses a social-proof piece without one. A LinkedIn piece without a story argues its claim from a product fact, a price or a decision the Brand Brain records.";
+  "The strategy review refuses a social-proof piece without one. A LinkedIn piece without a story argues its claim from a product fact, a price or a decision the Brand Brain records. Proof is clearly positive: a mixed or critical review, a middling rating or a complaint (the Brand Brain's reputation keeps them for your understanding) is never a piece's story, title or headline.";
 
 export function claimsStrategy(base: SokoBotSkill): SokoBotSkill {
   return revised(base, CMO_CLAIMS_STRATEGY_SKILL, [

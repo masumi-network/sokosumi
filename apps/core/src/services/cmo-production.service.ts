@@ -24,6 +24,7 @@ import {
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
+import { evaluateWithJev } from "@/lib/soko-bot/jev";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { cmoPlanLevel, isCmoSubscribed } from "@/services/cmo-billing.service";
@@ -351,6 +352,60 @@ export function cmoProofPoints(brain: BrandBrain | null): string[] {
         .map((finding) => finding.point) ?? [],
   );
   return [...new Set(points)].slice(0, MAX_PROOF_POINTS);
+}
+
+/** Each proof point's verdict, by its words: a Brand Brain changes rarely. */
+const praiseVerdicts = new Map<string, boolean>();
+/** Below this Jev reads a point as not clearly positive. */
+const PRAISE_PASS = 0.5;
+
+/**
+ * The proof points a cmo-v8 piece may stand on: clearly positive praise and
+ * plain facts. NMKR's month opened two posts on "One G2 review, rated
+ * 4.0/5" whose reviewer found the fees "somewhat high": the reputation
+ * section holds complaints for Cuso's understanding, never a post's angle.
+ * When Jev does not answer, a point that names a review or rating is left
+ * out and the rest kept.
+ */
+export async function cmoPraiseOnly(
+  points: readonly string[],
+  evaluate: typeof evaluateWithJev = evaluateWithJev,
+): Promise<{ points: string[]; costUsd: number }> {
+  const unread = points.filter((point) => !praiseVerdicts.has(point));
+  let costUsd = 0;
+  if (unread.length > 0) {
+    try {
+      const answer = await evaluate({
+        state: { points: unread.map((point, index) => ({ index, point })) },
+        questions: Object.fromEntries(
+          unread.map((_, index) => [
+            `p${index}`,
+            {
+              type: "boolean" as const,
+              instructions: `Is point ${index} clearly positive about the business (praise, a result, a customer's win) or a plain fact? A complaint, a criticism, a mixed or lukewarm review, or a middling rating with a reservation is not.`,
+            },
+          ]),
+        ),
+        timeoutMs: 30_000,
+      });
+      costUsd = answer.costUsd;
+      unread.forEach((point, index) => {
+        const read = answer.answers.get(`p${index}`);
+        if (read?.type === "boolean")
+          praiseVerdicts.set(point, read.probability >= PRAISE_PASS);
+      });
+    } catch {
+      // Unread points stay out only when they name a review or rating.
+    }
+  }
+  return {
+    points: points.filter(
+      (point) =>
+        praiseVerdicts.get(point) ??
+        !/\b(review|reviewer|rating|rated|stars?)\b/i.test(point),
+    ),
+    costUsd,
+  };
 }
 
 /** What the production run reads: the whole month to make, in one brief. */

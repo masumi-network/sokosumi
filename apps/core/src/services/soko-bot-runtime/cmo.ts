@@ -61,7 +61,10 @@ import {
   cmoSpreadPoints,
   cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
-import { cmoProofPoints } from "@/services/cmo-production.service";
+import {
+  cmoPraiseOnly,
+  cmoProofPoints,
+} from "@/services/cmo-production.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
 import {
   cmoTurnExecutesPlan,
@@ -264,11 +267,12 @@ export async function reviewCmoPlan(
       where: { id: authorized.turn.sokoBotId },
       select: { projectId: true },
     });
-    const facts = owner?.projectId
-      ? cmoPointFacts(
-          parseBrandBrain((await getBrandBrain(owner.projectId))?.body),
-        )
-      : [];
+    const brain = owner?.projectId
+      ? parseBrandBrain((await getBrandBrain(owner.projectId))?.body)
+      : null;
+    const praise = await cmoPraiseOnly(cmoProofPoints(brain));
+    await chargeCheck(input, SOKO_BOT_JEV_MODEL, praise.costUsd);
+    const facts = cmoPointFacts(brain, praise.points);
     const spread = await cmoSpreadPoints(strategy.calendar, facts);
     await chargeCheck(input, COMPETITOR_CHECK_MODEL, spread.costUsd);
     if (spread.pieces.size > 0)
@@ -410,10 +414,13 @@ export async function reviewCmoPlan(
 const DISTINCT_CLAIM_PASSES = 3;
 
 /** What a point needs from the Brand Brain: its proof, products and offers. */
-function cmoPointFacts(brain: BrandBrain | null): string[] {
+function cmoPointFacts(
+  brain: BrandBrain | null,
+  proof: readonly string[],
+): string[] {
   if (!brain) return [];
   return [
-    ...cmoProofPoints(brain),
+    ...proof,
     ...brain.products,
     ...(brain.offers ?? []).map(
       (offer) => `${offer.name}: ${offer.what} (${offer.price})`,
