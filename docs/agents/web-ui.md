@@ -73,6 +73,9 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-resize-observer` (`useResizeObserver`, `useLayoutResizeObserver`) — live-element `ResizeObserver` subscriptions with unmount disconnect
 - `use-mutation-observer` (`useMutationObserver`, `useLayoutMutationObserver`) — live-node / `"body"` / `"documentElement"` `MutationObserver` subscriptions with unmount disconnect
 - `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
+- `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus a live element when a condition turns true (with optional `preventScroll`, `deferToFrame`, and `resetKey`)
+- `use-scroll-into-view-when` (`useScrollIntoViewWhen`) — scroll a live element into view when a condition turns true (with optional reduced-motion downgrade and `resetKey`; CMO has `useScrollIntoViewWhen` under `apps/cmo/src/hooks/effects/use-scroll-into-view-when.ts`)
+- `use-scroll-to-end` (`useScrollToEnd`) — scroll a live container to its vertical or horizontal end when a trigger changes
 - `use-page-search-shortcut` (`usePageSearchShortcut`) — Cmd/Ctrl+F search input focus shortcut
 - `use-prevent-enter-submit` (`usePreventEnterSubmit`) — form Enter submission guard
 - `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching

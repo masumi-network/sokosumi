@@ -7,7 +7,7 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { Check, ScrollText } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useDebounce } from "use-debounce";
 
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { cn } from "@/lib/utils";
 
 import { fetchChatSkills } from "./fetch-chat-skills";
@@ -99,12 +99,9 @@ function SkillPickerPanel({
   const format = useFormatter();
   const [query, setQuery] = useState("");
   const [debouncedQuery] = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [input, setInput] = useState<HTMLInputElement | null>(null);
 
-  useMountEffect(() => {
-    const frame = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  });
+  useFocusWhen(input, true, { deferToFrame: true });
 
   const { data, isPending, isError, isPlaceholderData } = useQuery({
     queryKey: ["chat-skills", debouncedQuery],
@@ -128,7 +125,7 @@ function SkillPickerPanel({
     <div className="flex max-h-96 flex-col overflow-hidden">
       <div className="border-border border-b p-2">
         <Input
-          ref={inputRef}
+          ref={setInput}
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}

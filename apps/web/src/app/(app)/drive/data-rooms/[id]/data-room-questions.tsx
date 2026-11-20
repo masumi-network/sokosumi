@@ -3,13 +3,15 @@
 import type { DataRoomQuestion, DataRoomTreeRow } from "@sokosumi/core-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import {
   answerDataRoomQuestion,
@@ -97,15 +99,14 @@ function QuestionItem({
   const [shared, setShared] = useState(question.sharedAt !== null);
   const [busy, setBusy] = useState(false);
   const shareHintId = useId();
-  const answerRef = useRef<HTMLTextAreaElement>(null);
+  const [answerInput, setAnswerInput] = useState<HTMLTextAreaElement | null>(
+    null,
+  );
 
   // Opened from Needs you: bring the question into view with its answer box
   // ready, once, when it first renders.
-  useEffect(() => {
-    if (!focused) return;
-    answerRef.current?.scrollIntoView({ block: "center" });
-    answerRef.current?.focus({ preventScroll: true });
-  }, [focused]);
+  useScrollIntoViewWhen(answerInput, focused, { block: "center" });
+  useFocusWhen(answerInput, focused, { preventScroll: true });
 
   return (
     <li
@@ -147,7 +148,7 @@ function QuestionItem({
         }}
       >
         <Textarea
-          ref={answerRef}
+          ref={setAnswerInput}
           rows={2}
           aria-label={t("answerLabel")}
           placeholder={t("answerPlaceholder")}

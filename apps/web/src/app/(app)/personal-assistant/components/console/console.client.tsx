@@ -21,7 +21,6 @@ import {
   type ReactNode,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useTransition,
 } from "react";
@@ -42,10 +41,8 @@ import {
 } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  matchesMediaQuery,
-  REDUCED_MOTION_MEDIA_QUERY,
-} from "@/hooks/effects/use-media-query";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
@@ -132,16 +129,13 @@ function ScheduleRow({
   readOnly: boolean;
   focused: boolean;
 }) {
-  const row = useRef<HTMLLIElement>(null);
-  useEffect(() => {
-    if (!focused) return;
-    const reduceMotion = matchesMediaQuery(REDUCED_MOTION_MEDIA_QUERY);
-    row.current?.scrollIntoView({
-      block: "center",
-      behavior: reduceMotion ? "auto" : "smooth",
-    });
-    row.current?.focus({ preventScroll: true });
-  }, [focused]);
+  const [row, setRow] = useState<HTMLLIElement | null>(null);
+  useScrollIntoViewWhen(row, focused, {
+    block: "center",
+    behavior: "smooth",
+    respectReducedMotion: true,
+  });
+  useFocusWhen(row, focused, { preventScroll: true });
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
   const rhythm = schedule.systemKey
@@ -162,7 +156,7 @@ function ScheduleRow({
   if (removed) return null;
   return (
     <li
-      ref={row}
+      ref={setRow}
       tabIndex={focused ? -1 : undefined}
       aria-current={focused || undefined}
       className={cn(

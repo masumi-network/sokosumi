@@ -7,7 +7,7 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { LoadErrorState } from "@/components/common/load-error-state";
 import { PageListSearchContext } from "@/components/page-list-search";
 import { PageSearchField } from "@/components/page-search-field";
@@ -24,6 +24,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { useTimeout } from "@/hooks/effects/use-timeout";
 import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
@@ -124,14 +125,14 @@ export function ToolConnectors({
       setPageQuery?.(linkedQuery);
   }, [linkedQuery, readOnly, integrations.configured, setPageQuery]);
   const catalog = useCatalog(query, !readOnly);
-  const focused = useRef<HTMLLIElement>(null);
+  const [focusedItem, setFocusedItem] = useState<HTMLLIElement | null>(null);
   // A connect link never searches on a read-only bot.
   const searching = !readOnly && query.trim().length > 0;
 
-  useEffect(() => {
-    if (focusProvider && catalog.data)
-      focused.current?.scrollIntoView({ block: "center" });
-  }, [focusProvider, catalog.data]);
+  useScrollIntoViewWhen(focusedItem, Boolean(focusProvider && catalog.data), {
+    block: "center",
+    resetKey: catalog.data,
+  });
 
   if (!integrations.configured) {
     return <p className="text-muted-foreground text-sm">{t("unavailable")}</p>;
@@ -201,7 +202,7 @@ export function ToolConnectors({
             return (
               <li
                 key={connector.provider}
-                ref={isFocus ? focused : undefined}
+                ref={isFocus ? setFocusedItem : undefined}
                 className={cn(
                   HOLDER_ITEM_CLASS,
                   "flex items-center gap-3 p-3",

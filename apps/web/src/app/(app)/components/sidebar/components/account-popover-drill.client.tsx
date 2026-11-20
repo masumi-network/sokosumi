@@ -10,9 +10,9 @@ import {
   Scale,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactElement, useRef } from "react";
+import { type ReactElement, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { cn } from "@/lib/utils";
 
 import {
@@ -75,7 +75,7 @@ export function AccountPopoverDrill({
   onOpenExternal,
   onOpenConsent,
 }: AccountPopoverDrillProps): ReactElement {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelNode, setPanelNode] = useState<HTMLDivElement | null>(null);
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
   const tUserAvatar = useTranslations("Components.UserAvatar");
   const tConsent = useTranslations("CookieConsent");
@@ -83,14 +83,7 @@ export function AccountPopoverDrill({
 
   // Settings → drill unmounts the focused trigger; keep keyboard focus inside
   // the non-modal popover (rAF + tabIndex=-1).
-  useMountEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      panelRef.current?.focus();
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-    };
-  });
+  useFocusWhen(panelNode, true, { deferToFrame: true });
 
   function getAccountItemLabel(translationKey: string): string {
     return tUserAvatar(
@@ -117,7 +110,7 @@ export function AccountPopoverDrill({
 
   return (
     <div
-      ref={panelRef}
+      ref={setPanelNode}
       tabIndex={-1}
       className="space-y-2 text-left outline-hidden"
     >

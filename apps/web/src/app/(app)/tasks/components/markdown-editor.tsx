@@ -46,6 +46,7 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import { clearComposerFormat } from "@/lib/utils/composer-clear-format";
 import {
@@ -792,13 +793,13 @@ export const MarkdownEditor = forwardRef<
     [insertMention],
   );
 
-  useEffect(() => {
-    if (!isOpen || !listRef.current) return;
-    const activeItem = listRef.current.querySelector(
-      `[data-index="${activeIndex}"]`,
-    );
-    activeItem?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex, isOpen]);
+  const [activeMentionItem, setActiveMentionItem] =
+    useState<HTMLDivElement | null>(null);
+
+  useScrollIntoViewWhen(activeMentionItem, isOpen, {
+    block: "nearest",
+    resetKey: activeIndex,
+  });
 
   useEffect(() => {
     return () => {
@@ -1016,6 +1017,7 @@ export const MarkdownEditor = forwardRef<
             {filteredMentions.map((mention, index) => (
               <div
                 key={mention.key}
+                ref={index === activeIndex ? setActiveMentionItem : undefined}
                 data-index={index}
                 role="option"
                 aria-selected={index === activeIndex}

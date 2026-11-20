@@ -1,8 +1,9 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useScrollToEnd } from "@/hooks/effects/use-scroll-to-end";
 import { cn } from "@/lib/utils";
 import {
   type ActivityDay,
@@ -41,16 +42,12 @@ export function PostingConsistency({
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const format = useFormatter();
   const [mode, setMode] = useState<ActivityMode>("posts");
-  const scroller = useRef<HTMLDivElement>(null);
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const filled = fillActivityRange(days);
   const totals = activityTotals(days);
   const streaks = postingStreaks(days);
   const weeks = contributionCalendar(days);
-  useEffect(() => {
-    const node = scroller.current;
-    if (!node) return;
-    node.scrollLeft = node.scrollWidth;
-  }, [weeks.length]);
+  useScrollToEnd(scroller, weeks.length, { axis: "horizontal" });
   const monthStarts = calendarMonthStarts(weeks);
   const max = activityMax(filled, mode);
 
@@ -134,7 +131,7 @@ export function PostingConsistency({
         ) : null}
       </div>
       {weeks.length > 0 ? (
-        <div className="overflow-x-auto" ref={scroller}>
+        <div className="overflow-x-auto" ref={setScroller}>
           <div
             className="grid w-max gap-1"
             style={{

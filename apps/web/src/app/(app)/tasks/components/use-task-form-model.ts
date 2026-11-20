@@ -5,14 +5,7 @@ import { TaskStatus } from "@sokosumi/core-client";
 import { taskContextSelectionResolvesAnything } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  useCallback,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
   isOtherHumanAssignee,
@@ -24,6 +17,7 @@ import {
 } from "@/app/tasks/utils/task-form-status";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { useLayoutFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import type { useSession } from "@/lib/auth/auth.client";
 import {
@@ -139,14 +133,12 @@ export function useTaskFormModel(
     isInitialProjectUnavailable ? null : initialProjectId,
   );
   const [isProjectMissing, setIsProjectMissing] = useState(false);
-  const projectSelectRef = useRef<HTMLButtonElement>(null);
+  const [projectSelect, setProjectSelect] = useState<HTMLButtonElement | null>(
+    null,
+  );
   const projectErrorId = useId();
   const privateDescriptionId = useId();
-  useLayoutEffect(() => {
-    if (isProjectMissing) {
-      projectSelectRef.current?.focus();
-    }
-  }, [isProjectMissing]);
+  useLayoutFocusWhen(projectSelect, isProjectMissing);
   const [contextSelection, setContextSelection] =
     useState<TaskContextAttachmentsSelection>(
       () =>
@@ -669,7 +661,7 @@ export function useTaskFormModel(
     setIsPrivate,
     projectId,
     isProjectMissing,
-    projectSelectRef,
+    projectSelectRef: setProjectSelect,
     projectErrorId,
     privateDescriptionId,
     contextSelection,

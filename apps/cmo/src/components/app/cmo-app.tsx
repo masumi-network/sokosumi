@@ -8,6 +8,7 @@ import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
+import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -289,7 +290,7 @@ export function CmoApp({
   const [sending, startSending] = useTransition();
   const [sendFailed, setSendFailed] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
-  const end = useRef<HTMLDivElement>(null);
+  const [end, setEnd] = useState<HTMLDivElement | null>(null);
 
   // A connection redirect lands on /?step=connect; show the page's own address.
   useEffect(() => {
@@ -329,11 +330,10 @@ export function CmoApp({
     overview.botStatus === "RUNNING"
       ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
       : null;
-  useEffect(() => {
-    if (view === "chat" && threadLength > 0) {
-      end.current?.scrollIntoView({ block: "end" });
-    }
-  }, [threadLength, view, working]);
+  useScrollIntoViewWhen(end, view === "chat" && threadLength > 0, {
+    block: "end",
+    resetKey: `${threadLength}:${working === null ? "idle" : `busy:${working}`}`,
+  });
 
   const compose = useCallback(
     (text: string) => {
@@ -474,7 +474,7 @@ export function CmoApp({
                 ) : null}
               </div>
               {/* Outside the thread, so it adds no gap under the last message. */}
-              <div ref={end} />
+              <div ref={setEnd} />
             </div>
             <div className="composer-wrap">
               <div className="suggest">

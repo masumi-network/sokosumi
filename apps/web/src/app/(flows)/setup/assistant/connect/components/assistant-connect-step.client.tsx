@@ -3,7 +3,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import {
@@ -12,7 +12,7 @@ import {
   SokoBotSetupSteps,
 } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
 
@@ -41,13 +41,11 @@ export function AssistantConnectStep({
   const tConnect = useTranslations("App.Chat.SokoBot");
   const [busy, setBusy] = useState<string | null>(null);
   const anyConnected = offers.some((offer) => offer.connected);
-  const headingRef = useRef<HTMLHeadingElement>(null);
+  const [heading, setHeading] = useState<HTMLHeadingElement | null>(null);
 
   // The Picture step's Create button held focus and is gone, so start this
   // step at its heading, as the earlier steps do.
-  useMountEffect(() => {
-    headingRef.current?.focus();
-  });
+  useFocusWhen(heading, true);
 
   async function handleConnect(provider: string) {
     setBusy(provider);
@@ -66,7 +64,7 @@ export function AssistantConnectStep({
         seed={botOrbSeed}
         title={tConnect("connectTitle", { bot: botName })}
         hint={tConnect("connectBody")}
-        headingRef={headingRef}
+        headingRef={setHeading}
       />
       <div className="flex flex-col gap-3">
         {offers.map(({ provider, name, connected }) => {

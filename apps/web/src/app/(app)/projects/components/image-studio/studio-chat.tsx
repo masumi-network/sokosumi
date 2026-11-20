@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useScrollToEnd } from "@/hooks/effects/use-scroll-to-end";
 
 import { StudioImage } from "./studio-image";
 import type { StudioAsset, StudioLabels } from "./types";
@@ -289,7 +290,7 @@ function StudioConversation({
    * it may never run and the text would be lost with it.
    */
   const draftRef = useRef("");
-  const transcriptRef = useRef<HTMLDivElement>(null);
+  const [transcript, setTranscript] = useState<HTMLDivElement | null>(null);
 
   // Read the current selection inside callbacks without making them depend on
   // it; the hook's options are captured when its store is created.
@@ -454,10 +455,7 @@ function StudioConversation({
   const isResuming = agent.status === "resuming";
 
   // Following a growing transcript is DOM synchronization.
-  useEffect(() => {
-    const node = transcriptRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [agent.messages]);
+  useScrollToEnd(transcript, agent.messages);
 
   function handleDraftChange(value: string) {
     draftRef.current = value;
@@ -576,7 +574,7 @@ function StudioConversation({
       <div
         aria-live="polite"
         className="min-h-48 flex-1 space-y-4 overflow-y-auto px-4 py-4"
-        ref={transcriptRef}
+        ref={setTranscript}
       >
         {agent.messages.length === 0 ? (
           <p className="text-muted-foreground text-sm leading-relaxed">
