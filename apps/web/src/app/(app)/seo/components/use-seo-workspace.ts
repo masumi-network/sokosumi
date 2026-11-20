@@ -24,6 +24,7 @@ import {
   shouldRetrySeoLoad,
 } from "@/app/seo/seo-load-error-model";
 import { type SeoTab, seoTab } from "@/app/seo/seo-query";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { mutateSeo } from "@/lib/actions/seo/action";
 import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
@@ -154,10 +155,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const waitingForSession =
     initialIdentity === null && query.toString() === initialQuery.current;
   // A read without the viewer is refused (409); after a save, the read waits for the session.
-  const viewerId = useRef(session?.user.id);
-  useEffect(() => {
-    viewerId.current = session?.user.id;
-  });
+  const viewerId = useLatestRef(session?.user.id);
   async function refetchForViewer() {
     if (viewerId.current) await result.refetch();
   }

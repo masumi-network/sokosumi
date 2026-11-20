@@ -8743,4 +8743,143 @@ describe("SEO workspace integration", () => {
     );
     expect(part(/^\d+ keyword ideas?$/)).not.toHaveClass("hidden");
   });
+
+  it("re-reads the workspace after a save once a late viewer session arrives", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    let workspaceReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (!url.startsWith("/api/seo/connections/")) {
+          workspaceReads += 1;
+        }
+        return connectedSeoResponse(workspace, url);
+      }),
+    );
+    mutate.mockResolvedValueOnce({ ok: true, value: workspace });
+
+    function SaveProbe() {
+      const model = useSeoWorkspace(workspace);
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            void model.execute({
+              kind: "save_competitor",
+              body: { url: "https://rival.example", confirmed: true },
+            })
+          }
+        >
+          Save probe
+        </button>
+      );
+    }
+
+    viewer.userId = null;
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    const wrap = () => (
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider
+          locale="en"
+          timeZone="UTC"
+          formats={createFormats()}
+          messages={messages}
+        >
+          <NuqsTestingAdapter hasMemory>
+            <SaveProbe />
+          </NuqsTestingAdapter>
+        </NextIntlClientProvider>
+      </QueryClientProvider>
+    );
+
+    const view = render(wrap());
+    expect(workspaceReads).toBe(0);
+
+    viewer.userId = "owner";
+    view.rerender(wrap());
+    await waitFor(() => expect(workspaceReads).toBeGreaterThan(0));
+    const readsBeforeSave = workspaceReads;
+
+    await user.click(screen.getByRole("button", { name: "Save probe" }));
+    await waitFor(() =>
+      expect(workspaceReads).toBeGreaterThan(readsBeforeSave),
+    );
+  });
+
+  it("refetches with the latest committed viewer after a 409 conflict on edit", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const readViewerHeaders: Array<string | null> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        if (!url.startsWith("/api/seo/connections/")) {
+          const headers = new Headers(init?.headers);
+          readViewerHeaders.push(headers.get("x-seo-viewer"));
+        }
+        return connectedSeoResponse(workspace, url);
+      }),
+    );
+    mutate.mockResolvedValueOnce({
+      ok: false,
+      error: { status: 409, code: "CONFLICT", message: "Conflict" },
+    });
+
+    function EditProbe() {
+      const model = useSeoWorkspace(workspace);
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            void model.execute({
+              kind: "save_competitor",
+              body: { url: "https://rival.example", confirmed: true },
+            })
+          }
+        >
+          Edit probe
+        </button>
+      );
+    }
+
+    viewer.userId = null;
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    const wrap = () => (
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider
+          locale="en"
+          timeZone="UTC"
+          formats={createFormats()}
+          messages={messages}
+        >
+          <NuqsTestingAdapter hasMemory>
+            <EditProbe />
+          </NuqsTestingAdapter>
+        </NextIntlClientProvider>
+      </QueryClientProvider>
+    );
+
+    const view = render(wrap());
+    expect(readViewerHeaders).toEqual([]);
+
+    viewer.userId = "owner";
+    view.rerender(wrap());
+    await waitFor(() => expect(readViewerHeaders.length).toBeGreaterThan(0));
+    const readsBeforeConflict = readViewerHeaders.length;
+
+    await user.click(screen.getByRole("button", { name: "Edit probe" }));
+    await waitFor(() =>
+      expect(readViewerHeaders.length).toBeGreaterThan(readsBeforeConflict),
+    );
+    expect(readViewerHeaders.at(-1)).toBe("owner");
+  });
 });
