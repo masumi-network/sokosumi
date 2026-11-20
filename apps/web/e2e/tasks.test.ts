@@ -80,22 +80,108 @@ function isPrefetch(headers: Record<string, string>) {
 
 /**
  * Paths whose page shell the app has prefetched in this page, as links come
- * into view. Counts only a successful answer that carries a segment, not the
- * route tree alone. The shell is the same for every search of a route, so the
- * path is the key.
+ * into view. Partial Prefetching asks for the shell with
+ * `next-router-prefetch: 2` or `3` and the route tree alone with a
+ * `next-router-segment-prefetch: /_tree` request; only the first counts, and
+ * only once its whole body arrived with a success or not-modified status. The shell is the
+ * same for every search of a route, so the path is the key.
  */
 const prefetchedPaths = new WeakMap<Page, Set<string>>();
 
 function trackPrefetches(page: Page) {
   const paths = new Set<string>();
   prefetchedPaths.set(page, paths);
-  page.on("response", (response) => {
-    const headers = response.request().headers();
-    const segment = headers["next-router-segment-prefetch"];
-    if (response.ok() && isPrefetch(headers) && segment !== "/_tree") {
-      paths.add(new URL(response.url()).pathname);
+  page.on("requestfinished", async (request) => {
+    const headers = request.headers();
+    if (!["2", "3"].includes(headers["next-router-prefetch"] ?? "")) return;
+    if (headers["next-router-segment-prefetch"] === "/_tree") return;
+    // 304: the browser revalidated the shell it already holds.
+    const status = (await request.response())?.status() ?? 0;
+    if ((status >= 200 && status < 300) || status === 304) {
+      paths.add(new URL(request.url()).pathname);
     }
   });
+}
+
+/**
+ * What a loading frame shows: for each named selector, the text of its first
+ * visible match in `main`, or null when none is visible.
+ */
+type ShellChecks = Record<string, string>;
+
+/**
+ * Runs in the page: records the first frame `shell` is visible, with
+ * `checks`, and every frame that differs while it stays visible.
+ */
+function recordShellFrame({
+  shell,
+  checks,
+}: {
+  shell: string;
+  checks: ShellChecks;
+}) {
+  type Frame = {
+    top: number;
+    href: string;
+    seen: Record<string, string | null>;
+  };
+  const record = window as unknown as {
+    __shellFrame?: Frame;
+    __shellFrames?: Frame[];
+  };
+  delete record.__shellFrame;
+  record.__shellFrames = [];
+  let last = "";
+  const visible = (selector: string) =>
+    Array.from(document.querySelectorAll(`main ${selector}`)).find((el) =>
+      el.checkVisibility(),
+    );
+  const started = performance.now();
+  const tick = () => {
+    const frame = visible(shell);
+    if (frame) {
+      const entry: Frame = {
+        top: Math.round(frame.getBoundingClientRect().top),
+        href: location.href,
+        seen: Object.fromEntries(
+          Object.entries(checks).map(([name, selector]) => {
+            const el = visible(selector);
+            // What a reader sees: a field's placeholder, else the text,
+            // else the name of an icon-only control.
+            const seen = !el
+              ? null
+              : el instanceof HTMLInputElement
+                ? el.placeholder
+                : el.textContent?.trim() || el.getAttribute("aria-label") || "";
+            return [name, seen];
+          }),
+        ),
+      };
+      record.__shellFrame ??= entry;
+      const key = JSON.stringify(entry);
+      if (key !== last) record.__shellFrames?.push(entry);
+      last = key;
+    } else if (record.__shellFrame) {
+      return;
+    }
+    if (performance.now() - started < 60_000) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+async function readShellFrame(page: Page) {
+  return page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __shellFrame?: {
+            top: number;
+            href: string;
+            seen: Record<string, string | null>;
+          };
+        }
+      ).__shellFrame,
+  );
 }
 
 /**
@@ -113,6 +199,7 @@ async function measureShellToPage(
     navigate: () => Promise<unknown>;
     shellSelector: string;
     loadedSelector: string;
+    shellChecks?: ShellChecks;
   },
 ) {
   const prefetched = prefetchedPaths.get(page);
@@ -133,20 +220,10 @@ async function measureShellToPage(
     url.pathname === options.pathname && url.searchParams.has("_rsc");
   await page.route(isHeld, holdContent);
   try {
-    await page.evaluate((selector) => {
-      const record = window as unknown as { __shellTop?: number };
-      delete record.__shellTop;
-      const started = performance.now();
-      const tick = () => {
-        const shell = document.querySelector(selector);
-        if (shell) {
-          record.__shellTop = Math.round(shell.getBoundingClientRect().top);
-          return;
-        }
-        if (performance.now() - started < 30_000) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }, options.shellSelector);
+    await page.evaluate(recordShellFrame, {
+      shell: options.shellSelector,
+      checks: options.shellChecks ?? {},
+    });
     await options.navigate();
     // The target page itself, not the page we left: it can stay on screen
     // while the held answer is pending.
@@ -171,14 +248,28 @@ async function measureShellToPage(
   } finally {
     await page.unroute(isHeld, holdContent);
   }
-  return page.evaluate((selector) => {
-    const shellTop = (window as unknown as { __shellTop?: number }).__shellTop;
-    const loaded = document.querySelector(selector);
-    return {
-      shellTop,
-      loadedTop: loaded ? Math.round(loaded.getBoundingClientRect().top) : 0,
-    };
+  const frame = await readShellFrame(page);
+  const loadedTop = await page.evaluate((selector) => {
+    const loaded = Array.from(document.querySelectorAll(selector)).find((el) =>
+      el.checkVisibility(),
+    );
+    return loaded ? Math.round(loaded.getBoundingClientRect().top) : 0;
   }, options.loadedSelector);
+  return { shellTop: frame?.top, loadedTop, frame };
+}
+
+/** The toolbar controls every board shell frame must already show. */
+const TOOLBAR_CHECKS: ShellChecks = {
+  views: '[role="radiogroup"]',
+  search: 'input[type="search"]',
+  filters: "[data-filters-menu] button",
+  viewOptions: 'button[aria-label="View options"]',
+};
+
+function assertToolbarInFrame(seen: Record<string, string | null> = {}) {
+  for (const name of Object.keys(TOOLBAR_CHECKS)) {
+    assert.ok(seen[name] != null, `the loading toolbar has no ${name}`);
+  }
 }
 
 /** The board opens where its loading shell drew the columns. */
@@ -186,19 +277,94 @@ async function assertBoardLoadsInPlace(
   page: Page,
   navigate: () => Promise<unknown>,
 ) {
-  const { shellTop, loadedTop } = await measureShellToPage(page, {
+  const { shellTop, loadedTop, frame } = await measureShellToPage(page, {
     pathname: "/tasks",
     navigate,
-    shellSelector: 'main section:has([data-testid="task-card-skeleton"])',
+    shellSelector: 'section:has([data-testid="task-card-skeleton"])',
     loadedSelector:
       'main [data-column-id="backlog"]:not(:has([data-testid="task-card-skeleton"]))',
+    shellChecks: TOOLBAR_CHECKS,
   });
   assert.ok(shellTop, "the loading shell never painted a column");
+  assertToolbarInFrame(frame?.seen);
   assert.ok(loadedTop > 0, "the loaded board has no column");
   assert.equal(
     loadedTop,
     shellTop,
     `the board's columns move while it loads (top ${shellTop} -> ${loadedTop}px)`,
+  );
+}
+
+/**
+ * Opens `path` by its URL on a slow connection, so the streamed loading
+ * shell paints before the board: the first frame with a placeholder column
+ * must already show the toolbar and `chip`, and the loaded columns must open
+ * where it drew them. The app's own files are cached by then; only the page
+ * itself arrives slowly.
+ */
+async function assertColdBoardShell(page: Page, path: string, chip: string) {
+  // From the first frame of the new document; later documents in this page
+  // record again, which is harmless.
+  await page.addInitScript(
+    `(${recordShellFrame})(${JSON.stringify({
+      shell: 'section:has([data-testid="task-card-skeleton"])',
+      checks: { ...TOOLBAR_CHECKS, chips: 'ul[aria-label="Active filters"]' },
+    })})`,
+  );
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Network.enable");
+  await cdp.send("Network.emulateNetworkConditions", {
+    offline: false,
+    latency: 150,
+    downloadThroughput: 96 * 1024,
+    uploadThroughput: 96 * 1024,
+  });
+  try {
+    await page.goto(`${BASE_URL}${path}`, { waitUntil: "commit" });
+    await page.waitForFunction(
+      () =>
+        Array.from(
+          document.querySelectorAll('main [data-column-id="backlog"]'),
+        ).some(
+          (el) =>
+            el.checkVisibility() &&
+            !el.querySelector('[data-testid="task-card-skeleton"]'),
+        ),
+      undefined,
+      { timeout: 90_000 },
+    );
+  } finally {
+    await cdp.send("Network.emulateNetworkConditions", {
+      offline: false,
+      latency: 0,
+      downloadThroughput: -1,
+      uploadThroughput: -1,
+    });
+    await cdp.detach();
+  }
+  const frame = await readShellFrame(page);
+  const frames = await page.evaluate(
+    () =>
+      (window as unknown as { __shellFrames?: unknown[] }).__shellFrames ?? [],
+  );
+  console.log(`${path} loading frames:`, JSON.stringify(frames));
+  assert.ok(frame, `${path} painted no loading shell before the board`);
+  assert.equal(new URL(frame.href).pathname + new URL(frame.href).search, path);
+  assertToolbarInFrame(frame.seen);
+  assert.ok(
+    frame.seen.chips?.includes(chip),
+    `the loading toolbar shows "${frame.seen.chips}", not the ${chip} chip`,
+  );
+  const loadedTop = await page.evaluate(() => {
+    const column = Array.from(
+      document.querySelectorAll('main [data-column-id="backlog"]'),
+    ).find((el) => el.checkVisibility());
+    return column ? Math.round(column.getBoundingClientRect().top) : 0;
+  });
+  assert.equal(
+    loadedTop,
+    frame.top,
+    `the filtered board's columns move while it loads (top ${frame.top} -> ${loadedTop}px)`,
   );
 }
 
@@ -430,8 +596,8 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "View options" })
         .filter({ visible: true })
         .click();
-      // Archived draws its heading, search and row frames at once; the rows
-      // fill in where their frames stood.
+      // Archived draws its heading, search and loading status at once, with
+      // row frames the rows fill in where they stood.
       const archived = await measureShellToPage(page, {
         pathname: "/tasks/archived",
         navigate: async () => {
@@ -442,10 +608,25 @@ for (const { name: size, ...viewport } of PROJECTS) {
             .getByRole("heading", { level: 1, name: "Archived tasks" })
             .waitFor({ timeout: 2000 });
         },
-        shellSelector: "main ul > li:has(.animate-pulse)",
+        shellSelector: "ul > li:has(.animate-pulse)",
         loadedSelector: "main ul > li:has(a)",
+        shellChecks: {
+          heading: "h1",
+          search: 'input[type="search"]',
+          status: '[role="status"]:not(:empty)',
+        },
       });
       assert.ok(archived.shellTop, "Archived painted no row placeholders");
+      assert.equal(archived.frame?.seen.heading, "Archived tasks");
+      assert.ok(
+        archived.frame?.seen.search != null,
+        "Archived's loading frame has no search field",
+      );
+      assert.equal(
+        archived.frame?.seen.status,
+        "Loading archived tasks…",
+        "Archived's loading frame does not say it is loading",
+      );
       assert.equal(
         archived.loadedTop,
         archived.shellTop,
@@ -500,34 +681,44 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await searchFor("", "");
       await row.waitFor();
 
+      // An archived Task draws its way back and says it is loading at once;
+      // its frame opens where the placeholder frame stood.
+      const detailHref = await page
+        .getByRole("link", { name: LONG_NAME })
+        .getAttribute("href");
+      assert.ok(detailHref, "the archived row has no link");
+      const detail = await measureShellToPage(page, {
+        pathname: detailHref,
+        navigate: () => page.getByRole("link", { name: LONG_NAME }).click(),
+        shellSelector: '[aria-hidden="true"]:has(.animate-pulse)',
+        loadedSelector: "main div:has(> div > header h1)",
+        shellChecks: {
+          back: 'a[href="/tasks/archived"]',
+          status: '[role="status"]:not(:empty)',
+        },
+      });
+      assert.ok(detail.shellTop, "the archived Task painted no loading frame");
+      assert.equal(detail.frame?.seen.back, "Archived tasks");
+      assert.equal(detail.frame?.seen.status, "Loading archived task…");
+      assert.equal(
+        detail.loadedTop,
+        detail.shellTop,
+        `the archived Task's frame moves when it loads (top ${detail.shellTop} -> ${detail.loadedTop}px)`,
+      );
+      await page
+        .getByRole("link", { name: "Archived tasks" })
+        .filter({ visible: true })
+        .click();
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
 
-      // A filtered board draws its chips in the toolbar, and its loading
-      // shell draws the same toolbar from the URL, chips included, so the
-      // columns stay put. Opened from Home, whose Tasks link prefetches the
-      // board's shell, by a client navigation to a board not opened before:
-      // Back, or a board the router still holds, shows no shell at all.
-      prefetchedPaths.get(page)?.delete("/tasks");
-      await page.goto(`${BASE_URL}/`);
-      await showTasksLink(page);
-      await assertBoardLoadsInPlace(page, () =>
-        page.evaluate(
-          (href) =>
-            (
-              window as unknown as {
-                next: { router: { push: (href: string) => void } };
-              }
-            ).next.router.push(href),
-          "/tasks?status=DRAFT&sort=priority",
-        ),
-      );
-      assert.ok(
-        await page
-          .getByRole("list", { name: "Active filters" })
-          .filter({ visible: true })
-          .isVisible(),
-        "the filtered board shows no filter chips",
+      // A filtered board opened by its URL streams its loading shell first:
+      // the toolbar, the Draft chip and the placeholder columns in one frame,
+      // and the columns open where that frame drew them.
+      await assertColdBoardShell(
+        page,
+        "/tasks?status=DRAFT&sort=priority",
+        "Status: Draft",
       );
 
       const overflow = await page.evaluate(
