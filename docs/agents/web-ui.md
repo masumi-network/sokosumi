@@ -93,6 +93,7 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-normalized-query-tab` (`useNormalizedQueryTab`) — URL query tab validation against enabled tabs with invalid-URL cleanup
 - `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries
 - `use-latest-ref` (`useLatestRef`) — ref synced to the latest committed value in a layout effect
+- `use-is-mounted-ref` (`useIsMountedRef`, `useLayoutIsMountedRef`) — ref tracking whether the component is mounted/active (passive or layout effect timing, flipping `false` on unmount or React `<Activity>` hide)
 - `use-query-error-report` (`useQueryErrorReport`) — calls a query error reporter once per failure while mounted on the active key
 - `use-flash-toast` (`queueFlashSuccessToast`, `useFlashToast`) — shows a one-time `sessionStorage` success toast once on the next document mount
 - `use-mark-agent-unavailable` (`useMarkAgentUnavailable`, `useIsAgentUnavailable`) — ref-counted unavailable-agent external store for mobile header back fallback
@@ -104,6 +105,10 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-auth-session-hydration` (`useAuthSessionHydration`) — before-paint `authClient` session hydration and rendered-user registration
 - `use-pending-navigation` (`usePendingNavigation`) — optimistic destination tracking for in-flight Next.js navigation transitions
 - `use-pending-created-tasks` (`usePendingCreatedTasks`, `withBoardPreview`) — optimistic pending task board preview registration while a task create transition runs
+- `use-track-view` (`useTrackView`) — fires a typed GTM view event (`view_login_area`, `view_register_area`, `view_credits`, `view_agent`) once on mount or when an explicit key changes
+- `use-analytics-user-id` (`useAnalyticsUserId`) — pushes GA4 `set_user_id` into `window.dataLayer` when the signed-in user id changes
+- `use-track-purchase` (`useTrackPurchase`) — fires the GTM `purchase` event at most once per checkout session id once analytics consent is granted
+- `use-report-route-error` (`useReportRouteError`, `useGlobalRouteError`) — reports route error boundary failures to Sentry and handles one-shot stale-deployment refresh in the global error boundary
 
 ### React Query in migrations
 

@@ -45,7 +45,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useIsMountedRef } from "@/hooks/effects/use-is-mounted-ref";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   disconnectProjectSocialConnection,
@@ -187,7 +187,7 @@ export function ProjectSocialAccounts({
   const postsT = useTranslations("App.Projects.SocialPosts");
   const { connect } = useComposioConnection();
   const disconnectInFlightRef = useRef(false);
-  const isMountedRef = useRef(false);
+  const isMountedRef = useIsMountedRef();
   // Replace and Disconnect open from a row menu that is gone by the time the
   // dialog closes, so focus goes back to that row's menu trigger by hand.
   const actionTriggersRef = useRef(new Map<string, HTMLButtonElement>());
@@ -211,14 +211,6 @@ export function ProjectSocialAccounts({
   function refreshAccounts(): void {
     startRefresh(() => router.refresh());
   }
-
-  useMountEffect(() => {
-    isMountedRef.current = true;
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  });
 
   function showFeedback(nextFeedback: Feedback): void {
     if (!isMountedRef.current) return;

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
+import { useAnalyticsUserId } from "@/hooks/effects/use-analytics-user-id";
 import { useSession } from "@/lib/auth/auth.client";
 
 /**
@@ -14,15 +13,8 @@ import { useSession } from "@/lib/auth/auth.client";
 export function AnalyticsUserId() {
   const { data: session } = useSession();
   const userId = session?.user?.id ?? null;
-  const last = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (userId === last.current) return;
-    last.current = userId;
-
-    window.dataLayer = window.dataLayer ?? [];
-    window.dataLayer.push({ event: "set_user_id", user_id: userId });
-  }, [userId]);
+  useAnalyticsUserId(userId);
 
   return null;
 }

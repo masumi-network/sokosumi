@@ -167,6 +167,7 @@ import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useLayoutIsMountedRef } from "@/hooks/effects/use-is-mounted-ref";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { useSelectedRoomChannelHealth } from "@/hooks/effects/use-selected-room-channel-health";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
@@ -461,13 +462,7 @@ function RetainedRoomsClient({
   );
   const entry = data ?? cache.seed(props);
   const lifetime = entry.lifetime;
-  const activeRef = useRef(true);
-  useLayoutEffect(() => {
-    activeRef.current = true;
-    return () => {
-      activeRef.current = false;
-    };
-  }, []);
+  const activeRef = useLayoutIsMountedRef();
   const refreshRef = useRef<() => void>(() => {});
   const [pending, setPending] = useState<ChatRoomMessage[]>([]);
   const pendingRef = useRef(pending);
