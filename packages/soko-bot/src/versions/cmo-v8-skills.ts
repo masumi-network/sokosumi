@@ -56,7 +56,7 @@ const KINDS_BEFORE =
 const KINDS_AFTER =
   "and give find_style_references the piece's purpose (posters for events and announcements, ads and labels for products and offers, covers, trade cards, playbills and illustrations for how-to, stories and quotes). An infographic only for a picture that shows numbers or a comparison (purpose data or comparison), and at most one picture in four of the month; neighbouring pieces on one network take different kinds. Core holds the month to both";
 
-const CLAIM_AND_OPENING = `- Each piece argues its entry's claim (in your brief) and only that: words that argue another piece's claim are refused, so its message is its own.
+const CLAIM_AND_OPENING = `- Each piece argues its entry's claim (in your brief) and only that: after the month is made, a piece whose words argue another piece's claim comes back to be rewritten, so its message is its own.
 - A LinkedIn post opens with a result, a number, a named customer or a decision that sounds wrong at first, in its first two lines (about 140 characters): "Acme cut no-shows by 40% with one reminder" makes someone tap "see more"; advice, a question or a definition does not. Core reads every LinkedIn opening and refuses one that is not.`;
 
 /** `base` is cmo-v6's batched production skill. */

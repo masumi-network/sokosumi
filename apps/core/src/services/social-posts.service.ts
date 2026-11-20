@@ -725,23 +725,16 @@ export async function ownMessageProblem(
     embed,
   );
   const repeated = written[repeats.at(-1) ?? -1];
-  if (repeated)
-    return {
-      problem: `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`,
-      costUsd,
-    };
-  const argued = await otherClaimArgued(
-    input.text,
-    claimOf(post.planning),
-    siblings
-      .filter(
-        (sibling) => video === null || videoOf(sibling.planning) !== video,
-      )
-      .flatMap((sibling) => claimOf(sibling.planning) ?? []),
-    embed,
-  );
-  return { problem: argued.problem, costUsd: costUsd + argued.costUsd };
+  return {
+    problem: repeated
+      ? `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`
+      : null,
+    costUsd,
+  };
 }
+
+const OPENING_REFUSAL = "Rewrite the post's first line";
+const MAX_OPENING_REFUSALS = 2;
 
 /** Below this Jev reads the opening as a miss (see LINKEDIN_HOOK_RULE's calibration). */
 const OPENING_PASS = 0.35;
@@ -777,6 +770,17 @@ export async function linkedInOpeningProblem(
   });
   if (!post?.marketingStrategyId || post.provider.toLowerCase() !== "linkedin")
     return { problem: null, costUsd: 0 };
+  // A post's opening is held up twice at most: on NMKR's one-pillar month
+  // the same posts came back again and again, and the month never finished.
+  const [{ refused } = { refused: 0 }] = await prisma.$queryRaw<
+    { refused: number }[]
+  >`
+    SELECT count(*)::int AS refused FROM "soko_bot_tool_call"
+    WHERE "capability" = 'update_social_post' AND "status" = 'FAILED'
+      AND "input" LIKE ${`%${input.postId}%`}
+      AND "errorDetail"::text LIKE ${`%${OPENING_REFUSAL}%`}
+  `;
+  if (refused >= MAX_OPENING_REFUSALS) return { problem: null, costUsd: 0 };
   const opening = linkedInOpening(input.text);
   try {
     const { answers, costUsd } = await evaluate({
@@ -795,7 +799,7 @@ export async function linkedInOpeningProblem(
     return {
       problem: passed
         ? null
-        : `Rewrite the post's first line: "${opening}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
+        : `${OPENING_REFUSAL}: "${opening}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
       costUsd,
     };
   } catch {
@@ -808,13 +812,8 @@ export async function linkedInOpeningProblem(
  * How much closer to another piece's claim than to its own a post must be
  * to argue that one instead (cmo-v8), and how close at least.
  */
-export const CLAIM_MARGIN = 0.05;
+export const CLAIM_MARGIN = 0.15;
 export const CLAIM_FLOOR = 0.6;
-
-const claimOf = (planning: unknown) => {
-  const claim = (planning as { claim?: unknown } | null)?.claim;
-  return typeof claim === "string" && claim.trim() ? claim.trim() : null;
-};
 
 /**
  * A post whose words argue another piece's claim rather than its own: the

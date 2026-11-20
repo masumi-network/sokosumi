@@ -3004,69 +3004,27 @@ describe("social posts service", () => {
       expect(result.problem).toBeNull();
     });
 
-    // cmo-v8: posts with other words and the same point passed the word
-    // compare on NMKR's month (2026-11-20); each piece argues its own claim.
-    it("refuses a post that argues another piece's claim instead of its own", async () => {
-      socialPostFindFirstMock.mockResolvedValue({
-        marketingStrategyId: "version-1",
-        planning: { id: "stake", claim: "Staking rewards arrive every epoch" },
-      });
-      socialPostFindManyMock.mockResolvedValue([
-        // Not written yet: its claim still counts.
-        {
-          text: "Governance",
-          planning: {
-            title: "Governance",
-            claim: "Holders vote on governance proposals",
-          },
-        },
-      ]);
-      const { ownMessageProblem } = await loadService();
-
-      const off = await ownMessageProblem(
-        {
-          postId: POST_ID,
-          workspaceId: WORKSPACE_ID,
-          text: "Every holder can vote on the next governance step.",
-        },
+    // cmo-v8's month review: words that argue another piece's claim rather
+    // than its own. On saves it refused 229 posts of NMKR's one-pillar month
+    // and the month never finished, so only the review asks it.
+    it("names a text that argues another piece's claim clearly more than its own", async () => {
+      const { otherClaimArgued } = await loadService();
+      const off = await otherClaimArgued(
+        "Every holder can vote on the next governance step.",
+        "Staking rewards arrive every epoch",
+        ["Holders vote on governance proposals"],
         embed,
       );
-      expect(off.problem).toBe(
-        'Rewrite the post: it argues another piece\'s claim ("Holders vote on governance proposals"), not its own ("Staking rewards arrive every epoch"). Make the post argue its own claim.',
+      expect(off.problem).toContain(
+        'it argues another piece\'s claim ("Holders vote on governance proposals")',
       );
-
-      const own = await ownMessageProblem(
-        {
-          postId: POST_ID,
-          workspaceId: WORKSPACE_ID,
-          text: "Rewards land in your wallet every epoch.",
-        },
+      const own = await otherClaimArgued(
+        "Rewards land in your wallet every epoch.",
+        "Staking rewards arrive every epoch",
+        ["Holders vote on governance proposals"],
         embed,
       );
       expect(own.problem).toBeNull();
-    });
-
-    it("compares no claims on a plan without them", async () => {
-      socialPostFindFirstMock.mockResolvedValue({
-        marketingStrategyId: "version-1",
-        planning: { id: "stake" },
-      });
-      socialPostFindManyMock.mockResolvedValue([
-        {
-          text: "Governance",
-          planning: { title: "Governance", claim: "Holders vote on proposals" },
-        },
-      ]);
-      const { ownMessageProblem } = await loadService();
-      const result = await ownMessageProblem(
-        {
-          postId: POST_ID,
-          workspaceId: WORKSPACE_ID,
-          text: "Every holder can vote on the next governance step.",
-        },
-        embed,
-      );
-      expect(result.problem).toBeNull();
     });
 
     it("checks nothing for a post outside a marketing month", async () => {
@@ -3086,6 +3044,9 @@ describe("social posts service", () => {
   // cmo-v8: cal.com's LinkedIn posts (2026-11-20) opened on advice and
   // failed Jev's hook rule on 2 of 2 runs.
   describe("linkedInOpeningProblem", () => {
+    beforeEach(() => {
+      queryRawMock.mockResolvedValue([{ refused: 0 }]);
+    });
     const jev = (probability: number) =>
       vi.fn(async () => ({
         answers: new Map([["hook", { type: "boolean", probability }]]),
@@ -3139,6 +3100,24 @@ describe("social posts service", () => {
         marketingStrategyId: "version-1",
         provider: "x",
       });
+      const evaluate = jev(0.1);
+      expect(
+        await linkedInOpeningProblem(
+          { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Tips." },
+          evaluate as never,
+        ),
+      ).toEqual({ problem: null, costUsd: 0 });
+      expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    // NMKR's month stalled on the same posts refused again and again.
+    it("lets an opening through after it was refused twice", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      queryRawMock.mockResolvedValue([{ refused: 2 }]);
+      const { linkedInOpeningProblem } = await loadService();
       const evaluate = jev(0.1);
       expect(
         await linkedInOpeningProblem(
