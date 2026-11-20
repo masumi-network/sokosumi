@@ -4845,6 +4845,12 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
                 item.previous.from = new Date(item.previous.from);
                 item.previous.to = new Date(item.previous.to);
             }
+            if (item.pageDiscovery) {
+                item.pageDiscovery.recent.from = new Date(item.pageDiscovery.recent.from);
+                item.pageDiscovery.recent.to = new Date(item.pageDiscovery.recent.to);
+                item.pageDiscovery.previous.from = new Date(item.pageDiscovery.previous.from);
+                item.pageDiscovery.previous.to = new Date(item.pageDiscovery.previous.to);
+            }
             if (item.history) {
                 item.history.from = new Date(item.history.from);
                 item.history.to = new Date(item.history.to);

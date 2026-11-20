@@ -161,7 +161,8 @@ export function validateSeoAnalysis(
   if (
     (input.allowLimitedAudit ||
       input.searchConsolePropertyId ||
-      input.includeSitemaps) &&
+      input.includeSitemaps ||
+      input.includePropertyTotals) &&
     input.kind !== "audit_full"
   )
     throw badRequest("Search Console audit choices apply only to a full audit");
@@ -357,6 +358,8 @@ export async function requestProjectSeoAnalysis(
       requestProjectSeoAnalysisInTransaction(actor, input, tx, hooks, {
         searchConsoleAccess: {
           ...proof,
+          ...(input.includePageDiscovery && { includePageDiscovery: true }),
+          ...(input.includePropertyTotals && { includePropertyTotals: true }),
           ...(input.includeSitemaps && { includeSitemaps: true }),
         },
         pages: ready.pages,

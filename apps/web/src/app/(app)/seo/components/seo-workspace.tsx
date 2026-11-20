@@ -65,7 +65,7 @@ import {
   useSeoDateFields,
 } from "./seo-scope-bar";
 import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
-import { SeoEmpty, SeoPageLink } from "./seo-shared";
+import { SeoEmpty, SeoFoldSummary, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { SeoTraffic } from "./seo-traffic";
@@ -552,9 +552,23 @@ export function SeoWorkspace({
             </TabsContent>
             {/* What to do first, then what the checks found: the health of the site stands under its fixes. */}
             <TabsContent value="actions" className="stagger space-y-6">
-              <SeoSummaryTiles workspace={model.data} filters={model.filters} />
               <SeoActions model={model} />
-              <SeoIndexStatus workspace={model.data} />
+              {model.data.observations.length > 0 ||
+              model.data.indexStatus?.pages.length ||
+              model.data.indexTriage?.assessments.length ? (
+                <details className={cn(HOLDER_CLASS, "min-w-0")}>
+                  <SeoFoldSummary className="min-h-11 justify-between px-4 py-2 text-sm font-medium">
+                    {t("actions.checkDetails")}
+                  </SeoFoldSummary>
+                  <div className="min-w-0 space-y-5 border-t p-3 sm:p-4">
+                    <SeoSummaryTiles
+                      workspace={model.data}
+                      filters={model.filters}
+                    />
+                    <SeoIndexStatus workspace={model.data} />
+                  </div>
+                </details>
+              ) : null}
               <SeoHealth model={model} />
             </TabsContent>
           </div>

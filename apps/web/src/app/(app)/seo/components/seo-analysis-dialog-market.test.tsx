@@ -282,6 +282,8 @@ describe("Search Console audit launch", () => {
       );
       const first = monitor ? initial.analysis : initial;
       const next = monitor ? limited.analysis : limited;
+      expect(first.includePropertyTotals).toBe(true);
+      expect(next.includePropertyTotals).toBeUndefined();
       expect(first.includeSitemaps).toBe(true);
       expect(next.includeSitemaps).toBeUndefined();
       expect(first.allowLimitedAudit).toBeUndefined();
@@ -336,14 +338,19 @@ describe("uncertain audit launches", () => {
     ).toBeUndefined();
   });
 
-  it.each([false, true])(
-    "keeps a changed sitemap choice separate from an uncertain request (monitor %s)",
-    async (monitor) => {
+  it.each([
+    [false, "includeSitemaps"],
+    [true, "includeSitemaps"],
+    [false, "includePropertyTotals"],
+    [true, "includePropertyTotals"],
+  ] as const)(
+    "keeps a changed private data choice separate from an uncertain request (monitor %s, %s)",
+    async (monitor, field) => {
       mutate.mockRejectedValueOnce(new Error("Response lost after commit"));
       const user = userEvent.setup();
       const dialog = showDialog(workspace(), monitor);
       const choice = within(dialog).getByRole("checkbox", {
-        name: messages.App.Seo.analysis.includeSitemaps,
+        name: messages.App.Seo.analysis[field],
       });
       const start = within(dialog).getByRole("button", {
         name: monitor
@@ -366,10 +373,14 @@ describe("uncertain audit launches", () => {
       await user.click(start);
       const first = mutate.mock.calls[0][0].command.body;
       const changed = mutate.mock.calls[2][0].command.body;
-      expect((monitor ? first.analysis : first).includeSitemaps).toBe(true);
-      expect(
-        (monitor ? changed.analysis : changed).includeSitemaps,
-      ).toBeUndefined();
+      expect((monitor ? first.analysis : first).includePageDiscovery).toBe(
+        true,
+      );
+      expect((monitor ? changed.analysis : changed).includePageDiscovery).toBe(
+        field === "includePropertyTotals" ? undefined : true,
+      );
+      expect((monitor ? first.analysis : first)[field]).toBe(true);
+      expect((monitor ? changed.analysis : changed)[field]).toBeUndefined();
       expect((monitor ? changed.analysis : changed).idempotencyKey).not.toBe(
         (monitor ? first.analysis : first).idempotencyKey,
       );

@@ -30,14 +30,9 @@ export function SeoResearchDetails({
             {t(`summary.researchDetails.${firstScreen.state}`)}
           </p>
           <p className="text-muted-foreground text-sm">{firstScreen.reason}</p>
-          <p className="break-all text-xs text-muted-foreground">
-            {t("summary.researchDetails.evidenceRecord", {
-              record: firstScreen.record,
-            })}
-          </p>
         </details>
       )}
-      {trends && (
+      {trends && trends.keywords.length > 0 && (
         <details className="mt-2" lang="en">
           <SeoFoldSummary>{t("summary.researchDetails.trends")}</SeoFoldSummary>
           <p className="my-2 text-sm text-muted-foreground">{trends.note}</p>

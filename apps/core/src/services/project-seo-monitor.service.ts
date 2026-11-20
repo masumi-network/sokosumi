@@ -110,6 +110,8 @@ export async function createProjectSeoMonitor(
     searchConsolePropertyId,
     allowLimitedAudit,
     includeSitemaps,
+    includePropertyTotals,
+    includePageDiscovery,
     ...publicAnalysis
   } = preparedAnalysis;
   const approveCoverage =
@@ -125,6 +127,8 @@ export async function createProjectSeoMonitor(
           searchConsolePropertyId,
         )
       : null;
+  if (access && includePageDiscovery) access.includePageDiscovery = true;
+  if (access && includePropertyTotals) access.includePropertyTotals = true;
   if (access && includeSitemaps) access.includeSitemaps = true;
   const analysis = requestSeoAnalysisSchema.parse({
     ...publicAnalysis,
@@ -163,6 +167,8 @@ export async function createProjectSeoMonitor(
         requestIdentity: {
           searchConsolePropertyId,
           allowLimitedAudit,
+          ...(includePageDiscovery && { includePageDiscovery }),
+          ...(includePropertyTotals && { includePropertyTotals }),
           ...(includeSitemaps && { includeSitemaps }),
         },
         saveApproval: async (tx, scheduleId) => {
@@ -268,11 +274,14 @@ export async function approveManualSeoRun(
         );
   if (
     access &&
-    saved?.includeSitemaps &&
+    saved &&
     access.connectionVersion === saved.connectionVersion &&
     access.propertyId === saved.propertyId
-  )
-    access.includeSitemaps = true;
+  ) {
+    if (saved.includeSitemaps) access.includeSitemaps = true;
+    if (saved.includePageDiscovery) access.includePageDiscovery = true;
+    if (saved.includePropertyTotals) access.includePropertyTotals = true;
+  }
   return { pages: pages.map(({ id, url }) => ({ id, url })), access };
 }
 

@@ -397,6 +397,18 @@ export function SeoAnalysisDialog({
               {t("analysis.publicLinkScope", { limit: SEO_MAX_PAGES })}
             </p>
           )}
+          {full && (
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="seo-include-property-totals"
+                name="includePropertyTotals"
+                defaultChecked
+              />
+              <Label htmlFor="seo-include-property-totals">
+                {t("analysis.includePropertyTotals")}
+              </Label>
+            </div>
+          )}
           {full ? (
             <div className="flex items-start gap-2">
               <Checkbox
