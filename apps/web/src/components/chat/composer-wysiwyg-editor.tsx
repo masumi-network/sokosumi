@@ -49,7 +49,6 @@ import {
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
-import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -249,7 +248,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const listRef = useRef<HTMLDivElement>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
-  const blurTimeout = useScheduledTimeout();
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const manualMentionOpenRef = useRef(false);
   const savedCaretOffsetRef = useRef<number | null>(null);
   const onActiveFormatsChangeRef = useRef(onActiveFormatsChange);
@@ -925,7 +924,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
     if (!editor) return;
     // Toolbar clicks blur the editor first; cancel that close so the picker
     // does not open then immediately dismiss.
-    blurTimeout.cancel();
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
     const hadEditorSelection = getCaretOffset(editor) != null;
     editor.focus();
     if (!hadEditorSelection) {
@@ -944,7 +946,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       nextTriggerPosition: getSuggestionPopupPosition(editor, "mention"),
       nextActiveIndex: 0,
     });
-  }, [blurTimeout, getSuggestionPopupPosition, openSuggestions]);
+  }, [getSuggestionPopupPosition, openSuggestions]);
 
   const getLiveSuggestionAtCaret = useCallback(() => {
     if (!editorRef.current) return null;
@@ -1265,7 +1267,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     // Sync flush so Send click (blur → submit same tick) sees emoji in parent state.
     // Suggestion-close stays deferred so listbox mousedown can set isSelectingRef.
     tryFlushTrailingEmoticon();
-    blurTimeout.schedule(() => {
+    blurTimeoutRef.current = setTimeout(() => {
       if (!isSelectingRef.current) {
         closeSuggestions();
         onBlur?.();
@@ -1274,7 +1276,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       publishActiveFormats();
     }, 150);
   }, [
-    blurTimeout,
     closeSuggestions,
     onBlur,
     publishActiveFormats,
@@ -1333,6 +1334,14 @@ export function ComposerWysiwygEditor<TData = unknown>({
     },
     true,
   );
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useImperativeHandle(
     ref,

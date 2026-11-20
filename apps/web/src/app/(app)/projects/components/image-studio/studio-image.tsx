@@ -2,10 +2,9 @@
 
 import type { StudioLogoPosition } from "@sokosumi/core-client";
 import { ImageOff, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { cn } from "@/lib/utils";
 
 import type { PlacementRatio } from "./studio-placements";
@@ -85,7 +84,13 @@ export function StudioImage({
   const reload = current?.reload ?? 0;
   const outcome = current?.outcome ?? null;
 
-  const retryTimeout = useScheduledTimeout();
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    },
+    [],
+  );
 
   const base = assetContentUrl(asset, { logo: logoPosition, placement });
 
@@ -116,7 +121,8 @@ export function StudioImage({
       // Quietly, and only once. A short delay rather than an immediate refetch
       // because the common cause is contention, and retrying into it is how one
       // slow load becomes two.
-      retryTimeout.schedule(() => {
+      retryTimer.current = setTimeout(() => {
+        retryTimer.current = null;
         setState({ assetId: asset.id, attempt: 1, reload, outcome: null });
       }, RETRY_DELAY_MS);
       return;

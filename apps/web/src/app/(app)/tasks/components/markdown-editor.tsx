@@ -46,7 +46,6 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
-import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { cn } from "@/lib/utils";
 import { clearComposerFormat } from "@/lib/utils/composer-clear-format";
 import {
@@ -262,7 +261,7 @@ export const MarkdownEditor = forwardRef<
   const savedSelectionRangeRef = useRef<Range | null>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
-  const blurTimeout = useScheduledTimeout();
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -773,13 +772,13 @@ export const MarkdownEditor = forwardRef<
   );
 
   const handleBlur = useCallback(() => {
-    blurTimeout.schedule(() => {
+    blurTimeoutRef.current = setTimeout(() => {
       if (!isSelectingRef.current) {
         closeSuggestions();
       }
       isSelectingRef.current = false;
     }, 150);
-  }, [blurTimeout, closeSuggestions]);
+  }, [closeSuggestions]);
 
   const handleItemMouseDown = useCallback(() => {
     isSelectingRef.current = true;
@@ -800,6 +799,14 @@ export const MarkdownEditor = forwardRef<
     );
     activeItem?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const updateSelectionToolbar = useCallback(() => {
     if (variant !== "document") {
