@@ -62,7 +62,9 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useFormatToolbarOpenPreference } from "@/hooks/effects/use-format-toolbar-open-preference";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { transcribeVoiceRecording } from "@/lib/services/voice-transcription.browser";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
@@ -356,6 +358,17 @@ export function RoomComposer({
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
   const formRef = useRef<HTMLFormElement | null>(null);
+  const [form, setForm] = useState<HTMLFormElement | null>(null);
+  const attachForm = useCallback((node: HTMLFormElement | null) => {
+    formRef.current = node;
+    setForm(node);
+    if (!node) return;
+    return () => {
+      formRef.current = null;
+      setForm(null);
+      document.documentElement.style.removeProperty("--toast-bottom-offset");
+    };
+  }, []);
   const editorRef = useRef<ComposerWysiwygEditorHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUploadingFilesRef = useRef(false);
@@ -402,31 +415,23 @@ export function RoomComposer({
   );
 
   // Keep toasts just above the composer (incl. mobile keyboard).
-  useEffect(() => {
-    const form = formRef.current;
-    if (!form) {
+  const updateToastOffset = () => {
+    if (!form || formRef.current !== form || !form.isConnected) {
       return;
     }
-    const root = document.documentElement;
-    const update = () => {
-      const top = form.getBoundingClientRect().top;
-      root.style.setProperty(
-        "--toast-bottom-offset",
-        `${Math.max(0, window.innerHeight - top) + 8}px`,
-      );
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(form);
-    window.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("resize", update);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("resize", update);
-      root.style.removeProperty("--toast-bottom-offset");
-    };
-  }, []);
+    const top = form.getBoundingClientRect().top;
+    document.documentElement.style.setProperty(
+      "--toast-bottom-offset",
+      `${Math.max(0, window.innerHeight - top) + 8}px`,
+    );
+  };
+  useResizeObserver(form, updateToastOffset, { immediate: true });
+  useEventListener(form ? "window" : null, "resize", updateToastOffset);
+  useEventListener(
+    form ? window.visualViewport : null,
+    "resize",
+    updateToastOffset,
+  );
 
   // Re-run when focusOnMount flips true (e.g. progressive history ready).
   useEffect(() => {
@@ -624,7 +629,7 @@ export function RoomComposer({
       <RoomMessageComposer
         typingLine={typingLine}
         aboveCard={aboveCard}
-        formRef={formRef}
+        formRef={attachForm}
         onSubmit={onSubmit}
         withOuterPadding={false}
         withSafeAreaPadding

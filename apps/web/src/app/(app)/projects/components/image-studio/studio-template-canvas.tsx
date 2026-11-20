@@ -10,8 +10,9 @@ import {
 } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import { useAnimationFrame } from "@/hooks/effects/use-animation-frame";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { STUDIO_EMPTY_ADS } from "./studio-empty-ads";
 import { TemplateButton } from "./studio-template-picker";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
@@ -59,7 +60,7 @@ export function StudioTemplateCanvas(props: TemplateCanvasProps) {
 }
 
 function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvas, setCanvas] = useState<HTMLDivElement | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const columnsRef = useRef<(HTMLDivElement | null)[]>([]);
   const offset = useRef({ x: 0, y: 0 });
@@ -101,10 +102,10 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
     }
   });
 
-  useMountEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const resize = () => {
+  useResizeObserver(
+    canvas,
+    () => {
+      if (!canvas) return;
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       setWall((current) =>
@@ -112,12 +113,14 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
           ? current
           : buildStudioWall({ width, height }),
       );
-    };
-    const observer = new ResizeObserver(resize);
-    observer.observe(canvas);
-    resize();
+    },
+    { immediate: true },
+  );
 
-    function handleWheel(event: WheelEvent) {
+  useEventListener(
+    canvas,
+    "wheel",
+    (event) => {
       if (event.ctrlKey || event.metaKey || drag.current) return;
       event.preventDefault();
       const factor =
@@ -127,14 +130,9 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
             ? wallRef.current.height
             : 1;
       pan(-event.deltaX * factor, -event.deltaY * factor);
-    }
-
-    canvas.addEventListener("wheel", handleWheel, { passive: false });
-    return () => {
-      observer.disconnect();
-      canvas.removeEventListener("wheel", handleWheel);
-    };
-  });
+    },
+    { passive: false },
+  );
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0 || drag.current) return;
@@ -200,7 +198,7 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        ref={canvasRef}
+        ref={setCanvas}
       >
         <div
           className="absolute top-0 left-0 flex"
