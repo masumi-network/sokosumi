@@ -9194,7 +9194,9 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "Noch keine sofort startbaren Tasks. Starte einen neuen Task und beschreibe, was du brauchst."
+        "coworkerNoOffers": "Noch keine sofort startbaren Tasks. Starte einen neuen Task und beschreibe, was du brauchst.",
+        "coworkersFound": "{count, plural, =0 {Keine Coworker passen zu deiner Suche} one {# Coworker passt zu deiner Suche} other {# Coworker passen zu deiner Suche}}",
+        "noCoworkers": "Gerade sind keine Coworker verfügbar."
       },
       "Jobs": {
         "switchedWorkspace": "Zu {account}-Account gewechselt",
@@ -9234,7 +9236,8 @@
           "coworkers": "Coworker",
           "agents": "Agents"
         }
-      }
+      },
+      "agentsFound": "{count, plural, =0 {Keine Agents passen zu deiner Suche} one {# Agent passt zu deiner Suche} other {# Agents passen zu deiner Suche}}"
     },
     "EmailVerificationNotice": {
       "title": "Bestätige deine E-Mail-Adresse",

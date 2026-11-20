@@ -15,7 +15,10 @@ import {
   type OfferItem,
 } from "@/components/agents/coworker-gallery-results";
 import { CoworkerGallerySearch } from "@/components/agents/coworker-gallery-search";
-import { GalleryGroupHeading } from "@/components/agents/gallery-group-heading";
+import {
+  GalleryGroupHeading,
+  GalleryResultsStatus,
+} from "@/components/agents/gallery-group-heading";
 import {
   GALLERY_DIVIDER_CLASS,
   GALLERY_HERO_BAND_CLASS,
@@ -488,10 +491,8 @@ function CoworkerGallerySectionInner({
     [sortedCoworkers, q],
   );
 
-  if (!coworkers.length) {
-    return null;
-  }
-
+  // No early return without coworkers: the hero holds the page's only search
+  // and Show control, which the agent catalog needs too.
   // While searching, show everything; otherwise cap the number of companies.
   const isSearching = q !== "";
   const visibleGroups =
@@ -499,6 +500,10 @@ function CoworkerGallerySectionInner({
       ? vendorGroups
       : vendorGroups.slice(0, VENDOR_CAP);
   const canShowMoreCompanies = !isSearching && vendorGroups.length > VENDOR_CAP;
+  const matchingCoworkers = vendorGroups.reduce(
+    (total, group) => total + group.coworkers.length,
+    0,
+  );
 
   return (
     <section className="space-y-12 md:space-y-16">
@@ -538,11 +543,23 @@ function CoworkerGallerySectionInner({
             }}
           >
             {GALLERY_SCOPES.map((option) => (
-              <ToggleGroupItem key={option} value={option}>
+              // flex-none: each option sizes to its label and keeps its px-3.
+              <ToggleGroupItem
+                key={option}
+                value={option}
+                className="flex-none"
+              >
                 {tScope(option)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
+          <GalleryResultsStatus
+            message={
+              isSearching && scope !== "agents"
+                ? t("coworkersFound", { count: matchingCoworkers })
+                : ""
+            }
+          />
           {suggestions.length > 0 ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
               {suggestions.map((suggestion) => (
@@ -567,14 +584,7 @@ function CoworkerGallerySectionInner({
         <div className="space-y-8">
           <GalleryGroupHeading
             title={t("coworkersTitle")}
-            count={
-              isSearching
-                ? vendorGroups.reduce(
-                    (total, group) => total + group.coworkers.length,
-                    0,
-                  )
-                : undefined
-            }
+            count={isSearching ? matchingCoworkers : undefined}
           />
           <div>
             {visibleGroups.map(
@@ -629,9 +639,9 @@ function CoworkerGallerySectionInner({
             </div>
           ) : null}
         </div>
-      ) : scope === "coworkers" && isSearching ? (
+      ) : scope === "coworkers" ? (
         <p className="text-muted-foreground text-center text-sm">
-          {t("noResults")}
+          {isSearching ? t("noResults") : t("noCoworkers")}
         </p>
       ) : null}
 

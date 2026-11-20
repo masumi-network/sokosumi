@@ -22,7 +22,7 @@ interface FilterSectionProps {
 export default function FilterSection({ categories }: FilterSectionProps) {
   const t = useTranslations("App.Agents.FilterSection");
   const {
-    query,
+    catalogQuery: query,
     categories: appliedCategories,
     kind,
     setCategories: setAppliedCategories,

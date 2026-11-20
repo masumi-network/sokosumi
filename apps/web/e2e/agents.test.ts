@@ -86,6 +86,11 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page
         .getByRole("heading", { name: /^Browse all agents · \d+$/ })
         .waitFor();
+      // Screen readers hear the new count while focus stays in the field.
+      await page
+        .getByRole("status")
+        .filter({ hasText: /\d+ agents? match|No agents match/ })
+        .waitFor();
       assert.equal(
         await page.getByRole("heading", { name: /^Your AI coworkers/ }).count(),
         0,

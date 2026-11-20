@@ -13,8 +13,9 @@ import {
 export default function useGalleryFilter() {
   // One search for the whole Agents page: the hero field writes `query`, and
   // both the coworker gallery and the agent catalog filter by it. Links from
-  // before carry the catalog's old `agentQuery`; it still filters until the
-  // next search moves it to `query`.
+  // before the single search may carry the catalog's own `agentQuery`: the
+  // catalog keeps filtering by it (and the field shows it when `query` is
+  // empty) until the next edit writes one `query` for both.
   const [currentQuery, setCurrentQuery] = useQueryState("query", {
     defaultValue: "",
   });
@@ -22,6 +23,7 @@ export default function useGalleryFilter() {
     defaultValue: "",
   });
   const query = currentQuery || legacyQuery;
+  const catalogQuery = legacyQuery || currentQuery;
   const setQuery = (value: string) => {
     void setLegacyQuery(null);
     return setCurrentQuery(value);
@@ -47,6 +49,7 @@ export default function useGalleryFilter() {
 
   return {
     query,
+    catalogQuery,
     scope,
     categories,
     kind,

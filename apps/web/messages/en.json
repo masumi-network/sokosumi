@@ -9230,7 +9230,9 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need."
+        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need.",
+        "coworkersFound": "{count, plural, =0 {No coworkers match your search} one {# coworker matches your search} other {# coworkers match your search}}",
+        "noCoworkers": "No coworkers to show right now."
       },
       "Jobs": {
         "switchedWorkspace": "Switched to {account} account",
@@ -9270,7 +9272,8 @@
           "coworkers": "Coworkers",
           "agents": "Agents"
         }
-      }
+      },
+      "agentsFound": "{count, plural, =0 {No agents match your search} one {# agent matches your search} other {# agents match your search}}"
     },
     "DesignMd": {
       "adHocDialogTitle": "Use a different brand",

@@ -8,7 +8,10 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents/agents";
-import { GalleryGroupHeading } from "@/components/agents/gallery-group-heading";
+import {
+  GalleryGroupHeading,
+  GalleryResultsStatus,
+} from "@/components/agents/gallery-group-heading";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import type { GalleryFilterState } from "@/lib/agents/gallery-filter";
@@ -17,6 +20,7 @@ import { filterAgents } from "@/lib/helpers/agent-filter";
 import { groupAgentsByCategory } from "@/lib/helpers/agent-grouping";
 import type { Category } from "@/lib/types/category";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
+import { cn } from "@/lib/utils";
 
 interface FilteredAgentsProps {
   agents: CatalogBrowseAgent[];
@@ -42,8 +46,9 @@ function FilteredAgentsInner({
   subtitle,
 }: FilteredAgentsProps) {
   const t = useTranslations("Components.Agents");
+  const tAgents = useTranslations("App.Agents");
   const {
-    query,
+    catalogQuery: query,
     scope,
     categories: selectedCategories,
     kind,
@@ -67,16 +72,34 @@ function FilteredAgentsInner({
     return <AgentsNotAvailable />;
   }
 
+  const isSearching = query.trim() !== "";
+  const status = (
+    <GalleryResultsStatus
+      message={
+        isSearching && scope !== "coworkers"
+          ? tAgents("agentsFound", { count: filteredAgents.length })
+          : ""
+      }
+    />
+  );
+
   if (scope === "coworkers") {
-    return null;
+    return status;
   }
 
   return (
-    <section className="space-y-8">
+    // With Show = Agents the coworker group above is gone, so this section
+    // follows the hero directly; pull it up by the difference between the
+    // page's tier gap and the hero's gap to the first group (64/96 vs 48/64)
+    // so the heading sits where it does under All.
+    <section
+      className={cn("space-y-8", scope === "agents" && "-mt-4 md:-mt-8")}
+    >
+      {status}
       <GalleryGroupHeading
         title={title}
         subtitle={subtitle}
-        count={query.trim() ? filteredAgents.length : undefined}
+        count={isSearching ? filteredAgents.length : undefined}
       />
       <div className="flex flex-col gap-12">
         {/* Keep filter chrome mounted on empty matches so kind/search stay usable. */}
