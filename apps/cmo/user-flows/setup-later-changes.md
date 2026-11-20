@@ -3,6 +3,7 @@
 **Steps (any of these, any time)**
 
 - Adds or removes a channel in Channels.
+- Opens Settings from their avatar at the top of the sidebar (More on a phone).
 - Reads the CMO Terms, Privacy Policy, DPA and Imprint beside the subscription in Settings.
 - Changes the plan, tops up credits, opens billing.
 - Changes the time zone.
