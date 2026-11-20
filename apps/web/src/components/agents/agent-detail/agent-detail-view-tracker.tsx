@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { fireGTMEvent } from "@/lib/gtm-events";
+import { useTrackView } from "@/hooks/effects/use-track-view";
 import { getAgentName } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
@@ -10,9 +9,7 @@ interface AgentDetailViewTrackerProps {
 }
 
 export function AgentDetailViewTracker({ agent }: AgentDetailViewTrackerProps) {
-  useEffect(() => {
-    fireGTMEvent.viewAgent(getAgentName(agent));
-  }, [agent]);
+  useTrackView("view_agent", { agentName: getAgentName(agent) }, agent);
 
   return null;
 }
