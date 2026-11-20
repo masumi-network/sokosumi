@@ -214,6 +214,15 @@ function preferredId(wanted: string, input: VideoModel["input"]): string {
   return resolvedModels.find((model) => model.input === input)?.id ?? wanted;
 }
 
+export function studioVideoModelId(input: VideoModel["input"]): string {
+  return preferredId(
+    input === "image"
+      ? HIGH_QUALITY_ANIMATE_MODEL_ID
+      : HIGH_QUALITY_VIDEO_MODEL_ID,
+    input,
+  );
+}
+
 export function getVideoCatalog(): VideoCatalog {
   return {
     defaultModelId: preferredId(DEFAULT_VIDEO_MODEL_ID, "text"),

@@ -5,11 +5,11 @@ import {
   createContext,
   type ReactNode,
   useCallback,
-  useEffect,
   useEffectEvent,
   useRef,
 } from "react";
 
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { createAuthSessionGetter } from "@/lib/auth/auth.utils";
@@ -148,26 +148,16 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     };
   });
 
-  useEffect(() => {
-    function handleWindowFocus() {
+  useEventListener("window", "focus", () => {
+    void validateSession();
+  });
+
+  useEventListener("document", "visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      reloadAskedRef.current = false;
       void validateSession();
     }
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        reloadAskedRef.current = false;
-        void validateSession();
-      }
-    }
-
-    window.addEventListener("focus", handleWindowFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener("focus", handleWindowFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
+  });
 
   return (
     <AuthSessionIdentityContext value={registerRenderedUser}>

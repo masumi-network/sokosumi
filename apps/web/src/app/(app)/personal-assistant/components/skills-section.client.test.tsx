@@ -1,6 +1,17 @@
 import type { SokoBotInstalledSkill } from "@sokosumi/core-client";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render as rtlRender,
+  screen,
+} from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 const { removeMock, toastErrorMock } = vi.hoisted(() => ({
   removeMock: vi.fn(),

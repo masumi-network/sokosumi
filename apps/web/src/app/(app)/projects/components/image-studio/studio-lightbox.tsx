@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import { resolveModel, supportsVariation } from "./catalog";
+import { imageRepeatRoute, resolveModel } from "./catalog";
 import { StudioAdPreview } from "./studio-ad-preview";
 import type { StudioBatchDownloadReview } from "./studio-batch";
 import { StudioBatchCompareButton } from "./studio-batch-compare";
@@ -346,7 +346,9 @@ export function StudioLightbox({
                   {labels.writeCaption}
                 </Button>
               ) : null}
-              {onRegenerate && supportsVariation(catalog, single.model) ? (
+              {onRegenerate &&
+              !isVideoAsset(single) &&
+              imageRepeatRoute(catalog, single, 1) ? (
                 <Button
                   onClick={() => onRegenerate(single)}
                   size="sm"

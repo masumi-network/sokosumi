@@ -86,7 +86,7 @@ describe("agent catalog and generation HTTP contract", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         prompt: "Switch the product and keep the layout",
-        modelId: "flux-2-pro",
+        modelId: "ideogram-v3",
         idempotencyKey: "valid-key",
         parentAssetId: sourceId,
         referenceAssetIds: [sourceId],
@@ -153,7 +153,7 @@ describe("agent catalog and generation HTTP contract", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         prompt: "Change the headline",
-        modelId: "flux-2-pro",
+        modelId: "ideogram-v3",
         idempotencyKey: "valid-key",
         parentAssetId: sourceId,
         referenceAssetIds: [sourceId],
@@ -253,7 +253,7 @@ describe("agent catalog and generation HTTP contract", () => {
     createJob.mockResolvedValue({
       id: "job",
       status: "QUEUED",
-      model: "fal-ai/flux-2-pro",
+      model: "fal-ai/ideogram/v3",
       settings,
     });
     const response = await app.request("/generations", {
@@ -261,7 +261,7 @@ describe("agent catalog and generation HTTP contract", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         prompt: "A cup",
-        modelId: "flux-2-pro",
+        modelId: "ideogram-v3",
         ...settings,
         idempotencyKey: "valid-key",
       }),
@@ -269,18 +269,19 @@ describe("agent catalog and generation HTTP contract", () => {
     expect(response.status).toBe(200);
     expect(createJob).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelId: "flux-2-pro",
+        modelId: "ideogram-v3",
         settings,
         projectId: "project",
         userId: "user",
       }),
     );
     expect(await response.json()).toMatchObject({
-      job: { model: "fal-ai/flux-2-pro", settings },
+      job: { model: "fal-ai/ideogram/v3", settings },
     });
   });
 
   it.each([
+    { modelId: "flux-2-pro" },
     { modelId: "fal-ai/arbitrary" },
     { resolution: 2000 },
     { aspectRatio: false },
@@ -306,7 +307,7 @@ describe("agent catalog and generation HTTP contract", () => {
     getJob.mockResolvedValue({
       id: "job",
       status: "SUCCEEDED",
-      model: "fal-ai/flux-2-pro",
+      model: "fal-ai/ideogram/v3",
       settings,
       assetId: "asset",
       error: null,
@@ -316,13 +317,13 @@ describe("agent catalog and generation HTTP contract", () => {
       id: "asset",
       version: 1,
       rootId: "asset",
-      model: "fal-ai/flux-2-pro",
+      model: "fal-ai/ideogram/v3",
       settings,
     });
     const response = await app.request("/generations/job");
     expect(await response.json()).toMatchObject({
-      job: { model: "fal-ai/flux-2-pro", settings },
-      version: { model: "fal-ai/flux-2-pro", settings },
+      job: { model: "fal-ai/ideogram/v3", settings },
+      version: { model: "fal-ai/ideogram/v3", settings },
     });
   });
 

@@ -8,6 +8,7 @@ import {
   type ReactNode,
   type Ref,
   useRef,
+  useState,
 } from "react";
 
 import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
@@ -15,9 +16,9 @@ import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import { MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX } from "@/components/ui/mention-textarea-utils";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useKeyboardOpen } from "@/hooks/effects/use-keyboard-open";
 import { recordEmojiUse } from "@/hooks/use-frequently-used-emojis";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
@@ -220,7 +221,7 @@ function RoomComposerSendButton({
   testId,
   onPrepareSubmit,
 }: RoomComposerSendButtonProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [sendButton, setSendButton] = useState<HTMLButtonElement | null>(null);
   const lastPointerSubmitAtRef = useRef(Number.NEGATIVE_INFINITY);
 
   function requestComposerSubmit(form: HTMLFormElement | null) {
@@ -235,17 +236,14 @@ function RoomComposerSendButton({
   // pointerdown alone blurs and the visual viewport grows back, touchstart
   // alone keeps both). React registers `onTouchStart` passively, where
   // preventDefault is a silent no-op, so this has to be a native listener.
-  useMountEffect(() => {
-    const button = buttonRef.current;
-    if (!button) return;
-    const keepEditorFocus = (event: globalThis.TouchEvent) => {
+  useEventListener(
+    sendButton,
+    "touchstart",
+    (event) => {
       event.preventDefault();
-    };
-    button.addEventListener("touchstart", keepEditorFocus, { passive: false });
-    return () => {
-      button.removeEventListener("touchstart", keepEditorFocus);
-    };
-  });
+    },
+    { passive: false },
+  );
 
   function handleSendPointerDown(event: PointerEvent<HTMLButtonElement>) {
     // Covers pointer/mouse; touchstart above is what holds focus on iOS.
@@ -273,7 +271,7 @@ function RoomComposerSendButton({
 
   return (
     <Button
-      ref={buttonRef}
+      ref={setSendButton}
       type="button"
       variant="primary"
       size="icon"
