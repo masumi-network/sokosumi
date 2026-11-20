@@ -12478,6 +12478,10 @@
       "dateFrom": "Aktivität ab",
       "dateTo": "Aktivität bis",
       "invalidDates": "Wähle ein Enddatum am oder nach dem Startdatum.",
+      "menu": {
+        "google": "Google-Daten",
+        "audit": "Audit"
+      },
       "manage": "SEO verwalten",
       "addPage": "Seite hinzufügen",
       "createScope": "Seitenauswahl speichern",
@@ -13872,7 +13876,8 @@
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
       "runs": {
         "details": "Details",
-        "detailsOf": "Details vom {day}",
+        "previewOf": "Vorschau für {day}",
+        "noEvents": "In dieser Ansicht sind keine Ereignisdetails verfügbar.",
         "since": "Was nach dem {day} passiert ist.",
         "sinceStart": "Was bis zu diesem Tag passiert ist.",
         "sinceAll": "Alles, was bisher erfasst wurde.",
@@ -14271,8 +14276,12 @@
       },
       "improve": {
         "catalog": {
-          "title": "Grenzen des Agenten",
-          "help": "Was der Agent prüft, was fehlt und was du selbst erledigst."
+          "title": "Was der SEO-Agent kann",
+          "help": "Prüfungen, Empfehlungen und Deine Aufgaben.",
+          "checks": "Was er prüft",
+          "audit": "Prüft ausgewählte Seiten auf Ladezeit, Links und Indexierungsprobleme.",
+          "rankings": "Priorisiert Korrekturen und vergleicht mit verfügbaren Suchdaten Keywords und Wettbewerber.",
+          "traffic": "Zeigt Suchzugriffe und Schlüsselereignisse, wenn deine Google-Konten diese Daten liefern."
         },
         "groups": {
           "technical": "Technik",
@@ -14290,18 +14299,18 @@
         "copied": "Anfrage kopiert. Sende sie an das Sokosumi-Team.",
         "copyFailed": "Die Anfrage konnte nicht kopiert werden.",
         "summary": {
-          "title": "Das kannst du erwarten",
-          "site": "Prüfungen umfassen ausgewählte Seiten. Ein vollständiger Website-Crawl oder eine Migrationsprüfung erfordert weitere Arbeit.",
-          "content": "Der Agent schlägt Seitenänderungen vor. Vollständige Artikel und Inhaltspläne für die gesamte Website sind nicht enthalten.",
-          "research": "Detaillierte Linkrecherche, Rankings auf Stadtebene und die Nachverfolgung von Kontaktaufnahmen sind nicht enthalten.",
-          "measurement": "Unternehmensbewertungen, KI-Markenerwähnungen, Umsatz und die Wirkung jeder Änderung werden nicht vollständig erfasst.",
-          "publishing": "Du setzt Änderungen selbst um, prüfst Korrekturen nach und teilst Berichte mit Kunden."
+          "title": "Deine Aufgaben",
+          "site": "Vollständige Website-Crawls und Migrationen planen.",
+          "content": "Artikel schreiben und Inhalte für die gesamte Website planen.",
+          "research": "Backlinks und lokale Rankings untersuchen und Kontakte pflegen.",
+          "measurement": "Bewertungen, KI-Erwähnungen, Umsatz und die Wirkung einzelner Änderungen verfolgen.",
+          "publishing": "Änderungen vornehmen, erneut prüfen und Berichte teilen."
         },
         "gaps": {
           "noSearchTraffic": "Suchstatistiken sind noch nicht verfügbar. Ergebnisse zur Indexierung findest du in diesem Audit.",
           "statisticsIncomplete": "Einige Google-Statistiken fehlen. Der Agent kann nur die verfügbaren Daten bewerten.",
           "checksIncomplete": "Einige Prüfungen lieferten kein Ergebnis. Dieses Audit kann Probleme übersehen.",
-          "title": "Fehlende Audit-Daten",
+          "title": "Datenlücken in diesem Audit",
           "noSearchConsole": "Keine Daten aus der Search Console: Klicks, Suchanfragen und der Indexstatus bei Google werden nicht gemessen.",
           "noAnalytics": "Keine Daten aus Google Analytics: Besuche und Schlüsselereignisse werden nicht gemessen.",
           "statisticsUnavailable": "Die letzte Synchronisierung der Statistiken konnte die Daten nicht lesen.",

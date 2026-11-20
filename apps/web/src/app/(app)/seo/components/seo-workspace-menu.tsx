@@ -33,9 +33,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MIN_PAGES_FOR_SELECTIONS } from "./seo-pages";
 import { SeoReportFileSelection } from "./seo-report-files";
 import { useArchiveSeoAudit } from "./use-archive-seo-audit";
 import type { SeoReportFileProps } from "./use-seo-report-files";
@@ -148,6 +150,36 @@ export function SeoWorkspaceMenu({
             if (confirmingArchive || showResults) event.preventDefault();
           }}
         >
+          {(consoleVersions.length > 0 ||
+            model.data.availableActions.canSyncMetrics) && (
+            <>
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                {t("menu.google")}
+              </DropdownMenuLabel>
+              {consoleVersions.length > 0 && (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => setShowResults(true)}
+                >
+                  <ChartNoAxesCombined aria-hidden />
+                  {t("reportFiles.consoleResults")}
+                </DropdownMenuItem>
+              )}
+              {model.data.availableActions.canSyncMetrics ? (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => model.setDialog("statistics")}
+                >
+                  <Settings2 className="size-4" />
+                  {t("manageStatistics")}
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuSeparator />
+            </>
+          )}
+          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+            {t("menu.audit")}
+          </DropdownMenuLabel>
           {model.data.availableActions.canEdit ? (
             <DropdownMenuItem
               disabled={unavailable}
@@ -157,49 +189,6 @@ export function SeoWorkspaceMenu({
               {t("brief.title")}
             </DropdownMenuItem>
           ) : null}
-          {consoleVersions.length > 0 && (
-            <DropdownMenuItem
-              disabled={unavailable}
-              onSelect={() => setShowResults(true)}
-            >
-              <ChartNoAxesCombined aria-hidden />
-              {t("reportFiles.consoleResults")}
-            </DropdownMenuItem>
-          )}
-          {model.data.availableActions.canSyncMetrics ? (
-            <DropdownMenuItem
-              disabled={unavailable}
-              onSelect={() => model.setDialog("statistics")}
-            >
-              <Settings2 className="size-4" />
-              {t("manageStatistics")}
-            </DropdownMenuItem>
-          ) : null}
-          {model.data.availableActions.canEdit ? (
-            <>
-              <DropdownMenuItem
-                disabled={unavailable}
-                onSelect={() => model.setDialog("page")}
-              >
-                <Plus className="size-4" />
-                {t("addPage")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={unavailable || !model.data.pages.length}
-                onSelect={() => model.setDialog("scope")}
-              >
-                <ListPlus className="size-4" />
-                {t("createScope")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={unavailable || !model.data.scope.pageIds.length}
-                onSelect={() => model.setDialog("page_change")}
-              >
-                <PencilLine className="size-4" />
-                {t("pageChange.title")}
-              </DropdownMenuItem>
-            </>
-          ) : null}
           <DropdownMenuItem
             disabled={unavailable}
             onSelect={() => model.setDialog("improve")}
@@ -207,10 +196,46 @@ export function SeoWorkspaceMenu({
             <Lightbulb className="size-4" />
             {t("improve.catalog.title")}
           </DropdownMenuItem>
+          {model.data.availableActions.canEdit ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                {t("pages.title")}
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                disabled={unavailable}
+                onSelect={() => model.setDialog("page")}
+              >
+                <Plus className="size-4" />
+                {t("addPage")}
+              </DropdownMenuItem>
+              {model.data.pages.length >= MIN_PAGES_FOR_SELECTIONS && (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => model.setDialog("scope")}
+                >
+                  <ListPlus className="size-4" />
+                  {t("createScope")}
+                </DropdownMenuItem>
+              )}
+              {model.data.scope.pageIds.length > 0 && (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => model.setDialog("page_change")}
+                >
+                  <PencilLine className="size-4" />
+                  {t("pageChange.title")}
+                </DropdownMenuItem>
+              )}
+            </>
+          ) : null}
           {auditId ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setConfirmingArchive(true)}>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => setConfirmingArchive(true)}
+              >
                 <Archive aria-hidden />
                 {t("audits.archive")}
               </DropdownMenuItem>

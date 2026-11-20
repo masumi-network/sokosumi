@@ -12478,6 +12478,10 @@
       "dateFrom": "Activity from",
       "dateTo": "Activity to",
       "invalidDates": "Choose an end date on or after the start date.",
+      "menu": {
+        "google": "Google data",
+        "audit": "Audit"
+      },
       "manage": "Manage SEO",
       "addPage": "Add a page",
       "createScope": "Save page selection",
@@ -13872,7 +13876,8 @@
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
       "runs": {
         "details": "Details",
-        "detailsOf": "Details of {day}",
+        "previewOf": "Preview for {day}",
+        "noEvents": "No event details are available in this view.",
         "since": "What happened after {day}.",
         "sinceStart": "What happened up to this day.",
         "sinceAll": "Everything recorded so far.",
@@ -14271,8 +14276,12 @@
       },
       "improve": {
         "catalog": {
-          "title": "Agent limitations",
-          "help": "What the agent checks, what is missing, and what you do yourself."
+          "title": "What the SEO agent can do",
+          "help": "Checks, recommendations and work you handle.",
+          "checks": "What it checks",
+          "audit": "Checks selected pages for loading speed, links and indexing issues.",
+          "rankings": "Prioritizes fixes and uses available search data to compare keywords and competitors.",
+          "traffic": "Shows search traffic and key events when your Google accounts provide them."
         },
         "groups": {
           "technical": "Technical",
@@ -14290,18 +14299,18 @@
         "copied": "Request copied. Send it to the Sokosumi team.",
         "copyFailed": "Could not copy the request.",
         "summary": {
-          "title": "What to expect",
-          "site": "Checks cover selected pages. A full-site crawl or migration review needs separate work.",
-          "content": "The agent suggests page edits. Full articles and site-wide content plans are not included.",
-          "research": "Detailed link research, city rankings and outreach tracking are not included.",
-          "measurement": "Business reviews, AI brand mentions, revenue and the impact of each change are not fully tracked.",
-          "publishing": "You apply changes, recheck fixes and share client reports yourself."
+          "title": "What you handle",
+          "site": "Plan full-site crawls and migrations.",
+          "content": "Write articles and plan content across the site.",
+          "research": "Research backlinks and local rankings, and manage outreach.",
+          "measurement": "Track reviews, AI mentions, revenue and the effect of individual edits.",
+          "publishing": "Apply edits, run a follow-up check and share reports."
         },
         "gaps": {
           "noSearchTraffic": "Search traffic statistics are not available yet. Indexing results appear in this audit.",
           "statisticsIncomplete": "Some Google statistics are missing. The agent can only assess the data available.",
           "checksIncomplete": "Some checks did not return a result. This audit may miss issues.",
-          "title": "Missing audit data",
+          "title": "Gaps in this audit",
           "noSearchConsole": "No Search Console data: clicks, searches and Google's index state are not measured.",
           "noAnalytics": "No Google Analytics data: visits and key events are not measured.",
           "statisticsUnavailable": "The last statistics sync could not read the data.",

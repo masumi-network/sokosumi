@@ -43,7 +43,7 @@ const STOP_BUTTON_CLASS =
 /**
  * The checks of the site over the tabs, in a card of their own: the run on its title line, and a timeline of one
  * stop per day with its result, oldest on the left and the newest on the right, then a check in flight and the next
- * scheduled check. A press on a day shows the page as it was on that day. "Other dates" below the timeline opens a
+ * scheduled check. A press opens the preview, where the reader can choose the day or inspect its events. "Other dates" below the timeline opens a
  * calendar of the days with a check: both choose the time the page shows. It stands on every tab, so the days stand
  * at the same place on each.
  */
@@ -74,9 +74,13 @@ export function SeoRuns({
     setDetailsDay(day);
     setDetailsOpen(true);
   };
-  const hintIds = useId();
+  const [previewDay, setPreviewDay] = useState<string | null>(null);
+  const rangeTrigger = useRef<HTMLButtonElement>(null);
+  function changePreview(day: string, open: boolean) {
+    setPreviewDay((current) => (open ? day : current === day ? null : current));
+  }
   // Core sends the events of the period in view only: with an older day picked, the newer stops hold nothing, so
-  // they open no card and keep their hint.
+  // their preview can still offer to load the day.
   // The stops the row shows: the oldest of them also holds the older days. The key stands for days, a new array
   // each render. One more stop holds every event the page has: the details of a range the reader set, where Core
   // sends the events of the range only.
@@ -89,6 +93,7 @@ export function SeoRuns({
       ]),
     [model.data, shownDaysKey],
   );
+  if (previewDay && !stopsByDay.has(previewDay)) setPreviewDay(null);
   const stopOf = (day: string) =>
     stopsByDay.get(day) ?? { after: null, newest: false, nodes: [] };
   // The button the details came from: the stop of the card, which is gone when the dialog closes, or the footer button.
@@ -138,6 +143,7 @@ export function SeoRuns({
   // A refetch can take the open stop off the row: the dialog closes with it.
   const details = detailsDay ? stopsByDay.get(detailsDay) : undefined;
   if (detailsOpen && !details) setDetailsOpen(false);
+  if (previewDay === WHOLE && !ranged) setPreviewDay(null);
   // The stop whose details the footer opens: the day in view, or every event of a range.
   const detailsStop =
     !shown || model.invalidDates ? undefined : ranged ? WHOLE : inView?.day;
@@ -236,20 +242,25 @@ export function SeoRuns({
                       )}
                     />
                   ) : null}
-                  {entry.selected ? null : (
-                    <span id={`${hintIds}-${entry.day}`} hidden>
-                      {t("runs.showDay", { day: dayOf(entry.at) })}
-                    </span>
-                  )}
                   <SeoRunDayHover
                     workspace={model.data}
                     day={dayOf(entry.at, reportFormat)}
                     nodes={stopOf(entry.day).nodes}
-                    hint={
-                      entry.selected
-                        ? null
-                        : t("runs.showDay", { day: dayOf(entry.at) })
+                    issues={entry.issues}
+                    pinned={previewDay === entry.day}
+                    allowHover={!previewDay && !detailsOpen}
+                    previewLabel={t("runs.previewOf", { day: dayOf(entry.at) })}
+                    onPinnedChange={(open) => changePreview(entry.day, open)}
+                    onSelectDay={
+                      entry.selected && !ranged
+                        ? undefined
+                        : () =>
+                            void model.setFilters({
+                              from: null,
+                              to: entry.newest ? null : entry.day,
+                            })
                     }
+                    selectLabel={t("runs.showDay", { day: dayOf(entry.at) })}
                     onDetails={() => {
                       returnTo.current =
                         line.current
@@ -262,47 +273,10 @@ export function SeoRuns({
                       ref={entry.newest ? newestRef : undefined}
                       type="button"
                       aria-pressed={entry.selected}
-                      aria-haspopup={
-                        entry.selected &&
-                        hasDetails &&
-                        detailsStop === entry.day
-                          ? "dialog"
-                          : undefined
-                      }
-                      aria-description={
-                        entry.selected &&
-                        hasDetails &&
-                        detailsStop === entry.day
-                          ? t("runs.detailsOf", { day: dayOf(entry.at) })
-                          : undefined
-                      }
-                      // The hint says what a press does: the page as it was on that day. A stop with a card shows it in the
-                      // card; the keyboard, which opens no card, hears it as the description.
-                      title={
-                        entry.selected || stopOf(entry.day).nodes.length
-                          ? undefined
-                          : t("runs.showDay", { day: dayOf(entry.at) })
-                      }
-                      aria-describedby={
-                        entry.selected ? undefined : `${hintIds}-${entry.day}`
-                      }
-                      // The run in view is bright with a bright neutral dot; the others are muted. No accent: it is a fill only.
+                      aria-description={t("runs.previewOf", {
+                        day: dayOf(entry.at),
+                      })}
                       className={STOP_BUTTON_CLASS}
-                      onClick={(event) => {
-                        if (
-                          entry.selected &&
-                          hasDetails &&
-                          detailsStop === entry.day
-                        ) {
-                          returnTo.current = event.currentTarget;
-                          openDetails(entry.day);
-                          return;
-                        }
-                        void model.setFilters({
-                          from: null,
-                          to: entry.newest ? null : entry.day,
-                        });
-                      }}
                     >
                       <span
                         aria-hidden
@@ -414,18 +388,28 @@ export function SeoRuns({
               </span>
             ) : ranged ? (
               <span className="content-in">
-                {hasDetails && detailsStop === WHOLE ? (
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    className="hit-area focus-visible:ring-ring rounded-sm underline underline-offset-4 focus-visible:ring-2"
-                    onClick={(event) => {
-                      returnTo.current = event.currentTarget;
+                {hasDetails && detailsStop === WHOLE && rangeText ? (
+                  <SeoRunDayHover
+                    workspace={model.data}
+                    day={rangeOf(report, reportFormat) ?? rangeText}
+                    nodes={stopOf(WHOLE).nodes}
+                    previewLabel={rangeText}
+                    pinned={previewDay === WHOLE}
+                    allowHover={!previewDay && !detailsOpen}
+                    onPinnedChange={(open) => changePreview(WHOLE, open)}
+                    onDetails={() => {
+                      returnTo.current = rangeTrigger.current;
                       openDetails(WHOLE);
                     }}
                   >
-                    {rangeText}
-                  </button>
+                    <button
+                      type="button"
+                      ref={rangeTrigger}
+                      className="hit-area focus-visible:ring-ring rounded-sm underline underline-offset-4 focus-visible:ring-2"
+                    >
+                      {rangeText}
+                    </button>
+                  </SeoRunDayHover>
                 ) : (
                   rangeText
                 )}{" "}

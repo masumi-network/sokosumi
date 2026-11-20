@@ -12478,6 +12478,10 @@
       "dateFrom": "Actividad desde",
       "dateTo": "Actividad hasta",
       "invalidDates": "Elige una fecha final igual o posterior a la inicial.",
+      "menu": {
+        "google": "Datos de Google",
+        "audit": "Auditoría"
+      },
       "manage": "Gestionar SEO",
       "addPage": "Añadir una página",
       "createScope": "Guardar selección de páginas",
@@ -13872,7 +13876,8 @@
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
       "runs": {
         "details": "Detalles",
-        "detailsOf": "Detalles del {day}",
+        "previewOf": "Vista previa de {day}",
+        "noEvents": "No hay detalles de eventos disponibles en esta vista.",
         "since": "Lo que pasó después del {day}.",
         "sinceStart": "Lo que pasó hasta este día.",
         "sinceAll": "Todo lo registrado hasta ahora.",
@@ -14271,8 +14276,12 @@
       },
       "improve": {
         "catalog": {
-          "title": "Limitaciones del agente",
-          "help": "Qué revisa el agente, qué falta y qué debes hacer por tu cuenta."
+          "title": "Qué puede hacer el agente SEO",
+          "help": "Comprobaciones, recomendaciones y tareas a tu cargo.",
+          "checks": "Qué revisa",
+          "audit": "Revisa la velocidad, los enlaces y la indexación de las páginas seleccionadas.",
+          "rankings": "Prioriza las mejoras y compara palabras clave y competidores con los datos de búsqueda disponibles.",
+          "traffic": "Muestra el tráfico de búsqueda y los eventos clave cuando tus cuentas de Google aportan esos datos."
         },
         "groups": {
           "technical": "Técnica",
@@ -14290,18 +14299,18 @@
         "copied": "Solicitud copiada. Envíala al equipo de Sokosumi.",
         "copyFailed": "No se pudo copiar la solicitud.",
         "summary": {
-          "title": "Qué puedes esperar",
-          "site": "Las revisiones cubren las páginas seleccionadas. Un rastreo completo o una revisión de migración requiere trabajo adicional.",
-          "content": "El agente sugiere cambios en las páginas. No incluye artículos completos ni planes de contenido de todo el sitio.",
-          "research": "No incluye investigación detallada de enlaces, posiciones por ciudad ni seguimiento de contactos.",
-          "measurement": "Las reseñas del negocio, menciones de marca en IA, ingresos e impacto de cada cambio no se miden por completo.",
-          "publishing": "Tú aplicas los cambios, vuelves a revisar las correcciones y compartes informes con clientes."
+          "title": "Qué haces tú",
+          "site": "Planificar rastreos completos y migraciones del sitio.",
+          "content": "Escribir artículos y planificar el contenido del sitio.",
+          "research": "Investigar enlaces y posiciones locales, y gestionar los contactos.",
+          "measurement": "Medir reseñas, menciones en IA, ingresos y el efecto de cada cambio.",
+          "publishing": "Aplicar cambios, volver a comprobarlos y compartir informes."
         },
         "gaps": {
           "noSearchTraffic": "Las estadísticas de tráfico de búsqueda aún no están disponibles. Los resultados de indexación aparecen en esta auditoría.",
           "statisticsIncomplete": "Faltan algunas estadísticas de Google. El agente solo puede evaluar los datos disponibles.",
           "checksIncomplete": "Algunas revisiones no dieron resultados. Esta auditoría puede pasar por alto problemas.",
-          "title": "Datos que faltan en la auditoría",
+          "title": "Datos que faltan en esta auditoría",
           "noSearchConsole": "No hay datos de Search Console: no se miden los clics, las búsquedas ni el estado en el índice de Google.",
           "noAnalytics": "No hay datos de Google Analytics: no se miden las visitas ni los eventos clave.",
           "statisticsUnavailable": "La última sincronización de estadísticas no pudo leer los datos.",

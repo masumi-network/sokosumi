@@ -1891,6 +1891,7 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getByRole("button", { name: /^Jan 3/, pressed: true }),
     );
+    await user.click(screen.getByRole("button", { name: "Details" }));
     expect(
       within(await screen.findByRole("dialog"))
         .getAllByRole("link", { name: /View results$/ })
@@ -2094,6 +2095,9 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
     // With no range, the calendar boxes the day the page shows: a picked check, not the newest and not today.
     await user.click(within(runs).getByRole("button", { name: /^Nov 10/ }));
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 10" }),
+    );
     await user.click(dates);
     const picked = await screen.findByRole("dialog");
     expect(
@@ -2181,6 +2185,9 @@ describe("SEO workspace integration", () => {
     expect(earlier).not.toHaveTextContent("Current finding");
     await user.click(
       stops.getByRole("button", { name: /Jan 1 2 issues in this check/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Jan 1" }),
     );
     await waitFor(() =>
       expect(screen.getByTestId("seo-summary-issues")).toHaveTextContent(/^2/),
@@ -2483,6 +2490,9 @@ describe("SEO workspace integration", () => {
         "button",
         { name: /^Nov 10/ },
       ),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 10" }),
     );
     expect(screen.getByRole("heading", { name: "Fresh read" })).toBeVisible();
     // The page says that its numbers are not of the picked day yet.
@@ -2836,13 +2846,22 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
     selectedDay.focus();
     await user.keyboard("{Enter}");
-    expect(await screen.findByRole("dialog")).toBeVisible();
+    const preview = within(
+      await screen.findByRole("dialog", { name: "Preview for Jan 5" }),
+    );
+    expect(preview.queryByText("Title changed")).toBeNull();
+    await user.click(preview.getByRole("button", { name: "Details" }));
+    expect(
+      within(await screen.findByRole("dialog", { name: "Jan 5" })).getByText(
+        "Title changed",
+      ),
+    ).toBeVisible();
     await user.keyboard("{Escape}");
     await waitFor(() => expect(selectedDay).toHaveFocus());
     // A stop not in view says what a press does: to the keyboard as its description, and in its card.
     expect(
       screen.getByRole("button", { name: /^Jan 3/ }),
-    ).toHaveAccessibleDescription("Show the check from Jan 3");
+    ).toHaveAccessibleDescription("Preview for Jan 3");
     await user.hover(screen.getByRole("button", { name: /^Jan 3/ }));
     expect(
       await screen.findByText("Show the check from Jan 3", {
@@ -2883,6 +2902,11 @@ describe("SEO workspace integration", () => {
     await user.click(
       await screen.findByRole("button", { name: /^Showing Jan 1/ }),
     );
+    const preview = within(
+      await screen.findByRole("dialog", { name: /^Showing Jan 1/ }),
+    );
+    expect(preview.queryByText("Title changed")).toBeNull();
+    await user.click(preview.getByRole("button", { name: "Details" }));
     const dialog = await screen.findByRole("dialog");
     expect(
       within(dialog).getByRole("heading", { name: "Details" }),
@@ -2941,10 +2965,12 @@ describe("SEO workspace integration", () => {
           name: "Page details",
         }) !== null,
       ).toBe(!onTimeline);
-      if (onTimeline)
+      if (onTimeline) {
         fireEvent.click(
           screen.getByRole("button", { name: /^Jan 3/, pressed: true }),
         );
+        fireEvent.click(screen.getByRole("button", { name: "Details" }));
+      }
       expect(
         screen.getByText(
           onTimeline
