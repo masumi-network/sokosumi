@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useBodyDataset } from "@/hooks/effects/use-body-dataset";
+import { useSokoBotCreatingBody } from "@/hooks/effects/use-soko-bot-creating-body";
 import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
@@ -106,7 +106,7 @@ export function CreateState({
   // Hide the mobile tab bar for the whole flow, as the first-run setup does:
   // it covered Create, and a tap there left the flow. A body attribute, not
   // `:has`, so a hidden Activity segment cannot keep the bar hidden.
-  useBodyDataset("sokoBotCreating", "true");
+  useSokoBotCreatingBody();
 
   // Each step hides the form that held focus, so move it into the new step.
   function goToStep(next: "name" | "picture") {

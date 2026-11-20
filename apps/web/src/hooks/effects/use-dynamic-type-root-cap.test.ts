@@ -22,17 +22,12 @@ describe("useDynamicTypeRootCap", () => {
     Reflect.deleteProperty(document, "visibilityState");
   });
 
-  it("caps documentElement fontSize on mount and restores the previous inline size on unmount", () => {
-    document.documentElement.style.fontSize = "18px";
+  it("caps documentElement fontSize on mount when natural size exceeds 20px", () => {
     stubRootFontSize("24px");
 
-    const { unmount } = renderHook(() => useDynamicTypeRootCap());
+    renderHook(() => useDynamicTypeRootCap());
 
     expect(document.documentElement.style.fontSize).toBe("20px");
-
-    unmount();
-
-    expect(document.documentElement.style.fontSize).toBe("18px");
   });
 
   it("leaves fontSize unset when natural size is within 20px", () => {

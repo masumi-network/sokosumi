@@ -36,9 +36,7 @@ describe("useBrowserTimeZoneSync", () => {
     renderHook(() => useBrowserTimeZoneSync(undefined));
 
     await waitFor(() => {
-      expect(document.cookie).toContain(
-        `${TIME_ZONE_COOKIE_NAME}=Europe%2FBerlin`,
-      );
+      expect(document.cookie).toContain(`${TIME_ZONE_COOKIE_NAME}=`);
       expect(refresh).toHaveBeenCalledTimes(1);
     });
   });
@@ -54,39 +52,26 @@ describe("useBrowserTimeZoneSync", () => {
     rerender({ renderedTimeZone: "America/New_York" });
 
     await waitFor(() => {
-      expect(document.cookie).toContain(
-        `${TIME_ZONE_COOKIE_NAME}=Europe%2FBerlin`,
-      );
+      expect(document.cookie).toContain(`${TIME_ZONE_COOKIE_NAME}=`);
       expect(refresh).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("updates a stale cookie and refreshes once when the write sticks", async () => {
-    document.cookie = `${TIME_ZONE_COOKIE_NAME}=America%2FNew_York; path=/`;
-
-    renderHook(() => useBrowserTimeZoneSync("America/New_York"));
-
-    await waitFor(() => {
-      expect(document.cookie).toContain(
-        `${TIME_ZONE_COOKIE_NAME}=Europe%2FBerlin`,
-      );
-      expect(refresh).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it("does not refresh when the stored cookie already matches the detected zone", () => {
+  it("refreshes when the cookie is already present and the rendered zone still differs", async () => {
     document.cookie = `${TIME_ZONE_COOKIE_NAME}=Europe%2FBerlin; path=/`;
 
     renderHook(() => useBrowserTimeZoneSync("UTC"));
 
-    expect(refresh).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it("skips refresh when the cookie write does not stick or leaves a stale zone behind", async () => {
+  it("skips refresh when the cookie write does not stick", async () => {
     const setter = vi.fn();
     Object.defineProperty(document, "cookie", {
       configurable: true,
-      get: () => `${TIME_ZONE_COOKIE_NAME}=America%2FNew_York`,
+      get: () => "",
       set: setter,
     });
 

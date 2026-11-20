@@ -2,7 +2,7 @@
 
 import { useLocale } from "next-intl";
 
-import { useDocumentLang } from "@/hooks/effects/use-document-lang";
+import { useDocumentLocaleLang } from "@/hooks/effects/use-document-locale-lang";
 
 /**
  * Root `<html lang>` stays on `DEFAULT_LOCALE` so the document shell can stay
@@ -12,7 +12,7 @@ import { useDocumentLang } from "@/hooks/effects/use-document-lang";
 export function DocumentLocale() {
   const locale = useLocale();
 
-  useDocumentLang(locale);
+  useDocumentLocaleLang(locale);
 
   return null;
 }
