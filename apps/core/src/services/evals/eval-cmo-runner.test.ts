@@ -355,6 +355,7 @@ describe("monthPlanFromTomorrow", () => {
           format: "post",
           status: "published",
           brief: "Brief",
+          claim: "Launch day needs no code",
           draft: "Old words",
           socialPostId: "00000000-0000-4000-8000-000000000001",
           imageFileId: "file-1",
@@ -388,6 +389,7 @@ describe("monthPlanFromTomorrow", () => {
         format: "post",
         status: "idea",
         brief: "Brief",
+        claim: "Launch day needs no code",
       },
       {
         id: "c",

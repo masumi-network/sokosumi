@@ -114,6 +114,7 @@ export function monthPlanFromTomorrow(
       ...(entry.brief ? { brief: entry.brief } : {}),
       ...(entry.why ? { why: entry.why } : {}),
       ...(entry.story ? { story: entry.story } : {}),
+      ...(entry.claim ? { claim: entry.claim } : {}),
       ...(entry.pillar ? { pillar: entry.pillar } : {}),
       ...(entry.approach ? { approach: entry.approach } : {}),
       ...(entry.campaignId ? { campaignId: entry.campaignId } : {}),
