@@ -3262,11 +3262,11 @@ function RoomView({
                   ? t("Empty.noDirectMessagesDescription")
                   : t("Empty.noMessagesDescription")}
             </p>
-            {firstPromptCoworker ? (
+            {firstPromptCoworker && !readOnlyNotice ? (
               <CoworkerFirstPrompts
                 coworkerName={firstPromptCoworker.name}
                 prompts={coworkerFirstPrompts(firstPromptCoworker.metadata)}
-                onPick={(text) => roomComposerRef.current?.fill(text)}
+                onPick={(text) => roomComposerRef.current?.addText(text)}
               />
             ) : null}
           </div>

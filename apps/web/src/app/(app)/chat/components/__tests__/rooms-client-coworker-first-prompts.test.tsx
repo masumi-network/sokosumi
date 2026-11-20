@@ -7,7 +7,7 @@ import { TestQueryProvider } from "@/test/query-provider";
 import type { RoomSessionComposerHandle } from "../room-session-composer";
 import { renderRoomsClient } from "./rooms-client-harness";
 
-const fill = vi.fn();
+const addText = vi.fn();
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => null,
@@ -22,7 +22,7 @@ vi.mock("../room-session-composer", () => ({
     useImperativeHandle(ref, () => ({
       attachFiles: () => undefined,
       focus: () => undefined,
-      fill,
+      addText,
     }));
     return <div data-testid="room-session-composer" />;
   },
@@ -101,13 +101,13 @@ function renderRoom(chatRoom: ChatRoom) {
 }
 
 describe("RoomsClient first prompts in an empty Coworker chat", () => {
-  it("fills the composer with the picked prompt without sending", () => {
+  it("adds the picked prompt to the composer without sending", () => {
     renderRoom(room());
     expect(screen.getByText("title")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Competitor brief" }));
 
-    expect(fill).toHaveBeenCalledWith("Write a competitor brief");
+    expect(addText).toHaveBeenCalledWith("Write a competitor brief");
   });
 
   it("offers no prompts in a room with people", () => {

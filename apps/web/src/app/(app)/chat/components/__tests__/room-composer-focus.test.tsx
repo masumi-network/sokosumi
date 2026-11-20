@@ -14,6 +14,7 @@ import {
 } from "@/app/chat/components/room-composer";
 
 const editorFocus = vi.hoisted(() => vi.fn());
+const editorInsert = vi.hoisted(() => vi.fn());
 
 async function flushAnimationFrame() {
   await act(async () => {
@@ -68,7 +69,7 @@ vi.mock("@/components/chat/composer-wysiwyg-editor", () => ({
       focus: () => {
         editorFocus();
       },
-      insertText: () => undefined,
+      insertText: editorInsert,
       openMentions: () => undefined,
       applyFormat: () => undefined,
       insertLink: () => undefined,
@@ -252,5 +253,51 @@ describe("RoomComposer focusOnMount", () => {
     await waitFor(() => {
       expect(editorFocus).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("RoomComposerEditHandle.addText", () => {
+  function AddTextHarness({ draft }: { draft: string }) {
+    const composerRef = useRef<RoomComposerEditHandle | null>(null);
+    const [value, setValue] = useState(draft);
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => composerRef.current?.addText("Plan a launch")}
+        >
+          add
+        </button>
+        <RoomComposer
+          ref={composerRef}
+          value={value}
+          onValueChange={setValue}
+          mentions={{}}
+          onSelectedKeysChange={() => undefined}
+          placeholder="Message"
+          attachments={[]}
+          onAttachmentsChange={() => undefined}
+          onSubmit={(event) => event.preventDefault()}
+          isSending={false}
+          sendDisabled={false}
+          showMentionShortcut={false}
+          allowAttachments={false}
+        />
+      </>
+    );
+  }
+
+  it.each([
+    ["", "Plan a launch"],
+    ["Hi", " Plan a launch"],
+    ["Hi ", "Plan a launch"],
+  ])("keeps the draft %j and inserts %j", async (draft, inserted) => {
+    editorInsert.mockClear();
+    const { getByRole } = render(<AddTextHarness draft={draft} />);
+    await waitFor(() => {
+      expect(getByRole("textbox")).toBeInTheDocument();
+    });
+    getByRole("button", { name: "add" }).click();
+    expect(editorInsert).toHaveBeenCalledExactlyOnceWith(inserted);
   });
 });

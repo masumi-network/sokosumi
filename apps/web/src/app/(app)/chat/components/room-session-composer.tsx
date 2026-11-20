@@ -25,7 +25,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
@@ -56,11 +55,9 @@ import {
 import { RoomTypingLine } from "./room-typing-line";
 import { useRoomTypingContext } from "./room-typing-provider";
 
-/** The room composer's handle, plus replacing what is typed. */
-export interface RoomSessionComposerHandle extends RoomComposerHandle {
-  /** Replace the draft with `text` and focus at its end; nothing is sent. */
-  fill: (text: string) => void;
-}
+/** The room composer's handle, plus adding text to the draft. */
+export type RoomSessionComposerHandle = RoomComposerHandle &
+  Pick<RoomComposerEditHandle, "addText">;
 
 export interface RoomSessionSendRequest {
   content: string;
@@ -290,11 +287,7 @@ export function RoomSessionComposer({
     () => ({
       attachFiles: (files) => composerRef.current?.attachFiles(files),
       focus: () => composerRef.current?.focus(),
-      fill: (text) => {
-        // Commit before placing the caret, so typing goes after the text.
-        flushSync(() => setComposerValue(text));
-        composerRef.current?.focusAtEnd();
-      },
+      addText: (text) => composerRef.current?.addText(text),
     }),
     [],
   );

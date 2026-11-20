@@ -3,11 +3,12 @@
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 import type { CoworkerFirstPrompt } from "@/app/chat/utils/coworker-first-prompts";
+import { Button } from "@/components/ui/button";
 
 interface CoworkerFirstPromptsProps {
   coworkerName: string;
   prompts: CoworkerFirstPrompt[];
-  /** Put the prompt in the composer to edit; never sends. */
+  /** Add the prompt to the composer to edit; never sends. */
   onPick: (text: string) => void;
 }
 
@@ -32,14 +33,15 @@ export function CoworkerFirstPrompts({
       >
         {prompts.map((prompt) => (
           <li key={prompt.text} className="max-w-full min-w-0">
-            <button
+            <Button
               type="button"
-              title={prompt.text === prompt.label ? undefined : prompt.text}
+              variant="outline"
+              size="sm"
               onClick={() => onPick(prompt.text)}
-              className="border-border text-foreground hover:bg-accent focus-visible:ring-ring inline-flex h-8 max-w-full items-center rounded-full border px-3 text-sm outline-none transition-colors focus-visible:ring-2"
+              className="h-auto min-h-8 max-w-full rounded-full py-1.5 text-start font-normal whitespace-normal text-pretty"
             >
-              <span className="truncate">{prompt.label}</span>
-            </button>
+              {prompt.label}
+            </Button>
           </li>
         ))}
       </ul>
