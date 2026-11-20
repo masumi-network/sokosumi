@@ -8,7 +8,7 @@ import type {
 import { MotionConfig, useReducedMotion } from "motion/react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sidebar";
 import { SIDEBAR_ROW_LABEL_INSET_CLASS } from "@/components/ui/sidebar-classes";
 import { SidebarSectionContent } from "@/components/ui/sidebar-section";
+import { useRememberPinnedRooms } from "@/hooks/effects/use-remember-pinned-rooms";
 import { cn } from "@/lib/utils";
 import { moveIdToSlot } from "@/lib/utils/move-id";
 import {
@@ -69,7 +70,6 @@ import {
   reorderPinnedOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
-import { rememberPinnedRooms } from "./remembered-pinned-rooms";
 import {
   resolveChatsAttention,
   resolveSectionAttention,
@@ -244,11 +244,7 @@ export function OrganizationChatList({
     hasOwnChannel,
     hasDirect,
   } = useMemo(() => partitionRoomsForSidebar(listedRooms), [listedRooms]);
-  useEffect(() => {
-    if (!paintOnly) {
-      rememberPinnedRooms(currentUserId, pinned);
-    }
-  }, [currentUserId, paintOnly, pinned]);
+  useRememberPinnedRooms(currentUserId, pinned, !paintOnly);
   // The filter is one flat list with Pinned under it, not the sections: a
   // heading over one or two rooms is noise. Pinned stays last, so the
   // caught-up message leads and nothing moves when the reader gets there.

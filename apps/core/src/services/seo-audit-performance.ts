@@ -86,6 +86,8 @@ export async function readAuditSearchConsoleBinding(
 export async function collectSeoAuditPerformance(
   taskId: string,
   requester?: SeoActor,
+  requestPropertyTotals = false,
+  requestPageDiscovery = false,
 ) {
   const binding = await serializableTransaction(
     (tx) => readAuditSearchConsoleBinding(tx, taskId, requester),
@@ -123,6 +125,16 @@ export async function collectSeoAuditPerformance(
     {
       taskId,
       connectionVersion: access.connectionVersion,
+      pageDiscovery: Boolean(
+        access.includePageDiscovery ||
+          (requester && requestPageDiscovery && requestPropertyTotals),
+      ),
+      propertyTotals:
+        requester && requestPropertyTotals
+          ? "only"
+          : access.includePropertyTotals
+            ? "include"
+            : undefined,
       ...(access.includeSitemaps && { includeSitemaps: true }),
       pageUrls: pages.map((page) => page.url),
     },

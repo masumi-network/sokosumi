@@ -96,9 +96,6 @@ export function SeoResearchStatus({
                 <dt>{t(`summary.stage.${stage.name}`)}</dt>
                 <dd className="text-muted-foreground">
                   {t(`summary.progress.${stage.status}`)}
-                  {stage.reason && (
-                    <span className="block">{stage.reason}</span>
-                  )}
                 </dd>
               </div>
             ))}

@@ -12044,6 +12044,57 @@ export type ProjectSeoWorkspace = {
             from: Date;
             to: Date;
         } | null;
+        propertyDataExpired?: true;
+        propertyTotals?: {
+            clicks: number | null;
+            impressions: number | null;
+            ctr: number | null;
+            averagePosition: number | null;
+        };
+        pageDiscovery?: {
+            recent: {
+                from: Date;
+                to: Date;
+            };
+            previous: {
+                from: Date;
+                to: Date;
+            };
+            limited: boolean;
+            comparisonIncomplete?: true;
+            topClickedPages?: Array<{
+                clicks: number;
+                impressions: number;
+                pageUrl: string;
+            }>;
+            pages: Array<{
+                pageUrl: string;
+                reason: 'lostClicks' | 'gainingImpressions' | 'lowCtr';
+                totals: {
+                    clicks: number;
+                    impressions: number;
+                };
+                recent: {
+                    clicks: number;
+                    impressions: number;
+                };
+                previous: {
+                    clicks: number;
+                    impressions: number;
+                };
+                query: {
+                    query: string;
+                    pageUrl: string;
+                    clicks: number;
+                    impressions: number;
+                    ctr: number;
+                    averagePosition: number;
+                } | null;
+                queryUnavailable?: true;
+                expectedEffect?: string;
+                suggestion: string | null;
+            }>;
+        };
         history?: {
             reason: 'recent_click_decline' | 'recent_click_growth';
             from: Date;
@@ -12916,6 +12967,8 @@ export type RequestProjectSeoAnalysisRequest = {
     searchConsolePropertyId?: string;
     allowLimitedAudit?: true;
     includeSitemaps?: true;
+    includePropertyTotals?: true;
+    includePageDiscovery?: true;
     publicSitemapUrl?: string;
     sitemapPageHints?: Array<string>;
     setupGoal?: {
@@ -80341,6 +80394,8 @@ export type ListProjectSeoStatisticsPropertiesResponse = ListProjectSeoStatistic
 export type SyncProjectSeoStatisticsData = {
     body?: SyncProjectSeoStatisticsRequest | {
         auditTaskId: string;
+        includePropertyTotals?: true;
+        includePageDiscovery?: true;
     };
     headers?: {
         /**
@@ -83555,6 +83610,8 @@ export type ListSeoAuditStatisticsPropertiesResponse = ListSeoAuditStatisticsPro
 export type SyncSeoAuditStatisticsData = {
     body?: SyncProjectSeoStatisticsRequest | {
         auditTaskId: string;
+        includePropertyTotals?: true;
+        includePageDiscovery?: true;
     };
     headers?: {
         /**

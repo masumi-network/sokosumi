@@ -44,6 +44,8 @@ export interface AuditSearchConsoleProof {
   propertyId: string;
   connectionVersion: string;
   includeSitemaps?: true;
+  includePropertyTotals?: true;
+  includePageDiscovery?: true;
 }
 
 function unavailable() {

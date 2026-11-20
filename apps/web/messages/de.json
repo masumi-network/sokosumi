@@ -13039,7 +13039,7 @@
       "actions": {
         "title": "Aktionen",
         "listTitle": "Empfohlene Aktionen",
-        "listHint": "Änderungen, die unser Agent empfiehlt.",
+        "checkDetails": "Prüfdetails",
         "empty": "Keine empfohlenen Aktionen",
         "emptyBody": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Starte eine Prüfung oder frag den SEO-Agenten, was als Nächstes zu tun ist.",
         "emptyBodyOff": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes zu tun ist.",
@@ -13221,6 +13221,7 @@
         "sitemaps": "Sitemaps mit diesem Ziel"
       },
       "discovery": {
+        "actionsHeading": "Aktionen in der Search Console",
         "reportedSitemaps": "Sitemaps Google associates with this URL",
         "referringPages": "Examples of direct or indirect referring URLs from Google",
         "exportActions": "Actions from your Search Console exports",
@@ -13241,11 +13242,40 @@
         "canonical": "Google canonical: {url}",
         "inspections": "Inspected URLs in this audit ({count})"
       },
+      "pageDiscovery": {
+        "partial": "Einige Seitenvergleiche konnten nicht geladen werden.",
+        "queryUnavailable": "Die Suchanfragen für diese Seite konnten nicht geladen werden.",
+        "title": "Zu prüfende Seiten in der Search Console",
+        "reviews": "Prüfvorschläge aus der Google-Suche",
+        "empty": "Keine der zurückgegebenen Seiten erfüllt die Prüfkriterien.",
+        "lowCtr": "Viele Impressionen bei wenigen Klicks",
+        "lostClicks": "Klicks gesunken",
+        "gainingImpressions": "Impressionen gestiegen",
+        "audit": "Prüfzeitraum",
+        "recent": "Letzte 28 Tage",
+        "previous": "Vorherige 28 Tage",
+        "query": "Suchanfrage im letzten Zeitraum",
+        "counts": "{clicks, plural, one {# Klick} other {# Klicks}} · {impressions, plural, one {# Impression} other {# Impressionen}}",
+        "position": "Durchschnittliche Position {value}",
+        "range": "{from} bis {to}",
+        "observe": "Seite beobachten. Die Suchanfragen geben keinen konkreten Änderungshinweis.",
+        "openPage": "Seite öffnen",
+        "limited": "Eine Auswahl der von Google gelieferten Ergebnisse wird angezeigt."
+      },
       "reportFiles": {
         "noQueryRecommendations": "Die Search Console hat für diese Seiten und diesen Zeitraum keine Suchanfragen zurückgegeben. Für diese Prüfung gibt es daher keine Empfehlungen aus Suchanfragen.",
         "recommendations": "Empfehlungen aus dieser Prüfung",
         "recoverSearch": "Search Console-Ergebnisse abrufen",
         "recoverSearchFailed": "Die Search Console-Ergebnisse konnten nicht abgerufen werden. Versuche es erneut.",
+        "crawlDetails": "Crawl-Details",
+        "performanceScope": "Die folgenden Seitendaten beziehen sich auf die geprüften URLs.",
+        "topClickedPages": "Seiten mit den meisten Suchklicks",
+        "propertyPerformance": "Websuche für die gesamte Property",
+        "propertyTotalsFailed": "Ein Teil der Suchdaten konnte nicht geladen werden. Bitte erneut versuchen.",
+        "propertyDataExpired": "Dieser Zeitraum liegt außerhalb der Aufbewahrungsfrist der Search Console. Die gespeicherten Ergebnisse sind weiterhin verfügbar.",
+        "loadPropertyTotals": "Gesamtdaten und Seitenauswertung laden",
+        "unverifiedPagePerformance": "Die Leistung der geprüften Seiten ist unbestätigt.",
+        "pagePerformance": "Leistung der geprüften Seiten in der Websuche",
         "auditedUrls": "Geprüfte URLs",
         "googleCanonical": "Gemessene kanonische Google-URL: {url}",
         "canonicalUnverified": "Eingereichte URL gemessen. Die kanonische URL wurde nicht bestätigt.",
@@ -13376,6 +13406,7 @@
         "importSitemapHelp": "Bis zu {count} aufgeführte Seiten-URLs werden für dieses Audit freigegeben. Die XML-Datei bleibt auf deinem Gerät.",
         "sitemapReading": "Sitemap wird gelesen…",
         "sitemapInvalid": "Wähle eine XML-Sitemap unter 512 KiB mit öffentlichen Seiten dieser Website.",
+        "includePropertyTotals": "Suchdaten, Seiten und Suchanfragen der gesamten Search Console-Property in meinen privaten Bericht aufnehmen.",
         "includeSitemaps": "Den Status der bei Google eingereichten Sitemaps dieser Property in meinen privaten Bericht aufnehmen.",
         "alreadyRunning": "Eine Prüfung läuft. Warte auf ihr Ergebnis, bevor du die nächste startest.",
         "noPermission": "Für diese Seiten kann keine Prüfung angefragt werden.",
@@ -13861,6 +13892,7 @@
         "lastCrawled": "Zuletzt von Google gecrawlt"
       },
       "index": {
+        "resultDate": "Indexierungsergebnis vom",
         "title": "Google-Index",
         "state": {
           "indexed": "Indexiert",
@@ -14066,7 +14098,6 @@
         "researchDetails": {
           "visitor": "Besucheraktion",
           "trends": "Google Trends",
-          "evidenceRecord": "Beleg: {record}",
           "caption": "Google-Trends-Ergebnisse für geprüfte Suchbegriffe",
           "keyword": "Suchbegriff",
           "status": "Status",

@@ -114,6 +114,13 @@ function strikingDistance(
   };
 }
 
+export function searchOpportunityForRow(
+  row: SearchRow,
+  source: SearchOpportunitySource,
+) {
+  return snippetReview(row, source) ?? strikingDistance(row, source);
+}
+
 /** Deterministic: the same stored rows always give the same IDs, so Task links stay stable. */
 export function searchOpportunities(
   source: SearchOpportunitySource,
@@ -126,7 +133,7 @@ export function searchOpportunities(
         a.pageUrl.localeCompare(b.pageUrl),
     )
     .flatMap((row) => {
-      const match = snippetReview(row, source) ?? strikingDistance(row, source);
+      const match = searchOpportunityForRow(row, source);
       return match ? [match] : [];
     })
     .slice(0, SEO_OPPORTUNITY_LIMIT);

@@ -53,7 +53,7 @@ Before reaching for an effect, read React's [You Might Not Need an Effect](https
 - **Resetting state on prop change**: pass a `key` to remount the subtree cleanly.
 - **Data loading**: use `@tanstack/react-query` (or Server Components / loaders) instead of `fetch` + `setState` in an effect.
 - **External store subscriptions**: use `useSyncExternalStore` for browser state (`matchMedia`, `visualViewport`, `localStorage`, hydration checks).
-- **Latest callback or prop inside an effect**: use `useEffectEvent` (allowed everywhere) instead of syncing refs.
+- **Latest callback or prop inside an effect**: use `useEffectEvent`, and call it only from that effect or from callbacks the effect registers (its timers, listeners, subscriptions). A callback registered outside an effect (a JSX event handler, a library callback, a timer started in a handler) that needs the latest committed value uses `useLatestRef` from `src/hooks/effects/`. Render logic reads current props and state directly, never a ref.
 
 When you genuinely need to synchronize with an external system, call an existing named hook from `src/hooks/effects/` (or add one there — one job per hook, covered by a Vitest behaviour test, and never taking a general effect-callback parameter). Tests, test fixtures, and Web's vendored `src/components/ui/**` are exempt.
 
@@ -98,6 +98,15 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-latest-ref` (`useLatestRef`) — ref synced to the latest committed value in a layout effect
 - `use-query-error-report` (`useQueryErrorReport`) — calls a query error reporter once per failure while mounted on the active key
 - `use-flash-toast` (`queueFlashSuccessToast`, `useFlashToast`) — shows a one-time `sessionStorage` success toast once on the next document mount
+- `use-mark-agent-unavailable` (`useMarkAgentUnavailable`, `useIsAgentUnavailable`) — ref-counted unavailable-agent external store for mobile header back fallback
+- `use-project-scope-marker` (`useProjectScopeMarker`, `useMarkedProjectSnapshot`) — detail-page project scope marker store keyed by detail path
+- `use-personal-assistant-chrome-visible` (`usePersonalAssistantChromeVisible`) — records session visibility of Personal Assistant sidebar chrome for Instant `/chat`
+- `use-failed-soko-bot-id-publisher` (`useFailedSokoBotIdPublisher`) — before-paint failed Soko Bot id publishing to synchronize sidebar and Direct rows
+- `use-remember-pinned-rooms` (`useRememberPinnedRooms`) — persists the sidebar's Pinned chat rooms in session memory across workspace switches
+- `use-membership-visible-rooms-publisher` (`useMembershipVisibleRoomsPublisher`) — publishes sidebar live rooms and registers the active publisher without bouncing live count on room updates
+- `use-auth-session-hydration` (`useAuthSessionHydration`) — before-paint `authClient` session hydration and rendered-user registration
+- `use-pending-navigation` (`usePendingNavigation`) — optimistic destination tracking for in-flight Next.js navigation transitions
+- `use-pending-created-tasks` (`usePendingCreatedTasks`, `withBoardPreview`) — optimistic pending task board preview registration while a task create transition runs
 
 ### React Query in migrations
 

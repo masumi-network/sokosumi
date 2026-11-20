@@ -27,6 +27,17 @@ export interface SeoReportFileProps {
   model: Pick<SeoWorkspaceModel, "data" | "pending" | "execute">;
 }
 
+function needsPropertyEvidence(
+  report: NonNullable<ProjectSeoWorkspace["auditSearchConsole"]>[number],
+) {
+  return (
+    !report.propertyTotals ||
+    !report.pageDiscovery?.topClickedPages ||
+    report.pageDiscovery.comparisonIncomplete ||
+    report.pageDiscovery.pages.some((page) => page.queryUnavailable)
+  );
+}
+
 export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
   const t = useTranslations("App.Seo.reportFiles");
   const report = useSeoResultTranslations("App.Seo");
@@ -44,9 +55,24 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
   const canRecoverSearch = Boolean(
     userId && model.data.auditSearchConsoleRetryTaskIds?.includes(taskId),
   );
+  const evidence = model.data.auditSearchConsole?.find(
+    (entry) => entry.taskId === taskId,
+  );
+  const canLoadProperty = Boolean(
+    userId &&
+      evidence &&
+      !evidence.propertyDataExpired &&
+      needsPropertyEvidence(evidence),
+  );
   const recovery = useMutation({
-    mutationFn: async (id: string) => {
-      if (!canRecoverSearch || id !== taskId)
+    mutationFn: async ({
+      id,
+      property,
+    }: {
+      id: string;
+      property?: boolean;
+    }) => {
+      if (!(property ? canLoadProperty : canRecoverSearch) || id !== taskId)
         throw new Error("Audit recovery unavailable");
       const response = await fetch(`${seoOwnerApiPath(owner)}/statistics`, {
         method: "POST",
@@ -56,14 +82,21 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
           ...seoViewerHeaders(userId, organizationId),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ auditTaskId: id }),
+        body: JSON.stringify({
+          auditTaskId: id,
+          ...(property && {
+            includePropertyTotals: true,
+            includePageDiscovery: true,
+          }),
+        }),
       });
       if (!response.ok) throw new Error("Audit recovery failed");
       const workspace: ProjectSeoWorkspace = await response.json();
       const saved = workspace.auditSearchConsole?.find(
         (entry) => entry.taskId === id,
       );
-      if (!saved) throw new Error("Audit evidence unavailable");
+      if (!saved || (property && !saved.pageDiscovery && !saved.propertyTotals))
+        throw new Error("Audit evidence unavailable");
       // The response describes the original audit pages. Keep each cached view's current filters and other runs.
       queryClient.setQueriesData<ProjectSeoWorkspace>(
         {
@@ -76,6 +109,25 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
           ],
         },
         (cached) => {
+          if (property) {
+            if (
+              !cached?.auditSearchConsole?.some((entry) => entry.taskId === id)
+            )
+              return cached;
+            return {
+              ...cached,
+              auditSearchConsole: cached.auditSearchConsole.map((entry) =>
+                entry.taskId === id
+                  ? {
+                      ...entry,
+                      propertyTotals:
+                        saved.propertyTotals ?? entry.propertyTotals,
+                      pageDiscovery: saved.pageDiscovery ?? entry.pageDiscovery,
+                    }
+                  : entry,
+              ),
+            };
+          }
           if (!cached?.auditSearchConsoleRetryTaskIds?.includes(id))
             return cached;
           return {
@@ -95,6 +147,8 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
           };
         },
       );
+      if (property && needsPropertyEvidence(saved))
+        throw new Error("Property evidence incomplete");
     },
   });
   const strategy = model.data.strategy;
@@ -234,13 +288,21 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
       (model.data.siteEvidence?.taskId === taskId
         ? model.data.siteEvidence
         : null),
-    evidence: model.data.auditSearchConsole?.find(
-      (entry) => entry.taskId === taskId,
-    ),
+    evidence,
+    loadProperty: canLoadProperty
+      ? () => recovery.mutate({ id: taskId, property: true })
+      : null,
     fullAudit: version.kind === "audit_full",
-    recoverSearch: canRecoverSearch ? () => recovery.mutate(taskId) : null,
-    recovering: recovery.isPending,
-    recoveryFailed: recovery.isError && recovery.variables === taskId,
+    recoverSearch: canRecoverSearch
+      ? () => recovery.mutate({ id: taskId })
+      : null,
+    recovering: recovery.isPending && recovery.variables?.id === taskId,
+    recoveryError:
+      recovery.isError && recovery.variables?.id === taskId
+        ? recovery.variables.property
+          ? ("propertyTotalsFailed" as const)
+          : ("recoverSearchFailed" as const)
+        : null,
     options,
     setPicked,
     files: files.data?.links,
