@@ -1,5 +1,15 @@
 import type { WritingSkill } from "./types.js";
 
+/**
+ * What opens a LinkedIn post: Jev's month review reads it, and Core asks it
+ * of a cmo-v8 post's first line before the save. Calibrated on 31
+ * hand-labelled cal.com and NMKR first lines (2026-11-20): right on all of
+ * them at 0.35, where the earlier "first two lines … a number" passed a count
+ * of features and an unnamed reviewer's praise.
+ */
+export const LINKEDIN_HOOK_RULE =
+  "The first line is a hook that makes people tap 'see more': a result with its number, a price or another number from the business, a named customer and what they did, or a decision that sounds surprising. Advice, a definition, company history, a list or count of features, a rating or an unnamed reviewer's praise is not.";
+
 export const SOCIAL_WRITING_SKILLS: readonly WritingSkill[] = [
   {
     id: "x",
@@ -151,9 +161,7 @@ What would you stop making if you looked at your numbers?
 - Tagging people or companies who are not in the story
 - A link in the post body`,
     checklist: [
-      {
-        rule: "The first two lines (about 140 characters) are a hook that makes people tap 'see more': a result, a number, a named customer or a surprising decision, not advice or a definition.",
-      },
+      { rule: LINKEDIN_HOOK_RULE },
       {
         rule: "Short paragraphs of one or two sentences with blank lines between them.",
       },
