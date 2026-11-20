@@ -26,6 +26,8 @@ import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
+import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
+import { drainWaitUntil } from "@/test/wait-until";
 import { searchConsoleToolDescriptors } from "@/test-fixtures/seo-search-console";
 import {
   createTaskScheduleTestApp,
@@ -60,6 +62,10 @@ vi.mock("@/middleware/auth", async (original) => ({
 vi.mock("@/clients/composio.client", async (original) => ({
   ...(await original<typeof import("@/clients/composio.client")>()),
   getComposio: () => ({}),
+}));
+vi.mock("@vercel/functions", async (original) => ({
+  ...(await original<typeof import("@vercel/functions")>()),
+  waitUntil: vi.fn(),
 }));
 // The flow publishes over Ably; the test env has no real key.
 vi.mock("@/lib/ably/client", async () =>
@@ -649,6 +655,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
         }),
       ).toBe(0);
       const started = await Promise.all([start(), start()]);
+      expect(await drainWaitUntil()).toEqual([]);
       expect(
         started.filter((response) => response.status === 201),
       ).toHaveLength(1);
@@ -658,6 +665,11 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
         }),
       ).toBe(1);
       expect(await debits()).toBe(charged);
+      expect(
+        await prisma.projectSeoObservation.count({
+          where: { sourceTaskId: task.id, kind: AUDIT_PERFORMANCE_KIND },
+        }),
+      ).toBe(1);
       await prisma.seoConnection.update({
         where: { id: connection.id },
         data: { status: "DISCONNECTED" },

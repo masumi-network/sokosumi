@@ -41,9 +41,12 @@ export function seoKeywordMap(groups: {
   checked: SeoKeywordGroup[];
   ideas: SeoKeywordGroup[];
 }) {
+  const checkedIds = new Set(groups.checked.map((group) => group.lead.id));
   const rows = [
     ...groups.checked.map((group) => ({ group, checked: true })),
-    ...groups.ideas.map((group) => ({ group, checked: false })),
+    ...groups.ideas
+      .filter((group) => !checkedIds.has(group.lead.id))
+      .map((group) => ({ group, checked: false })),
   ].flatMap(({ group, checked }) =>
     group.volume !== null && group.volume > 0 && group.difficulty !== null
       ? [{ group, checked, volume: group.volume, difficulty: group.difficulty }]

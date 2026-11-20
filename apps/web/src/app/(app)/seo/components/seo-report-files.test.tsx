@@ -1,5 +1,9 @@
 import type { TaskFile } from "@sokosumi/core-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -9,7 +13,13 @@ import { CoreApiRequestError } from "@/lib/clients/core.request";
 import messages from "../../../../../messages/en.json";
 import { SeoReportFiles } from "./seo-report-files";
 import { seoReportVersions } from "./seo-report-files-model";
-import { seoTestObservation, seoTestWorkspace } from "./seo-test-fixture";
+import {
+  SEO_TEST_PROJECT,
+  seoTestMetric,
+  seoTestObservation,
+  seoTestStrategy,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
 
 const { getTaskById, execute, viewer } = vi.hoisted(() => ({
   getTaskById: vi.fn(),
@@ -30,6 +40,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 afterEach(() => {
   viewer.id = "owner";
   vi.resetAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function reportFile(
@@ -57,7 +68,12 @@ function reportFile(
   };
 }
 
-function openRuns(sameMinute = false) {
+function openRuns(
+  sameMinute = false,
+  withEvidence = false,
+  eligible: string[] = [],
+  marketFile?: string,
+) {
   const data = seoTestWorkspace();
   data.observations = [
     {
@@ -88,7 +104,104 @@ function openRuns(sameMinute = false) {
       ),
     },
   ];
-  const versions = seoReportVersions(data, { from: null, to: null });
+  if (marketFile) {
+    data.observations[0].kind = "audit_full";
+    data.strategy = {
+      ...seoTestStrategy(),
+      observationId: data.observations[0].id,
+      marketRecoveryFileId: marketFile,
+    };
+  }
+  if (withEvidence) {
+    data.metrics = [{ ...seoTestMetric(), value: 876543 }];
+    data.auditSearchConsole = [
+      {
+        taskId: "newer",
+        propertyId: "sc-domain:example.com",
+        from: new Date("2026-10-01"),
+        to: new Date("2026-10-28"),
+        pageUrls: ["https://example.com/shop", "https://example.com/blog"],
+        measuredPages: [
+          {
+            pageUrl: "https://example.com/shop",
+            measuredUrl: "https://www.example.com/shop",
+            basis: "google_canonical",
+          },
+          {
+            pageUrl: "https://example.com/blog",
+            measuredUrl: "https://example.com/blog",
+            basis: "unverified",
+          },
+        ],
+        opportunities: [
+          {
+            id: "snippet",
+            title: "Review the shop snippet",
+            why: "This query received 0 clicks for the measured page.",
+            pageUrl: "https://www.example.com/shop",
+            expectedEffect: "Compare the next period.",
+            evidence: [],
+          },
+        ],
+        coverage: "partial",
+        clicks: 0,
+        impressions: null,
+        ctr: null,
+        averagePosition: null,
+        history: {
+          reason: "recent_click_decline",
+          from: new Date("2025-10-02"),
+          to: new Date("2025-10-29"),
+          coverage: "partial",
+          clicks: null,
+          decision: "insufficient_history",
+        },
+        previous: {
+          from: new Date("2026-09-03"),
+          to: new Date("2026-09-30"),
+          clicks: 1,
+          impressions: 5,
+          ctr: 0.2,
+          averagePosition: 3,
+        },
+        queries: {
+          rows: [
+            {
+              query: "shop",
+              pageUrl: "https://www.example.com/shop",
+              clicks: 0,
+              impressions: 1,
+              ctr: 0,
+              averagePosition: 2.2,
+            },
+          ],
+          truncated: true,
+        },
+      },
+    ];
+  }
+  data.auditSearchConsoleRetryTaskIds = eligible;
+  function ReportFilesView() {
+    const { data: workspace } = useQuery({
+      queryKey: [
+        "seo-workspace",
+        "org",
+        viewer.id,
+        "project",
+        data.projectId,
+        "",
+      ],
+      initialData: data,
+      queryFn: async () => data,
+      enabled: false,
+    });
+    return (
+      <SeoReportFiles
+        versions={seoReportVersions(workspace, { from: null, to: null })}
+        model={{ data: workspace, pending: false, execute }}
+      />
+    );
+  }
   render(
     <QueryClientProvider client={new QueryClient()}>
       <NextIntlClientProvider
@@ -97,10 +210,7 @@ function openRuns(sameMinute = false) {
         messages={messages}
         formats={createFormats()}
       >
-        <SeoReportFiles
-          versions={versions}
-          model={{ data, pending: false, execute }}
-        />
+        <ReportFilesView />
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -123,6 +233,161 @@ function task(id: string, files: TaskFile[]) {
 }
 
 describe("SEO report file versions", () => {
+  it("keeps Search Console evidence with its run, including a measured zero and missing impressions", async () => {
+    getTaskById.mockImplementation(async (id: string) => task(id, []));
+    const user = openRuns(false, true);
+    await user.click(
+      screen.getByRole("button", { name: "Reports and Search Console" }),
+    );
+    const dialog = within(await screen.findByRole("dialog"));
+    const evidence = within(
+      dialog.getByRole("region", { name: "Search Console" }),
+    );
+    expect(evidence.getByText("sc-domain:example.com")).toBeVisible();
+    expect(evidence.getByText("2026-10-01 to 2026-10-28")).toBeVisible();
+    expect(evidence.getByText("https://example.com/shop")).toBeVisible();
+    expect(evidence.getByText("https://example.com/blog")).toBeVisible();
+    expect(
+      evidence.getByText(
+        "Measured Google canonical URL: https://www.example.com/shop",
+      ),
+    ).toBeVisible();
+    expect(
+      evidence.getByText(
+        "The audit measured the submitted URL. Its canonical URL is unverified.",
+      ),
+    ).toBeVisible();
+    expect(evidence.getByText("Partial data")).toBeVisible();
+    expect(evidence.getByText("2025-10-02 to 2025-10-29")).toBeVisible();
+    expect(
+      evidence.getByText(
+        "There is too little comparable history to confirm the recent change.",
+      ),
+    ).toBeVisible();
+    expect(evidence.queryByText(/^Clicks during that period:/)).toBeNull();
+    expect(
+      evidence.getByRole("row", { name: "Search clicks 0 1" }),
+    ).toBeVisible();
+    expect(
+      evidence.getByRole("row", { name: "Search impressions Unavailable 5" }),
+    ).toBeVisible();
+    expect(
+      evidence.getByRole("columnheader", {
+        name: /Previous period.*2026-09-03 to 2026-09-30/,
+      }),
+    ).toBeVisible();
+    expect(
+      evidence.getByRole("row", { name: "Click-through rate Unavailable 20%" }),
+    ).toBeVisible();
+    const recommendations = within(
+      evidence.getByRole("region", { name: "Recommendations from this check" }),
+    );
+    expect(recommendations.getByText("Review the shop snippet")).toBeVisible();
+    expect(
+      recommendations.getByText(
+        "This query received 0 clicks for the measured page.",
+      ),
+    ).toBeVisible();
+    await user.click(evidence.getByText("Search Console queries"));
+    expect(evidence.getByText("shop")).toBeVisible();
+    expect(evidence.getAllByText("https://www.example.com/shop")).toHaveLength(
+      2,
+    );
+    expect(
+      evidence.getByText("Only the first 1 rows by clicks are kept"),
+    ).toBeVisible();
+    await user.click(dialog.getByRole("combobox", { name: "Check" }));
+    await user.click(await screen.findByRole("option", { name: /Full audit/ }));
+    expect(dialog.queryByText("sc-domain:example.com")).toBeNull();
+    expect(dialog.queryByText("Review the shop snippet")).toBeNull();
+    expect(
+      dialog.getByText(
+        "No Search Console results are available for this check.",
+      ),
+    ).toBeVisible();
+    expect(dialog.queryByText("876,543")).toBeNull();
+  });
+
+  it("recovers only the eligible selected check after an explicit click, and allows a retry on failure", async () => {
+    const response = Promise.withResolvers<Response>();
+    const fetch = vi
+      .fn()
+      .mockReturnValueOnce(response.promise)
+      .mockResolvedValueOnce(
+        Response.json({
+          ...seoTestWorkspace(),
+          auditSearchConsole: [
+            {
+              taskId: "older",
+              propertyId: "sc-domain:recovered.example",
+              from: "2026-09-01",
+              to: "2026-09-28",
+              pageUrls: ["https://recovered.example/"],
+              measuredPages: [
+                {
+                  pageUrl: "https://recovered.example/",
+                  measuredUrl: "https://recovered.example/",
+                  basis: "selected",
+                },
+              ],
+              coverage: "complete",
+              clicks: 3,
+              impressions: 30,
+              ctr: 0.1,
+              averagePosition: 2,
+              previous: null,
+              queries: { rows: [], truncated: false },
+              opportunities: [],
+            },
+          ],
+          auditSearchConsoleRetryTaskIds: [],
+        }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    getTaskById.mockImplementation(async (id: string) => task(id, []));
+    const user = openRuns(false, true, ["older"]);
+    await user.click(
+      screen.getByRole("button", { name: "Reports and Search Console" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Recover Search Console results" }),
+    ).toBeNull();
+    await user.click(screen.getByRole("combobox", { name: "Check" }));
+    await user.click(await screen.findByRole("option", { name: /Full audit/ }));
+    expect(fetch).not.toHaveBeenCalled();
+    const retry = screen.getByRole("button", {
+      name: "Recover Search Console results",
+    });
+    await user.click(retry);
+    expect(retry).toHaveAttribute("aria-disabled", "true");
+    await user.click(retry);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe(`/api/projects/${SEO_TEST_PROJECT}/seo/statistics`);
+    expect(JSON.parse(init.body)).toEqual({ auditTaskId: "older" });
+    expect(init.headers["x-seo-viewer"]).toBe("owner");
+    response.resolve(new Response(null, { status: 503 }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not recover Search Console results.",
+    );
+    await user.click(retry);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(
+      await screen.findByText("sc-domain:recovered.example"),
+    ).toBeVisible();
+    expect(screen.getByText("2026-09-01 to 2026-09-28")).toBeVisible();
+    await user.click(screen.getByText("Search Console queries"));
+    expect(
+      screen.getByText("Search Console returned no query rows"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Recover Search Console results" }),
+    ).toBeNull();
+    await user.click(screen.getByRole("combobox", { name: "Check" }));
+    await user.click(await screen.findByRole("option", { name: /Page check/ }));
+    expect(screen.getByText("sc-domain:example.com")).toBeVisible();
+  });
+
   it("opens each same-day run's delivered formats on demand, and can recover a missing observation", async () => {
     const pdf = reportFile("newer", "pdf", "application/pdf");
     const json = reportFile("newer", "data.json", "application/json");
@@ -164,6 +429,26 @@ describe("SEO report file versions", () => {
       "newer",
       "older",
     ]);
+  });
+
+  it("restores market data from the exact original JSON for a completed audit", async () => {
+    const source = reportFile("newer", "data.json", "application/json");
+    const later = reportFile("newer", "json", "application/json", {
+      createdAt: new Date(10),
+    });
+    getTaskById.mockResolvedValue(task("newer", [later, source]));
+    const user = openRuns(false, false, [], source.id);
+    await user.click(screen.getByRole("button", { name: "Report files" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Recover market comparison" }),
+    );
+    expect(execute).toHaveBeenCalledWith(
+      {
+        kind: "import_audit",
+        body: { taskId: "newer", fileId: source.id, recoverMarkets: true },
+      },
+      "Market comparison checked",
+    );
   });
 
   it("uses the archived Task read and omits unfinished, unrelated and untrusted attachments", async () => {

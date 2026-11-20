@@ -152,9 +152,37 @@ async function readSeoArtifact(
   return new TextDecoder().decode(bytes);
 }
 
+function recoveryStrategy(
+  observation: {
+    kind: string;
+    source: string;
+    sourceTaskId: string | null;
+    sourceFileId: string | null;
+    payload: unknown;
+  },
+  input: { taskId: string; fileId: string },
+) {
+  const stored = reportObject(observation.payload);
+  const strategy = reportObject(stored?.strategy);
+  if (
+    observation.kind !== "audit_full" ||
+    observation.source !== "seo_coworker" ||
+    observation.sourceTaskId !== input.taskId ||
+    observation.sourceFileId !== input.fileId ||
+    !stored ||
+    !strategy
+  )
+    throw conflict("This observation has no recoverable site strategy");
+  return {
+    stored,
+    strategy,
+    missing: strategy.markets == null && strategy.marketNote == null,
+  };
+}
+
 export async function importProjectSeoAudit(
   actor: SeoActor,
-  input: { taskId: string; fileId: string },
+  input: { taskId: string; fileId: string; recoverMarkets?: boolean },
   options: SeoMutationHooks & { fetchImpl?: typeof fetch } = {},
 ) {
   const { task, file, fileUrl, analysis } = await requireSourceFile(
@@ -165,7 +193,12 @@ export async function importProjectSeoAudit(
   const existing = await prisma.projectSeoObservation.findUnique({
     where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
   });
-  if (existing)
+  if (input.recoverMarkets && !existing)
+    throw notFound("The imported site report was not found");
+  if (
+    existing &&
+    (!input.recoverMarkets || !recoveryStrategy(existing, input).missing)
+  )
     return serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor, !analysis);
       await requireSourceFile(actor, input, tx);
@@ -173,14 +206,24 @@ export async function importProjectSeoAudit(
       return commitSeoMutation(tx, existing, options);
     }, "The report import changed. Please retry.");
   const body = await readSeoArtifact(fileUrl, options.fetchImpl ?? fetch);
+  const artifactHash = sha256(body);
+  if (input.recoverMarkets && existing?.artifactHash !== artifactHash)
+    throw conflict("The source report changed after it was imported");
   let raw: unknown;
   try {
     raw = JSON.parse(body);
   } catch {
     throw badRequest("The SEO report is not valid JSON");
   }
-  const payload = parsePublicSeoArtifact(raw),
-    artifactHash = sha256(body);
+  const payload = parsePublicSeoArtifact(raw);
+  if (input.recoverMarkets && reportObject(raw)?.kind !== "site")
+    throw conflict("The saved report is not a site audit");
+  if (
+    payload.strategy &&
+    !payload.strategy.markets &&
+    !payload.strategy.marketNote
+  )
+    payload.strategy.marketNote = "unavailable";
   if (payload.requestId && (!analysis || payload.requestId !== analysis.id))
     throw badRequest("The SEO result does not match its requested analysis");
   if (analysis) assertSeoArtifactMatchesRequest(raw, payload, analysis);
@@ -202,8 +245,30 @@ export async function importProjectSeoAudit(
     if (prior) {
       if (prior.artifactHash !== artifactHash)
         throw conflict("The source report changed after it was imported");
+      if (input.recoverMarkets) {
+        if (prior.id !== existing?.id)
+          throw conflict("The imported observation changed");
+        const { stored, strategy, missing } = recoveryStrategy(prior, input);
+        if (missing) {
+          const marketFields = payload.strategy?.markets
+            ? { markets: payload.strategy.markets }
+            : { marketNote: payload.strategy?.marketNote ?? "unavailable" };
+          const updated = await tx.projectSeoObservation.update({
+            where: { id: prior.id },
+            data: {
+              payload: jsonInput({
+                ...stored,
+                strategy: { ...strategy, ...marketFields },
+              }),
+            },
+          });
+          return commitSeoMutation(tx, updated, options);
+        }
+      }
       return commitSeoMutation(tx, prior, options);
     }
+    if (input.recoverMarkets)
+      throw conflict("The imported observation changed");
     const pageIds: string[] = [];
     for (const value of payload.pageUrls) {
       const url = normalizeSeoUrl(value);

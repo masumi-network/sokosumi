@@ -24,13 +24,13 @@ import {
 } from "./seo-keyword-difficulty";
 import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
 import { type SeoKeywordGroup } from "./seo-keyword-rows-model";
+import { SEO_LIST_PAGE_SIZE } from "./seo-list-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
   SeoBarNumber,
   SeoPageText,
   SeoSection,
   SeoShowMore,
-  seoFoldCount,
   seoIsOnlyPrimary,
   seoMarketName,
 } from "./seo-shared";
@@ -49,7 +49,7 @@ export function SeoKeywordIdeas({
   const [expanded, setExpanded] = useState(false);
   if (!ideas.length) return null;
   // A search already narrows the list; it shows every match.
-  const visible = seoFoldCount(ideas.length);
+  const visible = SEO_LIST_PAGE_SIZE;
   const rows =
     expanded || model.keywordSearch ? ideas : ideas.slice(0, visible);
   const shown = {
@@ -265,7 +265,7 @@ function SeoIdeaRow({
                   void model.toggleKeyword(lead);
                 }}
               >
-                {t("keywords.save")}
+                {t(lead.saved ? "keywords.unsave" : "keywords.save")}
               </Button>
             </div>
           ) : null}

@@ -8,10 +8,9 @@ import type {
   ProjectSeoScope,
 } from "@sokosumi/database";
 import { internalServerError } from "@/helpers/error";
-import {
-  publicSeoPayloadSchema,
-  seoPayloadCoverage,
-} from "@/helpers/project-seo-report";
+import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
+import { scopedObservationChecks } from "@/helpers/seo-checklist-breakdown";
+import { scopedPageMarketEvidence } from "@/helpers/seo-page-market-evidence";
 import {
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
@@ -50,6 +49,7 @@ import {
   normalizeSeoUrl,
   SEO_RESULT_LIMIT,
 } from "./project-seo-store";
+import { projectSiteStrategy } from "./project-seo-strategy-projection";
 import { SeoAuditDecisions } from "./seo-audit-decisions";
 import { landingEngagementChange } from "./seo-landing-engagement";
 import type { PrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
@@ -91,6 +91,7 @@ interface ProjectionInput {
   analyses: ProjectSeoAnalysis[];
   actionTasks: ProjectSeoActionTask[];
   tasks: Array<{ id: string; status: string; completedAt: Date | null }>;
+  marketRecoveryTaskIds?: ReadonlySet<string>;
   privateMetricsAllowed: boolean;
   analysisDispatchEnabled?: boolean;
   canUsePaidSearchData?: boolean;
@@ -201,7 +202,10 @@ export function projectSeoProjection(
     if (!parsed.success)
       throw internalServerError("Stored SEO evidence is not readable");
     const data = parsed.data;
-    const coverage = seoPayloadCoverage(data);
+    const { coverage, checklistBreakdown, devices } = scopedObservationChecks(
+      data,
+      (url) => selectedUrls.has(normalizeSeoUrl(url)),
+    );
     scopedPublicSources.set(row.id, row);
     // One rule that fails on mobile and on desktop is one issue on that page.
     const issues = new Set(
@@ -255,38 +259,15 @@ export function projectSeoProjection(
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
     // Rows come newest first, so the first strategy is the newest site audit's.
     if (data.strategy && !strategy) {
-      const {
-        purposeOpportunity,
-        demandByIntent,
-        missingDemandByIntent,
-        ...site
-      } = data.strategy;
-      const groups = site.groups.filter(
-        (group) =>
-          !group.pageUrl || selectedUrls.has(normalizeSeoUrl(group.pageUrl)),
+      const recover =
+        row.sourceTaskId && input.marketRecoveryTaskIds?.has(row.sourceTaskId);
+      strategy = projectSiteStrategy(
+        data.strategy,
+        data,
+        row,
+        selectedUrls,
+        recover ? row.sourceFileId : null,
       );
-      const wholeReport = data.pageUrls.every((url) =>
-        selectedUrls.has(normalizeSeoUrl(url)),
-      );
-      strategy = {
-        ...site,
-        groups,
-        ...(purposeOpportunity &&
-          selectedUrls.has(purposeOpportunity.pageUrl) &&
-          groups.some(
-            (group) =>
-              group.pageUrl &&
-              normalizeSeoUrl(group.pageUrl) === purposeOpportunity.pageUrl &&
-              group.lead === purposeOpportunity.keyword &&
-              group.reach === purposeOpportunity.reach,
-          ) && { purposeOpportunity }),
-        ...(wholeReport && demandByIntent && { demandByIntent }),
-        ...(wholeReport && missingDemandByIntent && { missingDemandByIntent }),
-        observationId: row.id,
-        observedAt: row.observedAt.toISOString(),
-        countryCode: data.countryCode || null,
-        languageCode: data.languageCode || null,
-      };
     }
     observations.push({
       id: row.id,
@@ -298,16 +279,12 @@ export function projectSeoProjection(
       sourceTaskId: row.sourceTaskId,
       countryCode: data.countryCode || null,
       languageCode: data.languageCode || null,
-      devices: [
-        ...new Set(
-          [...data.checks, ...data.findings, ...data.keywords].flatMap(
-            (item) => (item.device ? [item.device] : []),
-          ),
-        ),
-      ],
+      devices,
       rulebookVersion: data.rulebookVersion,
       artifactHash: row.artifactHash,
       issues,
+      ...(checklistBreakdown && { checklistBreakdown }),
+      ...scopedPageMarketEvidence(data, selectedUrls),
       coverage,
     });
     for (const check of data.checks) {

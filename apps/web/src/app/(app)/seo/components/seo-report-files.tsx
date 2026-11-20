@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import { SeoAuditSearchConsole } from "./seo-audit-search-console";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   type SeoReportFileProps,
@@ -20,19 +21,28 @@ import {
 
 export function SeoReportFiles({ model, versions }: SeoReportFileProps) {
   const t = useTranslations("App.Seo.reportFiles");
+  const hasEvidence = versions.some(
+    ({ taskId }) =>
+      model.data.auditSearchConsole?.some((entry) => entry.taskId === taskId) ||
+      model.data.auditSearchConsoleRetryTaskIds?.includes(taskId),
+  );
+  const title = t(hasEvidence ? "withSearchConsole" : "title");
   const trigger = (
     <Button size="sm" variant="ghost" disabled={!versions.length}>
       <Files aria-hidden />
-      {t("title")}
+      {title}
     </Button>
   );
   if (!versions.length) return trigger;
   return (
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent aria-describedby={undefined}>
+      <DialogContent
+        aria-describedby={undefined}
+        className="max-h-[85dvh] overflow-y-auto"
+      >
         <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <SeoReportFileSelection model={model} versions={versions} />
       </DialogContent>
@@ -54,6 +64,12 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
     retry,
     refreshing,
     importReport,
+    recoverMarkets,
+    evidence,
+    fullAudit,
+    recoverSearch,
+    recovering,
+    recoveryFailed,
   } = useSeoReportFiles({ model, versions });
   return (
     <>
@@ -76,6 +92,46 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
         <p className="text-muted-foreground text-sm">
           {t("reportFiles.historyLimit")}
         </p>
+      )}
+      {evidence ? (
+        <SeoAuditSearchConsole evidence={evidence} />
+      ) : fullAudit || recoverSearch ? (
+        <p className="text-muted-foreground text-sm">
+          {t("reportFiles.missingSearchConsole")}
+        </p>
+      ) : null}
+      {recoverSearch && (
+        <div className="space-y-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            loading={recovering}
+            onClick={recoverSearch}
+          >
+            {t("reportFiles.recoverSearch")}
+          </Button>
+          {recoveryFailed && (
+            <p role="alert" className="text-destructive text-sm">
+              {t("reportFiles.recoverSearchFailed")}
+            </p>
+          )}
+        </div>
+      )}
+      {recoverMarkets && (
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-sm">
+            {t("reportFiles.recoverMarketsHelp")}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            loading={model.pending}
+            onClick={() => void recoverMarkets()}
+          >
+            {t("reportFiles.recoverMarkets")}
+          </Button>
+        </div>
       )}
       {importReport ? (
         <div className="space-y-2">

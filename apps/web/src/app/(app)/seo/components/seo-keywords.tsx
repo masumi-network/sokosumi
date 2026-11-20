@@ -32,11 +32,11 @@ import { SeoKeywordHistory } from "./seo-keyword-history";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import { SeoKeywordReach } from "./seo-keyword-reach";
 import {
-  keywordGroups,
   keywordPage,
   keywordPositions,
   keywordReadFailed,
   keywordSummary,
+  workspaceKeywordGroups,
 } from "./seo-keyword-rows-model";
 import { SeoKeywordSuggestions } from "./seo-keyword-suggestions";
 import { SeoKeywordTrendToggle } from "./seo-keyword-trend";
@@ -122,9 +122,12 @@ export function SeoKeywords({
   const dayOf = (value: string | Date | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
   // One row per keyword: a check reports it once per device, and again as a gap or an idea.
-  const { checked, ideas } = keywordGroups(model.filteredKeywords);
+  const { checked, ideas } = workspaceKeywordGroups(
+    model.data,
+    model.filteredKeywords,
+  );
   // The result line speaks for every keyword; a search narrows the rows only.
-  const all = keywordGroups(model.data.keywords);
+  const all = workspaceKeywordGroups(model.data);
   const summary = keywordSummary(all.checked);
   const [expanded, setExpanded] = useState(false);
   const page = keywordPage(checked, SEO_LIST_PAGE_SIZE);

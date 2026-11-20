@@ -15,7 +15,7 @@ import type {
   SaveProjectSeoBrandTermsRequest,
   SaveProjectSeoCompetitorRequest,
   SaveProjectSeoKeywordRequest,
-  SyncProjectSeoStatisticsRequest,
+  SyncProjectSeoStatisticsData,
   UpdateProjectSeoScopeRequest,
 } from "@sokosumi/core-client";
 import {
@@ -310,7 +310,10 @@ export const seoServiceNoRedirect = {
     );
     return response.data;
   },
-  async syncStatistics(owner: SeoOwner, body: SyncProjectSeoStatisticsRequest) {
+  async syncStatistics(
+    owner: SeoOwner,
+    body: NonNullable<SyncProjectSeoStatisticsData["body"]>,
+  ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>

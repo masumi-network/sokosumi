@@ -63,6 +63,17 @@ describe("automatic statistics HTTP boundary", () => {
       expect(mocks.sync).toHaveBeenCalledWith({ kind, id: OWNER }, body);
     },
   );
+  it("forwards only the audit task ID for a manual run recovery", async () => {
+    const params = Promise.resolve({ auditId: OWNER });
+    const task = { auditTaskId: "975fe499-656f-4546-8bd0-69b4ab2ca9ae" };
+    expect((await auditPost(request(task), { params })).status).toBe(200);
+    expect(mocks.sync).toHaveBeenCalledWith({ kind: "audit", id: OWNER }, task);
+    expect(
+      (await auditPost(request({ ...task, propertyId: "other" }), { params }))
+        .status,
+    ).toBe(400);
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+  });
   it("rejects a request left over from another workspace before collecting", async () => {
     const response = await auditPost(
       request(body, "owner", "organization:previous"),

@@ -270,6 +270,36 @@ describe("public SEO report trust boundary", () => {
     );
   });
 
+  it("retains the worker order up to fifty per page and excludes raw gaps from broad recommendations", () => {
+    const fixture = legacyReport();
+    const list = Array.from({ length: 51 }, (_, i) => ({
+      ...fixture.keywordOpportunities.list[0],
+      keyword: "idea " + i,
+    }));
+    const status = {
+      status: "complete",
+      proposed: 3,
+      checked: 3,
+      qualified: 2,
+    };
+    const parse = (editorialResearch?: typeof status) =>
+      parsePublicSeoArtifact({
+        ...fixture,
+        keywordOpportunities: {
+          list,
+          ...(editorialResearch && { editorialResearch }),
+        },
+      }).keywords;
+    const broad = parse(status);
+    const ranked = broad.filter((row) => row.source === "opportunity");
+    expect(ranked).toHaveLength(50);
+    expect(ranked.at(-1)).toMatchObject({ keyword: "idea 49", ideaRank: 50 });
+    expect(broad.find((row) => row.source === "gap")?.ideaRank).toBeNull();
+    expect(
+      parse().find((row) => row.source === "opportunity"),
+    ).not.toHaveProperty("ideaRank");
+  });
+
   it("keeps the model origins and DataForSEO receipt with the measured keyword idea", () => {
     const fixture = legacyReport();
     const editorial = { models: ["gemini", "codex"], record: "a".repeat(64) };
