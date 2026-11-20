@@ -5,7 +5,7 @@ import type { NewsletterBrand } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Monitor, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useDebounce } from "use-debounce";
 import { z } from "zod";
 import { PreviewFrame } from "@/components/common/preview-frame";
@@ -36,6 +36,14 @@ export function NewsletterIssuePreview({
     iframe: HTMLIFrameElement;
     targets: readonly Element[];
   } | null>(null);
+  const measureFrameRef = useRef(0);
+  const attachIframe = useCallback((node: HTMLIFrameElement | null) => {
+    if (!node) return;
+    return () => {
+      cancelAnimationFrame(measureFrameRef.current);
+      measureFrameRef.current = 0;
+    };
+  }, []);
   function updateContentHeight(iframe: HTMLIFrameElement) {
     const doc = iframe.contentDocument;
     if (!doc?.body) return;
@@ -49,6 +57,8 @@ export function NewsletterIssuePreview({
     if (next > 0) setContentHeight(next);
   }
   function measureContent(iframe: HTMLIFrameElement) {
+    cancelAnimationFrame(measureFrameRef.current);
+    measureFrameRef.current = 0;
     const doc = iframe.contentDocument;
     if (!doc?.body) return;
     updateContentHeight(iframe);
@@ -87,7 +97,12 @@ export function NewsletterIssuePreview({
   useResizeObserver(
     preview.data && parsed.success ? contentMeasure?.targets : null,
     () => {
-      if (contentMeasure) updateContentHeight(contentMeasure.iframe);
+      if (!contentMeasure) return;
+      cancelAnimationFrame(measureFrameRef.current);
+      measureFrameRef.current = requestAnimationFrame(() => {
+        measureFrameRef.current = 0;
+        updateContentHeight(contentMeasure.iframe);
+      });
     },
   );
   return (
@@ -143,6 +158,7 @@ export function NewsletterIssuePreview({
       >
         {preview.data && parsed.success ? (
           <iframe
+            ref={attachIframe}
             title={t("Preview.label")}
             srcDoc={preview.data.html}
             // allow-same-origin lets the parent measure the email height; scripts stay blocked.
