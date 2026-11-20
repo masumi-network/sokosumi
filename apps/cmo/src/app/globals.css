@@ -5256,3 +5256,35 @@ button.week-more {
     gap: 8px;
   }
 }
+
+.site-disclosures {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.site-disclosures .foot-ai {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.site-disclosures .foot-ai img,
+.site-disclosures .foot-pref svg {
+  flex: none;
+}
+.site-disclosures .foot-ai p {
+  margin: 0;
+}
+.site-disclosures .foot-pref {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.site-disclosures .foot-ai img {
+  background: var(--primary-foreground);
+}
