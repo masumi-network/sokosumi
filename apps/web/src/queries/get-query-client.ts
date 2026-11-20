@@ -1,10 +1,9 @@
 import {
   defaultShouldDehydrateQuery,
-  isServer,
   QueryClient,
 } from "@tanstack/react-query";
 
-function makeQueryClient() {
+export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
@@ -20,13 +19,15 @@ function makeQueryClient() {
   });
 }
 
-let browserQueryClient: QueryClient | undefined;
+/**
+ * Cancel in-flight queries before clearing so active fetches receive an abort
+ * signal and no cached query or mutation state survives a session boundary.
+ */
+export function retireQueryClient(client: QueryClient): void {
+  void client.cancelQueries();
+  client.clear();
+}
 
-export function getQueryClient() {
-  if (isServer) {
-    return makeQueryClient();
-  } else {
-    if (!browserQueryClient) browserQueryClient = makeQueryClient();
-    return browserQueryClient;
-  }
+export function getQueryClient(): QueryClient {
+  return createQueryClient();
 }
