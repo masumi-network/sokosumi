@@ -1,7 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { AGENT_NAME } from "./agent";
 import { channelLabel, connectedNetworks, waitsForNetwork } from "./calendar";
-import { strategyApproved } from "./strategy";
+import { isAd, strategyApproved } from "./strategy";
 import type { View } from "./views";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
@@ -139,7 +139,9 @@ export interface MonthProgress {
   total: number;
 }
 
-export function monthProgress(entries: Entry[]): MonthProgress {
+export function monthProgress(month: Entry[]): MonthProgress {
+  // Ads are launched by the owner and never go out as posts.
+  const entries = month.filter((entry) => !isAd(entry));
   const count = (status: Entry["status"]) =>
     entries.filter((entry) => entry.status === status).length;
   return {

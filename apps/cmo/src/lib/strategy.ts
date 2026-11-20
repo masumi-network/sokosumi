@@ -11,7 +11,7 @@ export function strategyApproved(
 type CalendarEntry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 
 /** A search or social ad: the owner launches it, it is never a post. */
-function isAd(entry: CalendarEntry): boolean {
+export function isAd(entry: Pick<CalendarEntry, "channel">): boolean {
   return channelInfo(entry.channel)?.group === "ads";
 }
 

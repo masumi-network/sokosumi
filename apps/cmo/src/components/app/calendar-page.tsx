@@ -20,6 +20,7 @@ import {
   formatHasVideo,
   formatName,
 } from "../../lib/channels";
+import { monthLabel } from "../../lib/strategy";
 import { dayIn } from "../../lib/today";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
@@ -208,7 +209,7 @@ export function CalendarPage({
       {waiting}
       <div className="card cal-head">
         <p className="note num">
-          {live.length} posts this month · {ready} ready
+          {monthLabel(live)} this month · {ready} ready
           {ready < live.length ? ` · ${live.length - ready} being made` : ""}
           {beyond.size > 0
             ? ` · ${beyond.size} more with a bigger plan, in Settings`

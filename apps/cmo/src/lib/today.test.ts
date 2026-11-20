@@ -135,6 +135,12 @@ it("counts the month by where each post stands", () => {
       entry("scheduled"),
       entry("draft"),
       entry("idea"),
+      {
+        ...entry("idea"),
+        id: "ad",
+        channel: "google_ads",
+        format: "search ad",
+      },
     ]),
   ).toEqual({ out: 2, scheduled: 1, written: 1, planned: 1, total: 5 });
 });

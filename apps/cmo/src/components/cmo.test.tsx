@@ -1002,7 +1002,9 @@ describe("calendar", () => {
     );
     for (const entry of live) expect(html).toContain(entry.title);
     expect(html).toContain("Week 1");
-    expect(html).toContain(`${live.length} posts this month`);
+    expect(html).toContain(
+      `${live.length} ${live.length === 1 ? "post" : "posts"} this month`,
+    );
     expect(html).toContain('aria-pressed="true"');
     // Where a post stands is words, not a pill that looks like a button.
     expect(html).toContain('class="state"');
