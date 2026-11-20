@@ -119,6 +119,16 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-gradient-background-canvas` (`useGradientBackgroundCanvas`) — WebGL Home gradient canvas lifecycle with theme token observation, reduced motion, and off-screen pause
 - `use-thinking-orb-canvas` (`useThinkingOrbCanvas`) — `thinking-orbs` 2D canvas animation with reduced-motion static frame fallback
 - `use-studio-wall-paint` (`useStudioWallPaint`, `applyStudioWallTransform`) — before-paint Studio template wall layout transform synchronization
+- `use-document-locale-lang` (`useDocumentLocaleLang`) — before-paint `document.documentElement.lang` synchronization with the active locale
+- `use-agent-fullbleed-body` (`useAgentFullbleedBody`) — `data-agent-fullbleed="true"` toggle on `<body>` while the agent jobs layout is mounted
+- `use-soko-bot-creating-body` (`useSokoBotCreatingBody`) — `data-soko-bot-creating="true"` toggle on `<body>` while the Soko Bot creation flow is mounted
+- `use-seo-ask-button-toast-offset` (`useSeoAskButtonToastOffset`) — `--toast-bottom-offset` toggle on `document.documentElement` while the SEO ask button is mounted
+- `use-chat-unreads-filter` (`useChatUnreadsFilter`) — browser-remembered Unreads filter cookie store and before-paint boot attribute cleanup
+- `use-dynamic-type-root-cap` (`useDynamicTypeRootCap`) — Apple Dynamic Type root `fontSize` cap on mount, `pageshow`, and `visibilitychange`
+- `use-browser-time-format-sync` (`useBrowserTimeFormatSync`) — browser 12h/24h time-format cookie sync and Auto route refresh
+- `use-browser-time-zone-sync` (`useBrowserTimeZoneSync`) — browser IANA time-zone cookie sync and route refresh
+- `use-canonical-history-path` (`useCanonicalHistoryPath`) — post-render `window.history.replaceState` pathname canonicalization preserving state, search, and hash
+- `use-internal-traffic-gate` (`useInternalTrafficGate`) — internal-traffic cookie sync, `?internal` URL stripping, and Google tags gating
 
 ### React Query in migrations
 
