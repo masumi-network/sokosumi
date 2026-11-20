@@ -515,7 +515,7 @@ function writeTempPlugins(fixture) {
 }
 
 describe("no-direct-effects Grit plugins", () => {
-  test("flags direct calls, scoped aliases/members/optional-calls/quoted-names/re-exports at error severity while allowing non-React objects, useEffectEvent, and exempt paths in both apps", () => {
+  test("flags direct calls and any scoped value/alias/member/re-export reference (conditionals, arrays, objects, arguments, returns) at error severity while allowing non-React objects, useEffectEvent, and exempt paths in both apps", () => {
     const badSample = [
       'import * as R from "react";',
       "import React, {",
@@ -532,15 +532,28 @@ describe("no-direct-effects Grit plugins", () => {
       'export { useMountEffect as reexportedMountEffect } from "@/hooks/use-mount-effect";',
       "export { useEffect as localReexport, useEffectEvent as okLocalReexport };",
       "",
-      "export function Sample() {",
+      "export const useIsomorphicLayoutEffect =",
+      '  typeof window === "undefined" ? useEffect : useLayoutEffect;',
+      "export const nsConditional =",
+      '  typeof window === "undefined" ? R.useEffect : R.useLayoutEffect;',
+      "export const reactConditional =",
+      '  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;',
+      "",
+      "export function Sample(run: (fn: unknown) => unknown) {",
       "  const onTick = useEffectEvent(() => {});",
       "  const { useEffect: destructuredEffect } = R;",
       "  let { useLayoutEffect: destructuredLayout } = React;",
       "  const { useMountEffect: destructuredMount } = R;",
       "  const { useEffectEvent: okEvent } = R;",
+      "  const arr = [useEffect, useMountEffect, R.useEffect, React.useLayoutEffect];",
+      "  const obj = { fn: useEffect, useLayoutEffect, ns: R.useMountEffect, r: React.useEffect };",
+      "  run(useEffect);",
+      "  run(R.useEffect);",
+      "  run(React.useMountEffect);",
       "  const assignedEffect = useEffect;",
       "  const assignedMember = R.useLayoutEffect;",
       '  const assignedComputed = R["useMountEffect"];',
+      "  const returned = () => useEffect;",
       "  useEffect(() => {",
       "    onTick();",
       "  }, [onTick]);",
@@ -557,7 +570,7 @@ describe("no-direct-effects Grit plugins", () => {
       '  React["useEffect"](() => {}, []);',
       "  React['useLayoutEffect'](() => {});",
       '  R["useMountEffect"]?.(() => {});',
-      "  return [ue, qe, ule, ume, qm, destructuredEffect, destructuredLayout, destructuredMount, okEvent, assignedEffect, assignedMember, assignedComputed];",
+      "  return [ue, qe, ule, ume, qm, destructuredEffect, destructuredLayout, destructuredMount, okEvent, arr, obj, assignedEffect, assignedMember, assignedComputed, returned];",
       "}",
       "",
     ].join("\n");
@@ -569,14 +582,19 @@ describe("no-direct-effects Grit plugins", () => {
       "export function Safe(",
       "  options: { useEffect: boolean },",
       "  api: { useEffect: () => void },",
+      "  run: (x: unknown) => void,",
       "): R.ReactNode {",
       "  const { useEffect } = options;",
       "  const copiedFlag = useEffect;",
+      '  const conditionalFlag = typeof window === "undefined" ? useEffect : false;',
+      "  const arr = [useEffect];",
+      "  const obj = { fn: useEffect, useEffect };",
+      "  run(useEffect);",
       "  const onTick = useEffectEvent(() => {});",
-      "  if (copiedFlag) api.useEffect();",
+      "  if (copiedFlag && conditionalFlag) api.useEffect();",
       "  onTick();",
       "  const [count] = useState(0);",
-      "  return count;",
+      "  return [arr, obj, count];",
       "}",
       "",
     ].join("\n");
@@ -584,12 +602,14 @@ describe("no-direct-effects Grit plugins", () => {
     // 7 direct calls (`no-direct-effects.grit`):
     //   useEffect, useLayoutEffect, useMountEffect, useEffect?.,
     //   React.useEffect, React.useLayoutEffect, React.useMountEffect
-    // 23 alias/indirection matches (`no-effect-aliases.grit`):
-    //   5 import aliases + 5 renamed re-exports + 3 destructurings + 3 assignments
-    //   + 7 namespace/computed/optional calls (React.useEffect?., R.useEffect,
-    //     R.useEffect?., R.useLayoutEffect, React["useEffect"], React['useLayoutEffect'],
-    //     R["useMountEffect"]?.)
-    const expectedCount = 30;
+    // 41 alias/value/indirection matches (`no-effect-aliases.grit`):
+    //   5 import aliases + 5 renamed re-exports
+    //   + 6 conditional value refs (useEffect, useLayoutEffect, R.useEffect, R.useLayoutEffect, React.useEffect, React.useLayoutEffect)
+    //   + 3 destructurings
+    //   + 4 array value refs + 4 object value refs + 3 function argument value refs
+    //   + 3 assignments + 1 arrow return value ref
+    //   + 7 namespace/computed/optional calls
+    const expectedCount = 48;
 
     for (const app of APPS) {
       const fixture = mkdtempSync(join(tmpdir(), `effect-rule-${app.name}-`));
@@ -668,7 +688,7 @@ describe("no-direct-effects Grit plugins", () => {
     }
   });
 
-  test("never grandfathers aliases in a baselined file", () => {
+  test("never grandfathers aliases or conditional value refs in a baselined file", () => {
     const fixture = mkdtempSync(join(tmpdir(), "effect-baselined-alias-"));
     try {
       writeTempPlugins(fixture);
@@ -677,11 +697,13 @@ describe("no-direct-effects Grit plugins", () => {
       writeFileSync(
         join(appDir, "src/legacy.tsx"),
         [
-          'import { useEffect, useEffect as ue } from "react";',
+          'import { useEffect, useEffect as ue, useLayoutEffect } from "react";',
+          "const useIsomorphicLayoutEffect =",
+          '  typeof window === "undefined" ? useEffect : useLayoutEffect;',
           "export function Legacy() {",
           "  useEffect(() => {}, []);",
           "  ue(() => {}, []);",
-          "  ue(() => {}, []);",
+          "  useIsomorphicLayoutEffect(() => {}, []);",
           "  return null;",
           "}",
           "",
@@ -709,7 +731,8 @@ describe("no-direct-effects Grit plugins", () => {
         }),
       );
 
-      // Biome itself flags the alias inside the baselined file.
+      // Biome itself flags both the import alias and the conditional value refs
+      // inside the baselined file (1 import alias + 2 conditional refs = 3).
       const report = runBiomeJson(
         ["lint", "--reporter=json", "--max-diagnostics=none", "."],
         appDir,
@@ -717,10 +740,12 @@ describe("no-direct-effects Grit plugins", () => {
       const pluginErrors = report.diagnostics.filter(
         (d) => d.category === "plugin",
       );
-      assert.equal(pluginErrors.length, 1);
-      assert.equal(pluginErrors[0].severity, "error");
+      assert.equal(pluginErrors.length, 3);
+      for (const error of pluginErrors) {
+        assert.equal(error.severity, "error");
+      }
 
-      // And the seam checker rejects it even though the direct call count is 1.
+      // And the seam checker rejects them even though the direct call count is 1.
       const { aliases, violations } = checkAppDir({
         name: "web",
         dir: appDir,
@@ -729,7 +754,7 @@ describe("no-direct-effects Grit plugins", () => {
       });
       assert.deepEqual(violations, []);
       assert.equal(aliases.length, 1);
-      assert.match(aliases[0], /src\/legacy\.tsx.*never grandfathered/);
+      assert.match(aliases[0], /src\/legacy\.tsx.*3 forbidden/);
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }

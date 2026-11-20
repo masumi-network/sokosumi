@@ -1,8 +1,8 @@
 language js
 
 // Indirections around effect hooks (import aliases, namespace/computed members,
-// destructuring, local aliases, and renamed re-exports) are never grandfathered
-// in baselined or clean files (ADR-0075).
+// destructuring, renamed re-exports, and any value reference outside direct
+// callee position) are never grandfathered in baselined or clean files (ADR-0075).
 or {
   JsNamedImportSpecifier() as $spec where {
     $spec <: r"^(?:[\"'](?:useEffect|useLayoutEffect|useMountEffect)[\"']|(?:useEffect|useLayoutEffect|useMountEffect))\s+as\s+\S+$",
@@ -20,49 +20,71 @@ or {
   JsExportNamedFromSpecifier() as $spec where {
     $spec <: r"^(?:[\"'](?:useEffect|useLayoutEffect|useMountEffect)[\"']|(?:useEffect|useLayoutEffect|useMountEffect))\s+as\s+\S+$"
   },
-  `React.useEffect?.($args)`,
-  `React.useLayoutEffect?.($args)`,
-  `React.useMountEffect?.($args)`,
-  `React["useEffect"]($args)`,
-  `React["useLayoutEffect"]($args)`,
-  `React["useMountEffect"]($args)`,
-  `React['useEffect']($args)`,
-  `React['useLayoutEffect']($args)`,
-  `React['useMountEffect']($args)`,
-  `React["useEffect"]?.($args)`,
-  `React["useLayoutEffect"]?.($args)`,
-  `React["useMountEffect"]?.($args)`,
-  `React['useEffect']?.($args)`,
-  `React['useLayoutEffect']?.($args)`,
-  `React['useMountEffect']?.($args)`,
+  // Any bare value reference to a runtime-imported effect hook outside direct
+  // callee position (conditionals, arrays, object values, arguments, returns,
+  // assignments, parenthesized calls).
   or {
-    `$ns.useEffect($args)` where { not $ns <: `React` },
-    `$ns.useLayoutEffect($args)` where { not $ns <: `React` },
-    `$ns.useMountEffect($args)` where { not $ns <: `React` },
-    `$ns.useEffect?.($args)` where { not $ns <: `React` },
-    `$ns.useLayoutEffect?.($args)` where { not $ns <: `React` },
-    `$ns.useMountEffect?.($args)` where { not $ns <: `React` },
-    `$ns["useEffect"]($args)` where { not $ns <: `React` },
-    `$ns["useLayoutEffect"]($args)` where { not $ns <: `React` },
-    `$ns["useMountEffect"]($args)` where { not $ns <: `React` },
-    `$ns['useEffect']($args)` where { not $ns <: `React` },
-    `$ns['useLayoutEffect']($args)` where { not $ns <: `React` },
-    `$ns['useMountEffect']($args)` where { not $ns <: `React` },
-    `$ns["useEffect"]?.($args)` where { not $ns <: `React` },
-    `$ns["useLayoutEffect"]?.($args)` where { not $ns <: `React` },
-    `$ns["useMountEffect"]?.($args)` where { not $ns <: `React` },
-    `$ns['useEffect']?.($args)` where { not $ns <: `React` },
-    `$ns['useLayoutEffect']?.($args)` where { not $ns <: `React` },
-    `$ns['useMountEffect']?.($args)` where { not $ns <: `React` },
-    `$id = $ns.useEffect`,
-    `$id = $ns.useLayoutEffect`,
-    `$id = $ns.useMountEffect`,
-    `$id = $ns["useEffect"]`,
-    `$id = $ns["useLayoutEffect"]`,
-    `$id = $ns["useMountEffect"]`,
-    `$id = $ns['useEffect']`,
-    `$id = $ns['useLayoutEffect']`,
-    `$id = $ns['useMountEffect']`,
+    JsIdentifierExpression() as $ref where {
+      $ref <: r"^(?:useEffect|useLayoutEffect|useMountEffect)$",
+      not $ref <: within JsCallExpression(callee=$ref)
+    },
+    JsShorthandPropertyObjectMember() as $ref where {
+      $ref <: r"^(?:useEffect|useLayoutEffect|useMountEffect)$"
+    }
+  } where {
+    $program <: contains JsImport() as $imp where {
+      not $imp <: r"^import\s+type\b",
+      $imp <: contains $mod where {
+        $mod <: r"^[\"'](?:react|.*/use-mount-effect)[\"']$"
+      },
+      $imp <: contains JsShorthandNamedImportSpecifier() as $imported where {
+        $imported <: $ref
+      }
+    }
+  },
+  // Any React["useEffect"] / React['useEffect'] access, React.useEffect?.(...)
+  // optional call, or React.useEffect value reference outside callee position.
+  or {
+    `React.useEffect?.($args)`,
+    `React.useLayoutEffect?.($args)`,
+    `React.useMountEffect?.($args)`,
+    `React["useEffect"]`,
+    `React["useLayoutEffect"]`,
+    `React["useMountEffect"]`,
+    `React['useEffect']`,
+    `React['useLayoutEffect']`,
+    `React['useMountEffect']`,
+    JsStaticMemberExpression() as $mem where {
+      $mem <: or {
+        `React.useEffect`,
+        `React.useLayoutEffect`,
+        `React.useMountEffect`
+      },
+      not $mem <: within JsCallExpression(callee=$mem)
+    }
+  },
+  // Any non-React namespace/default member reference (callee or value) or
+  // destructuring from a runtime react / use-mount-effect binding.
+  or {
+    JsStaticMemberExpression() as $mem where {
+      $mem <: or {
+        `$ns.useEffect`,
+        `$ns.useLayoutEffect`,
+        `$ns.useMountEffect`
+      },
+      not $ns <: `React`
+    },
+    JsComputedMemberExpression() as $mem where {
+      $mem <: or {
+        `$ns["useEffect"]`,
+        `$ns["useLayoutEffect"]`,
+        `$ns["useMountEffect"]`,
+        `$ns['useEffect']`,
+        `$ns['useLayoutEffect']`,
+        `$ns['useMountEffect']`
+      },
+      not $ns <: `React`
+    },
     `$pat = $ns` where {
       $pat <: r"^\{[\s\S]*\b(?:useEffect|useLayoutEffect|useMountEffect)\b[\s\S]*\}$"
     }
@@ -77,23 +99,6 @@ or {
         JsDefaultImportSpecifier(local_name=$ns),
         `import * as $ns from $_`,
         `import $ns from $_`
-      }
-    }
-  },
-  or {
-    `$id = useEffect`,
-    `$id = useLayoutEffect`,
-    `$id = useMountEffect`
-  } where {
-    $program <: contains JsImport() as $imp where {
-      not $imp <: r"^import\s+type\b",
-      $imp <: contains $mod where {
-        $mod <: r"^[\"'](?:react|.*/use-mount-effect)[\"']$"
-      },
-      $imp <: contains or {
-        `useEffect`,
-        `useLayoutEffect`,
-        `useMountEffect`
       }
     }
   }
