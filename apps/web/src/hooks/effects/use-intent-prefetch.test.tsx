@@ -196,6 +196,32 @@ describe("useIntentPrefetch", () => {
     expect(second).toHaveBeenCalledTimes(1);
   });
 
+  it("calls the latest callback after a rerender during a pending scroll-settle", async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const view = render(<Probe prefetch={first} />);
+    const link = screen.getByRole("link");
+    document.elementFromPoint = () => link;
+    document.dispatchEvent(
+      new PointerEvent("pointermove", {
+        clientX: 40,
+        clientY: 60,
+        pointerType: "mouse",
+      }),
+    );
+
+    document.dispatchEvent(new Event("scroll"));
+    await act(() => approachElement(link, "mouse", "keep"));
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(first).not.toHaveBeenCalled();
+
+    view.rerender(<Probe prefetch={second} />);
+    await act(() => vi.advanceTimersByTimeAsync(101));
+
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledExactlyOnceWith("pointer");
+  });
+
   it("registers nothing while disabled, and lets go of the element on unmount", () => {
     const view = render(<Probe prefetch={vi.fn()} enabled={false} />);
     const link = screen.getByRole("link");
