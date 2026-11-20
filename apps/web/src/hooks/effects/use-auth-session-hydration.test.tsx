@@ -1,6 +1,6 @@
 import type { Session } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
-import { Activity } from "react";
+import { Activity, useLayoutEffect } from "react";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -55,34 +55,61 @@ describe("useAuthSessionHydration", () => {
 
   it("registers the rendered user and hydrates authClient before paint and on Activity reveal", () => {
     const registerRenderedUser = vi.fn();
+    const observedDuringLayout: Array<{
+      hydratedCalls: number;
+      registeredCalls: number;
+    }> = [];
+
+    function FollowingLayoutSibling() {
+      useLayoutEffect(() => {
+        observedDuringLayout.push({
+          hydratedCalls: hydrateSessionMock.mock.calls.length,
+          registeredCalls: registerRenderedUser.mock.calls.length,
+        });
+      });
+      return null;
+    }
 
     const { rerender } = render(
-      <Activity mode="visible">
-        <Hydrator
-          nextSession={session}
-          registerRenderedUser={registerRenderedUser}
-        />
-      </Activity>,
+      <>
+        <Activity mode="visible">
+          <Hydrator
+            nextSession={session}
+            registerRenderedUser={registerRenderedUser}
+          />
+        </Activity>
+        <FollowingLayoutSibling />
+      </>,
     );
 
+    expect(observedDuringLayout[0]).toEqual({
+      hydratedCalls: 1,
+      registeredCalls: 1,
+    });
     expect(registerRenderedUser).toHaveBeenCalledWith("user-1");
     expect(hydrateSessionMock).toHaveBeenCalledWith(session);
 
     rerender(
-      <Activity mode="hidden">
-        <Hydrator
-          nextSession={session}
-          registerRenderedUser={registerRenderedUser}
-        />
-      </Activity>,
+      <>
+        <Activity mode="hidden">
+          <Hydrator
+            nextSession={session}
+            registerRenderedUser={registerRenderedUser}
+          />
+        </Activity>
+        <FollowingLayoutSibling />
+      </>,
     );
     rerender(
-      <Activity mode="visible">
-        <Hydrator
-          nextSession={session}
-          registerRenderedUser={registerRenderedUser}
-        />
-      </Activity>,
+      <>
+        <Activity mode="visible">
+          <Hydrator
+            nextSession={session}
+            registerRenderedUser={registerRenderedUser}
+          />
+        </Activity>
+        <FollowingLayoutSibling />
+      </>,
     );
 
     expect(registerRenderedUser).toHaveBeenCalledTimes(2);
