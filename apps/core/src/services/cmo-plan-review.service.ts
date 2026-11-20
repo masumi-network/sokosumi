@@ -1183,14 +1183,17 @@ export async function cmoCalendarRepeats(
         (entries) =>
           `${ids(entries)} tell one story ("${entries[0]?.story}"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.`,
       ),
-    ...claims.groups.flatMap((entries) => {
-      const repeated = repeatedClaim(entries);
-      return repeated
-        ? [
-            `${ids(repeated)} argue one claim ("${entries[0]?.claim}"); ${MAX_CLAIM_PIECES} pieces a month at most, never two in one week. Keep ${repeated[0]?.id} and give the others their own claim from their pillar.`,
-          ]
-        : [];
-    }),
+    // A few at a time: each is a rewrite of its pieces.
+    ...claims.groups
+      .flatMap((entries) => {
+        const repeated = repeatedClaim(entries);
+        return repeated
+          ? [
+              `${ids(repeated)} argue one claim ("${entries[0]?.claim}"); ${MAX_CLAIM_PIECES} pieces a month at most, never two in one week. Keep ${repeated[0]?.id} and give the others their own claim from their pillar.`,
+            ]
+          : [];
+      })
+      .slice(0, MAX_CLAIM_PROBLEMS),
   ];
   return {
     problems,
@@ -1224,6 +1227,9 @@ export async function cmoRepeatedMessages(
   });
   return { problems, costUsd };
 }
+
+/** Repeated claims one review names; the next save names the rest. */
+const MAX_CLAIM_PROBLEMS = 5;
 
 /** Pieces one claim may carry in a month, in different weeks (cmo-v8). */
 const MAX_CLAIM_PIECES = 3;

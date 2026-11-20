@@ -742,18 +742,26 @@ export async function ownMessageProblem(
   return { problem: argued.problem, costUsd: costUsd + argued.costUsd };
 }
 
-/** Below this Jev is fairly sure the opening misses; a coin flip is not worth a rewrite. */
-const OPENING_PASS = 0.35;
+/**
+ * Below this Jev reads the opening as a miss. Calibrated on 30 hand-labelled
+ * cal.com and NMKR first lines: no good one under 0.52, most weak ones under it.
+ */
+const OPENING_PASS = 0.45;
 
-/** What a LinkedIn reader sees before "see more": about two lines. */
+/**
+ * The line a LinkedIn reader decides on before "see more". Two lines once let
+ * a flat first line pass on the result Cuso moved to the second, which Jev's
+ * month review then failed.
+ */
 export function linkedInOpening(text: string): string {
-  return text
-    .trim()
-    .split(/\n+/)
-    .filter((line) => line.trim())
-    .slice(0, 2)
-    .join("\n")
-    .slice(0, 220);
+  return (
+    text
+      .trim()
+      .split(/\n+/)
+      .find((line) => line.trim())
+      ?.trim()
+      .slice(0, 160) ?? ""
+  );
 }
 
 /**
@@ -779,7 +787,7 @@ export async function linkedInOpeningProblem(
         hook: {
           type: "boolean",
           instructions:
-            "Do the opening lines state something specific that happened: a result with its number, a number from the business, a named customer or company and what they did, or a decision that sounds surprising at first? Advice, a tip, a definition, a general truth about the category, a question to the reader, what the reader should do, a founding year or company history, a release note, a listing of what is offered, a rating, or an unnamed reviewer's praise is not.",
+            "Does the opening line state something specific that happened: a result with its number, a number from the business, a named customer or company and what they did, or a decision that sounds surprising at first? Advice, a tip, a definition, a general truth about the category, a question to the reader, what the reader should do, a founding year or company history, a release note, a listing of what is offered, a rating, or an unnamed reviewer's praise is not.",
         },
       },
       timeoutMs: 15_000,
@@ -790,7 +798,7 @@ export async function linkedInOpeningProblem(
     return {
       problem: passed
         ? null
-        : `Rewrite the post's first two lines: "${opening.split("\n")[0]}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
+        : `Rewrite the post's first line: "${opening}" gives no reason to tap "see more". Open with the most surprising true thing in the piece: a result with its number, a named customer and what they did, or a decision that sounds wrong at first. Advice or a question is not an opening.`,
       costUsd,
     };
   } catch {

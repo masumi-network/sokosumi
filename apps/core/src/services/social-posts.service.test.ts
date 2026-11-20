@@ -3108,13 +3108,13 @@ describe("social posts service", () => {
         evaluate as never,
       );
       expect(result.problem).toContain(
-        'Rewrite the post\'s first two lines: "A booking flow should start with the team." gives no reason to tap "see more".',
+        'Rewrite the post\'s first line: "A booking flow should start with the team." gives no reason to tap "see more".',
       );
       expect(result.costUsd).toBe(0.000_1);
       expect(evaluate).toHaveBeenCalledWith(
         expect.objectContaining({
           state: {
-            opening: "A booking flow should start with the team.\nHere is why.",
+            opening: "A booking flow should start with the team.",
           },
         }),
       );

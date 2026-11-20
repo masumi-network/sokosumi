@@ -46,6 +46,7 @@ import {
   type CmoPlanReview,
   cmoCalendarLanguage,
   cmoCalendarRepeats,
+  cmoCalendarWeeks,
   cmoDraftProblems,
   cmoNewNetworkProblems,
   cmoPlanDrift,
@@ -282,9 +283,13 @@ export async function reviewCmoPlan(
   // Titles, stories and claims that say one thing in other words, by
   // meaning; like the rules above, only those this change brought.
   // Embeddings are cached, so the earlier calendar costs nothing new. A
-  // cmo-v8 Cuso hears them on every reviewed save: he saves a month in four
-  // calendar calls, and repeats across weeks show only in the later ones.
-  if (rules.claims || reviewed < budget) {
+  // cmo-v8 Cuso also hears them once all four weeks are in: he saves a month
+  // in four calendar calls, and repeats across weeks show only then. Named on
+  // every weekly save, they kept him fixing and his months came out short.
+  if (
+    reviewed < budget ||
+    (rules.claims && cmoCalendarWeeks(strategy.calendar) >= 4)
+  ) {
     const [repeats, had] = await Promise.all([
       cmoCalendarRepeats(strategy.calendar),
       earlier && earlier.calendar.length > 0
