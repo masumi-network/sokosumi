@@ -702,8 +702,9 @@ export async function logoForPicture(
  */
 export async function advanceCmoMedia(
   context: MediaContext,
-  pieces: readonly CmoMediaPiece[],
+  given: readonly CmoMediaPiece[],
 ): Promise<void> {
+  const pieces = await withoutOutdatedPictures(context, given);
   const wanted = pieces.filter(
     (piece) =>
       piece.status !== "published" &&
@@ -793,6 +794,88 @@ export async function advanceCmoMedia(
       capacity = accepted ? capacity - 1 : 0;
     }
   }
+}
+
+/**
+ * Whether a styled piece's picture was made for an older headline or
+ * visual. Cuso rewrites them after the picture went on (6 of 20 of NMKR's
+ * pictures, 2026-11-20, one lettered a fragment of an old headline), and a
+ * piece with its picture was never looked at again.
+ */
+export function cmoPictureOutdated(
+  piece: CmoMediaPiece,
+  jobs: readonly CmoMediaJob[],
+): boolean {
+  if (!piece.styleReferenceId || piece.media.length === 0) return false;
+  if (!cmoPieceTakesStyle(piece)) return false;
+  const key = cmoVisualKey(piece);
+  const own = jobs.filter(
+    (job) => job.pieceId === piece.id && job.step === "image",
+  );
+  return (
+    !own.some((job) => job.visualKey === key) &&
+    own.some(
+      (job) =>
+        job.status === ProjectImageJobStatus.SUCCEEDED &&
+        job.assetId !== null &&
+        !job.rejected,
+    )
+  );
+}
+
+/**
+ * Takes each outdated picture off its piece, so the next pass makes it
+ * again: the post goes back to a draft at its time and is scheduled once
+ * the new picture is on.
+ */
+async function withoutOutdatedPictures(
+  context: MediaContext,
+  pieces: readonly CmoMediaPiece[],
+): Promise<readonly CmoMediaPiece[]> {
+  const candidates = pieces.filter(
+    (piece) =>
+      piece.status !== "published" &&
+      piece.status !== "skipped" &&
+      piece.styleReferenceId &&
+      piece.media.length > 0,
+  );
+  if (candidates.length === 0) return pieces;
+  const jobs = await listCmoMediaJobs(
+    context.cuso.projectId,
+    context.versionId,
+  );
+  const outdated = new Set<string>();
+  for (const piece of candidates) {
+    if (!cmoPictureOutdated(piece, jobs)) continue;
+    const dropped = piece.socialPostId
+      ? await prisma.socialPost.updateMany({
+          where: {
+            id: piece.socialPostId,
+            status: { in: ["DRAFT", "SCHEDULED", "NEEDS_APPROVAL"] },
+          },
+          data: {
+            media: [],
+            status: "DRAFT",
+            scheduledByUserId: null,
+            scheduledByCoworkerId: null,
+            revision: { increment: 1 },
+          },
+        })
+      : await prisma.marketingStrategyFile.updateMany({
+          where: { marketingStrategyId: context.versionId, entryId: piece.id },
+          data: { mediaFileIds: [] },
+        });
+    if (dropped.count > 0) outdated.add(piece.id);
+  }
+  return pieces.map((piece) =>
+    outdated.has(piece.id)
+      ? {
+          ...piece,
+          media: [],
+          status: piece.status === "scheduled" ? "draft" : piece.status,
+        }
+      : piece,
+  );
 }
 
 /**

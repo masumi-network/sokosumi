@@ -103,6 +103,7 @@ import {
   type CmoMediaPiece,
   cmoImagePrompt,
   cmoMediaState,
+  cmoPictureOutdated,
   cmoPictureStyleProblem,
   cmoPieceSlides,
   cmoSlotAction,
@@ -460,6 +461,68 @@ describe("advanceCmoMedia", () => {
     ]);
     createImageJob.mockResolvedValue({ id: "new" });
     scheduleSocialPost.mockResolvedValue({});
+  });
+
+  describe("a styled picture whose headline changed after it went on", () => {
+    const made = (headline: string) =>
+      piece({
+        styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+        headline,
+        status: "scheduled",
+        media: ["drive/old.jpg"],
+      });
+    const oldJob = job({
+      visualKey: cmoVisualKey(made("A good token answers")),
+    });
+
+    it("is outdated, and stops being so once its new picture is under way", () => {
+      const now = made("What does the token grant?");
+      expect(cmoPictureOutdated(now, [oldJob])).toBe(true);
+      expect(cmoPictureOutdated(made("A good token answers"), [oldJob])).toBe(
+        false,
+      );
+      expect(
+        cmoPictureOutdated(now, [
+          oldJob,
+          job({ id: "job-2", status: "RUNNING", visualKey: cmoVisualKey(now) }),
+        ]),
+      ).toBe(false);
+      // A picture the owner put on, with no job of Core's, stays.
+      expect(cmoPictureOutdated(now, [])).toBe(false);
+    });
+
+    it("comes off its post, which goes back to a draft at its time, and is made again", async () => {
+      jobFindMany.mockResolvedValue([
+        {
+          id: "job-1",
+          idempotencyKey: `cmo-media:version-1:post-1:0:image:${oldJob.visualKey}:1`,
+          status: "SUCCEEDED",
+          prompt: "prompt",
+          error: null,
+          asset: { id: "asset-1" },
+        },
+      ]);
+      postUpdateMany.mockResolvedValue({ count: 1 });
+      jobCount.mockResolvedValue(0);
+      const now = made("What does the token grant?");
+      await advanceCmoMedia(context, [now]);
+      expect(postUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: "post-1" }),
+          data: expect.objectContaining({ media: [], status: "DRAFT" }),
+        }),
+      );
+      expect(postUpdateMany.mock.calls[0]?.[0].data).not.toHaveProperty(
+        "scheduledAt",
+      );
+      expect(createImageJob).toHaveBeenCalledTimes(1);
+      expect(createImageJob.mock.calls[0]?.[0]).toMatchObject({
+        idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(now)}:1`,
+      });
+      expect(createImageJob.mock.calls[0]?.[0].prompt).toContain(
+        '"What does the token grant?"',
+      );
+    });
   });
 
   it("starts each piece's picture once, within the studio's limit, from the brand's pictures", async () => {
