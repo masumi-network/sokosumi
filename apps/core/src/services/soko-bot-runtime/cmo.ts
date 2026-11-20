@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import { jsonInput } from "@/helpers/prisma-json";
 import { COMPETITOR_CHECK_MODEL } from "@/lib/competitors/model";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -47,6 +48,7 @@ import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
   cmoCalendarWeeks,
+  cmoDistinctClaims,
   cmoDraftProblems,
   cmoNewNetworkProblems,
   cmoPlanDrift,
@@ -201,9 +203,11 @@ export async function reviewCmoPlan(
     planSent: boolean;
     /** This save is part calendar. */
     calendarSent: boolean;
+    /** The version this save landed in. */
+    versionId?: string;
   },
 ): Promise<CmoPlanReview | null> {
-  const { strategy } = plan;
+  let { strategy } = plan;
   if (!strategy || plan.approved) return null;
   // Only saves that landed count: a refused save saved nothing to review.
   const landedBefore = {
@@ -291,9 +295,16 @@ export async function reviewCmoPlan(
   // repeats among the entries it sent, and once all four weeks are in he
   // hears every one. Named all at once on every weekly save, they kept him
   // fixing old weeks and his months came out short.
-  const whole =
-    reviewed < budget ||
-    (rules.claims === true && cmoCalendarWeeks(strategy.calendar) >= 4);
+  const monthIn = cmoCalendarWeeks(strategy.calendar) >= 4;
+  // cmo-v8: once the month is in, Core gives each repeated claim's later
+  // pieces their own claim, on the saved version.
+  if (rules.claims && monthIn && plan.versionId) {
+    const distinct = await cmoDistinctClaims(strategy.calendar);
+    await chargeCheck(input, COMPETITOR_CHECK_MODEL, distinct.costUsd);
+    if (distinct.claims.size > 0)
+      strategy = await withClaims(plan.versionId, distinct.claims, strategy);
+  }
+  const whole = reviewed < budget || (rules.claims === true && monthIn);
   if (whole || rules.claims) {
     const [repeats, had] = await Promise.all([
       cmoCalendarRepeats(strategy.calendar),
@@ -364,6 +375,32 @@ export async function reviewCmoPlan(
     },
   });
   return review;
+}
+
+/** The saved version with these entries' claims replaced; `fallback` when it is gone. */
+async function withClaims(
+  versionId: string,
+  claims: ReadonlyMap<string, string>,
+  fallback: MarketingStrategyPlan,
+): Promise<MarketingStrategyPlan> {
+  const version = await prisma.marketingStrategy.findUnique({
+    where: { id: versionId },
+    select: { plan: true, approvedAt: true },
+  });
+  const stored = parseMarketingPlan(version?.plan);
+  if (!stored || version?.approvedAt) return fallback;
+  const plan = {
+    ...stored,
+    calendar: stored.calendar.map((entry) => {
+      const claim = claims.get(entry.id);
+      return claim ? { ...entry, claim } : entry;
+    }),
+  };
+  await prisma.marketingStrategy.update({
+    where: { id: versionId },
+    data: { plan: jsonInput(plan) },
+  });
+  return plan;
 }
 
 /** The calendar entries one save_strategy call sends, by id. */
@@ -580,6 +617,7 @@ export async function saveCmoRecord(
           strategy: stored,
           planSent: sent.summary !== undefined,
           calendarSent: part === "calendar",
+          versionId: saved.id,
         });
         // Once the plan runs, the drafts are checked against the copy rules,
         // a filed piece's words as sent (the calendar holds only its file).

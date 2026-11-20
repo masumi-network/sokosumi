@@ -1728,3 +1728,75 @@ export function cmoRejectedTermProblems(
     ];
   });
 }
+
+const distinctClaimsSchema = z.object({
+  claims: z.array(z.object({ id: z.string(), claim: z.string() })),
+});
+
+/** Entries one call gives new claims; a month rarely repeats more. */
+const MAX_CLAIM_REWRITES = 40;
+
+/**
+ * New claims for the entries that repeat another's (cmo-v8), each its own
+ * point from its title, brief and pillar. Told the repeats, Cuso fixed a few
+ * and left the rest: four of six NMKR plans ended with four or more. The
+ * first entry of each repeated claim keeps it.
+ */
+export async function cmoDistinctClaims(
+  calendar: MarketingStrategyPlan["calendar"],
+  ask: AskCompetitorModel = askCompetitorModel,
+  embed?: EmbedTexts,
+): Promise<{ claims: Map<string, string>; costUsd: number }> {
+  const pieces = arguing(calendar).filter((entry) => entry.claim?.trim());
+  const { groups, costUsd } = await sameMessage(
+    pieces,
+    (entry) => entry.claim ?? "",
+    embed,
+    "claim",
+  );
+  const redo = groups
+    .filter((entries) => repeatedClaim(entries) !== null)
+    .flatMap((entries) => entries.slice(1))
+    .slice(0, MAX_CLAIM_REWRITES);
+  if (redo.length === 0) return { claims: new Map(), costUsd };
+  const ids = new Set(redo.map((entry) => entry.id));
+  const kept = pieces
+    .filter((entry) => !ids.has(entry.id))
+    .map((entry) => entry.claim);
+  try {
+    const { output, costUsd: asked } = await ask({
+      system:
+        "You give pieces of a marketing month their own point. Each claim is one sentence a reader can agree or disagree with, in the language of the claims below, specific to the piece's title and brief.",
+      prompt: [
+        "Claims the month already makes (never repeat one, not in other words):",
+        ...kept.map((claim) => `- ${claim}`),
+        "",
+        "Write one new claim for each of these pieces, by its id:",
+        JSON.stringify(
+          redo.map((entry) => ({
+            id: entry.id,
+            channel: entry.channel,
+            title: entry.title,
+            brief: entry.brief,
+            pillar: entry.pillar,
+            approach: entry.approach,
+            oldClaim: entry.claim,
+          })),
+        ),
+      ].join("\n"),
+      schema: distinctClaimsSchema,
+    });
+    return {
+      claims: new Map(
+        output.claims.flatMap(({ id, claim }) =>
+          ids.has(id) && claim.trim()
+            ? [[id, claim.trim().slice(0, 400)] as const]
+            : [],
+        ),
+      ),
+      costUsd: costUsd + asked,
+    };
+  } catch {
+    return { claims: new Map(), costUsd };
+  }
+}

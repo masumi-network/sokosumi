@@ -20,6 +20,7 @@ vi.mock("@/lib/soko-bot/jev", () => ({
 import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
+  cmoDistinctClaims,
   cmoDraftProblems,
   cmoMonthShortfall,
   cmoNewNetworkProblems,
@@ -1899,6 +1900,59 @@ describe("claims", () => {
     );
     expect(four.problems).toHaveLength(1);
     expect(four.problems[0]).toMatch(/^f1, f2, f3, f4 argue one claim/);
+  });
+});
+
+// cmo-v8: told the repeats, Cuso fixed a few and left the rest.
+describe("cmoDistinctClaims", () => {
+  const entry = (id: string, date: string, claim: string) => ({
+    id,
+    date,
+    channel: "x",
+    format: "post",
+    title: `Title ${id}`,
+    status: "idea" as const,
+    claim,
+  });
+
+  it("gives the later pieces of a repeated claim their own, and keeps the first", async () => {
+    const ask = vi.fn(async () => ({
+      output: {
+        claims: [
+          { id: "d2", claim: "Royalties pay the artist on every resale" },
+          { id: "other", claim: "ignored" },
+        ],
+      },
+      costUsd: 0.000_5,
+    }));
+    const { claims, costUsd } = await cmoDistinctClaims(
+      [
+        entry("d1", "2026-11-02", "Minting needs no code at all here"),
+        entry("d2", "2026-11-03", "You can mint with no code"),
+        entry("d3", "2026-11-04", "Fees are listed per token"),
+      ],
+      ask as never,
+      topicEmbed([/no code/i]),
+    );
+    expect([...claims]).toEqual([
+      ["d2", "Royalties pay the artist on every resale"],
+    ]);
+    expect(costUsd).toBeGreaterThan(0.000_5);
+    const prompt = (ask.mock.calls[0] as unknown as [{ prompt: string }])[0]
+      .prompt;
+    expect(prompt).toContain("- Minting needs no code at all here");
+    expect(prompt).toContain('"id":"d2"');
+  });
+
+  it("asks nothing when every claim is the piece's own", async () => {
+    const ask = vi.fn();
+    const { claims } = await cmoDistinctClaims(
+      [entry("e1", "2026-11-02", "Fees are per token, not per month")],
+      ask as never,
+      topicEmbed([]),
+    );
+    expect(claims.size).toBe(0);
+    expect(ask).not.toHaveBeenCalled();
   });
 });
 
