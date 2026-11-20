@@ -106,6 +106,11 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-auth-session-hydration` (`useAuthSessionHydration`) — before-paint `authClient` session hydration and rendered-user registration
 - `use-pending-navigation` (`usePendingNavigation`) — optimistic destination tracking for in-flight Next.js navigation transitions
 - `use-pending-created-tasks` (`usePendingCreatedTasks`, `withBoardPreview`) — optimistic pending task board preview registration while a task create transition runs
+- `use-aurora-orb-canvas` (`useAuroraOrbCanvas`) — live `AuroraOrb` and `PlaceholderOrb` canvas handle lifecycle (mount, expression/speed updates, pulse nonce, teardown)
+- `use-live-bot-avatar` (`useLiveBotAvatar`) — shared-WebGL `LiveBotAvatar` canvas handle, intersection visibility, model upload, context-loss teardown, and pointer gaze
+- `use-gradient-background-canvas` (`useGradientBackgroundCanvas`) — WebGL Home gradient canvas lifecycle with theme token observation, reduced motion, and off-screen pause
+- `use-thinking-orb-canvas` (`useThinkingOrbCanvas`) — `thinking-orbs` 2D canvas animation with reduced-motion static frame fallback
+- `use-studio-wall-paint` (`useStudioWallPaint`, `applyStudioWallTransform`) — before-paint Studio template wall layout transform synchronization
 
 ### React Query in migrations
 
