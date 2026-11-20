@@ -160,6 +160,8 @@ interface PlanStepProps {
   initialTab?: PlanTab;
   /** Why a measurement connection that sent the founder back did not finish. */
   measureError?: string | null;
+  /** Called once the one-shot measurement return notice has been left behind. */
+  onConsumeMeasureError?: () => void;
   /** Cuso writes or changes the plan; a refusal comes back as text. */
   onRequest: (note?: string) => Promise<string | null>;
   /** The owner's own monthly ad budget; a refusal comes back as text. */
@@ -406,6 +408,7 @@ export function PlanReview({
   readOnly = false,
   initialTab = "plan",
   measureError = null,
+  onConsumeMeasureError,
   onRequest,
   onSetAds,
   onAnswer,
@@ -426,6 +429,8 @@ export function PlanReview({
   // Leaving Results consumes its one-shot measurement return notice so
   // switching back later does not show it again.
   function selectTab(next: PlanTab) {
+    if (tabState.tab === next) return;
+    const leavingResults = tabState.tab === "results";
     setTabState((current) =>
       current.tab === next
         ? current
@@ -435,6 +440,9 @@ export function PlanReview({
               current.tab === "results" ? null : current.measureError,
           },
     );
+    if (leavingResults) {
+      onConsumeMeasureError?.();
+    }
   }
   // The plan's detail, folded until asked for; a measurement return opens it.
   // On the app's Strategy page the plan is the page, so it starts open.

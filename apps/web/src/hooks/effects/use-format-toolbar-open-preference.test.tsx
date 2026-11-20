@@ -40,7 +40,12 @@ function HydrationTree({ phases }: { phases: string[] }) {
 
 describe("useFormatToolbarOpenPreference", () => {
   beforeEach(() => {
-    window.localStorage.clear();
+    // Give each test a fresh Storage instance so happy-dom's bound getItem
+    // on an earlier test's storage never hides a spy in a later test.
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: new Storage(),
+    });
   });
 
   it("renders closed during SSR for hydration safety", () => {
@@ -56,14 +61,15 @@ describe("useFormatToolbarOpenPreference", () => {
     expect(html).toContain(">false<");
     expect(phases).toEqual([]);
 
-    const originalGetItem = Storage.prototype.getItem;
+    const storage = window.localStorage;
+    const originalGetItem = storage.getItem.bind(storage);
     const getItemSpy = vi
-      .spyOn(Storage.prototype, "getItem")
-      .mockImplementation(function (this: Storage, key: string) {
+      .spyOn(storage, "getItem")
+      .mockImplementation((key: string) => {
         if (key === FORMAT_TOOLBAR_OPEN_STORAGE_KEY) {
           phases.push("read-preference");
         }
-        return originalGetItem.call(this, key);
+        return originalGetItem(key);
       });
 
     const host = document.createElement("div");

@@ -851,21 +851,17 @@ it("moves between plan tabs with the arrow keys", async () => {
   expect(text()).toContain("Connect your numbers");
 });
 
-it("clears the hiring measurement return error after leaving Results and switching back", async () => {
+it("clears the hiring measurement return error after leaving Results and returning via tabs or Brand", async () => {
   const expectedError = "That connection didn't finish. Try again.";
   await act(async () =>
     root.render(
-      <PlanStep
+      <OnboardingFlow
         overview={draft({ viewerCanApprove: true })}
-        phase="review"
-        initialTab="results"
+        messages={[]}
+        initialStep="results"
         measureError={expectedError}
-        onRequest={async () => null}
-        onSetAds={async () => null}
-        onAnswer={noop}
-        onUpdate={async () => null}
-        onApprove={noop}
-        onConnectMeasurement={async () => ({ url: null, error: null })}
+        skipped={["questions"]}
+        actions={actionsFor()}
       />,
     ),
   );
@@ -890,6 +886,21 @@ it("clears the hiring measurement return error after leaving Results and switchi
       ?.click(),
   );
   expect(text()).toContain("Connect your numbers");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+
+  // Leaving Strategy to Brand and returning remounts PlanReview; the consumed
+  // error must not come back.
+  await act(async () =>
+    container
+      .querySelectorAll<HTMLButtonElement>(".ob-steps button")[0]
+      ?.click(),
+  );
+  expect(text()).toContain("Here's acme.io as I see it.");
+
+  await press("Continue to Strategy");
+  expect(
+    container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
+  ).toBe("How we know it works");
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
 
