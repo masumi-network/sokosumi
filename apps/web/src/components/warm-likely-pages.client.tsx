@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffectEvent } from "react";
 
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 
@@ -52,10 +52,7 @@ function WarmLoop({ hrefFor }: { hrefFor: (href: string) => string }) {
   const router = useRouter();
   // The sidebar links carry the reader's project scope, so the loop loads
   // the same URLs a click opens. The loop starts once and reads the latest.
-  const latestHrefFor = useRef(hrefFor);
-  useEffect(() => {
-    latestHrefFor.current = hrefFor;
-  });
+  const resolveHref = useEffectEvent(hrefFor);
 
   useMountEffect(() => {
     let lastActivityAt = Date.now();
@@ -70,7 +67,7 @@ function WarmLoop({ hrefFor }: { hrefFor: (href: string) => string }) {
         readVisitCounts(),
         window.location.pathname,
       )) {
-        prefetchRouteContent(router, latestHrefFor.current(href));
+        prefetchRouteContent(router, resolveHref(href));
       }
     };
 
