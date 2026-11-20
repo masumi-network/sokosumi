@@ -52,7 +52,7 @@ vi.mock("ably/react", () => ({
 
 import { expectConsole } from "@sokosumi/utils/test-console";
 import { useRoomTyping } from "@/hooks/effects/use-room-typing";
-import { getAblyChatRoomScope } from "@/lib/ably/chat-room-auth-scope.client";
+import { getAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import { useChatRoomRealtime } from "./use-chat-room-realtime";
 
 function channelFor(name: string) {

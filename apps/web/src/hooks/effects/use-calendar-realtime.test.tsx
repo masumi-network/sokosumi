@@ -78,6 +78,19 @@ async function flushAsync() {
   });
 }
 
+function registeredHandler(channelName: string, eventName: string) {
+  const channel = ablyState.channels.get(channelName);
+  const call = channel?.subscribe.mock.calls.find(
+    ([subscribedEvent]) => subscribedEvent === eventName,
+  );
+  if (!call) {
+    throw new Error(
+      `Expected ${channelName} to subscribe to event "${eventName}"`,
+    );
+  }
+  return call[1] as (message: { data: unknown }) => void;
+}
+
 describe("useCalendarRealtime", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -184,5 +197,72 @@ describe("useCalendarRealtime", () => {
       ablyState.channels.get(CALENDAR_CHANNEL_A)?.subscribe,
     ).toHaveBeenCalledTimes(2);
     expect(onResync).toHaveBeenCalledTimes(2);
+  });
+
+  it("dispatches calendar_invalidated and calendar_access_revoked events to refresh and revoke", async () => {
+    const onInvalidated = vi.fn();
+    const onAccessRevoked = vi.fn();
+
+    renderHook(() =>
+      useCalendarRealtime({
+        currentUserId: USER_ID,
+        workspaceId: WORKSPACE_A,
+        onAccessRevoked,
+        onInvalidated,
+        onResync: vi.fn(),
+      }),
+    );
+
+    await flushAsync();
+    refreshMock.mockClear();
+
+    const handleInvalidated = registeredHandler(
+      CALENDAR_CHANNEL_A,
+      "calendar_invalidated",
+    );
+    act(() => {
+      handleInvalidated({
+        data: {
+          id: "evt_1",
+          workspaceId: WORKSPACE_A,
+          projectId: null,
+          calendarRevision: 1,
+          payload: {},
+        },
+      });
+    });
+
+    expect(onInvalidated).toHaveBeenCalledTimes(1);
+    expect(refreshMock).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+
+    ablyState.authorize.mockResolvedValueOnce({
+      capability: JSON.stringify({
+        [CONTROL_CHANNEL]: ["subscribe"],
+      }),
+    });
+
+    const handleAccessRevoked = registeredHandler(
+      CONTROL_CHANNEL,
+      "calendar_access_revoked",
+    );
+    act(() => {
+      handleAccessRevoked({
+        data: {
+          workspaceId: WORKSPACE_A,
+          organizationId: "org_1",
+          at: "2026-11-20T21:00:00.000Z",
+        },
+      });
+    });
+
+    await flushAsync();
+    expect(onAccessRevoked).toHaveBeenCalledTimes(1);
+    expect(replaceMock).toHaveBeenCalledWith("/");
+    expect(refreshMock).toHaveBeenCalledTimes(2);
   });
 });

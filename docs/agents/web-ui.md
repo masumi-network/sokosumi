@@ -83,7 +83,6 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-room-typing` (`useRoomTyping`, `useRoomTypingSync`, `createRoomTypingStore`) — Ably room typing subscription and publisher backed by an external store
 - `use-calendar-realtime` (`useCalendarRealtime`) — Ably workspace calendar invalidation, capability checks, and access-revocation subscription
 - `use-chat-control-channel` (`useChatControlChannel`) — ref-counted Ably user chat control channel subscription for revoke and rooms-changed signals
-- `use-chat-room-realtime` (`useChatRoomRealtime`) — room-scoped Ably chat message, pin, read, and membership-revoke subscription
 - `use-selected-room-channel-health` (`useSelectedRoomChannelHealth`) — Ably connection and selected room channel health/continuity observer
 - `use-notification-front-presence` (`useNotificationFrontPresence`) — tab-visibility presence reporting on the user's Ably notifications channel
 - `use-notification-realtime` (`useNotificationRealtime`) — Ably notifications channel subscription and attachment reconciliation

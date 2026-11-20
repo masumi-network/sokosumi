@@ -169,7 +169,7 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/hooks/effects/use-chat-room-realtime", () => ({
+vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: useChatRoomRealtimeMock,
 }));
 
