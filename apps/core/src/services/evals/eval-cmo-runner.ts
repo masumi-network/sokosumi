@@ -1044,6 +1044,7 @@ async function pollMonth(
           },
         ]),
     ...(await monthPictureChecks(lane, strategyId, evalCase.pictures ?? false)),
+    ...(evalCase.newsletter ? [newsletterIssueCheck(plan, files)] : []),
   ];
   await cancelMonthPosts(strategyId);
   return {
@@ -1202,5 +1203,30 @@ export async function pollCmoCase(
       status: outcome.checks.every((check) => check.pass) ? "PASSED" : "FAILED",
       turnIds: [result.turnId, ...finishes.map((finish) => finish.id)],
     },
+  };
+}
+
+/** An issue longer than this does not read in a minute. */
+const NEWSLETTER_MAX_WORDS = 450;
+
+/** The month's newsletter issue: filed, with a subject line, and short. */
+export function newsletterIssueCheck(
+  plan: Pick<MarketingStrategyPlan, "calendar"> | null,
+  files: readonly (string | null)[],
+): { label: string; pass: boolean; actual: string } {
+  const ids = (plan?.calendar ?? [])
+    .filter((entry) => entry.channel === "newsletter")
+    .map((entry) => entry.id);
+  const issue = files.find(
+    (file) => file !== null && ids.some((id) => file.startsWith(`${id} (`)),
+  );
+  const words = issue?.split(/\s+/).filter(Boolean).length ?? 0;
+  const subject = /subject/i.test(issue ?? "");
+  return {
+    label: "The newsletter issue is written, with its subject line",
+    pass: Boolean(issue) && subject && words <= NEWSLETTER_MAX_WORDS,
+    actual: issue
+      ? `${words} words${subject ? "" : ", no subject line"}`
+      : "no issue filed",
   };
 }
