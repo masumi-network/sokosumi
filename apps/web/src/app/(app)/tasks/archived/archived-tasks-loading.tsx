@@ -61,11 +61,7 @@ function ArchivedTasksShell({ query }: { query?: string }) {
             >
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                  {/* A phone row's name usually takes two lines. */}
-                  <div className="flex flex-col">
-                    <TextLineSkeleton className="w-3/5 text-sm sm:w-2/5" />
-                    <TextLineSkeleton className="w-2/5 text-sm sm:hidden" />
-                  </div>
+                  <TextLineSkeleton className="w-3/5 text-sm sm:w-2/5" />
                   <BadgeSkeleton />
                 </div>
                 <TextLineSkeleton className="w-40 text-xs" />
@@ -117,15 +113,9 @@ export function ArchivedTaskLoading() {
         <div className="flex flex-col gap-6 p-4 md:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-2">
-              {/* On a phone the title and the details line usually wrap;
-                  the placeholders wrap with them. */}
-              <div className="flex flex-col">
-                <TextLineSkeleton className="w-3/5 text-xl" />
-                <TextLineSkeleton className="w-2/5 text-xl sm:hidden" />
-              </div>
+              <TextLineSkeleton className="w-3/5 text-xl" />
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <BadgeSkeleton />
-                <TextLineSkeleton className="w-20 text-sm" />
                 <TextLineSkeleton className="w-40 text-sm" />
               </div>
               <p className="text-muted-foreground text-sm text-pretty">
