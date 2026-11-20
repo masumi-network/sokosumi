@@ -196,7 +196,7 @@ export function DeleteAccountForm({
       // would otherwise turn push off for an account that still exists.
       await dropBrowserPushSubscriptionOnAccountDeletion();
       toast.success(t("success"));
-      router.push("/");
+      window.location.assign("/");
     }
   };
 

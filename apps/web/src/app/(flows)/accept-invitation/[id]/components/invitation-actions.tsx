@@ -76,9 +76,11 @@ export default function InvitationActions({
         toast.error(errorMessage, {
           action: {
             label: t("Errors.unauthorizedAction"),
-            onClick: async () => {
+            onClick: () => {
               const returnUrl = getReturnUrlFromCurrentLocation();
-              router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
+              window.location.assign(
+                `/signin?returnUrl=${encodeURIComponent(returnUrl)}`,
+              );
             },
           },
         });
@@ -133,9 +135,11 @@ export default function InvitationActions({
         toast.error(errorMessage, {
           action: {
             label: t("Errors.unauthorizedAction"),
-            onClick: async () => {
+            onClick: () => {
               const returnUrl = getReturnUrlFromCurrentLocation();
-              router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
+              window.location.assign(
+                `/signin?returnUrl=${encodeURIComponent(returnUrl)}`,
+              );
             },
           },
         });
@@ -155,8 +159,6 @@ export default function InvitationActions({
     setLoading(true);
     setAction("logout");
     await signOutWithPushRelease(user?.id);
-    const returnUrl = getReturnUrlFromCurrentLocation();
-    router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
     setLoading(false);
     setAction(null);
   };

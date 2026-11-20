@@ -12,7 +12,7 @@ import {
 } from "@/lib/ably/realtime-singleton.client";
 import { authClient } from "@/lib/auth/auth.client";
 
-const replaceMock = vi.fn();
+let assignMock: ReturnType<typeof vi.spyOn>;
 const { RealtimeMock } = vi.hoisted(() => ({
   RealtimeMock: vi.fn(function Realtime(
     this: { close: ReturnType<typeof vi.fn> },
@@ -25,12 +25,6 @@ const { RealtimeMock } = vi.hoisted(() => ({
 
 vi.mock("ably", () => ({ default: { Realtime: RealtimeMock } }));
 vi.mock("ably/push", () => ({ default: {} }));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    replace: replaceMock,
-  }),
-}));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
@@ -106,7 +100,9 @@ async function retireRealtimeClient() {
 
 describe("AuthSessionGuard", () => {
   beforeEach(() => {
-    replaceMock.mockReset();
+    assignMock = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
     vi.mocked(authClient.getSession).mockReset();
     globalThis.__sokosumiAblyRealtimeClient = undefined;
     discardRetiredAblyRealtimeClient();
@@ -145,7 +141,7 @@ describe("AuthSessionGuard", () => {
     render(<AuthSessionGuard />);
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith(
+      expect(assignMock).toHaveBeenCalledWith(
         "/signin?returnUrl=%2Fagents%3Fview%3Dgrid",
       );
     });
@@ -168,7 +164,7 @@ describe("AuthSessionGuard", () => {
     });
 
     expect(authClient.getSession).toHaveBeenCalledOnce();
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(assignMock).not.toHaveBeenCalled();
   });
 
   it("closes the old realtime client and reloads when another account owns the first probe", async () => {
@@ -188,7 +184,7 @@ describe("AuthSessionGuard", () => {
     expect(oldClient.close).toHaveBeenCalledOnce();
     expect(RealtimeMock).toHaveBeenCalledOnce();
     expect(authClient.getSession).toHaveBeenCalledOnce();
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(assignMock).not.toHaveBeenCalled();
   });
 
   it("reloads when the rendered account arrives after the fresh session probe", async () => {
@@ -267,7 +263,7 @@ describe("AuthSessionGuard", () => {
     // The reader chose to stay; the other account then signed out too.
     window.dispatchEvent(new Event("focus"));
     await waitFor(() =>
-      expect(replaceMock).toHaveBeenCalledWith(
+      expect(assignMock).toHaveBeenCalledWith(
         "/signin?returnUrl=%2Fagents%3Fview%3Dgrid",
       ),
     );
@@ -388,7 +384,7 @@ describe("AuthSessionGuard", () => {
     );
     await vi.dynamicImportSettled();
     expect(reload).not.toHaveBeenCalled();
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(assignMock).not.toHaveBeenCalled();
 
     // The older probe answers last, with an account the document does not
     // render. Taken as the newest word, it would reload the document.
@@ -399,7 +395,7 @@ describe("AuthSessionGuard", () => {
 
     expect(reload).not.toHaveBeenCalled();
     expect(oldClient.close).not.toHaveBeenCalled();
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(assignMock).not.toHaveBeenCalled();
   });
 
   it("revalidates again on focus without redirecting when the session is present", async () => {
@@ -413,7 +409,7 @@ describe("AuthSessionGuard", () => {
       expect(authClient.getSession).toHaveBeenCalledTimes(2);
     });
 
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(assignMock).not.toHaveBeenCalled();
   });
 
   it("ignores a slower null probe after a newer probe confirms the session", async () => {
@@ -455,7 +451,7 @@ describe("AuthSessionGuard", () => {
       await Promise.resolve();
     });
 
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(assignMock).not.toHaveBeenCalled();
   });
 
   it("does not redirect from an in-flight null probe after unmount", async () => {
@@ -487,7 +483,7 @@ describe("AuthSessionGuard", () => {
       await Promise.resolve();
     });
 
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(assignMock).not.toHaveBeenCalled();
   });
 
   it("replaces a retired realtime client after focus confirms a restored session", async () => {
@@ -508,7 +504,7 @@ describe("AuthSessionGuard", () => {
       expect(replaceRealtime).toHaveBeenCalledOnce();
       expect(RealtimeMock).toHaveBeenCalledTimes(2);
       expect(authClient.getSession).toHaveBeenCalledTimes(2);
-      expect(replaceMock).not.toHaveBeenCalled();
+      expect(assignMock).not.toHaveBeenCalled();
     } finally {
       unsubscribe();
     }
@@ -525,7 +521,7 @@ describe("AuthSessionGuard", () => {
     render(<AuthSessionGuard />);
 
     window.dispatchEvent(new Event("focus"));
-    await waitFor(() => expect(replaceMock).toHaveBeenCalledOnce());
+    await waitFor(() => expect(assignMock).toHaveBeenCalledOnce());
     await act(async () => {
       staleProbe.resolve(presentSession);
       await vi.dynamicImportSettled();
