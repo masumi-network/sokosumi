@@ -260,6 +260,11 @@ describe("a picture in a reference library style", () => {
     expect(prompt).toContain(
       "Keep the lower-right corner plain and every word clear of it",
     );
+    // Infographic references lettered every step: 33 of 56 production tries
+    // were turned down for words besides the headline.
+    expect(prompt).toContain(
+      "Show any steps, stages or panels with pictures alone: no numbers, step labels",
+    );
     expect(
       cmoStylePrompt({
         piece: styled({ headline: undefined }),

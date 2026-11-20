@@ -534,6 +534,14 @@ export function cmoStyleHeadline(
  * reference, set into the style unchanged. Core places the real logo
  * afterwards, so the model leaves its corner plain.
  */
+/**
+ * Cuso's visuals often ask for steps or panels, and an infographic reference
+ * letters every one: in production (2026-11-19) 33 of 56 tries on
+ * infographic references were turned down for words besides the headline.
+ */
+const STEPS_WITHOUT_WORDS =
+  "Show any steps, stages or panels with pictures alone: no numbers, step labels, captions, sub-titles, or letters on signs, screens, maps, compasses, tokens or objects.";
+
 export function cmoStylePrompt(input: {
   piece: Pick<
     CmoMediaPiece,
@@ -558,7 +566,7 @@ export function cmoStylePrompt(input: {
       : "",
     `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slides > 1 ? " One picture of a series: the others share this same style and colours. Draw no slide number, page number or counter." : ""}${slide ? ` This slide: ${slide}.` : ""}`,
     headline
-      ? `${own > 0 ? "Besides what stands in the brand's own picture, the" : "The"} only words in the picture: "${headline}", lettered large in the reference's style and spelled exactly.`
+      ? `${own > 0 ? "Besides what stands in the brand's own picture, the" : "The"} only words in the picture: "${headline}", lettered large in the reference's style and spelled exactly. ${STEPS_WITHOUT_WORDS}`
       : own > 0
         ? "Besides what stands in the brand's own picture, no words, letters or numbers in the picture."
         : "No words, letters or numbers in the picture.",
