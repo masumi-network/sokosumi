@@ -18,6 +18,7 @@ const CMO_STEP_LABELS: Record<string, string> = {
   report_update: "Writing a report",
   read_writing_skill: "Checking how to write it",
   find_style_references: "Looking for a picture style",
+  write_month_pieces: "Writing the month",
   list_project_social_accounts: "Checking your accounts",
   get_posting_instructions: "Checking how to post",
   create_social_post: "Writing a post",

@@ -268,6 +268,10 @@ export {
   sokoBotWorkspaceImportFileInputSchema,
 } from "./tool-contracts.js";
 export {
+  CMO_BATCHED_PRODUCTION_SKILL,
+  CMO_PIECE_WRITING_GUIDE,
+} from "./versions/cmo-skills.js";
+export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,

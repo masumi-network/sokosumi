@@ -813,6 +813,27 @@ describe("advanceCmoMedia", () => {
     expect(createImageJob).not.toHaveBeenCalled();
   });
 
+  it("schedules a finished words-only post only where Core schedules every post (cmo-v6)", async () => {
+    const at = new Date(Date.now() + 86_400_000);
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "x",
+      text: "Words that need no picture.",
+      revision: 4,
+      status: "DRAFT",
+      scheduledAt: at,
+      planning: { title: "A words-only post" },
+    });
+    const words = piece({ format: "post", visual: undefined });
+    await advanceCmoMedia(context, [words]);
+    expect(scheduleSocialPost).not.toHaveBeenCalled();
+    await advanceCmoMedia({ ...context, schedulesEveryPost: true }, [words]);
+    expect(scheduleSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ postId: "post-1", revision: 4 }),
+    );
+    expect(createImageJob).not.toHaveBeenCalled();
+  });
+
   it("hands a finished TikTok video to the owner instead of scheduling it", async () => {
     postFindUnique.mockResolvedValue({
       id: "post-1",

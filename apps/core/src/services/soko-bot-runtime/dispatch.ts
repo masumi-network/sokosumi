@@ -134,6 +134,7 @@ export async function executeAuthorizedTool(
     case "save_brand_brain":
     case "save_strategy":
     case "report_update":
+    case "write_month_pieces":
     case "evaluate_with_jev":
     case "search_exa":
     case "check_competitors":

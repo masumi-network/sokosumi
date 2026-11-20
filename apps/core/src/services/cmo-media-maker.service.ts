@@ -629,6 +629,11 @@ interface MediaContext {
   cuso: Pick<Cuso, "projectId" | "workspaceId" | "sokoBotId" | "businessName">;
   versionId: string;
   connected: ReadonlySet<string>;
+  /**
+   * Core schedules every finished post, words-only ones too (cmo-v6): Cuso
+   * no longer schedules in a production run.
+   */
+  schedulesEveryPost?: boolean;
 }
 
 /** The brand a styled picture is made and finished with. */
@@ -719,8 +724,9 @@ export async function advanceCmoMedia(
       piece.socialPostId &&
       piece.status === "draft" &&
       context.connected.has(piece.channel) &&
-      cmoPieceNeedsMedia(piece) &&
-      cmoMediaState(piece, []) === "made",
+      (cmoPieceNeedsMedia(piece)
+        ? cmoMediaState(piece, []) === "made"
+        : context.schedulesEveryPost === true),
   );
   if (wanted.length === 0 && unscheduled.length === 0) return;
   const drive = await cusoDrive(context.cuso);

@@ -66,6 +66,11 @@ export type CmoEvalCase =
       pictures?: true;
       /** A month with a newsletter issue: scored on the issue Core files. */
       newsletter?: true;
+      /**
+       * cal.com's 28-piece month (the change request's), timed: how long
+       * until every word is written and how many tokens production read.
+       */
+      timed?: true;
     };
 
 /**
@@ -323,6 +328,19 @@ export const CMO_EVAL_CASES = [
   ),
   ...(frozenBrains["cal.com"] && frozenPlans["cal.com"]
     ? [
+        {
+          id: "cmo-month-timed",
+          suite: "cmo" as const,
+          area: "Month",
+          title: "Makes a 28-piece month in minutes, on few tokens",
+          intent:
+            "A whole month of posts, pictures and newsletter issues is written within fifteen minutes of approval, production reads at most 200,000 input tokens a piece, and Jev finds the pieces follow their skills and the brand's voice.",
+          kind: "cmo-month" as const,
+          brand: brand("cal.com"),
+          brandBrain: frozenBrains["cal.com"],
+          plan: frozenPlans["cal.com"],
+          timed: true as const,
+        },
         {
           id: "cmo-month-styled-pictures",
           suite: "cmo" as const,
