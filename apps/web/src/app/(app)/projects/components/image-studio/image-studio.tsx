@@ -380,12 +380,30 @@ export function ImageStudio({
     ? currentBrandLogo.position
     : initialLogoPosition;
 
+  const urlSort: "newest" | "best" =
+    searchParams.get("sort") === "best" ? "best" : "newest";
+
   const studio = useStudioState({
     projectId: activeProjectId,
     initialState: projectId ? initialState : EMPTY_STUDIO_STATE,
     initialSelectedAssetId: projectId ? initialSelectedAssetId : null,
+    urlSort,
     onSelectionChange: syncSelectionToUrl,
   });
+
+  const handleSortChange = useCallback(
+    (nextSort: "newest" | "best") => {
+      studio.setSort(nextSort);
+      const next = new URLSearchParams(searchParams.toString());
+      if (nextSort === "best") next.set("sort", "best");
+      else next.delete("sort");
+      const queryString = next.toString();
+      router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+        scroll: false,
+      });
+    },
+    [pathname, router, searchParams, studio],
+  );
 
   const {
     selectedAsset,
@@ -1466,7 +1484,7 @@ export function ImageStudio({
               catalog={catalog}
               labels={labels}
               sort={studio.sort}
-              onSortChange={studio.setSort}
+              onSortChange={handleSortChange}
               onRate={readOnly ? undefined : handleRate}
               onHide={readOnly ? undefined : handleHide}
               ratingBusyIds={ratingBusyIds}

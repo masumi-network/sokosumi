@@ -1,5 +1,7 @@
 "use client";
 
+import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
+
 export interface MentionRecordEntry<TData = unknown> {
   value: string;
   /** Empty means an ID-only token; omitted derives the legacy display slug. */
@@ -46,6 +48,37 @@ export const MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX =
 export const MENTION_CLASSNAME =
   "text-foreground cursor-pointer font-semibold hover:underline";
 export const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
+
+export function resolveSelectedMentionKeys<TData = unknown>(
+  value: string,
+  mentions: Record<string, MentionRecordEntry<TData>>,
+): string[] {
+  const entries = Object.entries(mentions);
+  if (entries.length === 0) return [];
+
+  const validKeys = new Set<string>();
+  const slugToKey = new Map<string, string>();
+  for (const [key, mention] of entries) {
+    if (!mention.value) continue;
+    validKeys.add(key);
+    const slug = mention.slug ?? slugifyMentionValue(mention.value);
+    if (slug) slugToKey.set(slug, key);
+  }
+
+  const uniqueKeys: string[] = [];
+  const seenKeys = new Set<string>();
+  for (const mention of parseMentions(value)) {
+    const directKey = validKeys.has(mention.id) ? mention.id : null;
+    const slugKey =
+      slugToKey.get(mention.slug) ??
+      slugToKey.get(slugifyMentionValue(mention.id));
+    const resolvedKey = directKey ?? slugKey ?? null;
+    if (!resolvedKey || seenKeys.has(resolvedKey)) continue;
+    seenKeys.add(resolvedKey);
+    uniqueKeys.push(resolvedKey);
+  }
+  return uniqueKeys;
+}
 
 export function filterNormalizedMentions<TData = unknown>(
   items: readonly NormalizedMention<TData>[],

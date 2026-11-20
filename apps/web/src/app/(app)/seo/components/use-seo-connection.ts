@@ -81,6 +81,7 @@ export function useSearchConsoleConnected(enabled = true) {
 export function useSeoConnection(
   provider: SeoConnectionProvider,
   onConnected?: () => void,
+  enabled = true,
 ) {
   const t = useTranslations("App.Seo.connections");
   const { data: session } = useSession();
@@ -89,6 +90,16 @@ export function useSeoConnection(
   // The action in flight, so only the pressed button shows and announces progress.
   const [busy, setBusy] = useState<SeoConnectionAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const identity = JSON.stringify([
+    session?.user.id,
+    session?.session.activeOrganizationId,
+    provider,
+  ]);
+  const [prevScope, setPrevScope] = useState({ identity, enabled });
+  if (prevScope.identity !== identity || prevScope.enabled !== enabled) {
+    setPrevScope({ identity, enabled });
+    if (error !== null) setError(null);
+  }
   const busyRef = useRef(false);
   const alive = useRef(true);
   useLayoutEffect(() => {
@@ -101,7 +112,7 @@ export function useSeoConnection(
     viewerId: session?.user.id ?? "",
     organizationId: session?.session.activeOrganizationId ?? null,
   };
-  const { status, queryKey } = useSeoConnectionStatus(provider);
+  const { status, queryKey } = useSeoConnectionStatus(provider, enabled);
   async function connect() {
     if (busyRef.current) return;
     busyRef.current = true;

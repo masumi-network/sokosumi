@@ -70,4 +70,5 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-chat-unread-document-title` (`useChatUnreadDocumentTitle`) — browser tab unread count prefix
 - `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
 - `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
+- `use-location-replace` (`useLocationReplace`) — `window.location.replace` redirect when a target URL is set
 - `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries

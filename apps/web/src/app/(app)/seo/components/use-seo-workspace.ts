@@ -103,7 +103,12 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const owner = seoWorkspaceOwner(initialData);
   const [chatOpen, setChatOpen] = useState(false);
   // A question another tab prepared; the chat shows it for the user to review and send.
-  const [chatDraft, setChatDraft] = useState<string | null>(null);
+  const [chatDraft, setChatDraft] = useState<{
+    id: number;
+    text: string;
+    identity: string;
+  } | null>(null);
+  const nextChatDraftId = useRef(0);
   const [urlFilters, setUrlFilters] = useQueryStates({
     tab: parseAsSeoTab.withDefault("agent"),
     pageId: parseAsString,
@@ -119,13 +124,21 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     urlFilters.tab === "traffic"
       ? urlFilters
       : { ...urlFilters, searchType: null, channel: null };
-  const setFilters: typeof setUrlFilters = (values, options) =>
-    setUrlFilters(
+  const setFilters: typeof setUrlFilters = (values, options) => {
+    if (
+      typeof values !== "function" &&
+      values?.tab &&
+      values.tab !== "actions"
+    ) {
+      setShownAction(null);
+    }
+    return setUrlFilters(
       typeof values !== "function" && values?.tab && values.tab !== "traffic"
         ? { ...values, searchType: null, channel: null }
         : values,
       options,
     );
+  };
   const query = new URLSearchParams();
   for (const key of [
     "pageId",
@@ -514,8 +527,23 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setShownAction(key);
     void setFilters({ tab: "actions" });
   }
+  const chatIdentity = JSON.stringify([
+    session?.session.activeOrganizationId,
+    session?.user.id,
+    data.auditId,
+  ]);
+  if (chatDraft && chatDraft.identity !== chatIdentity) {
+    setChatDraft(null);
+  }
   function openChat(draft?: string) {
-    if (draft) setChatDraft(draft);
+    if (draft) {
+      nextChatDraftId.current += 1;
+      setChatDraft({
+        id: nextChatDraftId.current,
+        text: draft,
+        identity: chatIdentity,
+      });
+    }
     setChatOpen(true);
   }
   const filteredKeywords = data.keywords.filter((row) =>

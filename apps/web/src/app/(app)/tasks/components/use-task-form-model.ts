@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   useCallback,
-  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -251,20 +250,58 @@ export function useTaskFormModel(
       : pickedStatus;
 
   const [isRunAtModalOpen, setIsRunAtModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmittingState] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const isUploadingRef = useRef(false);
+  const lastReportedBusyRef = useRef(false);
+  const onSubmittingChangeRef = useRef(onSubmittingChange);
+  onSubmittingChangeRef.current = onSubmittingChange;
+  const notifyBusyChange = useCallback(
+    (nextSubmitting: boolean, nextUploading: boolean) => {
+      isSubmittingRef.current = nextSubmitting;
+      isUploadingRef.current = nextUploading;
+      const nextBusy = nextSubmitting || nextUploading;
+      if (nextBusy !== lastReportedBusyRef.current) {
+        lastReportedBusyRef.current = nextBusy;
+        onSubmittingChangeRef.current?.(nextBusy);
+      }
+    },
+    [],
+  );
+  const setIsSubmitting = useCallback(
+    (next: boolean) => {
+      setIsSubmittingState(next);
+      notifyBusyChange(next, isUploadingRef.current);
+    },
+    [notifyBusyChange],
+  );
+  const handleUploadingChange = useCallback(
+    (uploading: boolean) => {
+      notifyBusyChange(isSubmittingRef.current, uploading);
+    },
+    [notifyBusyChange],
+  );
   // The tag receipt this create sends. Submitting turns the suggestion hook
   // off, which drops its receipt, so progress reads this snapshot instead.
   const [submittedTagReceipt, setSubmittedTagReceipt] = useState<
     string | undefined
   >();
-  const [createdTask, setCreatedTask] = useState<{
+  type CreatedTaskSnapshot = {
     id: string;
     identifier: string | null;
     name: string;
     status: "DRAFT" | "QUEUED" | "READY";
     statusLabel: string;
     scheduleLabel?: string;
-  } | null>(null);
+  };
+  const [createdTask, setCreatedTaskState] =
+    useState<CreatedTaskSnapshot | null>(null);
+  const onCreatedChangeRef = useRef(onCreatedChange);
+  onCreatedChangeRef.current = onCreatedChange;
+  const setCreatedTask = useCallback((next: CreatedTaskSnapshot | null) => {
+    setCreatedTaskState(next);
+    onCreatedChangeRef.current?.(next !== null);
+  }, []);
   const {
     pendingUploadFiles,
     setPendingUploadFiles,
@@ -275,15 +312,17 @@ export function useTaskFormModel(
     abortActiveUploads,
     handleAttachFiles,
     handleRemoveAttachment,
-  } = useTaskFormAttachments(description, setDescription, labels);
+  } = useTaskFormAttachments(
+    description,
+    setDescription,
+    labels,
+    handleUploadingChange,
+  );
   const mentionOptions = useMemo(
     () => convertAgentNamesToMentionOptions(agentNameById),
     [agentNameById],
   );
   const isSubmittingAny = isSubmitting;
-  useEffect(() => {
-    onCreatedChange?.(createdTask !== null);
-  }, [createdTask, onCreatedChange]);
 
   const handleCoworkerSelect = useCallback(
     (id: string) => {
@@ -406,9 +445,6 @@ export function useTaskFormModel(
         datetime: formatter.dateTime(new Date(runAt), "dateTime"),
       })
     : null;
-  useEffect(() => {
-    onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
-  }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
   const hasSaveableDescription =
     Boolean(description.trim()) ||
     (mode === "edit" &&

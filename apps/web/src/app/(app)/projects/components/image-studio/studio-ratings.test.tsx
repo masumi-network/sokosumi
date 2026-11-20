@@ -32,13 +32,6 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "today" }),
 }));
-vi.mock("nuqs", async (importOriginal) => {
-  const { useState } = await import("react");
-  return {
-    ...(await importOriginal<typeof import("nuqs")>()),
-    useQueryState: () => useState("newest"),
-  };
-});
 vi.mock("sonner", () => ({ toast: { error: mocks.toast } }));
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),

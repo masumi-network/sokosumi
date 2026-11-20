@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAvatarCode, randomAvatarLook } from "@sokosumi/soko-bot";
 import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -62,7 +63,7 @@ export function CreateState({
   const [name, setName] = useState("");
   // Spaces pass the native `required` check, so say what is missing here.
   const [blank, setBlank] = useState(false);
-  // The studio reports its first look as it mounts, so Create waits for that.
+  // Generated on the client when entering the picture step so SSR stays deterministic.
   const [avatarCode, setAvatarCode] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [created, setCreated] = useState<{
@@ -87,7 +88,14 @@ export function CreateState({
 
   // Each step hides the form that held focus, so move it into the new step.
   function goToStep(next: "name" | "picture") {
-    flushSync(() => setStep(next));
+    flushSync(() => {
+      if (next === "picture") {
+        setAvatarCode(
+          (current) => current ?? formatAvatarCode(randomAvatarLook()),
+        );
+      }
+      setStep(next);
+    });
     (next === "name" ? nameInputRef : pictureHeadingRef).current?.focus();
   }
 
@@ -236,7 +244,7 @@ export function CreateState({
           className={cn(HOLDER_CLASS, "min-w-0 [&_button]:scroll-mb-40")}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
-            <AvatarStudio compact initialCode={null} onChange={setAvatarCode} />
+            <AvatarStudio compact code={avatarCode} onChange={setAvatarCode} />
           </div>
         </fieldset>
         {/* Pinned to the foot at every size, so Create stays in reach above the pictures.

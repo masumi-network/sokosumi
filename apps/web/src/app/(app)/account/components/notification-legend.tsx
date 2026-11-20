@@ -4,9 +4,8 @@ import { type LucideIcon, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   createContext,
-  type Dispatch,
   type ReactNode,
-  type SetStateAction,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -78,7 +77,10 @@ function ChannelExplainer({
   hint,
   notes,
   open,
-  onOpenChange,
+  isPointerOwner,
+  onOpenByPointer,
+  onOpenByPress,
+  onClose,
 }: {
   icon: LucideIcon;
   label: string;
@@ -88,10 +90,15 @@ function ChannelExplainer({
   notes: readonly string[];
   /** This name is the one of the row holding the panel. */
   open: boolean;
-  /** Ask the row for the panel, or hand it back. */
-  onOpenChange: (open: boolean) => void;
+  /** Whether the pointer currently owns this name's panel in the shared scope. */
+  isPointerOwner: () => boolean;
+  /** Claim the panel for this name from a mouse hover. */
+  onOpenByPointer: () => void;
+  /** Claim the panel for this name from a press (mouse click, tap or keyboard). */
+  onOpenByPress: () => void;
+  /** Hand the panel back if this name still holds it. */
+  onClose: () => void;
 }) {
-  const byPointer = useRef(false);
   // Whether the caret went into the panel. Only then is there anything to give
   // back when it goes, and giving back what was never taken is how a hover
   // ends up dragging the focus ring across the page.
@@ -109,11 +116,9 @@ function ChannelExplainer({
     holdOpen();
     closing.current = setTimeout(() => {
       // The pointer's claim on the panel ends with the panel. This close is
-      // ours rather than Radix's, so `onOpenChange` never runs and nothing
-      // else puts the flag down; left standing, the press handler below goes
-      // on refusing every press, and Enter and Space open nothing ever again.
-      byPointer.current = false;
-      onOpenChange(false);
+      // ours rather than Radix's, so `onOpenChange` never runs and `onClose`
+      // clears pointer ownership in the shared scope.
+      onClose();
     }, CLOSE_DELAY_MS);
   };
 
@@ -121,26 +126,17 @@ function ChannelExplainer({
   // the page has a close waiting on a component that is gone.
   useEffect(() => holdOpen, []);
 
-  // Another name can close this panel through the shared state without
-  // calling this popover's `onOpenChange`.
-  useEffect(() => {
-    if (!open) {
-      byPointer.current = false;
-    }
-  }, [open]);
-
   return (
     <Popover
       open={open}
       onOpenChange={(next) => {
+        holdOpen();
         if (next) {
           heldFocus.current = false;
+          onOpenByPress();
         } else {
-          byPointer.current = false;
+          onClose();
         }
-
-        holdOpen();
-        onOpenChange(next);
       }}
     >
       <PopoverTrigger
@@ -151,17 +147,16 @@ function ChannelExplainer({
           }
 
           holdOpen();
-          byPointer.current = true;
           // Only for a panel this pointer is about to open. The panel a
           // reader opened with Enter already holds the caret, and a mouse
           // crossing its name is not the reader leaving it.
           if (!open) {
             heldFocus.current = false;
           }
-          onOpenChange(true);
+          onOpenByPointer();
         }}
         onPointerLeave={(event) => {
-          if (event.pointerType !== "mouse" || !byPointer.current) {
+          if (event.pointerType !== "mouse" || !isPointerOwner()) {
             return;
           }
 
@@ -172,7 +167,7 @@ function ChannelExplainer({
           // pointer just opened. Radix toggles on click and skips its own
           // handler when ours has already spoken for the event, so a mouse
           // reader gets one panel rather than a flicker.
-          if (byPointer.current) {
+          if (isPointerOwner()) {
             event.preventDefault();
           }
         }}
@@ -204,14 +199,14 @@ function ChannelExplainer({
           holdOpen();
         }}
         onPointerLeave={(event) => {
-          if (event.pointerType !== "mouse" || !byPointer.current) {
+          if (event.pointerType !== "mouse" || !isPointerOwner()) {
             return;
           }
 
           closeSoon();
         }}
         onOpenAutoFocus={(event) => {
-          if (byPointer.current) {
+          if (isPointerOwner()) {
             event.preventDefault();
           }
         }}
@@ -287,13 +282,42 @@ function ChannelExplainer({
  */
 const OpenExplainer = createContext<{
   openName: string | null;
-  setOpenName: Dispatch<SetStateAction<string | null>>;
+  isPointerOwner: (key: string) => boolean;
+  openByPointer: (key: string) => void;
+  openByPress: (key: string) => void;
+  close: (key: string) => void;
 } | null>(null);
 
 /** Wraps the legends that share one open panel. */
 export function ChannelLegendScope({ children }: { children: ReactNode }) {
   const [openName, setOpenName] = useState<string | null>(null);
-  const value = useMemo(() => ({ openName, setOpenName }), [openName]);
+  // One pointer owner across every legend: when another name takes the panel
+  // (by hover or by press), the prior name loses pointer ownership immediately.
+  const pointerOwnerRef = useRef<string | null>(null);
+
+  const isPointerOwner = useCallback(
+    (key: string) => pointerOwnerRef.current === key,
+    [],
+  );
+  const openByPointer = useCallback((key: string) => {
+    pointerOwnerRef.current = key;
+    setOpenName(key);
+  }, []);
+  const openByPress = useCallback((key: string) => {
+    pointerOwnerRef.current = null;
+    setOpenName(key);
+  }, []);
+  const close = useCallback((key: string) => {
+    if (pointerOwnerRef.current === key) {
+      pointerOwnerRef.current = null;
+    }
+    setOpenName((current) => (current === key ? null : current));
+  }, []);
+
+  const value = useMemo(
+    () => ({ openName, isPointerOwner, openByPointer, openByPress, close }),
+    [openName, isPointerOwner, openByPointer, openByPress, close],
+  );
 
   return (
     <OpenExplainer.Provider value={value}>{children}</OpenExplainer.Provider>
@@ -323,7 +347,8 @@ export function ChannelLegend({
     throw new Error("ChannelLegend needs a ChannelLegendScope around it.");
   }
 
-  const { openName, setOpenName } = shared;
+  const { openName, isPointerOwner, openByPointer, openByPress, close } =
+    shared;
 
   /**
    * One panel at a time, held above the legends rather than by each name.
@@ -342,10 +367,15 @@ export function ChannelLegend({
    */
   const nameFor = (name: string) => `${legendId}:${name}`;
 
-  const answerFor = (name: string) => (open: boolean) => {
+  const controlsFor = (name: string) => {
     const key = nameFor(name);
-
-    setOpenName((current) => (open ? key : current === key ? null : current));
+    return {
+      open: openName === key,
+      isPointerOwner: () => isPointerOwner(key),
+      onOpenByPointer: () => openByPointer(key),
+      onOpenByPress: () => openByPress(key),
+      onClose: () => close(key),
+    };
   };
 
   return (
@@ -369,8 +399,7 @@ export function ChannelLegend({
       {CHANNEL_SPECS.map((spec) => (
         <ChannelExplainer
           key={spec.id}
-          open={openName === nameFor(spec.id)}
-          onOpenChange={answerFor(spec.id)}
+          {...controlsFor(spec.id)}
           icon={CHANNEL_ICON[spec.id]}
           label={t(spec.labelKey)}
           hint={t(spec.hintKey)}
@@ -386,8 +415,7 @@ export function ChannelLegend({
         />
       ))}
       <ChannelExplainer
-        open={openName === nameFor(EMAIL_NAME)}
-        onOpenChange={answerFor(EMAIL_NAME)}
+        {...controlsFor(EMAIL_NAME)}
         icon={Mail}
         label={t("channelEmail")}
         hint={t("channelEmailHint")}
