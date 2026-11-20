@@ -808,3 +808,27 @@ it("folds exactly ten of eleven keyword ideas and expands the remaining idea", a
   await user.click(screen.getByRole("button", { name: "Show 1 more idea" }));
   expect(screen.getByRole("button", { name: "reader idea 11" })).toBeVisible();
 });
+
+it("marks the recommended keyword itself and keeps group counts out of table rows", () => {
+  const ideas = keywordGroups([
+    row({
+      keyword: "long battery life",
+      source: "opportunity",
+      difficulty: 10,
+      conversion: "high",
+      clicks: { now: 1, top10: 20, top3: 25, top1: 40 },
+    }),
+    row({ keyword: "battery life", source: "gap", difficulty: 70 }),
+  ]).ideas;
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoKeywordIdeas ideas={ideas} model={model} />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText(/^1 idea is recommended/)).toBeVisible();
+  const keyword = screen
+    .getByRole("button", { name: "long battery life" })
+    .closest("tr")!;
+  expect(within(keyword).getByText("Recommended")).toBeVisible();
+  expect(screen.getAllByRole("row")).toHaveLength(2);
+});

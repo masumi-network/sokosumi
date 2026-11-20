@@ -360,6 +360,12 @@ describe("SEO workspace integration", () => {
       vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     renderWorkspace(workspace, "?tab=rankings");
+    expect(
+      screen.queryByRole("region", { name: "Markets to investigate" }),
+    ).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Competitors", pressed: false }),
+    );
     const markets = within(
       await screen.findByRole("region", { name: "Markets to investigate" }),
     );
@@ -1291,7 +1297,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=actions");
     // A short Actions list leaves room: the page details start open.
     expect(
-      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+      screen.getByRole("heading", { name: "Notes (2)" }).closest("details"),
     ).toHaveAttribute("open");
     const heading = screen.getByRole("heading", {
       name: "2 of 23 images have a camera file name",
@@ -1344,7 +1350,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=actions");
     // A short Actions list leaves room: the page details start open.
     expect(
-      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+      screen.getByRole("heading", { name: "Notes (1)" }).closest("details"),
     ).toHaveAttribute("open");
     const row = screen
       .getByRole("heading", { name: "13 of 43 links lead to an error" })
@@ -1407,7 +1413,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=actions");
     // A short Actions list leaves room: the page details start open.
     expect(
-      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+      screen.getByRole("heading", { name: "Notes (1)" }).closest("details"),
     ).toHaveAttribute("open");
     // No count to put in plain words: the rule's title leads, and the check's lines wait in a fold.
     const heading = screen.getByRole("heading", {
@@ -1535,13 +1541,21 @@ describe("SEO workspace integration", () => {
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(60);
     renderWorkspace(workspace, "?tab=health");
     // The folded section says whether opening it pays off.
-    expect(screen.getByText("2 notes")).toBeInTheDocument();
+    const noteGroup = screen
+      .getByRole("heading", { name: "Notes (2)" })
+      .closest("details")!;
+    const recommended = screen
+      .getByRole("heading", { name: "Recommended actions" })
+      .closest("section");
+    expect(recommended).toContainElement(noteGroup);
+
     const detailsHeading = screen.getByRole("heading", {
       name: "Page details",
     });
     // The fold closes the Actions list: it sits in that section, under its rows.
     const actionsSection = detailsHeading.closest("section");
-    expect(actionsSection).not.toBeNull();
+    expect(actionsSection).toBe(recommended);
+    expect(detailsHeading.closest("details")).not.toContainElement(noteGroup);
     expect(
       screen.getByRole("heading", {
         level: 2,
@@ -1584,11 +1598,12 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // The fold counts suggestions apart from notes, as the Agent tab does.
     expect(details.querySelector("summary")).toHaveTextContent(
-      /^Page details1 suggestion,\s*2 notesWhat we found on your pages\./,
+      /^Page details1 suggestionWhat we found on your pages\./,
     );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/Checked on/)).toBeNull();
-    expect(details.querySelectorAll("time")).toHaveLength(4);
+    expect(details.querySelectorAll("time")).toHaveLength(2);
+    expect(noteGroup.querySelectorAll("time")).toHaveLength(2);
     expect(
       screen.getByRole("heading", {
         name: "robots.txt blocks AI search bots",
@@ -1858,16 +1873,19 @@ describe("SEO workspace integration", () => {
     expect(
       within(details).queryAllByRole("link", { name: /View results/ }),
     ).toHaveLength(0);
+    const notes = screen
+      .getByRole("heading", { name: /^Notes \(\d+\)$/ })
+      .closest("details")!;
     // A long line without a label is the value under its rule, not a heading.
     expect(
-      within(details).getByRole("heading", {
+      within(notes).getByRole("heading", {
         name: /^The check flagged this on the page\s*: Descriptive link text$/,
       }),
     ).toBeVisible();
     // A long note the clamp does not cut needs no toggle.
-    expect(within(details).getByText(/^"battery, battery/)).toBeVisible();
+    expect(within(notes).getByText(/^"battery, battery/)).toBeVisible();
     expect(
-      within(details).queryByRole("button", { name: "Show all" }),
+      within(notes).queryByRole("button", { name: "Show all" }),
     ).toBeNull();
     // The details of the day in view link the check's results.
     await user.click(
@@ -6878,7 +6896,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText("No recommended actions")).toBeNull();
     // Without an Actions list the page details stand in a card of their own, a section of the tab.
     const details = screen.getByRole("heading", {
-      level: 2,
+      level: 3,
       name: "Page details",
     });
     expect(details.closest("section")).not.toBeNull();
@@ -7013,6 +7031,7 @@ describe("SEO workspace integration", () => {
     const research = within(tab)
       .getByRole("heading", { name: "Audit research" })
       .closest("section");
+    expect(row.closest("section")).toContainElement(details);
     expect(row.closest("section")?.nextElementSibling).toBe(research);
     const links = within(research!).getByText("Internal links and indexing", {
       selector: "summary *",

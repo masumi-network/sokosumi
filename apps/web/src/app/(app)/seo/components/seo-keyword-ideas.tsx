@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Fragment, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
@@ -105,11 +105,11 @@ export function SeoKeywordIdeas({
       }
       // The one Track sentence: it names the next position check, so it has no place where none can run.
       // The Keywords list has none, because a check tracks its keywords from the start.
-      description={result(
+      description={
         priorityCount
-          ? "keywords.shortlist.summary"
-          : "keywords.shortlist.none",
-      )}
+          ? result("keywords.shortlist.summary", { count: priorityCount })
+          : result("keywords.shortlist.none")
+      }
     >
       <div className={HOLDER_ITEM_CLASS}>
         <Table className={SEO_COMPACT_ROWS_CLASS}>
@@ -139,44 +139,17 @@ export function SeoKeywordIdeas({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((group, index) => (
-              <Fragment key={group.lead.id}>
-                {priorityCount > 0 &&
-                  (index === 0 || index === priorityCount) && (
-                    <TableRow className="bg-muted">
-                      <TableCell
-                        colSpan={
-                          2 +
-                          Number(shown.volume) +
-                          Number(shown.gain) +
-                          Number(shown.difficulty)
-                        }
-                        className="text-xs font-semibold"
-                      >
-                        {t(
-                          index === 0
-                            ? "keywords.shortlist.group"
-                            : "keywords.shortlist.other",
-                          {
-                            count:
-                              index === 0
-                                ? priorityCount
-                                : ordered.length - priorityCount,
-                          },
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                <SeoIdeaRow
-                  assessment={assess(group)}
-                  group={group}
-                  model={model}
-                  shown={shown}
-                  manyMarkets={manyMarkets}
-                  manyPages={manyPages}
-                  mostSearched={mostSearched}
-                />
-              </Fragment>
+            {rows.map((group) => (
+              <SeoIdeaRow
+                key={group.lead.id}
+                assessment={assess(group)}
+                group={group}
+                model={model}
+                shown={shown}
+                manyMarkets={manyMarkets}
+                manyPages={manyPages}
+                mostSearched={mostSearched}
+              />
             ))}
           </TableBody>
         </Table>
@@ -260,6 +233,11 @@ function SeoIdeaRow({
             />
             <bdi lang={lead.languageCode ?? ""}>{lead.keyword}</bdi>
           </button>
+          {assessment.reason === "priority" && (
+            <span className="ms-2 inline-block text-xs font-medium text-muted-foreground">
+              {t("keywords.shortlist.label")}
+            </span>
+          )}
           {manyMarkets ? (
             <p className="text-muted-foreground text-xs">
               {seoMarketName(

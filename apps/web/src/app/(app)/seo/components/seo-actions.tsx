@@ -3,6 +3,7 @@
 import { Play, Plug, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoActionWorklist } from "./seo-action-worklist";
 import { SeoArticleDates } from "./seo-article-dates";
@@ -13,10 +14,12 @@ import {
 import { SeoAuditResearch } from "./seo-audit-research";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoActionsExport } from "./seo-export-model";
+import { SeoIndexStatus } from "./seo-index-status";
 import { seoOverviewModel } from "./seo-overview-model";
 import { SeoPageDetails } from "./seo-page-details";
-import { SeoEmpty, SeoSection } from "./seo-shared";
+import { SeoEmpty, SeoFoldSummary, SeoSection } from "./seo-shared";
 import { SeoStrategicPlanning } from "./seo-strategic-planning";
+import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { seoWorklistEvidence } from "./seo-worklist-evidence";
 
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -38,6 +41,11 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
     searchResult,
     overview.actions,
     result,
+  );
+  const hasCheckDetails = Boolean(
+    model.data.observations.length > 0 ||
+      model.data.indexStatus?.pages.length ||
+      model.data.indexTriage?.assessments.length,
   );
   const hasActions = overview.actions.length > 0 || evidence.length > 0;
   const csv = (
@@ -64,7 +72,9 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         actions={overview.actions.length ? csv : undefined}
         // An empty list says its state in its own title, so the section title would say it twice.
         // An empty list with strategy actions under it returns early above, with the strategy title.
-        titleHidden={!hasActions}
+        titleHidden={
+          !hasActions && !hasCheckDetails && !overview.diagnostics.length
+        }
       >
         {hasActions ? (
           <SeoActionWorklist
@@ -128,10 +138,21 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
           </SeoEmpty>
         )}
         {/* The page details are what the checks measured on the pages: they close the list of what to do. */}
+        {hasCheckDetails ? (
+          <details className={HOLDER_ITEM_CLASS}>
+            <SeoFoldSummary className="min-h-11 justify-between px-4 py-2 text-sm font-medium">
+              {t("actions.checkDetails")}
+            </SeoFoldSummary>
+            <div className="min-w-0 space-y-5 border-t p-3 sm:p-4">
+              <SeoSummaryTiles workspace={model.data} filters={model.filters} />
+              <SeoIndexStatus workspace={model.data} />
+            </div>
+          </details>
+        ) : null}
+        <SeoPageDetails model={model} overview={overview} />
       </SeoSection>
       {research}
       <SeoStrategicPlanning model={model} />
-      <SeoPageDetails model={model} standalone />
       <SeoCurrentDiscoveryActions
         workspace={model.data}
         result={searchResult}

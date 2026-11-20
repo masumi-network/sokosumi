@@ -85,7 +85,6 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           />
         </div>
       </div>
-      <SeoMarkets data={model.data} pageId={model.filters.pageId} />
       {/* Over the list, the map of the list in view: which keywords are worth the work, at one look (owner,
           after pass 59). The competitors list has no use for the map. */}
       {section === "ideas" && (
@@ -96,7 +95,6 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           groups={{ checked: [], ideas: filtered.ideas }}
         />
       )}
-      <SeoKeywords model={model} section={section} />
       {section === "keywords" && (
         <SeoKeywordMap
           key="keywords"
@@ -104,6 +102,7 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           groups={{ checked: filtered.checked, ideas: [] }}
         />
       )}
+      <SeoKeywords model={model} section={section} />
       <div
         className={cn("space-y-6", seoSectionClass(section === "competitors"))}
       >
@@ -113,6 +112,9 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           <SeoShareOfVoice shareOfVoice={model.data.shareOfVoice} />
         )}
       </div>
+      {section === "competitors" && (
+        <SeoMarkets data={model.data} pageId={model.filters.pageId} />
+      )}
     </div>
   );
 }
