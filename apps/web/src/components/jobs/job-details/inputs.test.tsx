@@ -141,9 +141,9 @@ describe("JobDetailsInputs", () => {
 
     expect(container.querySelector(".break-all")).toBeNull();
     expect(screen.getByTestId("markdown-mock").parentElement).toHaveClass(
-      "wrap-break-word",
+      "wrap-anywhere",
     );
-    expect(screen.getByText("Casual")).toHaveClass("wrap-break-word");
+    expect(screen.getByText("Casual")).toHaveClass("wrap-anywhere");
   });
 
   it("renders schema defaults for missing text and textarea values", () => {

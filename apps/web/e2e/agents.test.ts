@@ -78,20 +78,67 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await card.click();
       await page.waitForURL(/\/agents\/[^/?]+$/);
 
+      // Gutter: measured from the main content area, not the window, so an
+      // open sidebar cannot stand in for the page's own margin.
+      const main = page.locator("main[data-app-main]");
       const title = page.getByRole("heading", { level: 1 });
       await title.waitFor();
-      const box = await title.boundingBox();
-      assert.ok(box, "the agent name shows");
-      assert.ok(box.x >= GUTTER, `name starts ${box.x}px from the edge`);
+      const mainBox = await main.boundingBox();
+      const titleBox = await title.boundingBox();
+      assert.ok(mainBox && titleBox, "the agent name shows");
+      assert.ok(
+        titleBox.x - mainBox.x >= GUTTER,
+        `name starts ${titleBox.x - mainBox.x}px into main`,
+      );
+      // Wider screens put the icon beside the name; the back link is the
+      // leftmost thing on the page there.
+      const back = page.getByRole("link", { name: "Back to agents" });
+      if (await back.isVisible()) {
+        const backBox = await back.boundingBox();
+        assert.ok(backBox);
+        const left = backBox.x - mainBox.x;
+        assert.ok(left >= GUTTER, `back link starts ${left}px into main`);
+      }
+      const share = page.getByRole("button", { name: "Share", exact: true });
+      if (await share.isVisible()) {
+        const shareBox = await share.boundingBox();
+        assert.ok(shareBox);
+        const right = mainBox.x + mainBox.width - (shareBox.x + shareBox.width);
+        assert.ok(right >= GUTTER, `Share ends ${right}px before main's edge`);
+      }
 
+      // Find, on arrival and before any scroll. The profile used to lay the
+      // field out under the header (phone: y=8 under a 64px top bar), so it
+      // could never be reached. Its place in the page must start below the
+      // header. Where the page is scrolled to on arrival is a separate,
+      // app-wide behaviour (the router scrolls the new page's content into
+      // view, so a shell toolbar above it can start just out of sight); this
+      // spec does not assert it.
       const find = page.getByRole("searchbox", { name: "Find on this page" });
       await find.waitFor();
-      // Arriving from a scrolled gallery, the router scrolls the profile's
-      // own content into view, so the Find bar above it starts just out of
-      // sight. Scroll up like a person would before looking for it.
+      const banner = await page.getByRole("banner").boundingBox();
+      assert.ok(banner, "the header shows");
+      const findTopAtRest = await find.evaluate((input) => {
+        const scroller = document.querySelector("main[data-app-main]");
+        return (
+          input.getBoundingClientRect().top +
+          (scroller?.scrollTop ?? 0) +
+          window.scrollY
+        );
+      });
+      assert.ok(
+        findTopAtRest >= banner.y + banner.height,
+        `Find sits at ${findTopAtRest}px, under the header (ends ${banner.y + banner.height}px)`,
+      );
+
+      // Scroll back up as a person would, then the field takes a tap.
       await page.mouse.move(viewport.width / 2, viewport.height / 2);
       await page.mouse.wheel(0, -5000);
-      await page.waitForTimeout(500);
+      await page.waitForFunction(
+        () =>
+          window.scrollY === 0 &&
+          document.querySelector("main[data-app-main]")?.scrollTop === 0,
+      );
       const findVisible = await find.evaluate((input) => {
         const r = input.getBoundingClientRect();
         const hit = document.elementFromPoint(
