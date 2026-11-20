@@ -6,7 +6,10 @@ import Push from "ably/push";
 import { getNotificationServiceWorkerUrl } from "@/lib/utils/notification-service-worker";
 
 import { getOrCreateAblyClientInstanceId } from "./ably-client-instance-id";
-import { reportAblyAuthOk } from "./ably-connection-health-store";
+import {
+  reportAblyAuthOk,
+  reportAblyConnectionConnected,
+} from "./ably-connection-health-store";
 import {
   AblyBrowserAuthError,
   fetchAblyBrowserAuthTokenRequest,
@@ -58,6 +61,8 @@ const MAX_CONSECUTIVE_SESSION_LOSSES = 3;
  */
 let sessionLossRetiredClient: Ably.Realtime | undefined;
 
+const connectionHealthCleanups = new WeakMap<Ably.Realtime, () => void>();
+
 /**
  * Ends one client. Only for failures that no retry can clear: a lost session,
  * or a token minted for a different user.
@@ -80,7 +85,13 @@ function retireAblyRealtimeClient(
   if (!client) {
     return;
   }
-  if (options?.rebuild && getGlobalAblyRealtimeClient() === client) {
+  const isActiveClient = getGlobalAblyRealtimeClient() === client;
+  connectionHealthCleanups.get(client)?.();
+  connectionHealthCleanups.delete(client);
+  if (isActiveClient) {
+    reportAblyConnectionConnected(false);
+  }
+  if (options?.rebuild && isActiveClient) {
     setGlobalAblyRealtimeClient(undefined);
   } else {
     sessionLossRetiredClient = client;
@@ -226,5 +237,19 @@ export function getAblyRealtimeClient(): Ably.Realtime {
   });
   owner.client = realtimeClient;
   setGlobalAblyRealtimeClient(realtimeClient);
+  const connection = realtimeClient.connection;
+  if (typeof connection?.on === "function") {
+    const publishConnectionConnected = () => {
+      if (getGlobalAblyRealtimeClient() !== realtimeClient) {
+        return;
+      }
+      reportAblyConnectionConnected(connection.state === "connected");
+    };
+    connection.on(publishConnectionConnected);
+    connectionHealthCleanups.set(realtimeClient, () => {
+      connection.off?.(publishConnectionConnected);
+    });
+    publishConnectionConnected();
+  }
   return realtimeClient;
 }

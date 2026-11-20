@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
 
 const {
   listRunsMock,
@@ -68,6 +70,17 @@ function turn(status: string, toolCalls: unknown[]) {
   };
 }
 
+function makeWrapper() {
+  const NuqsWrapper = withNuqsTestingAdapter({});
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <TestQueryProvider>
+        <NuqsWrapper>{children}</NuqsWrapper>
+      </TestQueryProvider>
+    );
+  };
+}
+
 describe("ScenarioLab live progress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -93,7 +106,7 @@ describe("ScenarioLab live progress", () => {
     );
 
     render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: withNuqsTestingAdapter({}),
+      wrapper: makeWrapper(),
     });
 
     // Exactly "run": the page also has runAll and runAllVersions, and the
@@ -127,7 +140,7 @@ describe("ScenarioLab live progress", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: withNuqsTestingAdapter({}),
+      wrapper: makeWrapper(),
     });
     const [runButton] = await screen.findAllByRole("button", { name: "run" });
     fireEvent.click(runButton);
@@ -148,7 +161,7 @@ describe("ScenarioLab live progress", () => {
     try {
       const { unmount } = render(
         <ScenarioLab versionId="v11" versions={VERSIONS} />,
-        { wrapper: withNuqsTestingAdapter({}) },
+        { wrapper: makeWrapper() },
       );
       const runButtons = await screen.findAllByRole("button", { name: "run" });
       fireEvent.click(runButtons[0] as HTMLElement);
@@ -181,7 +194,7 @@ describe("ScenarioLab live progress", () => {
       try {
         const { unmount } = render(
           <ScenarioLab versionId="v11" versions={VERSIONS} />,
-          { wrapper: withNuqsTestingAdapter({}) },
+          { wrapper: makeWrapper() },
         );
         fireEvent.click(await screen.findByRole("button", { name: button }));
         await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -228,7 +241,7 @@ describe("ScenarioLab live progress", () => {
     );
 
     render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: withNuqsTestingAdapter({}),
+      wrapper: makeWrapper(),
     });
 
     // Exactly "run": the page also has runAll and runAllVersions, and the

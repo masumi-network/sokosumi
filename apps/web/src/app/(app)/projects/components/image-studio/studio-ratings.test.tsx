@@ -7,6 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
@@ -311,5 +312,82 @@ describe("studio ratings", () => {
     render(<StudioLightbox {...props} assets={[ASSET]} />);
     await act(async () => vi.advanceTimersByTime(500));
     expect(viewed).toHaveBeenCalledTimes(2);
+  });
+
+  it("cancels lightbox view debounce while hidden in Activity and resumes on return", async () => {
+    vi.useFakeTimers();
+    const viewed = vi.fn();
+    const props = {
+      catalog: TEST_CATALOG,
+      creditsByAssetId: {},
+      elapsedByAssetId: {},
+      labels: TEST_LABELS,
+      onClose: vi.fn(),
+      onSelect: vi.fn(),
+      onCaptionChange: vi.fn(),
+      onViewed: viewed,
+      siblings: [ASSET],
+    };
+    const view = render(
+      <Activity mode="visible">
+        <StudioLightbox {...props} assets={[ASSET]} />
+      </Activity>,
+    );
+    await act(async () => vi.advanceTimersByTime(300));
+    expect(viewed).not.toHaveBeenCalled();
+
+    view.rerender(
+      <Activity mode="hidden">
+        <StudioLightbox {...props} assets={[ASSET]} />
+      </Activity>,
+    );
+    await act(async () => vi.advanceTimersByTime(2_000));
+    expect(viewed).not.toHaveBeenCalled();
+
+    view.rerender(
+      <Activity mode="visible">
+        <StudioLightbox {...props} assets={[ASSET]} />
+      </Activity>,
+    );
+    await act(async () => vi.advanceTimersByTime(499));
+    expect(viewed).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(viewed).toHaveBeenCalledTimes(1);
+    view.unmount();
+  });
+
+  it("resets the 500 ms view window when onViewed changes", async () => {
+    vi.useFakeTimers();
+    const firstViewed = vi.fn();
+    const secondViewed = vi.fn();
+    const assets = [ASSET];
+    const props = {
+      catalog: TEST_CATALOG,
+      creditsByAssetId: {},
+      elapsedByAssetId: {},
+      labels: TEST_LABELS,
+      onClose: vi.fn(),
+      onSelect: vi.fn(),
+      onCaptionChange: vi.fn(),
+      siblings: assets,
+    };
+    const view = render(
+      <StudioLightbox {...props} assets={assets} onViewed={firstViewed} />,
+    );
+    await act(async () => vi.advanceTimersByTime(499));
+    expect(firstViewed).not.toHaveBeenCalled();
+
+    view.rerender(
+      <StudioLightbox {...props} assets={assets} onViewed={secondViewed} />,
+    );
+    await act(async () => vi.advanceTimersByTime(499));
+    expect(firstViewed).not.toHaveBeenCalled();
+    expect(secondViewed).not.toHaveBeenCalled();
+
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(firstViewed).not.toHaveBeenCalled();
+    expect(secondViewed).toHaveBeenCalledTimes(1);
+    expect(secondViewed).toHaveBeenCalledWith(ASSET);
+    view.unmount();
   });
 });

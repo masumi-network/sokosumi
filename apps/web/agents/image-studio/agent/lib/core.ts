@@ -1,7 +1,11 @@
 import {
+  type ImageStudioRoute,
+  type ProjectImageJob,
   type ProjectImageStudioCatalog,
   readStudioAgentAdHeadline,
+  readStudioAgentBrandContext,
   type SaveStudioAgentAdHeadline,
+  type StudioRouterArm,
   saveStudioAgentAdHeadline,
 } from "@sokosumi/core-client";
 
@@ -430,20 +434,27 @@ export async function listStudioProducts(identity: AgentIdentity): Promise<{
   return data;
 }
 
-function headlineRequest(identity: AgentIdentity, assetId: string) {
+function agentRequest(identity: AgentIdentity) {
   return {
     baseUrl: `${baseUrl()}/v1`,
     headers: { authorization: `Bearer ${mintGrant(identity)}` },
-    path: { assetId },
     cache: "no-store" as const,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   };
 }
 
+export async function readBrandContext(identity: AgentIdentity) {
+  const { data } = await readStudioAgentBrandContext(agentRequest(identity));
+  if (!data?.data)
+    throw new Error("Sokosumi could not read the brand context.");
+  return data.data;
+}
+
 export async function readAdHeadline(identity: AgentIdentity, assetId: string) {
-  const { data, response } = await readStudioAgentAdHeadline(
-    headlineRequest(identity, assetId),
-  );
+  const { data, response } = await readStudioAgentAdHeadline({
+    ...agentRequest(identity),
+    path: { assetId },
+  });
   if (data?.data) return data.data;
   if (!response) throw new Error("Sokosumi could not read the ad headline.");
   throw new Error(
@@ -459,7 +470,8 @@ export async function saveAdHeadline(
   body: SaveStudioAgentAdHeadline,
 ) {
   const { data, error, response } = await saveStudioAgentAdHeadline({
-    ...headlineRequest(identity, assetId),
+    ...agentRequest(identity),
+    path: { assetId },
     body,
   });
   if (data?.data) return data.data;
@@ -518,6 +530,8 @@ export async function startGeneration(
     aspectRatio: string;
     resolution: string;
     modelId?: string;
+    route?: ImageStudioRoute;
+    experimentArm: StudioRouterArm;
     placementId?: string | null;
     outputFormat?: string;
     seed?: number | null;
@@ -548,6 +562,7 @@ export async function readGeneration(
     model: string;
     settings: unknown;
     error: string | null;
+    failureReason: ProjectImageJob["failureReason"];
     retryMayDuplicateCharge: boolean;
   };
   version: {

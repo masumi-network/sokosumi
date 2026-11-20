@@ -62,19 +62,42 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-mobile` (`useIsMobile`, `useIsMobileMedia`, `MOBILE_BREAKPOINT`) — mobile viewport media query
 - `use-media-query` (`useMediaQuery`, `usePrefersReducedMotion`, `matchesMediaQuery`, `subscribeMediaQuery`) — generic CSS media query and live `prefers-reduced-motion` subscriptions (CMO has `useMediaQuery` under `apps/cmo/src/hooks/effects/use-media-query.ts`)
 - `use-animation-frame` (`useAnimationFrame`) — `requestAnimationFrame` loop with elapsed seconds per frame
+- `use-event-listener` (`useEventListener`) — typed window, document, or element DOM event listener using the latest handler (CMO has `useEventListener` under `apps/cmo/src/hooks/effects/use-event-listener.ts`)
+- `use-interval` (`useInterval`) — repeating timer paused on `null` delay (CMO has `useInterval` under `apps/cmo/src/hooks/effects/use-interval.ts`)
+- `use-timeout` (`useTimeout`) — one-shot timer paused on `null` delay with optional `resetKey` (CMO has `useTimeout` under `apps/cmo/src/hooks/effects/use-timeout.ts`)
 - `use-replace-route-on-media` (`useReplaceRouteOnMedia`) — one-shot `router.replace` when a CSS media query matches
 - `use-keyboard-open` (`useKeyboardOpen`) — soft keyboard open state via `visualViewport`
 - `use-clipboard` (`useClipboard`, `copyTextWithToast`) — clipboard write with toast feedback and timed reset
 - `use-load-when-visible` (`useLoadWhenVisible`) — `IntersectionObserver` pagination boundary trigger
+- `use-intersection-observer` (`useIntersectionObserver`) — live-element `IntersectionObserver` subscription with unmount disconnect
+- `use-resize-observer` (`useResizeObserver`, `useLayoutResizeObserver`) — live-element `ResizeObserver` subscriptions with unmount disconnect
+- `use-mutation-observer` (`useMutationObserver`, `useLayoutMutationObserver`) — live-node / `"body"` / `"documentElement"` `MutationObserver` subscriptions with unmount disconnect
 - `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
 - `use-page-search-shortcut` (`usePageSearchShortcut`) — Cmd/Ctrl+F search input focus shortcut
 - `use-prevent-enter-submit` (`usePreventEnterSubmit`) — form Enter submission guard
 - `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching
 - `use-chat-unread-document-title` (`useChatUnreadDocumentTitle`) — browser tab unread count prefix
 - `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
+- `use-org-presence-map` (`useOrgPresenceMap`, `useOrgPresenceMapSync`, `createOrgPresenceStore`) — Ably organization presence subscription backed by an external store
+- `use-room-typing` (`useRoomTyping`, `useRoomTypingSync`, `createRoomTypingStore`) — Ably room typing subscription and publisher backed by an external store
 - `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
 - `use-location-replace` (`useLocationReplace`) — `window.location.replace` redirect when a target URL is set
 - `use-format-toolbar-open-preference` (`useFormatToolbarOpenPreference`) — before-paint chat formatting toolbar preference read and persistence
 - `use-normalized-query-tab` (`useNormalizedQueryTab`) — URL query tab validation against enabled tabs with invalid-URL cleanup
 - `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries
 - `use-latest-ref` (`useLatestRef`) — ref synced to the latest committed value in a layout effect
+- `use-query-error-report` (`useQueryErrorReport`) — calls a query error reporter once per failure while mounted on the active key
+- `use-flash-toast` (`queueFlashSuccessToast`, `useFlashToast`) — shows a one-time `sessionStorage` success toast once on the next document mount
+
+### React Query in migrations
+
+When migrating a client fetch effect to React Query in `apps/web`:
+
+- **Session boundary (full document load):** User changes — sign-out via `signOutWithPushRelease` and every sign-out caller (`logout-modal`, `workspace-gate-sign-out`, `invitation-actions`, `oauth-hand-back`, password-reset sign-out), account deletion, sign-in (`finishAuthInPlace` / OAuth callbacks), impersonation start/stop, and session-expiry redirects (`AuthSessionGuard`, `useUnAuthenticatedErrorHandler`) — always end in a full document load (`window.location.assign`, `window.location.replace`, or `window.location.reload`) instead of a client router push/refresh. No in-memory JS cache (including the module `QueryClient`) outlives its user.
+- **Scoped reads (`useScopedQuery` / `useScopedInfiniteQuery` in `apps/web/src/queries/scoped-queries.ts`):**
+  - Pass `scope` explicitly using the exact same value the request uses (organization slug or workspace id, plus viewer id where the server filters per member); the wrapper prepends `scope` to `queryKey`.
+  - Defaults to `networkMode: "always"`, `retry: false`, and `refetchOnWindowFocus: false` without changing global `QueryClient` defaults for existing `useQuery` callers.
+  - `placeholderData` / `keepPreviousData` is intentionally disallowed and stripped so scope A's rows can never render under scope B while loading.
+  - Pass `onError` to toast or report failures: `useQueryErrorReport` fires only while the observer is mounted, enabled (`result.isEnabled`), and still on the failing key, so an abandoned or disabled read cannot toast on another screen.
+- **Writes alongside migrated reads:** Cancel every query under the scoped key prefix before the write; on success apply the result only to already-loaded entries (`status === "success"` — a write's result never marks a failed or unloaded list as loaded), then invalidate that prefix. Keep one-time secrets in the create result/local UI state and never write them into the React Query cache.
+- **Still on their old code:** Write-heavy, protected-preview, public-share, and one-time-secret surfaces stay on their current code rather than migrating to React Query.

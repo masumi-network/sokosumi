@@ -521,7 +521,11 @@ export async function requireCuso(
   return cuso;
 }
 
-/** The business's connected social accounts, from Project Social. */
+/**
+ * The business's social accounts, from Project Social: one per network, the
+ * newest active one, else the newest. Replacing an account (a LinkedIn Page
+ * for the profile) leaves the old row disconnected.
+ */
 export async function listCmoChannels(projectId: string) {
   const rows = await prisma.projectSocialConnection.findMany({
     where: { projectId },
@@ -535,8 +539,15 @@ export async function listCmoChannels(projectId: string) {
       status: true,
     },
   });
+  const current = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const kept = current.get(row.provider);
+    if (!kept || row.status === "active" || kept.status !== "active") {
+      current.set(row.provider, row);
+    }
+  }
   // Project Social stores "active"; CMO reads statuses upper case.
-  return rows.map(({ externalAccountId, ...row }) => ({
+  return [...current.values()].map(({ externalAccountId, ...row }) => ({
     ...row,
     status: row.status.toUpperCase(),
     personalProfile: postsAsPerson(row.provider, externalAccountId),

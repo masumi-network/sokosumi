@@ -3,7 +3,8 @@
 import "./onboarding.css";
 import type { CmoBrandMedia, CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
+import { useTimeout } from "../../hooks/effects/use-timeout";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   BRAND_SECTIONS,
@@ -386,14 +387,11 @@ export function BrandStep({
   const [staleSent, setStaleSent] = useState<typeof sent>(null);
   const stale = sent !== null && staleSent === sent;
   const idle = overview.botStatus !== "RUNNING";
-  useEffect(() => {
-    if (sent === null || answered) return;
-    const timer = window.setTimeout(
-      () => setStaleSent(sent),
-      idle ? 30_000 : 240_000,
-    );
-    return () => window.clearTimeout(timer);
-  }, [sent, answered, idle]);
+  useTimeout(
+    () => setStaleSent(sent),
+    sent !== null && !answered ? (idle ? 30_000 : 240_000) : null,
+    sent,
+  );
   // With onFix the overview says when a fix runs; the chat's reply never has to.
   const fixing = onFix
     ? overview.botStatus === "RUNNING" && overview.work?.change === "fix"

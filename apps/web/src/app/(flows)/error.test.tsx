@@ -1,14 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const pushMock = vi.fn();
-
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock }),
 }));
 
 vi.mock("next-intl", () => ({
@@ -26,8 +20,13 @@ function unauthenticated(): Error {
 }
 
 describe("(flows) error boundary", () => {
+  let assignSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    assignSpy = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
   });
 
   it("sends a real logout to sign-in instead of showing a card", () => {
@@ -35,7 +34,7 @@ describe("(flows) error boundary", () => {
     // that is gone, so the boundary has to redirect the way `(app)` does.
     render(<FlowsError error={unauthenticated()} reset={vi.fn()} />);
 
-    expect(pushMock).toHaveBeenCalledWith(
+    expect(assignSpy).toHaveBeenCalledWith(
       expect.stringContaining("/signin?returnUrl="),
     );
     expect(screen.queryByText("title")).toBeNull();
@@ -45,7 +44,7 @@ describe("(flows) error boundary", () => {
     render(<FlowsError error={new Error("Core is down")} reset={vi.fn()} />);
 
     expect(screen.getByText("title")).toBeInTheDocument();
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(assignSpy).not.toHaveBeenCalled();
   });
 
   it("says the service is unavailable when Core could not be reached", () => {

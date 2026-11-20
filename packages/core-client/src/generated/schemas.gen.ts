@@ -7299,6 +7299,29 @@ export const AdEvalsLeaderboardRowSchema = {
         model: {
             type: 'string'
         },
+        route: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ImageStudioRoute'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        routeInferred: {
+            type: 'boolean'
+        },
+        experimentArm: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioRouterArm'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         template: {
             type: [
                 'string',
@@ -7415,6 +7438,9 @@ export const AdEvalsLeaderboardRowSchema = {
     },
     required: [
         'model',
+        'route',
+        'routeInferred',
+        'experimentArm',
         'template',
         'aspect',
         'workspaceCount',
@@ -7429,6 +7455,26 @@ export const AdEvalsLeaderboardRowSchema = {
         'thumbRateCi',
         'pairwiseWinRateCi',
         'judgeMeanCi'
+    ]
+} as const;
+
+export const ImageStudioRouteSchema = {
+    type: 'string',
+    enum: [
+        'photo_ad',
+        'text_heavy',
+        'vector',
+        'svg_diagram',
+        'make_realistic',
+        'edit'
+    ]
+} as const;
+
+export const StudioRouterArmSchema = {
+    type: 'string',
+    enum: [
+        'router:sonnet-5',
+        'router:opus-5.5'
     ]
 } as const;
 
@@ -22323,6 +22369,114 @@ export const StudioProductIdentitySchema = {
     ]
 } as const;
 
+export const StudioAgentBrandContextSchema = {
+    type: 'object',
+    properties: {
+        brand: {
+            type: 'object',
+            properties: {
+                positioning: {
+                    type: 'string',
+                    maxLength: 180
+                },
+                tone: {
+                    type: 'string',
+                    maxLength: 180
+                },
+                audience: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                },
+                keyMessages: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                },
+                do: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                },
+                dont: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                }
+            },
+            required: [
+                'positioning',
+                'tone',
+                'audience',
+                'keyMessages',
+                'do',
+                'dont'
+            ]
+        },
+        strategy: {
+            type: 'object',
+            properties: {
+                month: {
+                    type: 'string'
+                },
+                approved: {
+                    type: 'boolean'
+                },
+                goals: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                },
+                themes: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 180
+                    },
+                    maxItems: 3
+                }
+            },
+            required: [
+                'month',
+                'approved',
+                'goals',
+                'themes'
+            ]
+        },
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 180
+            },
+            maxItems: 3
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 180
+            },
+            maxItems: 3
+        }
+    }
+} as const;
+
 export const StudioAgentAdHeadlineSchema = {
     type: 'object',
     properties: {
@@ -23248,6 +23402,7 @@ export const ProjectImageJobSchema = {
                 'submission_uncertain',
                 'reference_not_sendable',
                 'product_cutout_unavailable',
+                'invalid_vector_image',
                 'voice_unavailable',
                 'request_not_supported',
                 'cancelled',
@@ -43875,11 +44030,8 @@ export const SaveStudioBrandLookSchema = {
 export const CreateProjectImageJobRequestSchema = {
     type: 'object',
     properties: {
-        modelId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 200,
-            default: 'muse-image'
+        letterExistingBackdrop: {
+            type: 'boolean'
         },
         prompt: {
             type: 'string',
@@ -44011,11 +44163,6 @@ export const StudioProductImportSchema = {
 export const CreateProjectVideoJobRequestSchema = {
     type: 'object',
     properties: {
-        modelId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 200
-        },
         prompt: {
             type: 'string',
             minLength: 1,

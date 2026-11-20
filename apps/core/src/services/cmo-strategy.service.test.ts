@@ -2190,6 +2190,35 @@ describe("changes after the plan", () => {
     expect(message()).not.toContain("Write Acme's marketing strategy");
   });
 
+  // cmo-v8: a no to ballcaps once changed the goal and left caps in the
+  // funnel's plays and a question.
+  it("tells a cmo-v8 Cuso a correction is true everywhere", async () => {
+    seedStrategy(wholePlan());
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v8" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "No, we don't sell ballcaps anymore.",
+      patch: true,
+    });
+    expect(message()).toContain("What the owner says is true everywhere.");
+    expect(message()).not.toContain(
+      "Change only the calendar entries and strategy fields this touches",
+    );
+
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v7" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "No, we don't sell ballcaps anymore.",
+      patch: true,
+    });
+    expect(message()).toContain(
+      "Change only the calendar entries and strategy fields this touches",
+    );
+    expect(message()).not.toContain("true everywhere");
+  });
+
   it("patches the plan for the owner's nos and ad budget", async () => {
     seedStrategy({
       ...wholePlan(),
@@ -2422,6 +2451,25 @@ describe("changes after the plan", () => {
     expect(message()).not.toContain("- company:");
     expect(message()).toContain("sections holding only these sections");
     expect(message()).toContain("part patch");
+    expect(message()).not.toContain("send brandBrain with the essentials");
+  });
+
+  it("has a cmo-v8 Cuso fix the essentials that say what the fixed section says", async () => {
+    brainFindUnique.mockResolvedValue({ body: essentials });
+    seedStrategy(wholePlan());
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v8" });
+
+    await fixCmoBrandSection({
+      projectId: "project-1",
+      userId: "user-1",
+      section: "company",
+      note: "We build rockets in Texas, not Ohio.",
+    });
+
+    expect(message()).toContain(
+      "In the same call, send brandBrain with the essentials that say the same thing rewritten to match",
+    );
+    expect(message()).toContain("What the owner says is true everywhere.");
   });
 
   it("names each question the owner said no to in a fix turn, never as 'True instead: Not true'", async () => {

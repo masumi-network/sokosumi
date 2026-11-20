@@ -1,13 +1,7 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
@@ -15,8 +9,8 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import {
-  subscribeOrganizationChatRoomRead,
-  subscribeOrganizationChatRoomsChanged,
+  useOrganizationChatRoomRead,
+  useOrganizationChatRoomsChanged,
 } from "@/components/chat/organization-chat-events";
 import { keepRoomUnreadState } from "@/components/chat/room-attention";
 import {
@@ -164,45 +158,39 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     refreshOnRecovery: true,
   });
 
-  useMountEffect(() =>
-    subscribeOrganizationChatRoomRead((apply) =>
-      setRooms((current) => (current === null ? null : apply(current))),
-    ),
+  useOrganizationChatRoomRead((apply) =>
+    setRooms((current) => (current === null ? null : apply(current))),
   );
 
-  useEffect(
-    () =>
-      subscribeOrganizationChatRoomsChanged({
-        onRemoved: (removedRoomId) =>
-          setRooms((current) =>
-            current === null
-              ? null
-              : applyRoomReadOverlays(
-                  current.filter((row) => row.id !== removedRoomId),
-                ),
-          ),
-        onRoom: (room) =>
-          // The answers that land here do not count what is unread, so the
-          // room keeps what the title already counted for it.
-          setRooms((current) => {
-            // One room is not the list; the first read still decides it.
-            if (current === null) return null;
-            const held = current.find((row) => row.id === room.id);
-            const without = current.filter((row) => row.id !== room.id);
-            return applyRoomReadOverlays([
-              keepRoomUnreadState(held, room),
-              ...without,
-            ]);
-          }),
-        onInvalidated: (collections) => {
-          // Only the active collection holds what is unread.
-          if (!collections || collections.includes("active")) {
-            requestRefresh();
-          }
-        },
+  useOrganizationChatRoomsChanged({
+    onRemoved: (removedRoomId) =>
+      setRooms((current) =>
+        current === null
+          ? null
+          : applyRoomReadOverlays(
+              current.filter((row) => row.id !== removedRoomId),
+            ),
+      ),
+    onRoom: (room) =>
+      // The answers that land here do not count what is unread, so the
+      // room keeps what the title already counted for it.
+      setRooms((current) => {
+        // One room is not the list; the first read still decides it.
+        if (current === null) return null;
+        const held = current.find((row) => row.id === room.id);
+        const without = current.filter((row) => row.id !== room.id);
+        return applyRoomReadOverlays([
+          keepRoomUnreadState(held, room),
+          ...without,
+        ]);
       }),
-    [requestRefresh],
-  );
+    onInvalidated: (collections) => {
+      // Only the active collection holds what is unread.
+      if (!collections || collections.includes("active")) {
+        requestRefresh();
+      }
+    },
+  });
 
   return rooms;
 }

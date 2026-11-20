@@ -173,13 +173,14 @@ vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: useChatRoomRealtimeMock,
 }));
 
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: () => ({
-    typistIds: [],
-    handleComposerChange: () => {},
-    handleStopTyping: () => {},
-  }),
-}));
+vi.mock("@/hooks/effects/use-room-typing", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/hooks/effects/use-room-typing")>();
+  return {
+    ...actual,
+    useRoomTypingSync: () => undefined,
+  };
+});
 
 vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
   useSelectedRoomChannelHealth: () => undefined,

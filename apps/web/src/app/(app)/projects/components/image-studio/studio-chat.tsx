@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { StudioImage } from "./studio-image";
-import type { StudioAsset, StudioLabels, StudioSettings } from "./types";
+import type { StudioAsset, StudioLabels } from "./types";
 
 const headlineUpdateSchema = z.object({
   assetId: z.uuid(),
@@ -105,17 +105,8 @@ interface StudioIntent {
   says: string;
 }
 
-function intentSays(
-  message: string,
-  asset: StudioAsset | null,
-  selection: { studioModelId: string | null; studioSettings?: StudioSettings },
-): string {
-  return JSON.stringify([
-    message,
-    asset?.id ?? null,
-    selection.studioModelId,
-    selection.studioModelId ? selection.studioSettings : null,
-  ]);
+function intentSays(message: string, asset: StudioAsset | null): string {
+  return JSON.stringify([message, asset?.id ?? null]);
 }
 
 function readIntent(projectId: string): StudioIntent | null {
@@ -123,8 +114,13 @@ function readIntent(projectId: string): StudioIntent | null {
     const raw = window.sessionStorage.getItem(intentStorageKey(projectId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<StudioIntent>;
-    return typeof parsed.id === "string" && typeof parsed.says === "string"
-      ? { id: parsed.id, says: parsed.says }
+    if (typeof parsed.id !== "string" || typeof parsed.says !== "string")
+      return null;
+    // Older intents also recorded generation options. Keep retries of the
+    // same message about the same asset under the original attempt's name.
+    const parts: unknown = JSON.parse(parsed.says);
+    return Array.isArray(parts) && parts.length >= 2
+      ? { id: parsed.id, says: JSON.stringify(parts.slice(0, 2)) }
       : null;
   } catch {
     // No stored attempt; this page load starts its own.
@@ -176,8 +172,6 @@ export function StudioChat({
   onSelectResult,
   projectId,
   selectedAsset,
-  studioModelId = null,
-  studioSettings,
 }: {
   assets: readonly StudioAsset[];
   labels: StudioLabels;
@@ -186,8 +180,6 @@ export function StudioChat({
   onSelectResult: (asset: StudioAsset) => void;
   projectId: string;
   selectedAsset: StudioAsset | null;
-  studioModelId?: string | null;
-  studioSettings?: StudioSettings;
 }) {
   const sessionKey = `sokosumi:image-studio:session:${projectId}`;
   const [sessionId, setSessionId] = useState<string | null>(() => {
@@ -229,8 +221,6 @@ export function StudioChat({
       projectId={projectId}
       resumeSessionId={sessionId}
       selectedAsset={selectedAsset}
-      studioModelId={studioModelId}
-      studioSettings={studioSettings}
     />
   );
 }
@@ -247,8 +237,6 @@ function StudioConversation({
   projectId,
   resumeSessionId,
   selectedAsset,
-  studioModelId,
-  studioSettings,
 }: {
   assets: readonly StudioAsset[];
   labels: StudioLabels;
@@ -272,8 +260,6 @@ function StudioConversation({
    * "this" meant, and would have to guess or ask.
    */
   selectedAsset: StudioAsset | null;
-  studioModelId: string | null;
-  studioSettings?: StudioSettings;
 }) {
   const t = useTranslations("App.Studio.Assistant");
   const draftKey = `sokosumi:image-studio:draft:${projectId}`;
@@ -309,8 +295,6 @@ function StudioConversation({
   // it; the hook's options are captured when its store is created.
   const selectedAssetRef = useRef<StudioAsset | null>(selectedAsset);
   selectedAssetRef.current = selectedAsset;
-  const studioSelectionRef = useRef({ studioModelId, studioSettings });
-  studioSelectionRef.current = { studioModelId, studioSettings };
 
   // Restore the draft once, on mount. Storage can throw in a private window
   // or with site data blocked, so the composer must work without it.
@@ -418,42 +402,20 @@ function StudioConversation({
     // each call site. It is ephemeral per-turn context, not session history.
     prepareSend: (input) => {
       const asset = selectedAssetRef.current;
-      const { studioModelId, studioSettings } = studioSelectionRef.current;
-      return {
-        ...input,
-        clientContext: {
-          studioModelId,
-          ...(studioSettings
-            ? {
-                studioSettings: {
-                  ...(studioSettings.aspectRatio !== undefined
-                    ? { aspectRatio: studioSettings.aspectRatio }
-                    : {}),
-                  ...(studioSettings.resolution !== undefined
-                    ? { resolution: studioSettings.resolution }
-                    : {}),
-                  ...(studioSettings.outputFormat !== undefined
-                    ? { outputFormat: studioSettings.outputFormat }
-                    : {}),
-                  ...(studioSettings.seed !== undefined
-                    ? { seed: studioSettings.seed }
-                    : {}),
-                },
-              }
-            : {}),
-          ...(asset
-            ? {
-                selectedVersionId: asset.id,
-                selectedVersionNumber: asset.version,
-                selectedVersionPrompt: asset.prompt,
-                selectedVersionModel: asset.model,
-                selectedVersionSettings: asset.settings,
-                ...(asset.product ? { selectedProduct: asset.product } : {}),
-                note: "The person is looking at this version. Treat 'this', 'it', and 'the image' as referring to it.",
-              }
-            : {}),
-        },
-      };
+      return asset
+        ? {
+            ...input,
+            clientContext: {
+              selectedVersionId: asset.id,
+              selectedVersionNumber: asset.version,
+              selectedVersionPrompt: asset.prompt,
+              selectedVersionModel: asset.model,
+              selectedVersionSettings: asset.settings,
+              ...(asset.product ? { selectedProduct: asset.product } : {}),
+              note: "The person is looking at this version. Treat 'this', 'it', and 'the image' as referring to it.",
+            },
+          }
+        : input;
     },
     onError: (error) => {
       const message = lastSentRef.current;
@@ -539,11 +501,7 @@ function StudioConversation({
       // Only the first message needs a name of its own; after that the session
       // id identifies the conversation and every send is addressed to it.
       if (!agent.session) {
-        const says = intentSays(
-          message,
-          selectedAssetRef.current,
-          studioSelectionRef.current,
-        );
+        const says = intentSays(message, selectedAssetRef.current);
         const attempt = intentRef.current;
         if (attempt && attempt.says !== says) {
           // The person changed their message before the earlier attempt's

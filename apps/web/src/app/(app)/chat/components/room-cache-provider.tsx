@@ -27,6 +27,7 @@ import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIntentPrefetch } from "@/hooks/effects/use-intent-prefetch";
 import { markPageOnScreen } from "@/lib/navigation/navigation-start";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
@@ -290,21 +291,23 @@ function RoomCacheSession({
   );
   if (!cache.matchesScope(currentUserId, workspaceId))
     setCache(cache.forWorkspace(workspaceId, roomIdFromPath(pathname)));
-  useEffect(() => {
-    const select = (url: URL) => {
-      setNavigation({ pathname, target: url.pathname + url.search });
-      const roomId = roomIdFromPath(url.pathname);
-      if (!roomId) return;
-      // Chat's room view paints a cached room at once, ahead of its route.
-      if (isChatShellPathname(pathname) && roomCanPaint(cache, roomId, null))
-        markPageOnScreen(url.pathname);
-      cache.prefetch(roomId, () =>
-        provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
-      );
-      if (clickOpensAtUnread(url, roomId, currentUserId, workspaceId))
-        cache.prefetchUnreadWindow(roomId);
-    };
-    const clicked = (event: MouseEvent) => {
+  const select = (url: URL) => {
+    setNavigation({ pathname, target: url.pathname + url.search });
+    const roomId = roomIdFromPath(url.pathname);
+    if (!roomId) return;
+    // Chat's room view paints a cached room at once, ahead of its route.
+    if (isChatShellPathname(pathname) && roomCanPaint(cache, roomId, null))
+      markPageOnScreen(url.pathname);
+    cache.prefetch(roomId, () =>
+      provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
+    );
+    if (clickOpensAtUnread(url, roomId, currentUserId, workspaceId))
+      cache.prefetchUnreadWindow(roomId);
+  };
+  useEventListener(
+    "window",
+    "click",
+    (event) => {
       if (
         event.button !== 0 ||
         event.metaKey ||
@@ -334,15 +337,12 @@ function RoomCacheSession({
         url.pathname === window.location.pathname
       )
         select(url);
-    };
-    const popped = () => select(new URL(window.location.href));
-    window.addEventListener("click", clicked, true);
-    window.addEventListener("popstate", popped);
-    return () => {
-      window.removeEventListener("click", clicked, true);
-      window.removeEventListener("popstate", popped);
-    };
-  }, [cache, currentUserId, pathname, workspaceId]);
+    },
+    true,
+  );
+  useEventListener("window", "popstate", () =>
+    select(new URL(window.location.href)),
+  );
   useEffect(() => {
     // Next hides the app shell in an Activity while a flow outside it is
     // open, which runs the cleanup below. A room opened as the shell comes

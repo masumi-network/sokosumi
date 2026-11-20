@@ -1785,6 +1785,9 @@ export type AdminAdEvalsDashboard = {
 
 export type AdEvalsLeaderboardRow = {
     model: string;
+    route: ImageStudioRoute | null;
+    routeInferred: boolean;
+    experimentArm: StudioRouterArm | null;
     template: string | null;
     aspect: string | null;
     workspaceCount: number;
@@ -1809,6 +1812,21 @@ export type AdEvalsLeaderboardRow = {
         upper: number;
     } | null;
 };
+
+export const ImageStudioRoute = {
+    PHOTO_AD: 'photo_ad',
+    TEXT_HEAVY: 'text_heavy',
+    VECTOR: 'vector',
+    SVG_DIAGRAM: 'svg_diagram',
+    MAKE_REALISTIC: 'make_realistic',
+    EDIT: 'edit'
+} as const;
+
+export type ImageStudioRoute = typeof ImageStudioRoute[keyof typeof ImageStudioRoute];
+
+export const StudioRouterArm = { ROUTER_SONNET_5: 'router:sonnet-5', ROUTER_OPUS_5_5: 'router:opus-5.5' } as const;
+
+export type StudioRouterArm = typeof StudioRouterArm[keyof typeof StudioRouterArm];
 
 export type AdEvalsAgreementRow = {
     criterion: string;
@@ -6370,6 +6388,25 @@ export type StudioProductIdentity = {
     name: string;
 };
 
+export type StudioAgentBrandContext = {
+    brand?: {
+        positioning: string;
+        tone: string;
+        audience: Array<string>;
+        keyMessages: Array<string>;
+        do: Array<string>;
+        dont: Array<string>;
+    };
+    strategy?: {
+        month: string;
+        approved: boolean;
+        goals: Array<string>;
+        themes: Array<string>;
+    };
+    colors?: Array<string>;
+    fonts?: Array<string>;
+};
+
 export type StudioAgentAdHeadline = {
     headline: StudioAdHeadline;
     approvedLines: Array<string>;
@@ -6558,7 +6595,7 @@ export type ProjectImageJob = {
     lettering?: 'overlay' | 'ideogram';
     product?: StudioProductIdentity;
     error: string | null;
-    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'voice_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'invalid_vector_image' | 'voice_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
     parentAssetId: string | null;
     assetId: string | null;
     createdAt: Date;
@@ -11635,7 +11672,7 @@ export type SaveStudioBrandLook = {
 };
 
 export type CreateProjectImageJobRequest = {
-    modelId?: string;
+    letterExistingBackdrop?: boolean;
     prompt: string;
     templateId?: string;
     creativeDirection?: string;
@@ -11663,7 +11700,6 @@ export type StudioProductImport = {
 };
 
 export type CreateProjectVideoJobRequest = {
-    modelId?: string;
     prompt: string;
     settings?: {
         aspectRatio?: '9:16' | '16:9' | '1:1' | '4:3' | '3:4';
@@ -51356,6 +51392,79 @@ export type ListStudioAgentProductsResponses = {
 };
 
 export type ListStudioAgentProductsResponse = ListStudioAgentProductsResponses[keyof ListStudioAgentProductsResponses];
+
+export type ReadStudioAgentBrandContextData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/image-studio-agent/brand-context';
+};
+
+export type ReadStudioAgentBrandContextErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReadStudioAgentBrandContextError = ReadStudioAgentBrandContextErrors[keyof ReadStudioAgentBrandContextErrors];
+
+export type ReadStudioAgentBrandContextResponses = {
+    /**
+     * Brand and strategy reference copy for the authorized project
+     */
+    200: {
+        data: StudioAgentBrandContext;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReadStudioAgentBrandContextResponse = ReadStudioAgentBrandContextResponses[keyof ReadStudioAgentBrandContextResponses];
 
 export type ReadStudioAgentAdHeadlineData = {
     body?: never;

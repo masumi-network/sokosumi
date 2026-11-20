@@ -2,15 +2,15 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
+import { queueFlashSuccessToast } from "@/hooks/effects/use-flash-toast";
 import { resetPasswordWithToken } from "@/lib/actions/auth/action";
 import { signOut } from "@/lib/auth/auth.client";
 import { buildAuthPageUrl, readAuthPageContext } from "@/lib/auth/auth.utils";
@@ -41,7 +41,6 @@ const formData: FormData<
 
 export default function ResetPasswordForm() {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
-  const router = useRouter();
   // The sign-in the reset started from, carried through the emailed link.
   const context = readAuthPageContext(useSearchParams());
   const [failed, setFailed] = useState(false);
@@ -100,8 +99,8 @@ export default function ResetPasswordForm() {
         setSignOutFailed(true);
         return;
       }
-      toast.success(t("success"));
-      router.push(buildAuthPageUrl("/signin", context));
+      queueFlashSuccessToast(t("success"), "/signin");
+      window.location.assign(buildAuthPageUrl("/signin", context));
     } catch {
       setSignOutFailed(true);
     } finally {

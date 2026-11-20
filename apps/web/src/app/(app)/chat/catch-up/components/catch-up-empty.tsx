@@ -8,14 +8,13 @@ import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
-import { subscribeOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import { useOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 
 const FIRST_STEPS_QUERY_KEY = "chat-catch-up-first-steps";
 
@@ -69,16 +68,15 @@ export function CatchUpEmpty({
   const queryClient = useQueryClient();
   // A room created, joined or left (the dialogs and the control channel both
   // announce it) can end or bring back the first visit: ask again.
-  useMountEffect(() => {
-    const refresh = () =>
-      void queryClient.invalidateQueries({
-        queryKey: [FIRST_STEPS_QUERY_KEY],
-      });
-    return subscribeOrganizationChatRoomsChanged({
-      onRemoved: refresh,
-      onRoom: refresh,
-      onInvalidated: refresh,
+  const refresh = () => {
+    void queryClient.invalidateQueries({
+      queryKey: [FIRST_STEPS_QUERY_KEY],
     });
+  };
+  useOrganizationChatRoomsChanged({
+    onRemoved: refresh,
+    onRoom: refresh,
+    onInvalidated: refresh,
   });
   const { data: firstSteps, isPending } = useQuery({
     // Per reader and workspace: rooms and channel rights differ by workspace.

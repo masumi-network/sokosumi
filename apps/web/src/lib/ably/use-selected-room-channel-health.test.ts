@@ -39,11 +39,6 @@ const { ablyClient, channel, channelListeners, connectionListeners } =
 
 vi.mock("ably/react", () => ({ useAbly: () => ablyClient }));
 
-import {
-  reportAblyAuthOk,
-  setAblyConnectionHealthy,
-  useAblyConnectionHealthy,
-} from "./ably-connection-health-store";
 import { useSelectedRoomChannelHealth } from "./use-selected-room-channel-health";
 
 function emitChannel(change: Record<string, unknown>) {
@@ -82,7 +77,6 @@ describe("useSelectedRoomChannelHealth", () => {
     channel.off.mockClear();
     ablyClient.connection.state = "connected";
     ablyClient.channels.get.mockClear();
-    setAblyConnectionHealthy(false);
   });
 
   it("observes the room channel without attaching it", () => {
@@ -160,14 +154,5 @@ describe("useSelectedRoomChannelHealth", () => {
     expect(onHealthChange).toHaveBeenLastCalledWith(false);
     act(() => emitChannel({ current: "failed" }));
     expect(onContinuityLost).not.toHaveBeenCalled();
-  });
-
-  it("mirrors the connection state into the SDK-free health store once auth has succeeded", () => {
-    reportAblyAuthOk(true);
-    mount();
-    const { result } = renderHook(() => useAblyConnectionHealthy());
-    expect(result.current).toBe(true);
-    act(() => emitConnection({ current: "suspended", previous: "connected" }));
-    expect(result.current).toBe(false);
   });
 });

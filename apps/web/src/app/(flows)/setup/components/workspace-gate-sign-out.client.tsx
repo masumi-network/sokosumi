@@ -1,13 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
-import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 interface WorkspaceGateSignOutProps {
   /**
@@ -21,7 +19,6 @@ interface WorkspaceGateSignOutProps {
 
 export function WorkspaceGateSignOut({ userId }: WorkspaceGateSignOutProps) {
   const t = useTranslations("WorkspaceGate");
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleSignOut() {
@@ -31,10 +28,6 @@ export function WorkspaceGateSignOut({ userId }: WorkspaceGateSignOutProps) {
         fetchOptions: {
           onError: () => {
             toast.error(t("signOutError"));
-          },
-          onSuccess: () => {
-            const returnUrl = getReturnUrlFromCurrentLocation();
-            router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
           },
         },
       });

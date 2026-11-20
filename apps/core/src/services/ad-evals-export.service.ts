@@ -7,6 +7,7 @@ import { WORKSPACE_AD_DATA_POLICY_VERSION } from "@/schemas/workspace-ad-data-co
 import {
   type AdEvalAsset,
   adAssetAspect,
+  adAssetRoute,
   adAssetsAreComparable,
   adAssetTemplate,
   adFeedbackBelongsToAsset,
@@ -301,10 +302,15 @@ export async function exportAdminAdEvals(): Promise<{
     imageUrls.set(asset.id, url);
     return url;
   }
+  function routeFields(asset: AdEvalAsset) {
+    const { route, routeInferred } = adAssetRoute(asset);
+    return { route, route_inferred: routeInferred };
+  }
   async function candidate(asset: AdEvalAsset) {
     return {
       asset_id: asset.id,
       model: exportModel(asset.model),
+      ...routeFields(asset),
       image: await image(asset),
       judge: exportJudge(asset),
     };
@@ -345,6 +351,7 @@ export async function exportAdminAdEvals(): Promise<{
           asset_id: asset.id,
           prompt: exportPrompt(asset),
           model: exportModel(asset.model),
+          ...routeFields(asset),
           image: await image(asset),
           label: feedback.thumb,
           reasons: feedback.reasons.filter((reason) => REASON_IDS.has(reason)),

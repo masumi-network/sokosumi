@@ -135,6 +135,7 @@ import {
   cmoHiredAt,
   cmoMixLedger,
   cmoPieceReady,
+  cmoPraiseOnly,
   cmoProductionMessage,
   cmoProductionSteps,
   cmoReadyPieceIds,
@@ -1227,5 +1228,54 @@ describe("the month the plan bought", () => {
       level: "all_in",
       total: 8,
     });
+  });
+});
+
+// cmo-v8: NMKR's month opened two posts on "One G2 review, rated 4.0/5"
+// whose reviewer found the fees "somewhat high".
+describe("cmoPraiseOnly", () => {
+  const lukewarm =
+    "One G2 review rates NMKR Studio 4.0/5 and says its percentage fees feel somewhat high.";
+  const praise = "TURF says NMKR's API saved countless development hours.";
+  const fact = "Book.io sold over 130,000 NFTs with NMKR.";
+
+  it("keeps clear praise and facts and leaves out a lukewarm review", async () => {
+    const evaluate = vi.fn(
+      async ({ state }: { state: { points: { point: string }[] } }) => ({
+        answers: new Map(
+          state.points.map(({ point }, index) => [
+            `p${index}`,
+            { type: "boolean", probability: point === lukewarm ? 0.1 : 0.9 },
+          ]),
+        ),
+        costUsd: 0.000_1,
+      }),
+    );
+    const kept = await cmoPraiseOnly(
+      [praise, lukewarm, fact],
+      evaluate as never,
+    );
+    expect(kept.points).toEqual([praise, fact]);
+    // Read once: the same points ask Jev nothing again.
+    const again = await cmoPraiseOnly(
+      [praise, lukewarm, fact],
+      evaluate as never,
+    );
+    expect(again).toEqual({ points: [praise, fact], costUsd: 0 });
+    expect(evaluate).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves out an unread review when Jev does not answer", async () => {
+    const evaluate = vi.fn(async () => {
+      throw new Error("timeout");
+    });
+    const other = "A G2 reviewer gave NMKR Studio 3 stars for support.";
+    const kept = await cmoPraiseOnly(
+      ["NMKR Studio lists a project audit at 150 ADA.", other],
+      evaluate as never,
+    );
+    expect(kept.points).toEqual([
+      "NMKR Studio lists a project audit at 150 ADA.",
+    ]);
   });
 });
