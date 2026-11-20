@@ -1040,4 +1040,4 @@ html.lenis, html.lenis body { height: auto; }
 .foot-pref { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; text-underline-offset: 4px; }
 .foot-pref svg { flex: none; }
 
-.foot-ai img { background: var(--ink); }
+.foot-ai img { background: var(--stage); }
