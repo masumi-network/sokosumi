@@ -14,7 +14,6 @@ import {
   ListFilter,
   ListMinus,
   ListPlus,
-  Search,
   X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -42,7 +41,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Dot, PersonAvatar } from "./contact-visuals";
 import type { Teammate } from "./use-contacts-data";
@@ -108,18 +106,14 @@ export function useStageOptions(): FilterOption[] {
 /**
  * Search, one Filter menu, `menus` beside it and the filters in force as
  * removable chips, on a single row: the chrome stays one line high however
- * many filters exist.
+ * many filters exist. The workspace keeps search visible during selection.
  */
 export function ContactsFilterBar({
-  search,
-  onSearch,
   filters,
   onFilter,
   teammates,
   menus: extraMenus,
 }: {
-  search: string;
-  onSearch: (value: string) => void;
   filters: ContactFilters;
   onFilter: (key: ContactFilterKey, value: string | null) => void;
   teammates: Teammate[];
@@ -171,23 +165,6 @@ export function ContactsFilterBar({
   const active = menus.filter((menu) => filters[menu.key]);
   return (
     <>
-      <div className="relative order-last w-full sm:order-none sm:w-56">
-        <Search
-          aria-hidden
-          className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-        />
-        <Input
-          type="search"
-          aria-label={t("toolbar.search")}
-          placeholder={t("toolbar.searchPlaceholder")}
-          value={search}
-          onChange={(event) => onSearch(event.target.value)}
-          className={cn(
-            CONTROL,
-            "border-control-border bg-background dark:bg-background ps-9",
-          )}
-        />
-      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

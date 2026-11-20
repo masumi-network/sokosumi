@@ -65,13 +65,13 @@ export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
 /**
- * Toolbar shared by the Projects index and its loading shell: search takes
- * what the Open/Closed control and New project leave. It wraps so that below
- * `sm` search takes a row of its own (`basis-full sm:basis-0` on the field)
- * instead of shrinking to a few letters beside the control.
+ * Toolbar shared by the Projects index and its loading shell: the state control leads
+ * and search comes immediately before New project in the trailing group.
+ * On narrow pages that group wraps below the view switcher. The
+ * loading shell reserves the same width before the list data arrives.
  */
 export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
-  "flex flex-wrap items-center gap-3";
+  "@container/page-toolbar flex flex-wrap items-center gap-3";
 
 /**
  * Card around the browse grid. Shared by live list and Instant skeleton.

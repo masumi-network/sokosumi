@@ -238,6 +238,35 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     expect(await listCompanyLists(actor)).toEqual([]);
   });
 
+  it("puts company names ahead of descriptions before applying the page limit", async () => {
+    const all = (await listCompanies(actor, { limit: 100 })).items;
+    const direct = all.find((company) => company.name === "Blum Studio");
+    const other = all.find((company) => company.name !== "Blum Studio");
+    if (!direct || !other) throw new Error("Missing test companies");
+    await prisma.contactCompany.update({
+      where: { id: other.id },
+      data: { description: "Collaborates with Blum Studio" },
+    });
+    try {
+      const options = {
+        search: "blum studio",
+        limit: 1,
+        sort: "people" as const,
+      };
+      const page = await listCompanies(actor, options);
+      expect(page.total).toBe(2);
+      expect(page.items[0]?.id).toBe(direct.id);
+      expect(
+        (await listCompanies(actor, { ...options, offset: 1 })).items[0]?.id,
+      ).toBe(other.id);
+    } finally {
+      await prisma.contactCompany.update({
+        where: { id: other.id },
+        data: { description: other.description },
+      });
+    }
+  });
+
   it("reads one company with its people, teammates and next steps", async () => {
     const [acme] = (await listCompanies(actor, { limit: 1 })).items;
     const detail = await getCompany(actor, acme?.id ?? "");

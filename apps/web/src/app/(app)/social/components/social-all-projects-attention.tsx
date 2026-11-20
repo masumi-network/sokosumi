@@ -19,14 +19,17 @@ import { useSocialCalendarPreview } from "./social-calendar-preview";
  */
 export function SocialAllProjectsAttention({
   items,
+  query = "",
   hasMore,
 }: {
   items: WorkspaceSocialPost[];
+  query?: string;
   hasMore: boolean;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
   const tSocial = useTranslations("App.Social.attentionAll");
   const formatter = useFormatter();
+  const tSearch = useTranslations("App.PageSearch");
   const { enabledProviders, isProviderEnabled } =
     useSocialProviderAvailability();
   const openPreview = useSocialCalendarPreview();
@@ -37,7 +40,7 @@ export function SocialAllProjectsAttention({
         className="text-muted-foreground py-6 text-sm"
         data-testid="social-all-attention-empty"
       >
-        {tSocial("empty")}
+        {query ? tSearch("noMatches") : tSocial("empty")}
       </p>
     );
   }

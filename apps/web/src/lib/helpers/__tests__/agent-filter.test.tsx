@@ -474,3 +474,21 @@ it("ignores category filters when kind is x402 only", () => {
   expect(result).toHaveLength(1);
   expect(result[0].name).toBe("x402 Agent");
 });
+
+it("ranks agent names before matching descriptions and category tags", () => {
+  const agents = [
+    createMockAgent({ name: "Assistant", description: "Research partner" }),
+    createMockAgent({
+      name: "Harbor",
+      categories: [createMockCategory("research", "Research")],
+    }),
+    createMockAgent({ name: "Research agent" }),
+  ];
+  expect(
+    filterAgents(agents, {
+      query: "research",
+      categories: [],
+      kind: "all",
+    }).map((agent) => agent.name),
+  ).toEqual(["Research agent", "Assistant", "Harbor"]);
+});

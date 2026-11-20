@@ -144,6 +144,9 @@ describe("newsletter issues page", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "pickProject" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: messages.App.PageSearch.find }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
     expect(mocks.requireScope).not.toHaveBeenCalled();
     const button = screen.getByRole("button", { name: "Select project" });
@@ -155,15 +158,17 @@ describe("newsletter issues page", () => {
     expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });
-  it("forwards valid cursors and ignores malformed ones", async () => {
+  it("forwards the search and valid cursors and ignores malformed ones", async () => {
     await NewsletterIssuesPage({
       searchParams: Promise.resolve({
         projectId: NEWSLETTER_PROJECT_ID,
+        q: " release ",
         cursor: NEWSLETTER_ISSUE.id,
       }),
     });
     expect(mocks.list).toHaveBeenLastCalledWith(NEWSLETTER_PROJECT_ID, {
       limit: 25,
+      search: "release",
       cursor: NEWSLETTER_ISSUE.id,
     });
     await NewsletterIssuesPage({

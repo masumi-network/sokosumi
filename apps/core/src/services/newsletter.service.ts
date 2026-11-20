@@ -22,6 +22,7 @@ import {
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
+import { escapeLikeText } from "@/helpers/query-params";
 import prisma from "@/lib/db/prisma";
 import { parseNewsletterCsv } from "@/lib/newsletter/csv";
 import { allowNewsletterSignup } from "@/lib/newsletter/signup-limit";
@@ -128,23 +129,27 @@ export async function listNewsletterSubscribers(
 ) {
   const newsletter = await getNewsletter(scope);
   const { cursor, take } = parseCursorPagination(query);
+  const match = query.search
+    ? { contains: escapeLikeText(query.search), mode: "insensitive" as const }
+    : null;
   const where: Prisma.NewsletterSubscriberWhereInput = {
     newsletterId: newsletter.id,
     ...(query.status !== undefined ? { status: query.status } : {}),
-    ...(query.search
+    ...(match
       ? {
           OR: [
-            { email: { contains: query.search, mode: "insensitive" } },
+            { email: match },
+            { contactId: null, name: match },
             {
               contact: {
-                name: { contains: query.search, mode: "insensitive" },
+                name: match,
               },
             },
             // Contact merges flatten all tombstones to the surviving person.
             {
               contact: {
                 mergedInto: {
-                  name: { contains: query.search, mode: "insensitive" },
+                  name: match,
                 },
               },
             },

@@ -197,6 +197,34 @@ describe("loadWorkspaceCalendarPage", () => {
     });
   });
 
+  it("loads every page of the selected calendar range for search with the original filters", async () => {
+    getWorkspaceCalendarMock
+      .mockResolvedValueOnce({
+        items: [{ id: "unrelated" }],
+        pagination: { nextCursor: "second" },
+      })
+      .mockResolvedValueOnce({ items: [{ id: "matching" }], pagination: null });
+    const result = await loadWorkspaceCalendarPage({
+      complete: true,
+      searchParams: Promise.resolve({
+        projectId: "project-1",
+        scope: "owned",
+        types: "tasks",
+        view: "agenda",
+      }),
+    });
+    expect(result.items.map((item) => item.id)).toEqual([
+      "unrelated",
+      "matching",
+    ]);
+    expect(result.pagination).toBeNull();
+    expect(getWorkspaceCalendarMock.mock.calls[1]?.[0]).toEqual({
+      ...getWorkspaceCalendarMock.mock.calls[0]?.[0],
+      cursor: "second",
+      limit: 100,
+    });
+  });
+
   it("asks Core for every feature, never the deprecated Social flag", async () => {
     const result = await loadWorkspaceCalendarPage({
       searchParams: Promise.resolve({ timezone: "Europe/Berlin" }),

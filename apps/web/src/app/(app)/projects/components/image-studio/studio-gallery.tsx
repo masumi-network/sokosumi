@@ -16,6 +16,10 @@ import {
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useState, useTransition } from "react";
+import {
+  usePageListSearch,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -126,14 +130,33 @@ export function StudioGallery({
     sort === "best"
       ? [...assets].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       : [...assets].reverse();
-  for (const asset of ordered) {
+  const visibleAssets = usePageListSearch(ordered, (asset) => ({
+    primary: [asset.headline?.text, asset.prompt, asset.id],
+    secondary: [
+      asset.product?.name,
+      asset.projectName,
+      asset.model,
+      asset.mediaType,
+      ...asset.myReasons,
+    ],
+  }));
+  const searching = Boolean(usePageSearchQuery());
+  const visibleJobs = usePageListSearch(activeJobs, (job) => ({
+    primary: [job.prompt, job.id],
+    secondary: [job.model, job.status],
+  }));
+  const visibleQueue = usePageListSearch(queued, (request) => ({
+    primary: [request.prompt],
+    secondary: [request.modelId],
+  }));
+  for (const asset of visibleAssets) {
     const ms = epochMs(asset.createdAt);
     const date = ms === null ? null : new Date(ms);
     const product =
       groupByProduct && sort !== "best" ? asset.product : undefined;
     const key =
-      sort === "best"
-        ? "best"
+      searching || sort === "best"
+        ? "ranked"
         : product
           ? `product:${asset.projectId}:${product.id}`
           : `date:${date?.toDateString() ?? ""}`;
@@ -147,7 +170,7 @@ export function StudioGallery({
     }
     groups.set(key, {
       title:
-        sort === "best"
+        searching || sort === "best"
           ? ""
           : (product?.name ??
             (date
@@ -447,7 +470,7 @@ export function StudioGallery({
       ))}
 
       <ul className={cn(GRID_CLASS, groups.size > 0 && "mt-6")}>
-        {queued.map((request) => (
+        {visibleQueue.map((request) => (
           <li className="mb-3 break-inside-avoid" key={request.id}>
             <PendingTile
               label={labels.waitingForSlot}
@@ -458,7 +481,7 @@ export function StudioGallery({
           </li>
         ))}
 
-        {activeJobs.map((job) => {
+        {visibleJobs.map((job) => {
           const requested = cancelRequestedJobIds.includes(job.id);
           return (
             <li className="mb-3 break-inside-avoid" key={job.id}>

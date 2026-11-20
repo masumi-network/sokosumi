@@ -36,4 +36,15 @@ describe("LegalLinks", () => {
       expect(link).toHaveClass("min-h-6");
     }
   });
+  it("keeps CMO's policies with CMO on its branded auth pages", () => {
+    render(<LegalLinks brand="cmo" />);
+    expect(
+      screen.getAllByRole("link").map((link) => link.getAttribute("href")),
+    ).toEqual([
+      "https://www.cmo.xyz/terms",
+      "https://www.cmo.xyz/privacy",
+      "https://www.cmo.xyz/imprint",
+      "https://www.cmo.xyz/terms#acceptable-use",
+    ]);
+  });
 });

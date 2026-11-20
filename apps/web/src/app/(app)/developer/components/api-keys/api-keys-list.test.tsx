@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { PageListSearchContext } from "@/components/page-list-search";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -48,4 +49,41 @@ describe("ApiKeysList", () => {
     );
     expect(onDeleteClick).toHaveBeenCalledWith(apiKey);
   });
+});
+
+it("puts a key name ahead of newer status matches on both the table and the phone list", () => {
+  const otherKeys = Array.from({ length: 6 }, (_, index) => ({
+    ...apiKey,
+    id: `other-${index}`,
+    name: `Sync job ${index}`,
+  }));
+  const byName = {
+    ...apiKey,
+    name: "Enabled billing export",
+    enabled: false,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  };
+  render(
+    <PageListSearchContext.Provider
+      value={{ query: "enabled", register: () => () => {} }}
+    >
+      <ApiKeysList
+        apiKeys={[
+          ...otherKeys,
+          byName,
+          { ...byName, id: "unrelated", name: "Hidden job" },
+        ]}
+        isInitialLoading={false}
+        error={null}
+        onRetry={vi.fn()}
+        onToggleStatus={vi.fn()}
+        onDeleteClick={vi.fn()}
+      />
+    </PageListSearchContext.Provider>,
+  );
+
+  expect(screen.getAllByRole("listitem")[0]).toHaveTextContent(byName.name);
+  const desktop = within(screen.getByRole("table"));
+  expect(desktop.getAllByRole("row")[1]).toHaveTextContent(byName.name);
+  expect(screen.queryByText("Hidden job")).not.toBeInTheDocument();
 });

@@ -25,12 +25,15 @@ import {
   hasTasksViewParams,
   type ProjectFilterOption,
   STUCK_AFTER_DAYS,
+  TASK_SEARCH_MAX_LENGTH,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { PageQuerySearchField } from "@/components/page-query-search-field";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
@@ -100,6 +103,7 @@ export function TasksViewFilters({
   labels,
 }: TasksViewFiltersProps) {
   const t = useTranslations("App.Tasks.Filters");
+  const tPage = useTranslations("App.Tasks.Page");
   const tTags = useTranslations("App.Tasks.Tags");
   const workspaceTags = useWorkspaceTags(activeOrganizationId, {
     includeArchived: true,
@@ -418,6 +422,8 @@ export function TasksViewFilters({
   const activeFilters = [
     t("chip", { label: t("viewLabel"), value: viewName }),
     project && t("chip", { label: t("projectLabel"), value: project.name }),
+    filters.search &&
+      t("chip", { label: tPage("searchPlaceholder"), value: filters.search }),
     ...chips.map((chip) => t("chip", { label: chip.label, value: chip.value })),
   ].filter((name): name is string => !!name);
 
@@ -426,7 +432,7 @@ export function TasksViewFilters({
     // is active, because those are what a reader changes most. Chips wrap
     // under them. The Filters menu holds the rest and sits at the right
     // edge, with the view options menu after it.
-    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+    <div className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2">
       {userId ? (
         <TasksViewSwitcher
           value={currentView}
@@ -467,33 +473,40 @@ export function TasksViewFilters({
           })}
         </ul>
       ) : null}
-      <span className="ms-auto flex" data-filters-menu>
-        <FilterDropdownMenu
-          buttonLabel={labels.title}
-          searchPlaceholder={labels.searchPlaceholder}
-          emptyResultsLabel={labels.emptyResults}
-          sections={sections}
-          showActiveIndicator={showActiveIndicator}
-          align="end"
-          resetAction={
-            chips.length > 0
-              ? {
-                  label: t("clear"),
-                  onReset: () =>
-                    handleFilterChange(
-                      chips.reduce<Partial<TasksFilters>>(
-                        (patch, chip) => ({ ...patch, ...chip.clear }),
-                        // Needs me and Mentions hide the scope chip, but a
-                        // scope set before them would come back after.
-                        { scope: getDefaultTasksScope(activeOrganizationId) },
-                      ),
-                    ),
-                }
-              : undefined
-          }
+      <PageSearchActions>
+        <PageQuerySearchField
+          inHeader
+          maxLength={TASK_SEARCH_MAX_LENGTH}
+          placeholder={tPage("searchPlaceholder")}
         />
-      </span>
-      {typeof display === "function" ? display(activeFilters) : display}
+        <span className="flex" data-filters-menu>
+          <FilterDropdownMenu
+            buttonLabel={labels.title}
+            searchPlaceholder={labels.searchPlaceholder}
+            emptyResultsLabel={labels.emptyResults}
+            sections={sections}
+            showActiveIndicator={showActiveIndicator}
+            align="end"
+            resetAction={
+              chips.length > 0
+                ? {
+                    label: t("clear"),
+                    onReset: () =>
+                      handleFilterChange(
+                        chips.reduce<Partial<TasksFilters>>(
+                          (patch, chip) => ({ ...patch, ...chip.clear }),
+                          // Needs me and Mentions hide the scope chip, but a
+                          // scope set before them would come back after.
+                          { scope: getDefaultTasksScope(activeOrganizationId) },
+                        ),
+                      ),
+                  }
+                : undefined
+            }
+          />
+        </span>
+        {typeof display === "function" ? display(activeFilters) : display}
+      </PageSearchActions>
     </div>
   );
 }

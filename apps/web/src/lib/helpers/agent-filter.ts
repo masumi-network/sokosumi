@@ -2,6 +2,8 @@ import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import type { GalleryFilterState } from "@/lib/agents/gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 
+import { rankPageItems } from "@/lib/utils/page-search";
+
 export const filterAgents = (
   agents: CatalogBrowseAgent[],
   { query, categories, kind }: GalleryFilterState,
@@ -13,17 +15,11 @@ export const filterAgents = (
     return agents;
   }
 
-  return agents.filter((agent) => {
+  const scopedAgents = agents.filter((agent) => {
     const matchesKind =
       kind === "all" ||
       (kind === "cardano" && agent.kind === "cardano") ||
       (kind === "x402" && agent.kind === "x402");
-
-    const matchesQuery =
-      !normalizedQuery ||
-      [agent.name, agent.description ?? "", agent.summary ?? ""].some((text) =>
-        text.toLowerCase().includes(normalizedQuery),
-      );
 
     const agentCategorySlugs = agent.categories.map(
       (category) => category.slug,
@@ -38,6 +34,16 @@ export const filterAgents = (
       categoriesInScope.length === 0 ||
       categoriesInScope.some((slug) => effectiveCategorySlugs.includes(slug));
 
-    return matchesKind && matchesQuery && matchesCategories;
+    return matchesKind && matchesCategories;
   });
+  return rankPageItems(scopedAgents, query, (agent) => ({
+    primary: [agent.name],
+    secondary: [
+      agent.summary,
+      agent.description,
+      agent.author.name,
+      agent.author.organization,
+      ...agent.categories.map((category) => category.name),
+    ],
+  }));
 };

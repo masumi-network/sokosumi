@@ -119,15 +119,18 @@ export async function searchSokoBotIntegrationCatalog(
     catalogCache = { at: Date.now(), entries };
   }
   const needle = query.trim().toLowerCase();
-  const entries = needle
-    ? catalogCache.entries.filter(
-        (entry) =>
-          entry.provider.includes(needle) ||
-          entry.name.toLowerCase().includes(needle) ||
-          (entry.description?.toLowerCase().includes(needle) ?? false),
-      )
-    : catalogCache.entries;
-  return entries.slice(0, limit);
+  const { entries } = catalogCache;
+  if (!needle) return entries.slice(0, limit);
+  const names: SokoBotIntegrationCatalogEntry[] = [];
+  const descriptions: SokoBotIntegrationCatalogEntry[] = [];
+  for (const entry of entries) {
+    const name = entry.name.toLowerCase();
+    if (name.includes(needle) || entry.provider.includes(needle))
+      names.push(entry);
+    else if (entry.description?.toLowerCase().includes(needle))
+      descriptions.push(entry);
+  }
+  return names.concat(descriptions).slice(0, limit);
 }
 
 function curatedCatalog(

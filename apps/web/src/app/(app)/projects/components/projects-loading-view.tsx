@@ -9,6 +9,7 @@ import {
   PROJECTS_OPEN_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
 } from "@/app/projects/constants";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -37,17 +38,19 @@ export function ProjectsLoadingView() {
         data-testid="projects-loading-toolbar"
         className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
       >
-        <Skeleton className="h-10 min-w-0 flex-1 basis-full rounded-md sm:basis-0" />
         {/* The Open / Hidden / Closed control: three segments, no copy
             (locale flash). */}
         <Skeleton
           data-testid="projects-loading-state"
           className="h-10 w-52 shrink-0 rounded-md"
         />
-        <Skeleton
-          data-testid="projects-loading-create"
-          className="hidden h-10 w-[8.25rem] shrink-0 rounded-md md:inline-flex"
-        />
+        <PageSearchActions>
+          <Skeleton className="h-10 min-w-36 flex-1 rounded-md @2xl/page-toolbar:h-8 @2xl/page-toolbar:w-64 @2xl/page-toolbar:flex-none" />
+          <Skeleton
+            data-testid="projects-loading-create"
+            className="hidden h-10 w-[8.25rem] shrink-0 rounded-md md:inline-flex"
+          />
+        </PageSearchActions>
       </div>
       {/* Open is the default view, so the shell carries its column. */}
       <div className={PROJECTS_OPEN_LAYOUT_CLASS}>

@@ -254,12 +254,15 @@ describe("newsletter subscribers", () => {
     expect(screen.getByText("18 matching subscribers")).toBeInTheDocument();
   });
 
-  it("submits an email search and resets the cursor", async () => {
+  it("searches as the reader types and resets the cursor", async () => {
     const user = userEvent.setup();
     renderSubscribers({ searchParams: "?cursor=s1&status=ACTIVE" });
-    await user.type(screen.getByRole("searchbox"), "  example.com  ");
-    await user.click(screen.getByRole("button", { name: COPY.searchButton }));
-    await waitFor(() => expect(mocks.url).toHaveBeenCalled());
+    await user.type(screen.getByRole("searchbox"), "example.com");
+    await waitFor(() =>
+      expect(mocks.url.mock.lastCall?.[0].searchParams.get("search")).toBe(
+        "example.com",
+      ),
+    );
     const params: URLSearchParams = mocks.url.mock.lastCall?.[0].searchParams;
     expect(params.get("search")).toBe("example.com");
     expect(params.get("status")).toBe("ACTIVE");

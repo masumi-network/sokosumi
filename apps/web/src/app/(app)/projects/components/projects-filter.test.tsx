@@ -1,97 +1,62 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { startTransition } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ProjectsFilter } from "@/app/projects/components/projects-filter";
 
-const { setQueryStateMock, queryStateRef, useQueryStateMock } = vi.hoisted(
-  () => ({
-    setQueryStateMock: vi.fn(),
-    queryStateRef: { current: "" },
-    useQueryStateMock: vi.fn((_key: string, _options?: unknown) => [
-      queryStateRef.current,
-      setQueryStateMock,
-    ]),
-  }),
-);
-
-vi.mock("nuqs", () => ({
-  useQueryState: (key: string, options?: unknown) =>
-    useQueryStateMock(key, options),
-}));
-
-// The real hook debounces against an env-configured delay; the component's
-// contract is "typing updates the param", not the delay itself.
-vi.mock("use-debounce", () => ({
-  useDebouncedCallback: (fn: (value: string) => void) =>
-    Object.assign(fn, { cancel: vi.fn() }),
-}));
+vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 
 const labels = { placeholder: "Filter projects", clear: "Clear filter" };
 
+function renderFilter(searchParams = "") {
+  const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+  render(
+    <NuqsTestingAdapter searchParams={searchParams} onUrlUpdate={onUrlUpdate}>
+      <ProjectsFilter labels={labels} startTransition={startTransition} />
+    </NuqsTestingAdapter>,
+  );
+  return onUrlUpdate;
+}
+
 describe("ProjectsFilter", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    queryStateRef.current = "";
-  });
-
-  it("writes what the user types to the q search param", async () => {
-    render(
-      <ProjectsFilter labels={labels} startTransition={startTransition} />,
-    );
-
-    await userEvent.type(screen.getByLabelText("Filter projects"), "aut");
-
-    expect(setQueryStateMock).toHaveBeenLastCalledWith("aut");
-  });
-
-  it("refetches in a transition so the field is not replaced by the page skeleton", () => {
-    render(
-      <ProjectsFilter labels={labels} startTransition={startTransition} />,
-    );
-
-    expect(useQueryStateMock).toHaveBeenCalledWith(
-      "q",
-      expect.objectContaining({
-        shallow: false,
-        clearOnDefault: true,
-        startTransition: expect.any(Function),
-      }),
-    );
-  });
-
-  it("offers no clear button until something is typed", () => {
-    render(
-      <ProjectsFilter labels={labels} startTransition={startTransition} />,
-    );
-
+  // The real hook debounces against an env-configured delay; the component's
+  // contract is "typing updates the param", not the delay itself.
+  it("searches all projects on the server while keeping the chosen state", async () => {
+    const onUrlUpdate = renderFilter("?state=hidden");
+    const field = screen.getByRole("searchbox", { name: "Filter projects" });
     expect(
-      screen.queryByRole("button", { name: "Clear filter" }),
+      screen.queryByRole("button", { name: labels.clear }),
     ).not.toBeInTheDocument();
+    await userEvent.type(field, "aut");
+    await waitFor(() => {
+      const update = onUrlUpdate.mock.lastCall?.[0];
+      expect(update?.searchParams.get("q")).toBe("aut");
+      expect(update?.searchParams.get("state")).toBe("hidden");
+      expect(update?.options.shallow).toBe(false);
+    });
+    expect(field).toHaveFocus();
   });
 
-  it("clears the param when the clear button is used", async () => {
-    queryStateRef.current = "autumn";
-    render(
-      <ProjectsFilter labels={labels} startTransition={startTransition} />,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "Clear filter" }));
-
-    expect(setQueryStateMock).toHaveBeenLastCalledWith("");
-    expect(screen.getByLabelText("Filter projects")).toHaveFocus();
-  });
-
-  it("clears the param on Escape", async () => {
-    queryStateRef.current = "autumn";
-    render(
-      <ProjectsFilter labels={labels} startTransition={startTransition} />,
-    );
-
-    await userEvent.type(screen.getByLabelText("Filter projects"), "{Escape}");
-
-    expect(setQueryStateMock).toHaveBeenLastCalledWith("");
-    expect(screen.getByLabelText("Filter projects")).toHaveFocus();
-  });
+  it.each(["clear button", "Escape"])(
+    "clears the query with %s and keeps focus",
+    async (action) => {
+      const onUrlUpdate = renderFilter("?q=autumn&state=closed");
+      const field = screen.getByRole("searchbox", { name: labels.placeholder });
+      if (action === "clear button") {
+        await userEvent.click(
+          screen.getByRole("button", { name: labels.clear }),
+        );
+      } else {
+        await userEvent.type(field, "{Escape}");
+      }
+      await waitFor(() =>
+        expect(onUrlUpdate.mock.lastCall?.[0].searchParams.toString()).toBe(
+          "state=closed",
+        ),
+      );
+      expect(field).toHaveFocus();
+    },
+  );
 });

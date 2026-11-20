@@ -1819,7 +1819,8 @@
     "Tasks": {
       "Page": {
         "title": "Task Manager",
-        "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
+        "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht.",
+        "searchPlaceholder": "Aufgaben durchsuchen"
       },
       "Export": {
         "button": "Als CSV exportieren…",
@@ -11442,6 +11443,8 @@
         "week": "Woche",
         "agenda": "Agenda"
       },
+      "showAndFilter": "Anzeige & Filter",
+      "activeFilters": "{count, plural, one {# aktiver Filter} other {# aktive Filter}}",
       "show": {
         "label": "Anzeigen",
         "tasks": "Aufgaben",
@@ -11755,7 +11758,9 @@
       "matchingRows": "{count, plural, one {# Zeile passt} other {# Zeilen passen}}",
       "contactsName": "Kontakte",
       "contactsPinned": "Angeheftet",
-      "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}"
+      "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}",
+      "searchPlaceholder": "Tabellen durchsuchen",
+      "noMatches": "Keine passenden Tabellen"
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",
@@ -14247,6 +14252,24 @@
       "adminOnly": "Nur Workspace-Admins können diese Einstellungen ändern.",
       "loadError": "Einstellungen für Anzeigendaten konnten nicht geladen werden. Erneut versuchen.",
       "retry": "Erneut versuchen"
+    },
+    "PageSearch": {
+      "find": "Auf dieser Seite suchen",
+      "filter": "Liste durchsuchen",
+      "clear": "Suche zurücksetzen",
+      "previous": "Vorheriger Treffer",
+      "next": "Nächster Treffer",
+      "position": "{current} von {total}",
+      "noMatches": "Keine Treffer",
+      "schedules": "Zeitpläne durchsuchen",
+      "calendar": "Kalender durchsuchen",
+      "audits": "Berichte durchsuchen",
+      "searching": "Suche läuft…",
+      "results": "{count, plural, =0 {Keine Treffer} other {# Treffer}}",
+      "issues": "Ausgaben durchsuchen",
+      "posts": "Beiträge durchsuchen",
+      "controlShortcut": "Strg+F",
+      "loadedResults": "{count, plural, =0 {Keine Treffer in den geladenen Einträgen} other {# Treffer in den geladenen Einträgen}}"
     }
   },
   "Share": {

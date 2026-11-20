@@ -5257,6 +5257,11 @@ button.week-more {
   }
 }
 
+.legal-notice a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .site-disclosures {
   display: flex;
   flex-wrap: wrap;

@@ -1,5 +1,6 @@
 import type { AdMarketAd } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
+import { PageSearchRows } from "@/components/page-list-search";
 
 import { AdsMarketAdPreview } from "./ads-market-ad-preview";
 import { AdsUpdated, relativePast } from "./ads-updated";
@@ -38,33 +39,39 @@ export function AdsMarketAdGrid({
     <div className="flex flex-col gap-4" data-testid="ads-market-ads">
       <AdsUpdated at={fetchedAt} notice={notice} />
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {ads.map((ad) => (
-          <li
-            key={`${ad.advertiserId}:${ad.creativeId}`}
-            className="flex flex-col gap-3"
-          >
-            <AdsMarketAdPreview ad={ad} />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
-                {ad.advertiserName}
-              </p>
-              <p className="text-muted-foreground mt-0.5 text-xs">
-                {details(ad)}
-              </p>
-            </div>
-            {ad.previewUrl ? (
-              <a
-                className="text-foreground w-fit text-sm underline-offset-4 underline"
-                href={ad.previewUrl}
-                rel="noopener noreferrer"
-                target="_blank"
+        <PageSearchRows
+          rows={ads.map((ad) => ({
+            primary: [ad.advertiserName, ad.creativeId],
+            secondary: [details(ad), ad.advertiserId],
+            content: (
+              <li
+                key={`${ad.advertiserId}:${ad.creativeId}`}
+                className="flex flex-col gap-3"
               >
-                {t("viewAd")}
-                <span className="sr-only">{` — ${ad.advertiserName}`}</span>
-              </a>
-            ) : null}
-          </li>
-        ))}
+                <AdsMarketAdPreview ad={ad} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {ad.advertiserName}
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {details(ad)}
+                  </p>
+                </div>
+                {ad.previewUrl ? (
+                  <a
+                    className="text-foreground w-fit text-sm underline-offset-4 underline"
+                    href={ad.previewUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {t("viewAd")}
+                    <span className="sr-only">{` — ${ad.advertiserName}`}</span>
+                  </a>
+                ) : null}
+              </li>
+            ),
+          }))}
+        />
       </ul>
     </div>
   );

@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
+  normalizeTaskSearch,
   pickTasksViewQuery,
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
@@ -50,6 +51,7 @@ interface TasksLoadMoreFilters {
   status: Task["status"] | null;
   projectId: string | null;
   visibility: Task["visibility"] | null;
+  search?: string;
   tag?: string;
   stuck?: boolean;
   needsMe?: boolean;
@@ -87,6 +89,7 @@ async function loadSanitizedTasksPageFilters({
   projectId,
   visibility,
   tag,
+  search,
   stuck,
   needsMe,
   mentions,
@@ -126,6 +129,7 @@ async function loadSanitizedTasksPageFilters({
     status: sanitizeTasksStatusInput(status),
     projectId: sanitizeProjectIdFilterInput(projectId),
     visibility: sanitizeTasksVisibilityInput(visibility, activeOrganizationId),
+    search: normalizeTaskSearch(search),
     tag: sanitizeTaskTagFilter(tag),
     stuck: sanitizeTasksStuckInput(stuck),
     needsMe: sanitizeTasksStuckInput(needsMe),

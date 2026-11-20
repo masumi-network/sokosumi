@@ -8,6 +8,7 @@ import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/developer-loading-view";
+import { usePageListSearch } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 
 import type { OAuthClientsListProps } from "./types";
@@ -24,6 +25,21 @@ export function OAuthClientsList({
 }: OAuthClientsListProps) {
   const t = useTranslations("App.Account.OAuthClients");
   const format = useFormatter();
+
+  const visible = usePageListSearch(clients, (client) => ({
+    primary: [client.client_name, client.client_id],
+    secondary: [
+      ...(client.redirect_uris ?? []),
+      t(isPublicOAuthClient(client) ? "Status.public" : "Status.confidential"),
+      t(
+        hasCoreApiOAuthScope(client.scope)
+          ? "Status.apiAccess"
+          : "Status.identityOnly",
+      ),
+      hasOfflineAccessOAuthScope(client.scope) ? t("Status.refresh") : null,
+      client.disabled ? t("Status.disabled") : null,
+    ],
+  }));
 
   if (isInitialLoading) {
     return <DeveloperSectionRowsSkeleton />;
@@ -53,7 +69,7 @@ export function OAuthClientsList({
 
   return (
     <div className="space-y-3">
-      {clients.map((client) => {
+      {visible.map((client) => {
         const name = client.client_name || client.client_id;
         const issuedAt = client.client_id_issued_at
           ? format.dateTime(new Date(client.client_id_issued_at * 1000), {

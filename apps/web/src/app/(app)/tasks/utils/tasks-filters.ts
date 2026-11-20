@@ -24,7 +24,17 @@ export function tasksQueryScope(
 
 export type TasksVisibilityFilter = typeof TaskVisibility.PRIVATE | null;
 
+// Core bounds the search before it builds the paginated result.
+export const TASK_SEARCH_MAX_LENGTH = 200;
+
+export function normalizeTaskSearch(raw: unknown): string | undefined {
+  return typeof raw === "string"
+    ? raw.trim().slice(0, TASK_SEARCH_MAX_LENGTH) || undefined
+    : undefined;
+}
+
 export interface TasksFilters {
+  search?: string;
   scope: TasksScope;
   assigneeId: string | null;
   assigneeSokoBotId: string | null;
@@ -81,6 +91,7 @@ export interface ProjectFilterOption {
 export type TasksFilterQueryParam = string | string[] | undefined;
 
 export interface TasksFiltersSearchParams {
+  q?: TasksFilterQueryParam;
   scope?: TasksFilterQueryParam;
   assigneeId?: TasksFilterQueryParam;
   assigneeSokoBotId?: TasksFilterQueryParam;
@@ -286,6 +297,7 @@ export function getTasksFiltersFromSearchParams(
 ): TasksFilters {
   const parsed = parseTasksFilters(
     {
+      q: searchParams.get("q") ?? undefined,
       scope: searchParams.get(TASKS_FILTER_PARAM_KEYS.scope) ?? undefined,
       assigneeId:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.assigneeId) ?? undefined,
@@ -391,6 +403,7 @@ export function parseTasksFilters(
     status,
     projectId,
     visibility,
+    search: normalizeTaskSearch(firstQueryString(searchParams.q)),
     tag: sanitizeTaskTagFilter(firstQueryString(searchParams.tag)),
     stuck: sanitizeTasksStuckInput(firstQueryString(searchParams.stuck)),
     // Left out when off, like `tag`.
@@ -471,6 +484,9 @@ export function buildTasksFiltersSearchParams(
     );
   }
 
+  if (filters.search) nextSearchParams.set("q", filters.search);
+  else nextSearchParams.delete("q");
+
   if (filters.tag) {
     nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.tag, filters.tag);
   } else {
@@ -529,7 +545,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}${filters.search ? `:search-${filters.search}` : ""}`;
 }
 
 /**
@@ -545,7 +561,8 @@ export function hasClearableTasksFilters(
   return (
     filters.scope !== getDefaultTasksScope(activeOrganizationId) ||
     Boolean(
-      filters.assigneeId ||
+      filters.search ||
+        filters.assigneeId ||
         filters.assigneeSokoBotId ||
         filters.assigneeUserId ||
         filters.status ||
@@ -566,6 +583,7 @@ export function clearTasksFilters(
   return {
     ...filters,
     scope: getDefaultTasksScope(activeOrganizationId),
+    search: undefined,
     assigneeId: null,
     assigneeSokoBotId: null,
     assigneeUserId: null,

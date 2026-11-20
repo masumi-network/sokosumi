@@ -1,9 +1,14 @@
-import { MemberRole, type PendingInvitation } from "@sokosumi/core-client";
+import {
+  type Member,
+  MemberRole,
+  type PendingInvitation,
+} from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PageListSearchContext } from "@/components/page-list-search";
 import MembersTable from "./members-table";
 
 const { cancelInvitation, refresh } = vi.hoisted(() => ({
@@ -121,4 +126,43 @@ describe("cancelling an invitation", () => {
     );
     expect(screen.getByText("a@example.com")).toBeInTheDocument();
   });
+});
+
+it("finds later members and puts their name before a matching email", () => {
+  const members: Member[] = Array.from({ length: 11 }, (_, index) => {
+    const name = `Member ${String(index + 1).padStart(2, "0")}`;
+    return {
+      id: `member-${index}`,
+      organizationId: "org-1",
+      role: MemberRole.MEMBER,
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      seatAssignedAt: null,
+      lastSeenAt: null,
+      user: {
+        id: `user-${index}`,
+        name: index === 10 ? "Member Eleven" : name,
+        email: index === 0 ? "eleven@example.com" : `m${index}@example.com`,
+        image: null,
+      },
+    };
+  });
+  const table = (query: string) => (
+    <PageListSearchContext.Provider value={{ query, register: () => () => {} }}>
+      <MembersTable
+        me={{ id: "member-self", role: MemberRole.ADMIN }}
+        members={members}
+        pendingInvitations={[]}
+      />
+    </PageListSearchContext.Provider>
+  );
+  const { rerender } = render(table(""));
+  expect(screen.queryByText("Member Eleven")).toBeNull();
+  rerender(table("eleven"));
+  const cells = screen.getAllByRole("cell").map((cell) => cell.textContent);
+  expect(cells).toContain("Member Eleven");
+  expect(cells.indexOf("Member Eleven")).toBeLessThan(
+    cells.indexOf("eleven@example.com"),
+  );
+  rerender(table(""));
+  expect(screen.queryByText("Member Eleven")).toBeNull();
 });

@@ -88,6 +88,7 @@ import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { getDistinctProviderError } from "./studio-failure-notice";
 import { StudioGallery } from "./studio-gallery";
+import { StudioGalleryColumn } from "./studio-gallery-column";
 import { usesExactFontOverlay } from "./studio-lettering";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
@@ -1366,13 +1367,10 @@ export function ImageStudio({
     );
 
   const studioColumn = (
-    <div
-      className={cn(
-        "min-h-0 min-w-0 flex-1 flex-col",
-        assistantOpen ? "hidden lg:flex" : "flex",
-        showsNothing &&
-          "relative isolate overflow-y-auto max-md:overflow-y-auto",
-      )}
+    <StudioGalleryColumn
+      assistantOpen={assistantOpen}
+      showsNothing={showsNothing}
+      studio={studio}
     >
       {showsNothing && !readOnly && !recentProjects ? (
         <StudioTemplateCanvas labels={labels} onApplyTemplate={applyTemplate} />
@@ -1807,7 +1805,7 @@ export function ImageStudio({
           projectId={comparing.projectId}
         />
       ) : null}
-    </div>
+    </StudioGalleryColumn>
   );
 
   return (

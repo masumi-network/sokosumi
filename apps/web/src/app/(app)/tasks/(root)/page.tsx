@@ -33,6 +33,7 @@ interface TasksPageProps {
     /** @deprecated Use `assignee`. Kept for bookmarked URLs. */
     coworker?: string;
     prompt?: string;
+    q?: string | string[];
     scope?: string | string[];
     assigneeId?: string | string[];
     assigneeSokoBotId?: string | string[];
@@ -79,6 +80,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     assignee: assigneeSlugParam,
     coworker: legacyCoworkerSlugParam,
     prompt: promptParam,
+    q,
     scope,
     assigneeId,
     assigneeSokoBotId,
@@ -127,6 +129,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     restoredQuery,
   } = await loadTasksPageData({
     filterParams: {
+      q,
       scope,
       assigneeId,
       assigneeSokoBotId,

@@ -83,7 +83,9 @@ vi.mock("@/auth/components/chat-invite-notice", () => ({
 
 vi.mock("@/auth/components/terms-notice", () => ({
   __esModule: true,
-  default: () => <div data-testid="terms-notice" />,
+  default: ({ brand }: { brand?: string }) => (
+    <div data-testid="terms-notice" data-brand={brand} />
+  ),
 }));
 
 vi.mock("@/auth/components/oauth-hand-back", async (importOriginal) => ({
@@ -340,6 +342,11 @@ describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
 
   it("shows the product the person is continuing to", async () => {
     await renderPage(OAUTH_SEARCH_PARAMS);
+
+    expect(screen.getByTestId("terms-notice")).toHaveAttribute(
+      "data-brand",
+      "cmo",
+    );
 
     // Asked with the signed request: the person is not signed in yet.
     expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledWith(

@@ -32,6 +32,7 @@ interface GetTasksColumnPageParams {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  search?: string;
   tag?: string;
   stuck?: boolean;
   needsMe?: boolean;
@@ -61,6 +62,7 @@ export async function getTasksColumnPage({
   status,
   projectId,
   visibility,
+  search,
   tag,
   stuck = false,
   needsMe = false,
@@ -85,6 +87,7 @@ export async function getTasksColumnPage({
   }
 
   const result = await taskService.listTasks({
+    search,
     status: statuses,
     // Mine: the reader owns the Task or is its assignee.
     scope: tasksQueryScope(scope, { needsMe, mentions }),

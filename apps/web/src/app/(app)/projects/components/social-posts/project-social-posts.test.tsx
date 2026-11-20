@@ -804,6 +804,29 @@ function render(ui: React.ReactElement, searchParams?: string) {
 }
 
 describe("ProjectSocialPosts", () => {
+  it("selects only the matching failed posts when searching before a bulk retry", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          { ...FAILED_POST, id: "shown", text: "Launch day" },
+          { ...FAILED_POST, id: "hidden", text: "Sunday update" },
+        ]}
+        projectId={PROJECT_ID}
+        searchQuery="launch"
+      />,
+      "?tab=attention",
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Select all posts that can be retried",
+      }),
+    );
+    expect(screen.getByText("1 selected")).toBeVisible();
+    expect(screen.queryByTestId("social-post-select-hidden")).toBeNull();
+  });
+
   it("shows waiting in the list and preview for a due quote", async () => {
     const user = userEvent.setup();
     render(

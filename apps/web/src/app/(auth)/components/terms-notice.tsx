@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import type { OAuthRequestBrand } from "@/lib/auth/auth.utils";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 function legalLink(href: string) {
@@ -21,14 +22,22 @@ function legalLink(href: string) {
  * Every way of creating an account accepts the terms, so one line under the
  * methods says so; no method asks for a tick.
  */
-export default function TermsNotice() {
+export default function TermsNotice({
+  brand,
+}: {
+  brand?: OAuthRequestBrand | undefined;
+}) {
   const t = useTranslations("Auth.TermsNotice");
 
   return (
     <p className="text-center text-xs text-balance text-muted-foreground">
       {t.rich("text", {
-        terms: legalLink(LEGAL_URLS.TERMS_OF_SERVICE),
-        privacy: legalLink(LEGAL_URLS.PRIVACY_POLICY),
+        terms: legalLink(
+          brand === "cmo" ? LEGAL_URLS.CMO_TERMS : LEGAL_URLS.TERMS_OF_SERVICE,
+        ),
+        privacy: legalLink(
+          brand === "cmo" ? LEGAL_URLS.CMO_PRIVACY : LEGAL_URLS.PRIVACY_POLICY,
+        ),
       })}
     </p>
   );

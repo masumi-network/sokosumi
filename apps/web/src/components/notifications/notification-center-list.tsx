@@ -16,6 +16,11 @@ import { useNeedsYouDataRoomQuestions } from "@/components/notifications/notific
 import { NotificationEmptyState } from "@/components/notifications/notification-empty-state";
 import { NotificationOlderBoundaryRow } from "@/components/notifications/notification-older-boundary-row";
 import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
@@ -60,8 +65,6 @@ export function NotificationCenterList({
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const { notice } = useAccountNotice();
-  const { data: waitingTasks, isLoading: isLoadingWaitingTasks } =
-    useNeedsYouTasks();
   const { data: waitingQuestions, isLoading: isLoadingWaitingQuestions } =
     useNeedsYouDataRoomQuestions();
   const {
@@ -78,6 +81,9 @@ export function NotificationCenterList({
     olderStatus,
     loadOlder,
   } = useNotifications();
+  const search = usePageSearchQuery();
+  const { data: waitingTasks, isLoading: isLoadingWaitingTasks } =
+    useNeedsYouTasks(view === "needs-action" && Boolean(search));
   const [pendingNotificationId, setPendingNotificationId] = useState<
     string | null
   >(null);
@@ -123,6 +129,23 @@ export function NotificationCenterList({
             )
           : notifications;
 
+  const matchingNotifications = usePageListSearch(
+    visibleNotifications,
+    (notification) => ({
+      primary: [
+        formatMessage(
+          notification.messageKey,
+          notification.messageParams ?? {},
+        ),
+      ],
+      secondary: [
+        formatPreview(
+          notification.messageKey,
+          notification.messageParams ?? {},
+        ),
+      ],
+    }),
+  );
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network and navigation
     // stay off the interaction's critical path for INP.
@@ -179,6 +202,12 @@ export function NotificationCenterList({
         : undefined;
   const showOlderBoundary =
     hasMore && oldest !== undefined && narrowedCount !== 0;
+
+  usePageSearchPagination(
+    showOlderBoundary ? oldest.id : null,
+    olderStatus !== "idle",
+    loadOlder,
+  );
 
   if (visibleNotifications.length === 0) {
     if (isLoading) {
@@ -250,7 +279,7 @@ export function NotificationCenterList({
   return (
     <>
       <div className="divide-border divide-y">
-        {visibleNotifications.map((notification) => (
+        {matchingNotifications.map((notification) => (
           <LeavingRow
             key={notification.id}
             notificationId={notification.id}

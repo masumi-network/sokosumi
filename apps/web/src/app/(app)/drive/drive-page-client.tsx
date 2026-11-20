@@ -32,7 +32,6 @@ import {
   LockKeyhole,
   MoreHorizontal,
   Pencil,
-  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -88,7 +87,6 @@ import { DriveTablesFilters } from "@/app/drive/components/drive-tables-filters"
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
-  DRIVE_HEADER_CONTROL_CLASS,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
@@ -102,6 +100,7 @@ import {
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableList } from "@/app/drive/tables/table-list";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
+import { PageSearchField } from "@/components/page-search-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1858,19 +1857,13 @@ function DrivePageWorkspace({
             {isTasksView && (
               <>
                 <div className="hidden items-center gap-2 @2xl:flex">
-                  <div className="relative">
-                    <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                    <Input
-                      type="text"
-                      placeholder={t("tasksSearchPlaceholder")}
-                      value={searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className={cn(
-                        "w-64 max-w-full pl-8",
-                        DRIVE_HEADER_CONTROL_CLASS,
-                      )}
-                    />
-                  </div>
+                  <PageSearchField
+                    className="w-64 max-w-full"
+                    inputClassName="h-8"
+                    placeholder={t("tasksSearchPlaceholder")}
+                    value={searchQuery}
+                    onValueChange={handleSearchChange}
+                  />
                 </div>
                 <div className="hidden @2xl:block">
                   <DriveTasksFilters
@@ -1949,19 +1942,13 @@ function DrivePageWorkspace({
             )}
             {!isTasksView && isRecentsView && (
               <div className="hidden items-center gap-2 @2xl:flex">
-                <div className="relative">
-                  <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                  <Input
-                    type="text"
-                    placeholder={t("searchPlaceholder")}
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className={cn(
-                      "w-64 max-w-full pl-8",
-                      DRIVE_HEADER_CONTROL_CLASS,
-                    )}
-                  />
-                </div>
+                <PageSearchField
+                  className="w-64 max-w-full"
+                  inputClassName="h-8"
+                  placeholder={t("searchPlaceholder")}
+                  value={searchQuery}
+                  onValueChange={handleSearchChange}
+                />
                 {recentsTagFilter}
               </div>
             )}
@@ -2031,16 +2018,12 @@ function DrivePageWorkspace({
           className="mb-6 flex items-center gap-2 @2xl:hidden"
           data-testid="tasks-mobile-toolbar"
         >
-          <div className="relative flex-1">
-            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder={t("tasksSearchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-8"
-            />
-          </div>
+          <PageSearchField
+            className="min-w-0 flex-1"
+            placeholder={t("tasksSearchPlaceholder")}
+            value={searchQuery}
+            onValueChange={handleSearchChange}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -2085,16 +2068,12 @@ function DrivePageWorkspace({
 
       {!isTasksView && isRecentsView && (
         <div className="mb-6 flex items-center gap-2 @2xl:hidden">
-          <div className="relative flex-1">
-            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder={t("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-8"
-            />
-          </div>
+          <PageSearchField
+            className="min-w-0 flex-1"
+            placeholder={t("searchPlaceholder")}
+            value={searchQuery}
+            onValueChange={handleSearchChange}
+          />
           {recentsTagFilter}
         </div>
       )}

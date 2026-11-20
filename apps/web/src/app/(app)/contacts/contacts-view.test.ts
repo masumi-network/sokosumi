@@ -15,6 +15,7 @@ import {
   isFollowUpDue,
   matchesContactSearch,
   primaryEmail,
+  replaceVisibleSelection,
   STAGE_DOT,
   searchMatchRange,
   smartFilterOf,
@@ -33,6 +34,13 @@ const base: ContactView = {
   sort: "updatedAt",
   direction: "desc",
 };
+
+it("keeps a hidden selection when a visible checkbox changes", () => {
+  expect(replaceVisibleSelection(["hidden", "old"], ["old"], ["new"])).toEqual([
+    "hidden",
+    "new",
+  ]);
+});
 
 describe("contactQuery", () => {
   it("narrows to one company inside any view", () => {

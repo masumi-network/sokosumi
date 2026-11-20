@@ -1,8 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
-
 import {
   SOCIAL_TABS,
   type SocialTab,
@@ -13,7 +11,10 @@ import {
   SOCIAL_TABS_LIST_CLASS_NAME,
   SOCIAL_TABS_ROW_CLASS_NAME,
   SocialTabTrigger,
+  useSocialTab,
 } from "@/app/projects/components/social-posts/social-tab-trigger";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import {
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
@@ -36,6 +37,7 @@ function isSocialTab(value: string): value is SocialTab {
  */
 export function SocialAllProjectsTabs({
   actions,
+  searchField,
   attention,
   attentionCount = 0,
   calendar,
@@ -44,6 +46,7 @@ export function SocialAllProjectsTabs({
   workspaceId,
 }: {
   actions: React.ReactNode;
+  searchField?: React.ReactNode;
   /** Every project's failed, missed and waiting-for-approval posts. */
   attention: React.ReactNode;
   /** How many of them, as the tab shows it (`50+` when there are more). */
@@ -60,10 +63,7 @@ export function SocialAllProjectsTabs({
   workspaceId: string;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
-  const [tabParam, setTabParam] = useQueryState(
-    "tab",
-    parseAsStringLiteral(SOCIAL_TABS),
-  );
+  const [tabParam, setTabParam] = useSocialTab();
   const tab = tabParam ?? "calendar";
 
   return (
@@ -77,8 +77,13 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex flex-row items-center justify-between gap-3 max-md:items-start">
-        <div className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}>
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3 max-md:items-start">
+        <div
+          className={cn(
+            SOCIAL_TABS_ROW_CLASS_NAME,
+            "items-center gap-3 sm:basis-64",
+          )}
+        >
           <TabsList
             aria-label={t("title")}
             className={cn(
@@ -102,7 +107,14 @@ export function SocialAllProjectsTabs({
             ))}
           </TabsList>
         </div>
-        {actions}
+        {tab === "calendar" || tab === "attention" ? (
+          <PageSearchActions>
+            {searchField}
+            {actions}
+          </PageSearchActions>
+        ) : (
+          actions
+        )}
       </div>
 
       {projectFailed && tab !== "statistics" && tab !== "attention" ? (
@@ -124,14 +136,20 @@ export function SocialAllProjectsTabs({
         {calendar}
       </TabsContent>
       <TabsContent value="drafts">
-        <SocialAccountsProjectPrompt kind="drafts" />
+        <SearchablePageContent>
+          <SocialAccountsProjectPrompt kind="drafts" />
+        </SearchablePageContent>
       </TabsContent>
       <TabsContent value="attention">{attention}</TabsContent>
       <TabsContent value="statistics">
-        <SocialPostStatistics workspaceId={workspaceId} />
+        <SearchablePageContent>
+          <SocialPostStatistics workspaceId={workspaceId} />
+        </SearchablePageContent>
       </TabsContent>
       <TabsContent value="accounts">
-        <SocialAccountsProjectPrompt notice={notice} />
+        <SearchablePageContent>
+          <SocialAccountsProjectPrompt notice={notice} />
+        </SearchablePageContent>
       </TabsContent>
     </Tabs>
   );

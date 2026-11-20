@@ -310,6 +310,25 @@ describe.runIf(enabled)("table bounds and fences", () => {
     const found = await listDataTables(actor, { search: "oLDe", limit: 100 });
     expect(found.items.map((item) => item.id)).toContain(older.id);
     expect(found.items.map((item) => item.id)).not.toContain(newer.id);
+    const titled = await createDataTable(
+      actor,
+      input(randomUUID(), "List 51%"),
+    );
+    const described = await createDataTable(actor, {
+      ...input(randomUUID(), "Metadata"),
+      description: "A 51% preview",
+    });
+    await createDataTable(actor, input(randomUUID(), "List 510"));
+    const match = await listDataTables(actor, { search: "51%", limit: 1 });
+    expect(match.items.map((row) => row.id)).toEqual([titled.id]);
+    expect(match.total).toBe(2);
+    const fromDescription = await listDataTables(actor, {
+      search: "51%",
+      limit: 1,
+      cursor: match.nextCursor ?? undefined,
+    });
+    expect(fromDescription.items.map((row) => row.id)).toEqual([described.id]);
+    expect(fromDescription.nextCursor).toBeNull();
     await expect(
       listDataTables(actor, { cursor: randomUUID() }),
     ).rejects.toThrow("Invalid table cursor");

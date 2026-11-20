@@ -32,6 +32,7 @@ import {
   getNewsletter,
   type NewsletterScope,
 } from "@/services/newsletter.service";
+import { findNewsletterIssueIds } from "@/services/newsletter-issue-search";
 import { assertNewsletterSenderConfigured } from "@/services/newsletter-sending-domain.service";
 import {
   createTaskForActor,
@@ -86,15 +87,33 @@ export async function listNewsletterIssues(
       ? { OR: [{ scheduledAt: range }, { scheduledAt: null, sentAt: range }] }
       : {}),
   };
-  const [issues, total] = await Promise.all([
-    prisma.newsletterIssue.findMany({
-      where,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      take: take + 1,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    }),
-    prisma.newsletterIssue.count({ where }),
-  ]);
+  async function readSearchPage(
+    search: string,
+  ): Promise<[NewsletterIssue[], number]> {
+    const { ids, total } = await findNewsletterIssueIds(
+      scope,
+      newsletter.id,
+      query,
+      search,
+      take + 1,
+    );
+    const issues = await prisma.newsletterIssue.findMany({
+      where: { ...where, id: { in: ids } },
+    });
+    const byId = new Map(issues.map((issue) => [issue.id, issue]));
+    return [ids.flatMap((id) => byId.get(id) ?? []), total];
+  }
+  const [issues, total] = query.search
+    ? await readSearchPage(query.search)
+    : await Promise.all([
+        prisma.newsletterIssue.findMany({
+          where,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          take: take + 1,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+        prisma.newsletterIssue.count({ where }),
+      ]);
   const page = issues.slice(0, take);
   return {
     issues: await withApproverNames(page),

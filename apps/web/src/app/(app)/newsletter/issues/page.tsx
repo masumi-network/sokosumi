@@ -14,7 +14,10 @@ import {
 } from "../newsletter-project";
 import { getNewsletterTabs, newsletterHref } from "../newsletter-tabs";
 import { Issues } from "./issues";
-import { loadIssueSearchParams } from "./search-params";
+import {
+  ISSUE_SEARCH_MAX_LENGTH,
+  loadIssueSearchParams,
+} from "./search-params";
 
 export const instant = false;
 
@@ -30,18 +33,23 @@ export default async function NewsletterIssuesPage({
 
   const scope = await loadNewsletterProject(searchParams);
   if (!scope.project) {
-    return newsletterWorkspacePage({ unavailable: scope.unavailable });
+    return newsletterWorkspacePage({
+      unavailable: scope.unavailable,
+      showSearch: true,
+    });
   }
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);
   if (!newsletter) redirect(newsletterHref("/newsletter/settings", project.id));
 
   const query = await loadIssueSearchParams(searchParams);
+  const search = query.q.trim().slice(0, ISSUE_SEARCH_MAX_LENGTH);
   const cursor = z.uuid().safeParse(query.cursor);
   const [response, subscribers, page, t] = await Promise.all([
     newsletterService
       .listIssues(project.id, {
         limit: 25,
+        ...(search ? { search } : {}),
         ...(cursor.success ? { cursor: cursor.data } : {}),
       })
       .catch((error: unknown) => {

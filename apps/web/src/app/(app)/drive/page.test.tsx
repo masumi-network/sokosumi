@@ -1684,7 +1684,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     const search = within(
       screen.getByTestId("files-desktop-header"),
     ).getByPlaceholderText("searchPlaceholder");
-    expect(search.className).toContain("@xl:h-8");
+    expect(search.className).toMatch(/(?:^| )h-8(?: |$)/);
   });
 
   it("keeps every Workspace header-row control at the tab strip's height", async () => {

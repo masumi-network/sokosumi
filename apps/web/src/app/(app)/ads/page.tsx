@@ -7,6 +7,7 @@ import { ProjectScopeRequired } from "@/app/components/project-scope/project-sco
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 
 import { loadAdsPageScope } from "./ads-page-data";
 import { loadAdsSearchParams, selectAccount } from "./ads-query";
@@ -51,15 +52,17 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
         {/* A lost project came from the cached read, so a client visit
             renders it again rather than keep it for the cache's stale time. */}
         {projectId ? <RefreshPrefetchedPage everyVisit /> : null}
-        <ProjectScopeRequired
-          // Not `notFound()` for a lost id: it came from a switchable scope,
-          // so the repair is to pick another project.
-          body={projectId ? t("pickUnavailable") : t("pickBody")}
-          testId="ads-no-project"
-          title={t("pickTitle")}
-        >
-          <AdsNoProjectBackdrop />
-        </ProjectScopeRequired>
+        <SearchablePageContent>
+          <ProjectScopeRequired
+            // Not `notFound()` for a lost id: it came from a switchable scope,
+            // so the repair is to pick another project.
+            body={projectId ? t("pickUnavailable") : t("pickBody")}
+            testId="ads-no-project"
+            title={t("pickTitle")}
+          >
+            <AdsNoProjectBackdrop />
+          </ProjectScopeRequired>
+        </SearchablePageContent>
       </WorkspacePageShell>
     );
   }

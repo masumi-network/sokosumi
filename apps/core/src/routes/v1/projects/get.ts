@@ -53,7 +53,7 @@ const query = cursorPaginationQuerySchema
       .openapi({
         param: { name: "q", in: "query" },
         description:
-          "Case-insensitive substring match on the project name, applied across the whole workspace before pagination",
+          "Case-insensitive substring match on project name, identifier, briefing or website. Name and identifier matches come first, before pagination.",
       }),
     state: z
       .enum(PROJECT_LIST_STATES)

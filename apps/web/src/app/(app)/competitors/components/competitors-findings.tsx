@@ -1,5 +1,6 @@
 import type { ProjectCompetitors } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
+import { PageSearchRows } from "@/components/page-list-search";
 
 import { CompetitorsExample, CompetitorsFinding } from "./competitors-finding";
 import { CompetitorsEmpty, CompetitorsPanel } from "./competitors-panel";
@@ -47,16 +48,22 @@ export async function CompetitorsFindings({
           {check.lastCheckedAt ? t("nothing") : t("running")}
         </CompetitorsEmpty>
       ) : (
-        findings.map((signal) => (
-          <CompetitorsFinding
-            key={signal.id}
-            kind={t(`kind.${signal.kind}`)}
-            name={names.get(signal.competitorId) ?? ""}
-            quote={signal.quote}
-            source={<CompetitorsSource signal={signal} />}
-            summary={signal.summary}
-          />
-        ))
+        <PageSearchRows
+          rows={findings.map((signal) => ({
+            primary: [signal.summary, names.get(signal.competitorId)],
+            secondary: [signal.quote, t(`kind.${signal.kind}`)],
+            content: (
+              <CompetitorsFinding
+                key={signal.id}
+                kind={t(`kind.${signal.kind}`)}
+                name={names.get(signal.competitorId) ?? ""}
+                quote={signal.quote}
+                source={<CompetitorsSource signal={signal} />}
+                summary={signal.summary}
+              />
+            ),
+          }))}
+        />
       )}
       {needs.length > 0 ? (
         <p className="text-muted-foreground px-2 pb-1 text-xs">

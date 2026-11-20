@@ -2,39 +2,16 @@
 
 import type {
   ChatEarlierThread,
-  ChatRoom,
   ChatUnreadThread,
 } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
-import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
-import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import {
   ThreadListRowContent,
   threadListRowClassName,
 } from "@/components/chat/thread-list-row";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
-
-/** A Thread row's two names: the Thread's, from its parent, and its room's. */
-function useThreadRowNames(
-  room: ChatRoom,
-  parentContent: string,
-  currentUserId: string,
-): { label: string; roomName: string } {
-  const t = useTranslations("App.Channels.ThreadRows");
-  const tChannels = useTranslations("App.Channels");
-  const roomName = useRoomDisplayName()(room, currentUserId);
-  return {
-    label:
-      formatUnreadThreadsPreview(
-        parentContent,
-        roomMentionNames(room, tChannels("MentionAll.label")),
-      ) || t("untitled"),
-    roomName: room.kind === "channel" ? `#${roomName}` : roomName,
-  };
-}
 
 /**
  * One unread Thread that names its room, for the surfaces that gather
@@ -48,33 +25,28 @@ function useThreadRowNames(
  */
 export function UnreadThreadLink({
   thread,
-  room,
-  currentUserId,
+  label,
+  roomName,
 }: {
   thread: Pick<
     ChatUnreadThread,
+    | "roomId"
     | "firstUnreadReplyId"
-    | "parentContent"
     | "unreadReplyCount"
     | "unreadMentionCount"
     | "lastUnreadAt"
   >;
-  room: ChatRoom;
-  currentUserId: string;
+  label: string;
+  roomName: string;
 }) {
   const tThreads = useTranslations("App.Channels.UnreadThreads");
   const tRows = useTranslations("App.Channels.ThreadRows");
   const { formatTimeAgo } = useLocalizedDateTime();
   const mentions = thread.unreadMentionCount ?? 0;
-  const { label, roomName } = useThreadRowNames(
-    room,
-    thread.parentContent,
-    currentUserId,
-  );
 
   return (
     <Link
-      href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
+      href={chatRoomMessageHref(thread.roomId, thread.firstUnreadReplyId)}
       data-slot="unread-thread-link"
       data-mention={mentions > 0 ? "true" : undefined}
       className={threadListRowClassName(true)}
@@ -99,27 +71,22 @@ export function UnreadThreadLink({
  */
 export function EarlierThreadLink({
   thread,
-  room,
-  currentUserId,
+  label,
+  roomName,
 }: {
   thread: Pick<
     ChatEarlierThread,
-    "parentContent" | "replyCount" | "lastReplyAt" | "lastReplyId"
+    "roomId" | "replyCount" | "lastReplyAt" | "lastReplyId"
   >;
-  room: ChatRoom;
-  currentUserId: string;
+  label: string;
+  roomName: string;
 }) {
   const tThread = useTranslations("App.Channels.Thread");
   const { formatTimeAgo } = useLocalizedDateTime();
-  const { label, roomName } = useThreadRowNames(
-    room,
-    thread.parentContent,
-    currentUserId,
-  );
 
   return (
     <Link
-      href={chatRoomMessageHref(room.id, thread.lastReplyId)}
+      href={chatRoomMessageHref(thread.roomId, thread.lastReplyId)}
       data-slot="earlier-thread-link"
       className={threadListRowClassName(false)}
     >
