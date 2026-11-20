@@ -15,11 +15,15 @@ export interface NeedsYou {
   view: View;
 }
 
-/** The month as it goes out: the strategy being made, skipped posts left out. */
+/**
+ * The month as it goes out: the strategy being made, without skipped posts
+ * and the posts the plan bought does not make (the Calendar's count too).
+ */
 export function monthEntries(overview: CmoOverview): Entry[] {
   const strategy = overview.approvedStrategy ?? overview.strategy;
+  const beyond = new Set(overview.production.beyondPlan);
   return (strategy?.calendar ?? [])
-    .filter((entry) => entry.status !== "skipped")
+    .filter((entry) => entry.status !== "skipped" && !beyond.has(entry.id))
     .sort(
       (a, b) =>
         a.date.localeCompare(b.date) ||
