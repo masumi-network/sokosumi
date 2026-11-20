@@ -14,6 +14,8 @@ import { dirname, join, relative, sep } from "node:path";
 import { before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { fixtureGitEnv } from "./fixture-git-env.mjs";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const DIRECT_PLUGIN_REL_FROM_APP = "../../biome-plugins/no-direct-effects.grit";
 const ALIAS_PLUGIN_REL_FROM_APP = "../../biome-plugins/no-effect-aliases.grit";
@@ -1226,17 +1228,7 @@ describe("effect baseline invariants", () => {
 
   test("readBaseBaseline bootstraps only on a valid commit predating the file and throws on invalid refs or JSON", () => {
     const repo = mkdtempSync(join(tmpdir(), "effect-base-ref-"));
-    const env = {
-      ...Object.fromEntries(
-        Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
-      ),
-      GIT_CONFIG_GLOBAL: "/dev/null",
-      GIT_CONFIG_NOSYSTEM: "1",
-      GIT_AUTHOR_NAME: "test",
-      GIT_AUTHOR_EMAIL: "test@example.invalid",
-      GIT_COMMITTER_NAME: "test",
-      GIT_COMMITTER_EMAIL: "test@example.invalid",
-    };
+    const env = fixtureGitEnv();
     const git = (...args) =>
       execFileSync("git", args, { cwd: repo, env, encoding: "utf8" }).trim();
 
