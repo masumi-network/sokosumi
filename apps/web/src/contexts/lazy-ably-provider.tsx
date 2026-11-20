@@ -45,6 +45,11 @@ function ensureAblyProviderLoaded(): void {
       if (loadPromise !== pending) {
         return;
       }
+      if (listeners.size === 0) {
+        loadPromise = null;
+        snapshot = INITIAL_SNAPSHOT;
+        return;
+      }
       snapshot = {
         Provider: null,
         loadError: new Error("Failed to load Ably provider", {

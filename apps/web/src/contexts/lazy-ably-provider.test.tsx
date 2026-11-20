@@ -187,4 +187,118 @@ describe("LazyAblyProvider", () => {
     expect(screen.getByTestId("ably-provider")).toBeInTheDocument();
     expect(screen.getByText("realtime-child")).toBeInTheDocument();
   });
+
+  it("retries loading on a later mount if a chunk fails after the last island unmounted", async () => {
+    let rejectFirstImport!: (reason?: unknown) => void;
+    const firstImportGate = new Promise<void>((_, reject) => {
+      rejectFirstImport = reject;
+    });
+    let attempts = 0;
+
+    vi.doMock("@/contexts/ably-provider", async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        await firstImportGate;
+      }
+      return {
+        __esModule: true,
+        default: mockAblyProvider,
+      };
+    });
+
+    const { default: LazyAblyProvider } = await import(
+      "@/contexts/lazy-ably-provider"
+    );
+
+    const { unmount } = render(
+      <TestErrorBoundary>
+        <LazyAblyProvider>
+          <span>realtime-child</span>
+        </LazyAblyProvider>
+      </TestErrorBoundary>,
+    );
+
+    unmount();
+
+    await act(async () => {
+      rejectFirstImport(new Error("transient chunk failure"));
+      await Promise.resolve();
+    });
+
+    render(
+      <TestErrorBoundary>
+        <LazyAblyProvider>
+          <span>realtime-child</span>
+        </LazyAblyProvider>
+      </TestErrorBoundary>,
+    );
+
+    expect(await screen.findByTestId("ably-provider")).toBeInTheDocument();
+    expect(screen.getByText("realtime-child")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(attempts).toBe(2);
+  });
+
+  it("retries without surfacing an error when revealed from React Activity after an in-flight load failed while hidden", async () => {
+    let rejectFirstImport!: (reason?: unknown) => void;
+    const firstImportGate = new Promise<void>((_, reject) => {
+      rejectFirstImport = reject;
+    });
+    let attempts = 0;
+
+    vi.doMock("@/contexts/ably-provider", async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        await firstImportGate;
+      }
+      return {
+        __esModule: true,
+        default: mockAblyProvider,
+      };
+    });
+
+    const { default: LazyAblyProvider } = await import(
+      "@/contexts/lazy-ably-provider"
+    );
+
+    const { rerender } = render(
+      <TestErrorBoundary>
+        <Activity mode="visible">
+          <LazyAblyProvider>
+            <span>realtime-child</span>
+          </LazyAblyProvider>
+        </Activity>
+      </TestErrorBoundary>,
+    );
+
+    rerender(
+      <TestErrorBoundary>
+        <Activity mode="hidden">
+          <LazyAblyProvider>
+            <span>realtime-child</span>
+          </LazyAblyProvider>
+        </Activity>
+      </TestErrorBoundary>,
+    );
+
+    await act(async () => {
+      rejectFirstImport(new Error("transient chunk failure"));
+      await Promise.resolve();
+    });
+
+    rerender(
+      <TestErrorBoundary>
+        <Activity mode="visible">
+          <LazyAblyProvider>
+            <span>realtime-child</span>
+          </LazyAblyProvider>
+        </Activity>
+      </TestErrorBoundary>,
+    );
+
+    expect(await screen.findByTestId("ably-provider")).toBeInTheDocument();
+    expect(screen.getByText("realtime-child")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(attempts).toBe(2);
+  });
 });
