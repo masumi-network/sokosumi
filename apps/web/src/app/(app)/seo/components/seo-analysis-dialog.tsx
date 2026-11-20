@@ -338,19 +338,14 @@ export function SeoAnalysisDialog({
               </p>
             )}
           </div>
-          {/* The terms of a full audit show with the fields closed: the submit below is the one consent. */}
-          {full ? (
+          {full && monitor ? (
             <div className="space-y-1">
+              {/* The terms of a full audit show with the fields closed: the submit below is the one consent. */}
               <p className="text-sm">
-                {t(
-                  monitor
-                    ? "analysis.fullAuditTermsPerRun"
-                    : "analysis.fullAuditTerms",
-                  {
-                    minimum: SEO_FULL_AUDIT_CREDITS,
-                    markup: SEO_FULL_AUDIT_MARKUP_PERCENT,
-                  },
-                )}
+                {t("analysis.fullAuditTermsPerRun", {
+                  minimum: SEO_FULL_AUDIT_CREDITS,
+                  markup: SEO_FULL_AUDIT_MARKUP_PERCENT,
+                })}
               </p>
               <p className="text-muted-foreground text-sm">
                 {t("analysis.fullAuditExample", SEO_AUDIT_PRICE_EXAMPLE)}
