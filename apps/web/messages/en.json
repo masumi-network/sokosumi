@@ -10758,7 +10758,7 @@
           "sections": {
             "company": "Company",
             "addresses": "Addresses and contact",
-            "euRepresentative": "EU representative (GDPR Art. 27)",
+            "euRepresentative": "EU representative (GDPR article 27)",
             "ukRepresentative": "UK representative",
             "taxAndShares": "Tax and shares"
           },
@@ -14396,7 +14396,7 @@
         "registeredAgent": "Registered agent",
         "businessAddress": "Business address",
         "contactEmail": "Legal contact",
-        "euRepresentative": "EU representative (GDPR Art. 27)",
+        "euRepresentative": "EU representative (GDPR article 27)",
         "ukRepresentative": "UK representative",
         "vatId": "VAT ID",
         "ein": "EIN",
