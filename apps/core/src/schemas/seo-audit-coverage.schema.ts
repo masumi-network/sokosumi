@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
+import { seoPageSpeed } from "./seo-page-speed.schema";
 
 import {
   seoFirstScreen,
@@ -87,6 +88,8 @@ export const seoObservationSchema = z
     /** Critical, major and minor findings this run saved for the selected pages. */
     issues: z.number().int().nonnegative(),
     checklistBreakdown: seoChecklistBreakdown.optional(),
+    pageSpeed: seoPageSpeed.optional(),
+    pageSpeedRecoveryFileId: seoIdSchema.optional(),
     pageMarketEvidence: seoPageMarketEvidence.optional(),
     coverage: z.object({
       checked: z.number().int(),

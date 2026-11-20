@@ -68,6 +68,7 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
     refreshing,
     importReport,
     recoverMarkets,
+    recoverPageSpeed,
     evidence,
     siteEvidence,
     fullAudit,
@@ -128,6 +129,17 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
             </p>
           )}
         </div>
+      )}
+      {recoverPageSpeed && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          loading={model.pending}
+          onClick={() => void recoverPageSpeed()}
+        >
+          {t("reportFiles.recoverPageSpeed")}
+        </Button>
       )}
       {recoverMarkets && (
         <div className="space-y-2">

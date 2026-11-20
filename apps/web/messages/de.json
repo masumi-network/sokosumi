@@ -13287,7 +13287,9 @@
         "recoverMarkets": "Marktvergleich wiederherstellen",
         "recoverMarketsHelp": "Lies den Marktvergleich aus dem ursprünglichen Bericht. Dies verbraucht keine Audit-Credits.",
         "marketsChecked": "Marktvergleich geprüft",
-        "importHelp": "Importiere diesen Bericht, um seine Befunde zu deinen SEO-Ergebnissen hinzuzufügen."
+        "importHelp": "Importiere diesen Bericht, um seine Befunde zu deinen SEO-Ergebnissen hinzuzufügen.",
+        "recoverPageSpeed": "Lade Seitenleistung aus dem gespeicherten Bericht",
+        "speedChecked": "Seitenleistung aus dem Bericht geladen"
       },
       "timeline": {
         "statuses": {
@@ -14269,7 +14271,7 @@
           },
           "6": {
             "title": "Core Web Vitals im SEO-Tab",
-            "missing": "Werte für Ladezeit und Layout werden im SEO-Tab nicht angezeigt."
+            "missing": "Reale Nutzerdaten erfordern eine CrUX-Stichprobe für die URL oder ihren Ursprung."
           },
           "7": {
             "title": "Prüfung eines Website-Umzugs",
@@ -14515,6 +14517,45 @@
           "title": "Ideen für Artikel",
           "help": "Suchen, die deine Nutzer machen, bevor sie das Produkt brauchen. Ein Artikel dazu bringt Leser, die es später brauchen könnten."
         }
+      },
+      "pageSpeed": {
+        "title": "Page speed",
+        "lab": "Lighthouse lab test",
+        "field": "Real-user measurements from CrUX",
+        "scope": {
+          "url": "This URL",
+          "origin": "Entire origin",
+          "normalized": "Normalized URL group"
+        },
+        "scores": "Lighthouse scores (out of 100)",
+        "unavailable": "Google could not return usable measurements.",
+        "not_checked": "This audit did not check this source.",
+        "no_data": "Google reported no real-user data for this URL.",
+        "quota": "Google’s PageSpeed quota was exhausted.",
+        "deadline": "The time budget expired.",
+        "single": "One run",
+        "multiple": "Median of {ok} usable runs out of {runs}",
+        "score": {
+          "performance": "Performance",
+          "accessibility": "Accessibility",
+          "bestPractices": "Best practices",
+          "seo": "SEO",
+          "agenticBrowsing": "Agentic browsing"
+        },
+        "metricsTitle": {
+          "lcp": "Largest contentful paint",
+          "fcp": "First contentful paint",
+          "tbt": "Total blocking time",
+          "si": "Speed index",
+          "cls": "Cumulative layout shift",
+          "inp": "Interaction to next paint",
+          "ttfb": "Time to first byte"
+        },
+        "insights": "What to investigate",
+        "p75": "75th percentile",
+        "date": "Audit date",
+        "budget": "The audit used its PageSpeed request budget.",
+        "unsafe": "The audit could not verify a public landing page."
       }
     },
     "AdDataConsent": {

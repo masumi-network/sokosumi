@@ -98,6 +98,9 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
     },
   });
   const strategy = model.data.strategy;
+  const speedFileId = model.data.observations.find(
+    (row) => row.sourceTaskId === taskId && row.kind === "audit_full",
+  )?.pageSpeedRecoveryFileId;
   const marketFileId =
     strategy?.marketRecoveryFileId &&
     model.data.observations.some(
@@ -117,6 +120,7 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
       taskId,
       version.canRecover,
       marketFileId,
+      speedFileId,
     ],
     enabled: Boolean(userId),
     gcTime: 0,
@@ -134,6 +138,12 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
       if (task.id !== taskId) throw new Error("Unexpected report Task");
       return {
         links: seoTaskReportFiles(task),
+        speedFile:
+          speedFileId &&
+          seoTaskReportFiles({
+            ...task,
+            files: task.files.filter((f) => f.id === speedFileId),
+          }).find((f) => f.format === "json"),
         marketFile:
           marketFileId &&
           seoTaskReportFiles({
@@ -197,6 +207,22 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
             t("marketsChecked"),
           )
       : null;
+  const speedFile = files.data?.speedFile;
+  const recoverPageSpeed =
+    !files.isError &&
+    !version.canRecover &&
+    model.data.availableActions.canEdit &&
+    files.data?.canImport &&
+    speedFile
+      ? () =>
+          model.execute(
+            {
+              kind: "import_audit",
+              body: { taskId, fileId: speedFile.id, recoverPageSpeed: true },
+            },
+            t("speedChecked"),
+          )
+      : null;
   const accessUnavailable =
     (!loadingSession && !userId) ||
     (files.error instanceof CoreApiRequestError &&
@@ -227,5 +253,6 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
     refreshing: files.isFetching,
     importReport,
     recoverMarkets,
+    recoverPageSpeed,
   };
 }

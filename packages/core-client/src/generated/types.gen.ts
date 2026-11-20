@@ -12151,6 +12151,61 @@ export type ProjectSeoObservation = {
             }>;
         }>;
     };
+    pageSpeed?: Array<{
+        pageUrl: string;
+        testedUrl: string;
+        device: 'mobile' | 'desktop';
+        lab: {
+            status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+        } | {
+            status: 'measured';
+            median: {
+                lcp: number | null;
+                cls: number | null;
+                fcp: number | null;
+                tbt: number | null;
+                si: number | null;
+            };
+            runs: number;
+            ok: number;
+            lighthouse: string | null;
+            pageSpeed?: {
+                scores: {
+                    performance?: number;
+                    accessibility?: number;
+                    bestPractices?: number;
+                    seo?: number;
+                    agenticBrowsing?: number;
+                };
+                insights: Array<{
+                    id: string;
+                    title: string;
+                    detail: string;
+                    action: string;
+                }>;
+                measuredAt?: Date;
+            };
+        };
+        field: {
+            status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+        } | {
+            status: 'measured';
+            level: 'url' | 'origin' | 'normalized';
+            url: string;
+            p75: {
+                lcp: number | null;
+                cls: number | null;
+                fcp: number | null;
+                inp: number | null;
+                ttfb: number | null;
+            };
+            period: {
+                first: Date;
+                last: Date;
+            } | null;
+        };
+    }>;
+    pageSpeedRecoveryFileId?: string;
     pageMarketEvidence?: {
         regionalVersions: Array<{
             country: string;
@@ -12794,6 +12849,7 @@ export type ImportProjectSeoAuditRequest = {
     taskId: string;
     fileId: string;
     recoverMarkets?: boolean;
+    recoverPageSpeed?: true;
 };
 
 export type RequestProjectSeoAnalysisRequest = {

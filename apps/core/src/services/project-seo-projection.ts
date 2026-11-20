@@ -12,6 +12,7 @@ import { internalServerError } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import { scopedObservationChecks } from "@/helpers/seo-checklist-breakdown";
 import { scopedPageMarketEvidence } from "@/helpers/seo-page-market-evidence";
+import { scopedPageSpeed } from "@/helpers/seo-page-speed";
 import {
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
@@ -295,6 +296,15 @@ export function projectSeoProjection(
       issues,
       ...(checklistBreakdown && { checklistBreakdown }),
       ...scopedPageMarketEvidence(data, selectedUrls),
+      ...(data.kind === "audit_full" &&
+        (data.pageSpeed !== undefined
+          ? { pageSpeed: scopedPageSpeed(data.pageSpeed, selectedUrls) }
+          : row.source === "seo_coworker" &&
+              row.sourceFileId &&
+              row.sourceTaskId &&
+              input.marketRecoveryTaskIds?.has(row.sourceTaskId)
+            ? { pageSpeedRecoveryFileId: row.sourceFileId }
+            : {})),
       coverage,
     });
     for (const check of data.checks) {

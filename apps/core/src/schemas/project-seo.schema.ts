@@ -146,8 +146,13 @@ export const importSeoAuditSchema = z
     taskId: z.string().min(1).max(128),
     fileId: z.string().min(1).max(128),
     recoverMarkets: z.boolean().optional(),
+    recoverPageSpeed: z.literal(true).optional(),
   })
   .strict()
+  .refine(
+    (input) => !(input.recoverPageSpeed && input.recoverMarkets),
+    "Choose one report section to recover",
+  )
   .openapi("ImportProjectSeoAuditRequest");
 export const requestSeoAnalysisSchema = z
   .object({
