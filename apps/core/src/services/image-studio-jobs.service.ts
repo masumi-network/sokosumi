@@ -16,6 +16,7 @@ import {
 import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { HTTPException } from "hono/http-exception";
+import sharp from "sharp";
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import { DriveFileDownloadError } from "@/helpers/drive-file-download";
@@ -49,6 +50,7 @@ import {
   requireStudioBlobToken,
 } from "@/lib/image-studio/blob-store";
 import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
+import { RECRAFT_VECTOR_ENDPOINT } from "@/lib/image-studio/catalog-overrides";
 import {
   type ImageJobFailureReason,
   imageJobFailureMessage,
@@ -57,6 +59,7 @@ import {
   buildFalInput,
   cancelQueued,
   downloadMedia,
+  type FalMedia,
   falModelForKind,
   falModelForLettering,
   fetchQueueResult,
@@ -137,6 +140,7 @@ import {
   writeTalkingVideoBrollPrompt,
   writeTalkingVideoHookLine,
 } from "@/services/talking-video-scripts.service";
+import { unsafeSvgReason } from "./soko-bot-svg";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -1714,6 +1718,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
                   job.prompt
               : job.prompt,
             promptBrand,
+            job.model === RECRAFT_VECTOR_ENDPOINT,
           );
     let finalPrompt = prompt;
     if (isVideoKind(job.kind)) {
@@ -1758,6 +1763,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       input = buildFalInput(
         {
           prompt: finalPrompt,
+          brandColors: brand.look?.colors ?? brand.designColors,
           aspectRatio: settings.aspectRatio,
           resolution: settings.resolution,
           outputFormat: settings.outputFormat,
@@ -1770,7 +1776,8 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     }
     snapshot = {
       jobId: job.id,
-      finalPrompt,
+      finalPrompt:
+        typeof input.prompt === "string" ? input.prompt : finalPrompt,
       brandContextHash: crypto
         .createHash("sha256")
         .update(studioBrandPromptBlock(promptBrand))
@@ -2069,12 +2076,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
   const produced = result.media[0]!;
-  await settleWithMedia(
-    job.id,
-    produced.url,
-    { width: produced.width, height: produced.height },
-    job.falRequestId,
-  );
+  await settleWithMedia(job.id, produced.url, produced, job.falRequestId);
 }
 
 /**
@@ -2327,6 +2329,9 @@ function nudgeCmoMonth(jobId: string): void {
   );
 }
 
+type StudioMediaInfo = Pick<FalMedia, "width" | "height"> &
+  Partial<Pick<FalMedia, "contentType">>;
+
 /**
  * Store the generated image and publish the version.
  *
@@ -2336,12 +2341,12 @@ function nudgeCmoMonth(jobId: string): void {
 export async function settleWithMedia(
   jobId: string,
   sourceUrl: string,
-  providerSize?: { width: number | null; height: number | null },
+  mediaInfo?: StudioMediaInfo,
   /** The provider request this media answers. */
   requestId?: string,
 ): Promise<void> {
   if (await startTalkingVideoSecondStep(jobId, sourceUrl, requestId)) return;
-  await storeMedia(jobId, sourceUrl, providerSize);
+  await storeMedia(jobId, sourceUrl, mediaInfo);
   nudgeCmoMonth(jobId);
 }
 
@@ -2509,7 +2514,7 @@ async function storeMedia(
    * used to take only the URL and throw these away — so even the endpoints that
    * *did* report a size had it discarded, and every non-PNG stored 0x0.
    */
-  providerSize?: { width: number | null; height: number | null },
+  mediaInfo?: StudioMediaInfo,
 ): Promise<void> {
   const job = await prisma.projectImageJob.findUnique({
     where: { id: jobId },
@@ -2658,6 +2663,35 @@ async function storeMedia(
     return;
   }
 
+  let vectorSource: Uint8Array | undefined;
+  if (
+    !video &&
+    (job.model === RECRAFT_VECTOR_ENDPOINT ||
+      [mediaInfo?.contentType, downloaded.contentType].some(
+        (type) => type?.split(";")[0]?.trim().toLowerCase() === "image/svg+xml",
+      ))
+  ) {
+    try {
+      const svg = new TextDecoder("utf-8", { fatal: true }).decode(
+        downloaded.bytes,
+      );
+      if (unsafeSvgReason(svg)) throw new Error("Unsafe SVG");
+      const bytes = await sharp(downloaded.bytes, {
+        limitInputPixels: 16_000_000,
+      })
+        .timeout({ seconds: 10 })
+        .png()
+        .toBuffer();
+      if (bytes.length > LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES)
+        throw new Error("PNG exceeds the asset limit");
+      vectorSource = downloaded.bytes;
+      downloaded = { bytes, contentType: "image/png" };
+    } catch {
+      await failImageJob(job.id, "invalid_vector_image");
+      return;
+    }
+  }
+
   let editedSeconds: number | null = null;
   let chargedCents = job.chargedCents;
   if (talking && edits) {
@@ -2772,7 +2806,9 @@ async function storeMedia(
   // returns WebP with no dimensions and `luma-photon` reports none at all, and both
   // stored 0x0 until this read the bytes.
   const dimensions =
-    (!job.useProductCutout ? readProviderSize(providerSize) : null) ??
+    (!job.useProductCutout && !vectorSource
+      ? readProviderSize(mediaInfo)
+      : null) ??
     (video ? null : readImageDimensionsFromBytes(downloaded.bytes));
   if (!dimensions && !video) {
     // Not a failure: the column holds 0 and the client falls back to the rendered
@@ -2822,6 +2858,13 @@ async function storeMedia(
       allowOverwrite: true,
     };
     const objectPath = `projects/${job.projectId}/image-studio/${job.id}`;
+    if (vectorSource) {
+      await put(`${objectPath}-source.svg`, Buffer.from(vectorSource), {
+        ...storageOptions,
+        contentType: "image/svg+xml",
+        abortSignal: AbortSignal.timeout(60_000),
+      });
+    }
     if (backdrop) {
       const backdropHash = crypto
         .createHash("sha256")

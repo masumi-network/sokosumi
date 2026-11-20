@@ -30,10 +30,11 @@ import { parseBrandBrain } from "@/services/brand-brain.service";
 const BRAND_BLOCK_MAX_CHARS = 1600;
 
 /** Bump when brand wrapping or the job's provider prompt guidance changes. */
-export const STUDIO_PROMPT_ASSEMBLY_VERSION = "2026-11-12.1";
+export const STUDIO_PROMPT_ASSEMBLY_VERSION = "2026-11-20.1";
 
 export interface StudioBrand {
   designMd: string | null;
+  designColors?: string[];
   memory: string | null;
   /** Who the business is and sounds like, from the Project's Brand Brain. */
   brandBrain: string | null;
@@ -71,8 +72,10 @@ export function requireApprovedStudioHeadline(text: string, brand: unknown) {
 export function applyStudioBrandPrompt(
   prompt: string,
   brand: StudioBrand,
+  briefFirst = false,
 ): string {
   const block = studioBrandPromptBlock(brand);
+  if (briefFirst && block) return `${prompt}\n\n${block}`;
   return block ? `${block}\n\nBrief:\n${prompt}` : prompt;
 }
 
@@ -136,8 +139,11 @@ export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
     const brain = parseBrandBrain(project.brandBrain?.body);
     const approvedLines = clipBrandText(brain?.voice.examples.join("\n"));
     const look = studioBrandLookSchema.safeParse(project.studioBrandLook);
+    const design = (await readDesignMdContent(project.designMdUrl))?.trim();
+    const designLook = designMdBrandLook(design ?? "");
     return {
-      designMd: await readDesignMd(project.designMdUrl),
+      designMd: designPromptExcerpt(design, designLook),
+      ...(designLook.colors.length ? { designColors: designLook.colors } : {}),
       memory: clipBrandText(project.contextMd),
       brandBrain: brandBrainText(brain),
       ...(approvedLines ? { approvedLines } : {}),
@@ -368,12 +374,13 @@ function clipBrandText(value: string | null | undefined): string | null {
     : trimmed;
 }
 
-async function readDesignMd(url: string | null): Promise<string | null> {
-  const content = (await readDesignMdContent(url))?.trim();
+function designPromptExcerpt(
+  content: string | undefined,
+  { colors, fonts }: ReturnType<typeof designMdBrandLook>,
+): string | null {
   if (!content || content.length <= BRAND_BLOCK_MAX_CHARS) {
     return content || null;
   }
-  const { colors, fonts } = designMdBrandLook(content);
   return clipBrandText(
     [
       colors.length ? `Brand colors: ${colors.join(", ")}` : "",

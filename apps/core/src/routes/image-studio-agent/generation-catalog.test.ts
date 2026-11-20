@@ -56,6 +56,7 @@ vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
 }));
 
 import { getImageCatalog } from "@/lib/image-studio/catalog";
+import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
 import app from "./index";
 
 beforeEach(() => {
@@ -226,16 +227,43 @@ describe("agent catalog and generation HTTP contract", () => {
     expect(createJob).not.toHaveBeenCalled();
   });
 
-  it("returns the same non-empty catalog the browser reads, after authorization", async () => {
+  it("includes the vector model only in the authorized agent catalog", async () => {
     const response = await app.request("/options");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       ok: true,
-      catalog: JSON.parse(JSON.stringify(getImageCatalog())),
+      catalog: JSON.parse(JSON.stringify(getImageCatalog("agent"))),
     });
-    expect(getImageCatalog().models.length).toBeGreaterThan(0);
+    const vector = expect.objectContaining({
+      id: "recraft-v4-1-text-to-vector",
+    });
+    expect(getImageCatalog("agent").models).toContainEqual(vector);
+    expect(getImageCatalog().models).not.toContainEqual(vector);
     expect(authorize).toHaveBeenCalledOnce();
     expect(createJob).not.toHaveBeenCalled();
+  });
+
+  it("accepts a vector generation only through the agent route", async () => {
+    const input = {
+      modelId: "recraft-v4-1-text-to-vector",
+      prompt: "A fox icon",
+      idempotencyKey: "vector-job",
+    };
+    // Public create no longer takes modelId; the browser never chooses Recraft.
+    const publicParse = createImageJobRequestSchema.safeParse(input);
+    expect(publicParse.success).toBe(true);
+    expect(publicParse.data).not.toHaveProperty("modelId");
+    expect(getImageCatalog().models.map((model) => model.id)).not.toContain(
+      "recraft-v4-1-text-to-vector",
+    );
+    createJob.mockResolvedValueOnce({ id: "job-id", status: "QUEUED" });
+    const response = await app.request("/generations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    expect(response.status).toBe(200);
+    expect(createJob).toHaveBeenCalledWith(expect.objectContaining(input));
   });
 
   it("does not expose the catalog through the agent surface without authorization", async () => {

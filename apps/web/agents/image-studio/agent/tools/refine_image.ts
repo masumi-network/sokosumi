@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { startGeneration } from "../lib/core";
 import { idempotencyKeyFor, identityFrom } from "../lib/identity";
-import { CURATED_IMAGE_MODEL_IDS } from "../lib/models";
+import { CURATED_EDIT_MODEL_IDS } from "../lib/models";
 
 export default defineTool({
   description:
@@ -35,7 +35,7 @@ export default defineTool({
         "Requested variant index within this turn; use 1 unless the user requested multiple images.",
       ),
     modelId: z
-      .enum(CURATED_IMAGE_MODEL_IDS)
+      .enum(CURATED_EDIT_MODEL_IDS)
       .default("gemini-pro")
       .describe(
         "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images.",

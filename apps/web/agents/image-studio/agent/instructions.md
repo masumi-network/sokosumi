@@ -47,6 +47,9 @@ even if the person names a model.
   only when that flow applies.
 - Text-heavy images (posters, typography, quotes, infographics with words,
   signage): use `generate_image` with `ideogram-v3`.
+- Logos, icons and flat diagrams: use `generate_image` with
+  `recraft-v4-1-text-to-vector` and brand colors. Never use it for posters,
+  ads or photos. The person gets a PNG.
 - Edits to an existing image: use `refine_image`. Read the source settings
   with `list_versions` and preserve them unless the person asks for a change.
   Refinement is the default when the person reacts to an image in front of

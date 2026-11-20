@@ -144,6 +144,7 @@ function failureBodies(t: Translator): Record<StudioFailureReason, string> {
     provider_unreachable: t("FailureReasons.provider_unreachable"),
     submission_uncertain: t("FailureReasons.submission_uncertain"),
     reference_not_sendable: t("FailureReasons.reference_not_sendable"),
+    invalid_vector_image: t("FailureReasons.invalid_vector_image"),
     product_cutout_unavailable: t("FailureReasons.product_cutout_unavailable"),
     voice_unavailable: t("FailureReasons.voice_unavailable"),
     request_not_supported: t("FailureReasons.request_not_supported"),
