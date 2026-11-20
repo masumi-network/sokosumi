@@ -113,10 +113,11 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-analytics-user-id` (`useAnalyticsUserId`) — pushes GA4 `set_user_id` into `window.dataLayer` when the signed-in user id changes
 - `use-track-purchase` (`useTrackPurchase`) — fires the GTM `purchase` event at most once per checkout session id once analytics consent is granted
 - `use-report-route-error` (`useReportRouteError`, `useGlobalRouteError`) — reports route error boundary failures to Sentry and handles one-shot stale-deployment refresh in the global error boundary
+- `use-router-redirect` (`useRouterRedirect`) — client-side Next.js App Router navigation (`replace`/`push`, optional one-shot) driven by state
 - `use-url-timezone` (`useUrlTimezone`) — seeds the browser's IANA time zone into a calendar URL that lacks a valid one
 - `use-push-preference` (`usePushPreference`) — browser Web Push capability, permission, subscription, and repair state synchronization
 - `use-record-project-visit` (`useRecordProjectVisit`) — records visited project IDs in the per-user/per-workspace `localStorage` visit log
-- `use-record-page-visit` (`useRecordPageVisit`) — increments the per-pathname likely-pages visit counter
+- `use-record-page-visit` (`useRecordPageVisit`) — increments the per-pathname likely-pages visit counter on mount
 - `use-remembered-project-scope` (`useRememberedProjectScope`) — `sessionStorage` external store and workspace-switch-guarded project scope synchronization
 - `use-tasks-restored-view-url` (`useTasksRestoredViewUrl`, `rememberSavedTasksView`, `forgetSavedTasksView`, `withTasksView`) — before-paint restored Tasks view URL synchronization via `history.replaceState` / `router.replace`
 - `use-calendar-week-row-label` (`useCalendarWeekRowLabel`) — sets localized ISO week `aria-label` on FullCalendar month week rows
