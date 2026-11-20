@@ -27,7 +27,7 @@ export interface UseScrollIntoViewWhenOptions {
  */
 export function useScrollIntoViewWhen(
   target: ScrollIntoViewTarget,
-  when: boolean,
+  when: boolean | string | number | null | undefined,
   options?: UseScrollIntoViewWhenOptions,
 ): void {
   const getTarget = useEffectEvent(() =>

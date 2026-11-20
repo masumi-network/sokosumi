@@ -129,9 +129,9 @@ export function ToolConnectors({
   // A connect link never searches on a read-only bot.
   const searching = !readOnly && query.trim().length > 0;
 
-  useScrollIntoViewWhen(focused, Boolean(focusProvider && catalog.data), {
+  useScrollIntoViewWhen(focused, catalog.data ? focusProvider : false, {
     block: "center",
-    resetKey: `${focusProvider ?? ""}:${catalog.dataUpdatedAt}`,
+    resetKey: catalog.data,
   });
 
   if (!integrations.configured) {
