@@ -7,7 +7,7 @@ import { getAuth } from "../../lib/auth";
 import { CMO_SIGN_IN_ERROR } from "../../lib/sign-in-errors";
 import { signIn } from "../actions";
 
-/** Unlinked while the home page is the waitlist site; kept out of search. */
+/** Kept out of search. */
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };

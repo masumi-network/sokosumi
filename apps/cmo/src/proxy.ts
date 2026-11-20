@@ -9,20 +9,6 @@ import { SIGNED_OUT_COOKIE } from "./lib/signed-out";
 import { viewFromPath } from "./lib/views";
 
 /**
- * The marketing site (public/site, from the cmo-website repo), served as is.
- * Create account and sign in live on the unlinked /login for now.
- */
-export const LANDING_PATH = "/site/index.html";
-
-/**
- * A visit to the home page with no session sees the marketing site. A sign-in
- * error still goes to the page, which hands it to /login.
- */
-export function showsLanding(url: URL, signedIn: boolean): boolean {
-  return url.pathname === "/" && !signedIn && !url.searchParams.has("error");
-}
-
-/**
  * Renews Sokosumi access before a page renders. When renewal changes the
  * cookies (a silent refresh, or a sign out after a failed one), the browser
  * reloads the page with them, so the page always renders the current state.
@@ -57,9 +43,6 @@ export async function proxy(request: NextRequest) {
   const cookies = renewal.headers.getSetCookie();
   if (cookies.length === 0) {
     const signedIn = hasSessionCookie(auth, request);
-    if (showsLanding(request.nextUrl, signedIn)) {
-      return NextResponse.rewrite(new URL(LANDING_PATH, request.url));
-    }
     const response = NextResponse.next();
     if (signedIn && request.cookies.has(SIGNED_OUT_COOKIE)) {
       response.cookies.delete(SIGNED_OUT_COOKIE);

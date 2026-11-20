@@ -27,11 +27,11 @@ export const metadata: Metadata = {
 const mori = localFont({
   src: [
     {
-      path: "../../public/site/assets/fonts/mori-regular.woff2",
+      path: "../../public/fonts/mori-regular.woff2",
       weight: "300 500",
     },
     {
-      path: "../../public/site/assets/fonts/mori-semibold.woff2",
+      path: "../../public/fonts/mori-semibold.woff2",
       weight: "600 800",
     },
   ],

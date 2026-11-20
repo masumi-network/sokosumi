@@ -210,8 +210,8 @@ export async function Home({ searchParams, view }: HomeProps) {
   const params = await searchParams;
   const error = first(params.error);
   const step = first(params.step);
-  // Signed out, the home page is the waitlist site (the proxy serves it);
-  // sign-in errors and expired sessions go to the unlinked /login.
+  // Signed out, sign-in errors and expired sessions go to /login, which
+  // goes on to sign in.
   const signedOut = (signedOutError: string | undefined): never =>
     redirect(
       signedOutError
