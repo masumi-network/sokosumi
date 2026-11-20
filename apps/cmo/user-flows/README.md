@@ -4,15 +4,15 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 
 ## Setup
 
-| Flow                                            | State (2026-11-19)                                  |
-| ----------------------------------------------- | --------------------------------------------------- |
-| [Hire and research](setup-hire-and-research.md) | Invite-only (`CMO_HIRE_ALLOWLIST`). Progress fixed. |
-| [Brand](setup-brand.md)                         | Works                                               |
-| [Strategy](setup-strategy.md)                   | Works; every network and the AIDA funnel on cmo-v5  |
-| [Subscribe](setup-subscribe.md)                 | Works; CMO legal links before checkout              |
-| [Launch](setup-launch.md)                       | Works; needs one connected network                  |
-| [Later changes](setup-later-changes.md)         | Works; CMO legal links in Settings                  |
-| [Daily test copy](test-copy.md)                 | Works; for testers only                             |
+| Flow                                            | State (2026-11-19)                                                                   |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [Hire and research](setup-hire-and-research.md) | Invite-only (`CMO_HIRE_ALLOWLIST`). Progress fixed.                                  |
+| [Brand](setup-brand.md)                         | Works                                                                                |
+| [Strategy](setup-strategy.md)                   | Works; every network and the AIDA funnel on cmo-v5                                   |
+| [Subscribe](setup-subscribe.md)                 | Works; CMO legal links before checkout                                               |
+| [Launch](setup-launch.md)                       | Works; needs one connected network                                                   |
+| [Later changes](setup-later-changes.md)         | Works; Settings has CMO legal links, the AI content notice and preferred-source link |
+| [Daily test copy](test-copy.md)                 | Works; for testers only                                                              |
 
 ## After setup
 

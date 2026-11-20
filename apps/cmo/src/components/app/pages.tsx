@@ -29,6 +29,7 @@ import { ChannelIcon } from "../channel-icon";
 import { LocalDay } from "../local-day";
 import { BrandStep } from "../onboarding/brand-step";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
+import { SiteDisclosures } from "../site-disclosures";
 import { StartOver } from "../start-over";
 import { StatusDisc, StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
@@ -830,6 +831,7 @@ export function SettingsPage({
           </form>
         </div>
       </section>
+      <SiteDisclosures />
       <section className="card">
         <h3>Stop this {AGENT_NAME}</h3>
         <p className="muted">

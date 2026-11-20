@@ -29,7 +29,10 @@ export default async function AppViewPage({
       <FixtureApp
         view={view}
         state={
-          state === "empty" || state === "loading" || state === "blocked"
+          state === "empty" ||
+          state === "loading" ||
+          state === "blocked" ||
+          state === "busy"
             ? state
             : undefined
         }

@@ -25,10 +25,33 @@ describe("needsYou", () => {
     expect(items.map((item) => [item.id, item.view])).toEqual([
       ["strategy", "strategy"],
       ["drafts", "calendar"],
-      ["connect-linkedin", "channels"],
+      ["connect", "channels"],
     ]);
     expect(items[1]?.title).toBe("1 post waits for your OK");
+    expect(items[2]?.title).toBe("Connect LinkedIn");
     expect(items[2]?.detail).toBe("1 post is written and waits for it.");
+  });
+
+  it("asks once for every network posts wait for, so the list stays short", () => {
+    const overview = cmoOverview();
+    const strategy = overview.strategy;
+    if (!strategy) throw new Error("fixture has a strategy");
+    const [first] = strategy.calendar;
+    if (!first) throw new Error("fixture has an entry");
+    const waiting = ["x", "instagram", "facebook", "x"].map((channel, n) => ({
+      ...first,
+      id: `w${n}`,
+      channel,
+      status: "draft" as const,
+    }));
+    const items = needsYou({
+      ...overview,
+      strategy: { ...strategy, calendar: [first, ...waiting] },
+    }).filter((item) => item.view === "channels");
+    expect(items).toHaveLength(1);
+    expect(items[0]?.title).toBe("Connect LinkedIn, X, Instagram and Facebook");
+    expect(items[0]?.detail).toBe("5 posts are written and wait for them.");
+    expect(items[0]?.action).toBe("Open Channels");
   });
 
   it("is empty once everything is approved and connected", () => {
