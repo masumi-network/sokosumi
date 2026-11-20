@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 
 import {
   isTelemetryBlockedPath,
-  useTelemetryBoundaryGuard,
-} from "@/hooks/effects/use-telemetry-boundary-guard";
+  useBlockedRouteGoogleTelemetry,
+} from "@/hooks/effects/use-blocked-route-google-telemetry";
 
 interface TelemetryBoundaryProps {
   children: ReactNode;
@@ -16,7 +16,7 @@ export function TelemetryBoundary({ children }: TelemetryBoundaryProps) {
   const pathname = usePathname();
   const isBlocked = isTelemetryBlockedPath(pathname);
 
-  useTelemetryBoundaryGuard(isBlocked);
+  useBlockedRouteGoogleTelemetry(isBlocked);
 
   return isBlocked ? null : children;
 }

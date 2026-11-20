@@ -115,13 +115,24 @@ export function writeConsent(
   return value;
 }
 
-function pushConsentUpdate(choice: ConsentChoice): void {
-  gtag("consent", "update", {
+const DENIED_CONSENT_SIGNALS = {
+  analytics_storage: "denied",
+  ad_storage: "denied",
+  ad_user_data: "denied",
+  ad_personalization: "denied",
+} as const;
+
+function consentSignalsFor(choice: ConsentChoice) {
+  return {
     analytics_storage: choice.analytics ? "granted" : "denied",
     ad_storage: choice.marketing ? "granted" : "denied",
     ad_user_data: choice.marketing ? "granted" : "denied",
     ad_personalization: choice.marketing ? "granted" : "denied",
-  });
+  } as const;
+}
+
+function pushConsentUpdate(choice: ConsentChoice): void {
+  gtag("consent", "update", consentSignalsFor(choice));
   if (typeof window !== "undefined") {
     window.dataLayer = window.dataLayer ?? [];
     window.dataLayer.push({
@@ -130,6 +141,37 @@ function pushConsentUpdate(choice: ConsentChoice): void {
       consent_marketing: choice.marketing ? "granted" : "denied",
     });
   }
+}
+
+export function hasLoadedGoogleTags(): boolean {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return false;
+  }
+  return Boolean(
+    document.getElementById("_next-gtm") ||
+      document.getElementById("_next-ga") ||
+      document.getElementById("_next-gtm-init") ||
+      document.getElementById("_next-ga-init") ||
+      Reflect.get(window, "google_tag_manager"),
+  );
+}
+
+export function setGoogleAnalyticsDisabled(
+  gaId: string | undefined,
+  disabled: boolean,
+): void {
+  if (!gaId || typeof window === "undefined") return;
+  Reflect.set(window, `ga-disable-${gaId}`, disabled);
+}
+
+export function denyConsentMode(): void {
+  gtag("consent", "update", DENIED_CONSENT_SIGNALS);
+}
+
+export function restorePersistedConsentMode(): void {
+  const stored = readConsent();
+  if (!stored) return;
+  gtag("consent", "update", consentSignalsFor(stored));
 }
 
 export function hasConsentModeDefault(dataLayer?: unknown[]): boolean {

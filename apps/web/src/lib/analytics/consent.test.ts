@@ -6,9 +6,13 @@ import {
   CONSENT_COOKIE,
   CONSENT_MODE_DEFAULTS,
   CONSENT_VERSION,
+  denyConsentMode,
   ensureConsentModeDefault,
   hasConsentModeDefault,
+  hasLoadedGoogleTags,
   readConsent,
+  restorePersistedConsentMode,
+  setGoogleAnalyticsDisabled,
   writeConsent,
 } from "./consent";
 
@@ -224,5 +228,76 @@ describe("ensureConsentModeDefault", () => {
 
     expect(ensureConsentModeDefault()).toBe(true);
     expect(hasConsentModeDefault()).toBe(true);
+  });
+});
+
+describe("blocked-route Google telemetry helpers", () => {
+  beforeEach(() => {
+    window.dataLayer = undefined;
+    Reflect.deleteProperty(window, "ga-disable-G-TEST");
+    Reflect.deleteProperty(window, "google_tag_manager");
+    document.getElementById("_next-ga")?.remove();
+    document.getElementById("_next-gtm")?.remove();
+    document.cookie = `${CONSENT_COOKIE}=; Max-Age=0; Path=/`;
+  });
+
+  afterEach(() => {
+    window.dataLayer = undefined;
+    Reflect.deleteProperty(window, "ga-disable-G-TEST");
+    Reflect.deleteProperty(window, "google_tag_manager");
+    document.getElementById("_next-ga")?.remove();
+    document.getElementById("_next-gtm")?.remove();
+    document.cookie = `${CONSENT_COOKIE}=; Max-Age=0; Path=/`;
+  });
+
+  it("detects whether Google tags have loaded in the current document", () => {
+    expect(hasLoadedGoogleTags()).toBe(false);
+
+    const script = document.createElement("script");
+    script.id = "_next-ga";
+    document.head.appendChild(script);
+    expect(hasLoadedGoogleTags()).toBe(true);
+  });
+
+  it("toggles window['ga-disable-<gaId>'] only when gaId is set", () => {
+    setGoogleAnalyticsDisabled(undefined, true);
+    expect(Reflect.get(window, "ga-disable-undefined")).toBeUndefined();
+
+    setGoogleAnalyticsDisabled("G-TEST", true);
+    expect(Reflect.get(window, "ga-disable-G-TEST")).toBe(true);
+
+    setGoogleAnalyticsDisabled("G-TEST", false);
+    expect(Reflect.get(window, "ga-disable-G-TEST")).toBe(false);
+  });
+
+  it("denies consent and restores the persisted cookie choice", () => {
+    setLocation("localhost", "http:");
+    writeConsent({ analytics: true, marketing: false });
+
+    denyConsentMode();
+    restorePersistedConsentMode();
+
+    expect(toPlainDataLayer()).toEqual([
+      [
+        "consent",
+        "update",
+        {
+          analytics_storage: "denied",
+          ad_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+        },
+      ],
+      [
+        "consent",
+        "update",
+        {
+          analytics_storage: "granted",
+          ad_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+        },
+      ],
+    ]);
   });
 });
