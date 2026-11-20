@@ -512,6 +512,7 @@ describe("DeleteAccountForm", () => {
     expect(deleteUserMock).toHaveBeenCalledWith({});
     expect(toast.success).not.toHaveBeenCalled();
 
+    window.history.replaceState({}, "", "/signin");
     render(<FlashToast />);
     expect(toast.success).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledWith("Account deleted successfully");

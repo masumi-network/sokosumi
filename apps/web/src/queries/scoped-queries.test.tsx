@@ -415,4 +415,72 @@ describe("scoped-queries", () => {
       expect(screen.getByTestId("rows")).toHaveTextContent("rows-from-b");
     });
   });
+
+  it("strips queryHash and queryKeyHashFn so the scope prefix cannot be bypassed", async () => {
+    const client = createTestClient();
+
+    function HashBypassProbe({ scope }: { scope: string }) {
+      const queryOptions = {
+        scope,
+        queryKey: ["secret"],
+        queryFn: () => Promise.resolve(`query-${scope}`),
+        queryHash: "shared-hash",
+        queryKeyHashFn: () => "shared-hash",
+      } as Parameters<typeof useScopedQuery<string>>[0];
+
+      const infiniteOptions = {
+        scope,
+        queryKey: ["feed"],
+        initialPageParam: null as string | null,
+        queryFn: () => Promise.resolve(`page-${scope}`),
+        getNextPageParam: () => null,
+        queryHash: "shared-infinite-hash",
+        queryKeyHashFn: () => "shared-infinite-hash",
+      } as Parameters<
+        typeof useScopedInfiniteQuery<
+          string,
+          Error,
+          { pages: string[]; pageParams: (string | null)[] },
+          string,
+          readonly string[],
+          string | null
+        >
+      >[0];
+
+      const query = useScopedQuery(queryOptions);
+      const infinite = useScopedInfiniteQuery(infiniteOptions);
+
+      return (
+        <div>
+          <span data-testid="query">{query.data ?? "loading"}</span>
+          <span data-testid="infinite">
+            {infinite.data?.pages[0] ?? "loading"}
+          </span>
+        </div>
+      );
+    }
+
+    const view = renderWithClient(<HashBypassProbe scope="org-a" />, client);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("query")).toHaveTextContent("query-org-a");
+      expect(screen.getByTestId("infinite")).toHaveTextContent("page-org-a");
+    });
+
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <HashBypassProbe scope="org-b" />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("query")).toHaveTextContent("query-org-b");
+      expect(screen.getByTestId("infinite")).toHaveTextContent("page-org-b");
+    });
+
+    expect(client.getQueryData(["org-a", "secret"])).toBe("query-org-a");
+    expect(client.getQueryData(["org-b", "secret"])).toBe("query-org-b");
+    expect(client.getQueryCache().get("shared-hash")).toBeUndefined();
+    expect(client.getQueryCache().get("shared-infinite-hash")).toBeUndefined();
+  });
 });

@@ -196,7 +196,7 @@ export function DeleteAccountForm({
       // After the delete, not before it: a deletion the password check blocks
       // would otherwise turn push off for an account that still exists.
       await dropBrowserPushSubscriptionOnAccountDeletion();
-      queueFlashSuccessToast(t("success"));
+      queueFlashSuccessToast(t("success"), "/signin");
       window.location.assign("/");
     }
   };

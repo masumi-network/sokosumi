@@ -39,7 +39,7 @@ export interface UseScopedQueryOptions<
       TData,
       ScopedQueryKey<TScope, TQueryKey>
     >,
-    "queryKey" | "placeholderData"
+    "queryKey" | "placeholderData" | "queryHash" | "queryKeyHashFn"
   > {
   /**
    * Explicit cache scope matching the exact identifier the request uses
@@ -81,9 +81,11 @@ export function useScopedQuery<
   const result = useQuery({
     ...rest,
     queryKey: scopedQueryKey,
-    // Never forward placeholderData / keepPreviousData so scope A's rows cannot
-    // render under scope B while loading.
+    // Never forward placeholderData, queryHash, or queryKeyHashFn so scope A's
+    // rows or cache key cannot leak into or collide with scope B.
     placeholderData: undefined,
+    queryHash: undefined,
+    queryKeyHashFn: undefined,
     networkMode,
     retry,
     refetchOnWindowFocus,
@@ -114,7 +116,7 @@ export interface UseScopedInfiniteQueryOptions<
       ScopedQueryKey<TScope, TQueryKey>,
       TPageParam
     >,
-    "queryKey" | "placeholderData"
+    "queryKey" | "placeholderData" | "queryHash" | "queryKeyHashFn"
   > {
   /**
    * Explicit cache scope matching the exact identifier the request uses
@@ -158,9 +160,11 @@ export function useScopedInfiniteQuery<
   const result = useInfiniteQuery({
     ...rest,
     queryKey: scopedQueryKey,
-    // Never forward placeholderData / keepPreviousData so scope A's rows cannot
-    // render under scope B while loading.
+    // Never forward placeholderData, queryHash, or queryKeyHashFn so scope A's
+    // rows or cache key cannot leak into or collide with scope B.
     placeholderData: undefined,
+    queryHash: undefined,
+    queryKeyHashFn: undefined,
     networkMode,
     retry,
     refetchOnWindowFocus,

@@ -113,7 +113,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
 
     isRedirectingRef.current = true;
     const returnUrl = encodeURIComponent(getReturnUrlFromCurrentLocation());
-    window.location.assign(`/signin?returnUrl=${returnUrl}`);
+    window.location.replace(`/signin?returnUrl=${returnUrl}`);
   });
 
   const registerRenderedUser = useCallback(

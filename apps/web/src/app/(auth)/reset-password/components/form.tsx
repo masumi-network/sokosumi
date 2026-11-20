@@ -99,7 +99,7 @@ export default function ResetPasswordForm() {
         setSignOutFailed(true);
         return;
       }
-      queueFlashSuccessToast(t("success"));
+      queueFlashSuccessToast(t("success"), "/signin");
       window.location.assign(buildAuthPageUrl("/signin", context));
     } catch {
       setSignOutFailed(true);

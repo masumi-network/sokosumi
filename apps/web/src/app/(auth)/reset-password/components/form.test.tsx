@@ -82,6 +82,7 @@ describe("ResetPasswordForm", () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/signin"));
     expect(toast.success).not.toHaveBeenCalled();
 
+    window.history.replaceState({}, "", "/signin");
     render(<FlashToast />);
     expect(toast.success).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledWith("success");
