@@ -1026,6 +1026,34 @@ describe("image studio job submission", () => {
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
+  it("uses the project's Studio palette for a vector generation", async () => {
+    const model = "fal-ai/recraft/v4.1/text-to-vector";
+    const stored = jobRow({ model, prompt: "A fox icon" });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    projectFindUniqueMock.mockResolvedValue({
+      studioBrandLook: { colors: ["#123"], fonts: [] },
+    });
+    submitToQueueMock.mockResolvedValue({
+      kind: "queued",
+      requestId: "vector-1",
+    });
+    await createImageJob({
+      ...BASE_INPUT,
+      prompt: "A fox icon",
+      modelId: "recraft-v4-1-text-to-vector",
+    });
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model,
+        input: expect.objectContaining({
+          colors: [{ r: 17, g: 34, b: 51 }],
+          prompt: expect.stringMatching(/^A fox icon\n\nFollow this project/),
+        }),
+      }),
+    );
+  });
+
   it("sends Design and Memory to fal and keeps the stored prompt as the brief", async () => {
     // Own URL: readDesignMdContent caches by URL across the test process.
     const designMdUrl =

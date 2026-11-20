@@ -5,10 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
+  type RefObject,
   Suspense,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useChromePathname } from "@/app/chat/components/room-cache-provider";
@@ -31,7 +33,7 @@ export function SearchablePageContent({
   heading?: ReactNode;
   renderHeader?: (search: ReactNode) => ReactNode;
 }) {
-  const [content, setContent] = useState<HTMLDivElement | null>(null);
+  const content = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [totals, setTotals] = useState({ lists: 0, hits: 0, partial: 0 });
   const register = useCallback((size: number, hasMore: boolean) => {
@@ -63,7 +65,7 @@ export function SearchablePageContent({
           renderHeader={renderHeader}
         />
       )}
-      <div ref={setContent} className="flex min-w-0 flex-1 flex-col">
+      <div ref={content} className="flex min-w-0 flex-1 flex-col">
         <PageListSearchContext.Provider value={context}>
           {children}
         </PageListSearchContext.Provider>
@@ -73,7 +75,7 @@ export function SearchablePageContent({
 }
 
 interface ToolbarProps {
-  content: HTMLDivElement | null;
+  content: RefObject<HTMLDivElement | null>;
   query: string;
   setQuery: (value: string) => void;
   lists: number;

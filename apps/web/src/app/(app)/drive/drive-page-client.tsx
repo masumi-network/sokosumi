@@ -131,6 +131,7 @@ import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -471,21 +472,18 @@ function DrivePageWorkspace({
 
   // The Workspace page takes file drops. One that lands beside it (sidebar,
   // app header) must not make the browser open the file and leave Files.
-  useEffect(() => {
-    if (!isWorkspaceView) return;
-    const ignoreFileDrop = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes("Files")) return;
-      event.preventDefault();
-      // The no-drop cursor: nothing happens here.
-      event.dataTransfer.dropEffect = "none";
-    };
-    window.addEventListener("dragover", ignoreFileDrop);
-    window.addEventListener("drop", ignoreFileDrop);
-    return () => {
-      window.removeEventListener("dragover", ignoreFileDrop);
-      window.removeEventListener("drop", ignoreFileDrop);
-    };
-  }, [isWorkspaceView]);
+  const ignoreFileDrop = (event: DragEvent) => {
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    event.preventDefault();
+    // The no-drop cursor: nothing happens here.
+    event.dataTransfer.dropEffect = "none";
+  };
+  useEventListener(
+    isWorkspaceView ? "window" : null,
+    "dragover",
+    ignoreFileDrop,
+  );
+  useEventListener(isWorkspaceView ? "window" : null, "drop", ignoreFileDrop);
   /**
    * The Workspace tab is the catalog, and nothing else.
    *

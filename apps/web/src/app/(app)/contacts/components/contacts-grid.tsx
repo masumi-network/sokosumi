@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type MouseEvent,
   type ReactNode,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -42,7 +43,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useIntersectionObserver } from "@/hooks/effects/use-intersection-observer";
 import { cn } from "@/lib/utils";
 import { type CellEdit, ContactCell } from "./contact-cell";
 import {
@@ -191,7 +191,7 @@ export function ContactsGrid({
   const t = useTranslations("App.Contacts");
   const format = useFormatter();
   const grid = useRef<HTMLTableElement>(null);
-  const [sentinel, setSentinel] = useState<HTMLTableRowElement | null>(null);
+  const sentinel = useRef<HTMLTableRowElement>(null);
   const { widths, save } = useColumnWidths();
   const columns = COLUMNS.map((column) => ({
     ...column,
@@ -224,9 +224,15 @@ export function ContactsGrid({
   }
 
   // Infinite scroll: the sentinel under the last row asks for the next page.
-  useIntersectionObserver(hasMore ? sentinel : null, (entries) => {
-    if (entries.some((entry) => entry.isIntersecting)) onLoadMore();
-  });
+  useEffect(() => {
+    const node = sentinel.current;
+    if (!node || !hasMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) onLoadMore();
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadMore]);
 
   function relative(date: Date | string | null) {
     if (!date) return "";
@@ -747,7 +753,7 @@ export function ContactsGrid({
             );
           })}
           {hasMore ? (
-            <tr ref={setSentinel} aria-hidden>
+            <tr ref={sentinel} aria-hidden>
               <td colSpan={columns.length + 1} className="h-px p-0" />
             </tr>
           ) : null}

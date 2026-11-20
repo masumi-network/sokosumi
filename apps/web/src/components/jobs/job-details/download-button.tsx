@@ -2,7 +2,7 @@
 
 import { Download } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 import {
@@ -183,17 +184,13 @@ export default function DownloadButton({
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isHostKey = isApplePlatform ? e.metaKey : e.ctrlKey;
-      if (isHostKey && e.shiftKey && e.key.toLowerCase() === "e") {
-        e.preventDefault();
-        handleDownloadMarkdown();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isApplePlatform, handleDownloadMarkdown]);
+  useEventListener("window", "keydown", (e) => {
+    const isHostKey = isApplePlatform ? e.metaKey : e.ctrlKey;
+    if (isHostKey && e.shiftKey && e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      handleDownloadMarkdown();
+    }
+  });
 
   return (
     <DropdownMenu>

@@ -722,6 +722,15 @@ describe("a gallery with work in it", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows a terminal vector failure without offering a paid retry", () => {
+    mount([], [job("failed", "FAILED", undefined, "invalid_vector_image")]);
+    const alert = screen.getByRole("status");
+    expect(alert).toHaveTextContent("invalid_vector_image");
+    expect(
+      within(alert).queryByRole("button", { name: TEST_LABELS.tryAgain }),
+    ).toBeNull();
+  });
+
   it("keeps the reason behind the line when the provider said nothing", () => {
     mount(manyAssets(2), [job("failed", "FAILED")]);
 

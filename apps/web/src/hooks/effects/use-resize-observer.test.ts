@@ -73,7 +73,7 @@ describe("useResizeObserver", () => {
     });
   }
 
-  it("observes a live element, forwards entries, and disconnects on unmount", () => {
+  it("observes a live element, forwards every batch, and disconnects on unmount", () => {
     const element = document.createElement("div");
     const onResize = vi.fn();
 
@@ -83,8 +83,10 @@ describe("useResizeObserver", () => {
     expect(instances[0]?.observed).toEqual([element]);
 
     triggerResize(instances[0]!, 320);
-    expect(onResize).toHaveBeenCalledTimes(1);
+    triggerResize(instances[0]!, 480);
+    expect(onResize).toHaveBeenCalledTimes(2);
     expect(onResize.mock.calls[0]?.[0]?.[0]?.contentRect.width).toBe(320);
+    expect(onResize.mock.calls[1]?.[0]?.[0]?.contentRect.width).toBe(480);
 
     unmount();
     expect(instances[0]?.disconnected).toBe(true);
@@ -111,7 +113,7 @@ describe("useResizeObserver", () => {
     expect(second).toHaveBeenCalledTimes(1);
   });
 
-  it("attaches to late-mounted elements and disconnects when removed or swapped", () => {
+  it("attaches to late-mounted elements and disconnects when replaced or removed", () => {
     const onResize = vi.fn();
 
     function Probe({ show, nodeKey }: { show: boolean; nodeKey: string }) {
@@ -126,44 +128,28 @@ describe("useResizeObserver", () => {
         : null;
     }
 
-    const { rerender } = render(
+    const { rerender, getByTestId } = render(
       createElement(Probe, { show: false, nodeKey: "a" }),
     );
     expect(instances).toHaveLength(0);
 
     rerender(createElement(Probe, { show: true, nodeKey: "a" }));
+    const firstNode = getByTestId("box");
     expect(instances).toHaveLength(1);
     const firstObserver = instances[0]!;
+    expect(firstObserver.observed).toEqual([firstNode]);
     expect(firstObserver.disconnected).toBe(false);
 
     rerender(createElement(Probe, { show: true, nodeKey: "b" }));
+    const secondNode = getByTestId("box");
+    expect(secondNode).not.toBe(firstNode);
     expect(firstObserver.disconnected).toBe(true);
     expect(instances).toHaveLength(2);
+    expect(instances[1]?.observed).toEqual([secondNode]);
     expect(instances[1]?.disconnected).toBe(false);
 
     rerender(createElement(Probe, { show: false, nodeKey: "b" }));
     expect(instances[1]?.disconnected).toBe(true);
-  });
-
-  it("resolves selector targets without re-subscribing on rerender", () => {
-    const host = document.createElement("div");
-    host.setAttribute("data-test-resize-host", "");
-    document.body.append(host);
-
-    const onResize = vi.fn();
-    const { rerender, unmount } = renderHook(() =>
-      useResizeObserver({ selector: "[data-test-resize-host]" }, onResize),
-    );
-
-    expect(instances).toHaveLength(1);
-    expect(instances[0]?.observed).toEqual([host]);
-
-    rerender();
-    expect(instances).toHaveLength(1);
-
-    unmount();
-    expect(instances[0]?.disconnected).toBe(true);
-    host.remove();
   });
 
   it("observes multiple targets and direct children when requested", () => {
@@ -206,45 +192,6 @@ describe("useResizeObserver", () => {
     expect(fallback).toHaveBeenCalledTimes(1);
   });
 
-  it("coalesces burst resizes into one animation frame and cancels on unmount", () => {
-    let frameId = 0;
-    const frames = new Map<number, FrameRequestCallback>();
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-      frames.set(++frameId, cb);
-      return frameId;
-    });
-    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
-      frames.delete(id);
-    });
-
-    const element = document.createElement("div");
-    const onResize = vi.fn();
-
-    const { unmount } = renderHook(() =>
-      useResizeObserver(element, onResize, { coalesceFrame: true }),
-    );
-
-    triggerResize(instances[0]!, 300);
-    triggerResize(instances[0]!, 400);
-    expect(onResize).not.toHaveBeenCalled();
-    expect(frames.size).toBe(1);
-
-    act(() => {
-      for (const cb of [...frames.values()]) {
-        frames.clear();
-        cb(16);
-      }
-    });
-    expect(onResize).toHaveBeenCalledTimes(1);
-    expect(onResize.mock.calls[0]?.[0]?.[0]?.contentRect.width).toBe(400);
-
-    triggerResize(instances[0]!, 500);
-    expect(frames.size).toBe(1);
-    unmount();
-    expect(frames.size).toBe(0);
-    expect(onResize).toHaveBeenCalledTimes(1);
-  });
-
   it("supports layout timing via useLayoutResizeObserver", () => {
     const element = document.createElement("div");
     const onResize = vi.fn();
@@ -263,7 +210,7 @@ describe("useResizeObserver", () => {
 
   it("renders safely on the server without throwing", () => {
     function ServerProbe() {
-      useResizeObserver({ selector: "[data-missing]" }, () => {});
+      useResizeObserver(null, () => {});
       return createElement("div", null, "ok");
     }
 

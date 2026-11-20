@@ -22,6 +22,8 @@ import {
  * both name the model and keep the id a client already stores.
  */
 
+export const RECRAFT_VECTOR_ENDPOINT = "fal-ai/recraft/v4.1/text-to-vector";
+
 /** A partial row merged onto the fetched model with the same endpoint. */
 export interface ImageModelOverride
   extends Partial<Omit<ImageModel, "generateEndpoint" | "price">> {
@@ -349,6 +351,10 @@ function imageModelOverrides(): ImageModelOverride[] {
         "https://fal.ai/models/fal-ai/ideogram/v3/edit/api",
       ],
       verifiedAt: "2026-11-16",
+    },
+    {
+      endpoint: RECRAFT_VECTOR_ENDPOINT,
+      outputFormats: ["png"],
     },
     {
       // Vector, icons, and one brand style held across a set.

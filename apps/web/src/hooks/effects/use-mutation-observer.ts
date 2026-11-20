@@ -14,8 +14,6 @@ export interface UseMutationObserverOptions {
   init: MutationObserverInit;
   /** Calls `onMutate([])` synchronously when observation starts or `resetKey` changes. */
   immediate?: boolean;
-  /** Coalesces burst mutations into one `requestAnimationFrame` callback, cancelled on disconnect. */
-  coalesceFrame?: boolean;
   /** Re-runs observation (and `immediate` callback) when this value changes. */
   resetKey?: unknown;
 }
@@ -43,7 +41,6 @@ function attachMutationObserver(
     childList,
     subtree,
     immediate,
-    coalesceFrame,
   }: {
     attributes: boolean | undefined;
     attributeOldValue: boolean | undefined;
@@ -53,7 +50,6 @@ function attachMutationObserver(
     childList: boolean | undefined;
     subtree: boolean | undefined;
     immediate: boolean;
-    coalesceFrame: boolean;
   },
 ): (() => void) | undefined {
   const node = resolveTarget(target);
@@ -81,27 +77,14 @@ function attachMutationObserver(
   if (childList !== undefined) init.childList = childList;
   if (subtree !== undefined) init.subtree = subtree;
 
-  let frame: number | undefined;
   const observer = new MutationObserver((records) => {
-    if (!coalesceFrame) {
-      handleMutate(records);
-      return;
-    }
-    if (frame === undefined) {
-      frame = requestAnimationFrame(() => {
-        frame = undefined;
-        handleMutate(records);
-      });
-    }
+    handleMutate(records);
   });
 
   observer.observe(node, init);
 
   return () => {
     observer.disconnect();
-    if (frame !== undefined) {
-      cancelAnimationFrame(frame);
-    }
   };
 }
 
@@ -126,7 +109,6 @@ export function useMutationObserver(
   } = options.init;
   const attributeFilterKey = attributeFilter?.join("\0");
   const immediate = options.immediate ?? false;
-  const coalesceFrame = options.coalesceFrame ?? false;
   const resetKey = options.resetKey;
 
   useEffect(() => {
@@ -140,7 +122,6 @@ export function useMutationObserver(
       childList,
       subtree,
       immediate,
-      coalesceFrame,
     });
   }, [
     target,
@@ -152,7 +133,6 @@ export function useMutationObserver(
     childList,
     subtree,
     immediate,
-    coalesceFrame,
     resetKey,
   ]);
 }
@@ -178,7 +158,6 @@ export function useLayoutMutationObserver(
   } = options.init;
   const attributeFilterKey = attributeFilter?.join("\0");
   const immediate = options.immediate ?? false;
-  const coalesceFrame = options.coalesceFrame ?? false;
   const resetKey = options.resetKey;
 
   useLayoutEffect(() => {
@@ -192,7 +171,6 @@ export function useLayoutMutationObserver(
       childList,
       subtree,
       immediate,
-      coalesceFrame,
     });
   }, [
     target,
@@ -204,7 +182,6 @@ export function useLayoutMutationObserver(
     childList,
     subtree,
     immediate,
-    coalesceFrame,
     resetKey,
   ]);
 }

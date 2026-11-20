@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
-import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
+import { useEffect, useState } from "react";
 
 /**
  * Narrowest panes row that still leaves the detail pane readable:
@@ -27,15 +25,26 @@ export const JOBS_PANES_ATTRIBUTE = "data-jobs-panes";
 export function useJobsTwoPaneFit(): boolean | null {
   const [fits, setFits] = useState<boolean | null>(null);
 
-  // Both callers render inside the jobs layout, which commits the row in the
-  // same pass, so the row is present by the time this effect runs.
-  useResizeObserver({ selector: `[${JOBS_PANES_ATTRIBUTE}]` }, (entries) => {
-    const entry = entries[0];
-    if (!entry) {
+  // Effect is necessary: subscribes to an external system (element geometry).
+  useEffect(() => {
+    // Both callers render inside the jobs layout, which commits the row in the
+    // same pass, so the row is present by the time this effect runs.
+    const row = document.querySelector(`[${JOBS_PANES_ATTRIBUTE}]`);
+    if (!row) {
       return;
     }
-    setFits(entry.contentRect.width >= JOBS_TWO_PANE_MIN_WIDTH);
-  });
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+      setFits(entry.contentRect.width >= JOBS_TWO_PANE_MIN_WIDTH);
+    });
+
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, []);
 
   return fits;
 }

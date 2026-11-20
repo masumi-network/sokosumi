@@ -23248,6 +23248,7 @@ export const ProjectImageJobSchema = {
                 'submission_uncertain',
                 'reference_not_sendable',
                 'product_cutout_unavailable',
+                'invalid_vector_image',
                 'voice_unavailable',
                 'request_not_supported',
                 'cancelled',
@@ -43875,11 +43876,8 @@ export const SaveStudioBrandLookSchema = {
 export const CreateProjectImageJobRequestSchema = {
     type: 'object',
     properties: {
-        modelId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 200,
-            default: 'muse-image'
+        letterExistingBackdrop: {
+            type: 'boolean'
         },
         prompt: {
             type: 'string',
@@ -44011,11 +44009,6 @@ export const StudioProductImportSchema = {
 export const CreateProjectVideoJobRequestSchema = {
     type: 'object',
     properties: {
-        modelId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 200
-        },
         prompt: {
             type: 'string',
             minLength: 1,

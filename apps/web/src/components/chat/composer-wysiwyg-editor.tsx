@@ -48,6 +48,7 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -237,6 +238,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
   groupMentions,
 }: ComposerWysiwygEditorProps<TData>) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [editorElement, setEditorElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const setEditorNode = useCallback((node: HTMLDivElement | null) => {
+    editorRef.current = node;
+    setEditorElement(node);
+  }, []);
   const listRef = useRef<HTMLDivElement>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
@@ -1274,21 +1282,15 @@ export function ComposerWysiwygEditor<TData = unknown>({
     tryFlushTrailingEmoticon,
   ]);
 
-  useEffect(() => {
-    const onSelectionChange = () => {
-      publishActiveFormats();
-      const editor = editorRef.current;
-      if (!editor) return;
-      const caretOffset = getCaretOffset(editor);
-      if (caretOffset != null) {
-        savedCaretOffsetRef.current = caretOffset;
-      }
-    };
-    document.addEventListener("selectionchange", onSelectionChange);
-    return () => {
-      document.removeEventListener("selectionchange", onSelectionChange);
-    };
-  }, [publishActiveFormats]);
+  useEventListener("document", "selectionchange", () => {
+    publishActiveFormats();
+    const editor = editorRef.current;
+    if (!editor) return;
+    const caretOffset = getCaretOffset(editor);
+    if (caretOffset != null) {
+      savedCaretOffsetRef.current = caretOffset;
+    }
+  });
 
   useEffect(() => {
     if (!onActiveFormatsChange) return;
@@ -1303,13 +1305,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
     activeItem?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, isOpen]);
 
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    // Capture-phase listener: contentEditable arrow keys are more reliable
-    // here than React's delegated onKeyDown alone.
-    function onNativeKeyDown(event: KeyboardEvent) {
+  // Capture-phase listener: contentEditable arrow keys are more reliable
+  // here than React's delegated onKeyDown alone.
+  useEventListener(
+    editorElement,
+    "keydown",
+    (event) => {
       const currentEditor = editorRef.current;
       if (!currentEditor) return;
       if (event.defaultPrevented || event.isComposing) return;
@@ -1330,13 +1331,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
       requestAnimationFrame(() => {
         publishActiveFormats();
       });
-    }
-
-    editor.addEventListener("keydown", onNativeKeyDown, true);
-    return () => {
-      editor.removeEventListener("keydown", onNativeKeyDown, true);
-    };
-  }, [handleInput, publishActiveFormats]);
+    },
+    true,
+  );
 
   useEffect(() => {
     return () => {
@@ -1389,7 +1386,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   return (
     <>
       <div
-        ref={editorRef}
+        ref={setEditorNode}
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning

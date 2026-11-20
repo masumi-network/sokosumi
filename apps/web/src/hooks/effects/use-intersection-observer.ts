@@ -11,8 +11,9 @@ export interface UseIntersectionObserverOptions {
 }
 
 /**
- * Observes a live element with `IntersectionObserver` and disconnects on
- * unmount or target change.
+ * Observes a live element with `IntersectionObserver`, disconnects on unmount
+ * or target change, and ignores queued entries delivered after disconnect or
+ * for a replaced target.
  */
 export function useIntersectionObserver(
   target: Element | null | undefined,
@@ -56,17 +57,26 @@ export function useIntersectionObserver(
       if (parsedThreshold !== undefined) init.threshold = parsedThreshold;
     }
 
+    let active = true;
+    const dispatch: IntersectionObserverCallback = (entries, obs) => {
+      if (!active) return;
+      const relevant = entries.filter(
+        (entry) => !entry.target || entry.target === target,
+      );
+      if (relevant.length === 0) return;
+      handleIntersect(relevant, obs);
+    };
+
     const observer =
       init === undefined
-        ? new IntersectionObserver((entries, obs) =>
-            handleIntersect(entries, obs),
-          )
-        : new IntersectionObserver(
-            (entries, obs) => handleIntersect(entries, obs),
-            init,
-          );
+        ? new IntersectionObserver(dispatch)
+        : new IntersectionObserver(dispatch, init);
 
     observer.observe(target);
-    return () => observer.disconnect();
+    return () => {
+      active = false;
+      observer.takeRecords();
+      observer.disconnect();
+    };
   }, [target, root, rootMargin, thresholdKey, resetKey]);
 }

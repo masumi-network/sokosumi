@@ -89,7 +89,6 @@ export function NewsletterIssuePreview({
     () => {
       if (contentMeasure) updateContentHeight(contentMeasure.iframe);
     },
-    { coalesceFrame: true },
   );
   return (
     <aside

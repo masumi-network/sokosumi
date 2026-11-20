@@ -64,7 +64,7 @@ describe("useMutationObserver", () => {
     });
   }
 
-  it("observes a live node, forwards mutations, and disconnects on unmount", () => {
+  it("observes a live node, forwards every batch, and disconnects on unmount", () => {
     const node = document.createElement("div");
     const onMutate = vi.fn();
 
@@ -79,7 +79,8 @@ describe("useMutationObserver", () => {
     expect(instances[0]?.init).toEqual({ childList: true, subtree: true });
 
     triggerMutation(instances[0]!);
-    expect(onMutate).toHaveBeenCalledTimes(1);
+    triggerMutation(instances[0]!);
+    expect(onMutate).toHaveBeenCalledTimes(2);
 
     unmount();
     expect(instances[0]?.disconnected).toBe(true);
@@ -147,47 +148,6 @@ describe("useMutationObserver", () => {
     expect(onMutate).toHaveBeenCalledTimes(2);
     expect(instances[0]?.disconnected).toBe(true);
     expect(instances).toHaveLength(2);
-  });
-
-  it("coalesces burst mutations into one animation frame and cancels pending frames on unmount", () => {
-    let frameId = 0;
-    const frames = new Map<number, FrameRequestCallback>();
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-      frames.set(++frameId, cb);
-      return frameId;
-    });
-    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
-      frames.delete(id);
-    });
-
-    const node = document.createElement("div");
-    const onMutate = vi.fn();
-
-    const { unmount } = renderHook(() =>
-      useMutationObserver(node, onMutate, {
-        init: { childList: true },
-        coalesceFrame: true,
-      }),
-    );
-
-    triggerMutation(instances[0]!);
-    triggerMutation(instances[0]!);
-    expect(onMutate).not.toHaveBeenCalled();
-    expect(frames.size).toBe(1);
-
-    act(() => {
-      for (const cb of [...frames.values()]) {
-        frames.clear();
-        cb(16);
-      }
-    });
-    expect(onMutate).toHaveBeenCalledTimes(1);
-
-    triggerMutation(instances[0]!);
-    expect(frames.size).toBe(1);
-    unmount();
-    expect(frames.size).toBe(0);
-    expect(onMutate).toHaveBeenCalledTimes(1);
   });
 
   it("supports layout timing via useLayoutMutationObserver and late targets", () => {
