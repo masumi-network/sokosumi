@@ -237,6 +237,25 @@ export async function logoPng(bytes: Buffer): Promise<Buffer | null> {
   }
 }
 
+/** Whether every visible pixel of a logo is near white. */
+async function lightOnly(png: Buffer): Promise<boolean> {
+  const { data, info } = await sharp(png)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let visible = 0;
+  for (let at = 0; at < data.length; at += info.channels) {
+    if ((data[at + 3] ?? 0) < 32) continue;
+    visible += 1;
+    const luminance =
+      0.2126 * (data[at] ?? 0) +
+      0.7152 * (data[at + 1] ?? 0) +
+      0.0722 * (data[at + 2] ?? 0);
+    if (luminance < 200) return false;
+  }
+  return visible > 0;
+}
+
 type LogoOwner = Pick<
   Cuso,
   "projectId" | "websiteUrl" | "workspaceId" | "sokoBotId"
@@ -267,9 +286,16 @@ export async function saveCmoBrandLogo(
       )
       .catch(() => null);
     if (!png) continue;
+    // A header logo painted white by the site's CSS comes as a white file,
+    // invisible on a light page: it is the version for a dark background.
+    let filename = name;
+    if (key === "src" && (await lightOnly(png))) {
+      if (logo.srcDark) continue;
+      filename = CMO_BRAND_LOGO_FILES.srcDark;
+    }
     const fileId = await saveCusoProjectFile(
       drive,
-      { folder: CMO_BRAND_LOGO_FOLDER, filename: `${name}.png` },
+      { folder: CMO_BRAND_LOGO_FOLDER, filename: `${filename}.png` },
       png,
       "image/png",
     );
