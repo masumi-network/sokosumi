@@ -15,6 +15,8 @@ Give every finding a severity (Critical, Important, Minor) and an origin:
 - **Introduced by this PR**: the diff adds or changes the code at fault.
 - **Pre-existing**: the same fault is on the base branch.
 
+For a lint rule or another guardrail, judge severity against agents copying patterns they find, not an attacker: a bypass is Critical or Important only if an agent would plausibly write it (a pattern a dependency or our own code ships counts), and an exotic one is Minor. A false positive that fails safe (an error on contrived code, fixed by renaming) is Minor. Report a class of bypass as one finding and ask for the general fix, not one finding per syntax shape.
+
 Only introduced Critical and Important findings block a merge. Record each pre-existing finding in the review as a follow-up, and link a Task when one already exists or filing is authorized ([issue tracker](./issue-tracker.md)); it does not hold the PR.
 
 ## Always check
