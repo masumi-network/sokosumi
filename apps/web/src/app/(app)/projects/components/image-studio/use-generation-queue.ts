@@ -4,6 +4,8 @@ import type { StudioProductIdentity } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAbortControllers } from "@/hooks/effects/use-abort-controller";
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { startImageGeneration } from "@/lib/actions/image-studio/action";
 
 import type { StudioJob, StudioSettings } from "./types";
@@ -127,7 +129,8 @@ export function useGenerationQueue({
   const sendingRef = useRef(false);
   const uncertainIdsRef = useRef(new Set<string>());
   /** Set while a busy wait is pending, so only one timer exists at a time. */
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimeout = useScheduledTimeout();
+  const inFlightSends = useAbortControllers();
   /** Read inside the send without making the dispatcher depend on it. */
   const queuedRef = useRef<QueuedGeneration[]>(queued);
   queuedRef.current = queued;
@@ -147,15 +150,6 @@ export function useGenerationQueue({
    */
   const onAcceptedRef = useRef(onAccepted);
   onAcceptedRef.current = onAccepted;
-  const mountedRef = useRef(true);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    };
-  }, []);
 
   /**
    * Draining the queue, one request at a time.
@@ -174,11 +168,12 @@ export function useGenerationQueue({
    */
   const headId = queued[0]?.id ?? null;
   useEffect(() => {
-    if (!headId || sendingRef.current || retryTimerRef.current) return;
+    if (!headId || sendingRef.current || retryTimeout.isPending()) return;
     const next = queuedRef.current[0];
     if (!next || next.id !== headId) return;
 
     sendingRef.current = true;
+    const sendOp = inFlightSends.create();
 
     void (async () => {
       try {
@@ -214,7 +209,7 @@ export function useGenerationQueue({
         // Only a real unmount stops the writes. Anything short of that and
         // the send applies its own result, which is what keeps the queue
         // draining rather than churning.
-        if (!mountedRef.current) return;
+        if (sendOp.signal.aborted) return;
 
         if (result.ok) {
           setWaitingForSlot(false);
@@ -249,9 +244,8 @@ export function useGenerationQueue({
           // Core is full, not broken. Keep the request and come back to it;
           // dropping it here is how a batch of four silently becomes three.
           setWaitingForSlot(true);
-          retryTimerRef.current = setTimeout(() => {
-            retryTimerRef.current = null;
-            if (mountedRef.current) setRetryTick((tick) => tick + 1);
+          retryTimeout.schedule(() => {
+            setRetryTick((tick) => tick + 1);
           }, RETRY_AFTER_BUSY_MS);
           return;
         }
@@ -273,7 +267,7 @@ export function useGenerationQueue({
           current.filter((item) => item.id !== next.id),
         );
       } catch {
-        if (!mountedRef.current) return;
+        if (sendOp.signal.aborted) return;
         setWaitingForSlot(false);
         uncertainIdsRef.current.add(next.id);
         setFailed((current) => [
@@ -284,10 +278,11 @@ export function useGenerationQueue({
           current.filter((item) => item.id !== next.id),
         );
       } finally {
+        inFlightSends.release(sendOp);
         sendingRef.current = false;
       }
     })();
-  }, [headId, retryTick, updateQueued]);
+  }, [headId, inFlightSends, retryTick, retryTimeout, updateQueued]);
 
   const enqueue = useCallback(
     (requests: QueuedGeneration[]) => {

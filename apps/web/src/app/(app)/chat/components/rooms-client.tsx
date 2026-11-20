@@ -168,6 +168,7 @@ import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-sche
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
+import { useMarkRoomCacheDirtyOnExit } from "@/hooks/effects/use-room-cache-dirty";
 import { useScheduledTimeoutMap } from "@/hooks/effects/use-scheduled-timeout";
 import { useSelectedRoomChannelHealth } from "@/hooks/effects/use-selected-room-channel-health";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
@@ -554,7 +555,7 @@ function RetainedRoomsClient({
       };
     },
   };
-  useEffect(() => () => cache.markDirty(roomId), [cache, roomId]);
+  useMarkRoomCacheDirtyOnExit(cache, roomId);
   return (
     <RoomView {...props} retained={binding} registerRefresh={refreshRef} />
   );

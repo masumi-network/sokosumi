@@ -62,6 +62,8 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-mobile` (`useIsMobile`, `useIsMobileMedia`, `MOBILE_BREAKPOINT`) — mobile viewport media query
 - `use-media-query` (`useMediaQuery`, `usePrefersReducedMotion`, `matchesMediaQuery`, `subscribeMediaQuery`) — generic CSS media query and live `prefers-reduced-motion` subscriptions (CMO has `useMediaQuery` under `apps/cmo/src/hooks/effects/use-media-query.ts`)
 - `use-animation-frame` (`useAnimationFrame`) — `requestAnimationFrame` loop with elapsed seconds per frame
+- `use-animation-frame-batch` (`useAnimationFrameBatch`) — batches handler-pushed items into a single `requestAnimationFrame` callback with unmount cancel
+- `use-activity-reset-state` (`useActivityResetState`) — local UI state reset before paint on `<Activity>` hide or unmount
 - `use-event-listener` (`useEventListener`) — typed window, document, or element DOM event listener using the latest handler (CMO has `useEventListener` under `apps/cmo/src/hooks/effects/use-event-listener.ts`)
 - `use-interval` (`useInterval`) — repeating timer paused on `null` delay (CMO has `useInterval` under `apps/cmo/src/hooks/effects/use-interval.ts`)
 - `use-timeout` (`useTimeout`) — one-shot timer paused on `null` delay with optional `resetKey` (CMO has `useTimeout` under `apps/cmo/src/hooks/effects/use-timeout.ts`)
@@ -99,6 +101,10 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-flash-toast` (`queueFlashSuccessToast`, `useFlashToast`) — shows a one-time `sessionStorage` success toast once on the next document mount
 - `use-mark-agent-unavailable` (`useMarkAgentUnavailable`, `useIsAgentUnavailable`) — ref-counted unavailable-agent external store for mobile header back fallback
 - `use-project-scope-marker` (`useProjectScopeMarker`, `useMarkedProjectSnapshot`) — detail-page project scope marker store keyed by detail path
+- `use-project-scope-dialogs` (`useResetScopeDialogsOnUnmount`, `useRequiredProjectScope`, `useProjectScopePromptAction`) — module-scoped project scope selector and create-dialog unmount/mount lifecycles
+- `use-voice-dictation` (`useVoiceDictation`, `pickVoiceFormat`, `DICTATION_MAX_MS`) — browser `MediaRecorder`/`MediaStream` dictation lifecycle with automatic unmount teardown
+- `use-compose-draft` (`usePersistComposeDraft`) — debounced `localStorage` chat compose draft hydration and unmount/key-change flush
+- `use-room-cache-dirty` (`useMarkRoomCacheDirtyOnExit`) — marks a retained room cache entry dirty when leaving the room or switching caches
 - `use-personal-assistant-chrome-visible` (`usePersonalAssistantChromeVisible`) — records session visibility of Personal Assistant sidebar chrome for Instant `/chat`
 - `use-failed-soko-bot-id-publisher` (`useFailedSokoBotIdPublisher`) — before-paint failed Soko Bot id publishing to synchronize sidebar and Direct rows
 - `use-remember-pinned-rooms` (`useRememberPinnedRooms`) — persists the sidebar's Pinned chat rooms in session memory across workspace switches

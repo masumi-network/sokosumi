@@ -2,18 +2,16 @@
 
 import { FolderKanban } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useRef } from "react";
+import { useId } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-
 import {
-  openProjectScope,
-  openScopeCreate,
-  type ProjectScopeRequest,
-  setScopeCreateOpen,
-} from "./sidebar-project-scope-state";
+  useProjectScopePromptAction,
+  useRequiredProjectScope,
+} from "@/hooks/effects/use-project-scope-dialogs";
+
+import type { ProjectScopeRequest } from "./sidebar-project-scope-state";
 import { useHasAnyScopeProject } from "./use-scope-projects";
 
 /**
@@ -29,7 +27,7 @@ import { useHasAnyScopeProject } from "./use-scope-projects";
 export function RequireProjectScope(
   request: Omit<ProjectScopeRequest, "required">,
 ) {
-  useMountEffect(() => openProjectScope({ ...request, required: true }));
+  useRequiredProjectScope(request);
   return null;
 }
 
@@ -77,27 +75,17 @@ export function ProjectScopeRequired({
   const { isPending, hasProjects } = useHasAnyScopeProject();
   const shouldAutoOpen = autoOpen === true;
   const shouldCreateProject = !isPending && !hasProjects;
-  const cancelRequest = useRef<ReturnType<typeof openProjectScope> | null>(
-    null,
-  );
-
-  useMountEffect(() => () => {
-    if (cancelRequest.current) {
-      cancelRequest.current();
-      setScopeCreateOpen(false);
-    }
-  });
+  const requestProjectScope = useProjectScopePromptAction();
 
   function handleProjectAction(opener: HTMLButtonElement, create: boolean) {
-    cancelRequest.current = openProjectScope({
-      required: true,
-      reason: body,
-      onSelect,
-      ...(onCreated ? { onCreated } : {}),
-    });
-    if (create) {
-      openScopeCreate(opener);
-    }
+    requestProjectScope(
+      {
+        reason: body,
+        onSelect,
+        ...(onCreated ? { onCreated } : {}),
+      },
+      { create, opener },
+    );
   }
 
   const Wrapper = variant === "action" ? "div" : "section";

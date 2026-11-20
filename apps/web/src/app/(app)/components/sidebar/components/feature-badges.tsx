@@ -22,7 +22,8 @@ import {
 import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useAbortControllers } from "@/hooks/effects/use-abort-controller";
+import { useScheduledTimeoutMap } from "@/hooks/effects/use-scheduled-timeout";
 import { markBadgeCampaignSeenAction } from "@/lib/actions/badge-campaign/action";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { isPathActive } from "@/lib/utils/is-path-active";
@@ -102,33 +103,47 @@ export function FeatureBadgesProvider({
     new Map(),
   );
   const requestedIds = useRef(new Set<string>());
-  const exitTimers = useRef(new Map<string, number[]>());
-  const mounted = useRef(true);
-  useMountEffect(() => {
-    mounted.current = true;
-    const timers = exitTimers.current;
-    return () => {
-      mounted.current = false;
-      for (const ids of timers.values()) ids.forEach(window.clearTimeout);
-      timers.clear();
-    };
-  });
+  const exitTimers = useScheduledTimeoutMap<string>();
+  const activeExits = useAbortControllers();
+  const startedExitOps = useRef(new Map<string, AbortController>());
+  const seenWrites = useAbortControllers();
 
-  const scheduleExit = useCallback(({ id, feature }: BadgeCampaignSummary) => {
-    if (exitTimers.current.has(id)) return;
-    const setStage = (stage: PillExit["stage"]) =>
-      setPillExits((current) => new Map(current).set(id, { feature, stage }));
-    setStage("lingering");
-    exitTimers.current.set(id, [
-      window.setTimeout(() => setStage("fading"), PILL_LINGER_MS),
-      window.setTimeout(() => setStage("gone"), PILL_LINGER_MS + PILL_FADE_MS),
-    ]);
-  }, []);
+  const scheduleExit = useCallback(
+    ({ id, feature }: BadgeCampaignSummary) => {
+      const existing = startedExitOps.current.get(id);
+      if (existing && !existing.signal.aborted) return;
+      const exitOp = activeExits.create();
+      startedExitOps.current.set(id, exitOp);
+      const setStage = (stage: PillExit["stage"]) =>
+        setPillExits((current) => new Map(current).set(id, { feature, stage }));
+      setStage("lingering");
+      exitTimers.schedule(
+        `${id}:fading`,
+        () => setStage("fading"),
+        PILL_LINGER_MS,
+      );
+      exitTimers.schedule(
+        `${id}:gone`,
+        () => {
+          activeExits.release(exitOp);
+          setStage("gone");
+        },
+        PILL_LINGER_MS + PILL_FADE_MS,
+      );
+    },
+    [activeExits, exitTimers],
+  );
 
   const { mutate } = useMutation({
-    mutationFn: async (campaignId: string) => {
+    mutationFn: async ({
+      campaignId,
+      controller,
+    }: {
+      campaignId: string;
+      controller: AbortController;
+    }) => {
       // A queued retry must not use another user's cookies after account switch.
-      if (!mounted.current) return;
+      if (controller.signal.aborted) return;
       const result = await markBadgeCampaignSeenAction(campaignId);
       if (!result.ok)
         throw new Error(
@@ -139,7 +154,10 @@ export function FeatureBadgesProvider({
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
     // Keep the optimistic hide, but allow the next poll/visit to retry after
     // prolonged failure. `mutate` handles transport rejections as well.
-    onError: (_error, campaignId) => requestedIds.current.delete(campaignId),
+    onError: (_error, { campaignId }) =>
+      requestedIds.current.delete(campaignId),
+    onSettled: (_data, _error, { controller }) =>
+      seenWrites.release(controller),
   });
   const markSeen = useCallback(
     (campaign: BadgeCampaignSummary) => {
@@ -148,9 +166,10 @@ export function FeatureBadgesProvider({
       if (requestedIds.current.has(campaign.id)) return;
       requestedIds.current.add(campaign.id);
       setSeenIds((current) => new Set(current).add(campaign.id));
-      mutate(campaign.id);
+      const controller = seenWrites.create();
+      mutate({ campaignId: campaign.id, controller });
     },
-    [mutate, scheduleExit],
+    [mutate, scheduleExit, seenWrites],
   );
 
   const latestCampaigns = useRef<BadgeCampaignSummary[]>([]);
