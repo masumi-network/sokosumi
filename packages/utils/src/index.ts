@@ -564,6 +564,7 @@ export {
 export {
   SEO_SEARCH_TYPES,
   SEO_TRAFFIC_CHANNELS,
+  seoSearchSiteHost,
   seoSearchUrlPrefixCovers,
 } from "./seo-traffic.js";
 export {

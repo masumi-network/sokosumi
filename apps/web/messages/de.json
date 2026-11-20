@@ -13242,6 +13242,7 @@
         "inspections": "Inspected URLs in this audit ({count})"
       },
       "reportFiles": {
+        "noQueryRecommendations": "Die Search Console hat für diese Seiten und diesen Zeitraum keine Suchanfragen zurückgegeben. Für diese Prüfung gibt es daher keine Empfehlungen aus Suchanfragen.",
         "recommendations": "Empfehlungen aus dieser Prüfung",
         "recoverSearch": "Search Console-Ergebnisse abrufen",
         "recoverSearchFailed": "Die Search Console-Ergebnisse konnten nicht abgerufen werden. Versuche es erneut.",
@@ -14097,6 +14098,21 @@
         "tests": "Urteile der Checkliste",
         "testsNoResult": "{count, plural, one {# Test ohne Ergebnis} other {# Tests ohne Ergebnis}}",
         "testsAll": "Jeder Test hat ein Ergebnis"
+      },
+      "siteTraffic": {
+        "scope": "Umfang der Search Console",
+        "site": "Gesamte Website",
+        "selected": "Ausgewählte Seiten",
+        "sort": "Seiten sortieren nach",
+        "more": "Weitere Seiten anzeigen",
+        "submitted": "Eingereichte URL",
+        "counts": "{clicks, plural, one {# Klick} other {# Klicks}} · {impressions, plural, one {# Impression} other {# Impressionen}}",
+        "noRows": "Google hat für diese Auswahl keine Seiten zurückgegeben.",
+        "limited": "Die Liste zeigt nur die abgerufenen Seiten. Die Summe gilt für die gesamte Auswahl.",
+        "loading": "Suchzugriffe werden geladen.",
+        "failed": "Die Suchzugriffe für diese Auswahl konnten nicht geladen werden.",
+        "unavailable": "Für aktuelle Suchzugriffe ist eine passende Search Console-Property für diese Website erforderlich.",
+        "saved": "Gespeicherte Messwerte für ausgewählte Seiten"
       },
       "traffic": {
         "periodInsight": {

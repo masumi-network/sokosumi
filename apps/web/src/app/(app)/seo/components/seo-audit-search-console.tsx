@@ -132,6 +132,9 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
           </p>
         </section>
       )}
+      {queries && queries.rows.length === 0 && (
+        <p>{report("reportFiles.noQueryRecommendations")}</p>
+      )}
       {evidence.opportunities?.length > 0 && (
         <section aria-labelledby={recommendations} className="space-y-2">
           <h4 id={recommendations} className="font-medium">
@@ -148,6 +151,20 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
                 )}
                 <p>{item.why}</p>
                 <p>{item.expectedEffect}</p>
+                {item.evidence.length > 0 && (
+                  <details>
+                    <SeoFoldSummary>
+                      {report("actions.evidence")}
+                    </SeoFoldSummary>
+                    <ul className="list-disc space-y-1 ps-5">
+                      {item.evidence.map((line) => (
+                        <li className="break-words" key={line}>
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </li>
             ))}
           </ul>
