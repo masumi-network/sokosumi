@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as z from "zod";
+import { studioRouterTrialSchema } from "../../agents/image-studio/agent/lib/router-trial";
 
 /**
  * Official `@sparticuz/chromium-min` 153 x64 pack for Vercel PDF export.
@@ -52,6 +53,7 @@ const envSecretsSchema = z.object({
    * says so — it never falls back to an unauthenticated agent.
    */
   IMAGE_STUDIO_AGENT_SECRET: z.string().min(32).optional(),
+  STUDIO_AGENT_ROUTER_TRIAL: studioRouterTrialSchema,
 
   // Max pending invitations per organization (optional; default 100).
   ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),

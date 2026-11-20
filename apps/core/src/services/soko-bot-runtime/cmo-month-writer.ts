@@ -2,9 +2,11 @@ import {
   type BrandBrain,
   CMO_PIECE_WRITING_GUIDE,
   CMO_PRODUCTION_TURN_PREFIX,
+  CMO_VARIED_PIECE_WRITING_GUIDE,
   type CmoCalendarEntry,
   getSokoBotVersion,
   type MarketingStrategyPlan,
+  REFERENCE_PURPOSES,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
@@ -14,6 +16,7 @@ import { sokoBotTurnPurpose } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
+import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import { RuntimeEventLog, runtimeEvent } from "@/lib/soko-bot/turn-loop";
 import {
@@ -27,6 +30,9 @@ import {
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import {
+  type CmoKindedPiece,
+  cmoAllowedKinds,
+  cmoMakesVariedMonth,
   cmoPieceIsTalking,
   cmoPieceNeedsMedia,
   cmoPieceTakesStyle,
@@ -37,12 +43,14 @@ import {
   cmoConnectedChannels,
   cmoMixLedger,
   cmoPieceLine,
+  cmoPraiseOnly,
   cmoProofPoints,
   cmoWriterPieces,
   readCmoProduction,
 } from "@/services/cmo-production.service";
 import {
   findStyleReferences,
+  infographicSuits,
   referenceLibraryAvailable,
 } from "@/services/reference-library.service";
 import { getSocialPost } from "@/services/social-posts.service";
@@ -82,6 +90,8 @@ const writtenPieceSchema = z.object({
   visualFileIds: z.array(z.string()).nullable(),
   slides: z.array(z.string()).nullable(),
   styleLook: z.string().nullable(),
+  /** What the picture is for: only data and comparison take an infographic (cmo-v8). */
+  purpose: z.enum(REFERENCE_PURPOSES).nullable(),
   headline: z.string().nullable(),
   slideHeadlines: z.array(z.string()).nullable(),
   script: z.string().nullable(),
@@ -133,12 +143,14 @@ export function cmoWriterSystem(input: {
   proof: readonly string[];
   brandPictures: readonly { fileId: string; alt: string }[];
   styles: boolean;
+  /** cmo-v8: varied picture kinds, a claim per piece, LinkedIn openings. */
+  varied?: boolean;
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
   return [
     `You are Cuso, the CMO of ${input.businessName}. You write pieces of its approved month. Core checks and saves each piece you return, makes its picture or video and schedules it.`,
-    CMO_PIECE_WRITING_GUIDE,
+    input.varied ? CMO_VARIED_PIECE_WRITING_GUIDE : CMO_PIECE_WRITING_GUIDE,
     input.styles
       ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
       : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
@@ -168,7 +180,7 @@ export function cmoWriterSystem(input: {
     "Every piece of the month, so no two say the same thing:",
     ...live.map(
       (entry) =>
-        `- ${entry.date} ${entry.channel}/${entry.format} · ${entry.pillar ?? ""} · ${entry.title}`,
+        `- ${entry.date} ${entry.channel}/${entry.format} · ${entry.pillar ?? ""} · ${entry.title}${entry.claim ? ` · claim: ${entry.claim}` : ""}`,
     ),
   ]
     .filter((line) => line !== "")
@@ -324,7 +336,12 @@ export async function writeCmoMonthPieces(
     };
 
   const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
-  const proof = cmoProofPoints(brain);
+  const varied = cmoMakesVariedMonth(authorized.turn.versionId);
+  const praise = varied
+    ? await cmoPraiseOnly(cmoProofPoints(brain))
+    : { points: cmoProofPoints(brain), costUsd: 0 };
+  await chargeCheck(input, SOKO_BOT_JEV_MODEL, praise.costUsd);
+  const proof = praise.points;
   const styles = referenceLibraryAvailable();
   const system = cmoWriterSystem({
     businessName: cuso.businessName,
@@ -333,6 +350,7 @@ export async function writeCmoMonthPieces(
     proof,
     brandPictures: await listCmoBrandPictures(cuso.projectId),
     styles,
+    varied,
   });
   const modelId = getSokoBotVersion(authorized.turn.versionId).model;
   const request = sokoBotModelRequest({
@@ -348,6 +366,36 @@ export async function writeCmoMonthPieces(
   const usedStyles = new Set(
     strategy.calendar.flatMap((entry) => entry.styleReferenceId ?? []),
   );
+  // cmo-v8: each styled piece's kind of print, so a pick keeps the kind rules.
+  const kindOf = new Map(
+    varied
+      ? (
+          await prisma.referenceImage.findMany({
+            where: { id: { in: [...usedStyles] } },
+            select: { id: true, kind: true },
+          })
+        ).map((row) => [row.id, row.kind])
+      : [],
+  );
+  const kinded: CmoKindedPiece[] = strategy.calendar.flatMap((entry) => {
+    const kind = entry.styleReferenceId
+      ? kindOf.get(entry.styleReferenceId)
+      : undefined;
+    return kind
+      ? [
+          {
+            id: entry.id,
+            channel: entry.channel,
+            date: entry.date,
+            time: entry.time,
+            kind,
+          },
+        ]
+      : [];
+  });
+  const planned = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped" && cmoPieceTakesStyle(entry),
+  ).length;
   let saveCall = 0;
   const child = (
     capability: "save_strategy" | "update_social_post",
@@ -385,14 +433,37 @@ export async function writeCmoMonthPieces(
       return null;
     let styleReferenceId: string | undefined;
     if (styles && cmoPieceTakesStyle(piece)) {
+      const purpose = varied ? (written.purpose ?? undefined) : undefined;
       const found = await findStyleReferences({
         about: written.styleLook || written.visual,
         limit: 8,
+        exclude: [...usedStyles],
+        ...(varied
+          ? {
+              purpose,
+              kinds: cmoAllowedKinds({
+                piece,
+                month: kinded,
+                infographicSuits: infographicSuits(purpose),
+                planned,
+              }),
+            }
+          : {}),
       });
-      styleReferenceId = found.find(
-        (reference) => !usedStyles.has(reference.id),
-      )?.id;
-      if (styleReferenceId) usedStyles.add(styleReferenceId);
+      const picked = found.find((reference) => !usedStyles.has(reference.id));
+      if (picked) {
+        styleReferenceId = picked.id;
+        usedStyles.add(picked.id);
+        const at = kinded.findIndex((entry) => entry.id === piece.id);
+        if (at !== -1) kinded.splice(at, 1);
+        kinded.push({
+          id: piece.id,
+          channel: piece.channel,
+          date: piece.date,
+          time: piece.time,
+          kind: picked.kind,
+        });
+      }
     }
     return {
       ...pieceEntry(piece),
@@ -421,14 +492,12 @@ export async function writeCmoMonthPieces(
   ): Promise<Map<string, { draft: string | null; reason: string }>> => {
     const refused = new Map<string, { draft: string | null; reason: string }>();
     const mine = results.filter((written) => byId.has(written.id));
-    const entries = (
-      await Promise.all(
-        mine.map(async (written) => {
-          const entry = await entryOf(byId.get(written.id)!, written);
-          return entry ? [entry] : [];
-        }),
-      )
-    ).flat();
+    // One at a time, in date order: each pick sees the kind its neighbour took.
+    const entries: CmoCalendarEntry[] = [];
+    for (const written of mine) {
+      const entry = await entryOf(byId.get(written.id)!, written);
+      if (entry) entries.push(entry);
+    }
     if (entries.length > 0) {
       // One save for the chunk; a refusal there is retried piece by piece,
       // so one piece's problem never holds back the rest.

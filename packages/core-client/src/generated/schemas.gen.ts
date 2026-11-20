@@ -7299,6 +7299,29 @@ export const AdEvalsLeaderboardRowSchema = {
         model: {
             type: 'string'
         },
+        route: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ImageStudioRoute'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        routeInferred: {
+            type: 'boolean'
+        },
+        experimentArm: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioRouterArm'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         template: {
             type: [
                 'string',
@@ -7415,6 +7438,9 @@ export const AdEvalsLeaderboardRowSchema = {
     },
     required: [
         'model',
+        'route',
+        'routeInferred',
+        'experimentArm',
         'template',
         'aspect',
         'workspaceCount',
@@ -7429,6 +7455,26 @@ export const AdEvalsLeaderboardRowSchema = {
         'thumbRateCi',
         'pairwiseWinRateCi',
         'judgeMeanCi'
+    ]
+} as const;
+
+export const ImageStudioRouteSchema = {
+    type: 'string',
+    enum: [
+        'photo_ad',
+        'text_heavy',
+        'vector',
+        'svg_diagram',
+        'make_realistic',
+        'edit'
+    ]
+} as const;
+
+export const StudioRouterArmSchema = {
+    type: 'string',
+    enum: [
+        'router:sonnet-5',
+        'router:opus-5.5'
     ]
 } as const;
 

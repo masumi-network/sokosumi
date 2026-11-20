@@ -1,16 +1,22 @@
 import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RoomTypingStore } from "@/hooks/effects/use-room-typing";
 
-const useRoomTypingMock = vi.fn();
+const useRoomTypingSyncMock = vi.fn();
 
 vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: (...args: unknown[]) => useRoomTypingMock(...args),
-}));
+vi.mock("@/hooks/effects/use-room-typing", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/hooks/effects/use-room-typing")>();
+  return {
+    ...actual,
+    useRoomTypingSync: (...args: unknown[]) => useRoomTypingSyncMock(...args),
+  };
+});
 
 import {
   RoomTypingProvider,
@@ -26,22 +32,24 @@ function Consumer() {
 
 describe("RoomTypingProvider", () => {
   beforeEach(() => {
-    useRoomTypingMock.mockReset();
+    useRoomTypingSyncMock.mockReset();
   });
 
   it("stays inert outside a provider, so the Thread composer says nothing", () => {
     render(<Consumer />);
 
     expect(screen.getByTestId("consumer")).toHaveTextContent("false:");
-    expect(useRoomTypingMock).not.toHaveBeenCalled();
+    expect(useRoomTypingSyncMock).not.toHaveBeenCalled();
   });
 
   it("reports the room's typists to whatever it wraps", () => {
-    useRoomTypingMock.mockReturnValue({
-      typistIds: ["user_pat"],
-      handleComposerChange: vi.fn(),
-      handleStopTyping: vi.fn(),
-    });
+    useRoomTypingSyncMock.mockImplementation(
+      (roomId: string, _userId: string, store: RoomTypingStore) => {
+        useEffect(() => {
+          store.setTypistIds(roomId, ["user_pat"]);
+        }, [roomId, store]);
+      },
+    );
 
     render(
       <RoomTypingProvider roomId="room-a" currentUserId="user_me">
@@ -50,23 +58,23 @@ describe("RoomTypingProvider", () => {
     );
 
     expect(screen.getByTestId("consumer")).toHaveTextContent("true:user_pat");
-    expect(useRoomTypingMock).toHaveBeenCalledWith("room-a", "user_me");
+    expect(useRoomTypingSyncMock).toHaveBeenCalledWith(
+      "room-a",
+      "user_me",
+      expect.any(Object),
+    );
   });
 
   it("settles when the room hands it a fresh array of the same people", () => {
-    // The island reports upward from an effect keyed on the list it was given.
-    // A caller returning an equal-but-new array each render must not drive
-    // report → setState → re-render → report forever: that loop pegged a CPU
-    // for minutes and aborted the worker.
     let renders = 0;
-    useRoomTypingMock.mockImplementation(() => {
-      renders += 1;
-      return {
-        typistIds: ["user_pat"],
-        handleComposerChange: () => {},
-        handleStopTyping: () => {},
-      };
-    });
+    useRoomTypingSyncMock.mockImplementation(
+      (roomId: string, _userId: string, store: RoomTypingStore) => {
+        renders += 1;
+        useEffect(() => {
+          store.setTypistIds(roomId, ["user_pat"]);
+        });
+      },
+    );
 
     render(
       <RoomTypingProvider roomId="room-a" currentUserId="user_me">
@@ -87,6 +95,6 @@ describe("RoomTypingProvider", () => {
     );
 
     expect(screen.getByTestId("consumer")).toHaveTextContent("true:");
-    expect(useRoomTypingMock).not.toHaveBeenCalled();
+    expect(useRoomTypingSyncMock).not.toHaveBeenCalled();
   });
 });

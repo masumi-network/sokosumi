@@ -24,6 +24,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
 import {
@@ -58,10 +59,7 @@ interface Connector {
  */
 function useCatalog(query: string, enabled: boolean) {
   const [debounced, setDebounced] = useState(query);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(query), SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [query]);
+  useTimeout(() => setDebounced(query), SEARCH_DELAY_MS, query);
   const catalog = useQuery({
     queryKey: ["soko-bot-integration-catalog", debounced.trim()],
     queryFn: async (): Promise<SokoBotIntegrationCatalogEntry[]> => {

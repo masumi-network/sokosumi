@@ -61,6 +61,55 @@ describe("admin ad-evals aggregation", () => {
     });
   });
 
+  it("separates agent decisions from inferred labels before counting workspaces", async () => {
+    const assets = ratedAssets(5);
+    assets[0].job.promptSnapshot!.route = "text_heavy";
+    assets[1].model = "fal-ai/gemini-3-pro-image-preview";
+    assets[2].job.kind = "EDIT";
+    assets[3].model = "unknown";
+    findMany.mockResolvedValue(assets);
+    const { leaderboard } = await getAdminAdEvalsDashboard();
+    expect(
+      leaderboard.map(({ route, routeInferred, n, suppressed }) => [
+        route,
+        routeInferred,
+        n,
+        suppressed,
+      ]),
+    ).toEqual([
+      ["text_heavy", false, 1, true],
+      ["photo_ad", true, 1, true],
+      ["edit", true, 1, true],
+      [null, false, 1, true],
+      ["text_heavy", true, 1, true],
+    ]);
+  });
+
+  it("counts workspaces and scores independently for each router arm", async () => {
+    const assets = ratedAssets(6);
+    for (const [index, asset] of assets.entries()) {
+      asset.job.promptSnapshot!.experimentArm =
+        index === 0 ? "router:sonnet-5" : "router:opus-5.5";
+    }
+    findMany.mockResolvedValue(assets);
+    expect((await getAdminAdEvalsDashboard()).leaderboard).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          experimentArm: "router:sonnet-5",
+          n: 1,
+          suppressed: true,
+          judgeMean: null,
+        }),
+        expect.objectContaining({
+          experimentArm: "router:opus-5.5",
+          n: 5,
+          suppressed: false,
+          judgeMean: 4,
+        }),
+      ]),
+    );
+  });
+
   it("requires both consent flags for training data", async () => {
     await loadAdEvalAssets(true);
     expect(findMany).toHaveBeenCalledWith(

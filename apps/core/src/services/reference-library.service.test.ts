@@ -9,6 +9,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: prisma }));
 
 import {
   findStyleReferences,
+  infographicSuits,
   monthStyleReferenceIds,
 } from "@/services/reference-library.service";
 
@@ -61,5 +62,31 @@ describe("a month's style references", () => {
   it("are none before a month is approved", async () => {
     prisma.marketingStrategy.findFirst.mockResolvedValue(null);
     await expect(monthStyleReferenceIds("project-1")).resolves.toEqual([]);
+  });
+});
+
+// cmo-v8: an infographic only for a picture that shows numbers.
+describe("infographics", () => {
+  it("are left out of a search that does not want them", async () => {
+    await findStyleReferences(
+      { about: "three steps of a mint", infographics: false },
+      embed as never,
+    );
+    const [sql, ...values] = prisma.$queryRaw.mock.calls[0] ?? [];
+    expect((sql as string[]).join("?")).toContain('AND NOT ("kind" = ANY(');
+    expect(values).toContainEqual(["infographic"]);
+  });
+
+  it("are kept by default", async () => {
+    await findStyleReferences({ about: "fees by plan" }, embed as never);
+    const [, ...values] = prisma.$queryRaw.mock.calls[0] ?? [];
+    expect(values).not.toContainEqual(["infographic"]);
+  });
+
+  it("suit data and comparisons only", () => {
+    expect(infographicSuits("data")).toBe(true);
+    expect(infographicSuits("comparison")).toBe(true);
+    expect(infographicSuits("how-to")).toBe(false);
+    expect(infographicSuits(undefined)).toBe(false);
   });
 });

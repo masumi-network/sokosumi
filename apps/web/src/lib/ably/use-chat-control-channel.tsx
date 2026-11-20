@@ -19,7 +19,6 @@ import {
   chatRoomsChangedEventSchema,
 } from "./chat-rooms-changed-event";
 import { safeSubscribeChannel } from "./safe-detach-channel";
-import { useAblyConnectionHealthPublisher } from "./use-ably-connection-health-publisher";
 
 interface UseChatControlChannelOptions {
   currentUserId: string;
@@ -111,7 +110,6 @@ export function useChatControlChannel({
   onRoomsChanged,
 }: UseChatControlChannelOptions): void {
   const ably = useAbly();
-  useAblyConnectionHealthPublisher();
   const onRevokedRef = useRef(onRevoked);
   onRevokedRef.current = onRevoked;
   const onRoomsChangedRef = useRef(onRoomsChanged);
