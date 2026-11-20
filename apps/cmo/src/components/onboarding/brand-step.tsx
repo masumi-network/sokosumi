@@ -84,6 +84,17 @@ export function saysUnknown(text: string): boolean {
   );
 }
 
+/** A section the owner corrected and Cuso rewrote, with a headline to show. */
+function correctedSection(
+  brain: BrandBrain,
+  key: BrandSectionKey,
+): (BrandSection & { headline: string }) | undefined {
+  const section = brandProfile(brain)[key];
+  return section?.fix?.fixed && section.headline
+    ? { ...section, headline: section.headline }
+    : undefined;
+}
+
 /**
  * Up to six tiles, in the order a founder reads their brand: what they sell,
  * who buys, how they sound, where marketing stands, who they compete with
@@ -101,8 +112,10 @@ export function brandTiles(
   const tiles: TileData[] = [];
   const offers = brain.offers ?? [];
   const offer = offers[0];
+  const correctedOffer = correctedSection(brain, "offer");
   // The product's name, else how many offers there are; the detail says more.
   const sells =
+    correctedOffer?.headline ??
     brain.products[0] ??
     (offers.length > 0
       ? `${offers.length} ${offers.length === 1 ? "offer" : "offers"}`
@@ -112,27 +125,33 @@ export function brandTiles(
       id: "sell",
       label: "What you sell",
       value: short(sells),
-      detail: offer
-        ? short(
-            // "Free" priced "Free, 250 credits per seat" reads once, not twice.
-            `${offer.price.startsWith(offer.name) ? offer.price : `${offer.name}, ${offer.price}`}. ${offer.what}`,
-          )
-        : short(brain.products.slice(1).join(", ")),
+      detail: correctedOffer
+        ? short(correctedOffer.answer)
+        : offer
+          ? short(
+              // "Free" priced "Free, 250 credits per seat" reads once, not twice.
+              `${offer.price.startsWith(offer.name) ? offer.price : `${offer.name}, ${offer.price}`}. ${offer.what}`,
+            )
+          : short(brain.products.slice(1).join(", ")),
       section: "offer",
       body: <Offers brain={brain} onSave={(next) => onSave(next, "offer")} />,
     });
   }
-  const buyer = brain.reveal?.buyers[0];
-  const buys = buyer?.role ?? brain.audience[0];
+  // The owner's correction rewrites the section, not the reveal's buyers.
+  const corrected = correctedSection(brain, "customers");
+  const buyer = corrected ? undefined : brain.reveal?.buyers[0];
+  const buys = corrected?.headline ?? buyer?.role ?? brain.audience[0];
   const quotes = brain.voiceOfCustomer ?? [];
   if (buys || quotes.length > 0) {
     tiles.push({
       id: "buy",
       label: "Who buys",
       value: short(buys ?? "Your buyers"),
-      detail: buyer
-        ? short(`Wants: ${buyer.wants}`)
-        : short(brain.audience.slice(1).join(", ")),
+      detail: corrected
+        ? short(corrected.answer)
+        : buyer
+          ? short(`Wants: ${buyer.wants}`)
+          : short(brain.audience.slice(1).join(", ")),
       section: "customers",
       body: quotes.length > 0 ? <CustomerWords quotes={quotes} /> : undefined,
     });
