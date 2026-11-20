@@ -1,11 +1,12 @@
 /**
- * Real-Postgres proof that the default Coworkers' chat examples migration
- * changes only `profile.examples`.
+ * Real-Postgres proof that the default Coworkers' chat examples migrations
+ * change only `profile.examples`, and that the shortening migration leaves an
+ * example list edited since the first one alone.
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
  *     pnpm --filter core test src/schemas/default-coworker-chat-examples-migration.postgres.test.ts
  *
- * Runs the migration inside a transaction that is always rolled back, so the
+ * Runs the migrations inside a transaction that is always rolled back, so the
  * fixtures (and any real rows with these slugs) are left as they were.
  */
 import { randomUUID } from "node:crypto";
@@ -15,12 +16,17 @@ import { describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { coworkerMetadataSchema } from "./coworker.schema";
 
-const migrationSql = readFileSync(
-  new URL(
-    "../../../../packages/database/prisma/migrations/20261120130000_default_coworker_chat_examples/migration.sql",
-    import.meta.url,
+const [migrationSql, shortenSql] = [
+  "20261120130000_default_coworker_chat_examples",
+  "20261120140000_shorten_default_coworker_chat_examples",
+].map((name) =>
+  readFileSync(
+    new URL(
+      `../../../../packages/database/prisma/migrations/${name}/migration.sql`,
+      import.meta.url,
+    ),
+    "utf8",
   ),
-  "utf8",
 );
 
 const enabled =
@@ -76,6 +82,9 @@ describe.skipIf(!enabled)("default Coworker chat examples migration", () => {
         await tx.$executeRaw`UPDATE "coworker" SET "metadata" = 'null'::jsonb WHERE "slug" = 'maya'`;
 
         await tx.$executeRawUnsafe(migrationSql);
+        // An admin edits Maya's examples between the two migrations.
+        await tx.$executeRaw`UPDATE "coworker" SET "metadata" = jsonb_set("metadata", '{profile,examples}', '["Edited by an admin?"]') WHERE "slug" = 'maya'`;
+        await tx.$executeRawUnsafe(shortenSql);
 
         const found = await tx.coworker.findMany({
           where: { slug: { in: rows.map(([slug]) => slug) } },
@@ -94,7 +103,7 @@ describe.skipIf(!enabled)("default Coworker chat examples migration", () => {
         ...hannah.profile,
         examples: [
           "Who are our main competitors?",
-          "What do our customers care about most?",
+          "What do our customers care about?",
           "How does our social media stack up?",
         ],
       },
@@ -109,10 +118,14 @@ describe.skipIf(!enabled)("default Coworker chat examples migration", () => {
       profile: {
         examples: [
           "Can you map our customer journey?",
-          "How should we split our media budget?",
+          "Where should our media budget go?",
           "How do we follow up with new leads?",
         ],
       },
+    });
+    expect(after.maya).toEqual({
+      channels: {},
+      profile: { examples: ["Edited by an admin?"] },
     });
     expect(after[otherSlug]).toEqual(other);
     for (const slug of ["hannah", "elena", "jamal", "maya", "alex"]) {

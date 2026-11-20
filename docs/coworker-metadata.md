@@ -87,12 +87,13 @@ Shown in the agent selection UI. All fields optional.
 
 `examples` are chat starters. An empty chat with the coworker offers the first
 three as buttons, and a click puts the text in the message box as written. Write
-each one as one short sentence or question someone would type in chat (about 40
-characters), in the coworker's own field. Without `examples`, the chat falls
+each one as one short sentence or question someone would type in chat, in the
+coworker's own field. Keep it to 36 characters or fewer so it fits on one line
+on a 375 px phone. Without `examples`, the chat falls
 back to the offers' full `prompt` text, which is written for a task, not a chat.
-The default Coworkers' examples ship as a data migration
-(`20261120130000_default_coworker_chat_examples`) that sets only
-`profile.examples` by slug.
+The default Coworkers' examples ship as data migrations that set only
+`profile.examples` by slug: `20261120130000_default_coworker_chat_examples`,
+then `20261120140000_shorten_default_coworker_chat_examples`.
 
 ### Model icons are automatic
 
