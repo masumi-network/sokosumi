@@ -23,7 +23,7 @@ import SignUpForm from "@/auth/signup/components/form";
 import SignInRow, {
   useSignInHref,
 } from "@/auth/signup/components/sign-in-link";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useTrackView } from "@/hooks/effects/use-track-view";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import {
   buildAuthPageUrl,
@@ -167,10 +167,7 @@ export default function AuthFlow({
   }, []);
 
   // when user first sees the login or register area
-  useMountEffect(() => {
-    if (isSignIn) fireGTMEvent.viewLoginArea();
-    else fireGTMEvent.viewRegisterArea();
-  });
+  useTrackView(isSignIn ? "view_login_area" : "view_register_area");
 
   // when user starts typing, on whichever step that happens
   function handleFormStart() {
