@@ -4,12 +4,12 @@ import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { cmoMonthAtLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
-
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { channelKey, formatMedia } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
 import { monthPostCount } from "../../lib/strategy";
+import { LegalNotice } from "../legal-notice";
 import { money, PACES } from "../strategy-core";
 import { type SkipSubscription, SkipSubscriptionButton } from "../top-up";
 import { CusoScene } from "./cuso-scene";
@@ -333,6 +333,7 @@ export function CheckoutStep({
                 : "Continue to payment"}
             {opening ? null : <ArrowRight size={16} aria-hidden="true" />}
           </button>
+          <LegalNotice />
           <ul className="ob-trust">
             <li>Change or cancel any time in Settings</li>
             <li>Discount codes work at checkout</li>

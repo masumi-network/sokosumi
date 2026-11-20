@@ -2,8 +2,8 @@
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { useState, useTransition } from "react";
-
 import { AGENT_NAME } from "../../lib/agent";
+import { LegalNotice } from "../legal-notice";
 import { money } from "../strategy-core";
 import { type StartTopUp, TopUpButton } from "../top-up";
 
@@ -54,6 +54,7 @@ export function SubscriptionCard({
     return (
       <section className="card">
         <h3>Subscription</h3>
+        <LegalNotice />
         <div className="li">
           <span className="grow">
             <span className="v">No CMO plan yet</span>
@@ -87,6 +88,7 @@ export function SubscriptionCard({
   return (
     <section className="card">
       <h3>Subscription</h3>
+      <LegalNotice />
       <div className="li">
         <span className="grow">
           <span className="v">{tierName(tier)}</span>{" "}

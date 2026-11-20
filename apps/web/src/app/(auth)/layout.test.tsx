@@ -106,7 +106,7 @@ describe("AuthLayout", () => {
     await renderAt("/signin", CMO_REQUEST);
     expect(screen.getByRole("link", { name: "imprint" })).toHaveAttribute(
       "href",
-      "https://www.cmo.xyz/#imprint",
+      "https://www.cmo.xyz/imprint",
     );
     expect(screen.queryByText("usesSokosumi")).not.toBeInTheDocument();
   });

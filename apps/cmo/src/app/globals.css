@@ -5078,3 +5078,8 @@ button.today-ask:active {
     gap: 8px;
   }
 }
+
+.legal-notice a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}

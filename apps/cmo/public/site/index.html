@@ -3,15 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-82QM6MPVWK"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-82QM6MPVWK');
-  </script>
   <title>CMO.XYZ | AI CMO & Autonomous Marketing Agent</title>
   <meta name="description" content="Meet Cuso, your AI Chief Marketing Officer. Put your social media, paid ads, SEO, and newsletters on autopilot with autonomous marketing execution." />
   <meta name="theme-color" content="#ffffff" />
@@ -49,6 +40,7 @@
       }
     })();
   </script>
+  <link rel="stylesheet" href="/site/cookie-consent.css" />
 </head>
 <body class="v3x">
   <!-- ============================================================
@@ -452,12 +444,14 @@
       <small>&copy; 2026 Sumico, Inc.</small>
       <small>Marketing, on autopilot.</small>
     </div>
-    <address class="footer__imprint">
-      <strong>Imprint</strong>
-      <span>Sumico, Inc.</span>
-      <span>Represented by Patrick Tobler, CEO</span>
-      <a href="mailto:business@utxo.ag">business@utxo.ag</a>
-    </address>
+    <nav class="footer__links" aria-label="Legal">
+      <a href="https://www.cmo.xyz/terms">Terms</a>
+      <a href="https://www.cmo.xyz/privacy">Privacy</a>
+      <a href="https://www.cmo.xyz/imprint">Imprint</a>
+      <a href="https://www.cmo.xyz/dpa">DPA</a>
+      <button class="cookie-settings" type="button" data-cookie-settings>Cookie settings</button>
+      <a href="https://www.cmo.xyz/privacy#do-not-sell-or-share-my-personal-information">Do not sell or share my personal information</a>
+    </nav>
   </footer>
 
   <script src="/site/vendor/lenis.min.js"></script>
@@ -465,5 +459,6 @@
   <script src="/site/vendor/ScrollTrigger.min.js"></script>
   <script src="/site/script.js"></script>
   <script src="/site/cuso.js"></script>
+  <script src="/site/cookie-consent.js" data-analytics="G-82QM6MPVWK" defer></script>
 </body>
 </html>

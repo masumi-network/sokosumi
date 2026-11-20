@@ -3,6 +3,7 @@
 **Steps (any of these, any time)**
 
 - Adds or removes a channel in Channels.
+- Reads the CMO Terms, Privacy Policy, DPA and Imprint beside the subscription in Settings.
 - Changes the plan, tops up credits, opens billing.
 - Changes the time zone.
 - Hires a second Cuso for another website, and switches between them.
