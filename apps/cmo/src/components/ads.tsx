@@ -4,6 +4,7 @@ import type { CmoAdCampaigns, CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AGENT_NAME } from "../lib/agent";
+import { adsReturnErrorFromCode } from "../lib/connect-return";
 import type { View } from "../lib/views";
 import { ViewLink } from "./app/view-link";
 
@@ -33,13 +34,9 @@ export interface AdActions {
 /** Why an ad connection came back without an account, from the return address. */
 export function adsReturnError(): string | null {
   if (typeof window === "undefined") return null;
-  const ads = new URLSearchParams(window.location.search).get("ads");
-  if (ads === "none") {
-    return "That login has no ad account. Create one in Google Ads or Meta, then connect again.";
-  }
-  return ads === "failed"
-    ? "That ad connection didn't finish. Try again."
-    : null;
+  return adsReturnErrorFromCode(
+    new URLSearchParams(window.location.search).get("ads"),
+  );
 }
 
 /** Starts connecting Google Ads or Meta Ads; the browser goes to their sign-in. */

@@ -27,19 +27,15 @@
         "!src/components/app/cmo-app.tsx",
         "!src/components/app/competitors-page.tsx",
         "!src/components/app/draft-post.tsx",
-        "!src/components/app/pages.tsx",
         "!src/components/app/seo-page.tsx",
         "!src/components/app/tab-bar.tsx",
-        "!src/components/app/time-zone.tsx",
         "!src/components/entry-sheet.tsx",
         "!src/components/form-field.tsx",
-        "!src/components/onboarding.tsx",
         "!src/components/onboarding/brand-step.tsx",
         "!src/components/onboarding/checklist.tsx",
         "!src/components/onboarding/flow.tsx",
         "!src/components/onboarding/launch-step.tsx",
-        "!src/components/onboarding/tiles.tsx",
-        "!src/components/strategy-core.tsx"
+        "!src/components/onboarding/tiles.tsx"
       ],
       "plugins": ["../../biome-plugins/no-direct-effects.grit"]
     },

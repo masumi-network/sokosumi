@@ -178,6 +178,7 @@ export function EntrySheet({
         <h3 className="sheet-title">{entry.title}</h3>
         {overview && draft && isSocialProvider(entry.channel.toLowerCase()) ? (
           <PostPreview
+            key={entry.id}
             entry={entry}
             media={media}
             text={draft}
@@ -353,7 +354,7 @@ function PostPreview({
         </header>
         {pictureFirst ? picture : null}
         {editing ? (
-          <div className="field">
+          <div key={text} className="field">
             <label htmlFor={`post-text-${entry.id}`}>Post text</label>
             <textarea
               id={`post-text-${entry.id}`}

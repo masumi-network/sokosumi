@@ -46045,6 +46045,346 @@ export const ProjectSeoObservationSchema = {
                 'research'
             ]
         },
+        pageSpeed: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    testedUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    device: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    lab: {
+                        anyOf: [
+                            {
+                                type: 'object',
+                                properties: {
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'not_checked',
+                                            'no_data',
+                                            'quota',
+                                            'budget',
+                                            'unsafe',
+                                            'deadline',
+                                            'unavailable'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'status'
+                                ]
+                            },
+                            {
+                                type: 'object',
+                                properties: {
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'measured'
+                                        ]
+                                    },
+                                    median: {
+                                        type: 'object',
+                                        properties: {
+                                            lcp: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            },
+                                            cls: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            },
+                                            fcp: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            },
+                                            tbt: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            },
+                                            si: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            }
+                                        },
+                                        required: [
+                                            'lcp',
+                                            'cls',
+                                            'fcp',
+                                            'tbt',
+                                            'si'
+                                        ]
+                                    },
+                                    runs: {
+                                        type: 'integer',
+                                        exclusiveMinimum: 0
+                                    },
+                                    ok: {
+                                        type: 'integer',
+                                        exclusiveMinimum: 0
+                                    },
+                                    lighthouse: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 32
+                                    },
+                                    pageSpeed: {
+                                        type: 'object',
+                                        properties: {
+                                            scores: {
+                                                type: 'object',
+                                                properties: {
+                                                    performance: {
+                                                        type: 'integer',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    },
+                                                    accessibility: {
+                                                        type: 'integer',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    },
+                                                    bestPractices: {
+                                                        type: 'integer',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    },
+                                                    seo: {
+                                                        type: 'integer',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    },
+                                                    agenticBrowsing: {
+                                                        type: 'integer',
+                                                        minimum: 0,
+                                                        maximum: 100
+                                                    }
+                                                }
+                                            },
+                                            insights: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        id: {
+                                                            type: 'string',
+                                                            pattern: '^[a-z0-9-]{1,100}$'
+                                                        },
+                                                        title: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 180
+                                                        },
+                                                        detail: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 600
+                                                        },
+                                                        action: {
+                                                            type: 'string',
+                                                            minLength: 1,
+                                                            maxLength: 600
+                                                        }
+                                                    },
+                                                    required: [
+                                                        'id',
+                                                        'title',
+                                                        'detail',
+                                                        'action'
+                                                    ]
+                                                },
+                                                maxItems: 20
+                                            },
+                                            measuredAt: {
+                                                type: 'string',
+                                                format: 'date-time'
+                                            }
+                                        },
+                                        required: [
+                                            'scores',
+                                            'insights'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'status',
+                                    'median',
+                                    'runs',
+                                    'ok',
+                                    'lighthouse'
+                                ]
+                            }
+                        ]
+                    },
+                    field: {
+                        anyOf: [
+                            {
+                                type: 'object',
+                                properties: {
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'not_checked',
+                                            'no_data',
+                                            'quota',
+                                            'budget',
+                                            'unsafe',
+                                            'deadline',
+                                            'unavailable'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'status'
+                                ]
+                            },
+                            {
+                                type: 'object',
+                                properties: {
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'measured'
+                                        ]
+                                    },
+                                    level: {
+                                        type: 'string',
+                                        enum: [
+                                            'url',
+                                            'origin',
+                                            'normalized'
+                                        ]
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 4096,
+                                        format: 'uri'
+                                    },
+                                    p75: {
+                                        type: 'object',
+                                        properties: {
+                                            lcp: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            },
+                                            cls: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            },
+                                            fcp: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            },
+                                            inp: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            },
+                                            ttfb: {
+                                                type: [
+                                                    'number',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            }
+                                        },
+                                        required: [
+                                            'lcp',
+                                            'cls',
+                                            'fcp',
+                                            'inp',
+                                            'ttfb'
+                                        ]
+                                    },
+                                    period: {
+                                        type: [
+                                            'object',
+                                            'null'
+                                        ],
+                                        properties: {
+                                            first: {
+                                                type: 'string',
+                                                format: 'date'
+                                            },
+                                            last: {
+                                                type: 'string',
+                                                format: 'date'
+                                            }
+                                        },
+                                        required: [
+                                            'first',
+                                            'last'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'status',
+                                    'level',
+                                    'url',
+                                    'p75',
+                                    'period'
+                                ]
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'pageUrl',
+                    'testedUrl',
+                    'device',
+                    'lab',
+                    'field'
+                ]
+            },
+            maxItems: 20
+        },
+        pageSpeedRecoveryFileId: {
+            type: 'string',
+            format: 'uuid'
+        },
         pageMarketEvidence: {
             type: 'object',
             properties: {
@@ -49304,6 +49644,12 @@ export const ImportProjectSeoAuditRequestSchema = {
         },
         recoverMarkets: {
             type: 'boolean'
+        },
+        recoverPageSpeed: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
         }
     },
     required: [

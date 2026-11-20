@@ -184,7 +184,11 @@ function matchTaskFile(
   return undefined;
 }
 
-export function TaskActivitySection({
+export function TaskActivitySection(props: TaskActivityProps) {
+  return <TaskActivityContent key={props.taskId} {...props} />;
+}
+
+function TaskActivityContent({
   taskId,
   title,
   placeholder,
@@ -250,27 +254,17 @@ export function TaskActivitySection({
     return names;
   }, [userById, mentionableUsers, viewerId]);
 
-  useEffect(() => {
-    setCommentsExpanded(false);
-    setPendingJumpId(null);
-  }, [taskId]);
-
-  const [prevEventsSync, setPrevEventsSync] = useState({ events, taskId });
-  // Same task: merge so expanded older pages survive truncated refresh.
-  // Drop optimistic rows — the refreshed prop carries the persisted event.
-  // Different task: replace the feed entirely.
-  if (prevEventsSync.events !== events || prevEventsSync.taskId !== taskId) {
-    setPrevEventsSync({ events, taskId });
-    const sameTask =
-      localEvents.length > 0 &&
-      localEvents.every((event) => event.taskId === taskId);
-    setLocalEvents(
-      sameTask
-        ? mergeTaskActivityEvents(
-            localEvents.filter((event) => !event.id.startsWith("optimistic:")),
-            events,
-          )
-        : events,
+  const [syncedEvents, setSyncedEvents] = useState(events);
+  if (syncedEvents !== events) {
+    setSyncedEvents(events);
+    // Same task: merge so expanded older pages survive truncated refresh.
+    // Drop optimistic rows — the refreshed prop carries the persisted event.
+    // Switching taskId remounts this subtree via key, so state resets cleanly.
+    setLocalEvents((prev) =>
+      mergeTaskActivityEvents(
+        prev.filter((event) => !event.id.startsWith("optimistic:")),
+        events,
+      ),
     );
   }
 

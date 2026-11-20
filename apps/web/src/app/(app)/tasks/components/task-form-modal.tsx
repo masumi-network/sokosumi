@@ -79,10 +79,8 @@ export function TaskFormModal({
     [registerHeaderStart],
   );
 
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (prevOpen !== open) {
-    setPrevOpen(open);
-    if (!open) setHeaderStart(null);
+  if (!open && headerStart !== null) {
+    setHeaderStart(null);
   }
 
   // Clicking outside / pressing Escape closes the modal, except while a submit

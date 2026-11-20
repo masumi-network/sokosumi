@@ -204,7 +204,20 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
   );
 }
 
-export function CreateOrganizationWizard({
+export function CreateOrganizationWizard(props: CreateOrganizationWizardProps) {
+  const [wasOpen, setWasOpen] = useState(props.open);
+  const [sessionKey, setSessionKey] = useState(0);
+  // Reset to a clean slate whenever the wizard is (re)opened.
+  if (props.open !== wasOpen) {
+    setWasOpen(props.open);
+    if (props.open) {
+      setSessionKey((count) => count + 1);
+    }
+  }
+  return <CreateOrganizationWizardContent key={sessionKey} {...props} />;
+}
+
+function CreateOrganizationWizardContent({
   open,
   onOpenChange,
   onOrganizationReady,
@@ -310,45 +323,6 @@ export function CreateOrganizationWizard({
     },
     owner: designMdOwner,
   });
-
-  const resetAll = useCallback(() => {
-    setStep(0);
-    focusedStepRef.current = 0;
-    setOrganizationId(null);
-    setOrganizationName("");
-    setNormalizedUrl(null);
-    setIsCreatingOrg(false);
-    setIsLeaving(false);
-    leavingRef.current = false;
-    setLogoUrl("");
-    setIsResolvingLogo(false);
-    setPendingLogoFiles([]);
-    setIsUploadingLogo(false);
-    setInviteLink(null);
-    setIsCreatingLink(false);
-    setLinkFailed(false);
-    setCopied(false);
-    setEmails("");
-    setIsSendingInvites(false);
-    logoStartedRef.current = false;
-    brandStartedRef.current = false;
-    linkStartedRef.current = false;
-    orgCreateInFlightRef.current = false;
-    savedValuesRef.current = null;
-    brandForceRef.current = false;
-    brand.reset();
-    setBrandResult(null);
-    form.reset({ name: "", url: "" });
-  }, [brand, form]);
-
-  // Reset to a clean slate whenever the wizard is (re)opened.
-  const wasOpenRef = useRef(false);
-  useEffect(() => {
-    if (open && !wasOpenRef.current) {
-      resetAll();
-    }
-    wasOpenRef.current = open;
-  }, [open, resetAll]);
 
   const persistLogo = useCallback(
     async (nextLogo: string | null, previousLogo?: string) => {
