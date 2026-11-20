@@ -8,7 +8,7 @@ import {
   getPushRepairOutcome,
   recordPushRepairOutcome,
   subscribePushRepairOutcome,
-} from "./push-repair-outcome.client";
+} from "@/lib/ably/push-repair-outcome.client";
 import { usePushPreference } from "./use-push-preference";
 
 const { listDevices } = vi.hoisted(() => ({ listDevices: vi.fn() }));
@@ -30,7 +30,7 @@ const getMyPreferencesMock = vi.fn();
 const getSubscriptionMock = vi.fn();
 const requestPermissionMock = vi.fn();
 
-vi.mock("./push-activation.client", () => ({
+vi.mock("@/lib/ably/push-activation.client", () => ({
   activatePush: (...args: unknown[]) => activatePushMock(...args),
   deactivatePush: (...args: unknown[]) => deactivatePushMock(...args),
 }));
