@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useDebouncedCallback } from "use-debounce";
 import {
   APP_HEADER_SAFE_AREA_PADDING_CLASS,
   APP_HEADER_SAFE_AREA_UNDERLAY_CLASS,
@@ -17,6 +16,7 @@ import {
 } from "@/app/history/utils/history-filters";
 import { Input } from "@/components/ui/input";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import { cn } from "@/lib/utils";
 
 const HISTORY_PATH = "/history";
@@ -81,10 +81,7 @@ export function HeaderMobileSearchControl() {
     );
   }
 
-  const debouncedReplaceHistoryQuery = useDebouncedCallback(
-    replaceHistoryQuery,
-    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
-  );
+  const replaceHistoryTimeout = useScheduledTimeout();
 
   useEffect(() => {
     const previousPathname = previousPathnameRef.current;
@@ -93,7 +90,7 @@ export function HeaderMobileSearchControl() {
     if (abortPendingHistoryNavigationRef.current && isHistoryPath(pathname)) {
       abortPendingHistoryNavigationRef.current = false;
       navigatedToHistoryRef.current = false;
-      debouncedReplaceHistoryQuery.cancel();
+      replaceHistoryTimeout.cancel();
       setExpanded(false);
       setQuery("");
       router.back();
@@ -105,7 +102,7 @@ export function HeaderMobileSearchControl() {
       isHistoryPath(previousPathname) &&
       !isHistoryPath(pathname)
     ) {
-      debouncedReplaceHistoryQuery.cancel();
+      replaceHistoryTimeout.cancel();
       navigatedToHistoryRef.current = false;
       abortPendingHistoryNavigationRef.current = false;
       setExpanded(false);
@@ -121,19 +118,13 @@ export function HeaderMobileSearchControl() {
       !isHistoryPath(previousPathname) &&
       isHistoryPath(pathname)
     ) {
-      debouncedReplaceHistoryQuery.cancel();
+      replaceHistoryTimeout.cancel();
       const trimmedQuery = queryRef.current.trim();
       if (trimmedQuery) {
         replaceHistoryQuery(trimmedQuery);
       }
     }
-  }, [pathname, expanded, debouncedReplaceHistoryQuery, router]);
-
-  useEffect(() => {
-    return () => {
-      debouncedReplaceHistoryQuery.cancel();
-    };
-  }, [debouncedReplaceHistoryQuery]);
+  }, [pathname, expanded, replaceHistoryTimeout, router]);
 
   function openSearch(event: MouseEvent<HTMLButtonElement>) {
     // Same search as the sidebar and ⌘K (Tasks, tags, files). On Credit
@@ -155,7 +146,7 @@ export function HeaderMobileSearchControl() {
   }
 
   function collapse() {
-    debouncedReplaceHistoryQuery.cancel();
+    replaceHistoryTimeout.cancel();
     const shouldNavigateBack = navigatedToHistoryRef.current;
     const hadQuery =
       query.trim().length > 0 ||
@@ -183,7 +174,11 @@ export function HeaderMobileSearchControl() {
   function handleInputChange(next: string) {
     const capped = next.slice(0, HISTORY_SEARCH_MAX_LENGTH);
     setQuery(capped);
-    debouncedReplaceHistoryQuery(capped.trim() || null);
+    const trimmed = capped.trim() || null;
+    replaceHistoryTimeout.schedule(
+      () => replaceHistoryQuery(trimmed),
+      getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+    );
   }
 
   return (
