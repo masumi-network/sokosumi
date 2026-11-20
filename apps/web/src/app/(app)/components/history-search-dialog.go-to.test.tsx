@@ -44,7 +44,10 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
 }));
 
 vi.mock("@/components/chat/use-live-chat-rooms", () => ({
-  useLiveChatRooms: useLiveChatRoomsMock,
+  useLiveChatRoomsRead: () => ({
+    rooms: useLiveChatRoomsMock(),
+    failed: false,
+  }),
 }));
 
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
@@ -217,10 +220,32 @@ describe("HistorySearchDialog Projects and Channels groups", () => {
     expect(await screen.findByText("No results found")).toBeInTheDocument();
   });
 
-  it("reads no projects or rooms before anything is typed", () => {
-    renderDialog();
+  it("reads no projects or rooms while Search is closed", () => {
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <HistorySearchDialog
+          open={false}
+          onOpenChange={vi.fn()}
+          activeOrganizationId="org-1"
+          labels={labels}
+        />
+      </QueryClientProvider>,
+    );
 
     expect(useScopeProjectsMock).not.toHaveBeenCalled();
     expect(useLiveChatRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps one status region mounted while results change", async () => {
+    useScopeProjectsMock.mockReturnValue({ rows: [], isSearchPending: true });
+    const user = userEvent.setup();
+    renderDialog();
+    const status = screen.getByRole("status");
+
+    await user.type(screen.getByPlaceholderText("Search..."), "zzz");
+
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toHaveTextContent("Loading...");
   });
 });

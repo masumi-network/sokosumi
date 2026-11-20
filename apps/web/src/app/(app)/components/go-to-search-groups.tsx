@@ -5,7 +5,7 @@ import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
 import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { ChannelKindGlyph } from "@/components/chat/channel-discoverability-icon";
-import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
+import { useLiveChatRoomsRead } from "@/components/chat/use-live-chat-rooms";
 import { CommandGroup, CommandItem } from "@/components/ui/command";
 
 const GO_TO_LIMIT = 5;
@@ -17,10 +17,17 @@ export interface GoToSearchState {
   count: number;
 }
 
+const IDLE_GO_TO: GoToSearchState = {
+  pending: false,
+  failed: false,
+  count: 0,
+};
+
 /**
  * Projects and channels whose name matches, so Search can jump to them.
- * Mounted only while a query is typed: both lists come from the reader's own
- * access (Core's project search, the reader's room memberships).
+ * Mounted with the open dialog, so it also renders the dialog's one status
+ * region. Both lists come from the reader's own access (Core's project
+ * search, the reader's room memberships).
  */
 export function GoToSearchGroups({
   query,
@@ -35,14 +42,16 @@ export function GoToSearchGroups({
   renderStatus: (state: GoToSearchState) => ReactNode;
 }) {
   const needle = query.trim().toLowerCase();
+  const typed = needle.length > 0;
   const scopeProjects = useScopeProjects({
     search: query,
     selectedProjectId: null,
   });
-  const projects = scopeProjects.rows.slice(0, GO_TO_LIMIT);
-  // Null until the reader's own rooms are read.
-  const rooms = useLiveChatRooms();
-  const channels = (rooms ?? [])
+  const projects = typed ? scopeProjects.rows.slice(0, GO_TO_LIMIT) : [];
+  // Null until the reader's own rooms are read; `failed` while that read
+  // fails and the reader retries.
+  const { rooms, failed: roomsFailed } = useLiveChatRoomsRead();
+  const channels = (typed ? (rooms ?? []) : [])
     .filter(
       (room) =>
         room.kind === "channel" && room.name.toLowerCase().includes(needle),
@@ -51,13 +60,20 @@ export function GoToSearchGroups({
 
   return (
     <>
-      {renderStatus({
-        pending:
-          rooms === null ||
-          Boolean(scopeProjects.isPending || scopeProjects.isSearchPending),
-        failed: Boolean(scopeProjects.isError),
-        count: projects.length + channels.length,
-      })}
+      {renderStatus(
+        typed
+          ? {
+              // A failed source is answered, not pending: its failure shows
+              // once the other source answers too.
+              pending:
+                (rooms === null && !roomsFailed) ||
+                (!scopeProjects.isError &&
+                  (scopeProjects.isPending || scopeProjects.isSearchPending)),
+              failed: roomsFailed || scopeProjects.isError,
+              count: projects.length + channels.length,
+            }
+          : IDLE_GO_TO,
+      )}
       {projects.length > 0 ? (
         <CommandGroup heading={labels.projectsGroup}>
           {projects.map((project) => (

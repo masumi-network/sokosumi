@@ -33,7 +33,6 @@ import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import {
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -222,32 +221,21 @@ export function HistorySearchDialog({
         onValueChange={setQuery}
       />
       <CommandList ref={listRef} style={{ maxHeight: listMaxHeight }}>
-        {query.trim() ? (
-          <GoToSearchGroups
-            query={query}
-            labels={labels}
-            onSelect={closeAndGo}
-            renderStatus={(goTo) => (
-              <SearchStatus
-                searching={searching}
-                nothingFound={nothingFound}
-                hasHistory={history.length > 0}
-                error={error}
-                goTo={goTo}
-                labels={labels}
-              />
-            )}
-          />
-        ) : (
-          <SearchStatus
-            searching={searching}
-            nothingFound={nothingFound}
-            hasHistory={history.length > 0}
-            error={error}
-            goTo={IDLE_GO_TO}
-            labels={labels}
-          />
-        )}
+        <GoToSearchGroups
+          query={query}
+          labels={labels}
+          onSelect={closeAndGo}
+          renderStatus={(goTo) => (
+            <SearchStatus
+              searching={searching}
+              nothingFound={nothingFound}
+              hasHistory={history.length > 0}
+              error={error}
+              goTo={goTo}
+              labels={labels}
+            />
+          )}
+        />
 
         <TagSearchGroups
           tags={tags}
@@ -333,11 +321,10 @@ export function HistorySearchDialog({
   );
 }
 
-const IDLE_GO_TO: GoToSearchState = { pending: false, failed: false, count: 0 };
-
 /**
- * Loading, failed or empty, across every group. "No results found" waits for
- * every source, Projects and Channels included, and a failed read says so.
+ * Loading, failed or empty, across every group, in one status region that
+ * stays mounted while Search is open so each change is announced. "No
+ * results found" waits for every source, and a failed read says so.
  */
 function SearchStatus({
   searching,
@@ -354,22 +341,21 @@ function SearchStatus({
   goTo: GoToSearchState;
   labels: Pick<HistorySearchDialogLabels, "loading" | "empty" | "error">;
 }) {
-  const statusClass = "text-muted-foreground px-2 py-6 text-center text-sm";
+  let message: string | null = null;
   if ((searching || goTo.pending) && !hasHistory && goTo.count === 0) {
-    return (
-      <div role="status" className={statusClass}>
-        {labels.loading}
-      </div>
-    );
+    message = labels.loading;
+  } else if (nothingFound && goTo.count === 0) {
+    message = error ?? (goTo.failed ? labels.error : labels.empty);
   }
-  if (!nothingFound || goTo.count > 0) return null;
-  const failure = error ?? (goTo.failed ? labels.error : null);
-  return failure ? (
-    <div role="status" className={statusClass}>
-      {failure}
+  return (
+    <div
+      role="status"
+      className={
+        message ? "text-muted-foreground px-2 py-6 text-center text-sm" : ""
+      }
+    >
+      {message}
     </div>
-  ) : (
-    <CommandEmpty>{labels.empty}</CommandEmpty>
   );
 }
 

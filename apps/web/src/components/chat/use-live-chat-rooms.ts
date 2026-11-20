@@ -75,6 +75,17 @@ function getInitialRoomsFromSessionSnapshot(): HeldRooms {
  * a reader in no room (an empty list) is not mistaken for one not read yet.
  */
 export function useLiveChatRooms(): ChatRoom[] | null {
+  return useLiveChatRoomsRead().rooms;
+}
+
+/**
+ * `useLiveChatRooms`, plus whether this user and workspace's first read
+ * failed with no rows held, so a caller can say so while the reader retries.
+ */
+export function useLiveChatRoomsRead(): {
+  rooms: ChatRoom[] | null;
+  failed: boolean;
+} {
   const { data: session } = useSession();
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;
@@ -85,6 +96,8 @@ export function useLiveChatRooms(): ChatRoom[] | null {
   const scope = roomsScope(organizationId, currentUserId);
   // Read by the async refresh, which keeps one identity across scopes.
   const scopeRef = useRef(scope);
+  // The scope whose latest own read failed; cleared by a read that answers.
+  const [failedScope, setFailedScope] = useState<string | null>(null);
   useEffect(() => {
     scopeRef.current = scope;
   }, [scope]);
@@ -173,13 +186,13 @@ export function useLiveChatRooms(): ChatRoom[] | null {
   const refreshRooms = useCallback(async (isCurrent: () => boolean) => {
     const requestRevision = beginRoomAttentionRefresh();
     const page = await fetchSidebarRoomCollection("active");
-    if (
-      !isCurrent() ||
-      !page ||
-      requestRevision < latestAppliedRefreshRef.current
-    ) {
+    if (!isCurrent()) return;
+    if (!page) {
+      setFailedScope(scopeRef.current);
       return;
     }
+    if (requestRevision < latestAppliedRefreshRef.current) return;
+    setFailedScope(null);
     latestAppliedRefreshRef.current = requestRevision;
     setHeld({
       scope: scopeRef.current,
@@ -233,5 +246,9 @@ export function useLiveChatRooms(): ChatRoom[] | null {
 
   // Rows read for another user or workspace never show, even before this
   // scope's own read lands.
-  return scope !== null && held.scope === scope ? held.rooms : null;
+  const rooms = scope !== null && held.scope === scope ? held.rooms : null;
+  return {
+    rooms,
+    failed: rooms === null && scope !== null && failedScope === scope,
+  };
 }
