@@ -2509,6 +2509,89 @@ describe.skipIf(!enabled)(
       expect(nextTask.taskId).not.toBe(link.taskId);
     });
 
+    it("recovers page speed once from the exact saved report without changing earlier conclusions", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Page speed recovery" },
+      });
+      const owner: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      const task = await prisma.task.create({
+        data: {
+          name: "Completed audit",
+          ownerId: userId,
+          workspaceId,
+          projectId: project.id,
+          status: "COMPLETED",
+          assigneeId: coworkerId,
+        },
+      });
+      const base = legacyReport();
+      const body = JSON.stringify({
+        ...base,
+        speed: {
+          mobile: {
+            lab: {
+              none: "Not checked: public worker excluded PageSpeed Insights",
+            },
+            field: {
+              none: "Not checked: public worker excluded CrUX",
+              failed: true,
+            },
+          },
+        },
+      });
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId: task.id,
+          name: `seo-report-${task.id}.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      const input = { taskId: task.id, fileId: file.id },
+        recover = { ...input, recoverPageSpeed: true as const };
+      const fetchImpl = vi.fn(async () => new Response(body));
+      const observation = await importProjectSeoAudit(owner, input, {
+        fetchImpl,
+      });
+      const { pageSpeed, ...stored } = reportObject(observation.payload)!;
+      expect(pageSpeed).toBeDefined();
+      const old = { ...stored, retainedUnrecognizedField: "preserve" };
+      await prisma.projectSeoObservation.update({
+        where: { id: observation.id },
+        data: { payload: jsonInput(old) },
+      });
+      expect(
+        (await getProjectSeoWorkspace(owner)).observations[0]
+          .pageSpeedRecoveryFileId,
+      ).toBe(file.id);
+      await expect(
+        importProjectSeoAudit(owner, recover, {
+          fetchImpl: async () => new Response(body + " "),
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      await expect(
+        importProjectSeoAudit({ ...owner, userId: otherId }, recover, {
+          fetchImpl,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      const result = await importProjectSeoAudit(owner, recover, { fetchImpl });
+      expect(result.payload).toEqual({ ...old, pageSpeed });
+      const count = fetchImpl.mock.calls.length;
+      await importProjectSeoAudit(owner, recover, { fetchImpl });
+      expect(fetchImpl).toHaveBeenCalledTimes(count);
+      const latest = (await getProjectSeoWorkspace(owner)).observations[0];
+      expect(latest.pageSpeed?.[0]).toMatchObject({
+        lab: { status: "not_checked" },
+        field: { status: "not_checked" },
+      });
+      expect(latest.pageSpeedRecoveryFileId).toBeUndefined();
+    });
+
     it.each([true, false])(
       "recovers only saved site market fields on the exact existing observation (retained %s)",
       async (retained) => {

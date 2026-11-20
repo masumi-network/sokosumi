@@ -1,5 +1,9 @@
 import { OPEN_STRATEGY } from "@/schemas/project-seo-action.schema";
 import type { ResearchCoverage } from "@/schemas/seo-audit-coverage.schema";
+import {
+  seoFirstScreen,
+  seoKeywordTrends,
+} from "@/schemas/seo-research-details.schema";
 import { reportObject } from "./project-seo-public-report";
 import type { PublicSeoPayload } from "./project-seo-report";
 
@@ -124,7 +128,11 @@ export function pageResearchCoverage(
   pageUrl: string,
 ): ResearchCoverage {
   const report = reportObject(raw) ?? {};
+  const firstScreen = seoFirstScreen.safeParse(report.strategyInvestigation);
+  const trends = seoKeywordTrends.safeParse(report.trends);
   return {
+    ...(firstScreen.success && { firstScreen: firstScreen.data }),
+    ...(trends.success && { trends: trends.data }),
     pageUrl,
     scope: "page",
     stages: [seasonal(report), editorial(report), exploration(report)],

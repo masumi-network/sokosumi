@@ -16,6 +16,7 @@ import {
   seoDeviceSchema,
   seoObservationSchema,
 } from "./seo-audit-coverage.schema";
+import { publicSitemapInputFields } from "./seo-sitemap-evidence.schema";
 
 export {
   seoDeviceSchema,
@@ -48,7 +49,6 @@ import {
 import { seoAuditPerformanceSchema } from "./seo-audit-performance.schema";
 import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
 import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
-
 import {
   SEO_MAX_PAGES,
   seoBriefAction,
@@ -57,6 +57,7 @@ import {
   seoScopeSchema,
   seoUrlSchema,
 } from "./seo-page.schema";
+import { workspaceSiteEvidenceFields } from "./seo-site-evidence.schema";
 
 export {
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -145,8 +146,13 @@ export const importSeoAuditSchema = z
     taskId: z.string().min(1).max(128),
     fileId: z.string().min(1).max(128),
     recoverMarkets: z.boolean().optional(),
+    recoverPageSpeed: z.literal(true).optional(),
   })
   .strict()
+  .refine(
+    (input) => !(input.recoverPageSpeed && input.recoverMarkets),
+    "Choose one report section to recover",
+  )
   .openapi("ImportProjectSeoAuditRequest");
 export const requestSeoAnalysisSchema = z
   .object({
@@ -203,6 +209,7 @@ export const requestSeoAnalysisSchema = z
     searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
     allowLimitedAudit: z.literal(true).optional(),
     includeSitemaps: z.literal(true).optional(),
+    ...publicSitemapInputFields,
     setupGoal: z
       .strictObject({
         pageId: seoIdSchema,
@@ -698,6 +705,7 @@ export const projectSeoWorkspaceSchema = z
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** Private indexing assessment for the current viewer's audit and selected pages. */
     indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
+    ...workspaceSiteEvidenceFields,
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     landingEngagementChange: seoLandingEngagementChange.optional(),

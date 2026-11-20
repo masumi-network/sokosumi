@@ -12641,7 +12641,6 @@
         "trafficSetup": "See how these pages perform",
         "trafficSetupBody": "Set up statistics to see which searches show these pages and how often people click them.",
         "trafficSyncBody": "Search Console is connected. Statistics for the selected pages load automatically. Google Analytics adds visits and page views.",
-        "recentChecks": "Recent checks",
         "noMeasuredReports": "No reports measured in these activity dates",
         "noMeasuredReportsBody": "Clear activity dates to see reports from other dates. Statistics keep their own reporting period.",
         "clearActivityDates": "Clear activity dates",
@@ -13153,7 +13152,7 @@
         "repeated": "Also present in the previous sample.",
         "newSample": "First seen in this pair of samples.",
         "title": "Private Search Console exports",
-        "help": "Download an English CSV from the Links report or one Page indexing issue. Use the same property and report scope for each export. Import up to 1,000 rows. Only you can see the results.",
+        "help": "Optional: add an English CSV from the Links report or one Page indexing issue. Use the same property and report scope for each export. Import up to 1,000 rows. Only you can see the results.",
         "report": "Export type",
         "linked_pages": "Top linked pages (external)",
         "indexing_examples": "Page indexing examples",
@@ -13195,6 +13194,40 @@
         "checkInternal": "Check whether important navigation and related pages still link to this URL.",
         "checkAnchor": "Review the empty text entry in Search Console and check the source links for useful text or image alt text.",
         "checkDomain": "Open this domain in the Links report and review which of your pages it links to."
+      },
+      "siteEvidence": {
+        "discovered": "Eligible URLs: {count}. Public responses verified: {checked}. Deferred: {deferred}.",
+        "deferred": "Deferred URLs ({count} shown)",
+        "reasons": {
+          "page_limit": "The audit reached its page limit.",
+          "read_limit": "The audit reached its public request limit.",
+          "deadline": "The audit ran out of time.",
+          "robots": "Robots permission was missing.",
+          "access_limit": "The site limited access.",
+          "unavailable": "The worker could not verify a public response."
+        },
+        "suppliedSitemap_read": "The audit read the supplied sitemap.",
+        "suppliedSitemap_blocked": "The audit could not confirm site scope and crawl permission for the supplied sitemap.",
+        "suppliedSitemap_unavailable": "The supplied sitemap was unavailable or could not be read within the audit limits.",
+        "downloadSitemap": "Download draft sitemap XML for verified pages in this sample",
+        "heading": "Internal links and indexing",
+        "coverage": "Public sample on {date}: {pages} pages and {targets} target URLs.",
+        "partial": "The audit collected only part of the sample.",
+        "sampledPages": "Sampled public pages",
+        "response": "Target returned HTTP {status}.",
+        "unverified": "The target’s HTTP status is unverified.",
+        "destination": "Final destination:",
+        "google": "Google’s recorded index status was {reason}.",
+        "trend": "Sampled pages linking here: {previous} on {date}, now {current}.",
+        "decline": "Fewer sampled pages linked here in three consecutive checks",
+        "linkCount": "{date}: {count, plural, one {# linking page} other {# linking pages}}",
+        "lostDonors": "Pages that linked here before but had no link in the latest sample",
+        "unknownDonors": "Link coverage is unknown because no source pages were sampled.",
+        "partialDonors": "Linking pages observed in this partial sample: {count}.",
+        "baseline": "Sampled pages linking here: {count}. No comparable earlier sample.",
+        "donors": "Pages linking to this target",
+        "content": "(link in page content)",
+        "sitemaps": "Sitemaps listing this target"
       },
       "discovery": {
         "reportedSitemaps": "Sitemaps Google associates with this URL",
@@ -13254,7 +13287,9 @@
         "recoverMarkets": "Recover market comparison",
         "recoverMarketsHelp": "Read the market comparison from the original report. This uses no audit credits.",
         "marketsChecked": "Market comparison checked",
-        "importHelp": "Import this report to add its findings to your SEO results."
+        "importHelp": "Import this report to add its findings to your SEO results.",
+        "recoverPageSpeed": "Read page speed from the saved report",
+        "speedChecked": "Read page speed from the saved report"
       },
       "timeline": {
         "statuses": {
@@ -13295,8 +13330,8 @@
         "unconfirmed": "Sokosumi could not confirm whether the previous audit request succeeded. Retry that request before starting another.",
         "retryPrevious": "Retry previous request",
         "coverage": {
-          "limitedScope": "The audit can check public pages. It will skip Search Console clicks, impressions and indexing data.",
-          "privateConnection": "The agent can use your existing connection for sites you can access. Your Google account details stay private.",
+          "limitedScope": "The audit still samples public pages and their internal links. It will skip Search Console clicks, impressions and indexing data.",
+          "privateConnection": "The audit uses your Google connection only for the approved Search Console property. Your account details stay private.",
           "withoutSearch": "Without Search Console",
           "withSearch": "Include Search Console",
           "title": "Search Console coverage",
@@ -13342,6 +13377,13 @@
         "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
         "submit": "Start check",
         "queued": "Check requested",
+        "publicLinkScope": "The audit automatically follows internal links on the approved public site. It samples up to {limit} pages and {limit} target URLs. With Search Console connected, Google inspections cover only the approved property. No upload is needed.",
+        "customSitemap": "Public sitemap URL (optional)",
+        "customSitemapHelp": "Use a public XML sitemap on the selected site.",
+        "importSitemap": "Import a sitemap XML file (optional)",
+        "importSitemapHelp": "Review the first {count} eligible page URLs below. Starting the audit shares those URLs. The XML file stays on your device.",
+        "sitemapReading": "Reading sitemap…",
+        "sitemapInvalid": "Choose a sitemap URL set under 512 KiB with public pages from this site.",
         "includeSitemaps": "Include Google’s submitted sitemap status for this property in my private report.",
         "alreadyRunning": "A check is running. Wait for its result before you start the next one.",
         "noPermission": "A check cannot be requested for these pages.",
@@ -14029,6 +14071,24 @@
         "of": "of {total}",
         "totalsOnly": "This audit saved totals only. A breakdown by check is unavailable.",
         "verdictCounts": "{passed, number} passed, {flagged, number} flagged, {missing, number} without a verdict",
+        "researchDetails": {
+          "visitor": "Visitor action check",
+          "trends": "Google Trends",
+          "evidenceRecord": "Evidence: {record}",
+          "caption": "Google Trends results for audited keywords",
+          "keyword": "Keyword",
+          "status": "Status",
+          "peakMonths": "Peak months",
+          "seasonal": "Seasonal",
+          "trend": "Trend",
+          "change": "Change ratio",
+          "evidence": "Evidence",
+          "visible": "Visible",
+          "outside_first_screen": "Outside the first screen",
+          "unknown": "Unknown",
+          "yes": "Yes",
+          "no": "No"
+        },
         "researchTitle": "Audit research",
         "wholeSite": "Whole site",
         "stage": {
@@ -14211,7 +14271,7 @@
           },
           "6": {
             "title": "Core Web Vitals in the SEO tab",
-            "missing": "Loading speed and layout scores do not show in the SEO tab."
+            "missing": "Real-user measurements require a CrUX sample for the URL or its origin."
           },
           "7": {
             "title": "Site migration check",
@@ -14457,6 +14517,45 @@
           "title": "Article ideas",
           "help": "Searches that your users make before they need the product. An article on them brings readers who may need it later."
         }
+      },
+      "pageSpeed": {
+        "title": "Page speed",
+        "lab": "Lighthouse lab test",
+        "field": "Real-user measurements from CrUX",
+        "scope": {
+          "url": "This URL",
+          "origin": "Entire origin",
+          "normalized": "Normalized URL group"
+        },
+        "scores": "Lighthouse scores (out of 100)",
+        "unavailable": "Google could not return usable measurements.",
+        "not_checked": "This audit did not check this source.",
+        "no_data": "Google reported no real-user data for this URL.",
+        "quota": "Google’s PageSpeed quota was exhausted.",
+        "deadline": "The time budget expired.",
+        "single": "One run",
+        "multiple": "Median of {ok} usable runs out of {runs}",
+        "score": {
+          "performance": "Performance",
+          "accessibility": "Accessibility",
+          "bestPractices": "Best practices",
+          "seo": "SEO",
+          "agenticBrowsing": "Agentic browsing"
+        },
+        "metricsTitle": {
+          "lcp": "Largest contentful paint",
+          "fcp": "First contentful paint",
+          "tbt": "Total blocking time",
+          "si": "Speed index",
+          "cls": "Cumulative layout shift",
+          "inp": "Interaction to next paint",
+          "ttfb": "Time to first byte"
+        },
+        "insights": "What to investigate",
+        "p75": "75th percentile",
+        "date": "Audit date",
+        "budget": "The audit used its PageSpeed request budget.",
+        "unsafe": "The audit could not verify a public landing page."
       }
     },
     "AdDataConsent": {

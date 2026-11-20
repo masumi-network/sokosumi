@@ -32,8 +32,11 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   // The recheck rule matters only once a Task exists for an action.
   const tracked = overview.actions.some((action) => Boolean(action.taskId));
   // "No recommended actions" above the strategy actions would say two things at once.
-  const strategyOnly = !overview.actions.length && strategyFollows;
-  if (strategyOnly)
+  const hasAdditionalActions =
+    strategyFollows || Boolean(model.data.siteEvidence?.targets.length);
+  const additionalActionsOnly =
+    !overview.actions.length && hasAdditionalActions;
+  if (additionalActionsOnly)
     return (
       <div className="space-y-5">
         <SeoBriefPagePriority model={model} />

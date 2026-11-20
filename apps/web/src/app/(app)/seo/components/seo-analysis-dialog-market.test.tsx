@@ -139,6 +139,11 @@ describe("SEO check defaults", () => {
       dialog = showDialog(workspace());
     const summary = within(dialog).getByTestId("seo-analysis-summary");
     expect(within(summary).getByText("Full audit")).toBeVisible();
+    expect(
+      within(dialog).getByText(
+        messages.App.Seo.analysis.publicLinkScope.replaceAll("{limit}", "10"),
+      ),
+    ).toBeVisible();
     // One line: the market of the saved keyword, by name, and the one keyword a full audit takes. Both
     // devices are the default and go unsaid.
     expect(summary).toHaveTextContent(
@@ -161,6 +166,37 @@ describe("SEO check defaults", () => {
       languageCode: "de",
       keywords: ["Akku Zustand"],
       devices: ["mobile", "desktop"],
+    });
+  });
+
+  it("starts with a public sitemap and only the public page hints reviewed from a local XML file", async () => {
+    const user = userEvent.setup();
+    const dialog = within(showDialog(workspace()));
+    await user.click(dialog.getByRole("button", { name: "Change options" }));
+    const base = "https://example.com/";
+    const sitemapUrl = base + "public-map.xml";
+    await user.type(
+      dialog.getByLabelText("Public sitemap URL (optional)"),
+      sitemapUrl,
+    );
+    const xml =
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+      [base + "guide", base + "profile/person", "https://away.example/x"]
+        .map((url) => `<url><loc>${url}</loc></url>`)
+        .join("") +
+      "</urlset>";
+    await user.upload(
+      dialog.getByLabelText("Import a sitemap XML file (optional)"),
+      new File([xml], "pages.xml", { type: "application/xml" }),
+    );
+    expect(await dialog.findByText(base + "guide")).toBeVisible();
+    expect(dialog.queryByText(base + "profile/person")).toBeNull();
+    await user.click(dialog.getByRole("button", { name: "Start check" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      kind: "audit_full",
+      publicSitemapUrl: sitemapUrl,
+      sitemapPageHints: [base + "guide"],
     });
   });
 

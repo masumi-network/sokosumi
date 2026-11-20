@@ -12641,7 +12641,6 @@
         "trafficSetup": "Consulta el rendimiento de estas páginas",
         "trafficSetupBody": "Configura las estadísticas para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas.",
         "trafficSyncBody": "Search Console está conectado. Las estadísticas de las páginas seleccionadas se cargan automáticamente. Google Analytics añade visitas y vistas de página.",
-        "recentChecks": "Comprobaciones recientes",
         "noMeasuredReports": "No hay informes medidos en estas fechas de actividad",
         "noMeasuredReportsBody": "Borra las fechas de actividad para ver informes de otras fechas. Las estadísticas conservan su propio periodo de informe.",
         "clearActivityDates": "Borrar fechas de actividad",
@@ -13153,7 +13152,7 @@
         "repeated": "También aparece en la muestra anterior.",
         "newSample": "Aparece por primera vez en este par de muestras.",
         "title": "Exportaciones privadas de Search Console",
-        "help": "Descarga el CSV en inglés del informe de enlaces o de un motivo de indexación. Usa la misma propiedad y el mismo alcance en cada exportación. Máximo 1.000 filas. Solo tú puedes ver los resultados.",
+        "help": "Opcional: añade un CSV en inglés del informe de enlaces o de un motivo de indexación. Usa la misma propiedad y el mismo alcance en cada exportación. Máximo 1.000 filas. Solo tú puedes ver los resultados.",
         "report": "Tipo de exportación",
         "linked_pages": "Páginas más enlazadas (externas)",
         "indexing_examples": "Ejemplos de indexación de páginas",
@@ -13195,6 +13194,40 @@
         "checkInternal": "Comprueba si la navegación y las páginas relacionadas aún enlazan esta URL.",
         "checkAnchor": "Revisa la entrada vacía en Search Console y comprueba el texto de los enlaces y el texto alternativo de las imágenes de origen.",
         "checkDomain": "Abre este dominio en el informe de enlaces y revisa a qué páginas tuyas enlaza."
+      },
+      "siteEvidence": {
+        "discovered": "URLs aptas: {count}. Respuestas públicas verificadas: {checked}. Pendientes: {deferred}.",
+        "deferred": "URLs pendientes ({count} visibles)",
+        "reasons": {
+          "page_limit": "La auditoría alcanzó el límite de páginas.",
+          "read_limit": "La auditoría alcanzó el límite de solicitudes públicas.",
+          "deadline": "Se agotó el tiempo de la auditoría.",
+          "robots": "Faltaba el permiso de robots.",
+          "access_limit": "El sitio limitó el acceso.",
+          "unavailable": "No se pudo verificar una respuesta pública."
+        },
+        "suppliedSitemap_read": "La auditoría leyó el sitemap indicado.",
+        "suppliedSitemap_blocked": "La auditoría no pudo confirmar el alcance del sitio y el permiso de rastreo del sitemap indicado.",
+        "suppliedSitemap_unavailable": "El sitemap indicado no estaba disponible o no pudo leerse dentro de los límites de la auditoría.",
+        "downloadSitemap": "Descargar borrador XML de sitemap con las páginas verificadas de esta muestra",
+        "heading": "Enlaces internos e indexación",
+        "coverage": "Muestra pública del {date}: {pages} páginas y {targets} URL de destino.",
+        "partial": "La auditoría solo recopiló parte de la muestra.",
+        "sampledPages": "Páginas públicas de la muestra",
+        "response": "El destino devolvió HTTP {status}.",
+        "unverified": "No se verificó el estado HTTP del destino.",
+        "destination": "Destino final:",
+        "google": "Inspección de URL de Google: {reason}.",
+        "trend": "Páginas de la muestra que enlazan aquí: {previous} el {date}, ahora {current}.",
+        "decline": "En tres comprobaciones seguidas, cada vez menos páginas de la muestra enlazaron aquí",
+        "linkCount": "{date}: {count, plural, one {# página con enlace} other {# páginas con enlace}}",
+        "lostDonors": "Páginas que antes enlazaban aquí y no tenían ese enlace en la última muestra",
+        "unknownDonors": "Se desconoce la cobertura de enlaces porque no se muestrearon páginas de origen.",
+        "partialDonors": "Páginas con enlaces observadas en esta muestra parcial: {count}.",
+        "baseline": "Páginas de la muestra que enlazan aquí: {count}. No hay una muestra anterior comparable.",
+        "donors": "Páginas que enlazan a este destino",
+        "content": "(enlace en el contenido)",
+        "sitemaps": "Sitemaps que incluyen este destino"
       },
       "discovery": {
         "reportedSitemaps": "Sitemaps Google associates with this URL",
@@ -13254,7 +13287,9 @@
         "recoverMarkets": "Recuperar la comparación de mercados",
         "recoverMarketsHelp": "Lee la comparación de mercados del informe original. Esta acción no consume créditos de auditoría.",
         "marketsChecked": "Comparación de mercados comprobada",
-        "importHelp": "Importa este informe para añadir sus hallazgos a tus resultados de SEO."
+        "importHelp": "Importa este informe para añadir sus hallazgos a tus resultados de SEO.",
+        "recoverPageSpeed": "Leer el rendimiento de página del informe guardado",
+        "speedChecked": "Se leyó el rendimiento de página del informe guardado"
       },
       "timeline": {
         "statuses": {
@@ -13295,8 +13330,8 @@
         "unconfirmed": "Sokosumi no ha podido confirmar si la solicitud de auditoría anterior se completó. Reintenta esa solicitud antes de iniciar otra.",
         "retryPrevious": "Reintentar la solicitud anterior",
         "coverage": {
-          "limitedScope": "La auditoría puede revisar páginas públicas. Omitirá los clics, las impresiones y los datos de indexación de Search Console.",
-          "privateConnection": "El agente puede usar tu conexión actual con los sitios a los que tienes acceso. Los datos de tu cuenta de Google son privados.",
+          "limitedScope": "La auditoría sigue revisando una muestra de páginas públicas y sus enlaces internos. Los clics, impresiones y resultados de indexación de Google no estarán disponibles.",
+          "privateConnection": "La auditoría usa tu conexión de Google solo para la propiedad aprobada de Search Console. Los datos de tu cuenta se mantienen privados.",
           "withoutSearch": "Sin Search Console",
           "withSearch": "Incluir Search Console",
           "title": "Cobertura de Search Console",
@@ -13342,6 +13377,13 @@
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",
+        "publicLinkScope": "La auditoría sigue automáticamente los enlaces internos del sitio público aprobado. Toma una muestra de hasta {limit} páginas y {limit} URL de destino. Con Search Console conectado, Google solo inspecciona URL de la propiedad aprobada. No hace falta subir archivos.",
+        "customSitemap": "URL pública del sitemap (opcional)",
+        "customSitemapHelp": "Usa un sitemap XML público del sitio seleccionado.",
+        "importSitemap": "Importar un archivo XML de sitemap (opcional)",
+        "importSitemapHelp": "Se compartirán hasta {count} URL de páginas de la lista en esta auditoría. El archivo XML permanece en tu dispositivo.",
+        "sitemapReading": "Leyendo sitemap…",
+        "sitemapInvalid": "Elige un sitemap de menos de 512 KiB con páginas públicas de este sitio.",
         "includeSitemaps": "Incluir el estado de los sitemaps enviados a Google para esta propiedad en mi informe privado.",
         "alreadyRunning": "Hay una comprobación en curso. Espera su resultado antes de iniciar la siguiente.",
         "noPermission": "No se puede solicitar una comprobación para estas páginas.",
@@ -14029,6 +14071,24 @@
         "of": "de {total}",
         "totalsOnly": "Esta auditoría solo guardó los totales. No hay un desglose por comprobación.",
         "verdictCounts": "{passed, number} aprobadas, {flagged, number} señaladas, {missing, number} sin resultado",
+        "researchDetails": {
+          "visitor": "Comprobación de la acción del visitante",
+          "trends": "Google Trends",
+          "evidenceRecord": "Evidencia: {record}",
+          "caption": "Resultados de Google Trends para las palabras clave auditadas",
+          "keyword": "Palabra clave",
+          "status": "Estado",
+          "peakMonths": "Meses de mayor interés",
+          "seasonal": "Estacional",
+          "trend": "Tendencia",
+          "change": "Razón de cambio",
+          "evidence": "Evidencia",
+          "visible": "Visible",
+          "outside_first_screen": "Fuera de la primera pantalla",
+          "unknown": "Desconocido",
+          "yes": "Sí",
+          "no": "No"
+        },
         "researchTitle": "Investigación de la auditoría",
         "wholeSite": "Todo el sitio",
         "stage": {
@@ -14211,7 +14271,7 @@
           },
           "6": {
             "title": "Core Web Vitals en la pestaña SEO",
-            "missing": "Las puntuaciones de velocidad de carga y de diseño no se muestran en la pestaña SEO."
+            "missing": "Las mediciones de usuarios reales requieren una muestra de CrUX para la URL o su origen."
           },
           "7": {
             "title": "Comprobación de una migración del sitio",
@@ -14457,6 +14517,45 @@
           "title": "Ideas para artículos",
           "help": "Búsquedas que tus usuarios hacen antes de necesitar el producto. Un artículo sobre ellas trae lectores que pueden necesitarlo más tarde."
         }
+      },
+      "pageSpeed": {
+        "title": "Page speed",
+        "lab": "Lighthouse lab test",
+        "field": "Real-user measurements from CrUX",
+        "scope": {
+          "url": "This URL",
+          "origin": "Entire origin",
+          "normalized": "Normalized URL group"
+        },
+        "scores": "Lighthouse scores (out of 100)",
+        "unavailable": "Google could not return usable measurements.",
+        "not_checked": "This audit did not check this source.",
+        "no_data": "Google reported no real-user data for this URL.",
+        "quota": "Google’s PageSpeed quota was exhausted.",
+        "deadline": "The time budget expired.",
+        "single": "One run",
+        "multiple": "Median of {ok} usable runs out of {runs}",
+        "score": {
+          "performance": "Performance",
+          "accessibility": "Accessibility",
+          "bestPractices": "Best practices",
+          "seo": "SEO",
+          "agenticBrowsing": "Agentic browsing"
+        },
+        "metricsTitle": {
+          "lcp": "Largest contentful paint",
+          "fcp": "First contentful paint",
+          "tbt": "Total blocking time",
+          "si": "Speed index",
+          "cls": "Cumulative layout shift",
+          "inp": "Interaction to next paint",
+          "ttfb": "Time to first byte"
+        },
+        "insights": "What to investigate",
+        "p75": "75th percentile",
+        "date": "Audit date",
+        "budget": "The audit used its PageSpeed request budget.",
+        "unsafe": "The audit could not verify a public landing page."
       }
     },
     "AdDataConsent": {

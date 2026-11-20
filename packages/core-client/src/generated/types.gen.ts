@@ -11836,6 +11836,8 @@ export type ProjectSeoWorkspace = {
     landingPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
+    siteEvidence?: ProjectSeoSiteEvidence | null;
+    auditSiteEvidence?: Array<ProjectSeoSiteEvidence>;
     strategy?: ProjectSeoStrategy | null;
     landingEngagementChange?: {
         propertyId: string;
@@ -12122,6 +12124,25 @@ export type ProjectSeoObservation = {
         research: Array<{
             pageUrl: string;
             scope: 'page' | 'site';
+            firstScreen?: {
+                probe: 'mobile_first_screen' | 'desktop_first_screen';
+                label: string;
+                state: 'visible' | 'outside_first_screen' | 'unknown';
+                record: string;
+                reason: string;
+            };
+            trends?: {
+                keywords: Array<{
+                    keyword: string;
+                    status: 'read' | 'not read' | 'failed' | 'not determined';
+                    peakMonths: Array<'January' | 'February' | 'March' | 'April' | 'May' | 'June' | 'July' | 'August' | 'September' | 'October' | 'November' | 'December'>;
+                    seasonal: boolean | null;
+                    trend: 'rising' | 'falling' | 'flat' | 'not determined';
+                    change: number | null;
+                    note: string;
+                }>;
+                note: string;
+            };
             rankedKeywordIdeas?: boolean;
             stages: Array<{
                 name: 'seasonal' | 'editorial' | 'exploration';
@@ -12130,6 +12151,61 @@ export type ProjectSeoObservation = {
             }>;
         }>;
     };
+    pageSpeed?: Array<{
+        pageUrl: string;
+        testedUrl: string;
+        device: 'mobile' | 'desktop';
+        lab: {
+            status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+        } | {
+            status: 'measured';
+            median: {
+                lcp: number | null;
+                cls: number | null;
+                fcp: number | null;
+                tbt: number | null;
+                si: number | null;
+            };
+            runs: number;
+            ok: number;
+            lighthouse: string | null;
+            pageSpeed?: {
+                scores: {
+                    performance?: number;
+                    accessibility?: number;
+                    bestPractices?: number;
+                    seo?: number;
+                    agenticBrowsing?: number;
+                };
+                insights: Array<{
+                    id: string;
+                    title: string;
+                    detail: string;
+                    action: string;
+                }>;
+                measuredAt?: Date;
+            };
+        };
+        field: {
+            status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+        } | {
+            status: 'measured';
+            level: 'url' | 'origin' | 'normalized';
+            url: string;
+            p75: {
+                lcp: number | null;
+                cls: number | null;
+                fcp: number | null;
+                inp: number | null;
+                ttfb: number | null;
+            };
+            period: {
+                first: Date;
+                last: Date;
+            } | null;
+        };
+    }>;
+    pageSpeedRecoveryFileId?: string;
     pageMarketEvidence?: {
         regionalVersions: Array<{
             country: string;
@@ -12432,6 +12508,51 @@ export type ProjectSeoIndexAssessedPage = {
     auditPageUrl?: string;
 };
 
+export type ProjectSeoSiteEvidence = {
+    taskId: string;
+    auditPageUrl: string;
+    observedAt: Date;
+    sampledPages: Array<string>;
+    complete: boolean;
+    suppliedSitemap?: 'read' | 'blocked' | 'unavailable';
+    coverage?: {
+        discovered: number;
+        deferredCount: number;
+        deferred: Array<{
+            url: string;
+            reason: 'page_limit' | 'read_limit' | 'deadline' | 'robots' | 'access_limit' | 'unavailable';
+        }>;
+    };
+    targets: Array<{
+        targetUrl: string;
+        donorUrls: Array<string>;
+        contentDonorUrls: Array<string>;
+        sitemapUrls: Array<string>;
+        status: 'fix_link' | 'review_redirect' | 'strengthen_links' | 'review' | 'observed';
+        action: string;
+        httpStatus?: number;
+        sitemapEligible?: true;
+        finalUrl?: string;
+        declaredCanonical?: string;
+        googleReferringPages?: Array<string>;
+        googleSitemapUrls?: Array<string>;
+        googleReason?: string;
+        googleCheckedAt?: Date;
+        trend?: {
+            previousAt: Date;
+            previousCount: number;
+            currentCount: number;
+            decline?: {
+                points: Array<{
+                    at: Date;
+                    count: number;
+                }>;
+                missingDonorUrls: Array<string>;
+            };
+        };
+    }>;
+};
+
 export type ProjectSeoStrategy = {
     markets?: {
         rows: Array<{
@@ -12728,6 +12849,7 @@ export type ImportProjectSeoAuditRequest = {
     taskId: string;
     fileId: string;
     recoverMarkets?: boolean;
+    recoverPageSpeed?: true;
 };
 
 export type RequestProjectSeoAnalysisRequest = {
@@ -12753,6 +12875,8 @@ export type RequestProjectSeoAnalysisRequest = {
     searchConsolePropertyId?: string;
     allowLimitedAudit?: true;
     includeSitemaps?: true;
+    publicSitemapUrl?: string;
+    sitemapPageHints?: Array<string>;
     setupGoal?: {
         pageId: string;
         expectedRevision: number;
@@ -16628,6 +16752,33 @@ export type SeoTaskRelatedPagesReceipt = {
 };
 
 export type SeoTaskRelatedPagesRequest = {
+    siteEvidence?: {
+        version: 1;
+        complete: boolean;
+        suppliedSitemap?: 'read' | 'blocked' | 'unavailable';
+        coverage?: {
+            discovered: number;
+            deferredCount: number;
+            deferred: Array<{
+                url: string;
+                reason: 'page_limit' | 'read_limit' | 'deadline' | 'robots' | 'access_limit' | 'unavailable';
+            }>;
+        };
+        sampledPages: Array<string>;
+        observations: Array<{
+            sourceUrl: string;
+            targetUrl: string;
+            sourceKind: 'link' | 'sitemap';
+            location: 'content' | 'template' | 'body' | 'sitemap';
+        }>;
+        responses?: Array<{
+            pageUrl: string;
+            status: number;
+            finalUrl?: string;
+            declaredCanonical?: string;
+            sitemapEligible?: true;
+        }>;
+    };
     expectedContext: TaskWorkerContext;
     seedPageUrls: Array<string>;
     relatedPageUrls: Array<string>;
@@ -106002,6 +106153,131 @@ export type PostTasksByIdSeoIndexingResultContextV1Responses = {
 };
 
 export type PostTasksByIdSeoIndexingResultContextV1Response = PostTasksByIdSeoIndexingResultContextV1Responses[keyof PostTasksByIdSeoIndexingResultContextV1Responses];
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Data = {
+    body: {
+        expectedContext: TaskWorkerContext;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-indexing/deferred/context-v1';
+};
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Error = PostTasksByIdSeoIndexingDeferredContextV1Errors[keyof PostTasksByIdSeoIndexingDeferredContextV1Errors];
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Responses = {
+    /**
+     * Deferred public leads
+     */
+    200: {
+        data: {
+            taskId: string;
+            urls: Array<string>;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingDeferredContextV1Response = PostTasksByIdSeoIndexingDeferredContextV1Responses[keyof PostTasksByIdSeoIndexingDeferredContextV1Responses];
 
 export type PostTasksByIdSeoIndexingRelatedPagesContextV1Data = {
     body: SeoTaskRelatedPagesRequest;

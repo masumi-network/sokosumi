@@ -1,5 +1,15 @@
 import { z } from "@hono/zod-openapi";
 
+import { SEO_MAX_PAGES, seoUrlSchema } from "./seo-page.schema";
+
+export const publicSitemapInputFields = {
+  publicSitemapUrl: seoUrlSchema.max(2048).optional(),
+  sitemapPageHints: z
+    .array(seoUrlSchema.max(2048))
+    .min(1)
+    .max(SEO_MAX_PAGES)
+    .optional(),
+};
 export const MAX_AUDIT_SITEMAPS = 50;
 export const sitemapAddress = z
   .string()

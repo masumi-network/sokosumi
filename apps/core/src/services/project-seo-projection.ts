@@ -12,6 +12,7 @@ import { internalServerError } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import { scopedObservationChecks } from "@/helpers/seo-checklist-breakdown";
 import { scopedPageMarketEvidence } from "@/helpers/seo-page-market-evidence";
+import { scopedPageSpeed } from "@/helpers/seo-page-speed";
 import {
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
@@ -48,6 +49,7 @@ import {
   projectSearchEvidence,
   type SearchEvidenceSource,
 } from "./project-seo-search-projection";
+import { projectSiteEvidence } from "./project-seo-site-evidence";
 import {
   canConfirmSeoCompetitor,
   matchesSeoPeriod,
@@ -180,7 +182,10 @@ export function projectSeoProjection(
   };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
-    if (row.kind === "index_triage") continue;
+    if (
+      ["index_triage", "index_inspection", "site_evidence"].includes(row.kind)
+    )
+      continue;
     if (row.kind === "page_change") {
       if (!matchesSeoPeriod(row.observedAt, query)) continue;
       const event = seoPageChangePayloadSchema.parse(row.payload);
@@ -291,6 +296,15 @@ export function projectSeoProjection(
       issues,
       ...(checklistBreakdown && { checklistBreakdown }),
       ...scopedPageMarketEvidence(data, selectedUrls),
+      ...(data.kind === "audit_full" &&
+        (data.pageSpeed !== undefined
+          ? { pageSpeed: scopedPageSpeed(data.pageSpeed, selectedUrls) }
+          : row.source === "seo_coworker" &&
+              row.sourceFileId &&
+              row.sourceTaskId &&
+              input.marketRecoveryTaskIds?.has(row.sourceTaskId)
+            ? { pageSpeedRecoveryFileId: row.sourceFileId }
+            : {})),
       coverage,
     });
     for (const check of data.checks) {
@@ -692,6 +706,9 @@ export function projectSeoProjection(
     ),
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     indexTriage: indexing.triage,
+    ...(input.privateMetricsAllowed
+      ? projectSiteEvidence(input.observations, selectedUrls, query)
+      : { siteEvidence: null, auditSiteEvidence: [] }),
     strategy,
     ...decisions.workspaceEvidence,
     metricsStatus: !metrics.length

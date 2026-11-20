@@ -446,6 +446,266 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     ).toBe("seo_audit: " + JSON.stringify(original));
   });
 
+  it("resumes deferred public leads only for a new audit with the same owner, page scope and workspace", async () => {
+    const lead = "https://example.test/article";
+    const priorPacket = await approveDiscovery(PAGE_URLS);
+    const deferred = () =>
+      createTaskScheduleTestApp(mountPages, actor, null).request(
+        `http://localhost/${taskId}/seo-indexing/deferred/context-v1`,
+        jsonRequest("POST", { expectedContext }),
+      );
+    const siteEvidence = {
+      version: 1,
+      complete: true,
+      sampledPages: [PAGE_URLS[0]],
+      observations: [],
+      responses: PAGE_URLS.map((pageUrl) => ({ pageUrl, status: 200 })),
+      coverage: {
+        discovered: 3,
+        deferredCount: 1,
+        deferred: [{ url: lead, reason: "page_limit" }],
+      },
+    };
+    const forged = await selectPages([], {
+      siteEvidence: {
+        ...siteEvidence,
+        coverage: {
+          ...siteEvidence.coverage,
+          deferred: [
+            { url: "https://foreign.test/private", reason: "page_limit" },
+          ],
+        },
+      },
+    });
+    expect(forged.status).toBe(400);
+    expect((await selectPages([], { siteEvidence })).status).toBe(200);
+    expect((await (await deferred()).json()).data.urls).toEqual([]);
+    const priorTaskId = taskId;
+    const prior = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+    });
+    const next = await prisma.task.create({
+      data: {
+        ownerId,
+        organizationId,
+        workspaceId,
+        assigneeId: coworkerId,
+        name: "Second indexing check",
+        status: "RUNNING",
+        description: `seo_audit: ${JSON.stringify(priorPacket)}`,
+      },
+    });
+    taskId = next.id;
+    createdTaskIds.push(taskId);
+    const nextAnalysis = await prisma.projectSeoAnalysis.create({
+      data: {
+        auditId,
+        taskId,
+        requestedBy: ownerId,
+        kind: "audit_full",
+        requestHash: "second",
+        idempotencyKey: randomUUID(),
+        pageIds: prior.pageIds,
+        request: priorPacket,
+      },
+    });
+    const resumed = await deferred();
+    expect(resumed.status, await resumed.clone().text()).toBe(200);
+    expect((await resumed.json()).data.urls).toEqual([lead]);
+    const where = { sourceTaskId: priorTaskId, kind: "site_evidence" };
+    await prisma.projectSeoObservation.updateMany({
+      where,
+      data: { ownerId: otherOwnerId },
+    });
+    expect((await (await deferred()).json()).data.urls).toEqual([]);
+    await prisma.projectSeoObservation.updateMany({
+      where,
+      data: { ownerId, visibility: "SHARED" },
+    });
+    expect((await (await deferred()).json()).data.urls).toEqual([]);
+    await prisma.projectSeoObservation.updateMany({
+      where,
+      data: { visibility: "PRIVATE" },
+    });
+    const otherWorkspace = await createTaskScheduleTestApp(
+      mountPages,
+      actor,
+      null,
+    ).request(
+      `http://localhost/${taskId}/seo-indexing/deferred/context-v1`,
+      jsonRequest("POST", {
+        expectedContext: { ...expectedContext, workspaceId: otherWorkspaceId },
+      }),
+    );
+    expect(otherWorkspace.status).toBeGreaterThanOrEqual(400);
+    await prisma.projectSeoAnalysis.update({
+      where: { id: nextAnalysis.id },
+      data: { scopeVersion: 1 },
+    });
+    expect((await (await deferred()).json()).data.urls).toEqual([]);
+  });
+
+  it("keeps the connected property's Google examples for the exact dynamic target outside the worker receipt", async () => {
+    const target = "https://example.test/guide",
+      referring = "https://example.test/library",
+      sitemap = "https://example.test/sitemap.xml";
+    const integration = await resolveSeoStatisticsIntegration(
+      { userId: ownerId, workspaceId },
+      "search_console",
+    );
+    expect.assert(integration);
+    await approveDiscovery(PAGE_URLS, {
+      propertyId: PROPERTY,
+      connectionVersion: connectionVersion(integration),
+    });
+    expect(
+      (
+        await selectPages([target], {
+          siteEvidence: {
+            version: 1,
+            sampledPages: [],
+            observations: [],
+            complete: false,
+          },
+        })
+      ).status,
+    ).toBe(200);
+    providerHook = async (slug, args) =>
+      slug === INSPECT_TOOL && args.inspection_url === target
+        ? Response.json({
+            successful: true,
+            data: {
+              inspectionResult: {
+                indexStatusResult: {
+                  verdict: "NEUTRAL",
+                  coverageState: "Crawled - currently not indexed",
+                  referringUrls: [
+                    referring,
+                    "https://foreign.test/",
+                    "https://example.test/login",
+                    "https://example.test/reset-password/customer",
+                    "https://example.test/users/someone%40example.com",
+                    "https://example.test/invite/6bba1b36-ac42-4571-b7cf-72d353044572",
+                  ],
+                  sitemap: [
+                    sitemap,
+                    "https://example.test/map.xml?token=secret",
+                  ],
+                },
+              },
+            },
+          })
+        : null;
+    const worker = await request();
+    expect(worker.status).toBe(200);
+    const wire = await worker.text();
+    expect(wire).not.toContain(referring);
+    expect(wire).not.toContain(sitemap);
+    expect(
+      reads.filter(
+        (read) =>
+          read.slug === INSPECT_TOOL &&
+          read.input.arguments.inspection_url === target,
+      ),
+    ).toHaveLength(1);
+    const { owner, query } = await createPublicAudit();
+    const workspace = await getProjectSeoWorkspace(owner, query);
+    const named = workspace.siteEvidence?.targets.find(
+      (item) => item.targetUrl === target,
+    );
+    expect(named).toMatchObject({
+      googleReferringPages: [referring],
+      googleSitemapUrls: [sitemap],
+      donorUrls: [],
+      sitemapUrls: [],
+    });
+    expect(
+      workspace.siteEvidence?.targets[0]?.googleReferringPages,
+    ).toBeUndefined();
+    expect(
+      (
+        await getProjectSeoWorkspace(owner, query, {
+          includePrivateIndexing: false,
+        })
+      ).siteEvidence,
+    ).toBeNull();
+  });
+
+  it.each([null, "https://example.test/"])(
+    "retains a public redirect sample once without granting its alias a Google inspection for %s",
+    async (propertyId) => {
+      const integration = await resolveSeoStatisticsIntegration(
+        { userId: ownerId, workspaceId },
+        "search_console",
+      );
+      expect.assert(integration);
+      await approveDiscovery(
+        PAGE_URLS,
+        propertyId
+          ? { propertyId, connectionVersion: connectionVersion(integration) }
+          : null,
+      );
+      const target = "https://www.example.test/lesson";
+      const donor = "https://www.example.test/library";
+      const siteEvidence = {
+        version: 1,
+        sampledPages: [donor],
+        complete: true,
+        observations: [
+          {
+            sourceUrl: donor,
+            targetUrl: target,
+            sourceKind: "link",
+            location: "content",
+          },
+        ],
+        responses: [
+          { pageUrl: PAGE_URLS[0], status: 301, finalUrl: donor },
+          { pageUrl: target, status: 410 },
+        ],
+      };
+      const first = await selectPages([target], { siteEvidence });
+      expect(first.status, await first.clone().text()).toBe(200);
+      expect((await first.json()).data.inspectionPageUrls).toEqual(PAGE_URLS);
+      const replay = await selectPages([], {
+        siteEvidence: { ...siteEvidence, observations: [] },
+      });
+      expect(replay.status).toBe(200);
+      const rows = await prisma.projectSeoObservation.findMany({
+        where: { sourceTaskId: taskId, kind: "site_evidence" },
+      });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        ownerId,
+        visibility: "PRIVATE",
+        payload: { targetUrls: [...PAGE_URLS, target], evidence: siteEvidence },
+      });
+      await createPublicAudit();
+      const actor = {
+        userId: ownerId,
+        organizationId,
+        workspaceId,
+        owner: { kind: "audit" as const, id: auditId },
+      };
+      expect(
+        (await getProjectSeoWorkspace(actor)).siteEvidence?.targets.at(-1),
+      ).toMatchObject({
+        targetUrl: target,
+        status: "fix_link",
+        donorUrls: [donor],
+      });
+      expect(
+        (
+          await getProjectSeoWorkspace(
+            actor,
+            {},
+            { includePrivateIndexing: false },
+          )
+        ).siteEvidence,
+      ).toBeNull();
+    },
+  );
+
   it("freezes related indexing evidence without adding saved pages or widening the report", async () => {
     const original = await approveDiscovery();
     const before = await prisma.projectSeoAnalysis.findUniqueOrThrow({
@@ -962,6 +1222,24 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
         .filter((read) => read.slug === INSPECT_TOOL)
         .map((read) => read.input.arguments.inspection_url),
     ).toEqual([PAGE_URLS[1]]);
+  });
+
+  it("recovers only the approved seeds after completion when no related selection arrived", async () => {
+    await approveDiscovery([PAGE_URLS[1]!]);
+    expect((await request()).status).toBe(409);
+    expect(reads).toHaveLength(0);
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "COMPLETED" },
+    });
+    const saved = await receipt();
+    expect(saved.pages.map((page) => page.pageUrl)).toEqual([PAGE_URLS[1]]);
+    expect(
+      reads
+        .filter((read) => read.slug === INSPECT_TOOL)
+        .map((read) => read.input.arguments.inspection_url),
+    ).toEqual([PAGE_URLS[1]]);
+    expect((await selectPages(["https://example.test/late"])).status).toBe(409);
   });
 
   it("keeps saved related children outside an explicitly selected primary page", async () => {

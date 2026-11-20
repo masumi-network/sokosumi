@@ -16,6 +16,7 @@ import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoAuditSearchConsole } from "./seo-audit-search-console";
 import { SeoConsoleExports } from "./seo-console-exports";
 import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SeoSiteEvidence } from "./seo-site-evidence";
 import {
   type SeoReportFileProps,
   useSeoReportFiles,
@@ -67,7 +68,9 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
     refreshing,
     importReport,
     recoverMarkets,
+    recoverPageSpeed,
     evidence,
+    siteEvidence,
     fullAudit,
     recoverSearch,
     recovering,
@@ -95,6 +98,7 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
           {t("reportFiles.historyLimit")}
         </p>
       )}
+      {siteEvidence && <SeoSiteEvidence evidence={siteEvidence} />}
       {evidence ? (
         <>
           <SeoAuditSearchConsole evidence={evidence} />
@@ -125,6 +129,17 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
             </p>
           )}
         </div>
+      )}
+      {recoverPageSpeed && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          loading={model.pending}
+          onClick={() => void recoverPageSpeed()}
+        >
+          {t("reportFiles.recoverPageSpeed")}
+        </Button>
       )}
       {recoverMarkets && (
         <div className="space-y-2">
