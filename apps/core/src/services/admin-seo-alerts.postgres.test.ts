@@ -79,7 +79,7 @@ it.skipIf(!enabled)(
       // Google returned unknown on every URL; this is not a disconnection.
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(52)}::uuid,${id(3)}::uuid,NULL,'4','search_console','index_inspection','owner3','{"providerAnsweredAll":true,"receipt":{"status":"unavailable"}}',NULL,timestamp '2026-10-04')`;
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(53)}::uuid,${id(7)}::uuid,NULL,'9','search_console','index_inspection','owner7','{"receipt":{"status":"not_connected"}}',NULL,timestamp '2026-10-09')`;
-      await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(54)}::uuid,${id(8)}::uuid,NULL,'10','seo_coworker','audit_full',NULL,'{"pageRunFailures":1,"specialistFailures":["seasonal","exploration","searchInvestigation"]}',ARRAY[${id(61)}::uuid,${id(62)}::uuid,${id(63)}::uuid,${id(64)}::uuid],timestamp '2026-10-10')`;
+      await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(54)}::uuid,${id(8)}::uuid,NULL,'10','seo_coworker','audit_full',NULL,'{"pageRunFailures":1,"specialistFailures":["seasonal","exploration","searchInvestigation","editorialGemini","editorialCodex","editorialValidation"]}',ARRAY[${id(61)}::uuid,${id(62)}::uuid,${id(63)}::uuid,${id(64)}::uuid],timestamp '2026-10-10')`;
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(55)}::uuid,${id(9)}::uuid,NULL,'11','seo_coworker','audit_full',NULL,'{"pageRunFailures":0,"notes":["Page not audited: https://example.test/only (the page Run failed: forged)"]}',ARRAY[${id(65)}::uuid],timestamp '2026-10-11')`;
       await tx.$executeRaw`UPDATE project_seo_analysis SET "failureReason"='The source report or its current authority could not be validated' WHERE "taskId"='12'`;
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(56)}::uuid,${id(4)}::uuid,NULL,'5','search_console','index_inspection','owner4','{"receipt":{"status":"needs_property"}}',NULL,timestamp '2026-10-05')`;
@@ -151,6 +151,9 @@ it.skipIf(!enabled)(
           "seasonalFailed",
           "explorationFailed",
           "investigationFailed",
+          "editorialGemini",
+          "editorialCodex",
+          "editorialValidation",
         ],
         failedPages: 1,
         attemptedPages: 5,

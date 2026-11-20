@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  AcknowledgeProjectSeoReviewRequest,
   AddProjectSeoPageRequest,
   CreateProjectSeoActionTaskRequest,
   CreateProjectSeoMonitorRequest,
@@ -18,6 +19,8 @@ import type {
   UpdateProjectSeoScopeRequest,
 } from "@sokosumi/core-client";
 import {
+  acknowledgeProjectSeoReview,
+  acknowledgeSeoAuditReview,
   addProjectSeoPage,
   addSeoAuditPage,
   createProjectSeoActionTask,
@@ -209,6 +212,23 @@ export const seoServiceNoRedirect = {
       "Failed to save SEO competitor",
     );
     return response.data;
+  },
+  async acknowledgeReview(
+    owner: SeoOwner,
+    body: AcknowledgeProjectSeoReviewRequest,
+  ) {
+    return executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        (owner.kind === "audit"
+          ? acknowledgeSeoAuditReview
+          : acknowledgeProjectSeoReview)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
+      "Failed to mark the SEO recommendation as reviewed",
+    );
   },
   async createActionTask(
     owner: SeoOwner,

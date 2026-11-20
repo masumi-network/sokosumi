@@ -3,6 +3,7 @@ import { badRequest } from "@/helpers/error";
 import {
   seoConversionSchema,
   seoDeviceSchema,
+  seoEditorialKeywordSchema,
   seoModuleCoverageSchema,
   seoSeveritySchema,
   seoUrlSchema,
@@ -15,16 +16,20 @@ import {
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
-import {
-  bindMarketSource,
-  readPublicSeoDecisions,
-} from "./project-seo-decisions";
+import * as seoDecisions from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import {
   reportObject as object,
+  omitUndefinedProperties,
   refusePrivateReport,
+  skippedPages,
 } from "./project-seo-public-report";
-import { legacyReportKeywords } from "./project-seo-report-keywords";
+import {
+  difficulty,
+  estimate,
+  FEATURE_CHARS,
+  legacyReportKeywords,
+} from "./project-seo-report-keywords";
 import {
   focusedSerpFields,
   seoAlertRowsSchema,
@@ -36,21 +41,22 @@ import {
   publicSiteFindings,
 } from "./project-seo-site-findings";
 import { publicSeoStrategy } from "./project-seo-strategy";
+import {
+  articleDates,
+  boundTopicLaunches,
+  publicSiteArticles,
+  seoArticleDates,
+  seoTopicLaunch,
+} from "./seo-content-history";
+import {
+  readReviewSources,
+  seoReviewSource,
+} from "./seo-recommendation-evidence";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
 const observedAt = z.string().datetime();
 const source = z.object({ sourceRef: text, observedAt });
-const FEATURE_CHARS = 200;
-// DataForSEO keyword_difficulty: 0 to 100. A value Core cannot read is dropped: it must not fail the import.
-const difficulty = z
-  .number()
-  .finite()
-  .min(0)
-  .max(100)
-  .nullable()
-  .optional()
-  .catch(undefined);
 const finding = source.extend({
   id: text,
   pageUrl: seoUrlSchema,
@@ -70,6 +76,7 @@ const keyword = source.extend({
   volume: nullableNumber.optional(),
   difficulty,
   intent: text.nullable().optional(),
+  editorial: seoEditorialKeywordSchema.optional(),
   conversion: seoConversionSchema.nullable().optional(),
   feature: z.string().max(FEATURE_CHARS).nullable().optional(),
   source: text.optional(),
@@ -95,17 +102,6 @@ const action = z.object({
     .object({ target: text, before: text.nullable(), after: text })
     .nullable(),
 });
-// Prisma rejects explicit undefined inside JSON. Zod can retain it for an absent or unreadable optional field.
-function omitUndefinedProperties<T extends object>(parsed: T): T {
-  for (const key of Object.keys(parsed) as (keyof T)[]) {
-    const value = parsed[key];
-    if (value === undefined) delete parsed[key];
-    else if (value !== null && typeof value === "object")
-      omitUndefinedProperties(value);
-  }
-  return parsed;
-}
-
 const publicSeoPayload = z.object({
   version: z.literal(1),
   kind: z.string().max(100),
@@ -139,6 +135,9 @@ const publicSeoPayload = z.object({
   /** A site audit's strategy results. Older rows and focused checks have none. */
   strategy: seoStrategyPayloadSchema.optional(),
   strategyDecisions: storedSeoDecisionsSchema.optional(),
+  articleDates: z.array(seoArticleDates).max(10).optional(),
+  topicLaunches: z.array(seoTopicLaunch).max(10).optional(),
+  reviewSources: z.array(seoReviewSource).max(10).optional(),
   seasonalIdeas: z.array(seoSeasonalIdeaSchema).max(100).optional(),
   decisionSources: z
     .array(publicDecisionSourceSchema)
@@ -196,19 +195,8 @@ const sameSet = (a: string[], b: string[]) =>
   a.length === b.length &&
   a.every((value) => b.includes(value));
 
-// A site audit keeps going when one page Run fails. The worker names that page in `selection.skipped`.
-const siteSkipped = z.object({
-  selection: z.object({
-    skipped: z
-      .array(z.object({ url: seoUrlSchema, reason: z.string() }))
-      .max(10),
-  }),
-});
-export const skippedPages = (raw: unknown) => {
-  if (object(raw)?.kind !== "site") return [];
-  const parsed = siteSkipped.safeParse(raw);
-  return parsed.success ? parsed.data.selection.skipped : [];
-};
+export { skippedPages } from "./project-seo-public-report";
+
 const SKIPPED_REASON_CHARS = 300;
 
 /** Bind evidence to the durable request, including Market, devices and approved external targets. */
@@ -325,7 +313,7 @@ const partial = z
       .max(10000),
     // A focused result carries no estimate: only a page Report does. One sent all the same is not read.
     keywords: z
-      .array(keyword.omit({ conversion: true, feature: true }))
+      .array(keyword.omit({ conversion: true, feature: true, editorial: true }))
       .max(5000),
     competitors: z.array(competitor).max(1000),
     findings: z.array(finding).max(5000),
@@ -339,17 +327,6 @@ const partial = z
     gaps: z.array(z.object({ reason: text }).passthrough()).max(500),
   })
   .passthrough();
-// A page Report's estimate for a keyword. A value Core cannot read is dropped: it must not fail the import.
-const estimate = {
-  conversion: seoConversionSchema.optional().catch(undefined),
-  feature: z
-    .string()
-    .trim()
-    .min(1)
-    .max(FEATURE_CHARS)
-    .optional()
-    .catch(undefined),
-};
 // Two seasonal reviewers can each propose five searches. History can supply three further terms.
 const MAX_SEASONAL_IDEAS = 13;
 const legacy = z.object({
@@ -482,6 +459,7 @@ const legacy = z.object({
           difficulty,
           position: nullableNumber,
           intent: text.nullable(),
+          editorial: seoEditorialKeywordSchema.optional().catch(undefined),
           ...estimate,
         }),
       ),
@@ -541,17 +519,20 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         snapshotId: url === sourceUrl ? child?.snapshotId : undefined,
       }));
     });
-    const sources = bindMarketSource(
+    const articles = publicSiteArticles(raw, pages);
+    const sources = seoDecisions.bindMarketSource(
       object(raw),
       eligible.flatMap((item) => {
         const result = publicPageSnapshotSchema.safeParse(item);
         return result.success ? [result.data] : [];
       }),
     );
-    const decisions = readPublicSeoDecisions(
-      object(raw)?.strategyDecisions,
+    const ranks = pages.flatMap((p) => p.reviewSources ?? []);
+    const decisions = seoDecisions.readWorkerDecisions(
+      raw,
       eligible.map((page) => page.url),
       sources,
+      ranks,
     );
     return publicSeoPayloadSchema.parse({
       ...first,
@@ -561,6 +542,13 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       decisionSources: decisions?.some((d) => d.kind === OPEN_STRATEGY)
         ? sources
         : undefined,
+      articleDates: articles.length ? articles : undefined,
+      topicLaunches: boundTopicLaunches(
+        raw,
+        articles,
+        Math.max(...pages.map((p) => Date.parse(p.observedAt))),
+      ),
+      reviewSources: ranks,
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),
@@ -669,7 +657,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       observedAt: at,
     })),
   );
-  const keywords = legacyReportKeywords(result, pageUrl, at);
+  const keywords = legacyReportKeywords(result, pageUrl, at),
+    ranks = readReviewSources(raw);
   const competitors: z.infer<typeof competitor>[] = (
     result.rankingData?.competitors ?? []
   ).map((row) => ({
@@ -703,13 +692,13 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     kind: "audit_full",
     requestId: null,
     pageUrls: [pageUrl],
+    reviewSources: ranks,
+    articleDates: articleDates(raw, pageUrl, at),
     observedAt: at,
     countryCode: result.header.market?.country ?? "",
     languageCode: result.header.market?.language ?? "",
     rulebookVersion: result.rulebookVersion,
-    strategyDecisions: readPublicSeoDecisions(object(raw)?.strategyDecisions, [
-      pageUrl,
-    ]),
+    ...seoDecisions.singlePageDecisions(raw, result, ranks),
     ...(seasonalIdeas && { seasonalIdeas }),
     checks: result.checklist.map((row) => ({
       rowId: row.row,

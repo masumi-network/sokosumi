@@ -2628,3 +2628,455 @@ it("binds a fresh market citation to its enclosing site, source page and provide
     expect(parse(invalid).strategyDecisions).toBeUndefined();
   }
 });
+
+it("keeps a completed seasonal Task and reopens its recommendation after an independent local demand read, including after an unrelated audit", () => {
+  const input = fixture(),
+    raw = legacyReport(),
+    keyword = "marine battery storage";
+  const at = (day: string) => day + "T12:00:00.000Z";
+  const page = (day: string, id: string) => ({
+    ...raw,
+    snapshotId: id.repeat(64),
+    header: { ...raw.header, capturedAt: at(day) },
+  });
+  const original = page("2026-08-01", "a");
+  const old = observation(
+    input,
+    parsePublicSeoArtifact({
+      ...original,
+      seasonalReview: {
+        insights: [
+          {
+            keyword,
+            url: SEO_TEST_PAGE,
+            country: "US",
+            language: "en",
+            asOf: "2026-08-01",
+            audience: "boat owners",
+            pageQuote: "Prepare the battery before winter storage.",
+            action: "improve_existing_page",
+            limitations: ["timing_uncertain"],
+            event: null,
+            comparison: null,
+            windows: [
+              {
+                targetPeriod: "2026-09",
+                historicalPeriod: "2025-09",
+                historicalVolume: 80,
+                baselineMedian: 30,
+              },
+            ],
+            demand: {
+              status: "observed",
+              keyword,
+              months: [{ year: 2025, month: 9, search_volume: 80 }],
+            },
+          },
+        ],
+      },
+    }),
+    at("2026-08-01"),
+  );
+  input.observations = [old];
+  const target = projectSeoProjection(
+    input,
+    new Date(at("2026-08-01")),
+  ).actions.find((a) => a.id.startsWith("seasonal:"))!;
+  expect(target).toBeDefined();
+  const t = randomUUID();
+  input.tasks = [
+    { id: t, status: "COMPLETED", completedAt: new Date(at("2026-08-16")) },
+  ];
+  input.actionTasks = [
+    {
+      id: randomUUID(),
+      taskId: t,
+      observationId: old.id,
+      actionId: target.id,
+      createdAt: new Date(at("2026-08-12")),
+      projectId: input.project.id,
+      auditId: null,
+      idempotencyKey: randomUUID(),
+    },
+  ];
+  const monthly = (
+    word: string,
+    volume: number,
+    when = "2026-10-05",
+    hash = "b",
+  ) =>
+    observation(
+      input,
+      parsePublicSeoArtifact({
+        ...page(when, hash),
+        keywordData: {
+          dataSource: "dataforseo",
+          fetchedAt: at(when),
+          facts: {
+            keyword: word,
+            keyword_difficulty: null,
+            monthly_searches: [{ year: 2026, month: 9, search_volume: volume }],
+          },
+        },
+      }),
+      at(when),
+    );
+  const unrelated = observation(
+    input,
+    parsePublicSeoArtifact(page("2026-10-30", "c")),
+    at("2026-10-30"),
+  );
+  const measured = monthly(keyword, 75);
+  input.observations = [unrelated, measured, old];
+  const observed = () =>
+    projectSeoProjection(input, now).actions.filter((a) => a.id === target.id);
+  expect(observed()).toMatchObject([
+    {
+      id: target.id,
+      status: "implemented",
+      taskId: t,
+      observationId: old.id,
+      followUpReview: {
+        kind: "demand_returns",
+        before: 30,
+        after: 75,
+        period: "2026-09",
+        keyword,
+        observationId: measured.id,
+      },
+    },
+  ]);
+  expect(input.tasks).toHaveLength(1);
+  for (const row of [
+    monthly("unrelated", 75),
+    monthly(keyword, 35),
+    { ...measured, scopeVersion: 2 },
+    { ...measured, projectId: randomUUID() },
+  ]) {
+    input.observations = [unrelated, row, old];
+    expect(observed()[0]?.followUpReview).toBeUndefined();
+  }
+  input.observations = [unrelated, measured, old];
+  input.tasks[0].completedAt = new Date(at("2026-10-10"));
+  expect(observed()[0]?.followUpReview).toBeUndefined();
+  input.observations = [
+    unrelated,
+    monthly(keyword, 90, "2026-10-21", "f"),
+    measured,
+    old,
+  ];
+  expect(observed()[0]?.followUpReview).toBeUndefined();
+  input.tasks = [];
+  input.actionTasks = [];
+  expect(observed()).toMatchObject([
+    {
+      status: "needs_review",
+      followUpReview: { observationId: measured.id, after: 75 },
+    },
+  ]);
+});
+
+it("ties a recent publication group to the page records and filters older context by the selected scope", () => {
+  const input = fixture(),
+    raw = legacyReport(),
+    topic = "Section A";
+  function child(n: number, day: string) {
+    return {
+      ...raw,
+      request: { url: "https://example.test/%C3%A9nergie-marine-" + n },
+      articleDates: {
+        publishedOn: day,
+        section: topic,
+        record: String(n).repeat(64),
+      },
+    };
+  }
+  const children = [
+    child(1, "2026-10-01"),
+    child(2, "2026-10-02"),
+    child(3, "2025-04-03"),
+  ];
+  const pages = children.map((c) => ({
+    url: c.request.url,
+    publishedOn: c.articleDates.publishedOn,
+    record: c.articleDates.record,
+  }));
+  const group = {
+    topic,
+    publishedFrom: "2026-10-01",
+    publishedThrough: "2026-10-02",
+    pages: pages.slice(0, 2),
+    earlierArticle: pages[2],
+  };
+  const site = {
+    ...siteStrategyReport(),
+    pages: children,
+    request: { url: pages[0].url },
+    selection: { pages: pages.map((p) => ({ url: p.url, source: "links" })) },
+    topicLaunches: [group],
+  };
+  const data = parsePublicSeoArtifact(site);
+  expect(data.topicLaunches).toEqual([group]);
+  // French headline phrases are public only when every dated page and its public source corroborate the label.
+  const phrase = "Énergie marine";
+  const unlabeled = children.map((c, i) => ({
+    ...c,
+    articleDates: {
+      ...c.articleDates,
+      section: "News",
+      headline:
+        phrase +
+        ": " +
+        [
+          "Entretien des turbines",
+          "Installation du capteur",
+          "Guide des moteurs",
+        ][i],
+    },
+  }));
+  const inferred = { ...group, topic: phrase, basis: "headline_phrase" };
+  const inferredSite = {
+    ...site,
+    pages: unlabeled,
+    topicLaunches: [inferred],
+  };
+  expect(parsePublicSeoArtifact(inferredSite).topicLaunches).toEqual([
+    inferred,
+  ]);
+  expect(() =>
+    parsePublicSeoArtifact({
+      ...inferredSite,
+      privateTopicQueries: [{ query: "private supplied query" }],
+    }),
+  ).toThrow(/Only public SEO evidence/);
+  for (const change of [
+    { headline: "A different heading" },
+    { section: "Publisher topic" },
+    { headline: unlabeled[0].articleDates.headline },
+  ]) {
+    const replaced = unlabeled.map((c, i) =>
+      i === 1 ? { ...c, articleDates: { ...c.articleDates, ...change } } : c,
+    );
+    expect(
+      parsePublicSeoArtifact({ ...inferredSite, pages: replaced })
+        .topicLaunches,
+    ).toBeUndefined();
+  }
+  const privateSelection = parsePublicSeoArtifact({
+    ...site,
+    selection: {
+      pages: pages.map((p, i) => ({
+        url: p.url,
+        source: i === 1 ? "search-console" : "links",
+      })),
+    },
+  });
+  expect(privateSelection.articleDates?.map((a) => a.url)).not.toContain(
+    pages[1].url,
+  );
+  expect(privateSelection.topicLaunches).toBeUndefined();
+  expect(
+    parsePublicSeoArtifact({
+      ...site,
+      topicLaunches: [
+        {
+          ...group,
+          earlierArticle: { ...group.earlierArticle, record: "a".repeat(64) },
+        },
+      ],
+    }).topicLaunches,
+  ).toBeUndefined();
+  const selected = pages
+    .slice(0, 2)
+    .map((p) => ({ ...input.pages[0], id: randomUUID(), url: p.url }));
+  input.pages = selected;
+  input.scope = {
+    ...input.scope,
+    pages: selected,
+    pageIds: selected.map((p) => p.id),
+  };
+  input.observations = [observation(input, data, now.toISOString())];
+  const projected = projectSeoProjection(input, now);
+  expect(projected.topicLaunches?.[0]).toMatchObject({
+    topic,
+    pages: pages.slice(0, 2),
+  });
+  expect(projected.topicLaunches?.[0]?.earlierArticle).toBeUndefined();
+  expect(projected.articleDates?.map((a) => a.url)).toEqual(
+    selected.map((p) => p.url),
+  );
+});
+
+it("binds sibling site ranking triggers to their exact audited page and preserves the measured review on its original Task", () => {
+  const input = fixture(),
+    raw = legacyReport(),
+    word = "camera repair";
+  function reportFor(day: string, position: number, hash: string, term = word) {
+    const at = day + "T12:00:00.000Z",
+      snapshotId = hash.repeat(64);
+    const page = {
+      ...raw,
+      snapshotId,
+      header: { ...raw.header, capturedAt: at },
+      rankingData: {
+        ...raw.rankingData,
+        source: "DataForSEO Labs and Backlinks API",
+        page: {
+          ...raw.rankingData.page,
+          rankedResult: "ok",
+          ranked: {
+            rows: [
+              {
+                url: SEO_TEST_PAGE,
+                keyword: term,
+                position,
+                intent: null,
+                volume: 100,
+              },
+            ],
+          },
+        },
+      },
+    };
+    const decision = {
+      id: "ranked.camera",
+      kind: "content_opportunity",
+      targetUrl: SEO_TEST_PAGE,
+      action: "Check which repair questions the page answers.",
+      reason: "The page ranks close to the first ten.",
+      alternative: "Keep the page if it already answers the query.",
+      nextCheck: "Check the next observed rank.",
+      evidence: [snapshotId, "rankingData.page.ranked"],
+    };
+    const earlier = hash === "a";
+    const site = {
+      ...siteStrategyReport(),
+      pages: [page],
+      strategyDecisions: earlier ? [decision] : [],
+      rankReviewTriggers: earlier
+        ? [
+            {
+              decisionId: decision.id,
+              kind: "rank_crosses",
+              keyword: term,
+              position,
+              boundary: 10,
+            },
+          ]
+        : [],
+    };
+    return observation(input, parsePublicSeoArtifact(site), at);
+  }
+  const old = reportFor("2026-09-01", 12, "a"),
+    better = reportFor("2026-10-06", 8, "b"),
+    unrelated = reportFor("2026-10-30", 3, "c", "other");
+  input.observations = [old];
+  const id = projectSeoProjection(input, now).actions.find(
+    (a) => a.decision,
+  )?.id;
+  expect(id).toBeDefined();
+  const taskId = randomUUID(),
+    completedAt = new Date("2026-09-10T00:00:00Z");
+  input.tasks = [{ id: taskId, status: "COMPLETED", completedAt }];
+  input.actionTasks = [
+    {
+      id: randomUUID(),
+      taskId,
+      actionId: id!,
+      observationId: old.id,
+      createdAt: completedAt,
+      projectId: input.project.id,
+      auditId: null,
+      idempotencyKey: randomUUID(),
+    },
+  ];
+  input.observations = [unrelated, better, old];
+  input.query = { from: "2026-10-01", to: "2026-10-31" };
+  const result = () =>
+    projectSeoProjection(input, now).actions.filter((a) => a.id === id);
+  expect(result()).toMatchObject([
+    {
+      taskId,
+      status: "implemented",
+      observationId: old.id,
+      followUpReview: {
+        kind: "rank_crosses",
+        before: 12,
+        after: 8,
+        keyword: word,
+        observationId: better.id,
+      },
+    },
+  ]);
+  expect(result()).toHaveLength(1);
+  input.observations = [reportFor("2026-10-30", 14, "d"), better, old];
+  expect(result()[0]?.followUpReview).toBeUndefined();
+  const again = reportFor("2026-10-30", 7, "e");
+  input.tasks[0]!.completedAt = new Date("2026-10-10T12:00:00Z");
+  input.observations = [again, better, old];
+  expect(result()[0]?.followUpReview).toBeUndefined();
+  input.query.from = "2026-10-20";
+  expect(result()[0]?.followUpReview).toBeUndefined();
+  const reversal = reportFor("2026-10-15", 14, "f");
+  input.observations = [again, reversal, better, old];
+  expect(result()).toMatchObject([
+    {
+      status: "implemented",
+      followUpReview: { observationId: again.id, after: 7 },
+    },
+  ]);
+  input.tasks[0]!.completedAt = completedAt;
+  expect(input.tasks[0]).toEqual({
+    id: taskId,
+    status: "COMPLETED",
+    completedAt,
+  });
+});
+
+it("imports one page's additional experiment only with its separate public page and market receipts", () => {
+  const { card, observations, pages } = openExperimentAudit();
+  const page = pages[0]!;
+  const source = observations.map((o, i) => ({
+    ...o,
+    url: page.request.url,
+    snapshotId: page.snapshotId,
+    sourceKind: i ? "market" : "page",
+  }));
+  const evidence = {
+    url: page.request.url,
+    snapshotId: page.snapshotId,
+    records: source.map(({ record, sourceKind }) => ({ record, sourceKind })),
+  };
+  const parse = (index: unknown, proof: unknown = source) =>
+    parsePublicSeoArtifact({
+      ...page,
+      openPageEvidence: index,
+      strategyDecisions: [{ ...card, observations: proof }],
+    });
+  const data = parse(evidence);
+  expect(data.strategyDecisions).toHaveLength(1);
+  const input = fixture();
+  input.observations = [observation(input, data, data.observedAt)];
+  const action = projectSeoProjection(input).actions.find(
+    (a) => a.title === card.action,
+  );
+  expect(action?.evidence).toHaveLength(2);
+  expect(action?.evidence[0]).toContain("Page");
+  expect(action?.evidence[1]).toContain("Market");
+  expect(parse(undefined).strategyDecisions).toBeUndefined();
+  expect(
+    parse({ ...evidence, snapshotId: "f".repeat(64) }).strategyDecisions,
+  ).toBeUndefined();
+  expect(
+    parse({
+      ...evidence,
+      records: evidence.records.map((r) => ({ ...r, sourceKind: "page" })),
+    }).strategyDecisions,
+  ).toBeUndefined();
+  expect(
+    parse(
+      evidence,
+      source.map((s) => ({ ...s, record: source[0]!.record })),
+    ).strategyDecisions,
+  ).toBeUndefined();
+});

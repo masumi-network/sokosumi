@@ -13,7 +13,7 @@ What Cuso does without being asked, per channel, and what the owner should see c
 | [TikTok](tiktok.md)                             | TikTok                            | Works; the owner confirms each video                            |
 | [Google Ads](google-ads.md)                     | Google Ads                        | Proposals work; no weekly tuning                                |
 | [Meta Ads](meta-ads.md)                         | Meta Ads                          | Not built                                                       |
-| [Website and SEO](website-seo.md)               | The owner's site                  | Audit works; follow-up not automatic                            |
+| [Website and SEO](website-seo.md)               | The owner's site                  | Audit and measured keyword picks work. follow-up not automatic  |
 | [Newsletter](newsletter.md)                     | Email                             | Writing only; no sending from CMO                               |
 | [Competitors](competitors.md)                   | All                               | Works; ads need the Ad Library token                            |
 | [Measurement](measurement.md)                   | Analytics, Search Console         | Works once connected                                            |

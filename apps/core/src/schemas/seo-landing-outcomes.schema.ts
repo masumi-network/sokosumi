@@ -45,6 +45,7 @@ export type SeoGoalInvestigation = z.infer<typeof seoGoalInvestigation>;
 export const privateLandingOutcomeSchema = z
   .strictObject({
     version: z.literal(1),
+    metricObservationId: z.uuid().optional(),
     channel: z.literal("organic"),
     accountKey: z.string().regex(/^[a-f0-9]{64}$/),
     propertyId: z.string().min(1).max(500),

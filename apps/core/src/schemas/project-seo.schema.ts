@@ -5,6 +5,11 @@ import {
   SEO_MIN_AUDIT_USD,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import {
+  seoArticleDates,
+  seoPrivateTopicQuery,
+  seoTopicLaunch,
+} from "@/helpers/seo-content-history";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
 import { seoActionSchema } from "./project-seo-action.schema";
@@ -343,6 +348,14 @@ export const seoFindingSchema = z
   .openapi("ProjectSeoFinding");
 /** The SEO bot's estimate of how likely a searcher takes the page's action. It is not a measured rate. */
 export const seoConversionSchema = z.enum(["high", "medium", "low"]);
+/** Editorial origin of a keyword whose DataForSEO measurement was retained by the audit. */
+export const seoEditorialKeywordSchema = z.object({
+  models: z
+    .array(z.enum(["gemini", "codex"]))
+    .min(1)
+    .max(2),
+  record: z.string().regex(/^[a-f0-9]{64}$/),
+});
 export const seoKeywordSchema = z
   .object({
     id: z.string(),
@@ -354,6 +367,7 @@ export const seoKeywordSchema = z
     languageCode: z.string(),
     source: z.string(),
     volume: z.number().nullable(),
+    editorial: seoEditorialKeywordSchema.optional(),
     /** DataForSEO keyword difficulty, 0 to 100: how hard a top 10 place is, from the link profiles of the top 10. */
     difficulty: z.number().nullable(),
     /**
@@ -689,6 +703,9 @@ export const projectSeoWorkspaceSchema = z
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     landingEngagementChange: seoLandingEngagementChange.optional(),
+    articleDates: z.array(seoArticleDates).optional(),
+    topicLaunches: z.array(seoTopicLaunch).optional(),
+    privateTopicQueries: z.array(seoPrivateTopicQuery).optional(),
     seasonalIdeas: z.array(seoWorkspaceSeasonalIdeaSchema).optional(),
     /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */
     serpHistory: z

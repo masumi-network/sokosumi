@@ -127,7 +127,7 @@ export function SeoActionWorklist({
                   setPresses((count) => count + 1);
                 }}
               >
-                {key === "all" ? null : (
+                {key === "all" || key === "reviews" ? null : (
                   <span
                     aria-hidden
                     className={cn("size-1.5 rounded-full", RAIL[key])}
@@ -247,6 +247,9 @@ function SeoWorklistRow({
             lang="en"
             className="flex flex-wrap items-center gap-1.5 max-sm:mt-1"
           >
+            {action.followUpReview && action.status !== "needs_review" && (
+              <SeoState>{t("actions.reviewAgain")}</SeoState>
+            )}
             {severity ? (
               <SeoSeverity severity={severity} />
             ) : (

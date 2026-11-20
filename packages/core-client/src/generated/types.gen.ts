@@ -92,7 +92,7 @@ export type AdminSeoAlerts = {
         taskId: string | null;
         at: Date;
         severity: 'critical' | 'warning' | 'info';
-        reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
+        reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'editorialGemini' | 'editorialCodex' | 'editorialValidation' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
         failedPages: number;
         attemptedPages: number;
     }>;
@@ -11772,7 +11772,42 @@ export type ProjectSeoWorkspace = {
             mixChange: number;
         };
     };
+    articleDates?: Array<{
+        url: string;
+        publishedOn: Date;
+        revisedOn?: Date;
+        record: string;
+        section?: string;
+        headline?: string;
+    }>;
+    topicLaunches?: Array<{
+        topic: string;
+        basis?: 'headline_phrase';
+        publishedFrom: Date;
+        publishedThrough: Date;
+        pages: Array<{
+            url: string;
+            publishedOn: Date;
+            revisedOn?: Date;
+            record: string;
+        }>;
+        earlierArticle?: {
+            url: string;
+            publishedOn: Date;
+            revisedOn?: Date;
+            record: string;
+        };
+    }>;
+    privateTopicQueries?: Array<{
+        topic: string;
+        query: string;
+        from: Date;
+        to: Date;
+        pages: Array<string>;
+        observationId: string;
+    }>;
     seasonalIdeas?: Array<{
+        marketBasis?: 'vendor_scenario';
         origin?: 'market_history';
         keyword: string;
         audience: string;
@@ -11790,6 +11825,22 @@ export type ProjectSeoWorkspace = {
         } | null;
         comparison: {
             status: 'above_baseline' | 'no_observed_rise' | 'insufficient';
+            earlierEdition?: {
+                previousEventDate: Date;
+                leadMonth: {
+                    period: string;
+                    volume: number | null;
+                };
+                eventMonth: {
+                    period: string;
+                    volume: number | null;
+                };
+                baselineMonths: Array<{
+                    period: string;
+                    volume: number | null;
+                }>;
+                baselineMedian: number;
+            };
             leadMonth: {
                 period: string;
                 volume: number | null;
@@ -11806,6 +11857,12 @@ export type ProjectSeoWorkspace = {
             historicalVolume: number;
             baselineMedian: number;
             referenceMonths?: Array<string>;
+            earlierCycle?: {
+                historicalPeriod: string;
+                historicalVolume: number;
+                baselineMedian: number;
+                referenceMonths?: Array<string>;
+            };
         }>;
         observedMonths?: Array<{
             period: string;
@@ -11881,6 +11938,10 @@ export type ProjectSeoKeyword = {
     languageCode: string;
     source: string;
     volume: number | null;
+    editorial?: {
+        models: Array<'gemini' | 'codex'>;
+        record: string;
+    };
     difficulty: number | null;
     clicks: {
         now: number;
@@ -11961,8 +12022,38 @@ export type ProjectSeoAction = {
         alternative: string;
         nextCheck: string;
     };
+    followUpReview?: {
+        before: number;
+        after: number;
+        period?: string;
+        baselineObservationId: string;
+        baselineObservedAt: Date;
+        observationId: string;
+        observedAt: Date;
+        kind: 'rank_crosses' | 'demand_returns';
+        keyword: string;
+    } | {
+        before: number;
+        after: number;
+        period?: string;
+        baselineObservationId: string;
+        baselineObservedAt: Date;
+        observationId: string;
+        observedAt: Date;
+        kind: 'engagement_changed' | 'purchase_rate_changed' | 'signup_rate_changed';
+        beforePeriod: {
+            from: Date;
+            to: Date;
+            sessions: number;
+        };
+        afterPeriod: {
+            from: Date;
+            to: Date;
+            sessions: number;
+        };
+    };
     taskId: string | null;
-    status: 'recommended' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
+    status: 'recommended' | 'needs_review' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
     completedAt?: Date;
     verifiedAt?: Date;
     kind: 'fix' | 'opportunity';
@@ -12454,6 +12545,24 @@ export type CreateProjectSeoMonitorRequest = {
     operationId: string;
     rule: ProjectSeoMonitorRule;
     analysis: RequestProjectSeoAnalysisRequest;
+};
+
+export type AcknowledgeProjectSeoReviewRequest = {
+    pageId: string;
+    view?: {
+        scopeId?: string;
+        pageId?: string;
+        pageIds?: Array<string>;
+        from?: string;
+        to?: string;
+        channel?: 'all' | 'organic' | 'ai_assistant';
+        searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
+    };
+    actionId: string;
+    kind: 'rank_crosses' | 'demand_returns' | 'engagement_changed' | 'purchase_rate_changed' | 'signup_rate_changed';
+    period?: string;
+    baselineObservationId: string;
+    observationId: string;
 };
 
 export type ProjectSeoStatisticsProperties = {
@@ -14802,6 +14911,8 @@ export type CmoKeywordSearch = {
 };
 
 export type CmoKeywordIdea = {
+    editorial?: true;
+    measuredAt?: Date;
     keyword: string;
     searchVolume: number | null;
     difficulty: number | null;
@@ -79226,6 +79337,110 @@ export type CreateProjectSeoMonitorResponses = {
 
 export type CreateProjectSeoMonitorResponse = CreateProjectSeoMonitorResponses[keyof CreateProjectSeoMonitorResponses];
 
+export type AcknowledgeProjectSeoReviewData = {
+    body: AcknowledgeProjectSeoReviewRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/actions/reviews';
+};
+
+export type AcknowledgeProjectSeoReviewErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AcknowledgeProjectSeoReviewError = AcknowledgeProjectSeoReviewErrors[keyof AcknowledgeProjectSeoReviewErrors];
+
+export type AcknowledgeProjectSeoReviewResponses = {
+    /**
+     * Recommendation review recorded
+     */
+    204: void;
+};
+
+export type AcknowledgeProjectSeoReviewResponse = AcknowledgeProjectSeoReviewResponses[keyof AcknowledgeProjectSeoReviewResponses];
+
 export type ListProjectSeoStatisticsPropertiesData = {
     body?: never;
     headers?: {
@@ -81998,6 +82213,110 @@ export type CreateSeoAuditMonitorResponses = {
 };
 
 export type CreateSeoAuditMonitorResponse = CreateSeoAuditMonitorResponses[keyof CreateSeoAuditMonitorResponses];
+
+export type AcknowledgeSeoAuditReviewData = {
+    body: AcknowledgeProjectSeoReviewRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/actions/reviews';
+};
+
+export type AcknowledgeSeoAuditReviewErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AcknowledgeSeoAuditReviewError = AcknowledgeSeoAuditReviewErrors[keyof AcknowledgeSeoAuditReviewErrors];
+
+export type AcknowledgeSeoAuditReviewResponses = {
+    /**
+     * Recommendation review recorded
+     */
+    204: void;
+};
+
+export type AcknowledgeSeoAuditReviewResponse = AcknowledgeSeoAuditReviewResponses[keyof AcknowledgeSeoAuditReviewResponses];
 
 export type ListSeoAuditStatisticsPropertiesData = {
     body?: never;

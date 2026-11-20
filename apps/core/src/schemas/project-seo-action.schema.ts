@@ -70,7 +70,16 @@ export const publicPageSnapshotSchema = z.strictObject({
   url: publicUrl,
   snapshotId: z.hash("sha256"),
 });
+const sourceKind = z.enum(["page", "market"]);
+const typedRecords = z
+  .array(z.strictObject({ record: z.hash("sha256"), sourceKind }))
+  .min(2)
+  .max(4);
+export const singlePageSourceSchema = publicPageSnapshotSchema.extend({
+  records: typedRecords,
+});
 export const publicDecisionSourceSchema = publicPageSnapshotSchema.extend({
+  records: typedRecords.optional(),
   market: z
     .strictObject({
       siteSnapshotId: z.hash("sha256"),
@@ -85,8 +94,19 @@ export const marketSourceSchema = z.strictObject({
   record: z.hash("sha256"),
 });
 const observationSchema = publicPageSnapshotSchema.extend({
+  sourceKind: sourceKind.optional(),
   record: z.hash("sha256"),
   quote: publicText(8, 180),
+});
+export const rankReviewTrigger = z.strictObject({
+  kind: z.literal("rank_crosses"),
+  keyword: visible(256),
+  position: z.number().int().positive(),
+  boundary: z.literal(10),
+});
+const rankDecision = fixedDecision.extend({
+  kind: z.literal("content_opportunity"),
+  reviewTrigger: rankReviewTrigger.optional(),
 });
 const experiment = fixedDecision
   .extend({
@@ -106,7 +126,20 @@ const experiment = fixedDecision
     const target = URL.parse(d.targetUrl);
     return (
       urls.has(d.targetUrl) &&
-      urls.size >= 2 &&
+      (urls.size >= 2 ||
+        (d.observations.every(
+          (o) => o.sourceKind && o.snapshotId === d.observations[0]!.snapshotId,
+        ) &&
+          d.observations.some(
+            (p) =>
+              p.sourceKind === "page" &&
+              d.observations.some(
+                (m) =>
+                  m.sourceKind === "market" &&
+                  m.record !== p.record &&
+                  m.quote !== p.quote,
+              ),
+          ))) &&
       quotes.size >= 2 &&
       new Set(d.evidence).size >= 2 &&
       !!target &&
@@ -116,7 +149,10 @@ const experiment = fixedDecision
     );
   });
 export const publicSeoDecisionSchema = z.discriminatedUnion("kind", [
-  fixedDecision,
+  rankDecision,
+  fixedDecision.extend({
+    kind: z.enum(["internal_link_opportunity", "offer_availability"]),
+  }),
   experiment,
 ]);
 /** A stored optional experiment can predate a tighter public evidence rule. Keep the audited recommendations. */
@@ -133,6 +169,44 @@ export const storedSeoDecisionsSchema = z.preprocess(
     .refine(withinStrategyLimit),
 );
 export type PublicSeoDecision = z.infer<typeof publicSeoDecisionSchema>;
+export const privateReviewKinds = [
+  "engagement_changed",
+  "purchase_rate_changed",
+  "signup_rate_changed",
+] as const;
+export const reviewKinds = [
+  "rank_crosses",
+  "demand_returns",
+  ...privateReviewKinds,
+] as const;
+const measurement = z.object({
+  before: z.number().nonnegative(),
+  after: z.number().nonnegative(),
+  period: z
+    .string()
+    .regex(/^\d{4}-(?:0[1-9]|1[0-2])$/)
+    .optional(),
+  baselineObservationId: seoIdSchema,
+  baselineObservedAt: dateTimeSchema,
+  observationId: seoIdSchema,
+  observedAt: dateTimeSchema,
+});
+const measuredPeriod = z.object({
+  from: z.iso.date(),
+  to: z.iso.date(),
+  sessions: z.number().int().positive(),
+});
+export const seoFollowUpReview = z.discriminatedUnion("kind", [
+  measurement.extend({
+    kind: z.enum(["rank_crosses", "demand_returns"]),
+    keyword: visible(256),
+  }),
+  measurement.extend({
+    kind: z.enum(privateReviewKinds),
+    beforePeriod: measuredPeriod,
+    afterPeriod: measuredPeriod,
+  }),
+]);
 export const seoActionSchema = z
   .object({
     id: z.string(),
@@ -152,9 +226,11 @@ export const seoActionSchema = z
       z.null(),
     ]),
     decision: decisionDetail.optional(),
+    followUpReview: seoFollowUpReview.optional(),
     taskId: z.string().nullable(),
     status: z.enum([
       "recommended",
+      "needs_review",
       "task_created",
       "unavailable",
       "implemented",

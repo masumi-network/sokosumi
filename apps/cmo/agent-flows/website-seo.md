@@ -9,3 +9,5 @@
 **The owner should see:** the SEO tab with fixes and ideas; a note in chat when a ranking moves.
 
 **Missing today:** steps 1 and 3 starting by themselves after the audit; publishing to the site.
+
+For keyword research, Cuso reads the ranked editorial picks and cites each measurement date. A cached search reuses the same picks. When the weekly result expires, the editors can test new phrases against the earlier topic baseline for up to 30 days.

@@ -152,6 +152,9 @@ export const mutateSeo = withSession<
       case "save_competitor":
         await seoServiceNoRedirect.saveCompetitor(owner, command.body);
         break;
+      case "acknowledge_review":
+        await seoServiceNoRedirect.acknowledgeReview(owner, command.body);
+        break;
       case "create_action_task":
         await seoServiceNoRedirect.createActionTask(owner, command.body);
         break;

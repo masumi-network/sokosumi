@@ -1,11 +1,9 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ArrowRight, MessageSquare } from "lucide-react";
-import { AGENT_NAME } from "../../lib/agent";
+import { useState } from "react";
 import { channelLabel, formatDay } from "../../lib/calendar";
 import { channelTone, formatName } from "../../lib/channels";
-import { cusoPose } from "../../lib/thread";
 import {
   dayIn,
   greeting,
@@ -17,18 +15,8 @@ import {
 } from "../../lib/today";
 import type { View } from "../../lib/views";
 import { ChannelIcon } from "../channel-icon";
-import { type CusoArt, cusoArt } from "../cuso";
-import { StatusDisc } from "../status";
 
 type Entry = ReturnType<typeof monthEntries>[number];
-
-const POSE_ART: Record<ReturnType<typeof cusoPose>, CusoArt> = {
-  reading: "searching",
-  thinking: "thinking",
-  "needs-you": "pointing",
-  reporting: "walking",
-  done: "thumbs-up",
-};
 
 interface TodayPageProps {
   overview: CmoOverview;
@@ -36,62 +24,33 @@ interface TodayPageProps {
   open: (view: View) => void;
   /** Opens one post of the month on the Calendar. */
   openEntry: (entryId: string) => void;
-  /** Opens the chat with the cursor in the box. */
-  ask: () => void;
   /** Pins the clock (previews, tests). */
   now?: Date;
 }
 
 /**
- * Home: what needs the owner, what goes out this week and how far the month
- * is, at a glance. Cuso is one tap away.
+ * Home: how far the month is, what needs the owner and what goes out this
+ * week, at a glance.
  */
 export function TodayPage({
   overview,
   firstName,
   open,
   openEntry,
-  ask,
   now = new Date(),
 }: TodayPageProps) {
   const needs = needsYou(overview);
   const entries = monthEntries(overview);
   const today = dayIn(overview.timeZone, now);
-  const pose = needs.length > 0 ? "needs-you" : cusoPose(overview, now);
   return (
     <div className="today">
-      <header className="today-hero">
-        <img
-          className="today-cuso"
-          src={cusoArt(POSE_ART[pose])}
-          alt=""
-          width={112}
-          height={112}
-        />
-        <div className="today-hello">
-          <h1 className="ob-h1">
-            {greeting(overview.timeZone, now)}
-            {firstName ? `, ${firstName}` : ""}
-          </h1>
-          <p className="today-says">{saying(overview, needs.length)}</p>
-        </div>
+      <header className="today-hello">
+        <h1 className="ob-h1">
+          {greeting(overview.timeZone, now)}
+          {firstName ? `, ${firstName}` : ""}
+        </h1>
+        <p className="today-says">{saying(overview, needs.length)}</p>
       </header>
-
-      <NeedsYouList items={needs} open={open} />
-
-      <section className="today-section" aria-labelledby="today-week">
-        <div className="today-section-head">
-          <h2 id="today-week">This week</h2>
-          <button
-            type="button"
-            className="button button-ghost button-small"
-            onClick={() => open("calendar")}
-          >
-            Whole month
-          </button>
-        </div>
-        <WeekStrip entries={entries} today={today} openEntry={openEntry} />
-      </section>
 
       {entries.length > 0 ? (
         <section className="today-section" aria-labelledby="today-month">
@@ -109,11 +68,21 @@ export function TodayPage({
         </section>
       ) : null}
 
-      <button type="button" className="today-ask" onClick={ask}>
-        <MessageSquare size={18} aria-hidden="true" />
-        <span className="grow">Ask {AGENT_NAME} anything</span>
-        <ArrowRight size={16} aria-hidden="true" />
-      </button>
+      <NeedsYouList items={needs} open={open} />
+
+      <section className="today-section" aria-labelledby="today-week">
+        <div className="today-section-head">
+          <h2 id="today-week">This week</h2>
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => open("calendar")}
+          >
+            Whole month
+          </button>
+        </div>
+        <WeekStrip entries={entries} today={today} openEntry={openEntry} />
+      </section>
     </div>
   );
 }
@@ -141,16 +110,7 @@ function NeedsYouList({
   items: NeedsYou[];
   open: (view: View) => void;
 }) {
-  if (items.length === 0) {
-    return (
-      <section className="today-clear" aria-label="Needs you">
-        <StatusDisc status="ok" decorative />
-        <span>
-          <b>All clear.</b> Nothing waits for you.
-        </span>
-      </section>
-    );
-  }
+  if (items.length === 0) return null;
   return (
     <section className="today-section" aria-labelledby="today-needs">
       <div className="today-section-head">
@@ -184,7 +144,14 @@ function NeedsYouList({
   );
 }
 
-/** Seven days, Monday first; today stands on Iris. Each post opens on tap. */
+/** Posts a day shows before "+N more". */
+const DAY_SHOWS = 3;
+
+/**
+ * Seven days, Monday first; today stands on Iris. A day counts its posts per
+ * network and shows the first three; "+N more" or its date opens the rest.
+ * On a phone the week is a row of dates over the open day (today at first).
+ */
 export function WeekStrip({
   entries,
   today,
@@ -194,55 +161,101 @@ export function WeekStrip({
   today: string;
   openEntry: (entryId: string) => void;
 }) {
+  const [openDay, setOpenDay] = useState<string | null>(null);
   const days = weekOf(today);
-  const thisWeek = entries.filter((entry) => days.includes(entry.date));
+  const shownDay = openDay ?? today;
   return (
     <ol className="week" aria-label="This week">
       {days.map((day) => {
-        const posts = thisWeek.filter((entry) => entry.date === day);
+        const posts = entries.filter((entry) => entry.date === day);
+        const isOpen = day === openDay;
         const isToday = day === today;
+        const shown = isOpen ? posts : posts.slice(0, DAY_SHOWS);
+        const more = posts.length - shown.length;
+        const name = formatDay(day, { weekday: "long", day: "numeric" });
         return (
           <li
             key={day}
             className={isToday ? "week-day week-today" : "week-day"}
             aria-current={isToday ? "date" : undefined}
+            data-shown={day === shownDay ? "" : undefined}
             data-empty={posts.length === 0 ? "" : undefined}
           >
-            <span className="week-date">
+            <button
+              type="button"
+              className="week-date"
+              aria-expanded={isOpen}
+              aria-label={`${name}${isToday ? ", today" : ""}: ${posts.length === 1 ? "1 post" : `${posts.length} posts`}`}
+              onClick={() => setOpenDay(isOpen ? null : day)}
+            >
               <span>{formatDay(day, { weekday: "short" })}</span>
               <b className="num">{formatDay(day, { day: "numeric" })}</b>
               {isToday ? <span className="week-label">Today</span> : null}
-            </span>
+              <span className="week-total num" aria-hidden="true">
+                {posts.length || ""}
+              </span>
+            </button>
             {posts.length === 0 ? (
               <span className="week-none note">Nothing</span>
             ) : (
-              <span className="week-posts">
-                {posts.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    className={`week-post net-${channelTone(entry.channel)}`}
-                    onClick={() => openEntry(entry.id)}
-                    aria-label={`${channelLabel(entry.channel)} ${formatName(entry.channel, entry.format)}${entry.time ? ` at ${entry.time}` : ""}: ${entry.title}`}
-                  >
-                    <span className="week-post-meta">
+              <>
+                <NetworkCounts posts={posts} />
+                <span className="week-posts">
+                  {shown.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={`week-post net-${channelTone(entry.channel)}`}
+                      onClick={() => openEntry(entry.id)}
+                      aria-label={`${channelLabel(entry.channel)} ${formatName(entry.channel, entry.format)}${entry.time ? ` at ${entry.time}` : ""}${entry.status === "published" ? ", out" : ""}: ${entry.title}`}
+                    >
                       <ChannelIcon channel={entry.channel} size={12} />
                       {entry.time ? (
                         <span className="num">{entry.time}</span>
                       ) : null}
-                      {entry.status === "published" ? (
-                        <span className="week-out">Out</span>
-                      ) : null}
-                    </span>
-                    <span className="week-post-title">{entry.title}</span>
+                      <span className="week-post-title">{entry.title}</span>
+                    </button>
+                  ))}
+                </span>
+                {more > 0 ? (
+                  <button
+                    type="button"
+                    className="week-more"
+                    onClick={() => setOpenDay(day)}
+                  >
+                    +{more} more
                   </button>
-                ))}
-              </span>
+                ) : null}
+              </>
             )}
           </li>
         );
       })}
     </ol>
+  );
+}
+
+/** How many posts a day holds on each network, as small chips on its fill. */
+function NetworkCounts({ posts }: { posts: Entry[] }) {
+  const counts = new Map<string, number>();
+  for (const post of posts) {
+    counts.set(post.channel, (counts.get(post.channel) ?? 0) + 1);
+  }
+  return (
+    <ul className="week-nets">
+      {[...counts].map(([channel, count]) => (
+        <li
+          key={channel}
+          className={`week-net net-${channelTone(channel)}`}
+          aria-label={`${channelLabel(channel)}: ${count}`}
+        >
+          <ChannelIcon channel={channel} size={11} />
+          <span className="num" aria-hidden="true">
+            {count}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

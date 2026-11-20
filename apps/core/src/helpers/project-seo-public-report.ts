@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { badRequest } from "@/helpers/error";
+import { seoUrlSchema } from "@/schemas/seo-page.schema";
 
 export const reportObject = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value)
@@ -9,6 +11,7 @@ const PRIVATE_FIELDS = [
   "searchConsole",
   "searchConsoleNear",
   "searchHistory",
+  "privateTopicQueries",
   "ownerExplorationRequest",
   "privateStrategyDecisions",
   "outcomes",
@@ -70,7 +73,17 @@ export function failedSeoSpecialists(raw: unknown) {
   const input = reportObject(raw);
   const site = input?.kind === "site";
   const pages = site && Array.isArray(input.pages) ? input.pages : [input];
-  const failed: ("seasonal" | "exploration" | "searchInvestigation")[] = [];
+  const editorialStages = [
+    "editorialGemini",
+    "editorialCodex",
+    "editorialValidation",
+  ] as const;
+  const failed: (
+    | "seasonal"
+    | "exploration"
+    | "searchInvestigation"
+    | (typeof editorialStages)[number]
+  )[] = [];
   if (
     pages.some((page) => {
       const status = reportObject(
@@ -83,10 +96,45 @@ export function failedSeoSpecialists(raw: unknown) {
     })
   )
     failed.push("seasonal");
-  if (site && Array.isArray(input.specialistFailures)) {
-    for (const stage of ["exploration", "searchInvestigation"] as const) {
-      if (input.specialistFailures.includes(stage)) failed.push(stage);
-    }
+  if (Array.isArray(input?.specialistFailures)) {
+    if (input.specialistFailures.includes("exploration"))
+      failed.push("exploration");
+    if (site && input.specialistFailures.includes("searchInvestigation"))
+      failed.push("searchInvestigation");
+  }
+  for (const stage of editorialStages) {
+    if (
+      pages.some((page) => {
+        const stages = reportObject(page)?.specialistFailures;
+        return Array.isArray(stages) && stages.includes(stage);
+      })
+    )
+      failed.push(stage);
   }
   return failed;
 }
+
+// Prisma rejects explicit undefined inside JSON. Zod can retain it for an absent or unreadable optional field.
+export function omitUndefinedProperties<T extends object>(parsed: T): T {
+  for (const key of Object.keys(parsed) as (keyof T)[]) {
+    const value = parsed[key];
+    if (value === undefined) delete parsed[key];
+    else if (value !== null && typeof value === "object")
+      omitUndefinedProperties(value);
+  }
+  return parsed;
+}
+
+// A site audit keeps going when one page Run fails. The worker names that page in `selection.skipped`.
+const siteSkipped = z.object({
+  selection: z.object({
+    skipped: z
+      .array(z.object({ url: seoUrlSchema, reason: z.string() }))
+      .max(10),
+  }),
+});
+export const skippedPages = (raw: unknown) => {
+  if (reportObject(raw)?.kind !== "site") return [];
+  const parsed = siteSkipped.safeParse(raw);
+  return parsed.success ? parsed.data.selection.skipped : [];
+};

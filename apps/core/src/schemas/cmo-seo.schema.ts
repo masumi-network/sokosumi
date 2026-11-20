@@ -51,6 +51,8 @@ export type CmoSeoSuggestion = z.infer<typeof cmoSeoSuggestionSchema>;
 
 export const cmoKeywordIdeaSchema = z
   .object({
+    editorial: z.literal(true).optional(),
+    measuredAt: z.string().datetime().optional(),
     keyword: z.string(),
     searchVolume: z.number().nullable(),
     difficulty: z.number().nullable(),
@@ -207,3 +209,21 @@ export const cmoLandingPageLiveSchema = z
     adsLaunched: z.number().int(),
   })
   .openapi("CmoLandingPageLive");
+
+export const cmoSeoArticleInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: z.string().trim().min(5).max(160),
+  keyword: z.string().trim().min(2).max(80),
+  why: z.string().trim().min(10).max(600),
+  outline: z.string().trim().min(10).max(4000),
+  draft: z.string().trim().min(200).max(40_000).optional(),
+});
+export const cmoSeoPageChangeInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  pageUrl: z.string().url().max(500),
+  title: z.string().trim().min(5).max(160),
+  change: z.string().trim().min(10).max(2000),
+  newText: z.string().trim().min(2).max(2000),
+  why: z.string().trim().min(10).max(600),
+  keyword: z.string().trim().min(2).max(80).optional(),
+});

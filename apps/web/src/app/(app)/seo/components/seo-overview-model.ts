@@ -191,6 +191,7 @@ export const SEO_ACTION_FILTERS = [
   "high",
   "low",
   "suggestions",
+  "reviews",
 ] as const;
 /** The message key of each filter's label: the impact groups use the words of the impact marks. */
 export const SEO_ACTION_FILTER_LABEL = {
@@ -198,6 +199,7 @@ export const SEO_ACTION_FILTER_LABEL = {
   high: "severity.major",
   low: "severity.minor",
   suggestions: "actions.filter.suggestions",
+  reviews: "actions.reviewAgain",
 } as const satisfies Record<(typeof SEO_ACTION_FILTERS)[number], string>;
 
 export type SeoActionFilter = (typeof SEO_ACTION_FILTERS)[number];
@@ -206,11 +208,20 @@ export type SeoActionFilter = (typeof SEO_ACTION_FILTERS)[number];
  * The worklist of the Actions tab: the count of each group, and the filters worth offering. A filter that
  * shows every row or none says nothing, so only the filters that split the list are offered.
  */
-export function seoActionWorklist<Action extends { kind: string }>(
-  actions: readonly Action[],
-  bucket: (action: Action) => SeoActionBucket,
-) {
-  const counts = { all: actions.length, high: 0, low: 0, suggestions: 0 };
+export function seoActionWorklist<
+  Action extends { kind: string; followUpReview?: unknown },
+>(actions: readonly Action[], bucket: (action: Action) => SeoActionBucket) {
+  const reviewRows = actions.filter((action) => action.followUpReview);
+  const ordered = reviewRows.length
+    ? [...reviewRows, ...actions.filter((action) => !action.followUpReview)]
+    : actions;
+  const counts = {
+    all: actions.length,
+    high: 0,
+    low: 0,
+    suggestions: 0,
+    reviews: reviewRows.length,
+  };
   for (const action of actions) counts[bucket(action)] += 1;
   const filters = SEO_ACTION_FILTERS.filter(
     (key) => key === "all" || (counts[key] > 0 && counts[key] < actions.length),
@@ -220,8 +231,10 @@ export function seoActionWorklist<Action extends { kind: string }>(
     filters,
     rows: (filter: SeoActionFilter) =>
       filter === "all"
-        ? actions
-        : actions.filter((action) => bucket(action) === filter),
+        ? ordered
+        : filter === "reviews"
+          ? reviewRows
+          : ordered.filter((action) => bucket(action) === filter),
   };
 }
 

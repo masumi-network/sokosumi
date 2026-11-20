@@ -41,6 +41,7 @@ import {
 } from "./cards";
 import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
+import { cusoMood } from "./cuso-status";
 import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
 import { MessageText } from "./message-text";
 import {
@@ -554,7 +555,6 @@ export function CmoApp({
                     setFocusEntry(id);
                     go("calendar");
                   }}
-                  ask={() => compose("")}
                 />
               ) : view === "calendar" ? (
                 <CalendarPage
@@ -683,6 +683,7 @@ export function CmoApp({
         view={view}
         onSelect={go}
         needs={needsYou(overview).length}
+        pose={cusoMood(overview).art}
         manyCusos={manyCusos}
         signOut={actions.signOut}
       />
