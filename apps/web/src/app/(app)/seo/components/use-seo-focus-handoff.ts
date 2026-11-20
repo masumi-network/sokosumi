@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+
 /**
  * A control that leaves with its cause (a connect that finished) takes the focus with it: the next cause the
  * box shows gets it on `target` (its text), unless the reader acted somewhere else in the meantime.
@@ -24,23 +26,17 @@ export function useSeoFocusHandoff(
   // over. Not in a dialog: the line's own control opens one, and the work there is the same step, in its
   // menus, confirms and popovers too, which sit outside it in a portal. Its overlay is outside: a press there
   // is a cancel.
-  useEffect(() => {
-    const drop = (event: Event) => {
-      if (
-        (event.target as Element | null)?.closest?.(
-          '[role="dialog"], [role="alertdialog"], [role="menu"], [data-radix-popper-content-wrapper]',
-        )
+  const drop = (event: Event) => {
+    if (
+      (event.target as Element | null)?.closest?.(
+        '[role="dialog"], [role="alertdialog"], [role="menu"], [data-radix-popper-content-wrapper]',
       )
-        return;
-      handoff.current = false;
-    };
-    document.addEventListener("pointerdown", drop, true);
-    document.addEventListener("focusin", drop, true);
-    return () => {
-      document.removeEventListener("pointerdown", drop, true);
-      document.removeEventListener("focusin", drop, true);
-    };
-  }, []);
+    )
+      return;
+    handoff.current = false;
+  };
+  useEventListener("document", "pointerdown", drop, true);
+  useEventListener("document", "focusin", drop, true);
   useEffect(() => {
     if (!handoff.current || hidden) return;
     handoff.current = false;

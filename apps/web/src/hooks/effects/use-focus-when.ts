@@ -11,6 +11,10 @@ export interface FocusableElement {
   focus(options?: FocusOptions): void;
 }
 
+export type FocusTarget =
+  | RefObject<FocusableElement | null>
+  | (() => FocusableElement | null | undefined);
+
 export interface UseFocusWhenOptions {
   /** Passed to `element.focus({ preventScroll })`. */
   preventScroll?: boolean;
@@ -32,15 +36,18 @@ function applyFocus(
 }
 
 /**
- * Focuses `targetRef.current` when `when` is true, reading the ref at effect
- * time so node remounts never re-trigger focus while the trigger is unchanged.
+ * Focuses the resolved target when `when` is true, reading the ref or getter at
+ * effect time so node remounts never re-trigger focus while the trigger is
+ * unchanged.
  */
 export function useFocusWhen(
-  targetRef: RefObject<FocusableElement | null>,
+  target: FocusTarget,
   when: boolean,
   options?: UseFocusWhenOptions,
 ): void {
-  const getTarget = useEffectEvent(() => targetRef.current);
+  const getTarget = useEffectEvent(() =>
+    typeof target === "function" ? target() : target.current,
+  );
   const preventScroll = options?.preventScroll;
   const deferToFrame = options?.deferToFrame ?? false;
   const resetKey = options?.resetKey;
@@ -50,14 +57,14 @@ export function useFocusWhen(
     if (!when) return;
 
     if (!deferToFrame) {
-      const target = getTarget();
-      if (target) applyFocus(target, preventScroll);
+      const element = getTarget();
+      if (element) applyFocus(element, preventScroll);
       return;
     }
 
     const frame = requestAnimationFrame(() => {
-      const target = getTarget();
-      if (target) applyFocus(target, preventScroll);
+      const element = getTarget();
+      if (element) applyFocus(element, preventScroll);
     });
     return () => {
       cancelAnimationFrame(frame);
@@ -69,18 +76,20 @@ export function useFocusWhen(
  * Layout-effect variant of `useFocusWhen` for pre-paint focus.
  */
 export function useLayoutFocusWhen(
-  targetRef: RefObject<FocusableElement | null>,
+  target: FocusTarget,
   when: boolean,
   options?: Omit<UseFocusWhenOptions, "deferToFrame">,
 ): void {
-  const getTarget = useEffectEvent(() => targetRef.current);
+  const getTarget = useEffectEvent(() =>
+    typeof target === "function" ? target() : target.current,
+  );
   const preventScroll = options?.preventScroll;
   const resetKey = options?.resetKey;
 
   useLayoutEffect(() => {
     void resetKey;
     if (!when) return;
-    const target = getTarget();
-    if (target) applyFocus(target, preventScroll);
+    const element = getTarget();
+    if (element) applyFocus(element, preventScroll);
   }, [when, preventScroll, resetKey]);
 }
