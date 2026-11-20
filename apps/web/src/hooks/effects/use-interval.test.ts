@@ -1,5 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
-import { StrictMode } from "react";
+import { act, render, renderHook } from "@testing-library/react";
+import { Activity, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useInterval } from "./use-interval";
@@ -112,26 +112,43 @@ describe("useInterval", () => {
     expect(callback).toHaveBeenCalledTimes(3);
   });
 
-  it("does not fire immediate twice on a StrictMode mount", () => {
+  it("fires immediate again when returning from a hidden React Activity", () => {
     const callback = vi.fn();
-    const { rerender } = renderHook(
-      ({ delayMs }: { delayMs: number | null }) =>
-        useInterval(callback, delayMs, { immediate: true }),
-      {
-        initialProps: { delayMs: 1_000 as number | null },
-        wrapper: StrictMode,
-      },
-    );
+    function Probe() {
+      useInterval(callback, 1_000, { immediate: true });
+      return null;
+    }
 
+    const { rerender } = render(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(Probe),
+      }),
+    );
     expect(callback).toHaveBeenCalledTimes(1);
+
+    rerender(
+      createElement(Activity, {
+        mode: "hidden",
+        children: createElement(Probe),
+      }),
+    );
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    rerender(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(Probe),
+      }),
+    );
+    expect(callback).toHaveBeenCalledTimes(2);
 
     act(() => {
       vi.advanceTimersByTime(1_000);
     });
-    expect(callback).toHaveBeenCalledTimes(2);
-
-    rerender({ delayMs: null });
-    rerender({ delayMs: 1_000 });
     expect(callback).toHaveBeenCalledTimes(3);
   });
 });
