@@ -527,14 +527,6 @@ export function cmoStyleHeadline(
 }
 
 /**
- * A picture in the look of an old print from the reference library: the
- * reference (the first image fal gets) lends only its style, the brand gives
- * the colours and, through the studio's brand block, its DESIGN.md. A piece
- * that shows the brand's site or product gets that picture after the
- * reference, set into the style unchanged. Core places the real logo
- * afterwards, so the model leaves its corner plain.
- */
-/**
  * Cuso's visuals often ask for steps or panels, and an infographic reference
  * letters every one: in production (2026-11-19) 33 of 56 tries on
  * infographic references were turned down for words besides the headline.
@@ -542,6 +534,14 @@ export function cmoStyleHeadline(
 const STEPS_WITHOUT_WORDS =
   "Show any steps, stages or panels with pictures alone: no numbers, step labels, captions, sub-titles, or letters on signs, screens, maps, compasses, tokens or objects.";
 
+/**
+ * A picture in the look of an old print from the reference library: the
+ * reference (the first image fal gets) lends only its style, the brand gives
+ * the colours and, through the studio's brand block, its DESIGN.md. A piece
+ * that shows the brand's site or product gets that picture after the
+ * reference, set into the style unchanged. Core places the real logo
+ * afterwards, so the model leaves its corner plain.
+ */
 export function cmoStylePrompt(input: {
   piece: Pick<
     CmoMediaPiece,
