@@ -17967,8 +17967,7 @@ export const DataRoomCompanyRepresentativeSchema = {
             type: 'string',
             maxLength: 1000
         }
-    },
-    description: 'GDPR Art. 27 representative in the EU.'
+    }
 } as const;
 
 export const CreateDataRoomRequestSchema = {
@@ -59460,6 +59459,16 @@ export const CmoSeoAuditSchema = {
                 'null'
             ],
             format: 'date-time'
+        },
+        retryAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        failedTries: {
+            type: 'integer'
         }
     },
     required: [
@@ -59469,7 +59478,9 @@ export const CmoSeoAuditSchema = {
         'running',
         'skipped',
         'latest',
-        'lastFailedAt'
+        'lastFailedAt',
+        'retryAt',
+        'failedTries'
     ]
 } as const;
 

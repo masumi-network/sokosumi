@@ -50,6 +50,12 @@ const WEEKLY_AUDIT_RULE = {
 const SKIP_WINDOW_MS = 60 * 60 * 1000;
 /** A new Cuso gets his first audit at once unless the weekly Run is this close. */
 const FIRST_AUDIT_GAP_MS = 2 * 24 * 60 * 60 * 1000;
+/**
+ * A failed first audit runs again this long after each failed try started:
+ * after an hour, then after six; then the weekly Run takes over (Patrick,
+ * 2026-11-20).
+ */
+const FIRST_AUDIT_RETRY_WAITS_MS = [60 * 60 * 1000, 6 * 60 * 60 * 1000];
 /** A test copy starts no audit while its family had one this recently (ADR 0073). */
 const TEST_COPY_AUDIT_GAP_MS = 7 * 24 * 60 * 60 * 1000;
 /** Monitors `cmoSeoMonitors` reads per Project, so the generations a Project can have. */
@@ -213,7 +219,49 @@ export async function keepCmoSeoAudit(
       });
     return;
   }
+  if (live.state === "ACTIVE") {
+    const { retryAt } = await firstAuditRetry(cuso.projectId, live, now);
+    if (retryAt && retryAt <= now) {
+      await runTaskScheduleNow(
+        vars,
+        live.id,
+        { expectedRevision: live.revision },
+        "cmo-subscription",
+      ).catch((error: unknown) => {
+        if (!isRefusal(error)) throw error;
+      });
+      return;
+    }
+  }
   await skipUnaffordableWeek(live, actor, vars, now);
+}
+
+/**
+ * When a first audit that failed runs again. Only while no audit of the
+ * Project ever finished and every try failed; none once the tries are used
+ * up, or when the weekly Run comes first.
+ */
+export async function firstAuditRetry(
+  projectId: string,
+  monitor: { nextRunAt: Date | null },
+  now: Date,
+): Promise<{ failedTries: number; retryAt: Date | null }> {
+  if (await latestCmoSeoAudit(projectId))
+    return { failedTries: 0, retryAt: null };
+  const runs = await listCmoSeoAuditRuns(projectId, new Date(0), now);
+  if (!runs.length || runs.some((run) => run.state !== "failed"))
+    return { failedTries: 0, retryAt: null };
+  const wait = FIRST_AUDIT_RETRY_WAITS_MS[runs.length - 1];
+  const retryAt = wait ? new Date(runs[0].startedAt.getTime() + wait) : null;
+  const weeklyFirst =
+    retryAt &&
+    monitor.nextRunAt &&
+    monitor.nextRunAt.getTime() <=
+      retryAt.getTime() + FIRST_AUDIT_RETRY_WAITS_MS[0];
+  return {
+    failedTries: runs.length,
+    retryAt: weeklyFirst ? null : retryAt,
+  };
 }
 
 /**
@@ -468,6 +516,10 @@ export async function readCmoSeoAudit(cuso: Cuso): Promise<CmoSeoAudit> {
     (last.status === "failed" ||
       task?.status === "FAILED" ||
       task?.status === "CANCELED");
+  const retry =
+    live?.state === "ACTIVE" && failed
+      ? await firstAuditRetry(cuso.projectId, live, new Date())
+      : { failedTries: 0, retryAt: null };
   return {
     creditsPerAudit: SEO_FULL_AUDIT_CREDITS,
     status:
@@ -484,6 +536,8 @@ export async function readCmoSeoAudit(cuso: Cuso): Promise<CmoSeoAudit> {
     skipped: skipped.map((run) => run.effectiveScheduledAt.toISOString()),
     latest: latest ? cmoAuditSummary(latest.observedAt, latest.payload) : null,
     lastFailedAt: failed ? last.updatedAt.toISOString() : null,
+    retryAt: retry.retryAt?.toISOString() ?? null,
+    failedTries: retry.failedTries,
   };
 }
 

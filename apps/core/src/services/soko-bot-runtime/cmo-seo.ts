@@ -50,6 +50,7 @@ function forCuso(seo: CmoSeo) {
       skippedForCredits: seo.audit.skipped,
       latest: seo.audit.latest,
       lastFailedAt: seo.audit.lastFailedAt,
+      retryAt: seo.audit.retryAt,
     },
     searchConsole: seo.searchConsole,
     articles: seo.articles.map(suggestion),

@@ -5644,6 +5644,9 @@ const cmoSeoAuditSchemaResponseTransformer = (data: any) => {
     if (data.lastFailedAt) {
         data.lastFailedAt = new Date(data.lastFailedAt);
     }
+    if (data.retryAt) {
+        data.retryAt = new Date(data.retryAt);
+    }
     return data;
 };
 

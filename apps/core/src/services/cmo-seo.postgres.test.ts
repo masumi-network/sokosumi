@@ -1422,6 +1422,137 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     ).toHaveLength(2);
   });
 
+  it("runs a failed first audit again after an hour, then after six, then leaves it to the weekly Run", async () => {
+    const own = await prisma.project.create({
+      data: { workspaceId, name: "Cuso", websiteUrl: "https://retry.test/" },
+      select: { id: true },
+    });
+    const bot = await prisma.sokoBot.create({
+      data: {
+        workspaceId,
+        projectId: own.id,
+        userId: null,
+        createdByUserId: userId,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        name: "Cuso",
+      },
+    });
+    const retrying = await findCusoForBot(bot.id);
+    if (!retrying) throw new Error("Cuso fixture missing");
+    const grant = await prisma.transaction.create({
+      data: { amount: 10_000n * CREDIT, organizationId },
+      select: { id: true },
+    });
+    await prisma.creditBucket.create({
+      data: {
+        amount: 10_000n * CREDIT,
+        organizationId,
+        projectId: own.id,
+        sourceTransactionId: grant.id,
+        referenceType: "CMO_TESTER_CREDITS",
+      },
+    });
+    await keepCmoSeoAudit(retrying);
+    const monitor = await prisma.taskSchedule.findFirstOrThrow({
+      where: {
+        projectId: own.id,
+        description: { startsWith: "seo_monitor: " },
+      },
+    });
+    // The weekly Run is days away, and the first audit failed half an hour ago.
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { nextRunAt: new Date(Date.now() + 5 * 86_400_000) },
+    });
+    const analyses = () =>
+      prisma.projectSeoAnalysis.findMany({
+        where: { projectId: own.id, kind: "audit_full" },
+        orderBy: { createdAt: "desc" },
+      });
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { projectId: own.id },
+    });
+    await prisma.projectSeoAnalysis.create({
+      data: {
+        projectId: own.id,
+        kind: "audit_full",
+        status: "failed",
+        idempotencyKey: randomUUID(),
+        requestHash: randomUUID(),
+        request: {},
+        requestedBy: userId,
+        createdAt: new Date(Date.now() - 30 * 60_000),
+      },
+    });
+    // The newest try failed and started this long ago; the earlier ones before it.
+    const failLatest = async (startedMinutesAgo: number) => {
+      const tries = await prisma.projectSeoAnalysis.findMany({
+        where: { projectId: own.id },
+        orderBy: { id: "desc" },
+      });
+      await prisma.task.updateMany({
+        where: { id: { in: tries.flatMap((row) => row.taskId ?? []) } },
+        data: { status: "FAILED" },
+      });
+      for (const [i, row] of tries.entries())
+        await prisma.projectSeoAnalysis.update({
+          where: { id: row.id },
+          data: {
+            status: "failed",
+            createdAt: new Date(
+              Date.now() - (startedMinutesAgo + i * 24 * 60) * 60_000,
+            ),
+          },
+        });
+    };
+
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(1);
+    const waiting = await readCmoSeoAudit(retrying);
+    expect(waiting.failedTries).toBe(1);
+    expect(Date.parse(waiting.retryAt ?? "")).toBeGreaterThan(Date.now());
+
+    // A weekly Run due before the retry, or just after it, is the retry.
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { nextRunAt: new Date(Date.now() + 60 * 60_000) },
+    });
+    expect((await readCmoSeoAudit(retrying)).retryAt).toBeNull();
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { nextRunAt: new Date(Date.now() + 5 * 86_400_000) },
+    });
+
+    await failLatest(61);
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(2);
+    expect((await readCmoSeoAudit(retrying)).running).toBe(true);
+
+    await failLatest(5 * 60);
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(2);
+    await failLatest(6 * 60 + 1);
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(3);
+
+    await failLatest(7 * 60);
+    await keepCmoSeoAudit(retrying);
+    expect(await analyses()).toHaveLength(3);
+    expect(await readCmoSeoAudit(retrying)).toMatchObject({
+      failedTries: 3,
+      retryAt: null,
+    });
+
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { projectId: own.id },
+    });
+    await prisma.task.deleteMany({ where: { projectId: own.id } });
+    await prisma.taskSchedule.deleteMany({ where: { projectId: own.id } });
+    await prisma.transaction.deleteMany({ where: { id: grant.id } });
+    await prisma.sokoBot.delete({ where: { id: bot.id } });
+    await prisma.project.delete({ where: { id: own.id } });
+  });
+
   it("pauses the weekly audit of a Cuso that was let go, but not a monitor a person made", async () => {
     const active = (await monitors()).find((m) => m.state === "ACTIVE");
     if (!active) throw new Error("fixture has an active monitor");
