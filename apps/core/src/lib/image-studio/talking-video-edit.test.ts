@@ -214,6 +214,11 @@ describe("talkingVideoEditArgs", () => {
     ]);
     const graph = args[args.indexOf("-filter_complex") + 1]!;
     expect(graph).toContain("[p1][m1]alphamerge[c1]");
+    // The presenter stands below the page's first screen, which shows
+    // shrunk over a blurred copy: at full size its head hid NMKR's headline.
+    expect(graph).toContain("[1:v]scale=540:960[p1]");
+    expect(graph).toContain("[pf1]scale=810:-2,crop=810:1440:0:");
+    expect(graph).toContain("[pb1][pt1]overlay=(W-w)/2:0[b1]");
     expect(graph).toContain("[b1][c1]overlay=(W-w)/2:H-h:shortest=1");
     // The sound still comes from the clip.
     expect(graph).toContain("[1:a]aresample=44100");

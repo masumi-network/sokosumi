@@ -8,7 +8,11 @@ import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import { monthPostCount, strategyApproved } from "../../lib/strategy";
+import {
+  monthLabel,
+  monthPostCount,
+  strategyApproved,
+} from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
 import { AdsChoice, money } from "../strategy-core";
@@ -443,7 +447,9 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const pieces = monthPostCount(strategy.calendar);
+  const month = monthLabel(strategy.calendar);
+  // Core refuses to approve a month short of what it promises.
+  const short = overview.strategyShort;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -483,7 +489,7 @@ export function PlanReview({
   // What it rests on and the language of the posts, in plain words. No page
   // count: the screenshots Core keeps are not the pages Cuso read.
   const line = [
-    `${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks, built from your website and your answers.`,
+    `${month} for the next four weeks, built from your website and your answers.`,
     strategy.contentLanguage
       ? `The posts are written in ${strategy.contentLanguage}.`
       : null,
@@ -500,7 +506,19 @@ export function PlanReview({
       Continue to {ahead.label}
       <ArrowRight size={16} aria-hidden="true" />
     </button>
-  ) : locked ? null : !overview.viewerCanApprove && !unfitted ? (
+  ) : locked ? null : short && !busy ? (
+    <button
+      type="button"
+      className="button"
+      onClick={() => {
+        setRefusal(null);
+        send("Writing your strategy again", () => onRequest()).catch(() => {});
+      }}
+    >
+      Write it again
+      <ArrowRight size={16} aria-hidden="true" />
+    </button>
+  ) : !overview.viewerCanApprove && !unfitted ? (
     <p className="muted">An owner or admin approves the strategy.</p>
   ) : (
     <button
@@ -625,6 +643,15 @@ export function PlanReview({
           subscribe={subscribe}
           skip={skip}
         />
+      ) : null}
+      {short && !busy && !locked ? (
+        <p className="alert" role="status">
+          {short.promised > short.planned
+            ? `This strategy plans ${short.planned} posts, but it promises about ${short.promised}.`
+            : "This strategy promises more than its calendar holds."}{" "}
+          {AGENT_NAME} couldn't fill the month, so it can't be approved. Ask him
+          to write it again.
+        </p>
       ) : null}
       {stopped ? (
         <p className="alert" role="alert">
@@ -900,7 +927,7 @@ function goalFacts(strategy: Strategy): { term: string; value: string }[] {
     { term: "Where", value: where },
     {
       term: "This month",
-      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "post" : "posts"}` : "",
+      value: pieces > 0 ? monthLabel(strategy.calendar) : "",
     },
   ];
   return facts.filter((fact): fact is { term: string; value: string } =>

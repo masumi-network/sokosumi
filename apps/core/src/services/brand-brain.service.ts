@@ -14,6 +14,8 @@ import {
   type CmoSaveBrandBrainInput,
   cmoBrandProfileSchema,
   cmoSaveBrandBrainInputSchema,
+  type StoredBrandBrainBody,
+  storedBrandBrainSchema,
 } from "@sokosumi/soko-bot";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
@@ -31,9 +33,14 @@ import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
 /** As `brandBrainSchema` allows. */
 const BRAND_BRAIN_QUESTIONS_MAX = 6;
 
-export function parseBrandBrain(value: unknown): BrandBrain | null {
-  const parsed = brandBrainSchema.safeParse(value);
+export function parseBrandBrain(value: unknown): StoredBrandBrainBody | null {
+  const parsed = storedBrandBrainSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
+}
+
+/** The promise in one line, as CMO shows it. */
+function promiseOf(brain: BrandBrain | null | undefined): string | undefined {
+  return brain?.reveal?.positioning ?? brain?.summary;
 }
 
 export const BRAND_BRAIN_SELECT = {
@@ -83,7 +90,7 @@ export async function saveBrandBrain(
    * Cuso's save: when his turn was asked, so only the corrections in its
    * brief close. A member's own edit closes the fix whenever it was asked.
    */
-  options: { briefedAt?: Date } = {},
+  options: { briefedAt?: Date; by?: "cuso" } = {},
 ): Promise<BrandBrainRecord> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
   const write = async (tx: Prisma.TransactionClient) => {
@@ -149,13 +156,25 @@ export async function saveBrandBrain(
       before?.questions ?? [],
       rewrittenSections(stored.profile, profile),
     );
-    const essentials = base
+    const merged = base
       ? {
           ...base,
           ...(reveal ? { reveal } : {}),
           ...(marketingToday ? { marketingToday } : {}),
           questions,
         }
+      : null;
+    // Whose words the promise is: a member's rewrite marks it theirs, and
+    // Cuso writing it again makes it his.
+    const rewritten = promiseOf(merged) !== promiseOf(before);
+    const promiseByOwner = rewritten
+      ? options.by !== "cuso"
+      : before?.promiseByOwner === true;
+    const { promiseByOwner: _sent, ...rest } = (merged ?? {}) as {
+      promiseByOwner?: boolean;
+    };
+    const essentials = merged
+      ? { ...rest, ...(promiseByOwner ? { promiseByOwner } : {}) }
       : null;
     const body = jsonInput(
       essentials ? { ...essentials, profile } : { profile },
@@ -545,5 +564,8 @@ export function compactBrandBrain(
   );
   // An answered question already lives in its section as a finding.
   const questions = brain.questions.filter((question) => !question.answer);
-  return { ...brain, profile, questions };
+  // Core's own marks stay out: Cuso reads what he and the owner wrote.
+  const { promiseByOwner: _owner, ...essentials } =
+    brain as StoredBrandBrainBody;
+  return { ...essentials, profile, questions };
 }

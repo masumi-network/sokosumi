@@ -29,8 +29,8 @@ interface TodayPageProps {
 }
 
 /**
- * Home: how far the month is, what needs the owner and what goes out this
- * week, at a glance.
+ * Home: how far the month is, what goes out this week and, last, what needs
+ * the owner, at a glance.
  */
 export function TodayPage({
   overview,
@@ -45,15 +45,15 @@ export function TodayPage({
   return (
     <div className="today">
       <header className="today-hello">
-        <h1 className="ob-h1">
+        <h1 className="page-title">
           {greeting(overview.timeZone, now)}
-          {firstName ? `, ${firstName}` : ""}
+          {firstName ? `, ${firstName}` : ""}.
         </h1>
         <p className="today-says">{saying(overview, needs.length)}</p>
       </header>
 
       {entries.length > 0 ? (
-        <section className="today-section" aria-labelledby="today-month">
+        <section className="card today-month" aria-labelledby="today-month">
           <div className="today-section-head">
             <h2 id="today-month">This month</h2>
             <button
@@ -68,9 +68,15 @@ export function TodayPage({
         </section>
       ) : null}
 
-      <NeedsYouList items={needs} open={open} />
-
-      <section className="today-section" aria-labelledby="today-week">
+      <section
+        // An empty week keeps its own height instead of filling the screen.
+        className={
+          entries.some((entry) => weekOf(today).includes(entry.date))
+            ? "today-section today-week"
+            : "today-section today-week-empty"
+        }
+        aria-labelledby="today-week"
+      >
         <div className="today-section-head">
           <h2 id="today-week">This week</h2>
           <button
@@ -83,6 +89,9 @@ export function TodayPage({
         </div>
         <WeekStrip entries={entries} today={today} openEntry={openEntry} />
       </section>
+
+      {/* Last, under Cuso's pointing hand at the sidebar's foot. */}
+      <NeedsYouList items={needs} open={open} />
     </div>
   );
 }
@@ -112,7 +121,10 @@ function NeedsYouList({
 }) {
   if (items.length === 0) return null;
   return (
-    <section className="today-section" aria-labelledby="today-needs">
+    <section
+      className="today-section today-needs"
+      aria-labelledby="today-needs"
+    >
       <div className="today-section-head">
         <h2 id="today-needs">Needs you</h2>
         <span className="count num">{items.length}</span>
@@ -144,8 +156,9 @@ function NeedsYouList({
   );
 }
 
-/** Posts a day shows before "+N more". */
+/** Posts a day shows before "+N more"; two on a short window. */
 const DAY_SHOWS = 3;
+const SHORT_SHOWS = 2;
 
 /**
  * Seven days, Monday first; today stands on Iris. A day counts its posts per
@@ -201,11 +214,12 @@ export function WeekStrip({
               <>
                 <NetworkCounts posts={posts} />
                 <span className="week-posts">
-                  {shown.map((entry) => (
+                  {shown.map((entry, index) => (
                     <button
                       key={entry.id}
                       type="button"
-                      className={`week-post net-${channelTone(entry.channel)}`}
+                      // A short window shows two a day; the third gives way.
+                      className={`week-post net-${channelTone(entry.channel)}${!isOpen && index === SHORT_SHOWS ? " week-post-extra" : ""}`}
                       onClick={() => openEntry(entry.id)}
                       aria-label={`${channelLabel(entry.channel)} ${formatName(entry.channel, entry.format)}${entry.time ? ` at ${entry.time}` : ""}${entry.status === "published" ? ", out" : ""}: ${entry.title}`}
                     >
@@ -217,13 +231,20 @@ export function WeekStrip({
                     </button>
                   ))}
                 </span>
-                {more > 0 ? (
+                {!isOpen && posts.length > SHORT_SHOWS ? (
                   <button
                     type="button"
-                    className="week-more"
+                    className={
+                      more > 0 ? "week-more" : "week-more week-more-short"
+                    }
                     onClick={() => setOpenDay(day)}
                   >
-                    +{more} more
+                    {more > 0 ? (
+                      <span className="more-wide">+{more} more</span>
+                    ) : null}
+                    <span className="more-short">
+                      +{posts.length - SHORT_SHOWS} more
+                    </span>
                   </button>
                 ) : null}
               </>

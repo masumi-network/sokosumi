@@ -20,7 +20,8 @@ import {
   formatHasVideo,
   formatName,
 } from "../../lib/channels";
-import { dayIn } from "../../lib/today";
+import { monthLabel } from "../../lib/strategy";
+import { dayIn, waitingLine } from "../../lib/today";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
 import { StatusDisc } from "../status";
@@ -161,14 +162,14 @@ export function CalendarPage({
   const waiting =
     overview.drafts.length > 0 ? (
       <section className="cal-week" aria-labelledby="cal-waiting">
-        <h3 className="cal-week-head" id="cal-waiting">
+        <h2 className="cal-week-head" id="cal-waiting">
           Waiting for you
           <span className="note num">
             {overview.drafts.length === 1
               ? "1 post"
               : `${overview.drafts.length} posts`}
           </span>
-        </h3>
+        </h2>
         <div className="cal-waiting">
           {overview.drafts.map((draft) => (
             <DraftPost key={draft.id} draft={draft} actions={drafts} />
@@ -193,11 +194,7 @@ export function CalendarPage({
     overview.media.find((item) => item.entryId === entry.id);
   const made = (entry: Entry) => pieceMade(entry, Boolean(mediaFor(entry)));
   const connected = connectedNetworks(overview.channels);
-  const waitingFor = [
-    ...new Set(
-      live.flatMap((entry) => waitsForNetwork(entry, connected) ?? []),
-    ),
-  ];
+  const waits = waitingLine(overview);
   const ready = live.filter(made).length;
   const readable = shown.filter(made);
   const index = readable.findIndex((entry) => entry.id === openId);
@@ -208,37 +205,27 @@ export function CalendarPage({
       {waiting}
       <div className="card cal-head">
         <p className="note num">
-          {live.length} posts this month · {ready} ready
+          {monthLabel(live)} this month · {ready} ready
           {ready < live.length ? ` · ${live.length - ready} being made` : ""}
           {beyond.size > 0
             ? ` · ${beyond.size} more with a bigger plan, in Settings`
             : ""}
         </p>
-        {waitingFor.map((network) => {
-          const count = live.filter(
-            (entry) => waitsForNetwork(entry, connected) === network,
-          ).length;
-          return (
-            <p key={network} className="cal-waits">
-              <StatusDisc status="warn" decorative />
-              <span className="grow">
-                {count === 1 ? "1 post is" : `${count} posts are`} written and
-                {count === 1 ? " waits" : " wait"} for {channelLabel(network)}.
-                Connect it and {count === 1 ? "it goes" : "they go"} out on
-                schedule.
-              </span>
-              {onConnect ? (
-                <button
-                  type="button"
-                  className="button button-secondary button-small"
-                  onClick={onConnect}
-                >
-                  Connect {channelLabel(network)}
-                </button>
-              ) : null}
-            </p>
-          );
-        })}
+        {waits ? (
+          <p className="cal-waits">
+            <StatusDisc status="warn" decorative />
+            <span className="grow">{waits}</span>
+            {onConnect ? (
+              <button
+                type="button"
+                className="button button-secondary button-small"
+                onClick={onConnect}
+              >
+                Connect
+              </button>
+            ) : null}
+          </p>
+        ) : null}
         <div className="cal-filters" role="group" aria-label="Network">
           <button
             type="button"
@@ -306,7 +293,7 @@ export function CalendarPage({
             className={current ? "cal-week cal-this-week" : "cal-week"}
             ref={current && weekIndex > 0 ? thisWeek : undefined}
           >
-            <h3 className="cal-week-head">
+            <h2 className="cal-week-head">
               {current ? <span className="cal-now">This week</span> : null}
               Week {weekIndex + 1}
               <span className="note num">
@@ -315,7 +302,7 @@ export function CalendarPage({
                   month: "short",
                 })}
               </span>
-            </h3>
+            </h2>
             <ul className="cal-grid">
               {pieces.map((entry) => (
                 <li key={entry.id}>

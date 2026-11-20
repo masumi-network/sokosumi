@@ -29054,6 +29054,9 @@ export const BrandBrainSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        promiseByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -31342,6 +31345,9 @@ export const BrandBrainRequestSchema = {
                     },
                     maxItems: 6,
                     default: []
+                },
+                promiseByOwner: {
+                    type: 'boolean'
                 }
             },
             required: [
@@ -55572,6 +55578,9 @@ export const CmoOverviewSchema = {
                             },
                             maxItems: 6,
                             default: []
+                        },
+                        promiseByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -55631,6 +55640,31 @@ export const CmoOverviewSchema = {
                     type: 'null'
                 }
             ]
+        },
+        strategyShort: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        planned: {
+                            type: 'integer',
+                            description: 'Pieces the calendar plans.'
+                        },
+                        promised: {
+                            type: 'integer',
+                            description: 'About how many its pace and cadences promise.'
+                        }
+                    },
+                    required: [
+                        'planned',
+                        'promised'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Set while the newest draft does not hold what it promises: fewer pieces than its own pace and cadences, or no video where its funnel or a video network promises one (after Cuso\'s finish turns). Approving it is refused (409); the owner asks for a new strategy instead. `promised` equals `planned` when only a video is missing.'
         },
         approvedStrategy: {
             anyOf: [
@@ -55915,6 +55949,7 @@ export const CmoOverviewSchema = {
         'brandBrainConfirmedAt',
         'brandMedia',
         'strategy',
+        'strategyShort',
         'approvedStrategy',
         'media',
         'postRevisions',
@@ -60462,6 +60497,30 @@ export const CmoPresenterPhotoSchema = {
     required: [
         'photo',
         'consent'
+    ]
+} as const;
+
+export const CmoAdBudgetStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        queued: {
+            type: 'boolean',
+            description: 'Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.'
+        }
+    },
+    required: [
+        'turnId',
+        'queued'
     ]
 } as const;
 

@@ -64,6 +64,13 @@ export type CmoEvalCase =
        * the lane gets the homepage's screenshot as a brand picture first.
        */
       pictures?: true;
+      /** A month with a newsletter issue: scored on the issue Core files. */
+      newsletter?: true;
+      /**
+       * cal.com's 28-piece month (the change request's), timed: how long
+       * until every word is written and how many tokens production read.
+       */
+      timed?: true;
     };
 
 /**
@@ -223,6 +230,37 @@ const PICTURE_PIECES = [
   campaignId: "team-routing-trial",
 }));
 
+/** A post and the newsletter issue it points to: the issue is a Files piece. */
+const NEWSLETTER_PIECES = [
+  {
+    id: "cal-newsletter-li",
+    time: "09:00",
+    channel: "linkedin",
+    title: "Routing forms send each lead to the right rep",
+    format: "post",
+    brief:
+      "Show how a routing form asks two questions and books the meeting with the rep who owns that segment.",
+    approach: "educational",
+    pillar: "Lead routing",
+  },
+  {
+    id: "cal-newsletter-issue",
+    time: "10:00",
+    channel: "newsletter",
+    title: "November: routing that books the right rep",
+    format: "issue",
+    brief:
+      "This month's issue for Cal.com's list: one routing tip, one customer example from the Brand Brain, and the Teams trial as the next step.",
+    approach: "educational",
+    pillar: "Lead routing",
+  },
+].map((piece) => ({
+  ...piece,
+  date: "2026-11-10",
+  status: "idea",
+  campaignId: "team-routing-trial",
+}));
+
 export const CMO_EVAL_CASES = [
   ...RESEARCH_BRANDS.map((name) => ({
     id: `cmo-research-${slug(name)}`,
@@ -291,6 +329,19 @@ export const CMO_EVAL_CASES = [
   ...(frozenBrains["cal.com"] && frozenPlans["cal.com"]
     ? [
         {
+          id: "cmo-month-timed",
+          suite: "cmo" as const,
+          area: "Month",
+          title: "Makes a 28-piece month in minutes, on few tokens",
+          intent:
+            "A whole month of posts, pictures and newsletter issues is written within fifteen minutes of approval, production reads at most 200,000 input tokens a piece, and Jev finds the pieces follow their skills and the brand's voice.",
+          kind: "cmo-month" as const,
+          brand: brand("cal.com"),
+          brandBrain: frozenBrains["cal.com"],
+          plan: frozenPlans["cal.com"],
+          timed: true as const,
+        },
+        {
           id: "cmo-month-styled-pictures",
           suite: "cmo" as const,
           area: "Month",
@@ -305,6 +356,31 @@ export const CMO_EVAL_CASES = [
             calendar: PICTURE_PIECES,
           },
           pictures: true as const,
+        },
+        {
+          id: "cmo-month-newsletter",
+          suite: "cmo" as const,
+          area: "Month",
+          title: "Writes cal.com's newsletter issue",
+          intent:
+            "The month's newsletter issue is written in full, with its subject line, short enough to read in a minute, and filed for the owner to send.",
+          kind: "cmo-month" as const,
+          brand: brand("cal.com"),
+          brandBrain: frozenBrains["cal.com"],
+          plan: {
+            ...(frozenPlans["cal.com"] as { channels: unknown[] }),
+            channels: [
+              ...((frozenPlans["cal.com"] as { channels: unknown[] })
+                .channels ?? []),
+              {
+                channel: "newsletter",
+                cadence: "1 issue a month",
+                why: "Keep trial users and customers up to date.",
+              },
+            ],
+            calendar: NEWSLETTER_PIECES,
+          },
+          newsletter: true as const,
         },
       ]
     : []),

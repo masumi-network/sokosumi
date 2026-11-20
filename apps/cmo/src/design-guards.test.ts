@@ -232,6 +232,7 @@ const FONT_SIZE_DECLARATION = /(?<![\w-])font-size\s*:\s*([^;}]*)/;
 /** The type scale's sizes in rem (design-system.md), plus sizes relative to the parent. */
 const SCALE_SIZES = new Set([
   "4.5rem",
+  "2.75rem",
   "2.25rem",
   "1.75rem",
   "1.5rem",
@@ -630,17 +631,31 @@ describe("Cuso on every page", () => {
     )?.[1] ?? "";
 
   it("never takes a press: only his bubble does", () => {
-    expect(rule(".cuso-status")).toContain("pointer-events: none");
-    expect(rule(".cuso-says")).toContain("pointer-events: auto");
+    expect(rule(".cuso-figure")).toContain("pointer-events: none");
   });
 
-  it("stands on his light stage in both themes, so his black line reads", () => {
-    expect(rule(".cuso-stage")).toContain("background: var(--stage)");
+  it("stands on his light ground in both themes, so his black line reads", () => {
+    expect(rule(".cuso-ground")).toContain("background: var(--stage)");
+  });
+
+  it("leans no further into the page than its gutter", () => {
+    const px = (name: string) =>
+      Number(css.match(new RegExp(`${name}: (\\d+)px;`))?.[1]);
+    const tallest = Number(
+      rule(".cuso-figure").match(/--cuso-height: min\((\d+)px/)?.[1],
+    );
+    const lean = Number(
+      rule(".cuso-figure").match(
+        /right: calc\(var\(--cuso-height\) \* -([\d.]+)\)/,
+      )?.[1],
+    );
+    expect(tallest * lean).toBeGreaterThan(0);
+    expect(tallest * lean).toBeLessThanOrEqual(px("--gutter") + px("--page-x"));
   });
 
   it("moves only when motion is allowed", () => {
     const moving = [
-      ...css.matchAll(/\n( *)\.cuso-stage img \{[^}]*animation/g),
+      ...css.matchAll(/\n( *)\.cuso-figure img \{[^}]*animation/g),
     ];
     expect(moving).toHaveLength(1);
     const before = css.slice(0, moving[0]?.index);
@@ -651,7 +666,19 @@ describe("Cuso on every page", () => {
 
   it("steps back while a sheet or dialog is open", () => {
     expect(css).toMatch(
-      /\.app:has\(\.sheet-scrim, \[role="dialog"\]\) \.cuso-stage \{[^}]*opacity: 0/,
+      /\.app:has\(\.sheet-scrim, \[role="dialog"\]\) \.cuso-figure \{[^}]*opacity: 0/,
     );
+  });
+});
+
+describe("hire screen on a phone", () => {
+  it("keeps the label right of Cuso inside the screen's 16px gutter", () => {
+    const css = FILES.find(
+      (file) => file.rel === "components/onboarding/onboarding.css",
+    )?.text;
+    const phone = css?.slice(css.indexOf("The labels would hang off a phone"));
+    const rule = phone?.match(/\.ob-tilt-b\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toContain("left: auto");
+    expect(rule).toMatch(/right:\s*calc\(16px - \(100vw - 200px\) \/ 2\)/);
   });
 });

@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { cmoOverview, cmoStrategyVersion } from "../test-fixtures/cmo";
-import { dayIn, greeting, monthProgress, needsYou, weekOf } from "./today";
+import {
+  cmoOverview,
+  cmoStrategy,
+  cmoStrategyVersion,
+} from "../test-fixtures/cmo";
+import {
+  dayIn,
+  greeting,
+  monthEntries,
+  monthProgress,
+  needsYou,
+  waitingLine,
+  weekOf,
+} from "./today";
 
 const approved = cmoStrategyVersion(new Date("2026-10-01T09:00:00Z"));
 
@@ -108,7 +120,43 @@ describe("the week", () => {
   it("greets by the hour where Cuso works", () => {
     const at = new Date("2026-11-19T08:00:00Z");
     expect(greeting("Europe/Berlin", at)).toBe("Good morning");
-    expect(greeting("America/Los_Angeles", at)).toBe("Good evening");
+    // Midnight in Los Angeles: no "Good evening" after the day turned.
+    expect(greeting("America/Los_Angeles", at)).toBe("Hello");
+    expect(
+      greeting("America/Los_Angeles", new Date("2026-11-20T09:55:00Z")),
+    ).toBe("Hello");
+    expect(
+      greeting("America/Los_Angeles", new Date("2026-11-20T04:00:00Z")),
+    ).toBe("Good evening");
+  });
+
+  it("says in one line how many posts wait, for which networks", () => {
+    const post = (id: string, channel: string) => ({
+      id,
+      date: "2026-11-21",
+      channel,
+      title: id,
+      format: "post",
+      status: "draft" as const,
+      draft: "Words",
+    });
+    const overview = cmoOverview({
+      ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+      strategy: {
+        ...cmoStrategy,
+        calendar: [
+          post("a", "youtube"),
+          post("b", "instagram"),
+          post("c", "instagram"),
+          post("d", "tiktok"),
+        ],
+      },
+      channels: [],
+    });
+    expect(waitingLine(overview)).toBe(
+      "4 posts wait for YouTube, Instagram and TikTok.",
+    );
+    expect(waitingLine(cmoOverview({ strategy: null }))).toBeNull();
   });
 });
 
@@ -128,6 +176,24 @@ it("counts the month by where each post stands", () => {
       entry("scheduled"),
       entry("draft"),
       entry("idea"),
+      {
+        ...entry("idea"),
+        id: "ad",
+        channel: "google_ads",
+        format: "search ad",
+      },
     ]),
   ).toEqual({ out: 2, scheduled: 1, written: 1, planned: 1, total: 5 });
+});
+
+it("leaves out the posts the plan bought does not make, as the Calendar does", () => {
+  const overview = cmoOverview();
+  const ids = (overview.strategy?.calendar ?? []).map((entry) => entry.id);
+  const [beyond, ...made] = ids;
+  if (!beyond) throw new Error("fixture has an entry");
+  const month = monthEntries({
+    ...overview,
+    production: { ...overview.production, beyondPlan: [beyond] },
+  });
+  expect(month.map((entry) => entry.id).sort()).toEqual(made.sort());
 });

@@ -46,20 +46,41 @@ export function getPersonalAssistantChromeVisible(): boolean {
  * sidebar row's poll, so the chat list's Direct with it says the same thing
  * as that row instead of an always-online dot.
  */
+const failedSokoBotIds = new Map<symbol, string>();
 let failedSokoBotId: string | null = null;
 
-export function publishFailedSokoBotId(id: string | null): void {
-  if (failedSokoBotId === id) {
+function syncFailedSokoBotId(): void {
+  let next: string | null = null;
+  for (const id of failedSokoBotIds.values()) {
+    next = id;
+  }
+  if (failedSokoBotId === next) {
     return;
   }
-  failedSokoBotId = id;
+  failedSokoBotId = next;
   notifyListeners();
+}
+
+export function publishFailedSokoBotId(id: string): () => void {
+  const token = Symbol();
+  failedSokoBotIds.set(token, id);
+  syncFailedSokoBotId();
+  return () => {
+    if (!failedSokoBotIds.delete(token)) {
+      return;
+    }
+    syncFailedSokoBotId();
+  };
+}
+
+export function getFailedSokoBotId(): string | null {
+  return failedSokoBotId;
 }
 
 export function useFailedSokoBotId(): string | null {
   return useSyncExternalStore(
     subscribePersonalAssistantChromeVisible,
-    () => failedSokoBotId,
+    getFailedSokoBotId,
     () => null,
   );
 }

@@ -111,6 +111,8 @@ export interface RoomComposerEditHandle extends RoomComposerHandle {
   /** Focus with the caret after the text, to keep typing on from it. */
   focusAtEnd: () => void;
   insertText: (text: string) => void;
+  /** Add `text` after the whole draft, with a space after a word. */
+  addText: (text: string) => void;
   /** Remove the last occurrence of `text`; false when it is not in the editor. */
   removeLastText: (text: string) => boolean;
 }
@@ -587,6 +589,9 @@ export function RoomComposer({
       },
       insertText: (text) => {
         editorRef.current?.insertText(text);
+      },
+      addText: (text) => {
+        editorRef.current?.appendText(text);
       },
       removeLastText: (text) =>
         editorRef.current?.removeLastText(text) ?? false,

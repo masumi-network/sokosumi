@@ -6,21 +6,17 @@ import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
-import { channelKey, formatMedia } from "../../lib/channels";
+import { channelInfo, channelKey, formatMedia } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
-import { monthPostCount } from "../../lib/strategy";
+import { monthAdCount, monthPostCount } from "../../lib/strategy";
 import { LegalNotice } from "../legal-notice";
-import { money, PACES } from "../strategy-core";
+import { money } from "../strategy-core";
 import { type SkipSubscription, SkipSubscriptionButton } from "../top-up";
 import { CusoScene } from "./cuso-scene";
 import type { CheckoutPhase } from "./step";
 
 type Interval = CmoSubscriptionPlan["interval"];
 type Strategy = NonNullable<CmoOverview["strategy"]>;
-type Pace = NonNullable<Strategy["pace"]>["level"];
-
-/** The plan each pace fits, by its place among the plans from cheapest up. */
-const PACE_PLAN: Record<Pace, number> = { steady: 0, active: 1, all_in: 2 };
 
 /**
  * What a plan makes of this strategy a month: the month is written at the
@@ -85,12 +81,18 @@ function monthOf(strategy: Strategy) {
   const media = live
     .filter((entry) => !entry.videoOf)
     .map((entry) => formatMedia(entry.channel, entry.format));
+  // The networks the posts go out on; ads are named on their own line.
   const channels = [
-    ...new Set(live.map((entry) => channelKey(entry.channel) ?? entry.channel)),
+    ...new Set(
+      live
+        .filter((entry) => channelInfo(entry.channel)?.group !== "ads")
+        .map((entry) => channelKey(entry.channel) ?? entry.channel),
+    ),
   ].map(channelLabel);
   return {
     pieces: monthPostCount(strategy.calendar),
     channels,
+    ads: monthAdCount(strategy.calendar),
     pictures: media.filter((kind) => kind === "image" || kind === "images")
       .length,
     videos: media.filter((kind) => kind === "video").length,
@@ -116,9 +118,9 @@ interface CheckoutStepProps {
 
 /**
  * Hiring's step after the approved plan (ADR 0068): what the month holds,
- * the CMO plans with the one that fits its pace picked, then Polar's hosted
- * checkout. Back from Polar it waits for the payment's confirmation; the
- * accounts and Launch come next.
+ * the CMO plans with the smallest one that makes all of it picked, then
+ * Polar's hosted checkout. Back from Polar it waits for the payment's
+ * confirmation; the accounts and Launch come next.
  */
 export function CheckoutStep({
   plans,
@@ -158,31 +160,26 @@ export function CheckoutStep({
   const offered = plans
     .filter((plan) => plan.interval === interval)
     .sort((a, b) => a.priceAmount - b.priceAmount);
-  const pace = strategy?.pace?.level;
   const makes = new Map(
     strategy
       ? offered.map((plan) => [plan.tier, planMakes(strategy, plan.tier)])
       : [],
   );
   const most = Math.max(0, ...[...makes.values()].map((made) => made.posts));
-  // The smallest plan that makes the whole strategy; without one, the pace's.
+  // The smallest plan that makes the whole strategy.
   const whole = strategy
     ? offered.find((plan) => makes.get(plan.tier)?.posts === most)?.tier
     : undefined;
-  const fits =
-    whole ??
-    offered[Math.min(pace ? PACE_PLAN[pace] : 0, offered.length - 1)]?.tier;
-  // The plan that fits the pace until the person picks one; a pick carries
-  // over to the other interval, which sells the same tiers.
+  // That plan until the person picks one; a pick carries over to the other
+  // interval, which sells the same tiers.
   const tier =
     offered.find((plan) => plan.tier === picked)?.tier ??
-    fits ??
+    whole ??
     offered[0]?.tier;
   const chosen = offered.find((plan) => plan.tier === tier);
   const saving = yearlySaving(plans);
   const month =
     strategy && strategy.calendar.length > 0 ? monthOf(strategy) : null;
-  const paceName = PACES.find((option) => option.level === pace)?.name;
 
   function checkout(chosenTier: string) {
     setError(null);
@@ -220,6 +217,17 @@ export function CheckoutStep({
               , written in your voice
             </span>
           </li>
+          {month.ads > 0 ? (
+            <li>
+              <Check size={16} aria-hidden="true" />
+              <span>
+                <b>
+                  {month.ads} {month.ads === 1 ? "ad" : "ads"}
+                </b>
+                , live only when you launch them
+              </span>
+            </li>
+          ) : null}
           {month.pictures + month.videos > 0 ? (
             <li>
               <Check size={16} aria-hidden="true" />
@@ -282,8 +290,6 @@ export function CheckoutStep({
               >
                 {plan.tier === whole && offered.length > 1 ? (
                   <span className="ob-plan-fit">Makes all of it</span>
-                ) : plan.tier === fits && paceName && !whole ? (
-                  <span className="ob-plan-fit">Fits your {paceName} pace</span>
                 ) : null}
                 <span className="ob-plan-name">{tierName(plan.tier)}</span>
                 <span className="ob-value">

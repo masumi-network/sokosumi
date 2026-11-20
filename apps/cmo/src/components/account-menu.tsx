@@ -17,8 +17,10 @@ interface AccountMenuProps {
   signOut?: (() => Promise<void>) | undefined;
   /** False where the Cuso picker has its own link (the app's sidebar). */
   cusoPicker?: boolean;
-  /** The button's content in place of the label pill: the person's row. */
+  /** The button's content in place of the label pill: the person's avatar. */
   trigger?: ReactNode;
+  /** Items above the theme switch (the person, Settings); `close` shuts the menu. */
+  children?: (close: () => void) => ReactNode;
 }
 
 /**
@@ -32,6 +34,7 @@ export function AccountMenu({
   signOut,
   cusoPicker = true,
   trigger: person,
+  children,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -72,12 +75,13 @@ export function AccountMenu({
           <>
             <span className="dot live" aria-hidden="true" />
             <span className="ob-who-name">{label}</span>
+            <ChevronDown size={14} aria-hidden="true" />
           </>
         )}
-        <ChevronDown size={14} aria-hidden="true" />
       </button>
       {open ? (
         <div className="ob-who-menu">
+          {children?.(() => setOpen(false))}
           <ThemeToggle className="ob-who-item" withLabel />
           {cusoPicker ? (
             <a className="ob-who-item" href="/?cusos=1">

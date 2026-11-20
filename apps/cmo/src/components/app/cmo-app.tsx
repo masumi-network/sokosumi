@@ -6,21 +6,15 @@ import "../onboarding/onboarding.css";
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { ChatTable, ChatWork } from "../../lib/chat-work";
+import { pageLead } from "../../lib/page-lead";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
-import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
+import { buildThread, type ThreadItem } from "../../lib/thread";
 import { needsYou } from "../../lib/today";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
@@ -44,6 +38,7 @@ import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
 import { cusoMood } from "./cuso-status";
 import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
 import { MessageText } from "./message-text";
+import { PageLead } from "./page-lead";
 import {
   type AddMailingList,
   BrandBrainPage,
@@ -54,7 +49,7 @@ import {
   SettingsPage,
 } from "./pages";
 import { cmoPause, PausedBanner } from "./paused";
-import { initial, Sidebar, VIEWS } from "./sidebar";
+import { initial, Sidebar } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
 import { TabBar } from "./tab-bar";
@@ -396,7 +391,7 @@ export function CmoApp({
     );
   }
 
-  const status = cusoStatus(overview);
+  const lead = pageLead(view, overview);
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
   const pause = strategyApproved(overview) ? cmoPause(overview) : null;
@@ -414,42 +409,6 @@ export function CmoApp({
       />
 
       <main className="main">
-        {/* A page's lead names it; only the chat and Strategy keep a bar for their status. */}
-        {view === "chat" || view === "strategy" ? (
-          <div className="vhead">
-            <h2>{VIEWS.find(([id]) => id === view)?.[1]}</h2>
-            {view === "chat" ? (
-              <span className="status">
-                <span
-                  className={
-                    overview.botStatus === "RUNNING" ? "dot live" : "dot"
-                  }
-                  aria-hidden="true"
-                />
-                {status}
-              </span>
-            ) : null}
-            {view === "strategy" && overview.strategy ? (
-              strategyApproved(overview) ? (
-                <StatusText>Approved</StatusText>
-              ) : (
-                <span className="muted">Draft</span>
-              )
-            ) : null}
-            <span className="sp" />
-            {view === "strategy" &&
-            overview.strategy &&
-            !strategyApproved(overview) &&
-            overview.viewerCanApprove ? (
-              <ApproveDraft
-                approve={async () =>
-                  setOverview(await actions.approveStrategy())
-                }
-              />
-            ) : null}
-          </div>
-        ) : null}
-
         {pause ? (
           <PausedBanner
             pause={pause}
@@ -464,6 +423,7 @@ export function CmoApp({
 
         {view === "chat" ? (
           <>
+            {lead ? <PageLead {...lead} /> : null}
             <div className="scroll chat">
               <div className="thread">
                 {thread.map((item) => (
@@ -533,18 +493,27 @@ export function CmoApp({
         ) : (
           // A new element per page, so each page opens at its top.
           <div className="scroll" key={view}>
-            <div className={view === "strategy" ? undefined : "page"}>
-              {PAGE_LEADS[view] ? (
+            <div className={`page page-${view}`}>
+              {lead && view !== "seo" && view !== "competitors" ? (
                 <PageLead
-                  title={PAGE_LEADS[view].title}
+                  {...lead}
                   line={
                     view === "results" ? (
                       <ResultsLead overview={overview} />
                     ) : (
-                      PAGE_LEADS[view].line
+                      lead.line
                     )
                   }
-                />
+                >
+                  {view === "strategy" ? (
+                    <StrategyLeadAside
+                      overview={overview}
+                      approve={async () =>
+                        setOverview(await actions.approveStrategy())
+                      }
+                    />
+                  ) : null}
+                </PageLead>
               ) : null}
               {view === "today" ? (
                 <TodayPage
@@ -691,40 +660,20 @@ export function CmoApp({
   );
 }
 
-/** The head of a page, as onboarding's steps lead: what it is, in one line. */
-const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
-  calendar: {
-    title: "Your month",
-    line: `Every post ${AGENT_NAME} makes. Each one opens once it is made.`,
-  },
-  seo: {
-    title: "Found on Google",
-    line: "A full audit of your site every week, what to change, and what to write next.",
-  },
-  results: {
-    title: "How it's going",
-    line: "Real numbers from your accounts, checked every week.",
-  },
-  competitors: {
-    title: "Your competitors",
-    line: "I check each one every week and tell you what moved, with the source.",
-  },
-  channels: {
-    title: "Where I post",
-    line: "Connect a network and I post there on your strategy's schedule.",
-  },
-  settings: {
-    title: "Settings",
-    line: `Your plan, your credits and when ${AGENT_NAME} works.`,
-  },
-};
-
-function PageLead({ title, line }: { title: string; line: ReactNode }) {
-  return (
-    <header className="page-lead">
-      <h1 className="ob-h1">{title}</h1>
-      <p className="muted">{line}</p>
-    </header>
+/** Strategy's status beside its lead, and the approval while it is a draft. */
+function StrategyLeadAside({
+  overview,
+  approve,
+}: {
+  overview: CmoOverview;
+  approve: () => Promise<void>;
+}) {
+  if (!overview.strategy) return null;
+  if (strategyApproved(overview)) return <StatusText>Approved</StatusText>;
+  return overview.strategyShort || !overview.viewerCanApprove ? (
+    <span className="muted">Draft</span>
+  ) : (
+    <ApproveDraft approve={approve} />
   );
 }
 

@@ -9,14 +9,16 @@ import {
   channelLabel,
   connectedNetworks,
   formatDay,
+  isSocialProvider,
   SOCIAL_PROVIDERS,
   waitsForNetwork,
 } from "../../lib/calendar";
 import { channelInfo, SOON_CHANNELS } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
+import { nextWeeklyReview } from "../../lib/page-lead";
 import { strategyApproved } from "../../lib/strategy";
-import { monthEntries } from "../../lib/today";
+import { monthEntries, waitingLine } from "../../lib/today";
 import type { View } from "../../lib/views";
 import {
   type AdActions,
@@ -73,24 +75,26 @@ export function ResultsPage({
 }) {
   const weekly = overview.updates.filter((update) => update.kind === "weekly");
   const { posts } = overview;
-  // Pieces Cuso has written that are not Social posts yet count as drafts too.
-  const writtenInPlan = (overview.strategy?.calendar ?? []).filter(
-    (entry) =>
-      entry.draft &&
-      !entry.socialPostId &&
-      entry.status !== "published" &&
-      entry.status !== "skipped",
-  ).length;
   const networks = connectedNetworks(overview.channels);
   const connected = networks.length > 0;
-  // A written post on a network that is not connected is not a draft Cuso
-  // still works on: it waits for the owner to connect that network.
-  const waits = (
-    (overview.approvedStrategy ?? overview.strategy)?.calendar ?? []
-  ).flatMap((entry) => waitsForNetwork(entry, networks) ?? []);
-  const drafts = Math.max(0, posts.draft + writtenInPlan - waits.length);
-  const review = nextWeeklyReview(overview);
   const month = monthEntries(overview);
+  // Drafts are the month's written posts, counted from the plan Cuso makes:
+  // Core's Social post rows also hold placeholders and posts beyond the plan.
+  // A written post on a network that is not connected waits for the owner.
+  const written = month.filter(
+    (entry) =>
+      isSocialProvider(entry.channel.toLowerCase()) &&
+      (entry.status === "draft" ||
+        (Boolean(entry.draft) &&
+          !entry.socialPostId &&
+          entry.status !== "published")),
+  );
+  const waits = written.flatMap(
+    (entry) => waitsForNetwork(entry, networks) ?? [],
+  );
+  const drafts = written.length - waits.length;
+  const waitsLine = waitingLine(overview);
+  const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
       <div className="grid4">
@@ -111,15 +115,10 @@ export function ResultsPage({
           <Kpi label="Failed" value={posts.failed} />
         ) : null}
       </div>
-      {waits.length > 0 ? (
+      {waitsLine ? (
         <p className="cal-waits">
           <StatusDisc status="warn" decorative />
-          <span className="grow">
-            {waits.length === 1
-              ? "1 post is written and waits"
-              : `${waits.length} posts are written and wait`}{" "}
-            for {[...new Set(waits)].map(channelLabel).join(" and ")}.
-          </span>
+          <span className="grow">{waitsLine}</span>
           <button
             type="button"
             className="button button-secondary button-small"
@@ -282,18 +281,6 @@ function ComingUp({
   );
 }
 
-/** When the next weekly review runs, once the strategy is approved. */
-function nextWeeklyReview(
-  overview: CmoOverview,
-): { at: Date | string; zone: string | null } | null {
-  const review = overview.routines.find(
-    (routine) => routine.key === "cmo-weekly-review",
-  );
-  return review?.nextRunAt && strategyApproved(overview)
-    ? { at: review.nextRunAt, zone: review.timezone }
-    : null;
-}
-
 /** The line under the Results title: how often, and the real next day. */
 export function ResultsLead({ overview }: { overview: CmoOverview }) {
   const review = nextWeeklyReview(overview);
@@ -352,6 +339,7 @@ export function BrandBrainPage({
         messages={messages}
         onCorrect={onAsk}
         onSave={onSave}
+        withLead={false}
       />
     </div>
   );

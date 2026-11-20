@@ -573,10 +573,10 @@ it("fits the plan to an edit the founder made before Looks like us", async () =>
   expect(onCorrect).not.toHaveBeenCalled();
 });
 
-it("says a waiting fix will reach the plan, and lets the founder approve", async () => {
+it("says a waiting fix follows the strategy, how long, and lets the founder approve", async () => {
   await openSell(writingPlan({ fixed: false }));
   expect(container.querySelector("aside")?.textContent).toContain(
-    "Cuso will fix this and update your strategy.",
+    "Cuso is writing your strategy now. He makes this fix as soon as he is done, usually within 15 minutes",
   );
   expect(button("Looks like us").disabled).toBe(false);
 });
@@ -1083,6 +1083,50 @@ it("updates the plan after a No with a note, and shows it fitting", async () => 
   await act(async () => fitting.answer(null));
 });
 
+it("offers no approval for a month short of what it promises, only a new strategy", async () => {
+  const actions = planActions({
+    requestStrategy: vi.fn(async () => ({ overview: null, error: null })),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={{
+          ...planOverview(),
+          strategyShort: { planned: 64, promised: 172 },
+        }}
+        messages={[]}
+        actions={actions}
+      />,
+    ),
+  );
+  expect(text()).toContain(
+    "This strategy plans 64 posts, but it promises about 172.",
+  );
+  expect(text()).not.toContain("Approve strategy");
+  await press("Write it again");
+  expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
+  expect(actions.approveStrategy).not.toHaveBeenCalled();
+});
+
+it("says a month promises more than it holds when only a video is missing", async () => {
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={{
+          ...planOverview(),
+          strategyShort: { planned: 80, promised: 80 },
+        }}
+        messages={[]}
+        actions={planActions()}
+      />,
+    ),
+  );
+  expect(text()).toContain(
+    "This strategy promises more than its calendar holds.",
+  );
+  expect(text()).not.toContain("Approve strategy");
+});
+
 it("approves the plan and lands on Launch", async () => {
   const actions = planActions({
     approveStrategy: vi.fn(async () => draft(cmoStrategyVersion(new Date()))),
@@ -1111,6 +1155,33 @@ const active = {
   status: "ACTIVE",
   personalProfile: false,
 };
+
+it("brings a failed connection's reason into view, below the networks", async () => {
+  const scrolled = vi.fn();
+  const original = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = scrolled;
+  await act(async () =>
+    root.render(
+      <LaunchStep
+        overview={draft({ ...cmoStrategyVersion(new Date()), channels: [] })}
+        onConnect={async () => ({
+          url: null,
+          error: "Could not start connecting",
+        })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
+        onGoToday={() => {}}
+      />,
+    ),
+  );
+  expect(scrolled).not.toHaveBeenCalled();
+  await press("Connect");
+  const alert = container.querySelector('[role="alert"]');
+  expect(alert?.textContent).toBe("Could not start connecting");
+  expect(scrolled.mock.contexts).toContain(alert);
+  Element.prototype.scrollIntoView = original;
+});
 
 it("celebrates on Launch without a failure in between, then opens the app on Go to Today", async () => {
   const goToday = vi.fn();

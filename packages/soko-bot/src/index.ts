@@ -140,7 +140,9 @@ export {
   REFERENCE_KINDS,
   REFERENCE_PURPOSES,
   type SocialPostPlanning,
+  type StoredBrandBrainBody,
   socialPostPlanningSchema,
+  storedBrandBrainSchema,
 } from "./project-marketing.js";
 export {
   CHAT_RESULT_PREVIEW_LIMIT,
@@ -265,6 +267,10 @@ export {
   sokoBotUploadFileInputSchema,
   sokoBotWorkspaceImportFileInputSchema,
 } from "./tool-contracts.js";
+export {
+  CMO_BATCHED_PRODUCTION_SKILL,
+  CMO_PIECE_WRITING_GUIDE,
+} from "./versions/cmo-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

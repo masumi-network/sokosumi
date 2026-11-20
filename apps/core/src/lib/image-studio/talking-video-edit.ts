@@ -260,8 +260,18 @@ const END_CARD_LOGO_CENTRE = 800;
 const END_CARD_TEXT_TOP = 1010;
 /** The logo is fitted into this box before it is placed. */
 export const END_CARD_LOGO_BOX = { width: 640, height: 320 } as const;
-/** The presenter over a page: scaled down and stood on the bottom edge. */
-const OVER_PAGE_PRESENTER = { width: 800, height: 1422 } as const;
+/**
+ * The presenter over a page: scaled down and stood on the bottom edge, below
+ * the page's first screen. At 800 x 1422 the head covered the site's
+ * headline (NMKR's hero ran to y 940 to 1290 of a 1080-wide capture).
+ */
+const OVER_PAGE_PRESENTER = { width: 540, height: 960 } as const;
+/**
+ * The page behind the presenter, shrunk so its first 1280 pixels (where a
+ * site's hero headline sits) show above the presenter's head, over a blurred
+ * copy of itself that fills the sides.
+ */
+const OVER_PAGE_PAGE = { width: 810, height: 1440 } as const;
 /** Pixels a second the page drifts behind the presenter, and pans alone. */
 const OVER_PAGE_DRIFT = 24;
 const PAGE_PAN = 70;
@@ -450,7 +460,10 @@ export function talkingVideoEditArgs(
         `[${clip}:v]scale=${person}[p${index}]`,
         `[${alpha}:v]scale=${person},format=gray[m${index}]`,
         `[p${index}][m${index}]alphamerge[c${index}]`,
-        `[${page}:v]crop=${size}:0:'min(ih-oh,${OVER_PAGE_DRIFT}*t)'[b${index}]`,
+        `[${page}:v]split[pa${index}][pf${index}]`,
+        `[pa${index}]crop=${size}:0:0,boxblur=24,setsar=1[pb${index}]`,
+        `[pf${index}]scale=${OVER_PAGE_PAGE.width}:-2,crop=${OVER_PAGE_PAGE.width}:${OVER_PAGE_PAGE.height}:0:'min(ih-oh,${OVER_PAGE_DRIFT}*t)'[pt${index}]`,
+        `[pb${index}][pt${index}]overlay=(W-w)/2:0[b${index}]`,
         `[b${index}][c${index}]overlay=(W-w)/2:H-h:shortest=1,setsar=1,fps=30[v${index}]`,
       );
     }

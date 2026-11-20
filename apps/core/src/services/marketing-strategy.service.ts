@@ -731,8 +731,19 @@ export async function listMarketingStrategyPosts(
   });
   if (posts.length === 0) return [];
   const timeZone = await planTimeZone(version.projectId, db);
+  // Entries read under their post's id, so a talking video's copies name
+  // its post too: by its plan id they never found it and were never made.
+  const postIds = new Map(
+    posts.flatMap((post) => {
+      const id = parseSocialPostPlanning(post.planning)?.id;
+      return id ? [[id, post.id] as const] : [];
+    }),
+  );
   return posts.map((post) => {
     const planning = parseSocialPostPlanning(post.planning);
+    const videoOf = planning?.videoOf
+      ? (postIds.get(planning.videoOf) ?? planning.videoOf)
+      : undefined;
     const at = post.scheduledAt ?? post.createdAt;
     const { hour, minute } = getLocalTimeParts(at, timeZone);
     const title = planning?.title ?? post.text.slice(0, 80);
@@ -745,6 +756,7 @@ export async function listMarketingStrategyPosts(
         ...planning,
         id: post.id,
         socialPostId: post.id,
+        ...(videoOf ? { videoOf } : {}),
         channel: post.provider,
         title,
         format: planning?.format ?? "post",

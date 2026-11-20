@@ -19,10 +19,12 @@ import {
 import type { CompetitorResult } from "../../app/cmo-actions";
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
+import { competitorsLead } from "../../lib/page-lead";
 import { hostOf } from "../brand-profile";
 import { MarketMap } from "../onboarding/market-map";
 import { StatusText } from "../status";
 import { SubmitButton } from "../submit-button";
+import { PageLead } from "./page-lead";
 
 export interface CompetitorActions {
   loadCompetitors: () => Promise<CmoCompetitors | null>;
@@ -78,7 +80,7 @@ const SIGNAL_KINDS: Record<ProjectCompetitorSignal["kind"], string> = {
   SOCIAL: "Instagram",
 };
 
-/** The Competitors page: the market map, the week's moves, the numbers, the list. */
+/** The Competitors page: the week's moves, the market map, the numbers, the list. */
 export function CompetitorsPage({
   overview,
   actions,
@@ -118,19 +120,21 @@ export function CompetitorsPage({
 
   if (failed) {
     return (
-      <div className="page-body">
-        <section className="card">
-          <h3>Your competitors did not load</h3>
-          <p className="muted">Nothing is lost. Load the page again.</p>
-          <button
-            type="button"
-            className="button button-secondary button-small"
-            onClick={load}
-          >
-            Try again
-          </button>
-        </section>
-      </div>
+      <>
+        <PageLead kicker="Competitors" title="Your competitors did not load." />
+        <div className="page-body">
+          <section className="card">
+            <p className="muted">Nothing is lost. Load the page again.</p>
+            <button
+              type="button"
+              className="button button-secondary button-small"
+              onClick={load}
+            >
+              Try again
+            </button>
+          </section>
+        </div>
+      </>
     );
   }
   if (!data) return <CompetitorsLoading />;
@@ -141,50 +145,56 @@ export function CompetitorsPage({
   const signals = new Map(data.signals.map((signal) => [signal.id, signal]));
 
   return (
-    <div className="page-body comp-page">
-      {map && brain ? (
-        <section className="card">
-          <h3>Where you stand</h3>
-          <MarketMap
-            map={
-              data.competitors.length === 0
-                ? map
-                : watchedMap(map, data.mapPlayers)
-            }
-            companies={brain.competitors}
-          />
-        </section>
-      ) : null}
-      <ThisWeek
-        data={data}
-        names={names}
-        signals={signals}
-        addToStrategy={(itemId) =>
-          change(() => actions.addMoveToStrategy(itemId))
-        }
-      />
-      <Scoreboard data={data} />
-      <TopPosts data={data} names={names} compose={compose} />
-      <ComparingSearches data={data} compose={compose} />
-      <Found data={data} names={names} />
-      <Manage data={data} actions={actions} change={change} />
-    </div>
+    <>
+      <PageLead {...competitorsLead(data)} />
+      <div className="page-body comp-page">
+        <ThisWeek
+          data={data}
+          names={names}
+          signals={signals}
+          addToStrategy={(itemId) =>
+            change(() => actions.addMoveToStrategy(itemId))
+          }
+        />
+        {map && brain ? (
+          <section className="card">
+            <h3>Where you stand</h3>
+            <MarketMap
+              map={
+                data.competitors.length === 0
+                  ? map
+                  : watchedMap(map, data.mapPlayers)
+              }
+              companies={brain.competitors}
+            />
+          </section>
+        ) : null}
+        <Scoreboard data={data} />
+        <TopPosts data={data} names={names} compose={compose} />
+        <ComparingSearches data={data} compose={compose} />
+        <Found data={data} names={names} />
+        <Manage data={data} actions={actions} change={change} />
+      </div>
+    </>
   );
 }
 
 /** The page while it loads: dashed boxes where the sections will be. */
 function CompetitorsLoading() {
   return (
-    <div className="page-body" aria-busy="true">
-      <span className="sr-only">Loading your competitors</span>
-      {[0, 1, 2].map((box) => (
-        <div key={box} className="comp-skeleton" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-      ))}
-    </div>
+    <>
+      <PageLead kicker="Competitors" title="Reading what moved." />
+      <div className="page-body" aria-busy="true">
+        <span className="sr-only">Loading your competitors</span>
+        {[0, 1, 2].map((box) => (
+          <div key={box} className="comp-skeleton" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

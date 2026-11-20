@@ -1343,6 +1343,24 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-change-reply-plain",
+    title: "Answers a change in the owner's words, without repeating his card",
+    intent:
+      "After a change the founder asked for, Cuso's card says what he did and his answer only adds what the card leaves out, never his tools, saves or checks.",
+    prompt:
+      "Make the first week of posts more about our newest feature. Keep the rest of the month as it is.",
+    rubric:
+      "Cuso changes week one of the saved month with save_strategy and files a report card (report_update kind request) saying what changed. His chat answer is one short sentence that adds only what the card leaves out (a question he needs answered, or what the owner does next) or says it is done; an answer that lists the changes again, or says the same thing as the card in other words, fails. Neither the answer nor the card names his tools or functions, saves, checks or reviews, entry ids, style references, mirrored or shared copies of a post, captions still to vary, or why something was refused; any of those fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy", "report_update"],
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+      answerAvoids:
+        "save_strategy|report_update|find_style|style ref|mirror|\\bentr(?:y|ies)\\b|\\bflagged\\b|\\b(?:the|my) (?:save|review|check)\\b|\\btools?\\b",
+    },
+  },
+  {
     id: "cmo-funnel-aida",
     title: "Puts the funnel in the four classic stages",
     intent:

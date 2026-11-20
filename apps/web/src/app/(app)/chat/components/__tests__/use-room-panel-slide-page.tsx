@@ -107,7 +107,7 @@ function App({ headerAtMount }: { headerAtMount: boolean }) {
 
 function box(node: Element | null | undefined): ColumnBox {
   if (!(node instanceof HTMLElement)) throw new Error("Missing column");
-  // offsetLeft is from `main` (the positioned pane), without the slide.
+  // offsetLeft is from the room pane (the positioned box around the column), without the slide.
   const slide = node.getAnimations()[0];
   const first =
     slide?.effect instanceof KeyframeEffect

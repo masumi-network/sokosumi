@@ -1,7 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { AGENT_NAME } from "./agent";
 import { channelLabel, connectedNetworks, waitsForNetwork } from "./calendar";
-import { strategyApproved } from "./strategy";
+import { isAd, strategyApproved } from "./strategy";
 import type { View } from "./views";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
@@ -15,11 +15,15 @@ export interface NeedsYou {
   view: View;
 }
 
-/** The month as it goes out: the strategy being made, skipped posts left out. */
+/**
+ * The month as it goes out: the strategy being made, without skipped posts
+ * and the posts the plan bought does not make (the Calendar's count too).
+ */
 export function monthEntries(overview: CmoOverview): Entry[] {
   const strategy = overview.approvedStrategy ?? overview.strategy;
+  const beyond = new Set(overview.production.beyondPlan);
   return (strategy?.calendar ?? [])
-    .filter((entry) => entry.status !== "skipped")
+    .filter((entry) => entry.status !== "skipped" && !beyond.has(entry.id))
     .sort(
       (a, b) =>
         a.date.localeCompare(b.date) ||
@@ -85,12 +89,7 @@ export function needsYou(overview: CmoOverview): NeedsYou[] {
       view: "calendar",
     });
   }
-  const connected = connectedNetworks(overview.channels);
-  const waiting = new Map<string, number>();
-  for (const entry of monthEntries(overview)) {
-    const network = waitsForNetwork(entry, connected);
-    if (network) waiting.set(network, (waiting.get(network) ?? 0) + 1);
-  }
+  const waiting = waitingByNetwork(overview);
   if (waiting.size > 0) {
     const names = [...waiting.keys()].map(channelLabel);
     const count = [...waiting.values()].reduce((sum, n) => sum + n, 0);
@@ -104,6 +103,26 @@ export function needsYou(overview: CmoOverview): NeedsYou[] {
     });
   }
   return items;
+}
+
+/** The month's written posts that wait for a network, counted per network. */
+export function waitingByNetwork(overview: CmoOverview): Map<string, number> {
+  const connected = connectedNetworks(overview.channels);
+  const waiting = new Map<string, number>();
+  for (const entry of monthEntries(overview)) {
+    const network = waitsForNetwork(entry, connected);
+    if (network) waiting.set(network, (waiting.get(network) ?? 0) + 1);
+  }
+  return waiting;
+}
+
+/** "27 posts wait for YouTube, Instagram and TikTok.", or null when none wait. */
+export function waitingLine(overview: CmoOverview): string | null {
+  const waiting = waitingByNetwork(overview);
+  if (waiting.size === 0) return null;
+  const count = [...waiting.values()].reduce((sum, n) => sum + n, 0);
+  const names = listed([...waiting.keys()].map(channelLabel));
+  return `${plural(count, "post waits", "posts wait")} for ${names}.`;
 }
 
 /** The owner's day (YYYY-MM-DD) in Cuso's time zone. */
@@ -135,7 +154,9 @@ export interface MonthProgress {
   total: number;
 }
 
-export function monthProgress(entries: Entry[]): MonthProgress {
+export function monthProgress(month: Entry[]): MonthProgress {
+  // Ads are launched by the owner and never go out as posts.
+  const entries = month.filter((entry) => !isAd(entry));
   const count = (status: Entry["status"]) =>
     entries.filter((entry) => entry.status === status).length;
   return {
@@ -147,7 +168,7 @@ export function monthProgress(entries: Entry[]): MonthProgress {
   };
 }
 
-/** "Good morning" by the hour in Cuso's time zone. */
+/** "Good morning" by the hour in Cuso's time zone (the owner's, set at hire or in Settings). */
 export function greeting(timeZone: string, now: Date = new Date()): string {
   let hour = now.getUTCHours();
   try {
@@ -159,7 +180,8 @@ export function greeting(timeZone: string, now: Date = new Date()): string {
       }).format(now),
     );
   } catch {}
-  if (hour < 5) return "Good evening";
+  // Past midnight, "Good evening" reads wrong and "Good night" is a goodbye.
+  if (hour < 5) return "Hello";
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";

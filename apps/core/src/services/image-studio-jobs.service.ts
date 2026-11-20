@@ -185,6 +185,12 @@ export const DEFAULT_SETTINGS: ImageJobSettings = {
 
 export interface CreateImageJobInput {
   modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -510,19 +516,24 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     const inFlight = await tx.projectImageJob.count({
       where: { projectId: input.projectId, status: { in: ACTIVE_STATUSES } },
     });
-    if (inFlight >= LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT) {
+    const atOnce = input.forCmoMonth
+      ? LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT
+      : LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT;
+    if (inFlight >= atOnce) {
       throw tooManyRequests(
-        `This project already has ${LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT} images being generated. Wait for one to finish.`,
+        `This project already has ${atOnce} images being generated. Wait for one to finish.`,
         { kind: "image_studio_project_busy" },
       );
     }
 
-    const recent = await tx.projectImageJob.count({
-      where: {
-        requestedByUserId: input.userId,
-        createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
-      },
-    });
+    const recent = input.forCmoMonth
+      ? 0
+      : await tx.projectImageJob.count({
+          where: {
+            requestedByUserId: input.userId,
+            createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
+          },
+        });
     if (recent >= LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR) {
       throw tooManyRequests(
         `You can start at most ${LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR} image generations per hour.`,
@@ -1067,6 +1078,12 @@ export async function createImageJob(input: CreateImageJobInput) {
 
 export interface CreateVideoJobInput {
   modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -1141,6 +1158,7 @@ export async function createVideoJob(input: CreateVideoJobInput) {
     prompt: input.prompt,
     product,
     idempotencyKey: input.idempotencyKey,
+    forCmoMonth: input.forCmoMonth,
     kind: hasSource
       ? ProjectImageJobKind.IMAGE_TO_VIDEO
       : ProjectImageJobKind.TEXT_TO_VIDEO,
@@ -1155,6 +1173,12 @@ export async function createVideoJob(input: CreateVideoJobInput) {
 
 export interface CreateTalkingVideoJobInput {
   modelId?: string;
+  /**
+   * Core's month media (cmo-media-maker): its own limit at a time and no
+   * hourly cap, because the approved plan already bounds how many it makes.
+   * Never set from a request.
+   */
+  forCmoMonth?: boolean;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -1253,6 +1277,7 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     sessionId: null,
     prompt: input.script,
     idempotencyKey: input.idempotencyKey,
+    forCmoMonth: input.forCmoMonth,
     kind: ProjectImageJobKind.TALKING_VIDEO,
     model: model.endpoint,
     settings,

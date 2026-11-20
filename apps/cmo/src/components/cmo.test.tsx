@@ -559,7 +559,9 @@ describe("pages", () => {
         onChange={() => {}}
       />,
     );
-    expect(html).toContain("Drafts");
+    expect(html).toContain("Published");
+    // The fixture's one written post waits for LinkedIn, so it is no draft.
+    expect(html).toContain("Waiting");
     expect(html).toContain("Shopify");
     expect(html).toContain("once you connect an account");
     expect(html).not.toContain("Sokosumi");
@@ -1002,7 +1004,9 @@ describe("calendar", () => {
     );
     for (const entry of live) expect(html).toContain(entry.title);
     expect(html).toContain("Week 1");
-    expect(html).toContain(`${live.length} posts this month`);
+    expect(html).toContain(
+      `${live.length} ${live.length === 1 ? "post" : "posts"} this month`,
+    );
     expect(html).toContain('aria-pressed="true"');
     // Where a post stands is words, not a pill that looks like a button.
     expect(html).toContain('class="state"');

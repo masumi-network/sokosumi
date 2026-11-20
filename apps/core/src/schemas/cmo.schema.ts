@@ -1,9 +1,9 @@
 import { z } from "@hono/zod-openapi";
 import {
-  brandBrainSchema,
   CMO_BRAND_SECTION_KEYS,
   cmoReportUpdateInputSchema,
   marketingStrategyPlanSchema,
+  storedBrandBrainSchema,
 } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -230,6 +230,17 @@ export const cmoBrandFixStartedSchema = z
       ),
   })
   .openapi("CmoBrandFixStarted");
+
+export const cmoAdBudgetStartedSchema = z
+  .object({
+    turnId: z.union([z.string(), z.null()]),
+    queued: z
+      .boolean()
+      .describe(
+        "Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.",
+      ),
+  })
+  .openapi("CmoAdBudgetStarted");
 
 /** A version of the plan of the Cuso a CMO route acts on. */
 export const cmoTestCopyCheckSchema = z
@@ -722,11 +733,25 @@ export const cmoOverviewSchema = z
     timeZone: z
       .string()
       .describe("The time zone Cuso's routines run in, as the owner set it."),
-    brandBrain: z.union([brandBrainSchema, z.null()]),
+    brandBrain: z.union([storedBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
     brandMedia: z.union([cmoBrandMediaSchema, z.null()]),
     strategy: z.union([cmoPlanSchema, z.null()]),
+    strategyShort: z
+      .union([
+        z.object({
+          planned: z.number().int().describe("Pieces the calendar plans."),
+          promised: z
+            .number()
+            .int()
+            .describe("About how many its pace and cadences promise."),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "Set while the newest draft does not hold what it promises: fewer pieces than its own pace and cadences, or no video where its funnel or a video network promises one (after Cuso's finish turns). Approving it is refused (409); the owner asks for a new strategy instead. `promised` equals `planned` when only a video is missing.",
+      ),
     approvedStrategy: z
       .union([cmoPlanSchema, z.null()])
       .describe(

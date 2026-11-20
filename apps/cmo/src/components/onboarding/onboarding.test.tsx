@@ -16,7 +16,7 @@ import {
 import { Onboarding } from "../onboarding";
 import { feedScreens } from "../phone-feeds";
 import { showcaseEntries } from "../showcases";
-import { BrandStep } from "./brand-step";
+import { BrandStep, fixWaitNote } from "./brand-step";
 import {
   LaunchStep,
   optionalChannels,
@@ -344,6 +344,17 @@ describe("Brand", () => {
     expect(html).toContain("Source: acme.io");
   });
 
+  it("drops the site as the promise's source once the owner rewrote it", () => {
+    const promise = (html: string) =>
+      html.slice(html.indexOf("ob-promise"), html.indexOf("ob-tiles"));
+    expect(promise(render(draft()))).toContain("Source: acme.io");
+    const html = promise(
+      render(draft({ brandBrain: { ...brain, promiseByOwner: true } })),
+    );
+    expect(html).toContain("Your promise, in one line");
+    expect(html).not.toContain("Source:");
+  });
+
   it("shows only the tiles that have data, in order", () => {
     const html = render(draft());
     const order = [
@@ -358,6 +369,55 @@ describe("Brand", () => {
     // No marketing-today data, so no such tile.
     expect(html).not.toContain(">Marketing today<");
     expect(html).toContain("Rocket Pro");
+  });
+
+  it("shows who buys as the owner corrected it", () => {
+    const html = render(
+      draft({
+        brandBrain: {
+          ...brain,
+          reveal: {
+            positioning: "Rockets for founders",
+            insights: [],
+            buyers: [{ role: "Home brewer", wants: "Fresh beans", worry: "" }],
+          },
+          profile: {
+            customers: {
+              headline: "Cafe regulars come first",
+              answer:
+                "Most customers are cafe regulars; home brewers come second.",
+              findings: [],
+              openQuestions: [],
+              fix: { note: "Regulars first", at: "2026-11-20", fixed: true },
+            },
+          },
+        },
+      }),
+    );
+    expect(html).toContain("Cafe regulars come first");
+    expect(html).not.toContain("Home brewer<");
+    expect(html).not.toContain("Wants: Fresh beans");
+  });
+
+  it("shows what they sell as the owner corrected it", () => {
+    const html = render(
+      draft({
+        brandBrain: {
+          ...brain,
+          profile: {
+            offer: {
+              headline: "Rocket rentals by the day",
+              answer: "Acme rents rockets by the day; it sells none.",
+              findings: [],
+              openQuestions: [],
+              fix: { note: "We rent", at: "2026-11-20", fixed: true },
+            },
+          },
+        },
+      }),
+    );
+    expect(html).toContain("Rocket rentals by the day");
+    expect(html).toContain("Acme rents rockets by the day; it sells none.");
   });
 
   it("keeps tile values short and puts the long text in the detail", () => {
@@ -1017,5 +1077,34 @@ describe("strategy helpers the screens build on", () => {
     expect(groups.get("linkedin")?.map((entry) => entry.id)).toEqual(["a"]);
     expect(groups.get("x")?.map((entry) => entry.id)).toEqual(["b"]);
     expect(groups.get("newsletter")?.map((entry) => entry.id)).toEqual(["c"]);
+  });
+});
+
+describe("how long a correction waits", () => {
+  it("says the strategy comes first, and how long, while Cuso writes it", () => {
+    expect(
+      fixWaitNote(
+        draft({
+          botStatus: "RUNNING",
+          work: work("strategy", { change: null }),
+        }),
+      ),
+    ).toBe(
+      "Cuso is writing your strategy now. He makes this fix as soon as he is done, usually within 15 minutes, and updates the strategy to match.",
+    );
+  });
+
+  it("promises a quick fix otherwise", () => {
+    expect(fixWaitNote(draft({ work: null }))).toBe(
+      "Cuso will fix this and update your strategy.",
+    );
+    expect(
+      fixWaitNote(
+        draft({
+          botStatus: "RUNNING",
+          work: work("strategy", { change: "patch" }),
+        }),
+      ),
+    ).toBe("Cuso will fix this and update your strategy.");
   });
 });

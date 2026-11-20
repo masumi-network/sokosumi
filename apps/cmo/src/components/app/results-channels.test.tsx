@@ -101,8 +101,35 @@ it("counts posts written for a network that is not connected as waiting, not as 
     ]),
   });
   expect(html).toContain("Waiting 2 for LinkedIn");
-  expect(html).toContain("2 posts are written and wait for LinkedIn.");
+  expect(html).toContain("2 posts wait for LinkedIn.");
   expect(html).not.toContain("Drafts");
+});
+
+it("counts as drafts only the written posts the plan makes", () => {
+  const month = withCalendar([
+    { channel: "linkedin", status: "draft", date: inDays(1) },
+    { channel: "linkedin", status: "draft", date: inDays(2) },
+    { channel: "linkedin", status: "draft", date: inDays(3) },
+  ]);
+  const unwritten = month.strategy.calendar.map((entry, index) =>
+    index === 0
+      ? { ...entry, status: "idea" as const, draft: undefined }
+      : entry,
+  );
+  const calendar = { strategy: { ...month.strategy, calendar: unwritten } };
+  const html = results({
+    channels: [linkedin],
+    // Core counts every Social post row: placeholders and posts beyond the plan.
+    posts: { draft: 149, scheduled: 0, published: 0, failed: 0 },
+    ...calendar,
+    approvedStrategy: calendar.strategy,
+    production: {
+      ...cmoOverview().production,
+      beyondPlan: ["p2"],
+    },
+  });
+  expect(html).toContain("Drafts 1 ");
+  expect(html).not.toContain("149");
 });
 
 it("lists sending the newsletter as soon, and TikTok once, only where it can be connected", () => {

@@ -72,7 +72,7 @@ Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode
 
 ### Sokosumi Task implementation
 
-Inside that flow, ship a Sokosumi Task that already has its spec in `description` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a written Task description skip `/to-spec`.
+Inside that flow, ship a Sokosumi Task that already has its spec in `description` with `/to-spec` then `/implement`. Draft PR, merged through the merge queue. Bugs and refactors without a written Task description skip `/to-spec`.
 
 Do **not** invent or file Tasks during implement work. Filing a new requirement is a separate, explicit ask: load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/) and create the Task after approval (see [`issue-tracker.md`](../../docs/agents/issue-tracker.md)). The legacy [`linear-requirement`](../../.agents/skills/linear-requirement/) skill is retired for this repo (`disable-model-invocation`); do not publish new work to Linear.
 

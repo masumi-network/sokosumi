@@ -19,6 +19,7 @@ vi.mock(
 import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
+  compactBrandBrain,
   requestBrandBrainFix,
   saveBrandBrain,
   saveStudioBrandCopy,
@@ -155,6 +156,67 @@ describe("saveBrandBrain", () => {
     const data = brainUpsert.mock.calls[0]?.[0].update;
     expect(data.body.summary).toBe("Acme sells rockets.");
     expect(data.body.profile.company.answer).toBe("Founded 2019");
+  });
+
+  describe("whose words the promise is", () => {
+    const reveal = {
+      positioning: "Rockets for founders",
+      insights: [],
+      buyers: [],
+    };
+    const stored = (extra: Record<string, unknown> = {}) =>
+      brainFindUnique.mockResolvedValue({
+        body: { ...essentials, profile: {}, reveal, ...extra },
+      });
+    const saved = () => brainUpsert.mock.calls[0]?.[0].update.body;
+
+    it("marks the promise as the owner's once a member rewrites it", async () => {
+      stored();
+      await saveBrandBrain(PROJECT_ID, {
+        brandBrain: {
+          ...essentials,
+          profile: {},
+          reveal: { ...reveal, positioning: "Rockets your guests like" },
+        },
+      });
+      expect(saved().promiseByOwner).toBe(true);
+    });
+
+    it("keeps the mark while Cuso leaves the promise alone", async () => {
+      stored({ promiseByOwner: true });
+      await saveBrandBrain(
+        PROJECT_ID,
+        { sections: { company: section("Founded 2019") } },
+        undefined,
+        { by: "cuso" },
+      );
+      expect(saved().promiseByOwner).toBe(true);
+    });
+
+    it("drops it when Cuso writes the promise again", async () => {
+      stored({ promiseByOwner: true });
+      await saveBrandBrain(
+        PROJECT_ID,
+        { reveal: { ...reveal, positioning: "Rockets, reread" } },
+        undefined,
+        { by: "cuso" },
+      );
+      expect(saved().promiseByOwner).toBeUndefined();
+    });
+
+    it("never takes the mark from a save", async () => {
+      stored();
+      await saveBrandBrain(
+        PROJECT_ID,
+        {
+          brandBrain: { ...essentials, profile: {}, reveal },
+          promiseByOwner: true,
+        } as never,
+        undefined,
+        { by: "cuso" },
+      );
+      expect(saved().promiseByOwner).toBeUndefined();
+    });
   });
 
   describe("top-level reveal, marketingToday and questions", () => {
@@ -829,4 +891,22 @@ describe("Brand Brain fixes", () => {
       brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix,
     ).toMatchObject({ fixed: false });
   });
+});
+
+it("keeps Core's mark on the promise out of Cuso's packet", () => {
+  const packet = compactBrandBrain({
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: [],
+    products: [],
+    offers: [],
+    competitors: [],
+    alternatives: [],
+    channels: [],
+    profile: {},
+    questions: [],
+    promiseByOwner: true,
+  } as Parameters<typeof compactBrandBrain>[0]);
+  expect(packet).not.toHaveProperty("promiseByOwner");
+  expect(packet).toHaveProperty("summary", "Acme sells rockets.");
 });

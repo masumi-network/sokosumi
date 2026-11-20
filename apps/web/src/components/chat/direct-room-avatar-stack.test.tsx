@@ -174,7 +174,7 @@ describe("DirectRoomAvatarStack", () => {
   });
 
   it("says your bot couldn't reply instead of Online after a failed reply", () => {
-    publishFailedSokoBotId("bot-1");
+    const clearFailed = publishFailedSokoBotId("bot-1");
     try {
       render(
         <DirectRoomAvatarStack
@@ -195,7 +195,7 @@ describe("DirectRoomAvatarStack", () => {
       expect(face).toHaveTextContent("ERROR");
       expect(face).not.toHaveTextContent("Online");
     } finally {
-      publishFailedSokoBotId(null);
+      clearFailed();
     }
   });
 
