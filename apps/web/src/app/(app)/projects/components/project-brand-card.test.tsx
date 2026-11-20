@@ -393,6 +393,56 @@ describe("ProjectBrandCard", () => {
     });
   });
 
+  it("drops the saved draft, so a later refreshed website wins", async () => {
+    const user = userEvent.setup();
+    mockSavedWebsite();
+    const view = renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://a.example/",
+    });
+
+    await user.clear(screen.getByRole("textbox", { name: "Project website" }));
+    await submitWebsite(user, "b.example");
+    await waitFor(() => expect(updateProject).toHaveBeenCalledOnce());
+
+    view.rerenderWithWebsite("https://b.example/");
+    view.rerenderWithWebsite("https://c.example/");
+    expect(
+      screen.getByRole("textbox", { name: "Project website" }),
+    ).toHaveValue("https://c.example/");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(updateProject).toHaveBeenCalledOnce();
+    expect(generateMock).toHaveBeenLastCalledWith({
+      force: true,
+      url: "https://c.example/",
+    });
+  });
+
+  it("keeps the typed website when saving it fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockRejectedValue(new Error("Forbidden"));
+    const view = renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://a.example/",
+    });
+
+    await user.clear(screen.getByRole("textbox", { name: "Project website" }));
+    await submitWebsite(user, "b.example");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to update project",
+    );
+
+    view.rerenderWithWebsite("https://a.example/");
+    expect(
+      screen.getByRole("textbox", { name: "Project website" }),
+    ).toHaveValue("b.example");
+  });
+
   it("saves only the website, then generates exactly once", async () => {
     const user = userEvent.setup();
     mockSavedWebsite();

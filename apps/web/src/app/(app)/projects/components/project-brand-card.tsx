@@ -221,6 +221,7 @@ export function ProjectBrandCard({
     }
     setWebsiteError(null);
     if (websiteUrl && url === normalizeWebsiteUrl(websiteUrl)) {
+      setWebsiteDraft(null);
       handleGenerate();
       return;
     }
@@ -231,6 +232,9 @@ export function ProjectBrandCard({
           setWebsiteError(t("errors.update"));
           return;
         }
+        // Saved: the prop is the truth again, so a later refresh wins. A
+        // failed save keeps the draft for another try.
+        setWebsiteDraft(null);
         markProjectBrandAutoStartAttempted(projectId);
         void generation.generate({ force: true, url });
       } catch {
