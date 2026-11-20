@@ -335,3 +335,33 @@ export async function reconcileProjectSeoTaskFile(
     });
   }
 }
+
+export const SEO_TASK_ENDED_WITHOUT_RESULT =
+  "The Task failed or was canceled before a result was imported";
+
+/**
+ * An analysis follows its Task: one still requested whose Task failed or was
+ * canceled is failed too. Runs every minute, so it also settles rows left
+ * behind before it existed.
+ */
+export async function failSeoAnalysesOfEndedTasks(): Promise<number> {
+  const open = await prisma.projectSeoAnalysis.findMany({
+    where: { status: "requested", taskId: { not: null } },
+    select: { taskId: true },
+  });
+  const taskIds = open.flatMap((row) => (row.taskId ? [row.taskId] : []));
+  if (taskIds.length === 0) return 0;
+  const ended = await prisma.task.findMany({
+    where: { id: { in: taskIds }, status: { in: ["FAILED", "CANCELED"] } },
+    select: { id: true },
+  });
+  if (ended.length === 0) return 0;
+  const { count } = await prisma.projectSeoAnalysis.updateMany({
+    where: {
+      status: "requested",
+      taskId: { in: ended.map((task) => task.id) },
+    },
+    data: { status: "failed", failureReason: SEO_TASK_ENDED_WITHOUT_RESULT },
+  });
+  return count;
+}

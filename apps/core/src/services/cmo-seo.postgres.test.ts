@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
 import { fetchKeywordIdeas, fetchKeywordOverview } from "@/lib/ads/dataforseo";
 import { askCmoEditor, EDITORS } from "./cmo-keyword-editorial";
+import { failSeoAnalysesOfEndedTasks } from "./project-seo-import.service";
 
 vi.mock("./cmo-keyword-editorial", async (original) => ({
   ...(await original<typeof import("./cmo-keyword-editorial")>()),
@@ -1551,6 +1552,58 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     await prisma.transaction.deleteMany({ where: { id: grant.id } });
     await prisma.sokoBot.delete({ where: { id: bot.id } });
     await prisma.project.delete({ where: { id: own.id } });
+  });
+
+  it("fails an analysis whose Task failed or was canceled, and leaves running and completed ones", async () => {
+    const analysisFor = async (
+      taskStatus: "FAILED" | "CANCELED" | "RUNNING",
+      status = "requested",
+    ) => {
+      const task = await prisma.task.create({
+        data: {
+          name: "SEO audit full",
+          workspaceId,
+          projectId,
+          status: taskStatus,
+        },
+        select: { id: true },
+      });
+      return prisma.projectSeoAnalysis.create({
+        data: {
+          projectId,
+          kind: "audit_full",
+          status,
+          taskId: task.id,
+          idempotencyKey: randomUUID(),
+          requestHash: randomUUID(),
+          request: {},
+          requestedBy: userId,
+        },
+        select: { id: true },
+      });
+    };
+    const failed = await analysisFor("FAILED");
+    const canceled = await analysisFor("CANCELED");
+    const running = await analysisFor("RUNNING");
+    const done = await analysisFor("FAILED", "completed");
+    const statusOf = async (id: string) =>
+      (
+        await prisma.projectSeoAnalysis.findUniqueOrThrow({
+          where: { id },
+          select: { status: true },
+        })
+      ).status;
+
+    expect(await failSeoAnalysesOfEndedTasks()).toBeGreaterThanOrEqual(2);
+    expect(await statusOf(failed.id)).toBe("failed");
+    expect(await statusOf(canceled.id)).toBe("failed");
+    expect(await statusOf(running.id)).toBe("requested");
+    expect(await statusOf(done.id)).toBe("completed");
+    expect(await failSeoAnalysesOfEndedTasks()).toBe(0);
+
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { id: { in: [failed.id, canceled.id, running.id, done.id] } },
+    });
   });
 
   it("pauses the weekly audit of a Cuso that was let go, but not a monitor a person made", async () => {

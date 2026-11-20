@@ -108,6 +108,7 @@ vi.mock("@/services/social-account-sync", () => ({
 }));
 
 const refreshSkillCatalogMock = vi.hoisted(() => vi.fn());
+const failSeoAnalysesOfEndedTasksMock = vi.hoisted(() => vi.fn(async () => 0));
 vi.mock("@/services/skill-catalog.service", () => ({
   refreshSkillCatalog: refreshSkillCatalogMock,
 }));
@@ -247,6 +248,10 @@ vi.mock("@/services/calendar-invalidation-outbox.service", () => ({
   calendarInvalidationOutboxService: {
     syncInvalidations: syncCalendarInvalidationsMock,
   },
+}));
+
+vi.mock("@/services/project-seo-import.service", () => ({
+  failSeoAnalysesOfEndedTasks: failSeoAnalysesOfEndedTasksMock,
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -492,7 +497,7 @@ describe("sync routes", () => {
     expect(syncJobsMock).not.toHaveBeenCalled();
   });
 
-  it("releases due Task Schedules, then Run ats, then Calendar invalidations", async () => {
+  it("releases due Task Schedules, then Run ats, then Calendar invalidations, then fails SEO analyses of ended Tasks", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/sync/task-schedules", {
@@ -520,6 +525,9 @@ describe("sync routes", () => {
     expect(releaseDueRunAtsMock.mock.invocationCallOrder[0]).toBeLessThan(
       syncCalendarInvalidationsMock.mock.invocationCallOrder[0],
     );
+    expect(
+      syncCalendarInvalidationsMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(failSeoAnalysesOfEndedTasksMock.mock.invocationCallOrder[0]);
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
