@@ -23,8 +23,8 @@ import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
 import {
+  cmoPromiseGaps,
   cmoStrategyRules,
-  cmoVolumeGaps,
   type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import { advanceCmoProduction } from "@/services/cmo-production.service";
@@ -728,7 +728,7 @@ async function monthStillShort(
 ): Promise<boolean> {
   const saved = await newestMarketingStrategy(lane.cusoProjectId);
   const plan = parseMarketingPlan(saved?.plan);
-  return plan !== null && cmoVolumeGaps(plan, rules).length > 0;
+  return plan !== null && cmoPromiseGaps(plan, rules).length > 0;
 }
 
 async function settledTurn(turnId: string) {

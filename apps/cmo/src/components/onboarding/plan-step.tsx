@@ -648,7 +648,7 @@ export function PlanReview({
         <p className="alert" role="status">
           {short.promised > short.planned
             ? `This strategy plans ${short.planned} posts, but it promises about ${short.promised}.`
-            : "This strategy plans fewer posts than it promises."}{" "}
+            : "This strategy promises more than its calendar holds."}{" "}
           {AGENT_NAME} couldn't fill the month, so it can't be approved. Ask him
           to write it again.
         </p>

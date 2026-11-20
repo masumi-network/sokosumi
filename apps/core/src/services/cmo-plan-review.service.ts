@@ -264,7 +264,7 @@ export function cmoPlanProblemsSince(
   const problems = cmoPlanProblems(strategy, options);
   if (!before || before.calendar.length === 0) return problems;
   // A new month is held to the volume it promises, whatever the last had.
-  const fresh = new Set(options.fresh ? cmoVolumeGaps(strategy, options) : []);
+  const fresh = new Set(options.fresh ? cmoPromiseGaps(strategy, options) : []);
   // A calendar already short of the month's totals stays short by any
   // count: adding one piece must not demand the other twelve.
   const rule = (problem: string) =>
@@ -570,12 +570,12 @@ function volumeShortfalls(
 }
 
 /**
- * What keeps a month from the volume it promises: a calendar short of its
- * weeks, pace or cadences, and on cmo-v5 a pace or cadence under the top
- * volume. NMKR's test copy ended its plan turn at 16 pieces a week against
- * the pace's 43 and was approved, so its month was made at a third.
+ * What a month promises and its calendar does not hold: weeks, pace and
+ * cadences, and on cmo-v5 the top volume and the video its funnel and
+ * video networks promise. NMKR's test copy ended its plan turn at 16 pieces
+ * a week against the pace's 43 and was approved, so its month was made at a third.
  */
-export function cmoVolumeGaps(
+export function cmoPromiseGaps(
   strategy: MarketingStrategyPlan,
   options: PlanReviewOptions = {},
 ): string[] {
@@ -583,7 +583,9 @@ export function cmoVolumeGaps(
     (entry) => entry.status !== "skipped",
   );
   return [
-    ...(options.everyNetwork ? cmoTopVolumeProblems(strategy) : []),
+    ...(options.everyNetwork
+      ? [...cmoTopVolumeProblems(strategy), ...funnelVideoGaps(strategy)]
+      : []),
     ...volumeShortfalls(
       strategy,
       pieces,
@@ -593,14 +595,15 @@ export function cmoVolumeGaps(
 }
 
 /**
- * A month short of its volume, in numbers the owner reads: the pieces it
- * plans and about how many its pace and cadences promise. Null when it is not short.
+ * A month that does not hold what it promises, in numbers the owner reads:
+ * the pieces it plans and about how many its pace and cadences promise
+ * (the same when only a video is missing). Null when it holds all of it.
  */
 export function cmoMonthShortfall(
   strategy: MarketingStrategyPlan,
   options: PlanReviewOptions = {},
 ): { planned: number; promised: number } | null {
-  if (cmoVolumeGaps(strategy, options).length === 0) return null;
+  if (cmoPromiseGaps(strategy, options).length === 0) return null;
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
   );
@@ -711,10 +714,6 @@ export function cmoFunnelPlanProblems(
   const leftOut = new Set(
     (strategy.leftOut ?? []).map((item) => item.channel.toLowerCase()),
   );
-  const pieces = strategy.calendar.filter(
-    (entry) => entry.status !== "skipped",
-  );
-  const complete = pieces.length > 0 && calendarWeeks(pieces) >= 4;
   const problems: string[] = [];
   const named = new Set<string>();
   for (const stage of strategy.funnel) {
@@ -745,14 +744,6 @@ export function cmoFunnelPlanProblems(
         problems.push(
           `the funnel's ${stage.stage} play on ${key} says "${play.cadence}", but ${key}'s cadence is "${channel.cadence}"; say the same in both.`,
         );
-      if (
-        complete &&
-        PROMISES_VIDEO.test(play.what) &&
-        !pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key))
-      )
-        problems.push(
-          `the funnel's ${stage.stage} play on ${key} promises video ("${play.what}"), but no talking video in the calendar goes out on ${key}; plan one with ${key} in its alsoOn, or take video out of the play.`,
-        );
     }
   }
   const unnamed = [...channels.keys()].filter(
@@ -762,16 +753,39 @@ export function cmoFunnelPlanProblems(
     problems.push(
       `${unnamed.join(", ")} ${unnamed.length === 1 ? "is" : "are"} in channels but in no funnel stage; name ${unnamed.length === 1 ? "it" : "each"} with a play at the stage it serves.`,
     );
-  if (complete)
-    for (const key of VIDEO_ONLY_NETWORKS) {
-      if (
-        channels.has(key) &&
-        !pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key))
-      )
+  problems.push(...funnelVideoGaps(strategy));
+  return problems;
+}
+
+/**
+ * Video the plan promises and its calendar does not hold: a funnel play
+ * that promises it on a network, or a video-only network, with no talking
+ * video going out there. Checked once the month's four weeks are in.
+ */
+function funnelVideoGaps(strategy: MarketingStrategyPlan): string[] {
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  if (pieces.length === 0 || calendarWeeks(pieces) < 4) return [];
+  const planned = new Set(
+    strategy.channels.map((channel) => channel.channel.toLowerCase()),
+  );
+  const videoOn = (key: string) =>
+    pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key));
+  const problems: string[] = [];
+  for (const stage of strategy.funnel)
+    for (const play of stage.plays) {
+      const key = play.channel.toLowerCase();
+      if (planned.has(key) && PROMISES_VIDEO.test(play.what) && !videoOn(key))
         problems.push(
-          `${key} is in channels, but no talking video in the calendar goes out on it; list ${key} in the talking videos' alsoOn.`,
+          `the funnel's ${stage.stage} play on ${key} promises video ("${play.what}"), but no talking video in the calendar goes out on ${key}; plan one with ${key} in its alsoOn, or take video out of the play.`,
         );
     }
+  for (const key of VIDEO_ONLY_NETWORKS)
+    if (planned.has(key) && !videoOn(key))
+      problems.push(
+        `${key} is in channels, but no talking video in the calendar goes out on it; list ${key} in the talking videos' alsoOn.`,
+      );
   return problems;
 }
 

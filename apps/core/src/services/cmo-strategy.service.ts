@@ -50,8 +50,8 @@ import {
   cmoCalendarWeeks,
   cmoMonthShortfall,
   cmoPlanRulesBrokenSince,
+  cmoPromiseGaps,
   cmoStrategyRules,
-  cmoVolumeGaps,
   cmoWithOwnerPace,
 } from "@/services/cmo-plan-review.service";
 import {
@@ -454,7 +454,8 @@ function finishRound(clientTurnId: string | null): number {
  * week one saved although the review asked for the rest: NMKR's month came
  * back with 20 posts. Another ended with four weeks at 16 pieces a week
  * against the pace's 43. A draft still short of its weeks, pace or cadences
- * when a plan turn ends gets a short turn that adds what is missing.
+ * (or the video its funnel promises) when a plan turn ends gets a short
+ * turn that adds what is missing.
  */
 async function startCmoMonthFinish(
   input: { userId: string | null; clientTurnId: string | null },
@@ -474,7 +475,7 @@ async function startCmoMonthFinish(
   if (!rules.weekly) return null;
   const plan = version?.approvedAt ? null : parseMarketingPlan(version?.plan);
   if (!plan) return null;
-  const gaps = cmoVolumeGaps(plan, rules);
+  const gaps = cmoPromiseGaps(plan, rules);
   if (gaps.length === 0) return null;
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
@@ -495,9 +496,9 @@ async function startCmoMonthFinish(
           "Every week holds the pace's perWeek pieces at each channel's cadence and role, in the mix and pillar shares. Change nothing already saved.",
         ]
       : [
-          `Finish ${cuso.businessName}'s marketing strategy: its calendar holds fewer pieces than the strategy promises.`,
+          `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
           ...gaps.map((gap) => `- ${gap}`),
-          "Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares. Never lower the pace or a cadence to match: the plan the owner buys decides how much of the month is made. Change nothing already saved.",
+          "Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a cadence to match: the plan the owner buys decides how much of the month is made. A play that promises video may instead drop the video in its words (part plan). Change nothing else already saved.",
         ]
     )
       .concat([
@@ -1523,7 +1524,7 @@ export function cmoStrategyUnfitted(plan: unknown): boolean {
 }
 
 /**
- * A weekly Cuso's month short of the volume it promises (`cmoVolumeGaps`),
+ * A weekly Cuso's month that does not hold what it promises (`cmoPromiseGaps`),
  * in the owner's numbers; null when it is whole or not a weekly Cuso's.
  */
 export function cmoStrategyShortfall(
@@ -1538,7 +1539,7 @@ export function cmoStrategyShortfall(
 
 /**
  * The owner approves what they read: never a strategy that still shows an
- * answer they said no to, nor a month short of the volume it promises.
+ * answer they said no to, nor a month that does not hold what it promises.
  */
 export async function requireCmoStrategyFitted(
   cuso: Pick<Cuso, "projectId" | "sokoBotId">,
@@ -1562,7 +1563,7 @@ export async function requireCmoStrategyFitted(
   }
   if (cmoStrategyShortfall(bot?.versionId ?? null, version.plan)) {
     throw new CmoConflictError(
-      "This strategy plans fewer posts than it promises. Ask Cuso to write it again, then approve it.",
+      "This strategy promises more than its calendar holds. Ask Cuso to write it again, then approve it.",
     );
   }
 }

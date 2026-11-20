@@ -1108,6 +1108,25 @@ it("offers no approval for a month short of what it promises, only a new strateg
   expect(actions.approveStrategy).not.toHaveBeenCalled();
 });
 
+it("says a month promises more than it holds when only a video is missing", async () => {
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={{
+          ...planOverview(),
+          strategyShort: { planned: 80, promised: 80 },
+        }}
+        messages={[]}
+        actions={planActions()}
+      />,
+    ),
+  );
+  expect(text()).toContain(
+    "This strategy promises more than its calendar holds.",
+  );
+  expect(text()).not.toContain("Approve strategy");
+});
+
 it("approves the plan and lands on Launch", async () => {
   const actions = planActions({
     approveStrategy: vi.fn(async () => draft(cmoStrategyVersion(new Date()))),

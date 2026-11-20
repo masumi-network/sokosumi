@@ -321,7 +321,7 @@ export function StrategyCard({
             </button>
             <span className="note">
               {overview.strategyShort
-                ? `This strategy plans fewer posts than it promises, so it can't be approved. Ask ${AGENT_NAME} for a new one on the Strategy page.`
+                ? `This strategy promises more than its calendar holds, so it can't be approved. Ask ${AGENT_NAME} for a new one on the Strategy page.`
                 : overview.viewerCanApprove
                   ? `This is the only thing you approve. ${AGENT_NAME} runs the rest.`
                   : APPROVED_BY_OWNERS}

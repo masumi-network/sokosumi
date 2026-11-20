@@ -505,12 +505,54 @@ describe("the plan starts when the research ends", () => {
     const message = (startTurn.mock.calls[0]?.[0] as { message: string })
       .message;
     expect(message).toContain(
-      "its calendar holds fewer pieces than the strategy promises",
+      "its calendar does not hold what the strategy promises",
     );
     expect(message).toContain(
       'linkedin has 4 calendar pieces, but its cadence "3 a week" means about 12',
     );
     expect(message).toContain("Never lower the pace or a cadence");
+  });
+
+  it("finishes a month whose funnel promises video the calendar does not hold", async () => {
+    // Four weeks at the owner's "3 a week", and a play that promises video.
+    const day = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `w${index}`,
+      date: `2026-10-${String(1 + Math.floor(index / 3) * 7 + (index % 3) * 2).padStart(2, "0")}`,
+    });
+    seedStrategy({
+      ...strategy,
+      channels: [
+        { channel: "linkedin", cadence: "3 a week", setByOwner: true },
+      ],
+      pace: { level: "all_in", why: "Top volume.", perWeek: 3 },
+      funnel: [
+        {
+          stage: "interest",
+          goal: "g",
+          cusoDoes: "I post how-tos.",
+          channels: ["linkedin"],
+          metric: "Trials",
+          plays: [{ channel: "linkedin", what: "A weekly founder video" }],
+        },
+      ],
+      calendar: Array.from({ length: 12 }, (_, index) => day(index)),
+    });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const message = (startTurn.mock.calls[0]?.[0] as { message: string })
+      .message;
+    expect(message).toContain(
+      "the funnel's interest play on linkedin promises video",
+    );
+    expect(message).toContain("may instead drop the video in its words");
   });
 
   it("finishes nothing for a whole month, an approved one, or a Cuso who saves in two calls", async () => {
@@ -2179,7 +2221,7 @@ describe("changes after the plan", () => {
     // Three weeks, at steady: short of its weeks and the top volume.
     const short = seedStrategy(wholePlan());
     await expect(requireCmoStrategyFitted(HIRE, short.id)).rejects.toThrow(
-      "This strategy plans fewer posts than it promises",
+      "This strategy promises more than its calendar holds",
     );
     // A Cuso who saves in two calls has no finish turn to fill it.
     sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });

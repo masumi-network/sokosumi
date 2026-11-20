@@ -27,11 +27,11 @@ import {
   cmoPlanProblems,
   cmoPlanProblemsSince,
   cmoPlanRuleProblems,
+  cmoPromiseGaps,
   cmoReplySafety,
   cmoSideChannelFit,
   cmoStrategyRules,
   cmoTopVolumeProblems,
-  cmoVolumeGaps,
   cmoWithOwnerPace,
   mixProblems,
   pillarProblems,
@@ -442,7 +442,7 @@ describe("the funnel strategy", () => {
       ],
     });
     const options = { weekly: true, everyNetwork: true };
-    expect(cmoVolumeGaps(short, options)).toEqual([
+    expect(cmoPromiseGaps(short, options)).toEqual([
       "calendar has about 16 pieces a week; the all_in pace says 43. Match them.",
       'x has 32 calendar pieces, but its cadence "3 a day" means about 84 over four weeks. Save part calendar so they match.',
       'linkedin has 32 calendar pieces, but its cadence "2 a day" means about 56 over four weeks. Save part calendar so they match.',
@@ -465,7 +465,7 @@ describe("the funnel strategy", () => {
         },
       ],
     });
-    expect(cmoVolumeGaps(whole, options)).toEqual([]);
+    expect(cmoPromiseGaps(whole, options)).toEqual([]);
     expect(cmoMonthShortfall(whole, options)).toBeNull();
   });
 
@@ -1555,6 +1555,44 @@ describe("a cmo-v5 month at the top volume, whose funnel says what it plans", ()
         'the funnel\'s interest play on facebook promises video ("Community updates and weekly video"), but no talking video in the calendar goes out on facebook; plan one with facebook in its alsoOn, or take video out of the play.',
       ]),
     );
+  });
+
+  it("counts video a funnel promises and the calendar lacks as a gap of the month", () => {
+    const month = plan({
+      pace: { level: "all_in", why: "Top volume", perWeek: 1 },
+      channels: [
+        { ...channel("x", "1 a week", "main"), setByOwner: true },
+        { ...channel("instagram", "1 a week", "side"), setByOwner: true },
+      ],
+      funnel: [
+        stage("awareness", [{ channel: "x", what: "Weekly posts" }]),
+        stage("interest", [
+          { channel: "instagram", what: "Moments, including weekly video" },
+        ]),
+      ],
+      calendar: [0, 1, 2, 3].flatMap((n) => [
+        { ...entry(`x${n}`, "x", "post"), date: week(n), title: `Post ${n}` },
+        {
+          ...entry(`i${n}`, "instagram", "image"),
+          date: week(n),
+          title: `Picture ${n}`,
+        },
+      ]),
+    });
+    const options = { everyNetwork: true, weekly: true };
+    expect(cmoPromiseGaps(month, options)).toEqual([
+      'the funnel\'s interest play on instagram promises video ("Moments, including weekly video"), but no talking video in the calendar goes out on instagram; plan one with instagram in its alsoOn, or take video out of the play.',
+    ]);
+    // Only a video is missing: the owner reads no count.
+    expect(cmoMonthShortfall(month, options)).toEqual({
+      planned: 8,
+      promised: 8,
+    });
+    const withVideo = {
+      ...month,
+      calendar: [...month.calendar, { ...video(1), alsoOn: ["instagram"] }],
+    };
+    expect(cmoPromiseGaps(withVideo, options)).toEqual([]);
   });
 
   it("passes the same month at the top volume, on every network, with talking videos", () => {
