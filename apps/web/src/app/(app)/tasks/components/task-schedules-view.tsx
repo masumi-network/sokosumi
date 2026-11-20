@@ -23,6 +23,7 @@ import {
   TASK_SCHEDULE_STATE_PARAM,
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
@@ -242,7 +243,7 @@ export function TaskSchedulesView({
       onValueChange={handleStateChange}
       value={shownValue}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
         <TabsList
           aria-label={t("stateFilter")}
           className={cn(
@@ -267,7 +268,14 @@ export function TaskSchedulesView({
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="ms-auto flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+        <PageSearchActions>
+          <PageSearchField
+            inHeader
+            placeholder={tSearch("schedules")}
+            value={query}
+            onValueChange={setQuery}
+          />
+
           <ListGridViewSwitch
             value={viewMode}
             data-testid="schedules-view-mode-switch"
@@ -283,13 +291,7 @@ export function TaskSchedulesView({
               {t("newSchedule")}
             </Button>
           ) : null}
-          <PageSearchField
-            inHeader
-            placeholder={tSearch("schedules")}
-            value={query}
-            onValueChange={setQuery}
-          />
-        </div>
+        </PageSearchActions>
       </div>
 
       {/* One panel, always the shown state's, so the list is its tab's panel. */}

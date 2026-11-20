@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-
 import {
   SOCIAL_TABS,
   type SocialTab,
@@ -14,6 +13,7 @@ import {
   SocialTabTrigger,
   useSocialTab,
 } from "@/app/projects/components/social-posts/social-tab-trigger";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { SearchablePageContent } from "@/components/searchable-page-content";
 import {
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -77,7 +77,7 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 max-md:items-start">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3 max-md:items-start">
         <div
           className={cn(
             SOCIAL_TABS_ROW_CLASS_NAME,
@@ -107,8 +107,14 @@ export function SocialAllProjectsTabs({
             ))}
           </TabsList>
         </div>
-        {actions}
-        {tab === "calendar" || tab === "attention" ? searchField : null}
+        {tab === "calendar" || tab === "attention" ? (
+          <PageSearchActions>
+            {searchField}
+            {actions}
+          </PageSearchActions>
+        ) : (
+          actions
+        )}
       </div>
 
       {projectFailed && tab !== "statistics" && tab !== "attention" ? (

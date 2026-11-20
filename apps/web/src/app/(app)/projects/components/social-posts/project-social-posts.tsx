@@ -34,6 +34,7 @@ import { SocialPostComposerDialog } from "@/app/projects/components/social-posts
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { SearchablePageContent } from "@/components/searchable-page-content";
 import {
   SOCIAL_POST_PROVIDERS,
@@ -1382,7 +1383,7 @@ export function ProjectSocialPosts({
             }
           }}
         >
-          <div className="flex flex-row items-center justify-between gap-3">
+          <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
             <div
               className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}
             >
@@ -1423,15 +1424,21 @@ export function ProjectSocialPosts({
                 })}
               </TabsList>
             </div>
-            {tab === "drafts" || tab === "attention" ? (
-              <SocialPlatformFilter
-                value={provider}
-                onChange={(next) => {
-                  void setProvider(next);
-                }}
-              />
-            ) : null}
-            {actions}
+            <PageSearchActions className={searchField ? undefined : "w-auto"}>
+              {tab === "calendar" ||
+              SECTION_ORDER.some((section) => section === tab)
+                ? searchField
+                : null}
+              {tab === "drafts" || tab === "attention" ? (
+                <SocialPlatformFilter
+                  value={provider}
+                  onChange={(next) => {
+                    void setProvider(next);
+                  }}
+                />
+              ) : null}
+              {actions}
+            </PageSearchActions>
           </div>
 
           {accountPrompt ? (
@@ -1521,7 +1528,6 @@ export function ProjectSocialPosts({
                   data-testid={`social-posts-section-${section}`}
                   value={section}
                 >
-                  {searchField}
                   {sectionReconnections.length > 0 ? (
                     <ProjectSocialAccounts
                       connections={managed}

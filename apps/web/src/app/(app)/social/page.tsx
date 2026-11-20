@@ -220,7 +220,6 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             calendar={
               calendar ? (
                 <>
-                  {field}
                   {showCalendar && (
                     <SocialCalendar
                       calendar={calendar}

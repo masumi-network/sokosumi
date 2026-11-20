@@ -16,6 +16,7 @@ import {
   type ProjectsListProject,
   type ProjectsListState,
 } from "@/app/projects/constants";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { Button } from "@/components/ui/button";
 import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { cn } from "@/lib/utils";
@@ -221,14 +222,16 @@ export function ProjectsView({
             pending={isSwitching}
             startTransition={startSwitch}
           />
-          <AddProjectButton
-            label={labels.newProject}
-            className="ms-auto hidden md:inline-flex"
-          />
-          <ProjectsFilter
-            labels={labels.filter}
-            startTransition={startSwitch}
-          />
+          <PageSearchActions>
+            <ProjectsFilter
+              labels={labels.filter}
+              startTransition={startSwitch}
+            />
+            <AddProjectButton
+              label={labels.newProject}
+              className="hidden md:inline-flex"
+            />
+          </PageSearchActions>
         </div>
         {/* The column comes first in source and on screen: stacked above the
             grid when narrow, on its leading side from xl. */}

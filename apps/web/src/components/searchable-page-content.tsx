@@ -14,8 +14,8 @@ import {
   useState,
 } from "react";
 import { useChromePathname } from "@/app/chat/components/room-cache-provider";
-import { PageHeaderSearch } from "@/components/page-header-search";
 import { PageListSearchContext } from "@/components/page-list-search";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import { usePageTextFind } from "@/components/use-page-text-find";
@@ -25,9 +25,13 @@ import { cn } from "@/lib/utils";
 export function SearchablePageContent({
   children,
   sidebar = false,
+  heading,
+  renderHeader,
 }: {
   children: ReactNode;
   sidebar?: boolean;
+  heading?: ReactNode;
+  renderHeader?: (search: ReactNode) => ReactNode;
 }) {
   const content = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -55,7 +59,11 @@ export function SearchablePageContent({
           <SidebarSearchToolbar {...props} />
         </Suspense>
       ) : (
-        <SearchToolbar {...props} />
+        <SearchToolbar
+          {...props}
+          heading={heading}
+          renderHeader={renderHeader}
+        />
       )}
       <div ref={content} className="flex min-w-0 flex-1 flex-col">
         <PageListSearchContext.Provider value={context}>
@@ -74,17 +82,16 @@ interface ToolbarProps {
   hits: number;
   partial: number;
   focusOnMount?: boolean;
-  inAppHeader?: boolean;
+  heading?: ReactNode;
+  renderHeader?: (search: ReactNode) => ReactNode;
 }
 
 const DASHBOARD_PATHS = [
   "/studio",
   "/tiktok-studio",
-  "/ads",
   "/competitors",
   "/chat",
   "/you",
-  "/notifications",
   "/admin",
 ];
 const SECTION_PATHS = [
@@ -93,7 +100,6 @@ const SECTION_PATHS = [
   "/account",
   "/organization",
   "/billing",
-  "/connections",
   "/developer",
   "/chat/catch-up",
 ];
@@ -117,14 +123,7 @@ function SidebarSearchToolbar(props: ToolbarProps) {
     newsletterDashboard;
   const key = JSON.stringify([pathname, params?.get("projectId")]);
   if (!scoped) return null;
-  return (
-    <SearchToolbar
-      key={key}
-      {...props}
-      focusOnMount={agentProfile}
-      inAppHeader={!agentProfile}
-    />
-  );
+  return <SearchToolbar key={key} {...props} focusOnMount={agentProfile} />;
 }
 
 function SearchToolbar({
@@ -135,22 +134,16 @@ function SearchToolbar({
   hits,
   partial,
   focusOnMount,
-  inAppHeader,
+  heading,
+  renderHeader,
 }: ToolbarProps) {
   const t = useTranslations("App.PageSearch");
   // The toolbar resets on navigation. Keep the route children mounted for the persistent chat shell.
   useEffect(() => () => setQuery(""), [setQuery]);
   const find = usePageTextFind(content, lists ? "" : query);
   const finding = !lists && Boolean(query.trim());
-  const toolbar = (
-    <div
-      className={cn(
-        "flex flex-wrap items-center gap-2 py-2",
-        !focusOnMount && "justify-end",
-        finding &&
-          "bg-background sticky top-[calc(5rem+env(safe-area-inset-top))] z-10 md:top-0",
-      )}
-    >
+  const controls = (
+    <>
       <PageSearchField
         inHeader={!focusOnMount}
         focusOnMount={focusOnMount}
@@ -201,7 +194,26 @@ function SearchToolbar({
           </Button>
         </>
       )}
+    </>
+  );
+  const sticky =
+    finding &&
+    "bg-background sticky top-[calc(5rem+env(safe-area-inset-top))] z-10 md:top-0";
+  if (renderHeader)
+    return <div className={cn(sticky)}>{renderHeader(controls)}</div>;
+  return (
+    <div
+      className={cn(
+        "@container/page-toolbar flex flex-wrap items-center gap-2 py-2",
+        sticky,
+      )}
+    >
+      {heading}
+      {focusOnMount ? (
+        controls
+      ) : (
+        <PageSearchActions>{controls}</PageSearchActions>
+      )}
     </div>
   );
-  return inAppHeader ? <PageHeaderSearch>{toolbar}</PageHeaderSearch> : toolbar;
 }

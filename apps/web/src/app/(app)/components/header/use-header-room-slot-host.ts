@@ -5,17 +5,15 @@ import { useLayoutEffect, useState } from "react";
 const HEADER_ROOM_SLOT_SELECTOR = "[data-app-header-room-slot]";
 
 export function useHeaderRoomSlotHost(): HTMLElement | null {
-  return useHeaderSlotHost(HEADER_ROOM_SLOT_SELECTOR);
-}
-
-export function useHeaderSlotHost(selector: string): HTMLElement | null {
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
     let current: HTMLElement | null = null;
 
     function syncHost() {
-      const next = document.querySelector<HTMLElement>(selector);
+      const next = document.querySelector<HTMLElement>(
+        HEADER_ROOM_SLOT_SELECTOR,
+      );
       if (next === current) {
         return;
       }
@@ -33,7 +31,7 @@ export function useHeaderSlotHost(selector: string): HTMLElement | null {
       current = null;
       setHost(null);
     };
-  }, [selector]);
+  }, []);
 
   return host;
 }

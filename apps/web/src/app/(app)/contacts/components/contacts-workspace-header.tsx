@@ -16,6 +16,7 @@ import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { coreErrorOf } from "@/app/contacts/contacts-view";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -78,7 +79,7 @@ export function ContactsWorkspaceHeader({
   }
 
   return (
-    <header className="flex min-w-0 flex-wrap items-center gap-2">
+    <header className="@container/page-toolbar flex min-w-0 flex-wrap items-center gap-2">
       <h1 className="sr-only">{t("title")}</h1>
       <div ref={viewSlot} className="min-w-0 flex-1">
         {layout === "companies" ? (
@@ -121,99 +122,105 @@ export function ContactsWorkspaceHeader({
           <ContactsPresetTabs view={view} onViewChange={changeView} />
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {archived ? null : (
-          <ToggleGroup
-            type="single"
-            value={layout ?? "table"}
-            onValueChange={(next) => {
-              if (next === "table" || next === "map" || next === "companies") {
-                onLayout(next === "table" ? null : next);
-              }
-            }}
-            aria-label={t("layout.label")}
+      <PageSearchActions className={searchField ? undefined : "w-auto"}>
+        {searchField}
+        <div className="flex shrink-0 items-center gap-1">
+          {archived ? null : (
+            <ToggleGroup
+              type="single"
+              value={layout ?? "table"}
+              onValueChange={(next) => {
+                if (
+                  next === "table" ||
+                  next === "map" ||
+                  next === "companies"
+                ) {
+                  onLayout(next === "table" ? null : next);
+                }
+              }}
+              aria-label={t("layout.label")}
+            >
+              <ToggleGroupItem
+                value="table"
+                aria-label={t("layout.table")}
+                className="size-10 px-0 md:size-8"
+              >
+                <Table2 aria-hidden className="size-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="map"
+                aria-label={t("layout.map")}
+                className="size-10 px-0 md:size-8"
+              >
+                <Globe aria-hidden className="size-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="companies"
+                aria-label={t("layout.companies")}
+                className="size-10 px-0 md:size-8"
+              >
+                <Building2 aria-hidden className="size-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
+          <Button
+            size="sm"
+            variant="primary"
+            className="h-10 md:h-8"
+            onClick={() => onDialog("add")}
           >
-            <ToggleGroupItem
-              value="table"
-              aria-label={t("layout.table")}
-              className="size-10 px-0 md:size-8"
-            >
-              <Table2 aria-hidden className="size-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="map"
-              aria-label={t("layout.map")}
-              className="size-10 px-0 md:size-8"
-            >
-              <Globe aria-hidden className="size-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="companies"
-              aria-label={t("layout.companies")}
-              className="size-10 px-0 md:size-8"
-            >
-              <Building2 aria-hidden className="size-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-        )}
-        <Button
-          size="sm"
-          variant="primary"
-          className="h-10 md:h-8"
-          onClick={() => onDialog("add")}
-        >
-          <UserPlus aria-hidden className="size-4" />
-          <span className="sr-only sm:not-sr-only">{t("toolbar.add")}</span>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild disabled={exporting}>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label={t("toolbar.more")}
-              className="size-10 md:size-8"
-              loading={exporting}
-            >
-              <MoreHorizontal aria-hidden className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            onCloseAutoFocus={(event) => {
-              // Opening the archive lands on its heading, not the menu
-              // button, so a screen reader announces the new view.
-              if (!enteringArchive.current) return;
-              enteringArchive.current = false;
-              event.preventDefault();
-              archiveHeading.current?.focus();
-            }}
-          >
-            <DropdownMenuItem onClick={() => void handleExport()}>
-              <Download aria-hidden className="size-4" />
-              {t("toolbar.export")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDialog("import")}>
-              <FileSpreadsheet aria-hidden className="size-4" />
-              {t("views.import")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDialog("list")}>
-              <ListPlus aria-hidden className="size-4" />
-              {t("views.newList")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                enteringArchive.current = true;
-                changeView("archived");
+            <UserPlus aria-hidden className="size-4" />
+            <span className="sr-only sm:not-sr-only">{t("toolbar.add")}</span>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild disabled={exporting}>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={t("toolbar.more")}
+                className="size-10 md:size-8"
+                loading={exporting}
+              >
+                <MoreHorizontal aria-hidden className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              onCloseAutoFocus={(event) => {
+                // Opening the archive lands on its heading, not the menu
+                // button, so a screen reader announces the new view.
+                if (!enteringArchive.current) return;
+                enteringArchive.current = false;
+                event.preventDefault();
+                archiveHeading.current?.focus();
               }}
             >
-              <Archive aria-hidden className="size-4" />
-              {t("presets.archived")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      {searchField}
+              <DropdownMenuItem onClick={() => void handleExport()}>
+                <Download aria-hidden className="size-4" />
+                {t("toolbar.export")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDialog("import")}>
+                <FileSpreadsheet aria-hidden className="size-4" />
+                {t("views.import")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDialog("list")}>
+                <ListPlus aria-hidden className="size-4" />
+                {t("views.newList")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  enteringArchive.current = true;
+                  changeView("archived");
+                }}
+              >
+                <Archive aria-hidden className="size-4" />
+                {t("presets.archived")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </PageSearchActions>
     </header>
   );
 }

@@ -119,12 +119,12 @@ describe("HistoryToolbar", () => {
     const filterWrapper = screen.getByTestId(
       "history-view-filters",
     ).parentElement;
-    expect(filterWrapper?.className).toMatch(/ml-auto/);
-
-    expect(
-      Array.from(toolbar?.children ?? []).indexOf(resultsLabel),
-    ).toBeLessThan(
-      Array.from(toolbar?.children ?? []).indexOf(filterWrapper as Element),
+    const actionGroup = filterWrapper?.parentElement;
+    expect(actionGroup).toBe(toolbar?.lastElementChild);
+    expect(actionGroup?.firstElementChild).toContainElement(
+      screen.getByRole("searchbox"),
     );
+    expect(actionGroup?.lastElementChild).toBe(filterWrapper);
+    expect(toolbar?.firstElementChild).toBe(resultsLabel);
   });
 });

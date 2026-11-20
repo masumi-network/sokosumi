@@ -77,8 +77,10 @@ describe("ProjectsLoadingView", () => {
     expect(browse).not.toHaveClass("border");
     const header = screen.getByTestId("projects-loading-toolbar");
     expect(browse).not.toContainElement(header);
-    // Search reserves the trailing desktop width and the full mobile row.
-    expect(header.lastElementChild).toHaveClass("h-10", "w-full", "sm:w-64");
+    // Search reserves its desktop width before create in the trailing group.
+    expect(
+      screen.getByTestId("projects-loading-create").previousElementSibling,
+    ).toHaveClass("h-10", "@2xl/page-toolbar:w-64");
 
     const list = browse.lastElementChild;
     for (const token of PROJECTS_BROWSE_LIST_CLASS.split(/\s+/)) {

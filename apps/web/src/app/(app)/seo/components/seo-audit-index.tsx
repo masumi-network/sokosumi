@@ -14,6 +14,7 @@ import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -102,14 +103,15 @@ export function SeoAuditIndex({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
         <h2
           id={SAVED_AUDITS_TITLE_ID}
           className="text-xl font-semibold sm:flex-1"
         >
           {t(archived ? "audits.archived" : "audits.saved")}
         </h2>
-        <div className="flex flex-wrap items-center gap-2">
+        <PageSearchActions>
+          {searchField}
           {!archived && hasAudits ? (
             <>
               {projectId ? (
@@ -149,8 +151,7 @@ export function SeoAuditIndex({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-        {searchField}
+        </PageSearchActions>
       </div>
       {hasAudits ? (
         <section

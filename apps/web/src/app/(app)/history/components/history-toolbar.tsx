@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-
 import type {
   HistoryFilters,
   HistoryType,
   ProjectFilterOption,
 } from "@/app/history/utils/history-filters";
+import { PageSearchActions } from "@/components/page-search-actions";
 
 import { HistoryExportMenu } from "./history-export-menu";
 import { HistorySearch } from "./history-search";
@@ -53,30 +53,32 @@ export function HistoryToolbar({
 
   return (
     <div data-history-toolbar className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center gap-2 sm:gap-3">
         <p
           className="text-muted-foreground shrink-0 text-sm md:hidden"
           aria-live="polite"
         >
           {resultsCountLabel}
         </p>
-        <div
-          data-history-filters
-          className="ml-auto flex shrink-0 items-center gap-2 md:ml-0"
-        >
-          <HistoryExportMenu filters={filters} />
-          <HistoryViewFilters
+        <PageSearchActions>
+          <HistorySearch
+            key={searchResets}
             activeOrganizationId={activeOrganizationId}
             projectOptions={projectOptions}
-            labels={labels.filters}
+            labels={labels.search}
           />
-        </div>
-        <HistorySearch
-          key={searchResets}
-          activeOrganizationId={activeOrganizationId}
-          projectOptions={projectOptions}
-          labels={labels.search}
-        />
+          <div
+            data-history-filters
+            className="flex shrink-0 items-center gap-2"
+          >
+            <HistoryExportMenu filters={filters} />
+            <HistoryViewFilters
+              activeOrganizationId={activeOrganizationId}
+              projectOptions={projectOptions}
+              labels={labels.filters}
+            />
+          </div>
+        </PageSearchActions>
       </div>
       <HistoryActiveFilters
         onSearchReset={() => setSearchResets((count) => count + 1)}

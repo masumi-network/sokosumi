@@ -12,6 +12,7 @@ import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { pageSearchUrlUpdates } from "@/components/page-query-search-field";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,7 +71,7 @@ export function Issues({
   );
   return (
     <section className="min-w-0 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1 sm:flex-1">
           <h3 className="text-base font-semibold">{t("title")}</h3>
           <Link
@@ -80,17 +81,19 @@ export function Issues({
             {t("Readiness.audienceCount", { count: activeSubscribers })}
           </Link>
         </div>
-        {issues.length || searching ? newIssue : null}
-        <PageSearchField
-          inHeader
-          value={query.q}
-          placeholder={tSearch("issues")}
-          maxLength={ISSUE_SEARCH_MAX_LENGTH}
-          onValueChange={(q) => {
-            setPendingPage(null);
-            void setQuery({ q, cursor: null }, pageSearchUrlUpdates(q));
-          }}
-        />
+        <PageSearchActions>
+          <PageSearchField
+            inHeader
+            value={query.q}
+            placeholder={tSearch("issues")}
+            maxLength={ISSUE_SEARCH_MAX_LENGTH}
+            onValueChange={(q) => {
+              setPendingPage(null);
+              void setQuery({ q, cursor: null }, pageSearchUrlUpdates(q));
+            }}
+          />
+          {issues.length || searching ? newIssue : null}
+        </PageSearchActions>
       </div>
       {!issues.length ? (
         <div className={HOLDER_CLASS}>

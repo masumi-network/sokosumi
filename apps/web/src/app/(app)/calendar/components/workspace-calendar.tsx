@@ -88,6 +88,7 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { PageSearchActions } from "@/components/page-search-actions";
 import {
   SOCIAL_POST_PROVIDERS,
   socialPlatformFilterSection,
@@ -212,6 +213,7 @@ function findCalendarPeople(
 }
 
 interface WorkspaceCalendarProps {
+  searchField?: ReactNode;
   /**
    * A fixed set of features, as when another page embeds the Calendar: the
    * Show filter is left out rather than offered and then ignored.
@@ -1032,6 +1034,7 @@ function CalendarView({
 }
 
 export function WorkspaceCalendar({
+  searchField,
   activeOrganizationId = null,
   currentUserId = null,
   initialDate,
@@ -1631,7 +1634,7 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center gap-x-4 gap-y-3">
         {view === "month" || view === "week" ? (
           <div
             className={cn(
@@ -1729,48 +1732,51 @@ export function WorkspaceCalendar({
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          {types ? null : (
-            <CalendarShowFilter
-              available={availableTypes}
-              selected={shownTypes}
-              onChange={handleTypesChange}
-            />
-          )}
-          {lockedProjectId && !socialOnly ? (
-            <Button asChild size="sm" variant="outline">
-              <Link
-                href={`${TASK_SCHEDULES_PATH}?projectId=${encodeURIComponent(lockedProjectId)}`}
+          <PageSearchActions className={searchField ? undefined : "contents"}>
+            {searchField}
+            {types ? null : (
+              <CalendarShowFilter
+                available={availableTypes}
+                selected={shownTypes}
+                onChange={handleTypesChange}
+              />
+            )}
+            {lockedProjectId && !socialOnly ? (
+              <Button asChild size="sm" variant="outline">
+                <Link
+                  href={`${TASK_SCHEDULES_PATH}?projectId=${encodeURIComponent(lockedProjectId)}`}
+                >
+                  <Repeat aria-hidden className="size-4" />
+                  {t("schedules.link")}
+                </Link>
+              </Button>
+            ) : null}
+            <div>
+              <FilterDropdownMenu
+                buttonLabel={tFilters("title")}
+                emptyResultsLabel={tFilters("emptyResults")}
+                searchPlaceholder={tFilters("searchPlaceholder")}
+                sections={filterSections}
+                triggerClassName={
+                  socialOnly
+                    ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
+                    : undefined
+                }
+                showActiveIndicator={filtersActive}
+              />
+            </div>
+            {canCreate ? (
+              // Phones have the + button; a day click is pointer-only.
+              <Button
+                className="max-md:hidden"
+                type="button"
+                onClick={handleAgendaCreate}
               >
-                <Repeat aria-hidden className="size-4" />
-                {t("schedules.link")}
-              </Link>
-            </Button>
-          ) : null}
-          <div>
-            <FilterDropdownMenu
-              buttonLabel={tFilters("title")}
-              emptyResultsLabel={tFilters("emptyResults")}
-              searchPlaceholder={tFilters("searchPlaceholder")}
-              sections={filterSections}
-              triggerClassName={
-                socialOnly
-                  ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
-                  : undefined
-              }
-              showActiveIndicator={filtersActive}
-            />
-          </div>
-          {canCreate ? (
-            // Phones have the + button; a day click is pointer-only.
-            <Button
-              className="max-md:hidden"
-              type="button"
-              onClick={handleAgendaCreate}
-            >
-              <Plus aria-hidden />
-              {t("create.fab")}
-            </Button>
-          ) : null}
+                <Plus aria-hidden />
+                {t("create.fab")}
+              </Button>
+            ) : null}
+          </PageSearchActions>
         </div>
       </div>
       {canCreate ? (

@@ -60,7 +60,8 @@ export function PageSearchField({
     <div
       className={cn(
         "@container/page-search relative w-full min-w-0 sm:max-w-sm",
-        inHeader && "ms-auto sm:w-64",
+        inHeader &&
+          "min-w-[min(9rem,100%)] flex-1 basis-36 @2xl/page-toolbar:w-64 @2xl/page-toolbar:flex-none",
         className,
       )}
     >
@@ -78,6 +79,7 @@ export function PageSearchField({
           value
             ? "pe-10 @min-[14rem]/page-search:pe-24"
             : "@min-[14rem]/page-search:pe-16",
+          inHeader && "@2xl/page-toolbar:h-8",
           inputClassName,
         )}
         placeholder={placeholder}

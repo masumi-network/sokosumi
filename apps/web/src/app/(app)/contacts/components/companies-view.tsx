@@ -13,6 +13,7 @@ import {
   replaceVisibleSelection,
 } from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import {
   AlertDialog,
@@ -157,55 +158,28 @@ export function CompaniesView({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        {selected.length ? (
-          <div
-            role="toolbar"
-            aria-label={t("bulkLabel")}
-            className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
-          >
-            <span className="me-2 shrink-0 text-sm font-medium tabular-nums">
-              {t("selected", { count: selected.length })}
-            </span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className={cn(CONTROL, "shrink-0")}
-                >
-                  <ListPlus aria-hidden className="size-4" />
-                  {t("addToList")}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {allLists.map((list) => (
-                  <DropdownMenuItem
-                    key={list.id}
-                    onClick={() =>
-                      void changeMembers(
-                        list,
-                        { add: selected },
-                        t("addedToList", {
-                          count: selected.length,
-                          list: list.name,
-                        }),
-                      )
-                    }
-                  >
-                    <Dot className={LIST_COLOR_DOT[list.color]} />
-                    {list.name}
-                  </DropdownMenuItem>
-                ))}
-                {allLists.length === 0 ? (
-                  <DropdownMenuItem onClick={() => setDialog({ kind: "list" })}>
-                    <ListPlus aria-hidden className="size-4" />
-                    {t("newList")}
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {removable.length ? (
+      <div className="@container/page-toolbar flex min-w-0 flex-wrap items-center gap-2">
+        <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
+          {companies.isPending ? null : t("count", { count: total })}
+        </span>
+        <PageSearchActions>
+          <PageSearchField
+            inHeader
+            aria-label={t("search")}
+            placeholder={t("searchPlaceholder")}
+            value={search}
+            maxLength={200}
+            onValueChange={setSearch}
+          />
+          {selected.length ? (
+            <div
+              role="toolbar"
+              aria-label={t("bulkLabel")}
+              className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+            >
+              <span className="me-2 shrink-0 text-sm font-medium tabular-nums">
+                {t("selected", { count: selected.length })}
+              </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -213,19 +187,19 @@ export function CompaniesView({
                     variant="ghost"
                     className={cn(CONTROL, "shrink-0")}
                   >
-                    <ListMinus aria-hidden className="size-4" />
-                    {t("removeFromList")}
+                    <ListPlus aria-hidden className="size-4" />
+                    {t("addToList")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  {removable.map((list) => (
+                  {allLists.map((list) => (
                     <DropdownMenuItem
                       key={list.id}
                       onClick={() =>
                         void changeMembers(
                           list,
-                          { remove: selected },
-                          t("removedFromList", {
+                          { add: selected },
+                          t("addedToList", {
                             count: selected.length,
                             list: list.name,
                           }),
@@ -236,54 +210,85 @@ export function CompaniesView({
                       {list.name}
                     </DropdownMenuItem>
                   ))}
+                  {allLists.length === 0 ? (
+                    <DropdownMenuItem
+                      onClick={() => setDialog({ kind: "list" })}
+                    >
+                      <ListPlus aria-hidden className="size-4" />
+                      {t("newList")}
+                    </DropdownMenuItem>
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : null}
-            <Button
-              size="sm"
-              variant="ghost"
-              className={cn(CONTROL, "shrink-0")}
-              onClick={() => setSelected([])}
-            >
-              <X aria-hidden className="size-4" />
-              {t("clearSelection")}
-            </Button>
-          </div>
-        ) : (
-          <>
-            <ListsMenu
-              companies
-              view={listId ?? ""}
-              onViewChange={changeList}
-              lists={allLists}
-              onNewList={() => setDialog({ kind: "list" })}
-              onEditList={(list) => setDialog({ kind: "list", list })}
-              onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
-            />
-            {currentList ? (
+              {removable.length ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className={cn(CONTROL, "shrink-0")}
+                    >
+                      <ListMinus aria-hidden className="size-4" />
+                      {t("removeFromList")}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {removable.map((list) => (
+                      <DropdownMenuItem
+                        key={list.id}
+                        onClick={() =>
+                          void changeMembers(
+                            list,
+                            { remove: selected },
+                            t("removedFromList", {
+                              count: selected.length,
+                              list: list.name,
+                            }),
+                          )
+                        }
+                      >
+                        <Dot className={LIST_COLOR_DOT[list.color]} />
+                        {list.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
               <Button
                 size="sm"
                 variant="ghost"
-                className={CONTROL}
-                onClick={() => changeList(null)}
+                className={cn(CONTROL, "shrink-0")}
+                onClick={() => setSelected([])}
               >
                 <X aria-hidden className="size-4" />
-                {t("allCompanies")}
+                {t("clearSelection")}
               </Button>
-            ) : null}
-          </>
-        )}
-        <span className="text-muted-foreground ms-auto shrink-0 text-sm tabular-nums">
-          {companies.isPending ? null : t("count", { count: total })}
-        </span>
-        <PageSearchField
-          inHeader
-          aria-label={t("search")}
-          placeholder={t("searchPlaceholder")}
-          value={search}
-          maxLength={200}
-          onValueChange={setSearch}
-        />
+            </div>
+          ) : (
+            <>
+              <ListsMenu
+                companies
+                view={listId ?? ""}
+                onViewChange={changeList}
+                lists={allLists}
+                onNewList={() => setDialog({ kind: "list" })}
+                onEditList={(list) => setDialog({ kind: "list", list })}
+                onDeleteList={(list) => setDialog({ kind: "deleteList", list })}
+              />
+              {currentList ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={CONTROL}
+                  onClick={() => changeList(null)}
+                >
+                  <X aria-hidden className="size-4" />
+                  {t("allCompanies")}
+                </Button>
+              ) : null}
+            </>
+          )}
+        </PageSearchActions>
       </div>
       {currentList?.description ? (
         <p className="text-muted-foreground -mt-1 truncate text-sm">

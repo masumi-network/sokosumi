@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
 import DataTable from "@/components/data-table/data-table";
 import { pageSearchUrlUpdates } from "@/components/page-query-search-field";
+import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -175,7 +176,7 @@ export function Subscribers({
 
   return (
     <section aria-label={t("title")} className="min-w-0 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:flex-1">
           <h3 className="text-base font-semibold">{t("title")}</h3>
           {contactListId ? (
@@ -187,22 +188,24 @@ export function Subscribers({
             </Link>
           ) : null}
         </div>
-        {total > 0 ? actions : null}
-        <PageSearchField
-          id="subscriber-search"
-          inHeader
-          value={query.search}
-          aria-label={t("search")}
-          placeholder={t("searchPlaceholder")}
-          maxLength={254}
-          onValueChange={(search) => {
-            setPendingAction("search");
-            void setQuery(
-              { search, cursor: null },
-              pageSearchUrlUpdates(search),
-            );
-          }}
-        />
+        <PageSearchActions>
+          <PageSearchField
+            id="subscriber-search"
+            inHeader
+            value={query.search}
+            aria-label={t("search")}
+            placeholder={t("searchPlaceholder")}
+            maxLength={254}
+            onValueChange={(search) => {
+              setPendingAction("search");
+              void setQuery(
+                { search, cursor: null },
+                pageSearchUrlUpdates(search),
+              );
+            }}
+          />
+          {total > 0 ? actions : null}
+        </PageSearchActions>
       </div>
       <dl className={cn(HOLDER_CLASS, "grid grid-cols-2 gap-2 lg:grid-cols-4")}>
         {STATUSES.map((status) => (

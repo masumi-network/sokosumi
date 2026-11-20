@@ -32,7 +32,6 @@ export function ProjectsFilter({
   return (
     <PageQuerySearchField
       inHeader
-      className="md:ms-0"
       placeholder={labels.placeholder}
       clearLabel={labels.clear}
       startTransition={startTransition}
