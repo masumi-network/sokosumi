@@ -111,7 +111,7 @@ export interface RoomComposerEditHandle extends RoomComposerHandle {
   /** Focus with the caret after the text, to keep typing on from it. */
   focusAtEnd: () => void;
   insertText: (text: string) => void;
-  /** Add `text` at the caret, after a space when the draft ends in a word. */
+  /** Add `text` after the whole draft, with a space after a word. */
   addText: (text: string) => void;
   /** Remove the last occurrence of `text`; false when it is not in the editor. */
   removeLastText: (text: string) => boolean;
@@ -545,14 +545,6 @@ export function RoomComposer({
     [allowAttachments, onAttachmentsChange, roomId, tToolbar],
   );
 
-  const addText = useCallback(
-    (text: string) => {
-      const joiner = value.length === 0 || /\s$/.test(value) ? "" : " ";
-      editorRef.current?.insertText(`${joiner}${text}`);
-    },
-    [value],
-  );
-
   async function dictate(file: File) {
     setIsTranscribing(true);
     try {
@@ -561,7 +553,8 @@ export function RoomComposer({
         toast(tToolbar("dictationEmpty"));
         return;
       }
-      addText(text);
+      const joiner = value.length === 0 || /\s$/.test(value) ? "" : " ";
+      editorRef.current?.insertText(`${joiner}${text}`);
       editorRef.current?.focus();
     } catch {
       toast.error(tToolbar("dictationFailed"));
@@ -597,12 +590,13 @@ export function RoomComposer({
       insertText: (text) => {
         editorRef.current?.insertText(text);
       },
-      addText,
+      addText: (text) => {
+        editorRef.current?.appendText(text);
+      },
       removeLastText: (text) =>
         editorRef.current?.removeLastText(text) ?? false,
     }),
-    // addText reads the draft, so the handle follows it.
-    [handleFilesSelected, addText],
+    [handleFilesSelected],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {

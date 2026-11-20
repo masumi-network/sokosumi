@@ -38,7 +38,7 @@ export function CoworkerFirstPrompts({
               variant="outline"
               size="sm"
               onClick={() => onPick(prompt.text)}
-              className="h-auto min-h-8 max-w-full rounded-full py-1.5 text-start font-normal whitespace-normal text-pretty"
+              className="h-auto min-h-8 max-w-full rounded-full py-1.5 text-start font-normal whitespace-normal wrap-anywhere text-pretty"
             >
               {prompt.label}
             </Button>

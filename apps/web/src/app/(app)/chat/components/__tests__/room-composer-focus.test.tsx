@@ -14,7 +14,7 @@ import {
 } from "@/app/chat/components/room-composer";
 
 const editorFocus = vi.hoisted(() => vi.fn());
-const editorInsert = vi.hoisted(() => vi.fn());
+const editorAppend = vi.hoisted(() => vi.fn());
 
 async function flushAnimationFrame() {
   await act(async () => {
@@ -69,7 +69,8 @@ vi.mock("@/components/chat/composer-wysiwyg-editor", () => ({
       focus: () => {
         editorFocus();
       },
-      insertText: editorInsert,
+      insertText: () => undefined,
+      appendText: editorAppend,
       openMentions: () => undefined,
       applyFormat: () => undefined,
       insertLink: () => undefined,
@@ -287,17 +288,13 @@ describe("RoomComposerEditHandle.addText", () => {
     );
   }
 
-  it.each([
-    ["", "Plan a launch"],
-    ["Hi", " Plan a launch"],
-    ["Hi ", "Plan a launch"],
-  ])("keeps the draft %j and inserts %j", async (draft, inserted) => {
-    editorInsert.mockClear();
-    const { getByRole } = render(<AddTextHarness draft={draft} />);
+  it("appends to the draft through the editor", async () => {
+    editorAppend.mockClear();
+    const { getByRole } = render(<AddTextHarness draft="Hi" />);
     await waitFor(() => {
       expect(getByRole("textbox")).toBeInTheDocument();
     });
     getByRole("button", { name: "add" }).click();
-    expect(editorInsert).toHaveBeenCalledExactlyOnceWith(inserted);
+    expect(editorAppend).toHaveBeenCalledExactlyOnceWith("Plan a launch");
   });
 });

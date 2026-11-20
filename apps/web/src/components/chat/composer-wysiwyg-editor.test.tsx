@@ -874,6 +874,58 @@ describe("ComposerWysiwygEditor", () => {
     );
   });
 
+  it.each([
+    ["Review tomorrow", "Review tomorrow Plan a launch"],
+    ["Review tomorrow ", "Review tomorrow Plan a launch"],
+    ["", "Plan a launch"],
+  ])(
+    "appends to %j after the draft, wherever the caret was",
+    (draft, expected) => {
+      function Harness() {
+        const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+        const [value, setValue] = useState(draft);
+        return (
+          <>
+            <button type="button" onClick={() => editorRef.current?.focus()}>
+              focus-editor
+            </button>
+            <button
+              type="button"
+              onClick={() => editorRef.current?.appendText("Plan a launch")}
+            >
+              append
+            </button>
+            <ComposerWysiwygEditor
+              ref={editorRef}
+              value={value}
+              onChange={setValue}
+              mentions={{}}
+            />
+            <output data-testid="composer-value">{value}</output>
+          </>
+        );
+      }
+
+      render(<Harness />);
+      const editor = screen.getByRole("textbox");
+      fireEvent.click(screen.getByRole("button", { name: "focus-editor" }));
+      const textNode = editor.firstChild;
+      if (textNode) {
+        // Caret between the words, at the space before "tomorrow".
+        const range = document.createRange();
+        range.setStart(textNode as Text, 6);
+        range.collapse(true);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        document.dispatchEvent(new Event("selectionchange"));
+      }
+
+      fireEvent.click(screen.getByRole("button", { name: "append" }));
+
+      expect(screen.getByTestId("composer-value").textContent).toBe(expected);
+    },
+  );
+
   it("pastes plain text only and drops rich clipboard HTML", () => {
     function Harness() {
       const [value, setValue] = useState("");
