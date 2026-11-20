@@ -1016,6 +1016,20 @@ describe("advanceCmoProduction", () => {
     expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:1:0`);
   });
 
+  it("starts a newly approved version even when the version before used today's runs", async () => {
+    // NMKR, 2026-11-19: three runs for the morning's version and a top-up a
+    // minute before the new approval left the new month stuck until morning.
+    pgClock.now = NOW;
+    const earlier = [1, 2, 3, 4].map((n) => ({
+      clientTurnId: `cmo:production:bot-1:1759309200000:${5 - n}:0`,
+      status: "COMPLETED",
+      createdAt: hoursAgo(n),
+    }));
+    const status = await advanceCmoProduction(cuso([post({})], earlier), NOW);
+    expect(status.state).toBe("running");
+    expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:1:0`);
+  });
+
   it("waits for a run still working on the version approved before", async () => {
     const status = await advanceCmoProduction(
       cuso(

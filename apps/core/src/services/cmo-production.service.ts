@@ -718,7 +718,9 @@ export async function readCmoProduction(
   if (working) return read("running", runs, true);
   // Every piece has its words and visual: Core is making the pictures.
   if (pending.length === 0) return read("running", runs);
-  const today = all.filter(
+  // Only this approval's runs count: a version approved the same day as an
+  // earlier one once found the cap used up and waited until morning.
+  const today = runs.filter(
     (run) => runsNow.getTime() - run.createdAt.getTime() < DAY_MS,
   );
   // The last run finished without making a single piece ready (images
