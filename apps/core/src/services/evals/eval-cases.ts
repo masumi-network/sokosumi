@@ -176,6 +176,7 @@ export const EVAL_CASES: readonly EvalCase[] = [
               scenario.id === "cmo-asks-before-planning"
                 ? "cmo-new-client"
                 : scenario.id === "cmo-change-request" ||
+                    scenario.id === "cmo-change-reply-plain" ||
                     scenario.id === CMO_FUNNEL_CASE_ID
                   ? "cmo-plan"
                   : scenario.id === CMO_ADS_CASE_ID

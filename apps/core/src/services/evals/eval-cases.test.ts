@@ -7,6 +7,8 @@ function toolsCaseChecks(): Set<string> {
   const tools = new Set<string>();
   for (const evalCase of EVAL_CASES) {
     if (evalCase.kind === "cmo-research") tools.add("save_brand_brain");
+    // A month on cmo-v6 checks that Core wrote it (write_month_pieces).
+    if (evalCase.kind === "cmo-month") tools.add("write_month_pieces");
     if (evalCase.kind === "cmo-strategy") tools.add("save_strategy");
     if (evalCase.kind !== "scenario") continue;
     const { expect: wanted } = evalCase.scenario;
@@ -204,6 +206,7 @@ describe("CMO chat setup", () => {
       return found?.kind === "scenario" ? found.prepare : undefined;
     };
     expect(prepared("cmo-change-request")).toBe("cmo-plan");
+    expect(prepared("cmo-change-reply-plain")).toBe("cmo-plan");
     expect(prepared("cmo-funnel-aida")).toBe("cmo-plan");
     expect(prepared("cmo-ads-yes")).toBe("cmo-plan-ads");
     expect(prepared("cmo-comment-replies")).toBe("cmo-comments");

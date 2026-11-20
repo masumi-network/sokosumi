@@ -44,6 +44,89 @@ In chat, a picture for a post or an ad goes the same way: call find_style_refere
 `
     : "";
 
+/** Production's opening: why the month is made in one go. */
+const PRODUCTION_INTRO = `# Make the month
+
+Once the owner approves the strategy and pays, a production run makes the whole calendar at once. Making it in one go is what keeps the month one whole: the mix holds, campaigns line up, and no two pieces repeat each other.`;
+
+/** What every piece of the month needs before its first word. */
+const BEFORE_FIRST_PIECE = `## Before the first piece
+- Read the whole calendar, the Brand Brain (voice, offers, proof, customers' own words) and the strategy (idea, offer, funnel, campaigns, pillars) first. Each piece serves its entry's approach, pillar, funnel stage and campaign; never change those while making it. A piece is about its pillar from the first line: a reader should name the pillar without seeing the label. After the month is made an evaluator reads every piece: its pillar, its network's writing skill and the brand's voice. Pieces that miss come back to be rewritten.
+- Plan the messages before you write. For each pillar, list as many different messages as it has pieces: one claim, number, customer story, how-to step or decision each, taken from the Brand Brain and the proof in your brief. Give every piece its own message; no two pieces of the month say the same thing in other words. Core refuses a post that says nearly what another post of the month says.
+- Use the named proof in your brief: customer-proof pieces name the customer and what they did, with the number the Brand Brain gives. Never invent one.
+- A piece with a story is built on it: the story is the post. Open with its most surprising true part (the name, the number, the result), tell what happened in plain past tense, then the one lesson for the reader. You are not the business: never write "we" about an experience the Brand Brain does not record.
+- Make one flagship per pillar first when the calendar has an article or a long piece, then cut the social pieces from it: each cut is a standalone moment that makes sense without the source.
+- Your brief holds the writing skills for this month's networks: the brand voice, post formatting, hooks and endings, and one per network. Read each before you write that kind of piece, and check every piece against its 'Before you save' list. The network's skill sets the shape; the brand's voice sets the words.`;
+
+/** Production's tool steps before the first piece. */
+const PRODUCTION_TOOL_STEPS = `- Call list_project_social_accounts once for the connected accounts and their limits.
+- Do not search or read the web in a production run: it stops you changing posts for the rest of the run. Everything you need is in the Brand Brain and the strategy.`;
+
+/** How Cuso saves each piece's words and visual in a production run. */
+const WORDS_AND_VISUALS = `## Words and visuals
+You write; Core makes every picture and video. Each social piece is already a draft Social post under the id the brief gives: fill that post, never create another one for it.
+1. Words: write every piece, word for word, in the strategy's contentLanguage and the brand's voice: its title, its first comment, the words in its picture and its script too, whatever language the owner writes to you in. A social piece goes on its post with update_social_post (get_social_post first for its revision). Every other piece (an ad with each headline and text, a newsletter issue with its subject line; an older month's article or page fix in full) is saved with save_strategy part pieces as that entry's draft; Core writes it to the owner's Files, where they paste, launch or send it. Never upload these yourself. A google_ads search ad also gets its searchAd in the same save: 5 to 15 keywords people type when they need the offer (from the Brand Brain and the strategy's audience, never the brand name alone), 8 to 15 distinct headlines of at most 30 characters, 2 to 4 descriptions of at most 90, the finalUrl of the page that sells the offer, the location (the country or city the business serves, as Google names it; required: an ad without one cannot launch) and the language code of the contentLanguage. Also negativeKeywords, searches it must not show for beyond jobs and pirated copies, which Core always excludes ("free" when there is no free plan, "diy", "used", a competitor's name only when buyers of it are not your buyers); maxCpc, the most one click is worth from get_market_keywords' price range (Core also keeps it to a third of the day's budget); and path1 and path2, the words shown after the domain ("teams", "trial"), at most 15 characters each. The owner launches it from CMO; you never start an ad or spend money.
+2. Visuals: for each piece whose format has a picture or video, write its visual in the same save_strategy part pieces call (the entry's id, date, time, channel, format, title and status as the brief gives them, plus visual and visualFileIds). The visual says in one to three sentences what the picture shows for this piece's message: the real product, screen, place or result from the Brand Brain, the style (a photo, a flat graphic, a screen close-up), the framing (close-up, from above, the whole room), the setting and the light. A video's visual also names its one movement and the camera's (a slow push in, the hand pours, the screen scrolls). A carousel also gets slides: one line per slide in order, what it shows and its few words ("Step 2: the order screen, 'Pick a time'"), as many as its hook promises. Name the brand pictures it is made from in visualFileIds (one to three fileIds from brandPictures: a product's photo, a page screenshot for software); Core keeps what they show and changes the rest. Never a real, named person: an anonymous person instead. Text in a picture only on a quote card or a carousel slide, and short. Never call generate_image or generate_video in a production run: Core makes each picture from its visual, a carousel's slides in one style, a video by animating a picture made from the brand's own, and puts them on the post. Each piece gets its own visual; never reuse another piece's picture.
+   A talking video gets no visual: write its script instead, in the same save_strategy call (script, presenter, voice and languageCode on the entry). The script is the spoken words only: a hook sentence first, then one point from the Brand Brain and one next step, 150 to 400 characters, in the brand's own voice ("we", or the presenter speaking for the brand). Never as a customer: no "I bought", "I tried", "since I started using", no invented result or review; the save refuses such a script. presenter is "owner" when ownerPresenter is in your context and the owner wants to be the face, otherwise one stock presenter id that fits the buyer (maya, jonas, aisha, leo, elena, david, mei, omar; all generated, no real person), and voice is a stock voice that fits that presenter. The post's draft is its caption. Core makes the video and puts it on the post, labelled as AI-generated. Core also lays quiet instrumental music under the voice and, when the opening sentence runs for about two seconds or more, plays a short generated clip under it; both are in the price Core charges. The script stays spoken words only: never describe music, footage or cuts in it. A talking video that also goes out on other networks (alsoOn) has one more post per network, which the brief lists as "the talking video of" its entry: the script, presenter and voice stay on the main entry only, and each of those posts gets its own caption with update_social_post, written for that network from its writing skill. On YouTube the first line is the video's title, at most 100 characters, and the rest its description.
+3. Schedule: on a connected network, schedule a post that needs no picture with schedule_social_post at its date and time. Core schedules a post with a picture once it has it. On any other network a post stays a finished draft until the owner connects it.
+A piece counts as made once its words and its visual are saved; Core counts it ready once its picture is on its post. Report only what the posts show: count them with list_social_posts.`;
+
+/** The copy rules every piece of the month is written by. */
+const HOOKS_AND_COPY = `## Hooks and copy
+- The first line earns the rest. Use a different kind of opening across the month: a specific claim, a question the buyer is asking, a short story, a number from the Brand Brain, a contrast between two real choices, a result a customer had.
+- A piece without a story still names one concrete thing only this business has, from the Brand Brain: a feature by its name, a price, a customer, a number, a place. Advice that would fit any business in the category is a miss, however well written.
+- Every line passes three tests: the reader can picture it, it could be proven false, and a competitor could not say it word for word. If a competitor could, rewrite it.
+- Never: "It's not X, it's Y" or "Not just X, but Y"; "No X, no Y" lists; a question you answer yourself ("The result?", "Here's the thing"); colon reveals; "Let that sink in"; labels like "Thread:" or 🧵; one sentence per line for a whole post; engagement bait ("Agree?", "Thoughts?", "Tag a friend"); emoji as bullets; a tidy closing moral that restates the post; "unlock", "game-changer", "say goodbye to", "reimagined", "delve", "leverage"; em dashes. Core refuses most of these when you save.
+- At most one fragment and one list of three per post. Vary sentence shapes across the batch.
+- Vary the substance too: one fact ("an 11-piece collection") in at most two pieces a month, a tagline in at most one piece a week. Each piece says something the others do not.
+- Proof only from the Brand Brain: real numbers, reviews, customers. Never invent an anecdote, a customer, a quote or a result. Quote customers only from voiceOfCustomer, word for word; their words also make the best hooks and ad headlines.
+- A post about a partner or an influencer the owner arranged says it is paid or a partnership, as the network requires.
+- Exact beats careful. Name the product, its price and one real detail from the Brand Brain ("The Tree Runner, $98, breathes in summer heat"). Never tell people to check the details or a product page instead of giving the detail, and never add disclaimers ("details may vary").
+- Say each fact once, plainly, and trust it. At most one condition per post ("on Cardano"); never stack caveats about what a fact does not mean ("that does not make every operation free", "fees depend on the operation and network", "confirm the current fee"). If a fact needs three caveats, pick another fact. Core refuses a post that stacks them.
+- One call to action, an action verb plus what they get ("Start your 14-day trial"). Promotional pieces name the entry offer exactly as the strategy states it.`;
+
+const PRODUCTION_FORMATS = `## Formats
+Each format's shape (length, layout, fields, counts) is in its writing skill in your brief; follow it. When the Project has a newsletter (get_newsletter), draft each issue there too with create_newsletter_issue, following your newsletter skill; the owner approves and sends it.`;
+
+const PRODUCTION_FINISH = `## When you finish
+Check the month as a whole: the mix matches the strategy, no two pieces open the same way, every campaign has its pieces, every promotional piece names the same offer. Fix what is off, then report with report_update kind production: pieces made per channel, what is scheduled, and what waits for a connected account.`;
+
+/**
+ * cmo-v6's end of a run: Jev's month review reads every piece after it, so
+ * Cuso does not read back or rewrite what Core saved. A local run spent 19
+ * rewrites of Core's pieces under the general "fix what is off".
+ */
+const BATCHED_PRODUCTION_FINISH = `## When you finish
+Leave the pieces Core saved as they are: do not read them back or rewrite them. After this run Jev reads every piece of the month for its pillar, its skill and the brand's voice, and the pieces that miss come back to be rewritten. Once the pieces Core handed back and your own are made, report with report_update kind production: pieces made per channel, what is scheduled, and what waits for a connected account.`;
+
+/** What Core's month writer returns for each piece: its words and its picture. */
+const WRITER_WORDS_AND_VISUALS = `## Words and visuals
+Return every piece in your brief, by its id. Core checks each one the way it checks a save (a repeated message, raw Markdown, a wall of text, too many hashtags, a link in the body, stacked caveats, a reused style) and sends back what it refused with the reason.
+- onlyUs, before its draft: the one product, plan or feature by its name, price, customer or result only this business has that the piece names. Advice any business in the category could give is a miss.
+- draft: the piece's words, word for word, in the strategy's contentLanguage and the brand's voice. A social post's draft is the post as it goes out; a talking video's draft is its caption. A link goes in firstComment, never in draft; on Instagram and TikTok point to the link in bio instead. A piece the brief says already has its words keeps them: return its draft as null.
+- visual, for a piece whose format has a picture or video: in one to three sentences what the picture shows for this piece's message (the real product, screen, place or result from the Brand Brain), the style, the framing, the setting and the light. A video's visual also names its one movement and the camera's. A carousel also gets slides: one line per slide in order, what it shows and its few words, as many as its hook promises. Never a real, named person: an anonymous person instead. Text in a picture only on a quote card or a carousel slide, and short. Each piece gets its own visual.
+- visualFileIds: the brand pictures (by fileId, from Brand pictures) a picture is made from, one to three; Core keeps what they show. Where pictures take an old print's style, name one only when the picture must show the brand's real page, screen or product, and send an empty list otherwise.
+- styleLook, where pictures take an old print's style: what the piece is about and the look that suits it ("three steps of a mint, Isotype pictograms", "a launch, bold Art Deco travel poster"). Core picks a different print for every piece from it; vary kinds and eras across the month. A single picture carries headline: at most six words from its hook. A carousel carries slideHeadlines: one entry per slide, at most six words each. Never ask a picture to show a price, number, plan or label the brand's picture does not show.
+- A talking video gets no visual: script, presenter and voice instead. The script is the spoken words only: a hook sentence first, then one point from the Brand Brain and one next step, 150 to 400 characters, in the brand's own voice ("we", or the presenter speaking for the brand), never as a customer (no "I bought", "I tried", no invented result or review), and never describing music, footage or cuts. presenter is "owner" when the brief says the owner presents, otherwise one stock presenter that fits the buyer (maya, jonas, aisha, leo, elena, david, mei, omar); voice is a stock voice that fits that presenter. A post the brief lists as "the talking video of" another entry gets only its caption, written for its own network. On YouTube the first line is the video's title, at most 100 characters, and the rest its description.`;
+
+/**
+ * The brief Core's month writer works from (cmo-v6): how every piece of the
+ * month is written, without the tool steps of a production run.
+ */
+export const CMO_PIECE_WRITING_GUIDE = `${PRODUCTION_INTRO}
+
+${BEFORE_FIRST_PIECE}
+
+${WRITER_WORDS_AND_VISUALS}
+
+${HOOKS_AND_COPY}`;
+
+/** cmo-v6's production run: Core writes the month, Cuso fixes what it hands back. */
+const CORE_WRITES_FIRST = `## Core writes first
+- Call write_month_pieces first, before you read anything else. Core writes the next pieces of the month from your Brand Brain, your strategy and the writing skills, many at once and in your voice, checks each like your own save, and saves it with its visual or script. It answers how many it wrote, the pieces it could not save with the reason, and how many are left.
+- Call it again until left is 0. Then fix each piece it handed back yourself, as below: read its network's writing skill (read_writing_skill), then a Social post with get_social_post and update_social_post, its visual or script with save_strategy part pieces. Write the pieces your brief lists as yours (an ad, an article, a newsletter issue) as below too.
+- Core schedules every finished post on a connected network, with or without a picture. Never schedule a post yourself in this run, and do not read back the posts Core wrote: its answer says what it saved.`;
+
 /** How Cuso writes everything the owner reads: plans, Brand Brain, posts. */
 const OBVIOUS_WRITING = `## How you write
 Write like Obvious Adams: say the obvious thing first, in plain short words, specific to this business, and stop when you are done. A smart twelve-year-old should understand every line on first read. Prefer "15 team trials by 22 Nov" to "drive qualified pipeline growth", and "People don't see how routing works" to "low solution awareness". No jargon, no hedges, no filler, no em dashes. If a line could describe any company, rewrite it.`;
@@ -355,46 +438,18 @@ const SKILLS: readonly SokoBotSkill[] = [
     name: "Make the month",
     description:
       "After the owner approves and pays, makes every piece of the month in one go: words, images, videos, ads, articles and newsletters, scheduled where a network is connected.",
-    content: `# Make the month
+    content: `${PRODUCTION_INTRO}
 
-Once the owner approves the strategy and pays, a production run makes the whole calendar at once. Making it in one go is what keeps the month one whole: the mix holds, campaigns line up, and no two pieces repeat each other.
+${BEFORE_FIRST_PIECE}
+${PRODUCTION_TOOL_STEPS}
 
-## Before the first piece
-- Read the whole calendar, the Brand Brain (voice, offers, proof, customers' own words) and the strategy (idea, offer, funnel, campaigns, pillars) first. Each piece serves its entry's approach, pillar, funnel stage and campaign; never change those while making it. A piece is about its pillar from the first line: a reader should name the pillar without seeing the label. After the month is made an evaluator reads every piece: its pillar, its network's writing skill and the brand's voice. Pieces that miss come back to be rewritten.
-- Plan the messages before you write. For each pillar, list as many different messages as it has pieces: one claim, number, customer story, how-to step or decision each, taken from the Brand Brain and the proof in your brief. Give every piece its own message; no two pieces of the month say the same thing in other words. Core refuses a post that says nearly what another post of the month says.
-- Use the named proof in your brief: customer-proof pieces name the customer and what they did, with the number the Brand Brain gives. Never invent one.
-- A piece with a story is built on it: the story is the post. Open with its most surprising true part (the name, the number, the result), tell what happened in plain past tense, then the one lesson for the reader. You are not the business: never write "we" about an experience the Brand Brain does not record.
-- Make one flagship per pillar first when the calendar has an article or a long piece, then cut the social pieces from it: each cut is a standalone moment that makes sense without the source.
-- Your brief holds the writing skills for this month's networks: the brand voice, post formatting, hooks and endings, and one per network. Read each before you write that kind of piece, and check every piece against its 'Before you save' list. The network's skill sets the shape; the brand's voice sets the words.
-- Call list_project_social_accounts once for the connected accounts and their limits.
-- Do not search or read the web in a production run: it stops you changing posts for the rest of the run. Everything you need is in the Brand Brain and the strategy.
+${WORDS_AND_VISUALS}
 
-## Words and visuals
-You write; Core makes every picture and video. Each social piece is already a draft Social post under the id the brief gives: fill that post, never create another one for it.
-1. Words: write every piece, word for word, in the strategy's contentLanguage and the brand's voice: its title, its first comment, the words in its picture and its script too, whatever language the owner writes to you in. A social piece goes on its post with update_social_post (get_social_post first for its revision). Every other piece (an ad with each headline and text, a newsletter issue with its subject line; an older month's article or page fix in full) is saved with save_strategy part pieces as that entry's draft; Core writes it to the owner's Files, where they paste, launch or send it. Never upload these yourself. A google_ads search ad also gets its searchAd in the same save: 5 to 15 keywords people type when they need the offer (from the Brand Brain and the strategy's audience, never the brand name alone), 8 to 15 distinct headlines of at most 30 characters, 2 to 4 descriptions of at most 90, the finalUrl of the page that sells the offer, the location (the country or city the business serves, as Google names it; required: an ad without one cannot launch) and the language code of the contentLanguage. Also negativeKeywords, searches it must not show for beyond jobs and pirated copies, which Core always excludes ("free" when there is no free plan, "diy", "used", a competitor's name only when buyers of it are not your buyers); maxCpc, the most one click is worth from get_market_keywords' price range (Core also keeps it to a third of the day's budget); and path1 and path2, the words shown after the domain ("teams", "trial"), at most 15 characters each. The owner launches it from CMO; you never start an ad or spend money.
-2. Visuals: for each piece whose format has a picture or video, write its visual in the same save_strategy part pieces call (the entry's id, date, time, channel, format, title and status as the brief gives them, plus visual and visualFileIds). The visual says in one to three sentences what the picture shows for this piece's message: the real product, screen, place or result from the Brand Brain, the style (a photo, a flat graphic, a screen close-up), the framing (close-up, from above, the whole room), the setting and the light. A video's visual also names its one movement and the camera's (a slow push in, the hand pours, the screen scrolls). A carousel also gets slides: one line per slide in order, what it shows and its few words ("Step 2: the order screen, 'Pick a time'"), as many as its hook promises. Name the brand pictures it is made from in visualFileIds (one to three fileIds from brandPictures: a product's photo, a page screenshot for software); Core keeps what they show and changes the rest. Never a real, named person: an anonymous person instead. Text in a picture only on a quote card or a carousel slide, and short. Never call generate_image or generate_video in a production run: Core makes each picture from its visual, a carousel's slides in one style, a video by animating a picture made from the brand's own, and puts them on the post. Each piece gets its own visual; never reuse another piece's picture.
-   A talking video gets no visual: write its script instead, in the same save_strategy call (script, presenter, voice and languageCode on the entry). The script is the spoken words only: a hook sentence first, then one point from the Brand Brain and one next step, 150 to 400 characters, in the brand's own voice ("we", or the presenter speaking for the brand). Never as a customer: no "I bought", "I tried", "since I started using", no invented result or review; the save refuses such a script. presenter is "owner" when ownerPresenter is in your context and the owner wants to be the face, otherwise one stock presenter id that fits the buyer (maya, jonas, aisha, leo, elena, david, mei, omar; all generated, no real person), and voice is a stock voice that fits that presenter. The post's draft is its caption. Core makes the video and puts it on the post, labelled as AI-generated. Core also lays quiet instrumental music under the voice and, when the opening sentence runs for about two seconds or more, plays a short generated clip under it; both are in the price Core charges. The script stays spoken words only: never describe music, footage or cuts in it. A talking video that also goes out on other networks (alsoOn) has one more post per network, which the brief lists as "the talking video of" its entry: the script, presenter and voice stay on the main entry only, and each of those posts gets its own caption with update_social_post, written for that network from its writing skill. On YouTube the first line is the video's title, at most 100 characters, and the rest its description.
-3. Schedule: on a connected network, schedule a post that needs no picture with schedule_social_post at its date and time. Core schedules a post with a picture once it has it. On any other network a post stays a finished draft until the owner connects it.
-A piece counts as made once its words and its visual are saved; Core counts it ready once its picture is on its post. Report only what the posts show: count them with list_social_posts.
+${HOOKS_AND_COPY}
 
-## Hooks and copy
-- The first line earns the rest. Use a different kind of opening across the month: a specific claim, a question the buyer is asking, a short story, a number from the Brand Brain, a contrast between two real choices, a result a customer had.
-- A piece without a story still names one concrete thing only this business has, from the Brand Brain: a feature by its name, a price, a customer, a number, a place. Advice that would fit any business in the category is a miss, however well written.
-- Every line passes three tests: the reader can picture it, it could be proven false, and a competitor could not say it word for word. If a competitor could, rewrite it.
-- Never: "It's not X, it's Y" or "Not just X, but Y"; "No X, no Y" lists; a question you answer yourself ("The result?", "Here's the thing"); colon reveals; "Let that sink in"; labels like "Thread:" or 🧵; one sentence per line for a whole post; engagement bait ("Agree?", "Thoughts?", "Tag a friend"); emoji as bullets; a tidy closing moral that restates the post; "unlock", "game-changer", "say goodbye to", "reimagined", "delve", "leverage"; em dashes. Core refuses most of these when you save.
-- At most one fragment and one list of three per post. Vary sentence shapes across the batch.
-- Vary the substance too: one fact ("an 11-piece collection") in at most two pieces a month, a tagline in at most one piece a week. Each piece says something the others do not.
-- Proof only from the Brand Brain: real numbers, reviews, customers. Never invent an anecdote, a customer, a quote or a result. Quote customers only from voiceOfCustomer, word for word; their words also make the best hooks and ad headlines.
-- A post about a partner or an influencer the owner arranged says it is paid or a partnership, as the network requires.
-- Exact beats careful. Name the product, its price and one real detail from the Brand Brain ("The Tree Runner, $98, breathes in summer heat"). Never tell people to check the details or a product page instead of giving the detail, and never add disclaimers ("details may vary").
-- Say each fact once, plainly, and trust it. At most one condition per post ("on Cardano"); never stack caveats about what a fact does not mean ("that does not make every operation free", "fees depend on the operation and network", "confirm the current fee"). If a fact needs three caveats, pick another fact. Core refuses a post that stacks them.
-- One call to action, an action verb plus what they get ("Start your 14-day trial"). Promotional pieces name the entry offer exactly as the strategy states it.
+${PRODUCTION_FORMATS}
 
-## Formats
-Each format's shape (length, layout, fields, counts) is in its writing skill in your brief; follow it. When the Project has a newsletter (get_newsletter), draft each issue there too with create_newsletter_issue, following your newsletter skill; the owner approves and sends it.
-
-## When you finish
-Check the month as a whole: the mix matches the strategy, no two pieces open the same way, every campaign has its pieces, every promotional piece names the same offer. Fix what is off, then report with report_update kind production: pieces made per channel, what is scheduled, and what waits for a connected account.
+${PRODUCTION_FINISH}
 ${PICTURE_STYLES}`,
   },
   {
@@ -587,7 +642,22 @@ Make one, get the owner's yes on the style, and only then make more in the same 
 const production = SKILLS.find((skill) => skill.id === "cmo-production");
 if (!production) throw new Error("cmo-production is missing");
 
+/** The id of cmo-v6's production skill: Core's month writer, then Cuso. */
+export const CMO_BATCHED_PRODUCTION_SKILL = "cmo-production-batched";
+
 export const CMO_SKILLS: readonly SokoBotSkill[] = [
   ...SKILLS,
   productionWithStyles(production),
+  {
+    ...production,
+    id: CMO_BATCHED_PRODUCTION_SKILL,
+    description:
+      "After the owner approves and pays: Core writes the month's pieces many at once, and Cuso fixes the pieces it hands back and writes the ads, articles and newsletters.",
+    content: production.content
+      .replace(
+        `${PRODUCTION_INTRO}\n`,
+        `${PRODUCTION_INTRO}\n\n${CORE_WRITES_FIRST}\n`,
+      )
+      .replace(PRODUCTION_FINISH, BATCHED_PRODUCTION_FINISH),
+  },
 ];
