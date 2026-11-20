@@ -628,4 +628,44 @@ describe("RoomsClient opens a room at the Unread divider", () => {
     );
     expect(row?.textContent).toContain("UnreadDivider.label");
   });
+
+  it("opens on the first top-level row when an open-at-unread window starts with a leaked reply", async () => {
+    const leakedReply: ChatRoomMessage = {
+      ...message("leaked-reply", 1),
+      parentMessageId: read1.id,
+    };
+    const old1 = message("old-1", 2);
+    answerOpenAtUnread(page([leakedReply, old1], "old-1", "leaked-reply"));
+    renderWithQueryClient(
+      <RoomsClient
+        {...roomsClientBaseProps({
+          rooms: [unreadRoom()],
+          messages: [unread1, unread2],
+          messagesNextCursor: "unread-1",
+        })}
+      />,
+    );
+    await waitFor(() => expect(dividerMessageId()).toBe("old-1"));
+    expect(screen.queryByText("body of leaked-reply")).toBeNull();
+  });
+
+  it("settles open-at-unread immediately when the window contains only replies", async () => {
+    const leakedReply: ChatRoomMessage = {
+      ...message("leaked-only", 1),
+      parentMessageId: read1.id,
+    };
+    answerOpenAtUnread(page([leakedReply], null, null));
+    renderWithQueryClient(
+      <RoomsClient
+        {...roomsClientBaseProps({
+          rooms: [unreadRoom()],
+          messages: [unread1, unread2],
+        })}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByText("body of unread-1")).toBeTruthy(),
+    );
+    expect(screen.queryByText("body of leaked-only")).toBeNull();
+  });
 });

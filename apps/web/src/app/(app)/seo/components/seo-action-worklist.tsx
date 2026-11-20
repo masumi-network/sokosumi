@@ -58,7 +58,10 @@ export function SeoActionWorklist({
   const [presses, setPresses] = useState(0);
   const [openKey, setOpenKey] = useState<string | null>(null);
   // The action whose row gets the focus when its dialog closes: the row may be new by then.
-  const focusKey = useRef<string | null>(null);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [consumedShownAction, setConsumedShownAction] = useState<string | null>(
+    null,
+  );
   const list = useRef<HTMLUListElement>(null);
   const bucket = (action: ProjectSeoAction) =>
     seoActionBucket(action, severity(action));
@@ -85,16 +88,21 @@ export function SeoActionWorklist({
   // The lead of the Agent tab sent the reader here for one action: the tab mounts the list with all rows, and
   // the action opens in its dialog. One that left the list in the meantime closes at once, below.
   const { shownAction, setShownAction } = model;
-  useEffect(() => {
-    if (!shownAction) return;
-    setShownAction(null);
-    focusKey.current = shownAction;
+  let effectiveOpenKey = openKey;
+  if (shownAction && shownAction !== consumedShownAction) {
+    setConsumedShownAction(shownAction);
+    setFocusKey(shownAction);
     setOpenKey(shownAction);
-  }, [shownAction, setShownAction]);
+    effectiveOpenKey = shownAction;
+  } else if (!shownAction && consumedShownAction !== null) {
+    setConsumedShownAction(null);
+  }
   // The dialog holds its action by key: a Task for it changes the action, and the dialog shows the new state.
   // An action that left the list closes its dialog, and the dialog does not open again when it comes back.
-  const opened = actions.find((action) => seoActionKey(action) === openKey);
-  if (openKey && !opened) setOpenKey(null);
+  const opened = actions.find(
+    (action) => seoActionKey(action) === effectiveOpenKey,
+  );
+  if (effectiveOpenKey && !opened) setOpenKey(null);
   return (
     <div ref={root} className="space-y-2">
       {filters.length > 1 ? (
@@ -163,8 +171,10 @@ export function SeoActionWorklist({
             rail={RAIL[bucket(action)]}
             model={model}
             onOpen={() => {
-              focusKey.current = seoActionKey(action);
-              setOpenKey(seoActionKey(action));
+              const key = seoActionKey(action);
+              setFocusKey(key);
+              setOpenKey(key);
+              if (shownAction) setShownAction?.(null);
             }}
           />
         ))}
@@ -173,7 +183,10 @@ export function SeoActionWorklist({
         action={opened}
         severity={opened ? severity(opened) : null}
         model={model}
-        onClose={() => setOpenKey(null)}
+        onClose={() => {
+          setOpenKey(null);
+          if (shownAction) setShownAction?.(null);
+        }}
         onCloseAutoFocus={(event) => {
           // Focus goes back to the row; a row that a new check took away gives it to the first row.
           event.preventDefault();
@@ -181,7 +194,7 @@ export function SeoActionWorklist({
             list.current?.querySelectorAll<HTMLButtonElement>("button") ?? [],
           );
           (
-            buttons.find((row) => row.dataset.actionKey === focusKey.current) ??
+            buttons.find((row) => row.dataset.actionKey === focusKey) ??
             buttons[0]
           )?.focus();
         }}

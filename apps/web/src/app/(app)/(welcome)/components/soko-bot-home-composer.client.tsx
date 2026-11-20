@@ -147,7 +147,6 @@ export function SokoBotHomeComposer({
             value={value}
             onValueChange={setValue}
             mentions={NO_MENTIONS}
-            onSelectedKeysChange={() => {}}
             showMentionShortcut={false}
             placeholder={t("placeholder", { name: botName })}
             attachments={attachments}

@@ -15,9 +15,13 @@ export function useTaskFormAttachments(
   description: string,
   setDescription: Dispatch<SetStateAction<string>>,
   labels: TaskFormLabels,
+  onUploadingChange?: (uploading: boolean) => void,
 ) {
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
+  const uploadingCountRef = useRef(0);
+  const onUploadingChangeRef = useRef(onUploadingChange);
+  onUploadingChangeRef.current = onUploadingChange;
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
@@ -40,7 +44,12 @@ export function useTaskFormAttachments(
 
       const controller = new AbortController();
       activeUploadControllersRef.current.add(controller);
+      const wasUploading = uploadingCountRef.current > 0;
+      uploadingCountRef.current += 1;
       setUploadingAttachmentsCount((count) => count + 1);
+      if (!wasUploading) {
+        onUploadingChangeRef.current?.(true);
+      }
       try {
         const uploaded = await uploadComposeAttachments(files, {
           abortSignal: controller.signal,
@@ -73,7 +82,11 @@ export function useTaskFormAttachments(
       } finally {
         activeUploadControllersRef.current.delete(controller);
         setPendingUploadFiles([]);
+        uploadingCountRef.current = Math.max(0, uploadingCountRef.current - 1);
         setUploadingAttachmentsCount((count) => count - 1);
+        if (uploadingCountRef.current === 0) {
+          onUploadingChangeRef.current?.(false);
+        }
       }
     },
     [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
