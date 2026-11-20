@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
-
 import { useJobsTwoPaneFit } from "@/app/agents/[agentId]/jobs/components/use-jobs-two-pane-fit";
 import DefaultLoading from "@/components/default-loading";
+import { useRouterRedirect } from "@/hooks/effects/use-router-redirect";
 
 interface JobDetailRedirectProps {
   agentId: string;
@@ -20,18 +18,12 @@ export default function JobDetailRedirect({
   agentId,
   jobId,
 }: JobDetailRedirectProps) {
-  const router = useRouter();
   const twoPaneFits = useJobsTwoPaneFit();
-  const hasRedirectedRef = useRef(false);
 
-  useEffect(() => {
-    if (!twoPaneFits || hasRedirectedRef.current) {
-      return;
-    }
-
-    hasRedirectedRef.current = true;
-    router.push(`/agents/${agentId}/jobs/${jobId}`);
-  }, [agentId, jobId, router, twoPaneFits]);
+  useRouterRedirect(twoPaneFits ? `/agents/${agentId}/jobs/${jobId}` : null, {
+    mode: "push",
+    once: true,
+  });
 
   return <DefaultLoading className="size-full flex-1 p-8" />;
 }

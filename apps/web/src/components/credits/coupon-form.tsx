@@ -26,7 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useTrackView } from "@/hooks/effects/use-track-view";
 import { claimFreeCreditsWithCoupon } from "@/lib/actions/credits/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CreditsErrorCode } from "@/lib/actions/errors/error-codes/credits";
@@ -63,9 +63,7 @@ export default function CouponForm({
     },
   });
 
-  useMountEffect(() => {
-    fireGTMEvent.viewCredits();
-  });
+  useTrackView("view_credits");
 
   const { isSubmitting } = form.formState;
 

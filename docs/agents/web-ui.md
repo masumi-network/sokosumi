@@ -112,6 +112,11 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-auth-session-hydration` (`useAuthSessionHydration`) — before-paint `authClient` session hydration and rendered-user registration
 - `use-pending-navigation` (`usePendingNavigation`) — optimistic destination tracking for in-flight Next.js navigation transitions
 - `use-pending-created-tasks` (`usePendingCreatedTasks`, `withBoardPreview`) — optimistic pending task board preview registration while a task create transition runs
+- `use-track-view` (`useTrackView`) — fires a typed GTM view event (`view_login_area`, `view_register_area`, `view_credits`, `view_agent`) once on mount or when an explicit key changes
+- `use-analytics-user-id` (`useAnalyticsUserId`) — pushes GA4 `set_user_id` into `window.dataLayer` when the signed-in user id changes
+- `use-track-purchase` (`useTrackPurchase`) — fires the GTM `purchase` event at most once per checkout session id once analytics consent is granted
+- `use-report-route-error` (`useReportRouteError`, `useGlobalRouteError`) — reports route error boundary failures to Sentry and handles one-shot stale-deployment refresh in the global error boundary
+- `use-router-redirect` (`useRouterRedirect`) — client-side Next.js App Router navigation (`replace`/`push`, optional one-shot) driven by state
 
 ### React Query in migrations
 
