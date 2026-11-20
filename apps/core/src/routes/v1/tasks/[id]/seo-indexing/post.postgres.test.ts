@@ -505,6 +505,129 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     ).toBe(`seo_audit: ${JSON.stringify(packet)}`);
   });
 
+  it("keeps one member's account private across two project audits and refuses a moved Task", async () => {
+    const ownerAccount = await prisma.seoConnection.findUniqueOrThrow({
+      where: { id: connectionId },
+    });
+    const otherAccount = await prisma.seoConnection.create({
+      data: {
+        workspaceId,
+        userId: otherOwnerId,
+        provider: "search_console",
+        status: "ACTIVE",
+        composioAccountId: randomUUID(),
+        entityId: randomUUID(),
+      },
+    });
+    const projects = await Promise.all(
+      ["First", "Second"].map((name) =>
+        prisma.project.create({ data: { workspaceId, name } }),
+      ),
+    );
+    const integration = await resolveSeoStatisticsIntegration(
+      { userId: ownerId, workspaceId },
+      "search_console",
+    );
+    expect.assert(integration);
+    const proof = {
+      propertyId: PROPERTY,
+      connectionVersion: connectionVersion(integration),
+    };
+    const firstTaskId = taskId;
+    const secondAudit = await prisma.seoAudit.create({
+      data: {
+        workspaceId,
+        name: "Second project audit",
+        createdById: otherOwnerId,
+        projectId: projects[1]!.id,
+      },
+    });
+    try {
+      await prisma.seoAudit.update({
+        where: { id: auditId },
+        data: { projectId: projects[0]!.id },
+      });
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { projectId: projects[0]!.id },
+      });
+      await approveDiscovery(PAGE_URLS, proof);
+      expect((await selectPages([])).status).toBe(200);
+      expect((await receipt()).status).toBe("available");
+      const pages = await Promise.all(
+        PAGE_URLS.map((url) =>
+          prisma.projectSeoPage.create({
+            data: { auditId: secondAudit.id, url },
+          }),
+        ),
+      );
+      const secondTask = await prisma.task.create({
+        data: {
+          workspaceId,
+          organizationId,
+          ownerId,
+          assigneeId: coworkerId,
+          projectId: projects[1]!.id,
+          name: "Second project audit",
+          status: "RUNNING",
+        },
+      });
+      taskId = secondTask.id;
+      createdTaskIds.push(taskId);
+      await prisma.projectSeoAnalysis.create({
+        data: {
+          auditId: secondAudit.id,
+          taskId,
+          requestedBy: ownerId,
+          kind: "audit_full",
+          requestHash: "second-project",
+          idempotencyKey: randomUUID(),
+          pageIds: pages.map((p) => p.id),
+          request: { pageUrls: PAGE_URLS, searchConsoleAccess: proof },
+        },
+      });
+      const secondReceipt = await receipt();
+      expect(secondReceipt.pages[0]?.indexingState).toBe("INDEXING_ALLOWED");
+      expect(reads.filter((read) => read.slug === INSPECT_TOOL)).toHaveLength(
+        PAGE_URLS.length * 2,
+      );
+      expect(
+        reads.every(
+          (read) =>
+            read.input.connected_account_id === ownerAccount.composioAccountId,
+        ),
+      ).toBe(true);
+      expect(JSON.stringify(secondReceipt)).not.toContain(
+        ownerAccount.composioAccountId,
+      );
+      expect(
+        await prisma.seoConnection.findUnique({
+          where: { id: otherAccount.id },
+        }),
+      ).toEqual(otherAccount);
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { projectId: projects[0]!.id },
+      });
+      const before = reads.length;
+      expect((await request()).status).toBe(409);
+      expect(reads).toHaveLength(before);
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { projectId: projects[1]!.id },
+      });
+      await prisma.seoConnection.delete({ where: { id: connectionId } });
+      expect((await receipt()).status).toBe("unavailable");
+      expect(reads).toHaveLength(before);
+    } finally {
+      taskId = firstTaskId;
+      await prisma.seoAudit.delete({ where: { id: secondAudit.id } });
+      await prisma.project.deleteMany({
+        where: { id: { in: projects.map((p) => p.id) } },
+      });
+    }
+  });
+
   it("uses only the approved account and property even after a cached inspection", async () => {
     const owner = { userId: ownerId, workspaceId };
     const integration = await resolveSeoStatisticsIntegration(

@@ -82,7 +82,9 @@ export async function requireSeoTaskAuditContext(
       ? { kind: "audit", id: analysis.auditId }
       : { kind: "project", id: analysis.projectId! },
   };
-  await requireLockedSeoOwner(tx, actor, false);
+  const owner = await requireLockedSeoOwner(tx, actor, false);
+  if (owner.projectId !== task.projectId)
+    throw conflict("The Task no longer belongs to the approved audit project");
   const { pageUrls } = await readApprovedSeoTaskPages(tx, actor, analysis);
 
   if (

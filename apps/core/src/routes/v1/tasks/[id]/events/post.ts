@@ -1,4 +1,3 @@
-import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Prisma, TaskStatus } from "@sokosumi/database";
 import {
@@ -18,12 +17,10 @@ import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   conflict,
-  errorResponseWithExtensionsSchema,
   internalServerError,
   unprocessableEntity,
 } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
@@ -64,7 +61,6 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { prepareAuditSettlement } from "@/lib/seo/audit-settlement";
 import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
-import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { taskWorkerContextSchema } from "@/schemas/task-worker-context.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
@@ -77,118 +73,38 @@ import {
   createTaskPaymentClaim,
   processTaskPaymentClaim,
 } from "@/services/task-payment-claim.service";
-import {
-  failedAdmissionSchema,
-  requireFailedSeoAdmission,
-} from "./failed-admission";
+import { createTaskEventRoute, type TaskEventRouteMode } from "./event-route";
 import { mapCreatedTaskEventForResponse } from "./map-created-event";
-import {
-  createTaskEventRequestSchema,
-  seoSettlementFields,
-  taskEventParamsSchema,
-} from "./schema";
+import { requireSeoAdmission } from "./seo-admission";
 import { settleTaskEventCharge } from "./settle-charge";
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   mountTaskEventRoute(app, "standard");
   mountTaskEventRoute(app, "context");
   mountTaskEventRoute(app, "failed-admission");
+  mountTaskEventRoute(app, "start-admission");
   mountTaskEventRoute(app, "seo-settlement");
 }
 
 function mountTaskEventRoute(
   app: OpenAPIHonoWithAuth,
-  mode: "standard" | "context" | "failed-admission" | "seo-settlement",
+  mode: TaskEventRouteMode,
 ) {
-  const baseSchema = createTaskEventRequestSchema({
-    serverNetwork: getEnv().NETWORK,
-  });
-  const endpoint = {
-    standard: {
-      path: "/{id}/events",
-      description: "Create task event",
-      schema: baseSchema,
-    },
-    context: {
-      path: "/{id}/events/context-v1",
-      description:
-        "Create an assigned Coworker event only for the asserted owner, billing organization and Workspace",
-      schema: baseSchema.and(
-        z.object({ expectedContext: taskWorkerContextSchema }),
-      ),
-    },
-    "seo-settlement": {
-      path: "/{id}/events/seo-settlement-v1",
-      description:
-        "Settle a completed full audit once using the original cost-plus approval and verified API receipts.",
-      schema: baseSchema.and(seoSettlementFields),
-    },
-    "failed-admission": {
-      path: "/{id}/events/failed-admission-v1",
-      description:
-        "Fail a waiting SEO Task when its assigned worker, workspace, input, and latest status event still match. This operation does not charge credits.",
-      schema: failedAdmissionSchema,
-    },
-  } as const;
-  const { path, description, schema } = endpoint[mode];
-
-  const route = createRoute({
-    method: "post",
-    path,
-    description,
-    tags: ["Tasks"],
-    request: {
-      params: taskEventParamsSchema,
-      body: {
-        required: mode === "failed-admission" || undefined,
-        content: {
-          "application/json": {
-            schema,
-          },
-        },
-      },
-    },
-    responses: {
-      201: jsonSuccessResponse(taskEventSchema, "Create task event"),
-      400: jsonErrorResponse("Bad Request"),
-      401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("Not Found"),
-      409: jsonErrorResponse("Conflict"),
-      422:
-        mode === "failed-admission"
-          ? jsonErrorResponse("Invalid failed admission request")
-          : {
-              description:
-                "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).",
-              content: {
-                "application/json": {
-                  schema: errorResponseWithExtensionsSchema({
-                    data: taskEventSchema.optional(),
-                    attemptedCredits: z
-                      .number()
-                      .optional()
-                      .openapi({ example: 2 }),
-                    requestedStatus: z
-                      .union([taskStatusSchema, z.null()])
-                      .optional(),
-                  }),
-                },
-              },
-            },
-      500: jsonErrorResponse("Internal Server Error"),
-    },
-  });
+  const { baseSchema, route } = createTaskEventRoute(mode);
 
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id: taskId } = c.req.valid("param");
     const payload = c.req.valid("json");
-    const admission = "expectedLastStatusEventId" in payload ? payload : null;
+    const admission =
+      "expectedLastStatusEventId" in payload || "admission" in payload
+        ? payload
+        : null;
     const body =
-      "expectedLastStatusEventId" in payload
+      "expectedLastStatusEventId" in payload || "admission" in payload
         ? baseSchema.parse({
-            status: TaskStatus.FAILED,
+            status:
+              "admission" in payload ? TaskStatus.RUNNING : TaskStatus.FAILED,
             comment: payload.comment,
           })
         : payload;
@@ -204,7 +120,7 @@ function mountTaskEventRoute(
       checkedStart?: string,
     ) => {
       if (admission)
-        await requireFailedSeoAdmission(authContext, taskId, admission, tx);
+        await requireSeoAdmission(authContext, taskId, admission, tx);
       else if (expectedContext)
         await requireTaskWorkerContext(
           authContext,

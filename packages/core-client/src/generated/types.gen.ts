@@ -106545,6 +106545,7 @@ export type PostTasksByIdEventsFailedAdmissionV1Data = {
         expectedInputFingerprint: string;
         expectedStatus: 'READY' | 'INPUT_REQUIRED';
         expectedLastStatusEventId: string;
+        expectedLatestEventId?: string;
         comment: string;
     };
     path: {
@@ -106679,6 +106680,149 @@ export type PostTasksByIdEventsFailedAdmissionV1Responses = {
 };
 
 export type PostTasksByIdEventsFailedAdmissionV1Response = PostTasksByIdEventsFailedAdmissionV1Responses[keyof PostTasksByIdEventsFailedAdmissionV1Responses];
+
+export type PostTasksByIdEventsStartAdmissionV1Data = {
+    body: {
+        status: 'RUNNING';
+        comment: string;
+        expectedContext: TaskWorkerContext;
+        admission: {
+            eventId: string;
+            inputFingerprint: string;
+        };
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/events/start-admission-v1';
+};
+
+export type PostTasksByIdEventsStartAdmissionV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid start admission request, scope, or approved price
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdEventsStartAdmissionV1Error = PostTasksByIdEventsStartAdmissionV1Errors[keyof PostTasksByIdEventsStartAdmissionV1Errors];
+
+export type PostTasksByIdEventsStartAdmissionV1Responses = {
+    /**
+     * Create task event
+     */
+    201: {
+        data: TaskEvent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdEventsStartAdmissionV1Response = PostTasksByIdEventsStartAdmissionV1Responses[keyof PostTasksByIdEventsStartAdmissionV1Responses];
 
 export type PostTasksByIdEventsSeoSettlementV1Data = {
     body?: {
