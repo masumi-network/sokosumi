@@ -43,15 +43,3 @@ export function useRouterRedirect(
     }
   }, [href, mode, once, router, scroll]);
 }
-
-/**
- * Calls `router.refresh()` whenever `shouldRefresh` becomes `true`.
- */
-export function useRouterRefreshWhen(shouldRefresh: boolean): void {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!shouldRefresh) return;
-    router.refresh();
-  }, [router, shouldRefresh]);
-}

@@ -19,6 +19,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import {
   type ReactNode,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -42,7 +43,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useFocusWhen } from "@/hooks/effects/use-focus-when";
-import { useRouteNoticeToast } from "@/hooks/effects/use-route-notice-toast";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
@@ -321,19 +321,13 @@ export function SokoBotConsole({
   const format = useFormatter();
   const router = useRouter();
   const { state, refresh } = useSokoBotState(initialState, botId);
-  useRouteNoticeToast(
-    integrationOutcome
-      ? {
-          key: integrationOutcome,
-          variant: integrationOutcome === "active" ? "success" : "error",
-          message:
-            integrationOutcome === "active"
-              ? t("Integrations.connected")
-              : t("Integrations.connectFailed"),
-          replaceHref: consoleRoute,
-        }
-      : null,
-  );
+  useEffect(() => {
+    if (!integrationOutcome) return;
+    if (integrationOutcome === "active")
+      toast.success(t("Integrations.connected"));
+    else toast.error(t("Integrations.connectFailed"));
+    router.replace(consoleRoute);
+  }, [integrationOutcome, router, t, consoleRoute]);
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
   // Same seed Core hands chat participants, so console and room match. Not

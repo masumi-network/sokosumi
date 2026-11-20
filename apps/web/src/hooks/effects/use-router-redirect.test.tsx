@@ -2,15 +2,13 @@ import { render, renderHook } from "@testing-library/react";
 import { Activity, StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pushMock, refreshMock, replaceMock } = vi.hoisted(() => ({
+const { pushMock, replaceMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
-  refreshMock: vi.fn(),
   replaceMock: vi.fn(),
 }));
 
 const stableRouter = {
   push: pushMock,
-  refresh: refreshMock,
   replace: replaceMock,
 };
 
@@ -18,7 +16,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => stableRouter,
 }));
 
-import { useRouterRedirect, useRouterRefreshWhen } from "./use-router-redirect";
+import { useRouterRedirect } from "./use-router-redirect";
 
 describe("useRouterRedirect", () => {
   beforeEach(() => {
@@ -120,57 +118,5 @@ describe("useRouterRedirect", () => {
       </StrictMode>,
     );
     expect(pushMock).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("useRouterRefreshWhen", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("refreshes when the condition turns true and skips while false", () => {
-    const { rerender } = renderHook(
-      ({ shouldRefresh }: { shouldRefresh: boolean }) =>
-        useRouterRefreshWhen(shouldRefresh),
-      { initialProps: { shouldRefresh: false } },
-    );
-
-    expect(refreshMock).not.toHaveBeenCalled();
-
-    rerender({ shouldRefresh: true });
-    expect(refreshMock).toHaveBeenCalledTimes(1);
-
-    rerender({ shouldRefresh: true });
-    expect(refreshMock).toHaveBeenCalledTimes(1);
-
-    rerender({ shouldRefresh: false });
-    rerender({ shouldRefresh: true });
-    expect(refreshMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("re-runs on React Activity reveal while shouldRefresh is still true", () => {
-    function Probe({ shouldRefresh }: { shouldRefresh: boolean }) {
-      useRouterRefreshWhen(shouldRefresh);
-      return null;
-    }
-
-    const { rerender } = render(
-      <Activity mode="visible">
-        <Probe shouldRefresh />
-      </Activity>,
-    );
-    expect(refreshMock).toHaveBeenCalledTimes(1);
-
-    rerender(
-      <Activity mode="hidden">
-        <Probe shouldRefresh />
-      </Activity>,
-    );
-    rerender(
-      <Activity mode="visible">
-        <Probe shouldRefresh />
-      </Activity>,
-    );
-    expect(refreshMock).toHaveBeenCalledTimes(2);
   });
 });
