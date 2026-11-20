@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useScrollToEnd } from "@/hooks/effects/use-scroll-to-end";
 
 import { StudioImage } from "./studio-image";
 import type { StudioAsset, StudioLabels } from "./types";
@@ -454,10 +455,7 @@ function StudioConversation({
   const isResuming = agent.status === "resuming";
 
   // Following a growing transcript is DOM synchronization.
-  useEffect(() => {
-    const node = transcriptRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [agent.messages]);
+  useScrollToEnd(transcriptRef, agent.messages);
 
   function handleDraftChange(value: string) {
     draftRef.current = value;

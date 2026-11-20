@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import { SubmitButton } from "@/auth/components/form/submit-button";
 import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import {
@@ -194,10 +195,7 @@ export function EmailStep({
   // The pressed button went inert, so focus moves to the one that took its
   // place. A submitting fieldset cannot receive focus; wait until it is
   // enabled again.
-  useEffect(() => {
-    if (!isDetoured || isSubmitting) return;
-    detourLinkRef.current?.focus();
-  }, [isDetoured, isSubmitting]);
+  useFocusWhen(detourLinkRef, isDetoured && !isSubmitting);
 
   // Following the detour and Continue never overlap: the detour only shows
   // once Continue is done. Each tells the parent from the event that changes it.
