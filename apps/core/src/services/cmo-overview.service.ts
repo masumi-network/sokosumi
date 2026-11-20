@@ -57,6 +57,7 @@ import {
   type CmoUpdateRecord,
   listCmoReports,
 } from "@/services/cmo-reports.service";
+import { cmoStrategyShortfall } from "@/services/cmo-strategy.service";
 import { contactListNameKey } from "@/services/contact-lists.service";
 import {
   approvedMarketingStrategy,
@@ -161,6 +162,8 @@ export interface CmoOverview {
   brandBrain: StoredBrandBrainBody | null;
   /** The newest Marketing strategy version's plan: what the owner reviews. */
   strategy: MarketingStrategyPlan | null;
+  /** A draft short of the volume it promises: Core refuses to approve it. */
+  strategyShort: { planned: number; promised: number } | null;
   /**
    * The approved version's plan as Cuso carries it out, with the pieces he
    * made. Differs from `strategy` while a change waits for approval.
@@ -285,6 +288,7 @@ export async function getCmoOverview(
         status: true,
         sharedRoomId: true,
         ingestTimezone: true,
+        versionId: true,
         workspace: { select: { organizationId: true } },
       },
     }),
@@ -482,6 +486,9 @@ export async function getCmoOverview(
     viewerCanApprove,
     brandBrain,
     strategy,
+    strategyShort: newest?.approvedAt
+      ? null
+      : cmoStrategyShortfall(bot.versionId, newest?.plan),
     approvedStrategy: approved ? running : null,
     strategyVersions,
     hiredAt,

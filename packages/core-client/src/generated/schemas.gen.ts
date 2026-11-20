@@ -55197,6 +55197,31 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        strategyShort: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        planned: {
+                            type: 'integer',
+                            description: 'Pieces the calendar plans.'
+                        },
+                        promised: {
+                            type: 'integer',
+                            description: 'About how many its pace and cadences promise.'
+                        }
+                    },
+                    required: [
+                        'planned',
+                        'promised'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Set while the newest draft does not hold what it promises: fewer pieces than its own pace and cadences, or no video where its funnel or a video network promises one (after Cuso\'s finish turns). Approving it is refused (409); the owner asks for a new strategy instead. `promised` equals `planned` when only a video is missing.'
+        },
         approvedStrategy: {
             anyOf: [
                 {
@@ -55480,6 +55505,7 @@ export const CmoOverviewSchema = {
         'brandBrainConfirmedAt',
         'brandMedia',
         'strategy',
+        'strategyShort',
         'approvedStrategy',
         'media',
         'postRevisions',

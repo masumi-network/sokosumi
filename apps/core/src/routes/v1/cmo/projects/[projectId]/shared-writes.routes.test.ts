@@ -63,6 +63,7 @@ vi.mock("@/lib/db/prisma", () => {
       },
     },
     sokoBot: {
+      findUnique: async () => ({ versionId: "cmo-v5" }),
       findFirst: async () =>
         m.hasCuso
           ? {

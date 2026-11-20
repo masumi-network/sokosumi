@@ -13890,6 +13890,19 @@ export type CmoOverview = {
     brandMedia: CmoBrandMedia | null;
     strategy: CmoPlan | null;
     /**
+     * Set while the newest draft does not hold what it promises: fewer pieces than its own pace and cadences, or no video where its funnel or a video network promises one (after Cuso's finish turns). Approving it is refused (409); the owner asks for a new strategy instead. `promised` equals `planned` when only a video is missing.
+     */
+    strategyShort: {
+        /**
+         * Pieces the calendar plans.
+         */
+        planned: number;
+        /**
+         * About how many its pace and cadences promise.
+         */
+        promised: number;
+    } | null;
+    /**
      * The approved version as Cuso carries it out, with the pieces he made: the month the Calendar shows. Differs from strategy while a change waits for approval.
      */
     approvedStrategy: CmoPlan | null;
