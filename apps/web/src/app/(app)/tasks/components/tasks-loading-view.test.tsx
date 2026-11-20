@@ -1,10 +1,20 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { TasksLoadingView } from "@/app/tasks/components/tasks-loading-view";
 import {
-  TASKS_LOADING_DEFAULT_LABELS,
-  TasksLoadingView,
-} from "@/app/tasks/components/tasks-loading-view";
-import { TASKS_BOARD_MIN_HEIGHT_CLASS } from "@/app/tasks/constants";
+  TASKS_BOARD_MIN_HEIGHT_CLASS,
+  TASKS_TOOLBAR_ROW_CLASS,
+} from "@/app/tasks/constants";
+
+const TASKS_LOADING_DEFAULT_LABELS = {
+  columns: {
+    backlog: "Backlog",
+    todo: "Todo",
+    "in-progress": "In progress",
+    "input-required": "Input required",
+    done: "Done",
+  },
+};
 
 describe("TasksLoadingView", () => {
   it("renders board columns by default", () => {
@@ -12,6 +22,19 @@ describe("TasksLoadingView", () => {
 
     expect(screen.getByText("Backlog")).toBeInTheDocument();
     expect(screen.getByText("Todo")).toBeInTheDocument();
+  });
+
+  it("draws the toolbar it gets in the board's toolbar row", () => {
+    render(
+      <TasksLoadingView
+        labels={TASKS_LOADING_DEFAULT_LABELS}
+        toolbar={<button type="button">View options</button>}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "View options" }).parentElement,
+    ).toHaveClass(TASKS_TOOLBAR_ROW_CLASS);
   });
 
   it("shows no column counts before the board has loaded", () => {

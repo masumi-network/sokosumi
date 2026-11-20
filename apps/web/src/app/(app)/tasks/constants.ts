@@ -7,6 +7,9 @@ export const TASKS_ROUTE_REFRESH_DEBOUNCE_MS = 500;
  */
 export const TASKS_BOARD_MIN_HEIGHT_CLASS = "min-h-[calc(100dvh-9rem)]";
 
+/** The row that holds the Tasks toolbar, on the board and in its loading shell. */
+export const TASKS_TOOLBAR_ROW_CLASS = "flex items-start gap-2";
+
 /**
  * The board re-renders the whole page on a task event, about a dozen Core
  * reads. Agents send events all day, so it waits for a quiet moment, and

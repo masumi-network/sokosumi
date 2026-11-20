@@ -69,6 +69,11 @@ interface TasksViewFiltersProps {
   /** The viewer, for the view switcher; without one it is hidden. */
   userId?: string | null;
   /**
+   * The loading shell's toolbar: it has no workspace data yet, so it loads
+   * no tags and shows My tasks until the board knows whether it applies.
+   */
+  pending?: boolean;
+  /**
    * The view options menu, shown after the Filters menu. As a function it
    * gets the view and filters in effect, each named for a reader.
    */
@@ -97,6 +102,7 @@ interface TasksViewFiltersProps {
 export function TasksViewFilters({
   activeOrganizationId,
   userId,
+  pending = false,
   display,
   coworkerOptions,
   projectOptions,
@@ -107,10 +113,12 @@ export function TasksViewFilters({
   const tTags = useTranslations("App.Tasks.Tags");
   const workspaceTags = useWorkspaceTags(activeOrganizationId, {
     includeArchived: true,
+    enabled: !pending,
   });
   const tagOptions = useMemo(
     () => [
-      ...Array.from(workspaceTags.data ?? [])
+      // Cached tags can belong to another workspace; the shell names none.
+      ...Array.from((pending ? undefined : workspaceTags.data) ?? [])
         .sort((a, b) => Number(a.archived) - Number(b.archived))
         .map((tag) => ({
           mark: <TaskTagDot {...tag} />,
@@ -125,7 +133,7 @@ export function TasksViewFilters({
         group: t("topicTags"),
       })),
     ],
-    [t, tTags, workspaceTags.data],
+    [pending, t, tTags, workspaceTags.data],
   );
   const router = useRouter();
   const pathname = usePathname();
@@ -429,8 +437,8 @@ export function TasksViewFilters({
 
   return (
     // Anchored to the board's left edge: the view switcher first, then what
-    // is active, because those are what a reader changes most. Chips wrap
-    // under them. The Filters menu holds the rest and sits at the right
+    // is active, because those are what a reader changes most. Chips follow
+    // on the switcher's line. The Filters menu holds the rest and sits at the right
     // edge, with the view options menu after it.
     <div className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2">
       {userId ? (
@@ -439,12 +447,19 @@ export function TasksViewFilters({
           onChange={(view) =>
             handleFilterChange(getTasksViewPatch(view, filters, userId))
           }
-          showMine={!!me}
+          showMine={pending || !!me}
           labels={{ all: labels.all, assignedToMe: labels.assignedToMe }}
         />
       ) : null}
       {chips.length > 0 ? (
-        <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
+        // One line beside the switcher: chips shrink and then scroll instead
+        // of wrapping, so the toolbar is as tall with filters as without and
+        // the loading shell holds the board where it lands. The padding keeps
+        // focus rings inside the scroll box.
+        <ul
+          aria-label={t("activeFilters")}
+          className="-m-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-1 [scrollbar-width:none] scroll-edge-x"
+        >
           {chips.map((chip) => {
             const name = t("chip", { label: chip.label, value: chip.value });
             return (

@@ -842,6 +842,27 @@ body:has(vercel-live-feedback) main[data-app-main]::after {
   }
 }
 
+/* The same fade across a row that scrolls sideways. The app ships no
+   right-to-left locale, so the gradient runs left to right. */
+@utility scroll-edge-x {
+  @supports (animation-timeline: scroll()) {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--edge-top),
+      #000 calc(100% - var(--edge-bottom)),
+      transparent
+    );
+    animation:
+      edge-top linear both,
+      edge-bottom linear both;
+    animation-timeline: scroll(self inline), scroll(self inline);
+    animation-range:
+      0 20px,
+      calc(100% - 20px) 100%;
+  }
+}
+
 @utility content-in {
   animation: content-in 200ms ease-out both;
 }
