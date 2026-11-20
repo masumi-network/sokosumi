@@ -492,7 +492,11 @@ function RetainedRoomsClient({
           messages: mergeRoomMessages(pendingRef.current, confirmed.messages),
         };
         const next = typeof update === "function" ? update(current) : update;
-        const shells = next.messages.filter(isOutboundLocalMessage);
+        const shells = next.messages.filter(
+          (message) =>
+            isOutboundLocalMessage(message) &&
+            isTopLevelChatRoomMessage(message),
+        );
         pendingRef.current = shells;
         setPending(shells);
         return next;
@@ -679,6 +683,12 @@ function RoomView({
   const transcript = retained?.entry.transcript ?? localTranscript;
   const setTranscript = retained?.setTranscript ?? setLocalTranscript;
   const messagesState = transcript.messages;
+  // Defense in depth: never render thread replies in the main room timeline,
+  // even if stale state still holds a leaked reply from before this fix.
+  const topLevelRoomMessages = useMemo(
+    () => filterTopLevelChatRoomMessages(messagesState),
+    [messagesState],
+  );
   const setMessagesState = useCallback(
     (update: SetStateAction<ChatRoomMessage[]>) => {
       setTranscript((current) =>
@@ -860,7 +870,7 @@ function RoomView({
     unreadWindow !== undefined &&
     !messagesPending &&
     (!unreadWindow?.messages.length ||
-      messagesState.some(
+      topLevelRoomMessages.some(
         (message) => message.id === unreadWindow.messages[0]?.id,
       ))
   ) {
@@ -936,7 +946,7 @@ function RoomView({
   } = useRoomMessageMutations({
     getSelectedRoomId: () => selectedRoom?.id,
     isStillSelectedRoom,
-    messagesState,
+    messagesState: topLevelRoomMessages,
     setMessagesState,
     setThreadMessages,
     threadParentMessage,
@@ -1527,13 +1537,6 @@ function RoomView({
     [streamOverlayMessages],
   );
 
-  // Defense in depth: never render thread replies in the main room timeline,
-  // even if stale state still holds a leaked reply from before this fix.
-  const topLevelRoomMessages = useMemo(
-    () => filterTopLevelChatRoomMessages(messagesState),
-    [messagesState],
-  );
-
   const mentionRetrySourceMessages = useMemo(() => {
     const rows = [...topLevelRoomMessages, ...threadMessages];
     if (threadParentMessage) {
@@ -1541,12 +1544,6 @@ function RoomView({
     }
     return rows;
   }, [threadMessages, threadParentMessage, topLevelRoomMessages]);
-
-  // Purge leaked thread replies from room state so consumers of messagesState
-  // (pending-mention poll, search props) never see them after a prior leak.
-  if (topLevelRoomMessages.length !== messagesState.length) {
-    setMessagesState(topLevelRoomMessages);
-  }
 
   const reactionViewer = useMemo(
     () => ({

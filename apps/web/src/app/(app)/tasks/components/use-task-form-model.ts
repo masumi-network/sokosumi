@@ -229,6 +229,9 @@ export function useTaskFormModel(
   const [pickedRunAt, setPickedRunAt] = useState<string | null>(() =>
     isDefaultAgent ? initialRunAt : null,
   );
+  if (!coworkerTouched && !isDefaultAgent && pickedRunAt !== null) {
+    setPickedRunAt(null);
+  }
   const runAt = !coworkerTouched && !isDefaultAgent ? null : pickedRunAt;
   const [pickedStatus, setPickedStatus] = useState<TaskStatus>(() => {
     if (initialValues?.status !== undefined) {
