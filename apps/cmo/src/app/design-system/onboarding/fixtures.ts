@@ -22,6 +22,7 @@ export const SCREENS = [
   "brand",
   "plan",
   "plan-unfitted",
+  "plan-short",
   "planning",
   "launch",
   "launch-connected",
@@ -249,6 +250,13 @@ export function screenOverview(screen: Screen): CmoOverview {
               : question,
           ),
         },
+      });
+    // Cuso's finish turns could not fill the month: Core refuses to approve it.
+    case "plan-short":
+      return draft({
+        brandBrain: richBrain,
+        strategy: richPlan,
+        strategyShort: { planned: 64, promised: 172 },
       });
     default:
       return draft({ brandBrain: richBrain, strategy: richPlan });

@@ -1083,6 +1083,31 @@ it("updates the plan after a No with a note, and shows it fitting", async () => 
   await act(async () => fitting.answer(null));
 });
 
+it("offers no approval for a month short of what it promises, only a new strategy", async () => {
+  const actions = planActions({
+    requestStrategy: vi.fn(async () => ({ overview: null, error: null })),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={{
+          ...planOverview(),
+          strategyShort: { planned: 64, promised: 172 },
+        }}
+        messages={[]}
+        actions={actions}
+      />,
+    ),
+  );
+  expect(text()).toContain(
+    "This strategy plans 64 posts, but it promises about 172.",
+  );
+  expect(text()).not.toContain("Approve strategy");
+  await press("Write it again");
+  expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
+  expect(actions.approveStrategy).not.toHaveBeenCalled();
+});
+
 it("approves the plan and lands on Launch", async () => {
   const actions = planActions({
     approveStrategy: vi.fn(async () => draft(cmoStrategyVersion(new Date()))),

@@ -302,7 +302,7 @@ export function StrategyCard({
           </>
         ) : (
           <>
-            {overview.viewerCanApprove ? (
+            {overview.viewerCanApprove && !overview.strategyShort ? (
               <button
                 type="button"
                 className="button button-small"
@@ -320,9 +320,11 @@ export function StrategyCard({
               Change something
             </button>
             <span className="note">
-              {overview.viewerCanApprove
-                ? `This is the only thing you approve. ${AGENT_NAME} runs the rest.`
-                : APPROVED_BY_OWNERS}
+              {overview.strategyShort
+                ? `This strategy plans fewer posts than it promises, so it can't be approved. Ask ${AGENT_NAME} for a new one on the Strategy page.`
+                : overview.viewerCanApprove
+                  ? `This is the only thing you approve. ${AGENT_NAME} runs the rest.`
+                  : APPROVED_BY_OWNERS}
             </span>
           </>
         )}

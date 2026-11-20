@@ -137,6 +137,7 @@ function overview() {
     viewerCanApprove: true,
     brandBrain: null,
     strategy: null,
+    strategyShort: null,
     approvedStrategy: null,
     strategyVersions: [
       {
