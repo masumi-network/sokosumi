@@ -77,6 +77,22 @@ interface TileData {
   body?: ReactNode;
 }
 
+/**
+ * What the owner reads while a correction waits. A whole strategy takes
+ * Cuso 10 to 15 minutes and the fix follows it; a change is quick.
+ */
+export function fixWaitNote(
+  overview: Pick<CmoOverview, "botStatus" | "work">,
+): string {
+  const work = overview.work;
+  return overview.botStatus === "RUNNING" &&
+    work?.kind === "strategy" &&
+    work.status === "running" &&
+    !work.change
+    ? `${AGENT_NAME} is writing your strategy now. He makes this fix as soon as he is done, usually within 15 minutes, and updates the strategy to match.`
+    : `${AGENT_NAME} will fix this and update your strategy.`;
+}
+
 /** Cuso wrote that he does not know yet: nothing to show the owner. */
 export function saysUnknown(text: string): boolean {
   return /^(unknown|not (yet )?known|unclear|n\/a|tbd)[.!]?$/i.test(
@@ -591,6 +607,12 @@ export function BrandStep({
                 inputId="ob-tell"
                 cta="Send"
                 placeholder="Say what to fix"
+                sentNote={
+                  // The note below already says how long it waits.
+                  fixWaitNote(overview).startsWith(`${AGENT_NAME} is writing`)
+                    ? "Sent."
+                    : undefined
+                }
                 onAsk={(text) => correct(shown.section, text)}
               />
             </div>
@@ -598,7 +620,7 @@ export function BrandStep({
               <p className="note" aria-live="polite">
                 {fixing
                   ? `${AGENT_NAME} is fixing this now.`
-                  : `${AGENT_NAME} will fix this and update your strategy.`}
+                  : fixWaitNote(overview)}
               </p>
             ) : null}
             {sent && answered && lastWord ? (
