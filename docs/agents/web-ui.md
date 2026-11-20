@@ -114,6 +114,11 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-track-purchase` (`useTrackPurchase`) — fires the GTM `purchase` event at most once per checkout session id once analytics consent is granted
 - `use-report-route-error` (`useReportRouteError`, `useGlobalRouteError`) — reports route error boundary failures to Sentry and handles one-shot stale-deployment refresh in the global error boundary
 - `use-router-redirect` (`useRouterRedirect`) — client-side Next.js App Router navigation (`replace`/`push`, optional one-shot) driven by state
+- `use-aurora-orb-canvas` (`useAuroraOrbCanvas`) — live `AuroraOrb` and `PlaceholderOrb` canvas handle lifecycle (mount, expression/speed updates, pulse nonce, teardown)
+- `use-live-bot-avatar` (`useLiveBotAvatar`) — shared-WebGL `LiveBotAvatar` canvas handle, intersection visibility, model upload, context-loss teardown, and pointer gaze
+- `use-gradient-background-canvas` (`useGradientBackgroundCanvas`) — WebGL Home gradient canvas lifecycle with theme token observation, reduced motion, and off-screen pause
+- `use-thinking-orb-canvas` (`useThinkingOrbCanvas`) — `thinking-orbs` 2D canvas animation with reduced-motion static frame fallback
+- `use-studio-wall-paint` (`useStudioWallPaint`, `applyStudioWallTransform`) — before-paint Studio template wall layout transform synchronization
 
 ### React Query in migrations
 
