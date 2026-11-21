@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 
 import { AUTH_SHELL_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
@@ -10,6 +12,18 @@ import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { cn } from "@/lib/utils";
+
+/** The app's "Sokosumi - …" tab title, so setup reads like every other page. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Metadata");
+
+  return {
+    title: {
+      default: t("Title.default"),
+      template: t("Title.template"),
+    },
+  };
+}
 
 export default async function FlowsLayout({
   children,
