@@ -11,3 +11,5 @@
 **Missing today:** steps 1 and 3 starting by themselves after the audit; publishing to the site.
 
 For keyword research, Cuso reads the ranked editorial picks and cites each measurement date. A cached search reuses the same picks. When the weekly result expires, the editors can test new phrases against the earlier topic baseline for up to 30 days.
+
+When research measures no volume for a topic (a niche market), research_keywords also returns the brand's own Search Console searches that share the topic's words, with impressions, clicks and position, and Cuso picks article keywords from those.

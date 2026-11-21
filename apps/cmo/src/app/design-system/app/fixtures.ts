@@ -934,6 +934,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: 11.4,
           positionSource: "search_console",
+          impressions: 412,
+          clicks: 9,
         },
         {
           keyword: "free team booking software",
@@ -942,6 +944,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
         {
           keyword: "team booking app free",
@@ -950,6 +954,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
         {
           keyword: "booking software for sales teams",
@@ -958,6 +964,8 @@ export const seo: CmoSeo = {
           intent: null,
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
       ],
     },

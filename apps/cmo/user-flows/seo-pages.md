@@ -19,3 +19,5 @@
 **Today:** CMO doesn't publish to their site; the owner pastes the text.
 
 Keyword research marks measured editorial picks. A reused measurement shows its original date. After a week, a repeat search can check up to three new phrases using the same provider request allowance.
+
+In a small market most searches have no measured monthly volume. Keyword search then also lists the searches Google already shows the site for (Search Console impressions and position), so ideas still stand on real numbers.

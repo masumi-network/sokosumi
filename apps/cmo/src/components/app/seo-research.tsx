@@ -144,7 +144,10 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
         {search.languageCode.toUpperCase()}, {day(search.observedAt)}
       </p>
       {search.ideas.length === 0 ? (
-        <p className="note">No searches found for this topic.</p>
+        <p className="note">
+          No searches found for this topic, and Google has not shown your site
+          for one like it yet.
+        </p>
       ) : (
         <div className="seo-table-wrap">
           <table className="seo-table">
@@ -184,6 +187,14 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
                   <td>{idea.intent ?? NOT_KNOWN}</td>
                   <td className="num">
                     {idea.position === null ? "Not yet" : idea.position}
+                    {idea.impressions ? (
+                      <>
+                        <br />
+                        <span className="note">
+                          seen {count(idea.impressions)}
+                        </span>
+                      </>
+                    ) : null}
                   </td>
                 </tr>
               ))}

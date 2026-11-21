@@ -62623,6 +62623,18 @@ export const CmoKeywordIdeaSchema = {
                 'weekly_audit',
                 null
             ]
+        },
+        impressions: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        clicks: {
+            type: [
+                'number',
+                'null'
+            ]
         }
     },
     required: [
@@ -62631,7 +62643,9 @@ export const CmoKeywordIdeaSchema = {
         'difficulty',
         'intent',
         'position',
-        'positionSource'
+        'positionSource',
+        'impressions',
+        'clicks'
     ]
 } as const;
 
