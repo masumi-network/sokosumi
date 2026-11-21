@@ -92,6 +92,16 @@ export const INSPECTION = {
   },
 };
 
+/** The owner's report choices. The web sets both together, checked by default. */
+export type SearchConsoleScopeFlags = {
+  includePropertyTotals?: true;
+  includePageDiscovery?: true;
+};
+export const ALL_SEARCH_CONSOLE_DATA: SearchConsoleScopeFlags = {
+  includePropertyTotals: true,
+  includePageDiscovery: true,
+};
+
 export function day(offset: number) {
   return new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 }
@@ -181,6 +191,31 @@ export function searchConsoleReadFixture(
               ? request
               : { ...request, searchConsoleAccess: access },
         } as never,
+      });
+    },
+    /** Keeps the frozen property and account and replaces only the owner's choices. */
+    async setScope(flags: SearchConsoleScopeFlags) {
+      const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+        where: { taskId: fx.taskId },
+      });
+      const { propertyId, connectionVersion } = (
+        analysis.request as {
+          searchConsoleAccess: {
+            propertyId: string;
+            connectionVersion: string;
+          };
+        }
+      ).searchConsoleAccess;
+      await fx.setAccess({ propertyId, connectionVersion, ...flags });
+    },
+    /** One page-equals filter, the form the worker sends for an audit page. */
+    pageQuery(expression: string, extra: Record<string, unknown> = {}) {
+      return fx.query({
+        dimensions: ["query"],
+        dimensionFilterGroups: [
+          { filters: [{ dimension: "page", operator: "equals", expression }] },
+        ],
+        ...extra,
       });
     },
     async kindOf(response: Response) {
@@ -306,6 +341,7 @@ export function searchConsoleReadFixture(
           searchConsoleAccess: {
             propertyId: PROPERTY,
             connectionVersion: connectionVersion(integration),
+            ...ALL_SEARCH_CONSOLE_DATA,
           },
         },
       },

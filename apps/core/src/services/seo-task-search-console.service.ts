@@ -19,9 +19,11 @@ import {
   GSC_TASK_READ_BUDGET,
   gscTaskReplyBody,
   gscTaskToolArguments,
+  isAuditPageUrl,
 } from "@/lib/seo/search-console-task-read";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type {
+  GscTaskSearchAnalyticsQuery,
   SeoTaskSearchConsoleRead,
   SeoTaskSearchConsoleReply,
   SeoTaskSearchConsoleStatus,
@@ -71,22 +73,67 @@ export async function getSeoTaskSearchConsoleStatus(
   };
 }
 
-/** The read must stay inside the audit's frozen property. */
+type SearchConsoleAccess = ReturnType<
+  typeof requireConnectedSearchConsole
+>["access"];
+
+/**
+ * A query limited to one audit page. Groups are joined with AND, so one exact
+ * page filter limits every row to that page. Only an explicit `equals` counts:
+ * Core forwards an absent operator as absent and does not choose its meaning.
+ */
+function isPageScoped(
+  query: GscTaskSearchAnalyticsQuery,
+  pageUrls: readonly string[],
+) {
+  return (query.dimensionFilterGroups ?? []).some((group) =>
+    group.filters.some(
+      (filter) =>
+        filter.dimension === "page" &&
+        filter.operator === "equals" &&
+        isAuditPageUrl(filter.expression, pageUrls),
+    ),
+  );
+}
+
+/**
+ * The read must stay inside the audit's frozen property and the owner's
+ * choices. A scope refusal is 422, so the worker keeps its later page reads.
+ */
 function requireApprovedTarget(
   read: SeoTaskSearchConsoleRead,
-  propertyId: string,
+  access: SearchConsoleAccess,
+  pageUrls: readonly string[],
 ) {
+  const { propertyId } = access;
   const property = () =>
     conflict("Read only the audit's approved Search Console property.", {
       kind: CORE_API_ERROR_KINDS.SEO_GSC_PROPERTY,
     });
+  const auditPagesOnly = () =>
+    unprocessableEntity(
+      "The owner approved Search Console data for the audited pages only",
+    );
   if (read.operation === "sites.list") return;
   if (read.siteUrl !== propertyId) throw property();
-  if (
-    read.operation === "urlInspection.inspect" &&
-    !gscPropertyCovers(propertyId, [read.inspectionUrl])
-  )
-    throw property();
+  if (read.operation === "urlInspection.inspect") {
+    if (!gscPropertyCovers(propertyId, [read.inspectionUrl])) throw property();
+    if (
+      !access.includePageDiscovery &&
+      !isAuditPageUrl(read.inspectionUrl, pageUrls)
+    )
+      throw auditPagesOnly();
+    return;
+  }
+  const { query } = read;
+  if (isPageScoped(query, pageUrls)) return;
+  if (!access.includePropertyTotals) throw auditPagesOnly();
+  const listsPages =
+    query.dimensions?.includes("page") ||
+    query.dimensionFilterGroups?.some((group) =>
+      group.filters.some((filter) => filter.dimension === "page"),
+    );
+  if (listsPages && !access.includePageDiscovery) throw auditPagesOnly();
 }
 
 /** Durable and inside the Task lock, so parallel reads cannot pass the same budget. */
@@ -198,7 +245,7 @@ export async function readSeoTaskSearchConsole(
     if (context.task.status !== "RUNNING")
       throw conflict("Search Console reads require a running audit Task");
     const { access } = requireConnectedSearchConsole(context);
-    requireApprovedTarget(read, access.propertyId);
+    requireApprovedTarget(read, access, context.pageUrls);
     if (
       read.operation === "searchAnalytics.query" &&
       Date.parse(`${read.query.startDate}T00:00:00Z`) <

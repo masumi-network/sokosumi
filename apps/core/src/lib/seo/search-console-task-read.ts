@@ -67,6 +67,36 @@ export function gscTaskToolArguments(
   };
 }
 
+/** The approved page form: no scheme, no single leading `www.` label, no single trailing slash. */
+function auditPageKey(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+  const bare = parsed.hostname.slice(4);
+  // `www.com` stays `www.com`: only a label before another dotted host is dropped.
+  const host =
+    parsed.hostname.startsWith("www.") && bare.includes(".")
+      ? bare
+      : parsed.hostname;
+  const path = parsed.pathname.endsWith("/")
+    ? parsed.pathname.slice(0, -1)
+    : parsed.pathname;
+  return JSON.stringify([host, parsed.port, path, parsed.search]);
+}
+
+/**
+ * True when the URL is one of the audit's pages. The worker filters on the URL
+ * it read the page at, which a redirect can turn into the www or https form.
+ */
+export function isAuditPageUrl(url: string, pageUrls: readonly string[]) {
+  const key = auditPageKey(url);
+  return key !== null && pageUrls.some((page) => auditPageKey(page) === key);
+}
+
 /**
  * Parts of a credential key name, matched after case and `_`/`-` are removed.
  * No documented key of the three Google replies holds one of them.

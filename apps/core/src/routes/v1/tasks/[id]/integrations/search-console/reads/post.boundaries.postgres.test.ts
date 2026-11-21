@@ -160,6 +160,70 @@ describe.skipIf(!searchConsoleReadsEnabled)(
       ]);
     });
 
+    describe("the owner's report choices", () => {
+      const budget = () =>
+        prisma.projectSeoObservation.findFirst({
+          where: { auditId: fx.auditId, kind: BUDGET_KIND },
+        });
+      async function expectScopeRefusal(body: unknown) {
+        const response = await read(body);
+        const text = await response.text();
+        expect(response.status, JSON.stringify(body)).toBe(422);
+        expect(text).toContain("audited pages only");
+        expect(JSON.parse(text).kind).toBeUndefined();
+      }
+
+      it("refuses a property-wide query without the owner's choice, and spends no budget", async () => {
+        await fx.setScope({});
+        await expectScopeRefusal(query());
+        expect(await budget()).toBeNull();
+        expect(fx.reads).toEqual([]);
+        expect(network.tools).not.toHaveBeenCalled();
+        // A later refusal leaves a spent budget as it was.
+        expect((await read(sitesList)).status).toBe(200);
+        await expectScopeRefusal(query({ dimensions: ["date"] }));
+        expect((await budget())?.payload).toEqual({ "sites.list": 1 });
+      });
+
+      it("reads an audit page and its www or https form without the owner's choice", async () => {
+        await fx.setScope({});
+        for (const url of [
+          PAGE_URLS[0],
+          "https://www.example.test/a",
+          "http://example.test/a/",
+        ]) {
+          const response = await read(fx.pageQuery(url));
+          expect(response.status, url).toBe(200);
+        }
+        expect(fx.reads).toHaveLength(3);
+      });
+
+      it("refuses another page of the property without the owner's choice", async () => {
+        await fx.setScope({});
+        await expectScopeRefusal(fx.pageQuery("https://example.test/private"));
+        await expectScopeRefusal(
+          fx.pageQuery(PAGE_URLS[0], {
+            dimensionFilterGroups: [
+              { filters: [{ dimension: "page", expression: PAGE_URLS[0] }] },
+            ],
+          }),
+        );
+        await expectScopeRefusal(inspect("https://example.test/private"));
+        expect((await read(inspect())).status).toBe(200);
+        expect(fx.reads).toHaveLength(1);
+      });
+
+      it("reads property totals but no page list with only the totals choice", async () => {
+        await fx.setScope({ includePropertyTotals: true });
+        const totals = await read(query({ dimensions: ["date"] }));
+        expect(totals.status, await totals.clone().text()).toBe(200);
+        await expectScopeRefusal(query({ dimensions: ["query", "page"] }));
+        await expectScopeRefusal(fx.pageQuery("https://example.test/private"));
+        await expectScopeRefusal(inspect("https://example.test/private"));
+        expect(fx.reads).toHaveLength(1);
+      });
+    });
+
     it("refuses a request body over 64 KiB with 413", async () => {
       const response = await read({
         ...sitesList,

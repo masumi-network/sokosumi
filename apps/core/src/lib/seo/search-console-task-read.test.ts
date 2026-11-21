@@ -6,6 +6,7 @@ import {
   gscTaskReplyBody,
   gscTaskToolArguments,
   holdsCredentialField,
+  isAuditPageUrl,
 } from "./search-console-task-read";
 
 const PROPERTY = "sc-domain:example.test";
@@ -129,6 +130,32 @@ describe("gscTaskToolArguments", () => {
       aggregation_type: "byPage",
       dimension_filter_groups: filters,
     });
+  });
+});
+
+describe("isAuditPageUrl", () => {
+  const pages = ["https://example.test/a", "http://www.shop.test/b/?x=1"];
+  it.each([
+    ["https://example.test/a", true],
+    ["http://example.test/a", true],
+    ["https://www.example.test/a", true],
+    ["https://shop.test/b?x=1", true],
+    ["https://example.test/a/", true],
+    ["https://example.test/c", false],
+    ["https://other.test/a", false],
+    ["https://example.test/a?x=1", false],
+    ["https://example.test:8443/a", false],
+    ["not a url", false],
+    ["ftp://example.test/a", false],
+  ])("%s is an audit page: %s", (url, same) => {
+    expect(isAuditPageUrl(url, pages)).toBe(same);
+  });
+
+  it("keeps a `www` label that is the whole name before the top-level domain", () => {
+    expect(isAuditPageUrl("https://com/a", ["https://www.com/a"])).toBe(false);
+    expect(isAuditPageUrl("https://www.com/a", ["https://www.com/a"])).toBe(
+      true,
+    );
   });
 });
 
