@@ -183,7 +183,39 @@ it("counts the month by where each post stands", () => {
         format: "search ad",
       },
     ]),
-  ).toEqual({ out: 2, scheduled: 1, written: 1, planned: 1, total: 5 });
+  ).toEqual({
+    out: 2,
+    scheduled: 1,
+    written: 1,
+    notSent: 0,
+    planned: 1,
+    total: 5,
+  });
+});
+
+it("counts a post that did not go out on its own and asks the owner to look", () => {
+  const overview = cmoOverview();
+  const calendar = overview.strategy?.calendar ?? [];
+  const [first, ...rest] = calendar;
+  if (!first) throw new Error("fixture has an entry");
+  const failed = {
+    ...first,
+    status: "draft" as const,
+    notSent: "X refused it: Your monthly spend cap has been reached.",
+  };
+  const strategy = overview.strategy
+    ? { ...overview.strategy, calendar: [failed, ...rest] }
+    : null;
+  const withFailed = { ...overview, strategy, approvedStrategy: strategy };
+  expect(monthProgress(monthEntries(withFailed)).notSent).toBe(1);
+  expect(needsYou(withFailed)).toContainEqual({
+    id: "not-sent",
+    title: "1 post didn't go out",
+    detail: "X refused it: Your monthly spend cap has been reached.",
+    action: "See post",
+    view: "calendar",
+    entryId: first.id,
+  });
 });
 
 it("leaves out the posts the plan bought does not make, as the Calendar does", () => {

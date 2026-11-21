@@ -33573,6 +33573,11 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         format: 'uuid'
                                     },
+                                    notSent: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 300
+                                    },
                                     visual: {
                                         type: 'string',
                                         minLength: 1,
@@ -33945,6 +33950,11 @@ export const MarketingStrategySchema = {
                                             socialPostId: {
                                                 type: 'string',
                                                 format: 'uuid'
+                                            },
+                                            notSent: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 300
                                             },
                                             visual: {
                                                 type: 'string',
@@ -35477,6 +35487,11 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 format: 'uuid'
                             },
+                            notSent: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 300
+                            },
                             visual: {
                                 type: 'string',
                                 minLength: 1,
@@ -35849,6 +35864,11 @@ export const MarketingStrategyRequestSchema = {
                                     socialPostId: {
                                         type: 'string',
                                         format: 'uuid'
+                                    },
+                                    notSent: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 300
                                     },
                                     visual: {
                                         type: 'string',
@@ -60029,6 +60049,11 @@ export const CmoPlanSchema = {
                         type: 'string',
                         format: 'uuid'
                     },
+                    notSent: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 300
+                    },
                     visual: {
                         type: 'string',
                         minLength: 1,
@@ -60401,6 +60426,11 @@ export const CmoPlanSchema = {
                             socialPostId: {
                                 type: 'string',
                                 format: 'uuid'
+                            },
+                            notSent: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 300
                             },
                             visual: {
                                 type: 'string',
