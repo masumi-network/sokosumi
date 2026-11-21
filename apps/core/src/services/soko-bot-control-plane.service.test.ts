@@ -6280,6 +6280,34 @@ describe("SET_VERSION and fleet migration", () => {
     );
   });
 
+  it("does not tell owners when the move keeps them outside the EU", async () => {
+    botFindManyMock.mockResolvedValue([
+      { id: BOT_ID, versionId: "v19" },
+      { id: "bot-eu", versionId: "v20" },
+    ]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v19" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockResolvedValue({ messageId: "m1" });
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v21",
+      reason: "Same models, new prompt",
+      notifyOwners: false,
+    });
+
+    // v19 already ran outside the EU: only the bot leaving v20 (EU) hears.
+    expect(result).toMatchObject({ moved: 2, notified: 1 });
+    expect(postOwnerNoticeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ sokoBotId: "bot-eu" }),
+    );
+  });
+
   it("gives each bot its own operation id, fresh on every run", async () => {
     // Two rows per bot — the ATTEMPTED intent and the SUCCEEDED outcome —
     // sharing that bot's key, and a different key per bot. Fresh per run

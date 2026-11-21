@@ -23,16 +23,20 @@ vi.mock("@/lib/actions/admin-soko-bots/action", () => ({
 
 import { SokoBotVersionMigration } from "./soko-bot-version-migration.client";
 
-function renderMigration(defaultVersionId = "v20") {
+function renderMigration(
+  defaultVersionId = "v20",
+  inUse = [{ versionId: "v16", count: 5 }],
+) {
   render(
     <SokoBotVersionMigration
       versions={[
         { id: "v16", name: "v16", euPinned: true },
         { id: "v19", name: "v19", euPinned: false },
         { id: "v20", name: "v20", euPinned: true },
+        { id: "v21", name: "v21", euPinned: false },
       ]}
       defaultVersionId={defaultVersionId}
-      inUse={[{ versionId: "v16", count: 5 }]}
+      inUse={inUse}
     />,
   );
   fireEvent.change(screen.getByRole("textbox"), {
@@ -75,6 +79,16 @@ describe("SokoBotVersionMigration", () => {
     fireEvent.click(screen.getByRole("button", { name: "confirm" }));
     await waitFor(() => expect(migrateActionMock).toHaveBeenCalled());
     expect(migrateActionMock.mock.calls[0][0].input.notifyOwners).toBe(true);
+  });
+
+  it("lets a move that stays outside the EU go quietly", async () => {
+    renderMigration("v21", [{ versionId: "v19", count: 5 }]);
+    const box = screen.getByRole("checkbox");
+    expect(box).toBeEnabled();
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: "confirm" }));
+    await waitFor(() => expect(migrateActionMock).toHaveBeenCalled());
+    expect(migrateActionMock.mock.calls[0][0].input.notifyOwners).toBe(false);
   });
 
   it("moves quietly when the box is cleared", async () => {
