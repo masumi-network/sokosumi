@@ -7763,6 +7763,7 @@
           "webRiskFailed": "Google Web Risk no dio respuesta para una o más páginas.",
           "lighthouseFailed": "La prueba de laboratorio de Lighthouse no dio resultado para una o más páginas.",
           "investigationFailed": "Falló una solicitud de la investigación de Search Console.",
+          "speedPagesFailed": "Falló el modelo que elige páginas adicionales para la prueba de velocidad. La auditoría solo probó las páginas auditadas.",
           "pageException": "El agente registró una excepción al analizar una página.",
           "pageFailureRate": "Fallaron {failed} de las {attempted} páginas que se intentaron analizar.",
           "gscDisconnected": "Se desconectó Search Console.",

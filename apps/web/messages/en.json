@@ -7799,6 +7799,7 @@
           "webRiskFailed": "Google Web Risk gave no answer for one or more pages.",
           "lighthouseFailed": "The Lighthouse lab test gave no result for one or more pages.",
           "investigationFailed": "A Search Console investigation request failed.",
+          "speedPagesFailed": "The model that picks extra pages for the speed test failed. The audit tested the audited pages only.",
           "pageException": "The worker recorded a page exception.",
           "pageFailureRate": "{failed} of {attempted} attempted pages failed.",
           "gscDisconnected": "Search Console was disconnected.",

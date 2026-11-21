@@ -7763,6 +7763,7 @@
           "webRiskFailed": "Google Web Risk hat für mindestens eine Seite keine Antwort geliefert.",
           "lighthouseFailed": "Der Lighthouse-Labortest hat für mindestens eine Seite kein Ergebnis geliefert.",
           "investigationFailed": "Eine Anfrage der Search-Console-Untersuchung ist fehlgeschlagen.",
+          "speedPagesFailed": "Das Modell, das zusätzliche Seiten für den Geschwindigkeitstest auswählt, ist fehlgeschlagen. Das Audit hat nur die geprüften Seiten getestet.",
           "pageException": "Der Worker hat einen Fehler bei der Prüfung einer Seite aufgezeichnet.",
           "pageFailureRate": "Bei {failed} von {attempted} geprüften Seiten ist ein Fehler aufgetreten.",
           "gscDisconnected": "Die Verbindung zur Search Console wurde getrennt.",

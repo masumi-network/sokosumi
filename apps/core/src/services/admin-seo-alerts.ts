@@ -148,6 +148,7 @@ export async function listAdminSeoAlerts(
           CASE WHEN specialists ? 'seasonal' THEN 'seasonalFailed' END,
           CASE WHEN specialists ? 'exploration' THEN 'explorationFailed' END,
           CASE WHEN specialists ? 'searchInvestigation' THEN 'investigationFailed' END,
+          CASE WHEN specialists ? 'speedPages' THEN 'speedPagesFailed' END,
           CASE WHEN specialists ? 'editorialGemini' THEN 'editorialGemini' END,
           CASE WHEN specialists ? 'editorialCodex' THEN 'editorialCodex' END,
           CASE WHEN specialists ? 'editorialValidation' THEN 'editorialValidation' END,

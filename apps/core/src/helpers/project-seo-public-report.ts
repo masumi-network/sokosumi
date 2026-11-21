@@ -138,6 +138,7 @@ export function failedSeoSpecialists(raw: unknown) {
     | "seasonal"
     | "exploration"
     | "searchInvestigation"
+    | "speedPages"
     | (typeof editorialStages)[number]
   )[] = [];
   if (
@@ -157,6 +158,9 @@ export function failedSeoSpecialists(raw: unknown) {
       failed.push("exploration");
     if (site && input.specialistFailures.includes("searchInvestigation"))
       failed.push("searchInvestigation");
+    // The model that picks the extra pages of the site speed test (seo-bot `speed-pages.ts`).
+    if (site && input.specialistFailures.includes("speedPages"))
+      failed.push("speedPages");
   }
   for (const stage of editorialStages) {
     if (
