@@ -46,6 +46,8 @@ export interface UserAuthenticationContext {
    * effective (target) user.
    */
   impersonatedBy?: string;
+  /** Better Auth session id, for `authenticationMethod: "session"`. */
+  sessionId?: string;
 }
 
 /**
@@ -707,6 +709,7 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
       organizationId: session.activeOrganizationId ?? null,
       role: user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "session",
+      sessionId: session.id,
       ...(session.impersonatedBy
         ? { impersonatedBy: session.impersonatedBy }
         : {}),

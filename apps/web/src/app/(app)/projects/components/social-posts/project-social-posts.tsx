@@ -1443,7 +1443,7 @@ export function ProjectSocialPosts({
 
           {accountPrompt ? (
             <div
-              className="bg-card-background flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="bg-card-background flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between"
               data-testid={
                 accountPrompt === "reconnect"
                   ? "social-reconnect-prompt"

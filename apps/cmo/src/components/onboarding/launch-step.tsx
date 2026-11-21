@@ -312,7 +312,9 @@ export function LaunchStep({
                   ) : done ? (
                     <span className="ob-connected">
                       <StatusDisc status="ok" />
-                      {account?.handle ? `@${account.handle}` : "Connected"}
+                      {account?.handle
+                        ? `@${account.handle.replace(/^@/, "")}`
+                        : "Connected"}
                     </span>
                   ) : (
                     <>
