@@ -69,6 +69,10 @@ export function TaskEditModal({
       isDismissDisabled={isDismissDisabled}
     >
       <TaskForm
+        // Next keeps a closed edit route mounted but hidden, with the draft
+        // in it. Each opening is a new navigation with a new bfcacheId, so
+        // Edit starts from the saved task, not from an edit that was cancelled.
+        key={router.bfcacheId}
         mode="edit"
         showCancel={false}
         labels={labels}
