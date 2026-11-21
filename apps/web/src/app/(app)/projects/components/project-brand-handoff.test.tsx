@@ -12,6 +12,7 @@ import {
   pollDesignMdGeneration,
   startDesignMdGeneration,
 } from "@/lib/actions/design-md/action";
+import { resolveProjectSiteIcon } from "@/lib/actions/project/action";
 
 // The real generation hook and storage between the wizard and the project
 // page; only the server actions are mocked.
@@ -236,6 +237,23 @@ describe("project brand generation across surfaces", () => {
     ).toHaveAttribute("aria-invalid", "true");
     expect(startDesignMdGeneration).toHaveBeenCalledOnce();
     expect(storage.getItem(FAILURE_KEY)).toBeNull();
+  });
+
+  it("resolves the site icon at once, while DESIGN.md waits for the viewer", async () => {
+    session.current = { data: null };
+    vi.mocked(startDesignMdGeneration).mockReturnValue(new Promise(() => {}));
+
+    // The owner may open the project before the session loads: the icon
+    // must already be on its way.
+    const setup = render(wizard());
+    await act(async () => {});
+    expect(resolveProjectSiteIcon).toHaveBeenCalledOnce();
+    expect(startDesignMdGeneration).not.toHaveBeenCalled();
+
+    session.current = { data: { user: { id: "viewer-1" } } };
+    setup.rerender(wizard());
+    await waitFor(() => expect(startDesignMdGeneration).toHaveBeenCalledOnce());
+    expect(resolveProjectSiteIcon).toHaveBeenCalledOnce();
   });
 
   it("starts and resumes only once the viewer is known, so a failure is kept", async () => {

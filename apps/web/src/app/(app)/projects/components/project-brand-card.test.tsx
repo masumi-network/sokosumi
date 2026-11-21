@@ -6,6 +6,7 @@ import {
   ProjectBrandCard,
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
+import { projectBrandJobCallbacks } from "@/app/projects/project-brand-job";
 import {
   removeProjectDesignMd,
   updateProject,
@@ -633,6 +634,40 @@ describe("ProjectBrandCard", () => {
     expect(field).toHaveAccessibleDescription(
       "We couldn't generate a DESIGN.md from bad.invalid. Check the address and try again. Last tried Nov 20, 2026, 11:56 PM",
     );
+  });
+
+  it("lets another attempt's failure replace its own for good", () => {
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+    const attempt = { attemptId: "attempt-1", url: "https://bad.invalid/" };
+    act(() => {
+      generationCallback<typeof attempt>("onStarted")(attempt);
+      generationCallback<typeof attempt>("onFailed")(attempt);
+    });
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    // Another surface in this tab (the wizard) fails on a later attempt.
+    const other = projectBrandJobCallbacks("project-1", "viewer-1");
+    act(() => {
+      other.onStarted({ attemptId: "other" });
+      window.sessionStorage.setItem(
+        FAILURE_KEY,
+        JSON.stringify({
+          failedAt: "2026-11-21T00:00:00.000Z",
+          website: "https://bad.invalid/",
+        }),
+      );
+      other.onSettled({ attemptId: "other" });
+    });
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    // A retry clears that failure; the older one must not come back.
+    act(() => other.onStarted({ attemptId: "retry" }));
+    expect(screen.queryByText("Failed")).toBeNull();
   });
 
   it("remembers a failure the generation reports", () => {

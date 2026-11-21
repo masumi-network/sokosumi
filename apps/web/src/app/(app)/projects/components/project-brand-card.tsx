@@ -180,7 +180,15 @@ export function ProjectBrandProvider({
     [storedFailureJson],
   );
   // The failure this page just saw keeps its `live` flag, and stays when
-  // storage could not keep it; a retry here clears it.
+  // storage could not keep it; a retry here clears it. A later failure stored
+  // by another surface replaces it for good.
+  if (
+    liveFailure &&
+    storedFailure &&
+    liveFailure.failedAt !== storedFailure.failedAt
+  ) {
+    setLiveFailure(null);
+  }
   const failure =
     liveFailure &&
     (!storedFailure || liveFailure.failedAt === storedFailure.failedAt)

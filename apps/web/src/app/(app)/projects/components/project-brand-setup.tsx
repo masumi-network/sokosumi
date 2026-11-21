@@ -2,7 +2,7 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -36,24 +36,79 @@ interface ProjectBrandSetupProps {
 }
 
 export function ProjectBrandSetup(props: ProjectBrandSetupProps) {
+  const { projectId, projectName, websiteUrl, onReadyLogo, onBrandChange } =
+    props;
+  const t = useTranslations("App.Projects.Wizard.brand");
   const viewerId = useSession().data?.user.id;
-  // Brand setup starts once the viewer is known, so a failure is kept for the
-  // project page: it mounts again when the session loads.
-  return <BrandSetup key={viewerId ?? ""} {...props} viewerId={viewerId} />;
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isResolvingLogo, setIsResolvingLogo] = useState(true);
+  // Kept here: the icon starts on the first mount and must not start again
+  // when brand setup mounts again for the viewer.
+  const iconStarted = useRef(false);
+
+  const resolveIcon = () => {
+    if (iconStarted.current) return;
+    iconStarted.current = true;
+    void (async () => {
+      try {
+        const result = await resolveProjectSiteIcon({
+          url: websiteUrl,
+          projectId,
+        });
+        const nextLogo = result.ok ? (result.value.url ?? null) : null;
+        setLogoUrl(nextLogo);
+        onReadyLogo?.(nextLogo);
+        onBrandChange?.({ logo: nextLogo });
+        if (nextLogo) {
+          const updateResult = await updateProject({
+            projectId,
+            name: projectName,
+            logo: nextLogo,
+          });
+          if (!updateResult.ok) {
+            toast.error(t("logoFailed"));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to resolve project logo", error);
+        toast.error(t("logoFailed"));
+      } finally {
+        setIsResolvingLogo(false);
+      }
+    })();
+  };
+
+  // DESIGN.md setup starts once the viewer is known, so a failure is kept for
+  // the project page: it mounts again when the session loads.
+  return (
+    <BrandSetup
+      key={viewerId ?? ""}
+      {...props}
+      isResolvingLogo={isResolvingLogo}
+      logoUrl={logoUrl}
+      resolveIcon={resolveIcon}
+      viewerId={viewerId}
+    />
+  );
 }
 
 function BrandSetup({
   projectId,
   projectName,
   websiteUrl,
-  onReadyLogo,
   onBrandChange,
+  isResolvingLogo,
+  logoUrl,
+  resolveIcon,
   viewerId,
-}: ProjectBrandSetupProps & { viewerId: string | undefined }) {
+}: ProjectBrandSetupProps & {
+  isResolvingLogo: boolean;
+  logoUrl: string | null;
+  resolveIcon: () => void;
+  viewerId: string | undefined;
+}) {
   const t = useTranslations("App.Projects.Wizard.brand");
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [isResolvingLogo, setIsResolvingLogo] = useState(true);
 
   const owner = useMemo<DesignMdOwner>(
     () => ({ type: "project", projectId }),
@@ -82,35 +137,8 @@ function BrandSetup({
   });
 
   useMountEffect(() => {
+    resolveIcon();
     if (!viewerId) return;
-    void (async () => {
-      try {
-        const result = await resolveProjectSiteIcon({
-          url: websiteUrl,
-          projectId,
-        });
-        const nextLogo = result.ok ? (result.value.url ?? null) : null;
-        setLogoUrl(nextLogo);
-        onReadyLogo?.(nextLogo);
-        onBrandChange?.({ logo: nextLogo });
-        if (nextLogo) {
-          const updateResult = await updateProject({
-            projectId,
-            name: projectName,
-            logo: nextLogo,
-          });
-          if (!updateResult.ok) {
-            toast.error(t("logoFailed"));
-          }
-        }
-      } catch (error) {
-        console.error("Failed to resolve project logo", error);
-        toast.error(t("logoFailed"));
-      } finally {
-        setIsResolvingLogo(false);
-      }
-    })();
-
     void brand.generate({ url: websiteUrl });
   });
 
