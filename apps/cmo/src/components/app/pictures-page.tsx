@@ -149,7 +149,6 @@ export function PicturesPage({
             <span className="sr-only">Month</span>
             <select
               id="pictures-month"
-              className="input"
               value={filters.month ?? ""}
               onChange={(event) =>
                 setFilters({
@@ -257,7 +256,7 @@ function PictureGroup({
             <div className="picture-empty">Not chosen yet</div>
           )}
           <figcaption>
-            <span className="tag ok">On the post</span>
+            {chosenUrl ? <span className="tag ok">On the post</span> : null}
             {chosen ? <span className="note">{chosen.model}</span> : null}
             {group.reason ? (
               <p className="picture-reason">{group.reason}</p>

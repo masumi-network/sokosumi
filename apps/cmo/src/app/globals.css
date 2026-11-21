@@ -5698,6 +5698,16 @@ button.week-more {
 
 .pictures-month select {
   min-width: 10rem;
+  max-width: 100%;
+  padding: 4px 14px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .picture-head {
