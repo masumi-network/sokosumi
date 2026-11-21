@@ -175,6 +175,7 @@ vi.mock("sonner", () => ({
     custom: (...args: unknown[]) => toastCustomMock(...args),
     dismiss: (...args: unknown[]) => toastDismissMock(...args),
     error: (...args: unknown[]) => toastErrorMock(...args),
+    loading: vi.fn(),
     success: vi.fn(),
   },
 }));
@@ -494,6 +495,82 @@ describe("TaskActivitySection", () => {
       "data-default-open",
       "true",
     );
+  });
+
+  it("downloads a finished result as a PDF named after the Task", async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init?: RequestInit) => new Response("%PDF"),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:x");
+    vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+    const saved: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push(this.download);
+    });
+    const events: TaskEvent[] = [
+      createEvent("completed-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+        comment: [
+          "## Plan by @agent-1",
+          "",
+          "- Newsletter",
+          "- LinkedIn",
+          "",
+          "1. Draft",
+          "2. Review",
+          "",
+          "| Channel | Budget |",
+          "| --- | --- |",
+          "| Ads | 500 |",
+        ].join("\n"),
+      }),
+    ];
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        agentNameById={new Map([["agent-1", "Writer"]])}
+        taskName="Launch plan"
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "download" }));
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "exportAsPdf" }),
+    );
+
+    await waitFor(() => expect(saved).toEqual(["Launch plan.pdf"]));
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("/api/export/pdf");
+    const { html, fileName } = JSON.parse(String(init?.body));
+    expect(fileName).toBe("Launch plan");
+    // A file opened outside Sokosumi gets the mention as a name, not an app link.
+    expect(html).toContain("<h2>Plan by @Writer</h2>");
+    expect(html).not.toContain("/agents/");
+    expect(html).toMatch(/<ul>\s*<li>Newsletter<\/li>\s*<li>LinkedIn<\/li>/);
+    expect(html).toMatch(/<ol>\s*<li>Draft<\/li>\s*<li>Review<\/li>/);
+    expect(html).toMatch(/<table>[\s\S]*<th>Channel<\/th>[\s\S]*<td>500<\/td>/);
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("offers no download on a comment that is not the result", () => {
+    const events: TaskEvent[] = [
+      createEvent("running-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.RUNNING,
+        comment: "Still working on it.",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(
+      screen.queryByRole("button", { name: "download" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not force-expand a non-completed comment's markdown", () => {
