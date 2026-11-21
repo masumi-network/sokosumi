@@ -16,6 +16,7 @@ import {
   TaskFollowControl,
   type ViewerSokoBotFace,
 } from "@/app/tasks/components/task-follow-control";
+import { taskTableSource } from "@/app/tasks/components/task-result-table";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { taskActivityFeedFromEvents } from "@/app/tasks/utils/task-activity-feed";
@@ -146,6 +147,7 @@ export async function TaskActivitySectionContent({
         name,
       }))}
       canComment={canComment}
+      tableSource={taskTableSource(task)}
       headerAction={
         <TaskFollowControl
           taskId={taskId}

@@ -2269,7 +2269,18 @@
           "updateError": "No se pudo cambiar el proyecto",
           "needsDescription": "Esta tarea no tiene texto, así que solo puede ir donde quede adjunto un archivo de contexto. Añade una descripción para moverla a cualquier sitio."
         },
-        "organizationReadOnly": "solo lectura"
+        "organizationReadOnly": "solo lectura",
+        "saveTable": {
+          "save": "Guardar como tabla",
+          "open": "Abrir tabla",
+          "title": "Tabla de {task}",
+          "description": "Guardada desde la tarea «{task}» el {date}.",
+          "untitledColumn": "Columna {position}",
+          "saved": "{count, plural, one {Se guardó # fila en una tabla nueva.} other {Se guardaron # filas en una tabla nueva.}}",
+          "partial": "Se guardaron {saved} de {total} filas. Pulsa Guardar como tabla otra vez para terminar.",
+          "failed": "No se pudo guardar la tabla. Inténtalo de nuevo.",
+          "tooLarge": "Esta tabla es demasiado grande para guardarla. Una tabla admite hasta 100 columnas, nombres de columna de hasta 100 caracteres, celdas de hasta 20.000 caracteres y filas de hasta 1 MB de texto. Acorta las celdas o filas más largas e inténtalo de nuevo."
+        }
       },
       "NewTask": {
         "ContextAttachments": {

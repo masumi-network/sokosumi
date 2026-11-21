@@ -2269,7 +2269,18 @@
           "updateError": "Failed to update project",
           "needsDescription": "This task has no text, so it can only move where a context file stays attached. Add a description to move it anywhere."
         },
-        "organizationReadOnly": "read-only"
+        "organizationReadOnly": "read-only",
+        "saveTable": {
+          "save": "Save as table",
+          "open": "Open table",
+          "title": "{task} table",
+          "description": "Saved from “{task}” on {date}.",
+          "untitledColumn": "Column {position}",
+          "saved": "{count, plural, one {Saved # row to a new table.} other {Saved # rows to a new table.}}",
+          "partial": "Saved {saved} of {total} rows. Press Save as table again to finish.",
+          "failed": "Failed to save table. Try again.",
+          "tooLarge": "This table is too big to save. A table holds up to 100 columns, column names up to 100 characters, cells up to 20,000 characters and rows up to 1 MB of text. Shorten the longest cells or rows and try again."
+        }
       },
       "NewTask": {
         "ContextAttachments": {
