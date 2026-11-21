@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { importProjectSeoAudit } from "@/services/project-seo-import.service";
+import { expectCoreLog } from "@/test/core-log";
 import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
 import {
   day,
@@ -55,7 +56,7 @@ describe.skipIf(!searchConsoleReadsEnabled)(
   "Task-scoped Search Console read boundaries",
   () => {
     const fx = searchConsoleReadFixture(network, ids.executor);
-    const { sitesList, query, read, setAccess } = fx;
+    const { sitesList, query, inspect, read, setAccess, kindOf } = fx;
     const budgetRow = () =>
       prisma.projectSeoObservation.findFirstOrThrow({
         where: { auditId: fx.auditId, kind: BUDGET_KIND },
@@ -78,6 +79,24 @@ describe.skipIf(!searchConsoleReadsEnabled)(
       expect(fx.reads).toHaveLength(1);
     });
 
+    it("lets the 60th inspection and the 400th query pass, then gives 429", async () => {
+      await seedBudget({
+        "sites.list": 1,
+        "urlInspection.inspect": 59,
+        "searchAnalytics.query": 399,
+      });
+      expect((await read(inspect())).status).toBe(200);
+      expect((await read(inspect())).status).toBe(429);
+      expect((await read(query())).status).toBe(200);
+      expect((await read(query())).status).toBe(429);
+      expect(fx.reads).toHaveLength(3);
+      expect((await budgetRow()).payload).toEqual({
+        "sites.list": 1,
+        "urlInspection.inspect": 60,
+        "searchAnalytics.query": 400,
+      });
+    });
+
     it("refuses a corrupt budget row instead of resetting the spent count", async () => {
       await seedBudget({ "sites.list": "9" });
       const response = await read(sitesList);
@@ -85,6 +104,69 @@ describe.skipIf(!searchConsoleReadsEnabled)(
       expect(await response.text()).not.toContain("siteEntry");
       expect(fx.reads).toHaveLength(1);
       expect((await budgetRow()).payload).toEqual({ "sites.list": "9" });
+    });
+
+    it("spends budget on a failed provider call", async () => {
+      expectCoreLog("warn", "A Task-scoped Search Console read failed");
+      fx.providerHook = () => new Response("upstream failed", { status: 500 });
+      expect((await read(query())).status).toBe(503);
+      expect((await budgetRow()).payload).toEqual({
+        "searchAnalytics.query": 1,
+      });
+    });
+
+    it("returns no Google body when the Task leaves RUNNING during the provider call", async () => {
+      fx.providerHook = async () => {
+        await prisma.task.update({
+          where: { id: fx.taskId },
+          data: { status: "COMPLETED" },
+        });
+        return null;
+      };
+      const response = await read(query());
+      expect(response.status).toBe(409);
+      expect(await response.text()).not.toContain("widget");
+      expect(fx.reads).toHaveLength(1);
+    });
+
+    it("binds a URL-prefix property exactly", async () => {
+      const prefix = "https://example.test/";
+      const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+        where: { taskId: fx.taskId },
+      });
+      const { searchConsoleAccess } = analysis.request as {
+        searchConsoleAccess: Record<string, unknown>;
+      };
+      await setAccess({ ...searchConsoleAccess, propertyId: prefix });
+      const rows = await read({ ...query(), siteUrl: prefix });
+      expect(rows.status, await rows.clone().text()).toBe(200);
+      expect((await read({ ...inspect(), siteUrl: prefix })).status).toBe(200);
+      for (const body of [
+        { ...query(), siteUrl: PROPERTY },
+        { ...query(), siteUrl: "https://example.test/a/" },
+        { ...query(), siteUrl: "http://example.test/" },
+        {
+          ...inspect("https://www.example.test/a"),
+          siteUrl: prefix,
+        },
+      ]) {
+        const response = await read(body);
+        expect(response.status, JSON.stringify(body)).toBe(409);
+        expect(await kindOf(response)).toBe("seo_gsc_property");
+      }
+      expect(fx.reads.map((entry) => entry.input.arguments)).toEqual([
+        expect.objectContaining({ site_url: prefix }),
+        { site_url: prefix, inspection_url: PAGE_URLS[0] },
+      ]);
+    });
+
+    it("refuses a request body over 64 KiB with 413", async () => {
+      const response = await read({
+        ...sitesList,
+        padding: "x".repeat(64 * 1024),
+      });
+      expect(response.status).toBe(413);
+      expect(fx.reads).toEqual([]);
     });
 
     it("imports a report with Search Console sections only for an audit approved with Search Console", async () => {
