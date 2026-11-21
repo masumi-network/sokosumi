@@ -1153,6 +1153,7 @@
       "loading": "Cargando hoja de cálculo",
       "failed": "No se pudo abrir esta hoja de cálculo.",
       "sheet": "Hoja {number}",
+      "column": "Columna {number}",
       "empty": "Esta hoja está vacía.",
       "truncated": "Se muestran las primeras {rows} filas y 50 columnas. Descarga el archivo para ver el resto."
     },

@@ -1153,6 +1153,7 @@
       "loading": "Loading spreadsheet",
       "failed": "This spreadsheet could not be opened.",
       "sheet": "Sheet {number}",
+      "column": "Column {number}",
       "empty": "This sheet is empty.",
       "truncated": "Showing the first {rows} rows and 50 columns. Download the file to see the rest."
     },

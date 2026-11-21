@@ -2,10 +2,11 @@
 
 import { Sheet as SheetIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
 import {
   MAX_ROWS,
   readSpreadsheet,
@@ -69,14 +70,46 @@ export function SpreadsheetFileView({
         <p className="text-muted-foreground text-sm">{t("failed")}</p>
       </div>
     );
-  return <SpreadsheetView sheets={state.sheets} />;
+  // A CSV has no bold or styles to mark its column names, so its first row is
+  // taken as them, as table import's "First row contains column names" does.
+  return <SpreadsheetView sheets={state.sheets} headerRow={kind === "csv"} />;
 }
 
-export function SpreadsheetView({ sheets }: { sheets: Spreadsheet[] }) {
+export function SpreadsheetView({
+  sheets,
+  headerRow = false,
+}: {
+  sheets: Spreadsheet[];
+  /** Show the first row as column headers, pinned while the rows scroll. */
+  headerRow?: boolean;
+}) {
   const t = useTranslations("Components.SpreadsheetView");
   const [active, setActive] = useState(0);
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const [thead, setThead] = useState<HTMLTableSectionElement | null>(null);
+  const [pinned, setPinned] = useState(true);
+  const measured = useMemo(() => [scroller, thead], [scroller, thead]);
+  // A header taller than a third of the preview, after wrapping, a narrow
+  // window or enlarged text, would cover the rows if pinned. It stays in the
+  // flow instead, whole, and scrolls away with them.
+  useLayoutResizeObserver(
+    measured,
+    () => {
+      if (scroller && thead)
+        setPinned(thead.offsetHeight <= scroller.clientHeight / 3);
+    },
+    { immediate: true },
+  );
   const sheet = sheets[active] ?? sheets[0];
   if (!sheet) return null;
+  const [head, ...rest] = sheet.rows;
+  const body = headerRow ? rest : sheet.rows;
+  // Rows can be ragged: every column any row reaches gets a header.
+  const width = Math.max(0, ...sheet.rows.map((row) => row.length));
+  const labels = Array.from({ length: width }, (_, index) => {
+    const text = head?.[index]?.text;
+    return text?.trim() ? text : null;
+  });
 
   return (
     <div className="grid min-w-0 gap-3">
@@ -112,10 +145,42 @@ export function SpreadsheetView({ sheets }: { sheets: Spreadsheet[] }) {
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         ) : null
       ) : (
-        <div className="max-h-[70dvh] overflow-auto rounded-md border">
+        <div
+          ref={setScroller}
+          className="max-h-[70dvh] overflow-auto rounded-md border"
+        >
           <table className="w-max min-w-full border-collapse text-sm">
+            {headerRow && head ? (
+              // Collapsed borders stay behind a sticky row; the inset shadow
+              // draws its bottom edge instead.
+              <thead
+                ref={setThead}
+                className={cn(
+                  "bg-card-background shadow-[inset_0_-1px_0_var(--color-border)]",
+                  pinned && "sticky top-0 z-10",
+                )}
+              >
+                <tr>
+                  {labels.map((label, cellIndex) => (
+                    <th
+                      // Columns have no identity beyond their place in the sheet.
+                      key={cellIndex}
+                      scope="col"
+                      className={cn(
+                        "max-w-80 border-e px-3 py-1.5 text-start align-top font-semibold whitespace-pre-wrap last:border-e-0",
+                        // Over a column of numbers, align with them.
+                        rest[0]?.[cellIndex]?.numeric && "text-end",
+                        !label && "text-muted-foreground",
+                      )}
+                    >
+                      {label ?? t("column", { number: cellIndex + 1 })}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            ) : null}
             <tbody>
-              {sheet.rows.map((row, rowIndex) => (
+              {body.map((row, rowIndex) => (
                 <tr
                   // Rows have no identity beyond their place in the sheet.
                   key={rowIndex}
