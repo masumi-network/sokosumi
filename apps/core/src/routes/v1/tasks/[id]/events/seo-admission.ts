@@ -3,7 +3,7 @@ import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { conflict, forbidden } from "@/helpers/error";
 import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
-import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
+import { isConfiguredSeoExecutor } from "@/lib/seo/analysis-executor-config";
 import {
   type AuthenticationContext,
   requireCoworkerAuthContext,
@@ -44,17 +44,8 @@ export async function requireSeoAdmission(
   tx: Prisma.TransactionClient,
 ) {
   const coworker = requireCoworkerAuthContext(auth);
-  const { executor } = getSeoAnalysisExecution();
   const context = input.expectedContext;
-  if (
-    coworker.context ||
-    !executor ||
-    executor.coworkerId !== coworker.coworkerId ||
-    (!("mode" in executor) &&
-      (executor.workspaceId !== context.workspaceId ||
-        executor.ownerId !== context.ownerId ||
-        executor.organizationId !== context.organizationId))
-  )
+  if (!isConfiguredSeoExecutor(coworker, context))
     throw forbidden("Only the assigned SEO worker can update an admission.");
 
   const task = await requireTaskWorkerContext(

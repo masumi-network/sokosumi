@@ -15,9 +15,16 @@ export function productionShare(production: Production): number {
   return Math.round((done / steps) * 100);
 }
 
-/** The two passes of a run, as the owner reads them. */
-export function productionSteps(production: Production): string {
-  const words = `Words ${production.written} of ${production.total}`;
+/**
+ * The two passes of a run, as the owner reads them, out of the month's
+ * posts: what Core no longer makes (already out) counts as written.
+ */
+export function productionSteps(
+  production: Production,
+  monthTotal: number = production.total,
+): string {
+  const done = Math.max(0, monthTotal - production.total);
+  const words = `Words ${production.written + done} of ${Math.max(monthTotal, production.total)}`;
   return production.needPictures > 0
     ? `${words} · Pictures ${production.pictured} of ${production.needPictures}`
     : words;

@@ -42,10 +42,10 @@ import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
 } from "@/app/tasks/utils/tasks-filters";
-import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { usePendingCreatedTasks } from "@/hooks/effects/use-pending-created-tasks";
+import { useRefreshWhenShown } from "@/hooks/effects/use-refresh-when-shown";
 import type { TaskEventData } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {

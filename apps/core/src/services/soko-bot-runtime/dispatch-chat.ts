@@ -1,9 +1,11 @@
 import {
   sokoBotAskCoworkerInputSchema,
+  sokoBotListRecipientsInputSchema,
   sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,
   sokoBotPreviewResultInputSchema,
   sokoBotReadChatInputSchema,
+  sokoBotSendMessageInputSchema,
 } from "@sokosumi/soko-bot";
 import { resolveChatResultReference } from "@/services/chat-result-preview.service";
 import {
@@ -12,6 +14,7 @@ import {
   SokoBotRuntimeAuthorizationError,
 } from "../soko-bot-runtime.service";
 import { actingMemberOf } from "./acting-scope";
+import { listRecipients, sendMessage } from "./chat-message";
 import { type RuntimeOperations } from "./operations";
 
 export async function dispatchChatTools(
@@ -42,6 +45,19 @@ export async function dispatchChatTools(
         ...parsed,
         toolCallId: input.toolCallId,
       });
+    }
+
+    case "send_message": {
+      const parsed = sokoBotSendMessageInputSchema.parse(input.input);
+      return sendMessage(runtime, authorized, {
+        ...parsed,
+        toolCallId: input.toolCallId,
+      });
+    }
+
+    case "list_recipients": {
+      const { query } = sokoBotListRecipientsInputSchema.parse(input.input);
+      return listRecipients(runtime, authorized, query);
     }
 
     case "preview_result": {

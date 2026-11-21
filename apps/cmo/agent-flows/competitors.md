@@ -7,6 +7,6 @@
 3. Core posts the week in chat as one message per check: one line per move with its source. Only a big move also says what it means and what to do: a price change on the competitor's own pricing page, or a launch, funding or an acquisition that the competitor or a newsroom reported.
 4. Turns competitor searches into search ad proposals when asked.
 
-**The owner should see:** one card in chat after each check, "What your competitors did this week", with "See every move"; a sourced feed on the Competitors tab; "Add to strategy" on each move. Never one message per move, and nothing called big that only a tracker, a directory, a blog or a changelog reports.
+**The owner should see:** one card in chat after each check, "What your competitors did this week", with "See every move"; a sourced feed on the Competitors tab; "Add to strategy" on each move. The Instagram scoreboard shows once a competitor has a real number; the owner's own row alone, or a table of dashes, shows nothing. Never one message per move, and nothing called big that only a tracker, a directory, a blog or a changelog reports.
 
 **Missing today:** ads need the Meta Ad Library token.

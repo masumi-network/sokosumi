@@ -47,7 +47,11 @@ export function briefForReview(
   const page = briefPage(brief.pages, goal.pageId);
   return {
     ...brief,
-    pages: changeBriefPage(brief.pages, { ...page, action: goal.action }),
+    pages: changeBriefPage(brief.pages, {
+      ...page,
+      action: goal.action,
+      ...(page.action !== goal.action && { completionEvent: undefined }),
+    }),
   };
 }
 

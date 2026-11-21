@@ -49,6 +49,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "post_chat",
   "open_direct_chat",
   "ask_coworker",
+  "send_message",
+  "list_recipients",
   "list_files",
   "read_file",
   "list_tables",
@@ -329,6 +331,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_schedules",
   "list_chats",
   "read_chat",
+  "list_recipients",
   "list_files",
   "read_file",
   "get_image",
@@ -468,6 +471,8 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // Opens a private channel of the owner, the bot and Coworkers and asks them
   // something. Nobody else is in it, so it is not an outward post.
   "ask_coworker",
+  // Writes to whoever the bot names, in a room Core picks with a person in it.
+  "send_message",
   "upload_file",
   "move_file",
   "delete_file",
@@ -656,7 +661,13 @@ export function capabilitiesForClassification(
   > = {
     MEMORY: ["update_memory", ...SKILL_CAPABILITIES],
     SCHEDULE: SCHEDULE_CAPABILITIES,
-    CHAT: ["post_chat", "open_direct_chat", "ask_coworker", "wait_for"],
+    CHAT: [
+      "post_chat",
+      "open_direct_chat",
+      "ask_coworker",
+      "send_message",
+      "wait_for",
+    ],
     // A table the owner asks for is a Files table, not a markdown file.
     FILE: [
       "upload_file",
@@ -717,6 +728,22 @@ export interface TurnClassification {
   unsureRoute?: SokoBotRoute;
   /** Jev's soft reads of a typed message: hints for context, never gates. */
   signals?: SokoBotTurnSignals;
+  /** How much work Jev reads in a typed message; picks the turn's model. */
+  complexity?: SokoBotTurnComplexity;
+}
+
+export const SOKO_BOT_TURN_COMPLEXITIES = [
+  "SIMPLE",
+  "NORMAL",
+  "COMPLEX",
+] as const;
+
+/** Jev's label and the probability it gave each option. */
+export interface SokoBotTurnComplexity {
+  label: (typeof SOKO_BOT_TURN_COMPLEXITIES)[number];
+  probabilities: Partial<
+    Record<(typeof SOKO_BOT_TURN_COMPLEXITIES)[number], number>
+  >;
 }
 
 /** Probabilities, 0–1, that a typed message does each of these. */

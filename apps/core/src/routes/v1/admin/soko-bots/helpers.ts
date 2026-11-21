@@ -33,7 +33,17 @@ export function mapDetail(
   detail: Awaited<ReturnType<typeof sokoBotControlPlane.getForAdmin>>,
 ) {
   const { user, ...bot } = detail;
-  return { ...bot, owner: user };
+  return {
+    ...bot,
+    owner: user,
+    turns: bot.turns.map((turn) => ({
+      ...turn,
+      modelCalls: turn.modelCalls.map(({ costUsdMicros, ...call }) => ({
+        ...call,
+        costUsd: Number(costUsdMicros) / 1_000_000,
+      })),
+    })),
+  };
 }
 
 export function traceIdFromTraceparent(traceparent: string | undefined) {

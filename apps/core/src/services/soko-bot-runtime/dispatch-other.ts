@@ -6,6 +6,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { ExaUnavailableError, searchExa } from "@/lib/soko-bot/exa";
 import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
+import { recordModelCall } from "@/lib/soko-bot/model-calls";
 import {
   RuntimeEventLog,
   runtimeEvent,
@@ -154,6 +155,11 @@ export async function dispatchOtherTools(
             usage: { costUsd: found.costUsd },
           }),
         );
+        await recordModelCall({
+          role: "search",
+          requestedModel: "exa/search",
+          costUsd: found.costUsd,
+        });
       }
       // Said on every result, so Cuso stops before the cap refuses him.
       return { ...found, searchesLeft: EXA_SEARCHES_PER_TURN - searches };

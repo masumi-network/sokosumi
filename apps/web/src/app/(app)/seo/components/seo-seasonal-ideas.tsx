@@ -6,6 +6,8 @@ import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoActionTaskButton } from "./seo-action-finding";
 import {
   seasonalIdeaTiming,
+  seasonalPlanningOrder,
+  seasonalPlanningSignal,
   useSeasonalClock,
 } from "./seo-seasonal-ideas-model";
 import {
@@ -25,9 +27,16 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
   if (!model.data.seasonalIdeas?.length) return null;
   const query = model.keywordSearch.trim().toLocaleLowerCase(locale);
   const ideas = model.data.seasonalIdeas.filter((idea) =>
-    [idea.keyword, idea.event?.name].some((label) =>
-      label?.toLocaleLowerCase(locale).includes(query),
-    ),
+    [
+      idea.keyword,
+      idea.event?.name,
+      ...(idea.contentPlan?.experiment?.targetQueries ??
+        idea.keywordIdeas ??
+        []),
+    ].some((label) => label?.toLocaleLowerCase(locale).includes(query)),
+  );
+  ideas.sort(
+    (a, b) => seasonalPlanningOrder(a, now) - seasonalPlanningOrder(b, now),
   );
   if (!ideas.length) return null;
   const month = (period: string) =>
@@ -57,13 +66,17 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
           const status = comparison?.status;
           const hasComparison =
             status === "above_baseline" || status === "no_observed_rise";
-          const updatePage =
-            idea.origin !== "market_history" &&
-            idea.action === "improve_existing_page";
           const timing = seasonalIdeaTiming(idea, now);
           const action = model.data.actions.find(
             (row) => row.id === idea.actionId,
           );
+          const plan =
+            idea.contentPlan?.disposition === "clarify" && !action
+              ? undefined
+              : idea.contentPlan;
+          const queryIdeas =
+            plan?.experiment?.targetQueries ?? idea.keywordIdeas ?? [];
+          const signal = seasonalPlanningSignal(idea, timing.upcoming);
           const noWindowRise =
             !idea.event && !idea.windows.length && timing.observed.length > 0;
           // What to confirm before acting, as one list: separate grey lines
@@ -75,7 +88,10 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
               : []),
             ...idea.limitations.filter(
               (limit) =>
-                limit !== "timing_uncertain" && limit !== "demand_unverified",
+                (limit !== "existing_page_may_cover" ||
+                  plan?.disposition === "clarify") &&
+                limit !== "timing_uncertain" &&
+                limit !== "demand_unverified",
             ),
           ];
           return (
@@ -93,6 +109,36 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
               <h3 className="text-sm font-medium">
                 <bdi lang={idea.language}>{idea.keyword}</bdi>
               </h3>
+              {!timing.passed && (
+                <div lang="en" className="space-y-1">
+                  <SeoPageText url={idea.url} workspace={model.data} />
+                  {plan ? (
+                    <>
+                      <p className="font-medium">
+                        {t(plan.disposition, { task: plan.readerTask })}
+                      </p>
+                      <p>{plan.nextStep}</p>
+                    </>
+                  ) : (
+                    <p>
+                      {action && idea.action === "improve_existing_page"
+                        ? t("improve_existing_page", {
+                            audience: idea.audience,
+                          })
+                        : t(signal ? "draft" : "inspectIntent", {
+                            keyword: idea.keyword,
+                          })}
+                    </p>
+                  )}
+                  {queryIdeas.length > 0 && (
+                    <p>
+                      {t("keywordTest", {
+                        queries: seoResultFormat.list(queryIdeas),
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
               {/* Market and audit date sit under the search they qualify. */}
               <p lang="en" className="text-muted-foreground text-xs">
                 {t("audit", {
@@ -124,9 +170,15 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
               )}
               {timing.upcoming.length > 0 && (
                 <p lang="en" className="text-sm font-medium">
-                  {t("planFor", {
-                    months: seoResultFormat.list(timing.upcoming.map(month)),
-                  })}
+                  {t(
+                    timing.upcoming.includes(timing.currentMonth)
+                      ? "prepareNow"
+                      : "prepareFor",
+                    {
+                      start: month(timing.prepareFrom),
+                      months: seoResultFormat.list(timing.upcoming.map(month)),
+                    },
+                  )}
                 </p>
               )}
               {timing.passed && (
@@ -138,11 +190,6 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                   })}
                 </p>
               )}
-              {updatePage && (
-                <p lang="en" className="text-sm">
-                  {t(idea.action, { audience: idea.audience })}
-                </p>
-              )}
               {action?.status === "unavailable" && (
                 <p className="text-muted-foreground text-sm">
                   {tActions("unavailable")}
@@ -151,35 +198,56 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
               {action && (action.taskId || !timing.passed) && (
                 <SeoActionTaskButton action={action} model={model} />
               )}
-              {(hasComparison || idea.windows.length > 0 || noWindowRise) && (
+              {signal && (
                 <p lang="en" className="text-muted-foreground text-sm">
-                  {t(
-                    hasComparison
-                      ? status
-                      : noWindowRise
-                        ? "noWindowRise"
-                        : "windowRise",
-                  )}
+                  {t(signal.key, {
+                    month: seoResultFormat.list(signal.months.map(month)),
+                    count: signal.count,
+                    rise: signal.rise ?? 0,
+                  })}
                 </p>
               )}
-              {!hasComparison && !idea.windows.length && (
+              {signal?.trends.map((row) => (
+                <p
+                  lang="en"
+                  key={row.historicalPeriod}
+                  className="text-muted-foreground text-sm"
+                >
+                  {t(row.peak ? "trendsAgree" : "trendsDiffer", {
+                    month: month(row.historicalPeriod),
+                  })}
+                </p>
+              ))}
+              {(hasComparison || noWindowRise) && (
+                <p lang="en" className="text-muted-foreground text-sm">
+                  {t(hasComparison ? status : "noWindowRise")}
+                </p>
+              )}
+              {!timing.passed && !hasComparison && !idea.windows.length && (
                 <p lang="en" className="text-muted-foreground text-sm">
                   {t("verifyDemand")}
                 </p>
               )}
               <details className="text-sm">
                 <SeoFoldSummary className="text-muted-foreground min-h-10 w-fit font-medium">
-                  {display("evidence")}
+                  {display(plan?.experiment ? "whyTest" : "evidence")}
                 </SeoFoldSummary>
                 <div lang="en" className="space-y-2 pb-2">
-                  {!updatePage && (
-                    <p lang="en" className="text-sm">
-                      {idea.origin === "market_history"
-                        ? t("historicalIdea")
-                        : t(idea.action, { audience: idea.audience })}
-                    </p>
+                  {plan?.experiment && (
+                    <>
+                      <p>
+                        {t("hypothesis", {
+                          reason: plan.experiment.hypothesis,
+                        })}
+                      </p>
+                      <p>
+                        {t("checkOutcome", {
+                          check: plan.experiment.successCheck,
+                        })}
+                      </p>
+                    </>
                   )}
-                  {checks.length > 0 && (
+                  {!timing.passed && checks.length > 0 && (
                     <ul
                       lang="en"
                       className="text-muted-foreground list-disc space-y-0.5 ps-5 text-sm"
@@ -189,10 +257,11 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                       ))}
                     </ul>
                   )}
-                  <p className="text-muted-foreground text-xs">{t("timing")}</p>
-                  <SeoPageText url={idea.url} workspace={model.data} />
+                  {timing.passed && (
+                    <SeoPageText url={idea.url} workspace={model.data} />
+                  )}
                   <blockquote dir="auto" lang="" className="border-s-2 ps-3">
-                    {idea.pageQuote}
+                    {plan?.passage ?? idea.pageQuote}
                   </blockquote>
                   {idea.windows.map((window) => (
                     <p key={window.targetPeriod}>

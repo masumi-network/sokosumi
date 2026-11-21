@@ -1,29 +1,9 @@
 import { SokoBotStatus } from "@sokosumi/core-client";
-import { useEffect, useState } from "react";
-import { z } from "zod";
 import { useFailedSokoBotIdPublisher } from "@/hooks/effects/use-failed-soko-bot-id-publisher";
-
-const ACTIVITY_ENDPOINT = "/api/personal-assistant/activity";
-/**
- * Slower than the console's 2.5 s probe: this row is on every page, and a turn
- * that starts and ends between two asks still leaves its last activity behind.
- */
-const POLL_MS = 5_000;
-const PROBE_TIMEOUT_MS = 8_000;
-
-const activityResponseSchema = z.object({
-  activity: z.object({
-    status: z.enum(SokoBotStatus),
-    // Optional until every Core answers with it; a missing one keeps the
-    // rendered time.
-    lastActivityAt: z.coerce.date().nullable().optional(),
-  }),
-});
-
-type LiveFields = Omit<
-  z.infer<typeof activityResponseSchema>["activity"],
-  "lastActivityAt"
-> & { lastActivityAt: Date | null };
+import {
+  type LiveSokoBotFields,
+  useLiveSokoBotPoll,
+} from "@/hooks/effects/use-live-soko-bot-poll";
 
 /**
  * Your bot as the server rendered it, kept current: its status and when it
@@ -31,57 +11,10 @@ type LiveFields = Omit<
  * navigation, so without this the row never changes.
  * Asks only while the tab is visible, and a failed ask keeps what it knows.
  */
-export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
+export function useLiveSokoBot<Bot extends LiveSokoBotFields & { id: string }>(
   bot: Bot,
 ): Bot {
-  const [live, setLive] = useState<Partial<LiveFields> | null>(null);
-  const [prevBot, setPrevBot] = useState(bot);
-
-  // Discard the poll overlay when the server-rendered bot identity changes.
-  if (bot !== prevBot) {
-    setPrevBot(bot);
-    setLive(null);
-  }
-
-  useEffect(() => {
-    let stopped = false;
-    let asking = false;
-
-    async function ask() {
-      if (stopped || asking || document.visibilityState !== "visible") return;
-      asking = true;
-      try {
-        const response = await fetch(ACTIVITY_ENDPOINT, {
-          credentials: "same-origin",
-          cache: "no-store",
-          signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-        });
-        if (!response.ok) return;
-        const body = activityResponseSchema.safeParse(await response.json());
-        if (body.success && !stopped) {
-          const { lastActivityAt, ...rest } = body.data.activity;
-          setLive(
-            lastActivityAt === undefined ? rest : { ...rest, lastActivityAt },
-          );
-        }
-      } catch {
-        // Offline or timed out: the next ask retries.
-      } finally {
-        asking = false;
-      }
-    }
-
-    void ask();
-    const interval = setInterval(() => void ask(), POLL_MS);
-    const onVisibility = () => void ask();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      stopped = true;
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
-
+  const live = useLiveSokoBotPoll(bot);
   const current = live ? { ...bot, ...live } : bot;
   // The chat list's Direct with this bot says what this row says: from the
   // server's status until a poll answers, and kept when a poll fails.

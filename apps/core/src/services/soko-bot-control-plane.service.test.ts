@@ -251,6 +251,7 @@ vi.mock("@/lib/db/database-now", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    sokoBotModelCall: { create: vi.fn().mockResolvedValue({}) },
     sokoBotIntent: { findMany: intentFindManyMock },
     chatRoomMention: {
       findUnique: vi.fn().mockResolvedValue({ message: { roomId: "room-1" } }),
@@ -3011,7 +3012,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT.filter(
         (capability) =>
           !isSokoBotNewsletterCapability(capability) &&
-          !isSokoBotAnnouncementCapability(capability),
+          !isSokoBotAnnouncementCapability(capability) &&
+          // v35's messaging tools; this bot runs an earlier version.
+          capability !== "send_message" &&
+          capability !== "list_recipients",
       ),
     );
   });

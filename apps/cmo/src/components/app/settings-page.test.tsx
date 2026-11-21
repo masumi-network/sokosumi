@@ -3,7 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { AGENT_NAME } from "../../lib/agent";
-import { cmoOverview, cmoPlans } from "../../test-fixtures/cmo";
+import {
+  cmoOverview,
+  cmoPlans,
+  cmoStrategyVersion,
+} from "../../test-fixtures/cmo";
 import { SettingsPage } from "./pages";
 
 const SUBSCRIBED = {
@@ -211,5 +215,34 @@ describe("Settings: changing the plan and the billing portal", () => {
     expect(text).not.toContain("Moves to Starter");
     expect(text).not.toContain("Keep my plan");
     expect(text).not.toContain("Manage billing");
+  });
+});
+
+describe("Settings: what Cuso does when", () => {
+  const nudge = {
+    key: "cmo-strategy-nudge",
+    name: "Strategy reminder",
+    when: "Once, two days after a strategy waits for approval",
+    description:
+      "One friendly reminder when the proposed strategy has waited about two days.",
+    nextRunAt: null,
+    timezone: "Europe/Berlin",
+  };
+
+  it("lists the strategy reminder only while a strategy waits", () => {
+    const base = cmoOverview();
+    const waiting = {
+      ...base,
+      ...cmoStrategyVersion(null),
+      routines: [nudge],
+    };
+    expect(markup({}, false, waiting)).toContain("Strategy reminder");
+    const approved = {
+      ...base,
+      ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+    };
+    expect(markup({}, false, { ...approved, routines: [nudge] })).not.toContain(
+      "Strategy reminder",
+    );
   });
 });

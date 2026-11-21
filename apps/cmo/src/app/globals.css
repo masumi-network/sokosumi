@@ -749,6 +749,20 @@ a.button {
   height: 16px;
 }
 
+/* In the open post a state can carry its reason ("Didn't go out. X paused
+   our posting…"): it wraps inside the sheet instead of pushing it wider. */
+.post-foot .state,
+.sheet-state .state {
+  flex: 1 1 12rem;
+  min-width: 0;
+  white-space: normal;
+}
+
+.post-foot .state .status-disc,
+.post-foot .state svg {
+  flex: none;
+}
+
 /* ── Landing ── */
 .landing {
   flex: 1;
@@ -5245,6 +5259,9 @@ button.week-more {
 }
 .month-planned {
   background: var(--surface);
+}
+.month-not-sent {
+  background: var(--line);
 }
 
 /* Pieces settle in one after another, from where they rest. */

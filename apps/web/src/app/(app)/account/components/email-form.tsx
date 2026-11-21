@@ -1,9 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -27,12 +27,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useEmailChangeReturnNotice } from "@/hooks/effects/use-email-change-return-notice";
 import { authClient } from "@/lib/auth/auth.client";
 import type { EmailChangeStatus } from "@/lib/auth/auth.server";
 import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
-
-/** Marks the change link's return to this page; a refused link adds `error`. */
-const EMAIL_CHANGE_PARAM = "emailChange";
 
 interface EmailFormProps {
   /** The address the account signs in with today. */
@@ -46,9 +44,6 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
   const completedEmail = emailChange?.completed?.newEmail;
   const t = useTranslations("App.Account.Email");
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const handledReturnRef = useRef(false);
   const [pendingAction, setPendingAction] = useState<
     "cancel" | "resend" | null
   >(null);
@@ -67,35 +62,7 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
     },
   });
 
-  // Only Core's completion record says the change went through: the query
-  // flag just marks a return from the link, where Better Auth adds `error`.
-  useEffect(() => {
-    if (handledReturnRef.current) return;
-    const changedTo =
-      completedEmail && completedEmail === currentEmail?.toLowerCase()
-        ? completedEmail
-        : null;
-    const returned = searchParams.has(EMAIL_CHANGE_PARAM);
-    if (!changedTo && !returned) return;
-    handledReturnRef.current = true;
-    if (changedTo) {
-      toast.success(t("changed", { email: changedTo }));
-      // An empty JSON body: Core answers a POST without one with 415.
-      void authClient.$fetch("/email-change/acknowledge", {
-        method: "POST",
-        body: {},
-      });
-    } else if (searchParams.has("error")) {
-      toast.error(t("linkFailed"));
-    }
-    if (returned) {
-      const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.delete(EMAIL_CHANGE_PARAM);
-      nextParams.delete("error");
-      const query = nextParams.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname);
-    }
-  }, [completedEmail, currentEmail, pathname, router, searchParams, t]);
+  useEmailChangeReturnNotice({ completedEmail, currentEmail, t });
 
   const requestChange = async (newEmail: string) =>
     runWithCaptcha(async (fetchOptions) => {

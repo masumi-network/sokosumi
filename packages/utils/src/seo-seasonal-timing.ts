@@ -51,6 +51,7 @@ export function seoSeasonalTiming(idea: Season, now: Date) {
   const upcoming = periods.filter((period) => period >= month);
   const passedMonths = periods.filter((period) => period < month);
   return {
+    currentMonth: month,
     eventPassed,
     upcoming,
     passedMonths,

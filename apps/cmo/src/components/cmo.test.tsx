@@ -552,9 +552,9 @@ describe("pages", () => {
         onChange={() => {}}
       />,
     );
-    expect(html).toContain("Published");
-    // The fixture's one written post waits for LinkedIn, so it is no draft.
-    expect(html).toContain("Waiting");
+    expect(html).toContain("This month");
+    // The fixture's one written post waits for LinkedIn.
+    expect(html).toContain("1 post waits for LinkedIn.");
     expect(html).toContain("Shopify");
     expect(html).toContain("once you connect an account");
     expect(html).not.toContain("Sokosumi");
@@ -625,6 +625,50 @@ describe("pages", () => {
       />,
     );
     expect(html).toContain('<a href="/channels">Channels</a>');
+  });
+
+  it("shows no approval card that would only say No ads", () => {
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={overview({
+          ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+          strategy: {
+            ...strategy,
+            questions: [],
+            ads: {
+              monthly: 0,
+              currency: "USD",
+              expect: "Nothing paid.",
+              without: "Posts bring the visits.",
+              setByOwner: false,
+            },
+          },
+        })}
+        onOpenCalendar={() => {}}
+        connectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).not.toContain("What you approved");
+    expect(html).not.toContain("No ads");
+  });
+
+  it("counts the month as planned and in the plan when the plan makes fewer", () => {
+    const base = overview(cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")));
+    const [first] = strategy.calendar;
+    if (!first) throw new Error("fixture has an entry");
+    const calendar = [first, { ...first, id: "beyond" }];
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={{
+          ...base,
+          strategy: { ...strategy, calendar },
+          production: { ...base.production, beyondPlan: ["beyond"] },
+        }}
+        onOpenCalendar={() => {}}
+        connectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).toContain("2 planned, 1 in your plan");
   });
 
   it("lists only answered questions as approved", () => {

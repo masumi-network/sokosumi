@@ -2,6 +2,10 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 import { seoPageSpeed } from "./seo-page-speed.schema";
+import {
+  seoReportPlanCandidate,
+  seoReportPlanSignal,
+} from "./seo-report-plan.schema";
 
 import {
   seoFirstScreen,
@@ -100,6 +104,8 @@ export const seoObservationSchema = z
     artifactHash: z.string(),
     /** Critical, major and minor findings this run saved for the selected pages. */
     issues: z.number().int().nonnegative(),
+    planCandidates: z.array(seoReportPlanCandidate).optional(),
+    planSignals: z.array(seoReportPlanSignal).optional(),
     checklistBreakdown: seoChecklistBreakdown.optional(),
     pageSpeed: seoPageSpeed.optional(),
     pageSpeedRecoveryFileId: seoIdSchema.optional(),

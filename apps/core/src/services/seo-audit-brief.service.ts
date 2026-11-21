@@ -181,6 +181,7 @@ export async function applySeoSetupGoal(
     });
   } else {
     const page = { ...pages[index], action: goal.action };
+    if (pages[index]?.action !== goal.action) delete page.completionEvent;
     if (
       !page.action &&
       !page.role &&

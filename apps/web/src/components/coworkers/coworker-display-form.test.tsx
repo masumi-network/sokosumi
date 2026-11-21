@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -132,12 +132,14 @@ describe("CoworkerDisplayForm", () => {
 
     expect(onBusyChange).toHaveBeenCalledWith(true);
 
-    resolveAction?.({
-      ok: true,
-      value: {
-        coworker: mockCoreCoworker({ name: "Ops Agent Renamed" }),
-      },
-    });
+    await act(async () =>
+      resolveAction?.({
+        ok: true,
+        value: {
+          coworker: mockCoreCoworker({ name: "Ops Agent Renamed" }),
+        },
+      }),
+    );
 
     await vi.waitFor(() => {
       expect(onBusyChange).toHaveBeenLastCalledWith(false);

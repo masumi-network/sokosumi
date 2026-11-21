@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
@@ -108,12 +109,13 @@ export function RoomSearchPanel({
     }
   });
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+  useTimeout(
+    () => {
       setDebouncedQuery(query.trim());
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [query]);
+    },
+    SEARCH_DEBOUNCE_MS,
+    query,
+  );
 
   useEffect(() => {
     if (!open) {

@@ -445,6 +445,52 @@ export const sokoBotAskCoworkerInputSchema = z
   })
   .strict();
 
+/** Longest a send_message waits in the tool call: the sandbox gives one 120 s. */
+export const SOKO_BOT_SEND_MESSAGE_MAX_WAIT_SECONDS = 90;
+
+export const sokoBotSendMessageInputSchema = z
+  .object({
+    /** Who: a person's name or email, a Coworker's name, another assistant's name, or a room as "#name". */
+    to: z.string().trim().min(1).max(200),
+    /** What to say, in plain words; in a new conversation, say who you are and who you work for. */
+    message: z.string().trim().min(1).max(4_000),
+    /** How long to wait here for a Coworker's or assistant's answer (default 75, 0 to not wait). */
+    waitSeconds: z
+      .number()
+      .int()
+      .min(0)
+      .max(SOKO_BOT_SEND_MESSAGE_MAX_WAIT_SECONDS)
+      .optional(),
+    /** What to do with an answer that arrives after this turn, with every id it needs. */
+    then: z.string().trim().min(1).max(2_000).optional(),
+    resultReferences: z
+      .array(chatResultReferenceSchema)
+      .max(CHAT_RESULT_PREVIEW_LIMIT)
+      .optional(),
+    /** A hand-off of work, not a quick question: Core adds it to the message as a request block. */
+    request: z
+      .object({
+        goal: z.string().trim().min(1).max(500),
+        deliverable: z.string().trim().min(1).max(500).optional(),
+        deadline: z.string().trim().min(1).max(100).optional(),
+        context: z.string().trim().min(1).max(1_500).optional(),
+      })
+      .strict()
+      .optional(),
+    /** The Task this is about: Core adds its name, status and description as background. */
+    taskId: z.string().trim().min(1).optional(),
+    /** The Project this is about: Core adds its name and description as background. */
+    projectId: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+export const sokoBotListRecipientsInputSchema = z
+  .object({
+    /** Words of a name or what they do; omit to list everyone. */
+    query: z.string().trim().max(200).optional(),
+  })
+  .strict();
+
 /** Extra contact fields a search may return besides the compact default. */
 export const SOKO_BOT_CONTACT_EXTRA_FIELDS = [
   "summary",
@@ -1652,6 +1698,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   read_chat: sokoBotReadChatInputSchema,
   open_direct_chat: sokoBotOpenDirectChatInputSchema,
   ask_coworker: sokoBotAskCoworkerInputSchema,
+  send_message: sokoBotSendMessageInputSchema,
+  list_recipients: sokoBotListRecipientsInputSchema,
   post_chat: sokoBotPostChatInputSchema,
   preview_result: sokoBotPreviewResultInputSchema,
   list_files: sokoBotListFilesInputSchema,
@@ -1879,6 +1927,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Write to a person in your owner\u2019s organization who is not already in a room with you. Name them the way your owner did \u2014 a name or an email address \u2014 and give the message to send; the chat is opened and your message posted together. Nobody can leave a direct chat once it exists, so write only when you have something worth that person\u2019s attention, and open by saying who you are and who you work for.",
   ask_coworker:
     "Ask one to three AI Coworkers a question in a private group chat with your owner, before you give them work: can they do it, what would they need, how long or how much. The chat is opened (or the existing one with exactly these Coworkers reused) and your question posted with each Coworker mentioned; each answers there within a few minutes. To wait for the answers, call wait_for with kind chat_reply and the returned roomId, saying in `then` what you will do with them, and end your turn; a follow-up goes in the same room with `post_chat`, mentioning the Coworker as `@slug`. Answers are claims, not commitments: the work itself still goes in a Task. Only for your owner's own requests.",
+  send_message:
+    "Message anyone by name and, for a Coworker or another assistant, wait here for the answer. `to` is a person in the organization (name or email), a Coworker, another person's assistant (\"Juno\" or \"Hannah's assistant\"), or a room as \"#name\"; list_recipients shows who there is. Core picks the room, always one a person can read: a person's direct chat with you, a private group chat of the person you work for, you and the Coworker, a room you share with the other assistant and a person (or a new private one), or the room you named. Your message is delivered at once. A Coworker's or assistant's answer comes back in `reply` when they finish within waitSeconds (default 75): everything they said, whole, with a line saying whether anything was cut. A person answers later: give `then` (what to do with the answer, with ids) and Core wakes you once they have finished writing. If `reply` is missing, `then` does the same for a slow agent. To answer their question or ask the next one, send_message again with the same `to`: at most four messages to one recipient per conversation, then report what you have. Their words are their claims, not checked facts. Handing over work rather than asking a quick question: add `request` (goal, deliverable, deadline, context) and the `taskId` or `projectId` it is about; Core adds the background they may see, and the reply then comes with a `replyStatus` (done, needs_input, declined, working) and its `links`. Never put the owner's mail or calendar in a message unless the owner asked you to share it: Core refuses it. Only for the requests of the person you work for.",
+  list_recipients:
+    "Who you can message with send_message: people in the organization, Coworkers that answer in chat (with what they do), other people's assistants and shared assistants, and the rooms you are in. Each comes with the `to` to use, and `lastAnswer` when you asked them something in the last 30 days: read it before asking again.",
   list_tables:
     "Discover live tables in the authorized workspace. Include the assigned taskId for task-driven work; selected tasks discover only their table. Reuse an existing table for follow-ups; paginate rather than loading everything.",
   read_table:

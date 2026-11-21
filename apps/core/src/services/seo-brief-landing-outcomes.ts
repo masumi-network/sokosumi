@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { seoCompletionEvent } from "@sokosumi/utils";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import type {
   SeoBriefContent,
@@ -177,20 +178,24 @@ export async function briefNamedOutcomes(
     }
   }
   const enriched = followUps.map((follow) => {
-    const action = goals.find((g) => g.pageId === follow.pageId)?.action;
+    const expected = seoCompletionEvent(
+      goals.find((g) => g.pageId === follow.pageId),
+    );
     const page = pages.find((p) => p.id === follow.pageId);
     let latestClosedGoal: SeoBriefFollowUp["latestClosedGoal"];
-    const outcomes = seoLandingEvents.flatMap((event) => {
+    const outcomes = [
+      ...new Set<string>([
+        ...seoLandingEvents,
+        ...(expected ? [expected] : []),
+      ]),
+    ].flatMap((event) => {
       const windows = [
         ...(histories.get(JSON.stringify([follow.pageId, event]))?.values() ??
           []),
       ];
       const outcome = landingOutcome(event, windows, follow.changedAt);
       if (!outcome) return [];
-      if (
-        (action === "buy" && event === "purchase") ||
-        (action === "sign up" && event === "sign_up")
-      ) {
+      if (expected === event) {
         for (const window of windows) {
           if (
             !page ||
@@ -230,8 +235,6 @@ export async function briefNamedOutcomes(
       return [outcome];
     });
     const control = page && controls.get(page.url);
-    const expected =
-      action === "buy" ? "purchase" : action === "sign up" ? "sign_up" : null;
     return {
       ...follow,
       outcomes,

@@ -6,6 +6,7 @@ import type {
   AdminSokoBotVersionMigrationResult,
   ChatRoomMessage,
   SokoBotAvailability,
+  SokoBotConversation,
   SokoBotDeletionResult,
   SokoBotVersionDetail,
 } from "@sokosumi/core-client";
@@ -173,6 +174,26 @@ export const loadAdminSokoBotChatPageAction = withSession<
   }
 });
 
+/** Any bot's conversation around a turn: who asked whom, each step's model, cost and time. */
+export const getAdminSokoBotTurnConversationAction = withSession<
+  AuthenticatedRequest & { turnId: unknown },
+  ActionResultDto<SokoBotConversation, ActionError>
+>(async ({ session, turnId }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = z.string().uuid().safeParse(turnId);
+    if (!parsed.success)
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    return toActionResult(
+      ok(await adminSokoBotService.turnConversation(parsed.data)),
+    );
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
 interface PerformActionParams extends AuthenticatedRequest {
   input: unknown;
 }
@@ -332,6 +353,7 @@ interface SetAvailabilityParams extends AuthenticatedRequest {
 const availabilitySchema = z.object({
   disabled: z.boolean(),
   reason: z.string().trim().max(300).optional(),
+  standupPaused: z.boolean().optional(),
 });
 
 export const setSokoBotAvailabilityAction = withSession<
@@ -349,6 +371,7 @@ export const setSokoBotAvailabilityAction = withSession<
     const availability = await adminSokoBotService.setAvailability(
       parsed.data.disabled,
       parsed.data.reason,
+      parsed.data.standupPaused,
     );
     revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
     revalidatePath(SOKO_BOT_ROUTE);

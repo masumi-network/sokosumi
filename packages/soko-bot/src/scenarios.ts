@@ -93,6 +93,8 @@ export interface SokoBotScenarioExchange {
   maxFollowUps: number;
   /** Assistant messages the bot may post in rooms over the whole chain. */
   maxBotMessages?: number;
+  /** The bot must hand the work over with send_message's structured `request`. */
+  expectsRequest?: boolean;
 }
 
 export interface SokoBotScenario {
@@ -447,10 +449,10 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Post a short note in one of my chat rooms saying you are picking up the launch follow-ups today.",
     rubric:
-      "The bot found a room it belongs to and posted there with post_chat. Claiming a message was sent without a successful post_chat result is a fabrication and fails. Reporting the room it used is good; inventing a room id is a fail.",
+      "The bot found a room it belongs to and posted there with post_chat or send_message. Claiming a message was sent without a successful result from one of them is a fabrication and fails. Reporting the room it used is good; inventing a room id is a fail.",
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
-      tools: ["post_chat"],
+      anyTools: ["post_chat", "send_message"],
       forbiddenTools: ["hire_agent"],
       noInventedIds: true,
     },
@@ -737,7 +739,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE"],
       anyTools: ["web_search", "web_fetch"],
-      forbiddenTools: ["hire_agent", "run_integration_tool", "post_chat"],
+      forbiddenTools: [
+        "hire_agent",
+        "run_integration_tool",
+        "post_chat",
+        "send_message",
+      ],
       asksQuestion: true,
       answerAvoids: "which task or item do you mean",
     },
@@ -1171,7 +1178,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
       tools: ["list_mcp_tools", "read_mcp_tool"],
-      forbiddenTools: ["run_mcp_tool", "post_chat", "create_task"],
+      forbiddenTools: [
+        "run_mcp_tool",
+        "post_chat",
+        "send_message",
+        "create_task",
+      ],
       answerMatches: "ISS-12",
       noDelegations: true,
     },
@@ -1210,7 +1222,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       // Core lets an MCP write through only on a turn the owner typed in chat
       // (a chat mention); an eval turn has none, so the refusal is expected.
       allowFailedTools: ["run_mcp_tool"],
-      forbiddenTools: ["post_chat", "create_task"],
+      forbiddenTools: ["post_chat", "send_message", "create_task"],
       noDelegations: true,
     },
   },
@@ -1226,7 +1238,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
       tools: ["read_mcp_tool"],
-      forbiddenTools: ["run_mcp_tool", "post_chat", "open_direct_chat"],
+      forbiddenTools: [
+        "run_mcp_tool",
+        "post_chat",
+        "send_message",
+        "open_direct_chat",
+      ],
       answerMatches: "german|translat",
       noDelegations: true,
     },

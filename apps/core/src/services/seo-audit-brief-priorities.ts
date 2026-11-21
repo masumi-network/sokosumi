@@ -28,6 +28,8 @@ const priorityTier = {
 type GoalControl = NonNullable<SeoBriefFollowUp["goalInvestigation"]>;
 /** Only a decline names a next step. A held goal stays routine. */
 const goalDeclineStep: Partial<Record<GoalControl["assessment"], string>> = {
+  handoff:
+    "More organic sessions reached this landing page, but sessions completing the named action did not grow. Test the handoff from the page to completion.",
   organic_declined:
     "The organic goal rate fell by at least 20% and the direct rate did not. Compare the queries, devices and countries in Search Console for the same two periods before testing page copy.",
   both_declined:

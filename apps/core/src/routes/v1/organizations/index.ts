@@ -21,6 +21,8 @@ import mountPutOrganizationMemberSeat from "./[id]/members/[memberId]/seat/put.j
 import mountGetOrganizationMembers from "./[id]/members/get.js";
 import mountGetOrganizationCallerSeat from "./[id]/members/me/seat/get.js";
 import mountGetOrganizationSeatSummary from "./[id]/seat-summary/get.js";
+import mountGetOrganizationStandup from "./[id]/standup/get.js";
+import mountPutOrganizationStandup from "./[id]/standup/put.js";
 import mountGetOrganizationStripeCustomer from "./[id]/stripe-customer/get.js";
 import mountPostOrganizationStripeCustomer from "./[id]/stripe-customer/post.js";
 import mountGetOrganizationSubscription from "./[id]/subscription/get.js";
@@ -70,6 +72,8 @@ mountGetOrganizationSubscriptionSeats(app);
 mountGetOrganizationSubscriptionSeatsPreview(app);
 mountPutOrganizationSubscriptionSeats(app);
 mountPutOrganizationDesignMd(app);
+mountGetOrganizationStandup(app);
+mountPutOrganizationStandup(app);
 // Static `/{id}/files/cleanup` before `/{id}/files` is fine; both are exact paths.
 mountCleanupOrganizationFiles(app);
 mountPostOrganizationFiles(app);

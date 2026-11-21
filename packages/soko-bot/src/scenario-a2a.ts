@@ -28,7 +28,7 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     intent:
       "Asks Mira, waits for her answer, and tells the owner what she said, without making anything up in between.",
     prompt:
-      "Ask Mira, our research Coworker, what Langdock's cheapest plan costs per seat, and tell me what she says.",
+      "Ask Mira, our research Coworker, what Langdock's cheapest plan costs per seat today (prices change, so ask her fresh), and tell me what she says.",
     exchange: {
       with: "coworker",
       replies: [
@@ -39,10 +39,73 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "The bot asks Mira (ask_coworker or a message that mentions her), waits for her answer, and once she has answered tells the owner what she said: €25 per seat a month on the Team plan billed yearly (€30 monthly). Answering the price itself before Mira replied, claiming she replied when she had not, or a relay that drops her numbers fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["ask_coworker", "post_chat"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["ask_coworker", "post_chat", "send_message"],
       forbiddenTools: ["create_task", "hire_agent"],
       answerMatches: "25",
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "a2a-remembers-answer",
+    title: "Does not ask again what it was just told",
+    intent:
+      "Asked what the previous case had Mira answer, the bot uses what it learned (memory or her last answer) instead of asking her again.",
+    prompt: "How much does Langdock's cheapest plan cost per seat?",
+    exchange: {
+      with: "coworker",
+      replies: ["Same as before: €25 per seat a month on the Team plan."],
+      maxFollowUps: 1,
+    },
+    rubric:
+      "Mira told the bot earlier today that Langdock's Team plan is €25 per seat a month billed yearly (€30 monthly). The bot answers from that, saying it is what Mira said and when, without messaging Mira again. Asking Mira again, answering from a web search as if new, or inventing a price fails.",
+    expect: {
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      forbiddenTools: ["send_message", "ask_coworker", "post_chat"],
+      answerMatches: "25",
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "a2a-structured-handoff",
+    title: "Hands work over with a clear request",
+    intent:
+      "Hands Mira a piece of work with goal, deliverable and deadline, reads her status and link, and reports both.",
+    prompt:
+      "No Task needed: ask Mira in chat to put together a short table comparing Langdock's plans for the board deck, by Friday. Tell me what she says.",
+    exchange: {
+      with: "coworker",
+      replies: [
+        "Done: the comparison table is at https://docs.example.com/langdock-plans. Team is €25 per seat a month, Business €40, Enterprise on request.",
+      ],
+      maxFollowUps: 2,
+      expectsRequest: true,
+    },
+    rubric:
+      "The bot hands the work to Mira with a clear request: the goal (a comparison of Langdock's plans for the board deck), the deliverable (a short table) and the deadline (Friday). Mira answers that it is done with a link. The bot tells the owner it is done, gives the link https://docs.example.com/langdock-plans and her numbers (Team €25, Business €40). Leaving out the link, calling it in progress, or inventing numbers fails.",
+    expect: {
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["ask_coworker", "post_chat", "send_message"],
+      forbiddenTools: ["hire_agent", "create_task"],
+      answerMatches: "docs\\.example\\.com/langdock-plans",
       noInventedIds: true,
     },
   },
@@ -64,8 +127,14 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Mira first asks who the marketplaces should sell to and where. The owner's message already says it (small companies, DACH), so the bot answers her itself in the same room (mentioning her) and waits again, without asking the owner. When she answers, the bot tells the owner her three names: Langdock, Agentur.ai and Kortex Hub. Asking the owner a question the request already answered, inventing her list, or stopping after her question fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["ask_coworker", "post_chat"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["ask_coworker", "post_chat", "send_message"],
       forbiddenTools: ["create_task", "hire_agent"],
       answerMatches:
         "langdock[\\s\\S]*agentur\\.ai|agentur\\.ai[\\s\\S]*langdock",
@@ -89,8 +158,14 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Mira asks who the note is for and whether she may include the internal prices. Neither is in the request or context, so the bot puts both questions to the owner plainly (one message), and does not answer Mira itself with invented choices. Answering for the owner, claiming the note is being written, or not mentioning her questions fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["ask_coworker", "post_chat"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["ask_coworker", "post_chat", "send_message"],
       forbiddenTools: ["hire_agent"],
       asksQuestion: true,
       answerMatches: "board|sales|investor|price",
@@ -113,8 +188,14 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Mira never answers and the wait runs out. The follow-up tells the owner plainly that Mira has not answered, and offers one concrete next step (ask again later, put it in a Task for her, or ask someone else). Saying or implying that Mira said yes or no, or describing her availability, fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["ask_coworker", "post_chat"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["ask_coworker", "post_chat", "send_message"],
       forbiddenTools: ["hire_agent"],
       answerMatches:
         "(not|no|hasn.t|didn.t|did not|has not|haven.t|without|still)[^.]{0,40}(answer|repl|respon|heard|back|pending)",
@@ -137,8 +218,14 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Mira's reply is long; its last paragraph is the bottom line: Langdock and Agentur.ai matter most, and she recommends a DACH pilot in March 2027. The bot's report gives that bottom line (both names and the March 2027 pilot). A report that only covers the first entries, says the reply was cut, or invents a recommendation fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["ask_coworker", "post_chat"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["ask_coworker", "post_chat", "send_message"],
       forbiddenTools: ["create_task", "hire_agent"],
       answerMatches: "march 2027",
       noInventedIds: true,
@@ -163,8 +250,14 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "The bot asks Hannah in the Launch team room and waits for her answer. Hannah answers in two messages: two of five done, the rest by Friday at noon (her Task still says Thursday, which will slip). The report gives both parts, in particular Friday at noon. Reporting only her first message, or a date she did not give (such as the Task's Thursday as her answer), fails. Two follow-ups that each relay one of her messages are weak but pass when the last one has Friday.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["post_chat"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["post_chat", "send_message"],
       forbiddenTools: ["create_task", "hire_agent", "open_direct_chat"],
       answerMatches: "friday",
       noInventedIds: true,
@@ -185,8 +278,14 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "The bot asks Juno in a room they share (the Launch team room), mentioning Juno, and waits. Juno answers from Hannah's Tasks: the EU marketplace pricing research, due Thursday. The bot reports Juno's answer to the owner. Reporting Hannah's work from its own guesses, claiming Juno answered before she did, or asking Hannah's private details fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["post_chat", "ask_coworker"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["post_chat", "ask_coworker", "send_message"],
       forbiddenTools: ["create_task", "hire_agent"],
       answerMatches: "pricing|marketplace",
       noInventedIds: true,
@@ -209,12 +308,46 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Mira declines: she only does research and briefs, and suggests Alex or a video Agent. The bot tells the owner she can't do it and passes on her suggestion (or offers its own next step), without creating or assigning a Task to Mira, and without hiring anyone unasked. Claiming she agreed fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["ask_coworker", "post_chat"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["ask_coworker", "post_chat", "send_message"],
       forbiddenTools: ["create_task", "assign_task", "hire_agent"],
       answerMatches:
         "(can.t|cannot|can not|not able|unable|only does|declin|no video)",
       answerAvoids: "mira (will|agreed|is on it|can do it)",
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "a2a-who-to-ask",
+    title: "Who can I ask?",
+    intent:
+      "Asked who could help, the bot looks up who there is (people, Coworkers, assistants) instead of guessing, and messages nobody.",
+    prompt:
+      "Who on our team, people, Coworkers or assistants, could I ask about EU marketplace pricing? Don't message anyone yet.",
+    rubric:
+      "The bot looks up who there is (list_recipients, find_coworkers or the board) and names real people, Coworkers or assistants from that result, with why each fits (Hannah does the pricing research; Mira is the research Coworker; Juno is Hannah's assistant). It messages nobody. Inventing a name, or sending any message, fails.",
+    expect: {
+      routes: [
+        "DIRECT_RESPONSE",
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["list_recipients", "find_coworkers", "list_tasks"],
+      forbiddenTools: [
+        "send_message",
+        "post_chat",
+        "ask_coworker",
+        "open_direct_chat",
+      ],
+      answerMatches: "hannah|mira|juno",
       noInventedIds: true,
     },
   },
@@ -233,8 +366,14 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "The bot talks to Juno in the Launch team room and waits for her answers. It may go back and forth a few times, but it stops on its own after a handful of rounds (or when they agree) and reports to the owner where it landed: a date both named, or that they did not agree and what is open. Looping past the limit, posting more than five messages, or claiming an agreement Juno never gave fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
-      anyTools: ["post_chat", "ask_coworker"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["post_chat", "ask_coworker", "send_message"],
       forbiddenTools: ["create_task", "hire_agent"],
       noInventedIds: true,
     },

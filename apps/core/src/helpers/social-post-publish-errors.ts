@@ -27,6 +27,20 @@ export interface PublishErrorClassification {
   summary: string;
 }
 
+/**
+ * A network's monthly cap on our app's posting (X's pay-per-use spend cap):
+ * our account's limit, never the owner's, and it lifts when we raise it or
+ * the month turns.
+ */
+const PLATFORM_PAUSE = /spend.?cap|usage.?cap|UsageCapExceeded/i;
+
+/** What `lastError` says while a network pauses our posting: our words, no cap. */
+export function platformPausedSummary(provider: SocialPostProvider): string {
+  return `${socialPostProviderLabel(provider)} paused our posting for now. We try again every hour.`;
+}
+
+export const PLATFORM_PAUSED = "platform_paused";
+
 function summarize(value: string | null | undefined): string {
   const flat = (value ?? "").replace(/\s+/g, " ").trim();
   return flat ? flat.slice(0, SUMMARY_LIMIT) : UNKNOWN_SUMMARY;
@@ -45,7 +59,17 @@ function isXImageRejection(message: string): boolean {
   );
 }
 
-function classifyApiError(error: ComposioApiError): PublishErrorClassification {
+function classifyApiError(
+  error: ComposioApiError,
+  provider: SocialPostProvider,
+): PublishErrorClassification {
+  if (PLATFORM_PAUSE.test(error.message)) {
+    return {
+      kind: PLATFORM_PAUSED,
+      transient: true,
+      summary: platformPausedSummary(provider),
+    };
+  }
   const summary = summarize(error.message);
   const status = error.providerStatus ?? error.httpStatus;
   const imageMessage = error.message.startsWith("X could not upload the image")
@@ -82,6 +106,13 @@ function classifyToolError(
 ): PublishErrorClassification {
   const providerMessage = error.providerMessage ?? "";
   const status = error.providerStatus;
+  if (PLATFORM_PAUSE.test(`${providerMessage} ${error.message}`)) {
+    return {
+      kind: PLATFORM_PAUSED,
+      transient: true,
+      summary: platformPausedSummary(provider),
+    };
+  }
   const label = socialPostProviderLabel(provider);
   const summary = summarize(
     provider === "x" && error.message.startsWith("X could not upload the image")
@@ -144,7 +175,8 @@ export function classifyPublishError(
   if (error instanceof ComposioPublishOutcomeUnknownError) {
     return { kind: "unknown", transient: false, summary: error.message };
   }
-  if (error instanceof ComposioApiError) return classifyApiError(error);
+  if (error instanceof ComposioApiError)
+    return classifyApiError(error, provider);
   if (error instanceof ComposioToolError)
     return classifyToolError(error, provider);
   if (error instanceof SocialPostMediaError) {
