@@ -146,12 +146,14 @@ describe("CreateTaskModal", () => {
     window.history.replaceState({}, "", "/");
   });
 
-  it("reports the created task without a second page render", () => {
+  it("reports the created task without a second page render", async () => {
     const onTaskCreated = vi.fn();
-    render(
-      <CreateTaskModalProvider initialOpen onTaskCreated={onTaskCreated}>
-        <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
-      </CreateTaskModalProvider>,
+    await act(async () =>
+      render(
+        <CreateTaskModalProvider initialOpen onTaskCreated={onTaskCreated}>
+          <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
+        </CreateTaskModalProvider>,
+      ),
     );
     const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
       onCreated: (taskId: string) => void;
@@ -201,23 +203,25 @@ describe("CreateTaskModal", () => {
     expect(getLatestProjectId()).toBeNull();
   });
 
-  it("opens a copy as a Draft with its name, visibility, assignee and brief, and forgets it for the next Task", () => {
-    render(
-      <CreateTaskModalProvider
-        initialOpen
-        initialPrompt="Summarise the week"
-        initialProjectId="project-1"
-        initialCopy={{
-          taskId: "source-task",
-          name: "Weekly report",
-          visibility: "PRIVATE",
-          assigneeId: null,
-          assigneeSokoBotId: "bot-1",
-          assigneeUserId: null,
-        }}
-      >
-        <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
-      </CreateTaskModalProvider>,
+  it("opens a copy as a Draft with its name, visibility, assignee and brief, and forgets it for the next Task", async () => {
+    await act(async () =>
+      render(
+        <CreateTaskModalProvider
+          initialOpen
+          initialPrompt="Summarise the week"
+          initialProjectId="project-1"
+          initialCopy={{
+            taskId: "source-task",
+            name: "Weekly report",
+            visibility: "PRIVATE",
+            assigneeId: null,
+            assigneeSokoBotId: "bot-1",
+            assigneeUserId: null,
+          }}
+        >
+          <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
+        </CreateTaskModalProvider>,
+      ),
     );
 
     const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
@@ -259,15 +263,17 @@ describe("CreateTaskModal", () => {
       act(() => props.onCancel());
     }
 
-    it("clears the deep-link params from the URL when opened by ?create=true", () => {
+    it("clears the deep-link params from the URL when opened by ?create=true", async () => {
       window.history.replaceState({}, "", "/calendar?create=true&assignee=cow");
-      render(
-        <CreateTaskModalProvider initialOpen>
-          <CreateTaskModal coworkerOptions={[]} initialCreateTaskOpen />
-        </CreateTaskModalProvider>,
+      await act(async () =>
+        render(
+          <CreateTaskModalProvider initialOpen>
+            <CreateTaskModal coworkerOptions={[]} initialCreateTaskOpen />
+          </CreateTaskModalProvider>,
+        ),
       );
 
-      dismissLatestForm();
+      await act(async () => dismissLatestForm());
 
       expect(routerReplaceMock).toHaveBeenCalledWith("/calendar");
     });

@@ -5,7 +5,7 @@ const { db, watches, taint, deliver } = vi.hoisted(() => ({
     workspace: { findUnique: vi.fn() },
     sokoBot: { findMany: vi.fn() },
     chatRoom: { findMany: vi.fn(), findFirst: vi.fn() },
-    sokoBotTurn: { findMany: vi.fn() },
+    sokoBotTurn: { findMany: vi.fn(), findUnique: vi.fn() },
     sokoBotToolCall: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -28,6 +28,14 @@ vi.mock("@/lib/db/transaction", () => ({
 }));
 vi.mock("@/services/soko-bot-watches.service", () => watches);
 vi.mock("@/lib/soko-bot/turn-loop", () => taint);
+vi.mock("./chat-message-handoff", () => ({
+  composeHandoff: async (
+    _authorized: unknown,
+    input: { message: string; request?: unknown },
+  ) => ({ message: input.message, handoff: Boolean(input.request) }),
+  guardPrivateData: async () => undefined,
+  describeReply: async () => ({ replyStatus: "done", links: [] }),
+}));
 vi.mock("@/services/soko-bot-effect-outbox.service", () => deliver);
 vi.mock("@/routes/v1/chats/rooms/helpers", () => ({
   resolveMentionedSokoBotIds: ({ content }: { content: string }) =>
@@ -173,6 +181,20 @@ describe("sendMessage", () => {
       reply: "- Mira: €25 per seat.",
       messagesToThem: 1,
     });
+  });
+
+  it("gives a hand-off's reply its status", async () => {
+    watches.chatReplyOutcome.mockResolvedValueOnce(
+      "- Mira: Done, table attached.",
+    );
+    expect(
+      await send({ waitSeconds: 30, request: { goal: "A plan comparison" } }),
+    ).toMatchObject({
+      reply: "- Mira: Done, table attached.",
+      replyStatus: "done",
+    });
+    watches.chatReplyOutcome.mockResolvedValueOnce("- Mira: €25.");
+    expect(await send({ waitSeconds: 30 })).not.toHaveProperty("replyStatus");
   });
 
   it("puts a question to another assistant in a room they share with a person, mentioning them", async () => {

@@ -1128,7 +1128,7 @@ describe("Notification Center view filter", () => {
     await user.unhover(screen.getByRole("tab", { name: /^filterUnread/ }));
 
     const toggle = screen.getByRole("button", { name: "markRead: mine" });
-    toggle.focus();
+    act(() => toggle.focus());
     await user.keyboard("{Enter}");
     await settle();
     // Focus is still on the row's control, so the row waits.

@@ -166,10 +166,12 @@ describe("starting from a template", () => {
     expect(rendered).toEqual(names);
   });
 
-  it("opens the brand kit and links to the current project's design in a separate tab", () => {
+  it("opens the brand kit and links to the current project's design in a separate tab", async () => {
     mocks.loadBrandKit.mockRejectedValueOnce(new Error("Unavailable"));
     mount();
-    fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "brandKit" })),
+    );
     const kit = screen.getByRole("link", { name: "brandKitNewTab" });
     expect(kit).toHaveAttribute("href", "/projects/p/design-md");
     expect(kit).toHaveAttribute("target", "_blank");

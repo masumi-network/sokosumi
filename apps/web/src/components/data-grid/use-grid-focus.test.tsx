@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { handleGridKey } from "./grid-keys";
 import { useGridFocus } from "./use-grid-focus";
@@ -51,7 +51,7 @@ describe("useGridFocus", () => {
   it("moves the selection with the arrow keys and stops at the edges", () => {
     render(<Grid />);
     const first = screen.getByRole("gridcell", { name: "r1-a" });
-    first.focus();
+    act(() => first.focus());
     fireEvent.keyDown(first, { key: "ArrowRight" });
     const right = screen.getByRole("gridcell", { name: "r1-b" });
     expect(document.activeElement).toBe(right);

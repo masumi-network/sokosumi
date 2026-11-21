@@ -1,5 +1,5 @@
 import type { Coworker } from "@sokosumi/core-client";
-import { screen } from "@testing-library/react";
+import { act, cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -169,31 +169,38 @@ describe("a Room visit's add-member picker", () => {
 });
 
 describe("a Room visit's channel suggestions", () => {
-  afterEach(() => clearMembershipVisibleRoomsSnapshot());
+  afterEach(() => {
+    cleanup();
+    clearMembershipVisibleRoomsSnapshot();
+  });
 
   // A `#random` here would otherwise point at the active workspace's channel.
-  it("leaves out the active workspace's channels", () => {
+  it("leaves out the active workspace's channels", async () => {
     publishMembershipVisibleRooms(
       [channelRoom({ id: "room-random", slug: "random" })],
       OTHER_WORKSPACE.id,
       "user-1",
     );
 
-    renderRoomsClient({ activeOrganization: OTHER_WORKSPACE });
+    await act(async () =>
+      renderRoomsClient({ activeOrganization: OTHER_WORKSPACE }),
+    );
 
     expect(screen.getByTestId("composer-channels")).toHaveTextContent(
       /^general$/,
     );
   });
 
-  it("keeps them in the reader's own workspace", () => {
+  it("keeps them in the reader's own workspace", async () => {
     publishMembershipVisibleRooms(
       [channelRoom({ id: "room-random", slug: "random" })],
       organization.id,
       "user-1",
     );
 
-    renderRoomsClient({ activeOrganization: organization });
+    await act(async () =>
+      renderRoomsClient({ activeOrganization: organization }),
+    );
 
     expect(screen.getByTestId("composer-channels")).toHaveTextContent(
       "random,general",

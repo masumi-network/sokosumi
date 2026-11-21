@@ -1300,6 +1300,13 @@ export type SokoBotConversation = {
         turnId: string;
         title: string;
         status: string;
+        modelReason: string | null;
+        calls: Array<{
+            role: string;
+            model: string;
+            calls: number;
+            costUsd: number;
+        }>;
         model: string | null;
         costUsd: number | null;
         durationMs: number | null;
@@ -15270,9 +15277,9 @@ export type CmoChatWorkItem = {
      */
     id: string;
     /**
-     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).
+     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), the SEO specialist's weekly audit of the site (audit), or the page changes and articles he saved to the SEO page (seo_saved).
      */
-    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question' | 'seo' | 'audit';
+    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question' | 'seo' | 'audit' | 'seo_saved';
     /**
      * making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.
      */
@@ -15334,6 +15341,10 @@ export type CmoChatWorkItem = {
      * A background run's own turn: its report in the room is this card.
      */
     turnId: string | null;
+    /**
+     * seo_saved: what Cuso saved to the SEO page, as the page shows it.
+     */
+    suggestions?: Array<CmoSeoSuggestion>;
 };
 
 export type CmoChatTable = {
@@ -15343,6 +15354,40 @@ export type CmoChatTable = {
      * Every row the table holds.
      */
     total: number;
+};
+
+export type CmoSeoSuggestion = {
+    id: string;
+    kind: 'article' | 'page_change' | 'landing_page';
+    source: 'audit' | 'cuso';
+    title: string;
+    keyword: string | null;
+    pageUrl: string | null;
+    why: string;
+    body: string;
+    newText: string | null;
+    currentText: string | null;
+    element: 'title' | 'description' | 'heading' | 'text' | null;
+    draft: string | null;
+    sources: Array<{
+        text: string;
+        sourceUrl: string;
+        quote: string;
+    }>;
+    evidence: Array<CmoSeoEvidence>;
+    status: 'open' | 'done' | 'verified' | 'dismissed';
+    createdAt: Date;
+    doneAt: Date | null;
+    verifiedAt: Date | null;
+};
+
+export type CmoSeoEvidence = {
+    metric: 'searchVolume' | 'difficulty' | 'intent' | 'position' | 'clicks' | 'impressions' | 'ctr' | 'auditIssue';
+    keyword: string | null;
+    pageUrl: string | null;
+    value: string;
+    source: 'keyword_research' | 'search_console' | 'weekly_audit';
+    observedAt: Date;
 };
 
 export type CmoPictures = {
@@ -15606,38 +15651,6 @@ export type CmoSearchConsole = {
         ctr: number | null;
         position: number | null;
     }>;
-};
-
-export type CmoSeoSuggestion = {
-    id: string;
-    kind: 'article' | 'page_change' | 'landing_page';
-    source: 'audit' | 'cuso';
-    title: string;
-    keyword: string | null;
-    pageUrl: string | null;
-    why: string;
-    body: string;
-    newText: string | null;
-    draft: string | null;
-    sources: Array<{
-        text: string;
-        sourceUrl: string;
-        quote: string;
-    }>;
-    evidence: Array<CmoSeoEvidence>;
-    status: 'open' | 'done' | 'verified' | 'dismissed';
-    createdAt: Date;
-    doneAt: Date | null;
-    verifiedAt: Date | null;
-};
-
-export type CmoSeoEvidence = {
-    metric: 'searchVolume' | 'difficulty' | 'intent' | 'position' | 'clicks' | 'impressions' | 'ctr' | 'auditIssue';
-    keyword: string | null;
-    pageUrl: string | null;
-    value: string;
-    source: 'keyword_research' | 'search_console' | 'weekly_audit';
-    observedAt: Date;
 };
 
 export type CmoKeywordSearch = {
@@ -17135,6 +17148,61 @@ export type SeoTaskRelatedPagesRequest = {
     expectedContext: TaskWorkerContext;
     seedPageUrls: Array<string>;
     relatedPageUrls: Array<string>;
+};
+
+export type SeoTaskSearchConsoleStatus = {
+    provider: 'search-console';
+    status: 'NOT_CONNECTED' | 'PENDING' | 'CONNECTED' | 'UNAVAILABLE';
+    reason?: 'not_connected' | 'reconnect' | 'property' | 'unavailable' | 'limited_audit';
+    authenticationUrl: string;
+    expiresAt: string | null;
+};
+
+export type SeoTaskSearchConsoleReply = {
+    status: number;
+    /**
+     * Google's native JSON body for the operation
+     */
+    body: {
+        [key: string]: unknown;
+    };
+};
+
+export type SeoTaskSearchConsoleRead = {
+    operation: 'sites.list';
+    expectedOwnerId: string;
+    expectedOrganizationId: string | null;
+} | {
+    operation: 'searchAnalytics.query';
+    siteUrl: string;
+    query: SeoTaskSearchAnalyticsQuery;
+    expectedOwnerId: string;
+    expectedOrganizationId: string | null;
+} | {
+    operation: 'urlInspection.inspect';
+    siteUrl: string;
+    inspectionUrl: string;
+    expectedOwnerId: string;
+    expectedOrganizationId: string | null;
+};
+
+export type SeoTaskSearchAnalyticsQuery = {
+    startDate: string;
+    endDate: string;
+    dimensions?: Array<'query' | 'page' | 'country' | 'device' | 'date' | 'searchAppearance'>;
+    type?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
+    dimensionFilterGroups?: Array<{
+        groupType?: 'and';
+        filters: Array<{
+            dimension: 'query' | 'page' | 'country' | 'device' | 'searchAppearance';
+            operator?: 'contains' | 'equals' | 'notContains' | 'notEquals' | 'includingRegex' | 'excludingRegex';
+            expression: string;
+        }>;
+    }>;
+    aggregationType?: 'auto' | 'byPage' | 'byProperty' | 'byNewsShowcasePanel';
+    dataState?: 'final' | 'all';
+    rowLimit: number;
+    startRow: number;
 };
 
 export type SendTaskToChatRequest = {
@@ -92736,7 +92804,9 @@ export type SearchCmoKeywordsForProjectResponses = {
 export type SearchCmoKeywordsForProjectResponse = SearchCmoKeywordsForProjectResponses[keyof SearchCmoKeywordsForProjectResponses];
 
 export type RequestCmoArticleIdeasForProjectData = {
-    body?: never;
+    body?: {
+        write?: boolean;
+    };
     path: {
         projectId: string;
     };
@@ -107643,6 +107713,276 @@ export type PostTasksByIdSeoIndexingRelatedPagesContextV1Responses = {
 };
 
 export type PostTasksByIdSeoIndexingRelatedPagesContextV1Response = PostTasksByIdSeoIndexingRelatedPagesContextV1Responses[keyof PostTasksByIdSeoIndexingRelatedPagesContextV1Responses];
+
+export type GetTasksByIdIntegrationsSearchConsoleData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/integrations/search-console';
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleError = GetTasksByIdIntegrationsSearchConsoleErrors[keyof GetTasksByIdIntegrationsSearchConsoleErrors];
+
+export type GetTasksByIdIntegrationsSearchConsoleResponses = {
+    /**
+     * Search Console status for the audit Task
+     */
+    200: {
+        data: SeoTaskSearchConsoleStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleResponse = GetTasksByIdIntegrationsSearchConsoleResponses[keyof GetTasksByIdIntegrationsSearchConsoleResponses];
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsData = {
+    body: SeoTaskSearchConsoleRead;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/integrations/search-console/reads';
+};
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict. Branch on `kind`: task_context_changed, seo_gsc_not_connected, seo_gsc_reconnect, seo_gsc_property or seo_gsc_unavailable.
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Task used its read budget for this operation
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway. `kind` seo_gsc_response_too_large means Google answered with more than Core forwards.
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Search Console could not be read. Retry.
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsError = PostTasksByIdIntegrationsSearchConsoleReadsErrors[keyof PostTasksByIdIntegrationsSearchConsoleReadsErrors];
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsResponses = {
+    /**
+     * Google's HTTP status and native JSON body
+     */
+    200: {
+        data: SeoTaskSearchConsoleReply;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsResponse = PostTasksByIdIntegrationsSearchConsoleReadsResponses[keyof PostTasksByIdIntegrationsSearchConsoleReadsResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

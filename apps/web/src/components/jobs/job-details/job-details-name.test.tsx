@@ -92,7 +92,7 @@ describe("useJobDetailsNameController", () => {
       ),
     });
 
-    await act(() => result.current.submit({ name: "New name" }));
+    await act(async () => result.current.submit({ name: "New name" }));
 
     expect(queryClient.getQueryData<Job>(getJobQueryKey(job.id))?.name).toBe(
       "New name",

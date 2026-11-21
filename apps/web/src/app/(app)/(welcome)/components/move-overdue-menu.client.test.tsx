@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -94,16 +95,12 @@ describe("MoveOverdueMenu", () => {
     expect(options.duration).toBe(Number.POSITIVE_INFINITY);
     expect(options.closeButton).toBe(true);
 
-    options.action.onClick();
-    await waitFor(() =>
-      expect(undoMoveOverdueTasks).toHaveBeenCalledWith({
-        to: "2026-11-13",
-        moved,
-      }),
-    );
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenLastCalledWith('undone:{"count":1}'),
-    );
+    await act(async () => options.action.onClick());
+    expect(undoMoveOverdueTasks).toHaveBeenCalledWith({
+      to: "2026-11-13",
+      moved,
+    });
+    expect(toast.success).toHaveBeenLastCalledWith('undone:{"count":1}');
   });
 
   it("says when only some Tasks moved", async () => {
@@ -135,7 +132,7 @@ describe("MoveOverdueMenu", () => {
 
     fireEvent.click(screen.getByText("targets.today"));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
-    toast.success.mock.calls[0]?.[1].action.onClick();
+    await act(async () => toast.success.mock.calls[0]?.[1].action.onClick());
 
     await waitFor(() =>
       expect(toast.success).toHaveBeenLastCalledWith(

@@ -269,13 +269,15 @@ describe("HistorySearchDialog", () => {
   });
 
   it("requests owned scope for organization users", async () => {
-    renderWithQuery(
-      <HistorySearchDialog
-        open
-        onOpenChange={vi.fn()}
-        activeOrganizationId="org-1"
-        labels={labels}
-      />,
+    await act(async () =>
+      renderWithQuery(
+        <HistorySearchDialog
+          open
+          onOpenChange={vi.fn()}
+          activeOrganizationId="org-1"
+          labels={labels}
+        />,
+      ),
     );
 
     await waitFor(() => {
@@ -289,13 +291,15 @@ describe("HistorySearchDialog", () => {
   });
 
   it("requests owned scope for personal workspace users", async () => {
-    renderWithQuery(
-      <HistorySearchDialog
-        open
-        onOpenChange={vi.fn()}
-        activeOrganizationId={null}
-        labels={labels}
-      />,
+    await act(async () =>
+      renderWithQuery(
+        <HistorySearchDialog
+          open
+          onOpenChange={vi.fn()}
+          activeOrganizationId={null}
+          labels={labels}
+        />,
+      ),
     );
 
     await waitFor(() => {

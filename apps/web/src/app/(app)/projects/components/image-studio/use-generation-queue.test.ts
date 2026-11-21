@@ -152,11 +152,11 @@ describe("useGenerationQueue", () => {
       useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.enqueue([request("1")]);
     });
 
-    await vi.waitFor(() => expect(result.current.waitingForSlot).toBe(true));
+    expect(result.current.waitingForSlot).toBe(true);
     // Still queued, not dropped: this is the difference between a batch of
     // four and a batch of three that nobody was told about.
     expect(result.current.queued).toHaveLength(1);
@@ -166,7 +166,7 @@ describe("useGenerationQueue", () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
 
-    await vi.waitFor(() => expect(result.current.queued).toHaveLength(0));
+    expect(result.current.queued).toHaveLength(0);
     expect(startImageGeneration).toHaveBeenCalledTimes(2);
   });
 
@@ -225,10 +225,10 @@ describe("useGenerationQueue", () => {
       useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.enqueue([request("1"), request("2")]);
     });
-    await vi.waitFor(() => expect(result.current.waitingForSlot).toBe(true));
+    expect(result.current.waitingForSlot).toBe(true);
 
     act(() => {
       result.current.remove("2");

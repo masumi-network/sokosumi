@@ -65,6 +65,19 @@ it("shows the weekly audit with its cost, the numbers behind each suggestion and
   expect(text()).not.toMatch(/Sokosumi|coming soon/i);
 });
 
+it("shows a page change Cuso read on the live page as before and after, as a Google result", async () => {
+  await render(actions(seo));
+  const card = container.querySelector(".seo-before-after");
+  expect(card?.textContent).toContain("Now");
+  expect(card?.textContent).toContain(
+    "Teams | Acme: scheduling infrastructure for everyone",
+  );
+  expect(card?.querySelector(".seo-side-after")?.textContent).toContain(
+    "Team Booking Software for Sales and Support | Acme",
+  );
+  expect(card?.querySelectorAll(".seo-result")).toHaveLength(2);
+});
+
 it("says the audit's findings in plain words, without its check ids", async () => {
   await render(actions(seo));
   expect(text()).toContain("Checks that did not pass");
@@ -165,10 +178,15 @@ it("marks a page change done and asks Cuso for more ideas and a full article", a
     seo.pageChanges[0].id,
     "done",
   );
-  await act(async () => button("More article ideas").click());
-  expect(page.askCusoForArticles).toHaveBeenCalledWith(undefined);
+  await act(async () => button("More ideas").click());
+  expect(page.askCusoForArticles).toHaveBeenCalledWith(undefined, false);
+  await act(async () => button("Write an article").click());
+  expect(page.askCusoForArticles).toHaveBeenCalledWith(undefined, true);
   await act(async () => button("Write it").click());
-  expect(page.askCusoForArticles).toHaveBeenCalledWith(seo.articles[0].id);
+  expect(page.askCusoForArticles).toHaveBeenCalledWith(
+    seo.articles[0].id,
+    false,
+  );
   expect(text()).toMatch(/is writing it/);
 });
 

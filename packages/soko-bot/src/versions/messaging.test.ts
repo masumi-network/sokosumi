@@ -31,4 +31,12 @@ describe("messaging tools by version", () => {
     expect(v35.skills).not.toContain("coworkers-and-agents");
     expect(v35.systemPrompt).toContain("`send_message` them by name");
   });
+
+  it("builds v36 on v35's messaging and v34's stronger model", () => {
+    const v36 = getSokoBotVersion("v36");
+    expect(v36.messaging).toBe("send_message");
+    expect(v36.strongModel).toBe(getSokoBotVersion("v34").strongModel);
+    expect(v36.skills).toContain("conversations-handoffs");
+    expect(v36.skills).not.toContain("conversations");
+  });
 });

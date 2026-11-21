@@ -153,13 +153,13 @@ describe("project brand generation across surfaces", () => {
 
     // The overview resumes the job and leaves while its poll is out.
     const departed = render(overview());
-    await act(() => vi.advanceTimersByTimeAsync(3000));
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
     expect(pollDesignMdGeneration).toHaveBeenCalledOnce();
     departed.unmount();
 
     // The DESIGN.md page resumes the same job, sees it fail, and retries.
     render(overview());
-    await act(() => vi.advanceTimersByTimeAsync(3000));
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
     expect(await screen.findByText("brandCard.failed")).toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: "brandCard.generate" }),

@@ -269,7 +269,7 @@ describe("CreateState", () => {
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
     // Opened from Soko Bots, not setup: the bot still says hello in its room.
     expect(openNewSokoBotRoom).toHaveBeenCalledWith("bot-1");
-    await act(() => vi.advanceTimersByTimeAsync(1500));
+    await act(async () => vi.advanceTimersByTimeAsync(1500));
     expect(pushMock).toHaveBeenCalled();
   });
 

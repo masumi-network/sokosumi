@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -18,13 +18,15 @@ describe("OrganizationChatList pendingInvitations default (Chat Error / #301)", 
     resetOrganizationChatListMocks();
   });
 
-  it("survives re-render when pendingInvitations prop is omitted", () => {
+  it("survives re-render when pendingInvitations prop is omitted", async () => {
     const consoleError = vi.spyOn(console, "error");
     try {
-      const { rerender } = render(createOrganizationChatList());
-      expect(() => {
+      const { rerender } = await act(async () =>
+        render(createOrganizationChatList()),
+      );
+      await act(async () => {
         rerender(createOrganizationChatList());
-      }).not.toThrow();
+      });
       expect(
         consoleError.mock.calls.some((call) =>
           call.some((arg) =>

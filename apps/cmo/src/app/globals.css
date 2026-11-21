@@ -2184,6 +2184,46 @@ video.draft-media {
   background: var(--surface);
 }
 
+/* A page change's before and after, side by side; stacked on a phone. */
+.seo-before-after {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.seo-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.seo-side p {
+  margin: 0;
+}
+
+.seo-side:not(.seo-side-after) {
+  color: var(--muted);
+}
+
+.seo-side-after {
+  border: var(--line-width-small) solid var(--line);
+}
+
+.seo-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.seo-result-title {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
 .seo-search {
   display: flex;
   flex-wrap: wrap;

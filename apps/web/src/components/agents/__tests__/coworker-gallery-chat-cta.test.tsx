@@ -1,5 +1,5 @@
 import type { Coworker } from "@sokosumi/core-client";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -124,7 +124,7 @@ describe("CoworkerGallerySection chat CTA", () => {
       );
       const field = screen.getByRole("textbox", { name: "searchHint" });
       expect(field).toHaveFocus();
-      opener.focus();
+      act(() => opener.focus());
       fireEvent.keyDown(window, { key: "f", ...modifier });
       expect(field).toHaveFocus();
     },

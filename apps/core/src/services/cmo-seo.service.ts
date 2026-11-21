@@ -37,6 +37,7 @@ import { normalizeSeoUrl } from "@/services/project-seo-store";
 import {
   auditSuggestionKey,
   latestCmoSeoAudit,
+  pageCarriesText,
   readCmoSeoAudit,
 } from "./cmo-seo-audit.service";
 import { cmoSeoMarket } from "./cmo-seo-market";
@@ -63,7 +64,7 @@ const KEYWORD_SEARCHES_SHOWN = 3;
 export const CMO_SEO_SUGGESTIONS_PER_SAVE = 5;
 const OPEN_SUGGESTIONS_MAX = 30;
 
-const CMO_SEO_ROUTE: PresetRoute = {
+export const CMO_SEO_ROUTE: PresetRoute = {
   route: "MANAGE_WORK",
   writeScope: "WORK",
   reason: "CMO SEO: article ideas and drafts from real search data.",
@@ -314,7 +315,7 @@ async function seedAuditPageChanges(projectId: string): Promise<void> {
   }
 }
 
-function toSuggestion(
+export function toSuggestion(
   row: Prisma.ProjectSeoSuggestionGetPayload<object>,
 ): CmoSeoSuggestion {
   const evidence = z.array(cmoSeoEvidenceSchema).safeParse(row.evidence);
@@ -331,6 +332,11 @@ function toSuggestion(
     why: row.why,
     body: row.body,
     newText: row.newText,
+    currentText: row.currentText,
+    element:
+      (["title", "description", "heading", "text"] as const).find(
+        (element) => element === row.element,
+      ) ?? null,
     draft: row.draft,
     sources: row.kind === "landing_page" ? landingPageSources(row.body) : [],
     evidence: evidence.success ? evidence.data : [],
@@ -486,11 +492,23 @@ export async function saveCmoSeoSuggestions(
       );
       continue;
     }
+    // The before is what the live page says; a page Core cannot read keeps the change without it.
+    const before = change.currentText
+      ? await pageCarriesText(change.pageUrl, change.currentText)
+      : null;
+    if (before === false) {
+      refused.push(
+        `"${change.title}": ${change.pageUrl} does not say "${change.currentText}". Read the page and copy currentText from it word for word.`,
+      );
+      continue;
+    }
     const data = {
       pageUrl: change.pageUrl,
       title: change.title,
       body: change.change,
       newText: change.newText,
+      currentText: before ? change.currentText : null,
+      element: before ? (change.element ?? "text") : null,
       why: change.why,
       keyword: change.keyword ?? null,
       evidence,
@@ -704,19 +722,62 @@ export async function readCmoSeo(
   };
 }
 
+/**
+ * The same SEO request of this Cuso's that is still under way: a second
+ * press joins it, so the owner gets one answer, not two of the same.
+ */
+async function seoTurnUnderWay(
+  sokoBotId: string,
+  prefix: string,
+): Promise<{ turnId: string } | null> {
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId,
+      clientTurnId: { startsWith: prefix },
+      status: { in: ["QUEUED", "STARTING", "RUNNING"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  return turn ? { turnId: turn.id } : null;
+}
+
 /** "More article ideas": Cuso researches and saves new articles; his answer lands in the chat. */
 export async function requestCmoArticleIdeas(
   target: CusoTarget,
 ): Promise<{ turnId: string }> {
   const cuso = await requireCuso(target);
+  const prefix = `cmo:seo-ideas:${cuso.sokoBotId}:`;
+  const underWay = await seoTurnUnderWay(cuso.sokoBotId, prefix);
+  if (underWay) return underWay;
   return startCmoTurn(cuso, target.userId, {
-    clientTurnId: `cmo:seo-ideas:${cuso.sokoBotId}:${Date.now()}`,
+    clientTurnId: `${prefix}${Date.now()}`,
     message: [
       `The owner asked for more article ideas for ${cuso.businessName}'s website (SEO tab).`,
       "Call read_seo, then research_keywords on two or three topics the Brand Brain says buyers search for and the site does not cover yet. Pick three keywords with real searches, a difficulty the site can win and the intent of a future customer, and that no open article already targets.",
       "A keyword has real searches when research gives it a monthly volume, or when Search Console shows Google already lists the site for it (impressions, a position below the top three). In a small market most searches have no measured volume: then pick from the Search Console ones.",
       "Save them with save_seo_suggestions as articles: title, keyword exactly as research_keywords or read_seo returned it, why (the numbers and the business reason) and an outline. Do not write the full text now.",
       "Then answer in two short sentences: what you added and why.",
+    ].join("\n"),
+    route: CMO_SEO_ROUTE,
+  });
+}
+
+/** "Write an article": Cuso picks the best search and writes one whole article. */
+export async function requestCmoArticle(
+  target: CusoTarget,
+): Promise<{ turnId: string }> {
+  const cuso = await requireCuso(target);
+  const prefix = `cmo:seo-article:${cuso.sokoBotId}:`;
+  const underWay = await seoTurnUnderWay(cuso.sokoBotId, prefix);
+  if (underWay) return underWay;
+  return startCmoTurn(cuso, target.userId, {
+    clientTurnId: `${prefix}${Date.now()}`,
+    message: [
+      `The owner asked you to write one new article for ${cuso.businessName}'s website (SEO page).`,
+      "Call read_seo, then research_keywords on one or two topics the Brand Brain says buyers search for. Pick the one search worth most that no open article targets: a monthly volume from research, or one Google already shows the site for in Search Console (impressions, a position below the top three).",
+      "Read the seo writing skill first and follow it. Write the whole article with facts only from the Brand Brain and the site, written as the business's own words: it never names the Brand Brain, your tools, the SEO page or where a fact came from. Save it with save_seo_suggestions as an article: title, keyword exactly as research_keywords or read_seo returned it, why (the numbers and the business reason), outline, and the whole article in Markdown as draft.",
+      "Then answer in one short sentence: its title, its search, and that it is on the SEO page, ready to copy.",
     ].join("\n"),
     route: CMO_SEO_ROUTE,
   });

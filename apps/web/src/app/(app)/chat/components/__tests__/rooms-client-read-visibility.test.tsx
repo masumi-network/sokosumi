@@ -1,6 +1,12 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
@@ -205,6 +211,7 @@ describe("RoomsClient read visibility", () => {
   });
 
   afterEach(() => {
+    cleanup();
     clearMembershipVisibleRoomsSnapshot();
     vi.restoreAllMocks();
     vi.useRealTimers();
@@ -641,10 +648,11 @@ describe("RoomsClient read visibility", () => {
     const seen = vi.fn();
     window.addEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, seen);
     try {
-      renderWithQueryClient(
-        <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+      await act(async () =>
+        renderWithQueryClient(
+          <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+        ),
       );
-      await act(async () => {});
 
       const options = useChatRoomRealtimeMock.mock.calls.at(-1)?.[0];
       expect(options?.roomIds).toEqual(["room-channel"]);
