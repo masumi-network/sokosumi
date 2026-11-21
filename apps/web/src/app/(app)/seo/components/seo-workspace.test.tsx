@@ -9216,6 +9216,10 @@ it("opens a report plan on the Agent tab and switches its recommendation and rea
     screen.getByRole("region", { name: "Recommended plan" }),
   );
   expect(card.getByText(candidate.title)).toBeVisible();
+  // The plan holds this action, so the steps below the plan do not list it again.
+  expect(
+    screen.getAllByText("Compare battery replacement costs."),
+  ).toHaveLength(1);
   await user.click(card.getByText("Content and keywords (1)"));
   expect(
     card.getByRole("heading", { name: "Compare battery replacement costs." }),
