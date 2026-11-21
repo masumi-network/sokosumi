@@ -167,6 +167,12 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-warm-likely-pages` (`useWarmLikelyPages`) — idle and periodic route-content warming for the user's most visited pages while the tab is active
 - `use-live-soko-bot-poll` (`useLiveSokoBotPoll`) — sidebar Soko Bot status and last-activity polling while the tab is visible
 - `use-soko-bot-activity-probe` (`useSokoBotActivityProbe`) — Personal Assistant activity probe interval and visibility listener triggering state refreshes on signature changes or active turns
+- `use-oauth-hand-back` (`useOAuthHandBack`) — one-shot OAuth provider hand-back with social sign-up conversion claim and optional auto-start on mount
+- `use-auto-context-switch` (`useAutoContextSwitch`) — one-shot workspace context switch on mount when active and target organizations differ
+- `use-account-notice-toast` (`useAccountNoticeToast`) — one-shot per-session `sessionStorage`-gated account notice toast
+- `use-email-change-return-notice` (`useEmailChangeReturnNotice`) — one-shot email-change return link toast, Core acknowledgement, and query parameter strip
+- `use-invalidate-project-scope-on-navigation` (`useInvalidateProjectScopeOnNavigation`) — invalidates the selected project-scope query when `pathname` changes after mount
+- `use-notification-service-worker-bridge` (`useNotificationServiceWorkerBridge`) — installs the notification service worker on mount when granted and wires click and banner-query handlers
 
 ### React Query in migrations
 
