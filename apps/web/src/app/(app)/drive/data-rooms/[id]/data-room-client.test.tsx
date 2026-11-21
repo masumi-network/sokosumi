@@ -133,4 +133,25 @@ describe("DataRoomClient", () => {
     const boxes = screen.getAllByRole("textbox", { name: "answerLabel" });
     await vi.waitFor(() => expect(document.activeElement).toBe(boxes[0]));
   });
+
+  it("keeps the room name and privacy line whole on a phone, with Copy link as an icon", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame search="">
+        <DataRoomClient roomId="room-1" />
+      </Frame>,
+    );
+
+    const button = await screen.findByRole("button", { name: "copyLink" });
+    // The label is hidden only below md, so a phone keeps the row for the name.
+    expect(screen.getByText("copyLink").className).toContain("max-md:sr-only");
+    expect(screen.getByText("storage.private").className).not.toContain(
+      "truncate",
+    );
+
+    await user.click(button);
+    expect(await navigator.clipboard.readText()).toBe(
+      `${window.location.origin}/share/rooms/tok`,
+    );
+  });
 });
