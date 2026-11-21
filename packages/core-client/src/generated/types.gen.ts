@@ -15270,9 +15270,9 @@ export type CmoChatWorkItem = {
      */
     id: string;
     /**
-     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).
+     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), the SEO specialist's weekly audit of the site (audit), or the page changes and articles he saved to the SEO page (seo_saved).
      */
-    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question' | 'seo' | 'audit';
+    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question' | 'seo' | 'audit' | 'seo_saved';
     /**
      * making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.
      */
@@ -15334,6 +15334,10 @@ export type CmoChatWorkItem = {
      * A background run's own turn: its report in the room is this card.
      */
     turnId: string | null;
+    /**
+     * seo_saved: what Cuso saved to the SEO page, as the page shows it.
+     */
+    suggestions?: Array<CmoSeoSuggestion>;
 };
 
 export type CmoChatTable = {
@@ -15343,6 +15347,40 @@ export type CmoChatTable = {
      * Every row the table holds.
      */
     total: number;
+};
+
+export type CmoSeoSuggestion = {
+    id: string;
+    kind: 'article' | 'page_change' | 'landing_page';
+    source: 'audit' | 'cuso';
+    title: string;
+    keyword: string | null;
+    pageUrl: string | null;
+    why: string;
+    body: string;
+    newText: string | null;
+    currentText: string | null;
+    element: 'title' | 'description' | 'heading' | 'text' | null;
+    draft: string | null;
+    sources: Array<{
+        text: string;
+        sourceUrl: string;
+        quote: string;
+    }>;
+    evidence: Array<CmoSeoEvidence>;
+    status: 'open' | 'done' | 'verified' | 'dismissed';
+    createdAt: Date;
+    doneAt: Date | null;
+    verifiedAt: Date | null;
+};
+
+export type CmoSeoEvidence = {
+    metric: 'searchVolume' | 'difficulty' | 'intent' | 'position' | 'clicks' | 'impressions' | 'ctr' | 'auditIssue';
+    keyword: string | null;
+    pageUrl: string | null;
+    value: string;
+    source: 'keyword_research' | 'search_console' | 'weekly_audit';
+    observedAt: Date;
 };
 
 export type CmoChatWorkTable = {
@@ -15550,38 +15588,6 @@ export type CmoSearchConsole = {
         ctr: number | null;
         position: number | null;
     }>;
-};
-
-export type CmoSeoSuggestion = {
-    id: string;
-    kind: 'article' | 'page_change' | 'landing_page';
-    source: 'audit' | 'cuso';
-    title: string;
-    keyword: string | null;
-    pageUrl: string | null;
-    why: string;
-    body: string;
-    newText: string | null;
-    draft: string | null;
-    sources: Array<{
-        text: string;
-        sourceUrl: string;
-        quote: string;
-    }>;
-    evidence: Array<CmoSeoEvidence>;
-    status: 'open' | 'done' | 'verified' | 'dismissed';
-    createdAt: Date;
-    doneAt: Date | null;
-    verifiedAt: Date | null;
-};
-
-export type CmoSeoEvidence = {
-    metric: 'searchVolume' | 'difficulty' | 'intent' | 'position' | 'clicks' | 'impressions' | 'ctr' | 'auditIssue';
-    keyword: string | null;
-    pageUrl: string | null;
-    value: string;
-    source: 'keyword_research' | 'search_console' | 'weekly_audit';
-    observedAt: Date;
 };
 
 export type CmoKeywordSearch = {
@@ -92581,7 +92587,9 @@ export type SearchCmoKeywordsForProjectResponses = {
 export type SearchCmoKeywordsForProjectResponse = SearchCmoKeywordsForProjectResponses[keyof SearchCmoKeywordsForProjectResponses];
 
 export type RequestCmoArticleIdeasForProjectData = {
-    body?: never;
+    body?: {
+        write?: boolean;
+    };
     path: {
         projectId: string;
     };

@@ -5635,8 +5635,28 @@ export const getCmoOverviewForProjectResponseTransformer = async (data: any): Pr
     return data;
 };
 
+const cmoSeoEvidenceSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
+const cmoSeoSuggestionSchemaResponseTransformer = (data: any) => {
+    data.evidence = data.evidence.map((item: any) => cmoSeoEvidenceSchemaResponseTransformer(item));
+    data.createdAt = new Date(data.createdAt);
+    if (data.doneAt) {
+        data.doneAt = new Date(data.doneAt);
+    }
+    if (data.verifiedAt) {
+        data.verifiedAt = new Date(data.verifiedAt);
+    }
+    return data;
+};
+
 const cmoChatWorkItemSchemaResponseTransformer = (data: any) => {
     data.at = new Date(data.at);
+    if (data.suggestions) {
+        data.suggestions = data.suggestions.map((item: any) => cmoSeoSuggestionSchemaResponseTransformer(item));
+    }
     return data;
 };
 
@@ -5793,23 +5813,6 @@ const cmoSeoAuditSchemaResponseTransformer = (data: any) => {
 const cmoSearchConsoleSchemaResponseTransformer = (data: any) => {
     if (data.observedAt) {
         data.observedAt = new Date(data.observedAt);
-    }
-    return data;
-};
-
-const cmoSeoEvidenceSchemaResponseTransformer = (data: any) => {
-    data.observedAt = new Date(data.observedAt);
-    return data;
-};
-
-const cmoSeoSuggestionSchemaResponseTransformer = (data: any) => {
-    data.evidence = data.evidence.map((item: any) => cmoSeoEvidenceSchemaResponseTransformer(item));
-    data.createdAt = new Date(data.createdAt);
-    if (data.doneAt) {
-        data.doneAt = new Date(data.doneAt);
-    }
-    if (data.verifiedAt) {
-        data.verifiedAt = new Date(data.verifiedAt);
     }
     return data;
 };

@@ -1091,6 +1091,29 @@ describe("authoritative action responses", () => {
     expect(response.answerText).toBe("Updated: your audience is CTOs now.");
   });
 
+  it("keeps Cuso's answer after he saved SEO suggestions", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      versionId: "cmo-v12",
+    });
+    db.sokoBotToolCall.count.mockImplementation(
+      async (args: { where: { capability: unknown } }) =>
+        JSON.stringify(args.where.capability).includes("save_seo_suggestions")
+          ? 1
+          : 0,
+    );
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Clicks are up 12%. I saved a new homepage title; it is on the SEO page.",
+      true,
+    );
+    expect(response.answerText).toBe(
+      "Clicks are up 12%. I saved a new homepage title; it is on the SEO page.",
+    );
+  });
+
   it("never posts raw observations to a CMO (Cuso) chat", async () => {
     const read = receipt({
       capability: "list_project_social_accounts",

@@ -6,7 +6,7 @@ import type {
   CmoSeoEvidence,
   CmoSeoSuggestion,
 } from "@sokosumi/core-client";
-import { Check, Copy, Download, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { seoLead } from "../../lib/page-lead";
@@ -28,6 +28,7 @@ import { StatusText } from "../status";
 import { SubmitButton } from "../submit-button";
 import { PageLead } from "./page-lead";
 
+import { BeforeAfter, CopyButton } from "./seo-before-after";
 import { KeywordSearch, SearchConsoleCard } from "./seo-research";
 import { count, day, NOT_KNOWN, pagePath } from "./seo-research-format";
 
@@ -45,13 +46,19 @@ export interface SeoActions {
     id: string,
     url: string,
   ) => Promise<{ note: string | null; error: string | null }>;
-  /** No id: more article ideas; an id: the full article. */
-  askCusoForArticles: (articleId?: string) => Promise<string | null>;
+  /** No id: more article ideas, or with write one new article in full; an id: that article in full. */
+  askCusoForArticles: (
+    articleId?: string,
+    write?: boolean,
+  ) => Promise<string | null>;
   connectSearchConsole: () => Promise<{
     url: string | null;
     error: string | null;
   }>;
 }
+
+/** What writing one article costs: about $0.015 of model time in the cmo-v12 eval run (1,085 words), at 100 credits a dollar. */
+const ARTICLE_COST = "Each article uses about 2 credits of your plan.";
 
 /** While the tab is open it reads again this often, so Cuso's new ideas show up. */
 const REFRESH_MS = 20_000;
@@ -101,28 +108,6 @@ function Evidence({ items }: { items: CmoSeoEvidence[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="button button-secondary button-small"
-      onClick={async () => {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-    >
-      {copied ? (
-        <Check size={14} aria-hidden="true" />
-      ) : (
-        <Copy size={14} aria-hidden="true" />
-      )}
-      {copied ? "Copied" : label}
-    </button>
   );
 }
 
@@ -312,7 +297,9 @@ function PageChange({
       <div className="grow stack-sm">
         <b>{copy.title}</b>
         <span className="note">{pagePath(change.pageUrl)}</span>
-        {change.newText ? (
+        {change.newText && change.currentText ? (
+          <BeforeAfter change={change} newText={change.newText} />
+        ) : change.newText ? (
           <div className="seo-copy">
             <span className="label">New text</span>
             <p>{change.newText}</p>
@@ -685,11 +672,11 @@ export function SeoPage({
       setNote(error);
       await refresh();
     };
-  const ask = async (articleId?: string) => {
-    const error = await actions.askCusoForArticles(articleId);
+  const ask = async (articleId?: string, write = false) => {
+    const error = await actions.askCusoForArticles(articleId, write);
     setNote(
       error ??
-        (articleId
+        (articleId || write
           ? `${AGENT_NAME} is writing it. It shows here when it is done, and he tells you in the chat.`
           : `${AGENT_NAME} is looking for new ideas. They show here in a few minutes, and he tells you in the chat.`),
     );
@@ -781,15 +768,22 @@ export function SeoPage({
         <section className="card">
           <div className="seo-head">
             <h3>Articles</h3>
-            <form action={() => ask()}>
-              <SubmitButton className="button button-secondary button-small">
-                More article ideas
-              </SubmitButton>
-            </form>
+            <div className="seo-actions">
+              <form action={() => ask()}>
+                <SubmitButton className="button button-ghost button-small">
+                  More ideas
+                </SubmitButton>
+              </form>
+              <form action={() => ask(undefined, true)}>
+                <SubmitButton className="button button-secondary button-small">
+                  Write an article
+                </SubmitButton>
+              </form>
+            </div>
           </div>
           <p className="muted">
-            Searches your buyers make, each with its numbers. {AGENT_NAME}{" "}
-            writes the full text when you ask, ready to copy into your site.
+            {AGENT_NAME} picks a search your buyers make and writes the whole
+            article, ready to copy into your site. {ARTICLE_COST}
           </p>
           {articles.length === 0 &&
           !seo.articles.some((a) => shown.has(a.id)) ? (

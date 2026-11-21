@@ -67,6 +67,7 @@ import {
   startCmoCase,
   styledPictureChecks,
 } from "./eval-cmo-runner";
+import { cmoSeoReportChecks, isCmoSeoReportCase } from "./eval-cmo-seo-report";
 import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
@@ -382,6 +383,17 @@ async function pollScenario(
   }
   if (scenario.id === REPORT_HEADLINE_CASE_ID) {
     const extra = await reportHeadlineChecks(lane, context.startedAt);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (isCmoSeoReportCase(scenario.id)) {
+    const extra = await cmoSeoReportChecks(
+      lane,
+      scenario.id,
+      context.startedAt,
+      turn.finalAnswer ?? "",
+    );
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

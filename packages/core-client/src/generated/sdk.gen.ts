@@ -6703,12 +6703,16 @@ export const searchCmoKeywordsForProject = <ThrowOnError extends boolean = false
 });
 
 /**
- * More article ideas: Cuso researches keywords and saves new article suggestions; his answer lands in the chat.
+ * More article ideas: Cuso researches keywords and saves new article suggestions. With write, he picks the best search and writes one whole article instead. His answer lands in the chat.
  */
 export const requestCmoArticleIdeasForProject = <ThrowOnError extends boolean = false>(options: Options<RequestCmoArticleIdeasForProjectData, ThrowOnError>): RequestResult<RequestCmoArticleIdeasForProjectResponses, RequestCmoArticleIdeasForProjectErrors, ThrowOnError> => (options.client ?? client).post<RequestCmoArticleIdeasForProjectResponses, RequestCmoArticleIdeasForProjectErrors, ThrowOnError>({
     responseTransformer: requestCmoArticleIdeasForProjectResponseTransformer,
     url: '/cmo/projects/{projectId}/seo/ideas',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
