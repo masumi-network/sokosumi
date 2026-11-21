@@ -862,6 +862,17 @@ for (const { name: size, ...viewport } of PROJECTS) {
         "/tasks?status=DRAFT&sort=priority",
         "Status: Draft",
       );
+      // The filtered board fits the document width too.
+      const filteredOverflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      assert.equal(
+        filteredOverflow,
+        0,
+        `the filtered board overflows by ${filteredOverflow}px`,
+      );
 
       // Done sits past the board's right edge at every size. Once the only
       // Task is Completed, the edge names Done with its count, and a click
