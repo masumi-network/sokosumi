@@ -28,7 +28,8 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 const labels = {
   title: "Threads",
   markAllRead: "Mark all as read",
-  empty: "No threads yet.",
+  empty: "No threads yet",
+  emptyHint: "Reply to a message in its thread to start one.",
   loading: "Loading threads…",
   error: "Could not load threads.",
   markAllReadError: "Could not mark unread threads as read.",
@@ -209,9 +210,9 @@ describe("ThreadListPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByTestId("thread-list-empty")).toHaveTextContent(
-      labels.empty,
-    );
+    const empty = await screen.findByTestId("thread-list-empty");
+    expect(empty).toHaveTextContent(labels.empty);
+    expect(empty).toHaveTextContent(labels.emptyHint);
     expect(
       screen.queryByTestId("thread-list-mark-all-read"),
     ).not.toBeInTheDocument();

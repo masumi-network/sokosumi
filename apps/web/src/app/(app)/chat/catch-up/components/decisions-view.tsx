@@ -6,7 +6,10 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
+import {
+  ChatEmptyState,
+  ChatUnreadViewHeader,
+} from "@/app/chat/components/chat-unread-view-header";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
 import { listChatDecisionsAction } from "@/app/chat/signal-actions";
@@ -127,17 +130,12 @@ export function DecisionsView({
               {t("error")}
             </p>
           ) : visible.length === 0 ? (
-            <div
-              className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
-              data-testid="decisions-empty"
-            >
-              <span className="bg-quinary text-foreground grid size-8 place-items-center rounded-full">
-                <Gavel className="size-4" aria-hidden />
-              </span>
-              <p className="text-muted-foreground max-w-xs text-sm text-pretty">
-                {t("empty")}
-              </p>
-            </div>
+            <ChatEmptyState
+              icon={Gavel}
+              title={t("emptyTitle")}
+              description={t("emptyHint")}
+              testId="decisions-empty"
+            />
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="decisions">
               {matching.map((message) => {

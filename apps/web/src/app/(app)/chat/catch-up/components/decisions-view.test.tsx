@@ -140,7 +140,11 @@ describe("DecisionsView", () => {
 
   it("explains an empty list and a failed read", () => {
     const { rerender } = render(view({ messages: [], nextCursor: null }));
-    expect(screen.getByTestId("decisions-empty")).toBeInTheDocument();
+    const empty = screen.getByTestId("decisions-empty");
+    expect(empty).toHaveTextContent("No decisions yet");
+    expect(empty).toHaveTextContent(
+      "We find them in channels and in chats with other people who allow it.",
+    );
 
     rerender(view(null));
     expect(screen.getByText("Could not load decisions.")).toBeInTheDocument();

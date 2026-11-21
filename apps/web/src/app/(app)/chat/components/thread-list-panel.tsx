@@ -1,12 +1,13 @@
 "use client";
 
 import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
-import { BellOff, Loader2, X } from "lucide-react";
+import { BellOff, Loader2, MessagesSquare, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   listThreadsAction,
   markAllUnreadThreadsReadAction,
 } from "@/app/chat/actions";
+import { ChatEmptyState } from "@/app/chat/components/chat-unread-view-header";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import {
   threadNeedsOverviewUnread,
@@ -27,6 +28,8 @@ export interface ThreadListPanelLabels {
   title: string;
   markAllRead: string;
   empty: string;
+  /** Under the empty title: how a Thread starts. */
+  emptyHint: string;
   loading: string;
   error: string;
   markAllReadError: string;
@@ -322,12 +325,12 @@ export function ThreadListPanel({
           </p>
         ) : null}
         {showEmpty ? (
-          <p
-            className="text-muted-foreground px-2 py-6 text-center text-sm"
-            data-testid="thread-list-empty"
-          >
-            {labels.empty}
-          </p>
+          <ChatEmptyState
+            icon={MessagesSquare}
+            title={labels.empty}
+            description={labels.emptyHint}
+            testId="thread-list-empty"
+          />
         ) : null}
         {hasGroups ? (
           <>
