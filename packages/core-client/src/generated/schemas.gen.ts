@@ -62256,6 +62256,38 @@ export const CmoSearchConsoleSchema = {
                 'position'
             ]
         },
+        previousTotals: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                clicks: {
+                    type: 'number'
+                },
+                impressions: {
+                    type: 'number'
+                },
+                ctr: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                position: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'clicks',
+                'impressions',
+                'ctr',
+                'position'
+            ]
+        },
         nearFirstPage: {
             type: 'array',
             items: {
@@ -62344,6 +62376,7 @@ export const CmoSearchConsoleSchema = {
         'to',
         'observedAt',
         'totals',
+        'previousTotals',
         'nearFirstPage',
         'lowClickRate'
     ]

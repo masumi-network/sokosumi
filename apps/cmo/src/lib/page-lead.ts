@@ -5,6 +5,7 @@ import type {
 } from "@sokosumi/core-client";
 import { AGENT_NAME } from "./agent";
 import { connectedNetworks } from "./calendar";
+import { trendLine } from "./seo-next";
 import { strategyApproved } from "./strategy";
 import { cusoStatus } from "./thread";
 import { dayIn, monthEntries, monthProgress, waitingByNetwork } from "./today";
@@ -22,7 +23,7 @@ export interface PageLeadText {
 }
 
 function count(n: number, one: string, many: string): string {
-  return n === 1 ? `1 ${one}` : `${n} ${many}`;
+  return n === 1 ? `1 ${one}` : `${n.toLocaleString("en-US")} ${many}`;
 }
 
 /** "Monday", or "today" and "tomorrow" when the day is that close. */
@@ -178,13 +179,20 @@ export function pageLead(
   }
 }
 
-/** SEO's lead: what to change on the site, from the latest audit. */
+/** SEO's lead: clicks from Google and their trend; without Search Console, what the audit says to change. */
 export function seoLead(
   seo: CmoSeo,
   timeZone: string,
   now: Date = new Date(),
 ): PageLeadText {
   const latest = seo.audit.latest;
+  const { totals, previousTotals } = seo.searchConsole;
+  if (totals)
+    return {
+      kicker: `SEO · ${hostOf(seo.websiteUrl)} on Google`,
+      title: `${count(totals.clicks, "click", "clicks")} from Google.`,
+      line: trendLine(totals, previousTotals),
+    };
   const kicker = latest
     ? `SEO · audit of ${hostOf(seo.websiteUrl)}, ${shortDate(latest.observedAt)}`
     : "SEO";

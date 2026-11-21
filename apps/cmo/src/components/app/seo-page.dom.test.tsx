@@ -76,10 +76,12 @@ it("says the audit's findings in plain words, without its check ids", async () =
   expect(text()).toContain(
     'did not pass the check "Script and style files for rendering load and are not blocked"',
   );
-  const detail = [...container.querySelectorAll("details:not([open])")].find(
-    (fold) => fold.querySelector("summary")?.textContent === "More detail",
-  );
-  expect(detail?.textContent).toContain(
+  const details = [...container.querySelectorAll("details:not([open])")]
+    .filter(
+      (fold) => fold.querySelector("summary")?.textContent === "More detail",
+    )
+    .map((fold) => fold.textContent);
+  expect(details.join(" ")).toContain(
     "update it to the current embed code from the HubSpot account",
   );
 });

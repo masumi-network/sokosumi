@@ -45,7 +45,7 @@ it("opens every other page from More, and closes on a pick or Escape", async () 
     ...container.querySelectorAll<HTMLAnchorElement>(".tabbar-more a"),
   ];
   // The brand's pages open from the top bar's brand menu.
-  expect(links.map((link) => link.textContent)).toEqual(["SEO", "Settings"]);
+  expect(links.map((link) => link.textContent)).toEqual(["Settings"]);
   expect(container.querySelector(".tabbar-more")?.textContent).toContain(
     "Sign out",
   );

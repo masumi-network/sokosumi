@@ -15379,6 +15379,12 @@ export type CmoSearchConsole = {
         ctr: number | null;
         position: number | null;
     } | null;
+    previousTotals: {
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    } | null;
     nearFirstPage: Array<{
         query: string;
         pageUrl: string;

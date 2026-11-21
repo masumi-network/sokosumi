@@ -15,6 +15,13 @@ import {
   plainIssueDetail,
   withoutAuditIds,
 } from "../../lib/seo-copy";
+import {
+  changeText,
+  NEXT_SHOWN,
+  positionChangeText,
+  type SeoStep,
+  seoSteps,
+} from "../../lib/seo-next";
 import { DraftText } from "../draft-text";
 import { LocalDay } from "../local-day";
 import { StatusText } from "../status";
@@ -22,7 +29,7 @@ import { SubmitButton } from "../submit-button";
 import { PageLead } from "./page-lead";
 
 import { KeywordSearch, SearchConsoleCard } from "./seo-research";
-import { day, pagePath } from "./seo-research-format";
+import { count, day, NOT_KNOWN, pagePath } from "./seo-research-format";
 
 export interface SeoActions {
   loadSeo: () => Promise<CmoSeo | null>;
@@ -299,12 +306,12 @@ function PageChange({
   setStatus: (status: "open" | "done" | "dismissed") => Promise<void>;
 }) {
   const copy = pageChangeCopy(change);
+  const detail = copy.detail?.split("\n\n") ?? [];
   return (
     <li className="li seo-item">
       <div className="grow stack-sm">
         <b>{copy.title}</b>
         <span className="note">{pagePath(change.pageUrl)}</span>
-        <p>{copy.what}</p>
         {change.newText ? (
           <div className="seo-copy">
             <span className="label">New text</span>
@@ -313,19 +320,20 @@ function PageChange({
               <CopyButton text={change.newText} label="Copy" />
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p>{copy.what}</p>
+        )}
         <p className="note">{copy.why}</p>
-        {copy.detail ? (
-          <details>
-            <summary className="note">More detail</summary>
-            {copy.detail.split("\n\n").map((part) => (
-              <p key={part} className="note">
-                {part}
-              </p>
-            ))}
-          </details>
-        ) : null}
-        <Evidence items={change.evidence} />
+        <details>
+          <summary className="note">More detail</summary>
+          {change.newText ? <p className="note">{copy.what}</p> : null}
+          {detail.map((part) => (
+            <p key={part} className="note">
+              {part}
+            </p>
+          ))}
+          <Evidence items={change.evidence} />
+        </details>
       </div>
       <div className="seo-actions">
         {change.status === "verified" && change.verifiedAt ? (
@@ -380,11 +388,11 @@ function Article({
           <span className="note">For the search "{article.keyword}"</span>
         ) : null}
         <p className="note">{article.why}</p>
-        <Evidence items={article.evidence} />
         <details>
           <summary className="note">
-            {article.draft ? "Read the article" : "Outline"}
+            {article.draft ? "Read the article" : "Outline and numbers"}
           </summary>
+          <Evidence items={article.evidence} />
           <DraftText text={article.draft ?? article.body} />
         </details>
       </div>
@@ -532,6 +540,100 @@ function LandingPage({
   );
 }
 
+/** The four numbers that say how the site does on Google, with their trend. */
+function GoogleNumbers({ seo }: { seo: CmoSeo }) {
+  const { totals, previousTotals: before } = seo.searchConsole;
+  const latest = seo.audit.latest;
+  if (!totals && !latest) return null;
+  const kpi = (label: string, value: string, change: string | null) => (
+    <div className="kpi" key={label}>
+      <span className="label">{label}</span>
+      <span className="v num">{value}</span>
+      {change ? <span className="note">{change}</span> : null}
+    </div>
+  );
+  return (
+    <section className="card">
+      <h3>{totals ? "Google, last 28 days" : "Your site"}</h3>
+      <div className="grid4">
+        {totals
+          ? [
+              kpi(
+                "Clicks",
+                count(totals.clicks),
+                changeText(totals.clicks, before?.clicks),
+              ),
+              kpi(
+                "Seen in search",
+                count(totals.impressions),
+                changeText(totals.impressions, before?.impressions),
+              ),
+              kpi(
+                "Average position",
+                totals.position?.toFixed(1) ?? NOT_KNOWN,
+                positionChangeText(totals.position, before?.position),
+              ),
+            ]
+          : null}
+        {latest
+          ? kpi(
+              "Site checks",
+              `${latest.passed} of ${latest.checked}`,
+              `passed on ${day(latest.observedAt)}`,
+            )
+          : null}
+      </div>
+    </section>
+  );
+}
+
+function ConnectStep({
+  seo,
+  connect,
+}: {
+  seo: CmoSeo;
+  connect: SeoActions["connectSearchConsole"];
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const { status } = seo.searchConsole;
+  return (
+    <li className="li seo-item">
+      <div className="grow stack-sm">
+        <b>
+          {status === "not_connected"
+            ? "Connect Google Search Console"
+            : "Reconnect Google Search Console"}
+        </b>
+        <p className="note">
+          {status === "no_property"
+            ? `The Google account you connected has no Search Console property for ${pagePath(seo.websiteUrl)}. Add the site in Search Console, or connect the account that has it.`
+            : status === "unavailable"
+              ? "Search Console did not answer just now. It is read again on your next visit."
+              : `Then ${AGENT_NAME} sees which searches already find your site, and builds every change and article on them.`}
+        </p>
+        {error ? (
+          <p className="alert" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+      <div className="seo-actions">
+        <form
+          action={async () => {
+            const { url, error } = await connect();
+            if (url) window.location.assign(url);
+            else setError(error);
+          }}
+        >
+          <SubmitButton className="button button-small">
+            {status === "not_connected" ? "Connect" : "Reconnect"}
+          </SubmitButton>
+        </form>
+      </div>
+    </li>
+  );
+}
+
 export function SeoPage({
   actions,
   timeZone,
@@ -598,9 +700,40 @@ export function SeoPage({
     await refresh();
   };
   const landingPages = seo.landingPages.filter((p) => p.status !== "dismissed");
-  const changes = seo.pageChanges.filter((c) => c.status !== "dismissed");
-  const open = changes.filter((c) => c.status === "open");
-  const articles = seo.articles.filter((a) => a.status !== "dismissed");
+  const steps = seoSteps(seo);
+  const next = steps.slice(0, NEXT_SHOWN);
+  const later = steps.slice(NEXT_SHOWN);
+  const closed = seo.pageChanges.filter(
+    (c) => c.status === "done" || c.status === "verified",
+  );
+  const shown = new Set(
+    next.flatMap((step) => (step.kind === "connect" ? [] : [step.item.id])),
+  );
+  const articles = seo.articles.filter(
+    (a) => a.status !== "dismissed" && !shown.has(a.id),
+  );
+  const latest = seo.audit.latest;
+  const step = (item: SeoStep) =>
+    item.kind === "connect" ? (
+      <ConnectStep
+        key="connect"
+        seo={seo}
+        connect={actions.connectSearchConsole}
+      />
+    ) : item.kind === "change" ? (
+      <PageChange
+        key={item.item.id}
+        change={item.item}
+        setStatus={setStatus(item.item.id)}
+      />
+    ) : (
+      <Article
+        key={item.item.id}
+        article={item.item}
+        write={() => ask(item.item.id)}
+        setStatus={setStatus(item.item.id)}
+      />
+    );
 
   return (
     <>
@@ -611,33 +744,43 @@ export function SeoPage({
             {note}
           </p>
         ) : null}
-        <section className={open.length > 0 ? "card card-focus" : "card"}>
-          <h3>Page changes</h3>
-          <p className="muted">
-            What to change on your site, with the exact new text to copy. Mark
-            one done once it is live and the next weekly audit checks it.
-          </p>
-          {changes.length === 0 ? (
+        <GoogleNumbers seo={seo} />
+        <section className={next.length > 0 ? "card card-focus" : "card"}>
+          <h3>
+            {next.length > 1 ? `Next ${next.length} things to do` : "Next"}
+          </h3>
+          {next.length === 0 ? (
             <p className="note">
-              Nothing to change yet. The weekly audit and Search Console add
-              changes here.
+              Nothing to do right now. The weekly audit and {AGENT_NAME} add the
+              next change here.
             </p>
           ) : (
-            <ul className="list">
-              {changes.map((change) => (
-                <PageChange
-                  key={change.id}
-                  change={change}
-                  setStatus={setStatus(change.id)}
-                />
-              ))}
-            </ul>
+            <ol className="list">{next.map(step)}</ol>
           )}
+          {later.length > 0 ? (
+            <details>
+              <summary className="note">{later.length} more</summary>
+              <ul className="list">{later.map(step)}</ul>
+            </details>
+          ) : null}
+          {closed.length > 0 ? (
+            <details>
+              <summary className="note">Done ({closed.length})</summary>
+              <ul className="list">
+                {closed.map((change) => (
+                  <PageChange
+                    key={change.id}
+                    change={change}
+                    setStatus={setStatus(change.id)}
+                  />
+                ))}
+              </ul>
+            </details>
+          ) : null}
         </section>
-        <AuditCard seo={seo} timeZone={timeZone} />
         <section className="card">
           <div className="seo-head">
-            <h3>Articles to write</h3>
+            <h3>Articles</h3>
             <form action={() => ask()}>
               <SubmitButton className="button button-secondary button-small">
                 More article ideas
@@ -645,16 +788,17 @@ export function SeoPage({
             </form>
           </div>
           <p className="muted">
-            Articles people search for, each built on real search numbers.{" "}
-            {AGENT_NAME} writes the full text when you ask, ready to copy into
-            your site.
+            Searches your buyers make, each with its numbers. {AGENT_NAME}{" "}
+            writes the full text when you ask, ready to copy into your site.
           </p>
-          {articles.length === 0 ? (
+          {articles.length === 0 &&
+          !seo.articles.some((a) => shown.has(a.id)) ? (
             <p className="note">
-              No article ideas yet. Ask for some and {AGENT_NAME} researches
-              what your buyers search for.
+              No article ideas yet. Ask for some and {AGENT_NAME} looks at what
+              your buyers search for.
             </p>
-          ) : (
+          ) : null}
+          {articles.length > 0 ? (
             <ul className="list">
               {articles.map((article) => (
                 <Article
@@ -665,35 +809,64 @@ export function SeoPage({
                 />
               ))}
             </ul>
-          )}
+          ) : null}
         </section>
-        {landingPages.length > 0 ? (
-          <section className="card">
-            <h3>Landing pages</h3>
-            <p className="muted">
-              Pages for people comparing you with a competitor, each with the
-              search in its heading and first paragraph. Publish one on your
-              site, then say where it is live: the search ad for that search
-              sends people there from then on.
-            </p>
-            <ul className="list">
-              {landingPages.map((page) => (
-                <LandingPage
-                  key={page.id}
-                  page={page}
-                  markLive={markLive(page.id)}
-                  setStatus={setStatus(page.id)}
-                />
-              ))}
-            </ul>
-          </section>
-        ) : null}
-        <KeywordSearch
-          seo={seo}
-          search={actions.searchKeywords}
-          onSearched={refresh}
-        />
-        <SearchConsoleCard seo={seo} connect={actions.connectSearchConsole} />
+        <div className="seo-folds">
+          <details className="seo-fold">
+            <summary>
+              Weekly site audit
+              {latest ? (
+                <span className="note">
+                  {latest.passed} of {latest.checked} checks passed
+                </span>
+              ) : null}
+            </summary>
+            <AuditCard seo={seo} timeZone={timeZone} />
+          </details>
+          {seo.searchConsole.status === "connected" ? (
+            <details className="seo-fold">
+              <summary>Your searches on Google</summary>
+              <SearchConsoleCard
+                seo={seo}
+                connect={actions.connectSearchConsole}
+              />
+            </details>
+          ) : null}
+          <details className="seo-fold">
+            <summary>Keyword search</summary>
+            <KeywordSearch
+              seo={seo}
+              search={actions.searchKeywords}
+              onSearched={refresh}
+            />
+          </details>
+          {landingPages.length > 0 ? (
+            <details className="seo-fold">
+              <summary>
+                Landing pages
+                <span className="note">{landingPages.length}</span>
+              </summary>
+              <section className="card">
+                <p className="muted">
+                  Pages for people comparing you with a competitor, each with
+                  the search in its heading and first paragraph. Publish one on
+                  your site, then say where it is live: the search ad for that
+                  search sends people there from then on.
+                </p>
+                <ul className="list">
+                  {landingPages.map((page) => (
+                    <LandingPage
+                      key={page.id}
+                      page={page}
+                      markLive={markLive(page.id)}
+                      setStatus={setStatus(page.id)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            </details>
+          ) : null}
+        </div>
       </div>
     </>
   );
