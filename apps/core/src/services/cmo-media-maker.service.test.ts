@@ -17,6 +17,8 @@ const {
   brandPictures,
   jobs,
   checkStyledPicture,
+  brandLogo,
+  styleTraits,
 } = vi.hoisted(() => ({
   jobFindMany: vi.fn(),
   jobCount: vi.fn(),
@@ -36,6 +38,14 @@ const {
     update: vi.fn(),
   },
   checkStyledPicture: vi.fn(),
+  brandLogo: vi.fn(
+    async (): Promise<{
+      logo: Uint8Array | null;
+      dark: Uint8Array | null;
+      fileId: string | null;
+    }> => ({ logo: null, dark: null, fileId: null }),
+  ),
+  styleTraits: vi.fn(async (): Promise<Record<string, string> | null> => null),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -92,7 +102,7 @@ vi.mock("@/services/cmo-presenter.service", () => ({
 }));
 vi.mock("@/services/cmo-brand-media.service", () => ({
   listCmoBrandPictures: brandPictures,
-  readCmoBrandLogo: async () => ({ logo: null, dark: null }),
+  readCmoBrandLogo: brandLogo,
 }));
 vi.mock("@/services/cuso-project-files.service", () => ({
   cusoDrive: async () => ({
@@ -105,6 +115,7 @@ vi.mock("@/services/cuso-project-files.service", () => ({
 }));
 vi.mock("@/services/reference-library.service", () => ({
   referenceLibraryAvailable: () => true,
+  readStyleTraits: styleTraits,
   readReferenceImage: async () => ({
     bytes: Buffer.from("reference"),
     contentType: "image/jpeg",
@@ -148,11 +159,13 @@ import {
   cmoInfographicCap,
   cmoMakesVariedMonth,
   cmoMediaState,
+  cmoPassedLogo,
   cmoPictureOutdated,
   cmoPictureStyleProblem,
   cmoPieceSlides,
   cmoSlotAction,
   cmoStyleHeadline,
+  cmoStyleInks,
   cmoStylePrompt,
   cmoVisualKey,
   logoForPicture,
@@ -302,10 +315,10 @@ describe("a picture in a reference library style", () => {
     expect(prompt).toContain("ONLY as a style reference");
     expect(prompt).toContain("Copy none of its words");
     expect(prompt).toContain('"Fresh minted"');
-    expect(prompt).toContain("#11F250, #021205");
+    expect(prompt).toContain("#11F250 as the accent, #021205 as the ink");
     // The logo once covered the end of a headline set along the bottom.
     expect(prompt).toContain(
-      "Keep the lower-right corner plain and every word clear of it",
+      "Keep one corner plain and every word clear of it",
     );
     // Infographic references lettered every step: 33 of 56 production tries
     // were turned down for words besides the headline.
@@ -330,10 +343,10 @@ describe("a picture in a reference library style", () => {
       colours: [],
       brandPictures: 1,
     });
-    expect(withSite).toContain("The second image is NMKR's own picture");
+    expect(withSite).toContain("Image 2 is NMKR's own picture");
     expect(withSite).toContain("Invent no price, number, plan");
     expect(withSite).toContain(
-      "Besides what stands in the brand's own picture",
+      "besides what stands in the brand's own picture",
     );
     const carousel = styled({
       channel: "linkedin",
@@ -684,7 +697,7 @@ describe("advanceCmoMedia", () => {
 
     // The picture went on its post, and the job says it passed.
     expect(updateSocialPost).toHaveBeenCalled();
-    expect(stored).toBe("Style passed");
+    expect(stored).toBe("Style passed: logo bottom-right");
   });
 
   it("starts each piece's picture once, within the month's limit, from the brand's pictures", async () => {
@@ -1327,5 +1340,195 @@ describe("a cmo-v8 month's kinds of print", () => {
     expect(
       cmoAllowedKinds({ piece, month, infographicSuits: true, planned: 4 }),
     ).not.toContain("infographic");
+  });
+});
+
+// The 16 Nov reference test Patrick picked against production (2026-11-20):
+// production's prompt named no trait of the print, sent no logo and five
+// colours, and its pictures came out as the same green-on-cream icon diagram.
+describe("a styled picture made the way the 16 Nov test made them", () => {
+  const traits = {
+    kind: "poster",
+    era: "1930s",
+    technique: "silkscreen, flat colour areas",
+    layout: "big figure in the middle, headline band at the foot",
+    lettering: "bold condensed sans capitals",
+  };
+  const poster = (patch: Partial<CmoMediaPiece> = {}) =>
+    piece({
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      title: "Tokens and NFTs for everyone",
+      headline: "Mint now",
+      visual: "A worker stamping a large round token at a press",
+      ...patch,
+    });
+
+  it("names the print's own traits, draws the logo in, and letters a print's lines", () => {
+    const prompt = cmoStylePrompt({
+      piece: poster(),
+      slot: 0,
+      businessName: "nmkr.io",
+      colours: ["#11f250", "#37483b", "#1378d1", "#fffefa", "#021205"],
+      traits,
+      logo: true,
+    });
+    expect(prompt).toContain(
+      "Image 1 is a 1930s poster, used ONLY as a style reference. Copy its technique (silkscreen, flat colour areas) and its lettering (bold condensed sans capitals), and keep its paper and print texture. Compose a new picture around the scene below: none of its figures, objects or drawings.",
+    );
+    expect(prompt).toContain(
+      "Image 2 is nmkr.io's logo. Place it exactly as drawn, exactly once, as part of the design (in a masthead, a footer or a sign)",
+    );
+    expect(prompt).toContain(
+      'Letter "Mint now" large in the reference\'s lettering, spelled exactly, the second line "Tokens and NFTs for everyone" smaller, and "nmkr.io" small at the foot.',
+    );
+    expect(prompt).toContain(
+      "Recolour it in the brand's inks instead of the reference's own colours: #11f250 as the accent, #021205 as the ink, on #fffefa paper.",
+    );
+    expect(prompt).not.toContain("#1378d1");
+    expect(prompt).not.toContain("corner plain");
+    expect(prompt.length).toBeLessThan(1300);
+  });
+
+  it("letters only the headline on an illustration, and no second line that repeats it", () => {
+    const illustration = cmoStylePrompt({
+      piece: poster(),
+      slot: 0,
+      businessName: "nmkr.io",
+      colours: [],
+      traits: {
+        ...traits,
+        kind: "illustration",
+        era: "unknown",
+        lettering: "none",
+      },
+    });
+    expect(illustration).toContain("Image 1 is an illustration, used ONLY");
+    expect(illustration).not.toContain("its lettering (");
+    expect(illustration).toContain(
+      "Signs, papers, screens and objects carry no words; no date, issue number, price, printer's credit, caption, signature or seal.",
+    );
+    expect(illustration).not.toContain("second line");
+    expect(
+      cmoStylePrompt({
+        piece: poster({ title: "Mint Now, today" }),
+        slot: 0,
+        businessName: "nmkr.io",
+        colours: [],
+        traits,
+      }),
+    ).not.toContain("second line");
+  });
+
+  it("picks the accent, ink and paper by role", () => {
+    expect(
+      cmoStyleInks(["#11f250", "#37483b", "#1378d1", "#fffefa", "#021205"]),
+    ).toEqual({ accent: "#11f250", ink: "#021205", paper: "#fffefa" });
+    expect(cmoStyleInks(["#ff51ff", "#000000", "#ffffff"])).toEqual({
+      accent: "#ff51ff",
+      ink: "#000000",
+      paper: "#ffffff",
+    });
+  });
+
+  describe("in a month", () => {
+    const context = {
+      cuso: {
+        projectId: "project-1",
+        workspaceId: "ws-1",
+        sokoBotId: "bot-1",
+        businessName: "nmkr.io",
+      },
+      versionId: "version-1",
+      connected: new Set(["x"]),
+    };
+    const logoPng = () =>
+      sharp({
+        create: { width: 40, height: 10, channels: 4, background: "#021205" },
+      })
+        .png()
+        .toBuffer();
+
+    beforeEach(async () => {
+      vi.clearAllMocks();
+      jobCount.mockResolvedValue(0);
+      brandPictures.mockResolvedValue([]);
+      createImageJob.mockResolvedValue({ id: "new" });
+      styleTraits.mockResolvedValue(traits);
+      brandLogo.mockResolvedValue({
+        logo: new Uint8Array(await logoPng()),
+        dark: null,
+        fileId: "f-logo",
+      });
+    });
+
+    it("sends the reference first and the brand's logo second", async () => {
+      jobFindMany.mockResolvedValue([]);
+      await advanceCmoMedia(context, [poster()]);
+      const input = createImageJob.mock.calls[0]?.[0];
+      expect(input.referenceLibraryIds).toEqual([
+        "01a1e700-0000-7000-8000-000000000001",
+      ]);
+      expect(input.referenceFileIds).toEqual(["f-logo"]);
+      expect(input.prompt).toContain("Image 1 is a 1930s poster");
+      expect(input.prompt).toContain("Image 2 is nmkr.io's logo");
+    });
+
+    const finished = (made: CmoMediaPiece) => {
+      jobFindMany.mockResolvedValue([
+        {
+          id: "job-1",
+          idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(made)}:1`,
+          status: "SUCCEEDED",
+          prompt: "prompt",
+          error: null,
+          asset: { id: "asset-1" },
+        },
+      ]);
+      let stored: string | null = null;
+      jobs.findUnique.mockImplementation(async () => ({
+        error: stored,
+        workspaceId: "ws-1",
+        requestedByUserId: "runner-1",
+        referenceFileIds: ["f-logo"],
+        workspace: { organizationId: "org-1" },
+      }));
+      jobs.updateMany.mockImplementation(async ({ data }) => {
+        stored = data.error;
+        return { count: 1 };
+      });
+      ensureDriveFile.mockResolvedValue(null);
+      return () => stored;
+    };
+
+    it("keeps a logo the model drew, and is shown it and the allowed lines", async () => {
+      const stored = finished(poster());
+      checkStyledPicture.mockResolvedValue({
+        passes: true,
+        costUsd: 0.01,
+        verdict: { problems: [], logo: "correct", plainCorner: null },
+      });
+      await advanceCmoMedia(context, [poster()]);
+      const input = checkStyledPicture.mock.calls[0]?.[0];
+      expect(input.logo).toBeInstanceOf(Uint8Array);
+      // The logo is not one of the brand's own pictures of its site.
+      expect(input.brandPictures).toEqual([]);
+      expect(input.lines).toEqual(["Tokens and NFTs for everyone", "nmkr.io"]);
+      expect(stored()).toBe("Style passed: logo drawn");
+    });
+
+    it("places a missing logo on the plain corner the check found", async () => {
+      const stored = finished(poster());
+      checkStyledPicture.mockResolvedValue({
+        passes: true,
+        costUsd: 0.01,
+        verdict: { problems: [], logo: "absent", plainCorner: "top-left" },
+      });
+      await advanceCmoMedia(context, [poster()]);
+      expect(stored()).toBe("Style passed: logo top-left");
+      expect(cmoPassedLogo("Style passed: logo top-left")).toBe("top-left");
+      // A pass stored before this change keeps its lower-right logo.
+      expect(cmoPassedLogo("Style passed")).toBe("bottom-right");
+      expect(cmoPassedLogo("Style passed: logo drawn")).toBe("drawn");
+    });
   });
 });

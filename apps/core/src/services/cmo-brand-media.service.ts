@@ -235,14 +235,19 @@ export async function listCmoBrandPictures(
  * The brand's full logo from the Project's files, and its version for a dark
  * background: what goes onto a picture. Null where research saved none.
  */
-export async function readCmoBrandLogo(
-  projectId: string,
-): Promise<{ logo: Uint8Array | null; dark: Uint8Array | null }> {
+export async function readCmoBrandLogo(projectId: string): Promise<{
+  logo: Uint8Array | null;
+  dark: Uint8Array | null;
+  /** The logo's Project file, which a styled picture is sent as its second image. */
+  fileId: string | null;
+}> {
   const files = await listResearchFiles(projectId);
-  const bytes = async (name: string) => {
-    const file = files.find(
+  const find = (name: string) =>
+    files.find(
       (candidate) => candidate.folder === "Logo" && candidate.name === name,
     );
+  const bytes = async (name: string) => {
+    const file = find(name);
     if (!file) return null;
     try {
       // Our own Blob store: its bot check refuses the SSRF-safe fetch.
@@ -254,9 +259,11 @@ export async function readCmoBrandLogo(
       return null;
     }
   };
+  const logo = await bytes(CMO_BRAND_LOGO_FILES.src);
   return {
-    logo: await bytes(CMO_BRAND_LOGO_FILES.src),
+    logo,
     dark: await bytes(CMO_BRAND_LOGO_FILES.srcDark),
+    fileId: logo ? (find(CMO_BRAND_LOGO_FILES.src)?.fileId ?? null) : null,
   };
 }
 

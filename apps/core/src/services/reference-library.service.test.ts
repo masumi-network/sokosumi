@@ -90,3 +90,17 @@ describe("infographics", () => {
     expect(infographicSuits(undefined)).toBe(false);
   });
 });
+
+// NMKR's styled pictures (2026-11-20): 24 of 40 references were pages of
+// text and only 2 were rated usable 5; the pictures looked alike whatever
+// the reference was.
+describe("the reference bar", () => {
+  it("offers only clearly usable prints that are not mostly text", async () => {
+    await findStyleReferences({ about: "a launch poster" }, embed as never);
+    const [sql, ...values] = prisma.$queryRaw.mock.calls[0] ?? [];
+    const text = (sql as string[]).join("?");
+    expect(text).toContain('"usable" >= ?');
+    expect(values).toContain(4);
+    expect(text).toContain(`"textAmount" <> 'lots'`);
+  });
+});

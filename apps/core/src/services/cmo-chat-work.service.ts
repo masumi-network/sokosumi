@@ -30,8 +30,8 @@ import {
   requireCuso,
 } from "@/services/cmo-cuso.service";
 import {
-  CMO_STYLE_PASSED,
   CMO_STYLE_REJECTED,
+  cmoStylePassed,
 } from "@/services/cmo-media-maker.service";
 import {
   type LiveResource,
@@ -201,7 +201,7 @@ function studioState(job: StudioJob): CmoChatWorkItem["state"] {
   if (MAKING.has(job.status)) return waiting;
   if (job.status !== "SUCCEEDED" || !job.asset) return "failed";
   if (job.referenceLibraryIds.length === 0) return "ready";
-  if (job.error === CMO_STYLE_PASSED) return "ready";
+  if (cmoStylePassed(job.error)) return "ready";
   return job.error?.startsWith(CMO_STYLE_REJECTED) ? "failed" : waiting;
 }
 
