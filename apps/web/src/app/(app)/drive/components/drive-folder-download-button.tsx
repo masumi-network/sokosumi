@@ -4,7 +4,7 @@ import { Download } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useFilesArchiveDownload } from "@/hooks/use-files-archive-download";
+import { useFilesArchiveDownload } from "@/hooks/effects/use-files-archive-download";
 import {
   type ArchiveFile,
   FOLDER_ARCHIVE_MAX_FILES,

@@ -156,7 +156,7 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => false,
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobileMedia: () => mockIsMobileMedia(),
 }));
@@ -173,15 +173,16 @@ vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: useChatRoomRealtimeMock,
 }));
 
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: () => ({
-    typistIds: [],
-    handleComposerChange: () => {},
-    handleStopTyping: () => {},
-  }),
-}));
+vi.mock("@/hooks/effects/use-room-typing", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/hooks/effects/use-room-typing")>();
+  return {
+    ...actual,
+    useRoomTypingSync: () => undefined,
+  };
+});
 
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
+vi.mock("@/hooks/effects/use-selected-room-channel-health", () => ({
   useSelectedRoomChannelHealth: () => undefined,
 }));
 

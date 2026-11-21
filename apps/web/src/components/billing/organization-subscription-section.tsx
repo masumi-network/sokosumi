@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
@@ -67,15 +67,17 @@ export function OrganizationSubscriptionSection({
   );
 
   const minimumSeats = useMemo(() => resolveMinimumOrganizationSeats(), []);
+  const [prevCurrentSeats, setPrevCurrentSeats] = useState(currentSeats);
   const [targetSeats, setTargetSeats] = useState<number | null>(
     resolveTargetOrganizationSeats(currentSeats),
   );
   const [pendingPlan, setPendingPlan] =
     useState<PaidSubscriptionPlanName | null>(null);
 
-  useEffect(() => {
+  if (prevCurrentSeats !== currentSeats) {
+    setPrevCurrentSeats(currentSeats);
     setTargetSeats(resolveTargetOrganizationSeats(currentSeats));
-  }, [currentSeats]);
+  }
 
   const cancellationDate = useMemo(() => {
     if (!scheduledCancelDate) {

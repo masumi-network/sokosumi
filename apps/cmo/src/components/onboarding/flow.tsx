@@ -4,12 +4,12 @@ import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { useCallback, useEffect, useState } from "react";
+import { useOnboardingReturnNotice } from "../../hooks/effects/use-onboarding-return-notice";
+import { useOnboardingStepScroll } from "../../hooks/effects/use-onboarding-step-scroll";
 import type { CusoMessage } from "../../lib/chat-messages";
-import { connectReturnError } from "../../lib/connect-return";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { AccountMenu } from "../account-menu";
-import { adsReturnError } from "../ads";
 import { subscribeOffer } from "../app/paused";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
@@ -39,6 +39,8 @@ interface OnboardingFlowProps {
   messages: CusoMessage[];
   /** "results" when a measurement connection sends the founder back to it. */
   initialStep?: "results" | undefined;
+  /** Why a measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
   /** What this person skipped in hiring, from CMO's cookie. */
   skipped?: SkippedStep[];
   /** The CMO plans the checkout step offers; empty when Core could not read them. */
@@ -57,6 +59,7 @@ export function OnboardingFlow({
   overview: initialOverview,
   messages: initialMessages,
   initialStep,
+  measureError = null,
   skipped: initialSkipped = [],
   plans = [],
   returnedFromCheckout = false,
@@ -72,20 +75,10 @@ export function OnboardingFlow({
     initialStep === "results" ? "plan" : null,
   );
   // Why a connection came back without an account, read before the query goes.
-  const [returnNotice, setReturnNotice] = useState<string | null>(null);
-
-  // The connection redirect's query has been read; a reload routes from Core.
-  useEffect(() => {
-    setReturnNotice(
-      connectReturnError(
-        new URLSearchParams(window.location.search).get("connect"),
-      ) ?? adsReturnError(),
-    );
-    // Polar's return address stays, so a reload keeps confirming the payment.
-    if (window.location.search && !returnedFromCheckout) {
-      window.history.replaceState(null, "", "/");
-    }
-  }, [returnedFromCheckout]);
+  const returnNotice = useOnboardingReturnNotice(returnedFromCheckout);
+  // One-shot measurement return error: consumed when leaving Results or Plan so
+  // revisiting Brand and returning to Strategy never replays it.
+  const [pendingMeasureError, setPendingMeasureError] = useState(measureError);
 
   const refresh = useCallback(async () => {
     const state = await actions.loadState().catch(() => null);
@@ -145,10 +138,15 @@ export function OnboardingFlow({
     stepIndex(viewing) < reached;
   const step: OnboardingStep =
     revisiting && viewing ? viewing : heldSite ? "site" : derived;
+  const [prevStep, setPrevStep] = useState(step);
+  if (prevStep !== step) {
+    setPrevStep(step);
+    if (prevStep === "plan" && pendingMeasureError !== null) {
+      setPendingMeasureError(null);
+    }
+  }
   const current = stepIndex(step);
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [step]);
+  useOnboardingStepScroll(step);
 
   // A finished step opened again leads forward to where the founder was.
   const ahead = revisiting
@@ -161,16 +159,14 @@ export function OnboardingFlow({
   // Asked for the plan this session: it is being written, even before Core
   // reports the work, so the button is not offered a second time.
   const [planRequested, setPlanRequested] = useState(false);
-  useEffect(() => {
-    if (
-      planRequested &&
-      (overview.work?.kind === "strategy" || overview.strategy)
-    ) {
-      setPlanRequested(false);
-    }
-  }, [planRequested, overview.work, overview.strategy]);
+  const strategyStarted =
+    overview.work?.kind === "strategy" || Boolean(overview.strategy);
+  if (planRequested && strategyStarted) {
+    setPlanRequested(false);
+  }
   const starting =
     planRequested &&
+    !strategyStarted &&
     position.step === "plan" &&
     position.phase === "writing-needed";
   const planPhase =
@@ -316,6 +312,8 @@ export function OnboardingFlow({
             phase={planPhase}
             starting={starting}
             initialTab={initialStep === "results" ? "results" : undefined}
+            measureError={pendingMeasureError}
+            onConsumeMeasureError={() => setPendingMeasureError(null)}
             ahead={ahead}
             onRequest={request}
             onSetAds={async (monthly, currency) =>

@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useContext, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,26 +11,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const TaskFormModalHeaderContext = createContext<{
-  setHeaderStart: (content: React.ReactNode) => void;
-} | null>(null);
+const TaskFormModalHeaderContext = createContext<HTMLDivElement | null>(null);
 
 export function TaskFormModalHeaderStart({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const context = useContext(TaskFormModalHeaderContext);
-  const childrenRef = useRef(children);
-  childrenRef.current = children;
-
-  useLayoutEffect(() => {
-    if (!context) return;
-    context.setHeaderStart(childrenRef.current);
-    return () => context.setHeaderStart(null);
-  }, [context]);
-
-  return null;
+  const host = useContext(TaskFormModalHeaderContext);
+  return host ? createPortal(children, host) : null;
 }
 
 export function isTaskFormPortalEventTarget(
@@ -71,18 +52,9 @@ export function TaskFormModal({
   onOpenAutoFocus,
   onCloseAutoFocus,
 }: TaskFormModalProps) {
-  const [headerStart, setHeaderStart] = useState<React.ReactNode>(null);
-  const registerHeaderStart = useCallback((content: React.ReactNode) => {
-    setHeaderStart(content);
-  }, []);
-  const headerContextValue = useMemo(
-    () => ({ setHeaderStart: registerHeaderStart }),
-    [registerHeaderStart],
+  const [headerStartHost, setHeaderStartHost] = useState<HTMLDivElement | null>(
+    null,
   );
-
-  useEffect(() => {
-    if (!open) setHeaderStart(null);
-  }, [open]);
 
   // Clicking outside / pressing Escape closes the modal, except while a submit
   // or upload is in flight (guarded by isDismissDisabled).
@@ -114,10 +86,10 @@ export function TaskFormModal({
         }}
       >
         <DialogDescription className="hidden" />
-        <TaskFormModalHeaderContext value={headerContextValue}>
+        <TaskFormModalHeaderContext value={open ? headerStartHost : null}>
           <div className="bg-background flex h-dvh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90dvh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-lg">
             <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center px-6 py-3 md:px-8">
-              <div className="justify-self-start">{headerStart}</div>
+              <div ref={setHeaderStartHost} className="justify-self-start" />
               <DialogTitle className="text-base font-semibold">
                 {title}
               </DialogTitle>

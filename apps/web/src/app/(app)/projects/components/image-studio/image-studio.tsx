@@ -22,7 +22,6 @@ import { useTranslations } from "next-intl";
 import {
   type RefObject,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useOptimistic,
@@ -35,6 +34,8 @@ import { toast } from "sonner";
 import { switchScopeHref } from "@/app/components/project-scope/project-scope-href";
 import { openProjectScope } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { Button } from "@/components/ui/button";
+import { useIntersectionObserver } from "@/hooks/effects/use-intersection-observer";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -55,12 +56,12 @@ import { cn } from "@/lib/utils";
 
 import {
   clampToModel,
+  defaultModel,
   defaultVideoModel,
+  imageRepeatRoute,
   modelById,
-  modelIdForRepeat,
   resolveModel,
   settingsOf,
-  supportsVariation,
   videoModelsFor,
 } from "./catalog";
 import {
@@ -97,11 +98,10 @@ import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import { type StudioBrief, unfilledTemplateSlots } from "./studio-templates";
 import {
-  carryVideoSettings,
   StudioModeSwitch,
   StudioVideoComposer,
-  type StudioVideoDraft,
-  videoDraftFor,
+  type StudioVideoSettings,
+  videoSettingsFor,
 } from "./studio-video-composer";
 import { StudioWebsiteTools } from "./studio-website-tools";
 import {
@@ -151,19 +151,9 @@ interface StudioCaptionDraft {
  * The studio.
  *
  * An empty studio offers style briefs in the center. Once generation starts,
- * results fill the feed and the styles move into the composer's toolbar. Models
- * and generation settings remain summaries that open on demand.
- *
- * There is no conversational assistant here, by design. Generating images is a
- * form — a brief, some models, a frame — and the thing worth optimising is how
- * many models one brief can reach and how quickly their results can be read
- * side by side. A chat column bought none of that and spent a quarter of the
- * width on it.
- * The ad editor is now opened on demand, beside the gallery on wide screens.
- *
- * What the person is aiming at — models and frame — is still held here rather
- * than inside the composer, because the lightbox's "new variation" and the
- * gallery's reference selection both read from it.
+ * results fill the feed and styles move into the composer's toolbar. The ad
+ * editor opens beside the gallery on wide screens. The gallery, lightbox and
+ * composer share the selected references and generation settings.
  */
 export function ImageStudio({
   catalog,
@@ -303,43 +293,19 @@ export function ImageStudio({
   const hasVideo = catalog.videoModels.length > 0;
   const [mode, setMode] = useState<"image" | "video">("image");
   const [videoSource, setVideoSource] = useState<StudioAsset | null>(null);
-  const [videoDraft, setVideoDraft] = useState<StudioVideoDraft | null>(null);
+  const [videoSettings, setVideoSettings] =
+    useState<StudioVideoSettings | null>(null);
   const [videoBusy, startVideoTransition] = useTransition();
-  const videoModels = videoModelsFor(catalog, videoSource ? "image" : "text");
   const automaticVideoModel = defaultVideoModel(
     catalog,
     videoSource ? "image" : "text",
   );
-  const activeVideoDraft =
-    videoDraft &&
-    videoDraft.modelSelection !== "auto" &&
-    videoModels.some((model) => model.id === videoDraft.modelId)
-      ? videoDraft
-      : automaticVideoModel
-        ? {
-            ...videoDraftFor(automaticVideoModel),
-            ...(videoDraft?.modelSelection === "auto"
-              ? {
-                  settings: carryVideoSettings(
-                    automaticVideoModel,
-                    videoDraft.settings,
-                  ),
-                }
-              : {}),
-            modelSelection: "auto" as const,
-          }
-        : null;
+  const activeVideoSettings = automaticVideoModel
+    ? videoSettingsFor(automaticVideoModel, videoSettings)
+    : null;
 
   const [target, setTarget] = useState<StudioTarget>(() => {
-    // The curated five, in Core's order. Only the opening selection: every one
-    // of them can be unselected, the rest of the catalog can be added, and
-    // bulk selection is bounded by the 12-image purchase ceiling. Nothing
-    // below treats these five as special after this line.
-    // Auto supersedes that opening shortlist: no models are pinned until a
-    // person selects one in Advanced, and the direct path resolves Gemini Pro.
     return {
-      modelIds: [],
-      modelSelection: "auto",
       settings: {
         aspectRatio: "1:1",
         resolution: "1K",
@@ -348,11 +314,6 @@ export function ImageStudio({
       },
     };
   });
-
-  const pinnedModel =
-    target.modelSelection === "auto"
-      ? null
-      : modelById(catalog, target.modelIds[0]);
 
   const syncSelectionToUrl = useCallback(
     (assetId: string | null) => {
@@ -495,12 +456,16 @@ export function ImageStudio({
    * DOM-only: there is no React state for "where the gallery is scrolled to",
    * which is exactly the kind of external system an Effect is for.
    */
-  useMountEffect(() => {
-    if (!initialSelectedAssetId) return;
-    document
-      .querySelector(`[data-asset-id="${CSS.escape(initialSelectedAssetId)}"]`)
-      ?.scrollIntoView({ block: "center" });
-  });
+  useScrollIntoViewWhen(
+    () =>
+      initialSelectedAssetId
+        ? document.querySelector(
+            `[data-asset-id="${CSS.escape(initialSelectedAssetId)}"]`,
+          )
+        : null,
+    true,
+    { block: "center" },
+  );
 
   const queue = useGenerationQueue({
     onAccepted: useCallback(
@@ -808,23 +773,23 @@ export function ImageStudio({
     from: "asset" | "job",
     reroll = false,
   ) {
-    if (
-      from === "asset" &&
-      !reroll &&
-      !supportsVariation(catalog, source.model)
-    )
-      return;
-    if (refuseUnfilledSlots([source.prompt], source)) return;
-    const id = crypto.randomUUID();
     const job = from === "job" ? (source as StudioJob) : null;
+    const referenceCount = job
+      ? job.referenceAssetIds.length +
+        (job.useProductCutout ? 0 : (job.referenceFileIds?.length ?? 0))
+      : reroll
+        ? 0
+        : 1;
+    const route = imageRepeatRoute(catalog, source, referenceCount);
+    if (!route || refuseUnfilledSlots([source.prompt], source)) return;
+    const { model, letterExistingBackdrop: letteringEdit } = route;
+    const settings = clampToModel(model, settingsOf(source));
+    const id = crypto.randomUUID();
     const sourceJob =
       job ??
       state.jobs.find(
         (candidate) => candidate.id === (source as StudioAsset).jobId,
       );
-    const modelId = modelIdForRepeat(catalog, source.model) ?? "";
-    const letteringEdit =
-      source.lettering === "ideogram" && modelId === "ideogram-v3";
     const exportHeadline =
       from === "job"
         ? job?.exportHeadline
@@ -845,13 +810,12 @@ export function ImageStudio({
       ...(job?.variationIndex !== undefined
         ? { variationIndex: job.variationIndex }
         : {}),
-      modelId,
-      modelLabel: source.model,
+      modelId: model.id,
+      modelLabel: model.label,
+      ...(letteringEdit ? { letterExistingBackdrop: true } : {}),
       // A re-roll is a fresh draw of the same brief: no seed, or the model
       // would hand back the picture it already made.
-      settings: reroll
-        ? { ...settingsOf(source), seed: null }
-        : settingsOf(source),
+      settings: reroll ? { ...settings, seed: null } : settings,
       parentAssetId:
         reroll && !letteringEdit
           ? null
@@ -911,6 +875,7 @@ export function ImageStudio({
     setTarget((current) => ({
       ...current,
       templateId: template.id,
+      letteringBackdropId: undefined,
       placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
@@ -1006,6 +971,7 @@ export function ImageStudio({
       ...current,
       templateId: undefined,
       creativeDirection: undefined,
+      letteringBackdropId: undefined,
       placementRatios: undefined,
       settings: { ...current.settings, ...settingsOf(asset), seed: null },
     }));
@@ -1086,7 +1052,9 @@ export function ImageStudio({
   }
 
   function canEditRequest(request: QueuedGeneration) {
-    const model = modelById(catalog, request.modelId);
+    const model = request.letterExistingBackdrop
+      ? modelById(catalog, "ideogram-v3")
+      : defaultModel(catalog);
     if (uploadingPhoto || !model || request.projectId !== activeProjectId)
       return false;
     const { referenceAssetIds, referenceFileIds, parentAssetId, settings } =
@@ -1125,6 +1093,7 @@ export function ImageStudio({
   function clearReferences() {
     setArchiveLogoOverride(undefined);
     setTemplateUndo(null);
+    setTarget((current) => ({ ...current, letteringBackdropId: undefined }));
     setCheckedIds([]);
     setParentAssetId(undefined);
     setHasNewerSettings(true);
@@ -1156,7 +1125,7 @@ export function ImageStudio({
   /** Open the video composer on a gallery image. */
   function animate(asset: StudioAsset) {
     setVideoSource(asset);
-    setVideoDraft(null);
+    setVideoSettings(null);
     setMode("video");
     setViewing(null);
     requestAnimationFrame(() => promptRef.current?.focus());
@@ -1164,7 +1133,7 @@ export function ImageStudio({
 
   function handleGenerateVideo() {
     const projectForVideo = videoSource?.projectId ?? activeProjectId;
-    if (!projectForVideo || !activeVideoDraft) return;
+    if (!projectForVideo || !activeVideoSettings) return;
     const brief = prompt.trim();
     if (refuseUnfilledSlots([brief])) return;
     // One key per press, reused if the same press is retried.
@@ -1173,16 +1142,15 @@ export function ImageStudio({
     startVideoTransition(async () => {
       const result = await startVideoGeneration({
         projectId: projectForVideo,
-        modelId: activeVideoDraft.modelId,
         prompt: brief,
         settings: {
-          durationSeconds: activeVideoDraft.settings.durationSeconds,
-          resolution: activeVideoDraft.settings.resolution,
+          durationSeconds: activeVideoSettings.durationSeconds,
+          resolution: activeVideoSettings.resolution,
           // Empty for an image-to-video model: its frame is the still's.
-          ...(activeVideoDraft.settings.aspectRatio
+          ...(activeVideoSettings.aspectRatio
             ? {
-                aspectRatio: activeVideoDraft.settings
-                  .aspectRatio as VideoAspectRatio,
+                aspectRatio:
+                  activeVideoSettings.aspectRatio as VideoAspectRatio,
               }
             : {}),
         },
@@ -1243,24 +1211,17 @@ export function ImageStudio({
   // Chat-style feed: the scroller is `flex-col-reverse`, so scrollTop 0 is the
   // newest image and prepending older pages never moves what is on screen. The
   // top sentinel asks for the next older page as it nears the viewport.
-  const topRef = useRef<HTMLDivElement>(null);
-  const loadOlderRef = useRef(loadOlder);
-  loadOlderRef.current = loadOlder;
-  useEffect(() => {
-    const node = topRef.current;
-    if (!node || !hasOlder) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          void loadOlderRef.current();
-        }
-      },
-      { rootMargin: "400px 0px 0px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-    // Re-armed per page: a page that does not fill the viewport must fire again.
-  }, [hasOlder, state.assets.length]);
+  const [topSentinel, setTopSentinel] = useState<HTMLDivElement | null>(null);
+  // Re-armed per page: a page that does not fill the viewport must fire again.
+  useIntersectionObserver(
+    hasOlder ? topSentinel : null,
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void loadOlder();
+      }
+    },
+    { rootMargin: "400px 0px 0px 0px", resetKey: state.assets.length },
+  );
 
   const dock = useSteadyDock(promptRef, showsNothing);
   const assistantOpen = assistant?.open === true;
@@ -1288,19 +1249,19 @@ export function ImageStudio({
   ) : null;
 
   const composer =
-    mode === "video" && activeVideoDraft ? (
+    mode === "video" && automaticVideoModel && activeVideoSettings ? (
       <StudioVideoComposer
         busy={videoBusy}
         canGenerate={(videoSource?.projectId ?? activeProjectId) !== null}
-        catalog={catalog}
-        draft={activeVideoDraft}
+        model={automaticVideoModel}
+        settings={activeVideoSettings}
         labels={labels}
         modeSwitch={modeSwitch}
         onClearSource={() => {
           setVideoSource(null);
-          setVideoDraft(null);
+          setVideoSettings(null);
         }}
-        onDraftChange={setVideoDraft}
+        onSettingsChange={setVideoSettings}
         onGenerate={handleGenerateVideo}
         onPromptChange={(value) => {
           setTemplateUndo(null);
@@ -1429,7 +1390,7 @@ export function ImageStudio({
               : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
           )}
         >
-          {studio.sort !== "best" ? <div ref={topRef} /> : null}
+          {studio.sort !== "best" ? <div ref={setTopSentinel} /> : null}
           {hasOlder ? (
             <p className="text-muted-foreground text-center text-xs">
               {labels.loadOlder}
@@ -1485,6 +1446,10 @@ export function ImageStudio({
                 readOnly ? undefined : (asset) => repeat(asset, "asset")
               }
               onToggleSelect={(assetId) => {
+                setTarget((current) => ({
+                  ...current,
+                  letteringBackdropId: undefined,
+                }));
                 setTemplateUndo(null);
                 setParentAssetId(undefined);
                 setHasNewerSettings(true);
@@ -1499,7 +1464,7 @@ export function ImageStudio({
             />
           )}
 
-          {studio.sort === "best" ? <div ref={topRef} /> : null}
+          {studio.sort === "best" ? <div ref={setTopSentinel} /> : null}
 
           {queue.failed.map((failure) => (
             <StudioFailedSubmission
@@ -1520,11 +1485,11 @@ export function ImageStudio({
                       setPrompt(request.prompt);
                       setTarget({
                         templateId: request.templateId,
-                        modelIds: [request.modelId],
-                        modelSelection: undefined,
                         settings: request.settings,
+                        letteringBackdropId: request.letterExistingBackdrop
+                          ? request.referenceAssetIds[0]
+                          : undefined,
                         useProductCutout: request.useProductCutout,
-                        lettering: request.lettering,
                         ...(request.exportHeadline
                           ? {
                               exportHeadlines: {
@@ -1719,6 +1684,7 @@ export function ImageStudio({
                     ...current,
                     templateId: undefined,
                     creativeDirection: undefined,
+                    letteringBackdropId: undefined,
                     placementRatios: undefined,
                     settings: { ...settingsOf(asset), seed: null },
                   }));
@@ -1862,12 +1828,6 @@ export function ImageStudio({
             onSelectResult={(asset) => setAssistant({ open: true, asset })}
             projectId={activeProjectId}
             selectedAsset={assistant.asset}
-            studioModelId={pinnedModel?.id ?? null}
-            studioSettings={
-              pinnedModel
-                ? clampToModel(pinnedModel, target.settings)
-                : target.settings
-            }
           />
         </aside>
       ) : null}
@@ -2022,14 +1982,16 @@ export function FailedJob({
           <p className="mt-1 font-mono text-xs break-words">{providerError}</p>
         ) : null}
       </details>
-      <Button
-        className="col-start-2 row-start-1 shrink-0"
-        onClick={onRetry}
-        size="sm"
-        variant="secondary"
-      >
-        {labels.tryAgain}
-      </Button>
+      {job.failureReason !== "invalid_vector_image" && (
+        <Button
+          className="col-start-2 row-start-1 shrink-0"
+          onClick={onRetry}
+          size="sm"
+          variant="secondary"
+        >
+          {labels.tryAgain}
+        </Button>
+      )}
       <div className="col-start-3 row-start-1 mt-1 shrink-0">{dismiss}</div>
     </div>
   );

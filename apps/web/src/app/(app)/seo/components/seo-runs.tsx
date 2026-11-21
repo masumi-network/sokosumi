@@ -2,22 +2,16 @@
 
 import { CalendarRange, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useId, useMemo, useRef, useState } from "react";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
+import { useScrollChildIntoViewX } from "@/hooks/effects/use-scroll-child-into-view-x";
+import { useScrollToEnd } from "@/hooks/effects/use-scroll-to-end";
 import {
   useSeoResultFormatter,
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoReportFiles } from "./seo-report-files";
-import { seoReportVersions } from "./seo-report-files-model";
 import { SeoRunCalendar } from "./seo-run-calendar";
 import { SeoRunDayDialog, SeoRunDayHover } from "./seo-run-day";
 import {
@@ -27,6 +21,7 @@ import {
 } from "./seo-runs-model";
 import { seoRunProgress } from "./seo-setup-model";
 import { seoStops } from "./seo-timeline-model";
+import type { SeoReportFileProps } from "./use-seo-report-files";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const MINUTE_MS = 60_000;
@@ -43,7 +38,7 @@ const STOP_BUTTON_CLASS =
 /**
  * The checks of the site over the tabs, in a card of their own: the run on its title line, and a timeline of one
  * stop per day with its result, oldest on the left and the newest on the right, then a check in flight and the next
- * scheduled check. A press on a day shows the page as it was on that day. "Other dates" below the timeline opens a
+ * scheduled check. A press opens the preview, where the reader can choose the day or inspect its events. "Other dates" below the timeline opens a
  * calendar of the days with a check: both choose the time the page shows. It stands on every tab, so the days stand
  * at the same place on each.
  */
@@ -51,12 +46,14 @@ export function SeoRuns({
   model,
   shown,
   runButton,
+  versions,
 }: {
   model: SeoWorkspaceModel;
   /** The workspace decides once whether the line shows: it holds the date filter then. */
   shown: boolean;
   /** The run of the page; none on the Agent tab while its setup card leads. */
   runButton?: ReactNode;
+  versions: SeoReportFileProps["versions"];
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -72,9 +69,13 @@ export function SeoRuns({
     setDetailsDay(day);
     setDetailsOpen(true);
   };
-  const hintIds = useId();
+  const [previewDay, setPreviewDay] = useState<string | null>(null);
+  const rangeTrigger = useRef<HTMLButtonElement>(null);
+  function changePreview(day: string, open: boolean) {
+    setPreviewDay((current) => (open ? day : current === day ? null : current));
+  }
   // Core sends the events of the period in view only: with an older day picked, the newer stops hold nothing, so
-  // they open no card and keep their hint.
+  // their preview can still offer to load the day.
   // The stops the row shows: the oldest of them also holds the older days. The key stands for days, a new array
   // each render. One more stop holds every event the page has: the details of a range the reader set, where Core
   // sends the events of the range only.
@@ -87,6 +88,7 @@ export function SeoRuns({
       ]),
     [model.data, shownDaysKey],
   );
+  if (previewDay && !stopsByDay.has(previewDay)) setPreviewDay(null);
   const stopOf = (day: string) =>
     stopsByDay.get(day) ?? { after: null, newest: false, nodes: [] };
   // The button the details came from: the stop of the card, which is gone when the dialog closes, or the footer button.
@@ -100,27 +102,21 @@ export function SeoRuns({
   const titleId = useId();
   const next = shown ? seoNextScheduledCheck(model.data.monitors, now) : null;
   // On a phone the line scrolls sideways: its right end starts in view, with the newest day.
-  useEffect(() => {
-    const bar = line.current;
-    if (bar && days.length) bar.scrollLeft = bar.scrollWidth;
-  }, [days.length, running, next !== null]);
+  useScrollToEnd(line, `${days.length}:${running}:${next !== null}`, {
+    axis: "horizontal",
+    enabled: days.length > 0,
+  });
   // A picked older day comes into view; a pick already in view does not move the line.
-  useEffect(() => {
-    const bar = line.current;
-    const stop = pickedDay
-      ? bar?.querySelector<HTMLElement>(`time[datetime="${pickedDay}"]`)
-      : null;
-    if (!bar || !stop) return;
-    const outer = bar.getBoundingClientRect();
-    const inner = stop.getBoundingClientRect();
-    if (inner.left < outer.left) bar.scrollLeft -= outer.left - inner.left;
-    else if (inner.right > outer.right)
-      bar.scrollLeft += inner.right - outer.right;
-  }, [pickedDay]);
-  const versions =
-    model.invalidDates || model.updating
-      ? []
-      : seoReportVersions(model.data, model.filters);
+  useScrollChildIntoViewX(
+    line,
+    () =>
+      pickedDay
+        ? line.current?.querySelector<HTMLElement>(
+            `time[datetime="${pickedDay}"]`,
+          )
+        : null,
+    pickedDay,
+  );
   const showReports =
     versions.length > 0 ||
     (model.updating &&
@@ -140,6 +136,7 @@ export function SeoRuns({
   // A refetch can take the open stop off the row: the dialog closes with it.
   const details = detailsDay ? stopsByDay.get(detailsDay) : undefined;
   if (detailsOpen && !details) setDetailsOpen(false);
+  if (previewDay === WHOLE && !ranged) setPreviewDay(null);
   // The stop whose details the footer opens: the day in view, or every event of a range.
   const detailsStop =
     !shown || model.invalidDates ? undefined : ranged ? WHOLE : inView?.day;
@@ -238,20 +235,25 @@ export function SeoRuns({
                       )}
                     />
                   ) : null}
-                  {entry.selected ? null : (
-                    <span id={`${hintIds}-${entry.day}`} hidden>
-                      {t("runs.showDay", { day: dayOf(entry.at) })}
-                    </span>
-                  )}
                   <SeoRunDayHover
                     workspace={model.data}
                     day={dayOf(entry.at, reportFormat)}
                     nodes={stopOf(entry.day).nodes}
-                    hint={
-                      entry.selected
-                        ? null
-                        : t("runs.showDay", { day: dayOf(entry.at) })
+                    issues={entry.issues}
+                    pinned={previewDay === entry.day}
+                    allowHover={!previewDay && !detailsOpen}
+                    previewLabel={t("runs.previewOf", { day: dayOf(entry.at) })}
+                    onPinnedChange={(open) => changePreview(entry.day, open)}
+                    onSelectDay={
+                      entry.selected && !ranged
+                        ? undefined
+                        : () =>
+                            void model.setFilters({
+                              from: null,
+                              to: entry.newest ? null : entry.day,
+                            })
                     }
+                    selectLabel={t("runs.showDay", { day: dayOf(entry.at) })}
                     onDetails={() => {
                       returnTo.current =
                         line.current
@@ -264,24 +266,10 @@ export function SeoRuns({
                       ref={entry.newest ? newestRef : undefined}
                       type="button"
                       aria-pressed={entry.selected}
-                      // The hint says what a press does: the page as it was on that day. A stop with a card shows it in the
-                      // card; the keyboard, which opens no card, hears it as the description.
-                      title={
-                        entry.selected || stopOf(entry.day).nodes.length
-                          ? undefined
-                          : t("runs.showDay", { day: dayOf(entry.at) })
-                      }
-                      aria-describedby={
-                        entry.selected ? undefined : `${hintIds}-${entry.day}`
-                      }
-                      // The run in view is bright with a bright neutral dot; the others are muted. No accent: it is a fill only.
+                      aria-description={t("runs.previewOf", {
+                        day: dayOf(entry.at),
+                      })}
                       className={STOP_BUTTON_CLASS}
-                      onClick={() => {
-                        void model.setFilters({
-                          from: null,
-                          to: entry.newest ? null : entry.day,
-                        });
-                      }}
                     >
                       <span
                         aria-hidden
@@ -393,7 +381,32 @@ export function SeoRuns({
               </span>
             ) : ranged ? (
               <span className="content-in">
-                {rangeText} {latest}
+                {hasDetails && detailsStop === WHOLE && rangeText ? (
+                  <SeoRunDayHover
+                    workspace={model.data}
+                    day={rangeOf(report, reportFormat) ?? rangeText}
+                    nodes={stopOf(WHOLE).nodes}
+                    previewLabel={rangeText}
+                    pinned={previewDay === WHOLE}
+                    allowHover={!previewDay && !detailsOpen}
+                    onPinnedChange={(open) => changePreview(WHOLE, open)}
+                    onDetails={() => {
+                      returnTo.current = rangeTrigger.current;
+                      openDetails(WHOLE);
+                    }}
+                  >
+                    <button
+                      type="button"
+                      ref={rangeTrigger}
+                      className="hit-area focus-visible:ring-ring rounded-sm underline underline-offset-4 focus-visible:ring-2"
+                    >
+                      {rangeText}
+                    </button>
+                  </SeoRunDayHover>
+                ) : (
+                  rangeText
+                )}{" "}
+                {latest}
               </span>
             ) : null}
           </p>
@@ -416,25 +429,6 @@ export function SeoRuns({
                 {t("runs.dates")}
               </button>
             </SeoRunCalendar>
-            {/* The details of the day in view: the way to them for the keyboard and on a touch screen, where a stop
-              opens no card. */}
-            {detailsStop && hasDetails ? (
-              <button
-                type="button"
-                aria-label={
-                  detailsStop !== WHOLE && inView
-                    ? t("runs.detailsOf", { day: dayOf(inView.at) })
-                    : undefined
-                }
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area ms-auto rounded-sm text-xs underline underline-offset-4 transition-colors outline-none focus-visible:ring-2"
-                onClick={(event) => {
-                  returnTo.current = event.currentTarget;
-                  openDetails(detailsStop);
-                }}
-              >
-                {t("runs.details")}
-              </button>
-            ) : null}
           </footer>
         ) : null}
       </div>

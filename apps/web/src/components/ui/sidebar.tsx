@@ -4,7 +4,7 @@ import * as React from "react";
 import { Slot as SlotPrimitive } from "radix-ui";
 import { VariantProps, cva } from "class-variance-authority";
 
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import {
   SIDEBAR_BOOT_STOP_GLOBAL,
   SIDEBAR_COMPACT_MEDIA_QUERY,

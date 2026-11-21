@@ -12,7 +12,7 @@ vi.mock("@/components/chat/emoji-picker", () => ({
 
 const keyboardOpen = vi.hoisted(() => ({ current: false }));
 
-vi.mock("@/hooks/use-keyboard-open", () => ({
+vi.mock("@/hooks/effects/use-keyboard-open", () => ({
   useKeyboardOpen: () => keyboardOpen.current,
 }));
 

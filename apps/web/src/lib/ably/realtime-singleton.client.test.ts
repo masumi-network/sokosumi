@@ -1,11 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+interface MockRealtimeClient {
+  close: ReturnType<typeof vi.fn>;
+  connection: {
+    state: string;
+    listeners: Set<() => void>;
+    on: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
+    emitState: (state: string) => void;
+  };
+}
+
 const { RealtimeMock, PushMock } = vi.hoisted(() => ({
   RealtimeMock: vi.fn(function Realtime(
-    this: { close: ReturnType<typeof vi.fn> },
+    this: MockRealtimeClient,
     _options: unknown,
   ) {
+    const listeners = new Set<() => void>();
+    const connection = {
+      state: "initialized",
+      listeners,
+      on: vi.fn((listener: () => void) => {
+        listeners.add(listener);
+      }),
+      off: vi.fn((listener: () => void) => {
+        listeners.delete(listener);
+      }),
+      emitState(state: string) {
+        connection.state = state;
+        for (const listener of [...listeners]) {
+          listener();
+        }
+      },
+    };
     this.close = vi.fn();
+    this.connection = connection;
     return this;
   }),
   PushMock: { name: "ably-push-plugin" },
@@ -53,9 +82,7 @@ interface RealtimeClientOptions {
   echoMessages?: boolean;
 }
 
-function getConstructedRealtimeClient(index = 0): {
-  close: ReturnType<typeof vi.fn>;
-} {
+function getConstructedRealtimeClient(index = 0): MockRealtimeClient {
   const constructed = RealtimeMock.mock.instances[index];
   if (!constructed) {
     throw new Error("Ably.Realtime was not constructed");
@@ -577,5 +604,49 @@ describe("getAblyRealtimeClient", () => {
     expect(renewal.error).toBeNull();
     expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
     expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+  });
+
+  it("mirrors TCP connection state into the health store only alongside successful auth", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    const constructed = getConstructedRealtimeClient();
+
+    constructed.connection.emitState("connected");
+    expect(getAblyConnectionHealthy()).toBe(false);
+
+    await invokeAuthCallback();
+    expect(getAblyConnectionHealthy()).toBe(true);
+
+    constructed.connection.emitState("suspended");
+    expect(getAblyConnectionHealthy()).toBe(false);
+
+    constructed.connection.emitState("connected");
+    expect(getAblyConnectionHealthy()).toBe(true);
+  });
+
+  it("detaches connection health and marks unhealthy when the client retires", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    const retired = getConstructedRealtimeClient();
+    retired.connection.emitState("connected");
+    await invokeAuthCallback();
+    expect(getAblyConnectionHealthy()).toBe(true);
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    expect(retired.connection.off).toHaveBeenCalled();
+    expect(getAblyConnectionHealthy()).toBe(false);
+
+    getAblyRealtimeClient();
+    const replacement = getConstructedRealtimeClient(1);
+    replacement.connection.emitState("connected");
+    expect(getAblyConnectionHealthy()).toBe(true);
+
+    // Late state changes on the retired instance must not flip replacement health.
+    retired.connection.emitState("suspended");
+    expect(getAblyConnectionHealthy()).toBe(true);
   });
 });

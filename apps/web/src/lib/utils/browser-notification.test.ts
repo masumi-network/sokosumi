@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getBrowserNotificationPermission,
+  getServerBrowserNotificationPermission,
   requestBrowserNotificationPermission,
   shouldShowBrowserNotification,
   subscribeBrowserNotificationPermission,
+  subscribeBrowserNotificationPermissionStore,
 } from "@/lib/utils/browser-notification";
 
 describe("shouldShowBrowserNotification", () => {
@@ -263,5 +265,59 @@ describe("subscribeBrowserNotificationPermission", () => {
     window.dispatchEvent(new Event("focus"));
     expect(onChange).toHaveBeenCalledWith("denied");
     unsubscribe();
+  });
+});
+
+describe("subscribeBrowserNotificationPermissionStore", () => {
+  const originalNotification = globalThis.Notification;
+  const originalPermissions = navigator.permissions;
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, "Notification", {
+      configurable: true,
+      writable: true,
+      value: originalNotification,
+    });
+    Object.defineProperty(navigator, "permissions", {
+      configurable: true,
+      writable: true,
+      value: originalPermissions,
+    });
+  });
+
+  it("returns null on the server snapshot so hydration stays consistent", () => {
+    expect(getServerBrowserNotificationPermission()).toBeNull();
+  });
+
+  it("notifies store subscribers when requestBrowserNotificationPermission settles and stops after unsubscribe", async () => {
+    const notificationMock = {
+      permission: "default" as NotificationPermission,
+      requestPermission: vi.fn(async () => {
+        notificationMock.permission = "granted";
+        return "granted" as NotificationPermission;
+      }),
+    };
+    Object.defineProperty(globalThis, "Notification", {
+      configurable: true,
+      writable: true,
+      value: notificationMock,
+    });
+    Object.defineProperty(navigator, "permissions", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    const onStoreChange = vi.fn();
+    const unsubscribe =
+      subscribeBrowserNotificationPermissionStore(onStoreChange);
+
+    await requestBrowserNotificationPermission();
+    expect(onStoreChange).toHaveBeenCalledTimes(1);
+    expect(getBrowserNotificationPermission()).toBe("granted");
+
+    unsubscribe();
+    await requestBrowserNotificationPermission();
+    expect(onStoreChange).toHaveBeenCalledTimes(1);
   });
 });

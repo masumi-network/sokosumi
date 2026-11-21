@@ -129,7 +129,6 @@ function renderComposer({
       value={value}
       onValueChange={() => undefined}
       mentions={{}}
-      onSelectedKeysChange={() => undefined}
       placeholder="Message"
       attachments={[]}
       onAttachmentsChange={() => undefined}

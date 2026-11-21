@@ -33,6 +33,7 @@ import {
 import { type NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { seoAuditSearchConsoleAccessSchema } from "@/schemas/seo-task-indexing.schema";
+import { expectCoreLog } from "@/test/core-log";
 import {
   focusedRankingsReport,
   focusedReport,
@@ -826,6 +827,7 @@ describe.skipIf(!enabled)(
           },
           analysis: requestSeoAnalysisSchema.parse({
             kind: "audit_full",
+            includeSitemaps: true,
             pageIds: [page.id],
             fullAuditPrice: seoFullAuditPrice(),
             countryCode: "US",
@@ -838,6 +840,7 @@ describe.skipIf(!enabled)(
           where: { id: monitor.id },
         });
         expect(schedule.description).not.toContain(property);
+        expect(schedule.description).not.toContain("includeSitemaps");
         const saved = await prisma.projectSeoObservation.findFirstOrThrow({
           where: {
             sourceKey: `monitor-approval:${monitor.id}`,
@@ -849,6 +852,7 @@ describe.skipIf(!enabled)(
         const access = seoAuditSearchConsoleAccessSchema.parse(
           (saved.payload as Record<string, unknown>).searchConsoleAccess,
         );
+        expect(access.includeSitemaps).toBe(true);
         const workspace = await getProjectSeoWorkspace(actor, {
           pageId: page.id,
         });
@@ -877,6 +881,7 @@ describe.skipIf(!enabled)(
           searchConsoleAccess: {
             propertyId: property,
             connectionVersion: expect.stringMatching(/^[a-f0-9]{64}$/),
+            includeSitemaps: true,
           },
         });
         const app = createTaskScheduleTestApp(
@@ -964,6 +969,7 @@ describe.skipIf(!enabled)(
         expect((await refused.json()).kind).toBe("seo_gsc_property");
         expect(await runCounts()).toEqual(beforeManual);
         read.mockRejectedValueOnce(new Error("private upstream failure"));
+        expectCoreLog("warn", "Search Console verification failed");
         const unavailable = await manualRun();
         expect(unavailable.status).toBe(409);
         const problem = await unavailable.json();
@@ -1008,6 +1014,7 @@ describe.skipIf(!enabled)(
           );
         };
         const newAccount = await proofFor(reconnectedTask);
+        expect(newAccount.includeSitemaps).toBeUndefined();
         expect(newAccount.propertyId).toBe(property);
         expect(newAccount.connectionVersion).not.toBe(access.connectionVersion);
         await prisma.task.update({
@@ -2502,6 +2509,89 @@ describe.skipIf(!enabled)(
         idempotencyKey: "next-season",
       });
       expect(nextTask.taskId).not.toBe(link.taskId);
+    });
+
+    it("recovers page speed once from the exact saved report without changing earlier conclusions", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Page speed recovery" },
+      });
+      const owner: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      const task = await prisma.task.create({
+        data: {
+          name: "Completed audit",
+          ownerId: userId,
+          workspaceId,
+          projectId: project.id,
+          status: "COMPLETED",
+          assigneeId: coworkerId,
+        },
+      });
+      const base = legacyReport();
+      const body = JSON.stringify({
+        ...base,
+        speed: {
+          mobile: {
+            lab: {
+              none: "Not checked: public worker excluded PageSpeed Insights",
+            },
+            field: {
+              none: "Not checked: public worker excluded CrUX",
+              failed: true,
+            },
+          },
+        },
+      });
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId: task.id,
+          name: `seo-report-${task.id}.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      const input = { taskId: task.id, fileId: file.id },
+        recover = { ...input, recoverPageSpeed: true as const };
+      const fetchImpl = vi.fn(async () => new Response(body));
+      const observation = await importProjectSeoAudit(owner, input, {
+        fetchImpl,
+      });
+      const { pageSpeed, ...stored } = reportObject(observation.payload)!;
+      expect(pageSpeed).toBeDefined();
+      const old = { ...stored, retainedUnrecognizedField: "preserve" };
+      await prisma.projectSeoObservation.update({
+        where: { id: observation.id },
+        data: { payload: jsonInput(old) },
+      });
+      expect(
+        (await getProjectSeoWorkspace(owner)).observations[0]
+          .pageSpeedRecoveryFileId,
+      ).toBe(file.id);
+      await expect(
+        importProjectSeoAudit(owner, recover, {
+          fetchImpl: async () => new Response(body + " "),
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      await expect(
+        importProjectSeoAudit({ ...owner, userId: otherId }, recover, {
+          fetchImpl,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      const result = await importProjectSeoAudit(owner, recover, { fetchImpl });
+      expect(result.payload).toEqual({ ...old, pageSpeed });
+      const count = fetchImpl.mock.calls.length;
+      await importProjectSeoAudit(owner, recover, { fetchImpl });
+      expect(fetchImpl).toHaveBeenCalledTimes(count);
+      const latest = (await getProjectSeoWorkspace(owner)).observations[0];
+      expect(latest.pageSpeed?.[0]).toMatchObject({
+        lab: { status: "not_checked" },
+        field: { status: "not_checked" },
+      });
+      expect(latest.pageSpeedRecoveryFileId).toBeUndefined();
     });
 
     it.each([true, false])(

@@ -1,8 +1,87 @@
 "use client";
 
-import { type ComponentType, type ReactNode, useState } from "react";
+import {
+  type ComponentType,
+  type ReactNode,
+  useSyncExternalStore,
+} from "react";
 
-import { useMountEffect } from "@/hooks/use-mount-effect";
+type AblyProviderComponent = ComponentType<{ children: ReactNode }>;
+
+interface AblyProviderSnapshot {
+  Provider: AblyProviderComponent | null;
+  loadError: Error | null;
+}
+
+const INITIAL_SNAPSHOT: AblyProviderSnapshot = {
+  Provider: null,
+  loadError: null,
+};
+
+let snapshot: AblyProviderSnapshot = INITIAL_SNAPSHOT;
+let loadPromise: Promise<void> | null = null;
+const listeners = new Set<() => void>();
+
+function notifyListeners(): void {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+function ensureAblyProviderLoaded(): void {
+  if (snapshot.Provider || loadPromise) {
+    return;
+  }
+
+  const pending = import("./ably-provider")
+    .then((module) => {
+      if (loadPromise !== pending) {
+        return;
+      }
+      snapshot = { Provider: module.default, loadError: null };
+      notifyListeners();
+    })
+    .catch((error: unknown) => {
+      if (loadPromise !== pending) {
+        return;
+      }
+      if (listeners.size === 0) {
+        loadPromise = null;
+        snapshot = INITIAL_SNAPSHOT;
+        return;
+      }
+      snapshot = {
+        Provider: null,
+        loadError: new Error("Failed to load Ably provider", {
+          cause: error,
+        }),
+      };
+      notifyListeners();
+    });
+
+  loadPromise = pending;
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  ensureAblyProviderLoaded();
+
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && snapshot.loadError) {
+      loadPromise = null;
+      snapshot = INITIAL_SNAPSHOT;
+    }
+  };
+}
+
+function getSnapshot(): AblyProviderSnapshot {
+  return snapshot;
+}
+
+function getServerSnapshot(): AblyProviderSnapshot {
+  return INITIAL_SNAPSHOT;
+}
 
 interface LazyAblyProviderProps {
   children: ReactNode;
@@ -15,34 +94,11 @@ interface LazyAblyProviderProps {
  * Multiple instances share one realtime client via `getAblyRealtimeClient()`.
  */
 export default function LazyAblyProvider({ children }: LazyAblyProviderProps) {
-  const [Provider, setProvider] = useState<ComponentType<{
-    children: ReactNode;
-  }> | null>(null);
-  const [loadError, setLoadError] = useState<Error | null>(null);
-
-  useMountEffect(() => {
-    let cancelled = false;
-    void import("./ably-provider")
-      .then((m) => {
-        if (cancelled) {
-          return;
-        }
-        setProvider(() => m.default);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) {
-          return;
-        }
-        setLoadError(
-          new Error("Failed to load Ably provider", {
-            cause: error,
-          }),
-        );
-      });
-    return () => {
-      cancelled = true;
-    };
-  });
+  const { Provider, loadError } = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
 
   if (loadError) {
     throw loadError;

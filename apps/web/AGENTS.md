@@ -103,14 +103,7 @@ Prefer `toActionResult` over inventing another Ok/Err helper.
 
 ### useEffect and client-side effects
 
-Use Effects only to **synchronize with external systems** (browser APIs, third-party widgets). Avoid Effects for derived state, user events, or mirroring props/state—dependency arrays hide coupling and effect chains are hard to trace.
-
-- **Do not use Effects for**: derived state (compute during render), filtering lists (derive or `useMemo`), resetting state on prop change (use `key` to remount), user events (use event handlers), data fetching (use `@tanstack/react-query`), chains of state updates, notifying parent (use handler or lift state).
-- **Smell tests**: State used as a flag so an effect can “do the real action” → use the event handler. Effect that only resets when an ID/prop changes → use `key` and remount.
-- **Mount-only sync**: For “run once on mount, cleanup on unmount” (DOM focus, third-party widget, browser API), use a named hook such as `useMountEffect(effect)` (i.e. `useEffect(effect, [])`) so intent is explicit. Prefer conditional mounting: don’t mount the child until preconditions are met, then the child can use the mount-only hook.
-- **Do use Effects for**: mount-only external sync (via `useMountEffect`), external store subscriptions (`useSyncExternalStore` when applicable), syncing with non-React systems. For fetching that must stay in sync with props and a library isn’t feasible, use Effects only with proper cleanup to avoid race conditions.
-
-See [.cursor/rules/effects.mdc](.cursor/rules/effects.mdc) for examples and references (react.dev, Factory “Why we banned useEffect”).
+Direct `useEffect`, `useLayoutEffect`, and `useMountEffect` calls are banned in product code outside `src/hooks/effects/` ([ADR-0075](../../docs/adr/0075-effects-live-only-in-named-hooks.md)). Use Effects only to **synchronize with external systems** through a named, tested hook in `src/hooks/effects/`. See [Effects in Web UI conventions](../../docs/agents/web-ui.md#effects) for alternatives (render computation, event handlers, `key` resets, React Query, `useSyncExternalStore`, `useEffectEvent`) and the existing named hooks.
 
 ### Linting & Formatting
 
@@ -214,7 +207,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 - **Globals.** Use `vi.stubGlobal("fetch", mock)`, never `window.fetch = mock`, `global.fetch = mock` or `Object.assign(window, …)`. In the happy-dom project a plain assignment to a window property is kept where nothing can undo it, so the next file gets your mock. `src/test/setup.ts` calls `vi.unstubAllGlobals()` and `vi.unstubAllEnvs()` after each file, and puts back any existing global a file redefined (`Object.defineProperty(window, "location", …)`).
 - **Document, prototypes and browser state.** `src/test/setup.dom.ts` puts back the document's own properties (`document.cookie`, `visibilityState`, `execCommand`) and DOM prototypes (`Element.prototype.scrollIntoView = vi.fn()`). It also clears cookies and the document and resets the URL and viewport. Each file gets fresh `localStorage` and `sessionStorage`, because a `vi.spyOn(localStorage, …)` never comes off happy-dom's storage. Restore a `happyDOM.settings` value you change.
-- **Mocks, timers and module state.** `src/test/setup.ts` resets the module registry before each file, so `vi.mock` applies even when an earlier file imported the real module. After each file it calls `vi.useRealTimers()` and `vi.restoreAllMocks()`. A module's own state can still outlive it through a dependency that stays loaded: tie it to the module, not to the dependency (`src/hooks/use-intent-prefetch.ts` guards its listeners with its own flag, not with `ForesightManager.isInitiated`).
+- **Mocks, timers and module state.** `src/test/setup.ts` resets the module registry before each file, so `vi.mock` applies even when an earlier file imported the real module. After each file it calls `vi.useRealTimers()` and `vi.restoreAllMocks()`. A module's own state can still outlive it through a dependency that stays loaded: tie it to the module, not to the dependency (`src/hooks/effects/use-intent-prefetch.ts` guards its listeners with its own flag, not with `ForesightManager.isInitiated`).
 - **Pending React transitions.** react-dom joins every async transition to any that is still pending. A transition that awaits a promise that never settles keeps every later file's transitions pending. Do not leave such a promise behind: use `Promise.withResolvers()` and settle it in `act` before the test ends, and run out the timers a transition awaits. `src/test/setup.dom.ts` fails a file that leaves one: "left a React async transition pending".
 
 ### No unexpected console output

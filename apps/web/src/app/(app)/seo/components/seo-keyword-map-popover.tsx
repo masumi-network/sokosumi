@@ -5,11 +5,12 @@ import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { PopoverContent } from "@/components/ui/popover";
-import { useIsMobileMedia } from "@/hooks/use-mobile";
+import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
 import type { SeoKeywordPoint } from "./seo-keyword-map-model";
 import { seoDifficultyBand } from "./seo-keyword-rows-model";
+import type { IdeaAssessment } from "./seo-keyword-shortlist";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /**
@@ -17,12 +18,14 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
  * the New Task wizard with a brief for the keyword, so the reader picks who writes it before anything is made.
  */
 export function SeoKeywordMapPopover({
+  assessment,
   point,
   model,
   onCloseAutoFocus,
   onInteractOutside,
   onLeave,
 }: {
+  assessment?: IdeaAssessment;
   point: SeoKeywordPoint;
   model: SeoWorkspaceModel;
   onCloseAutoFocus: (event: Event) => void;
@@ -96,6 +99,7 @@ export function SeoKeywordMapPopover({
         group={point.group}
         model={model}
         idea={!point.checked}
+        assessment={assessment}
         onLeave={onLeave}
         track={
           <>

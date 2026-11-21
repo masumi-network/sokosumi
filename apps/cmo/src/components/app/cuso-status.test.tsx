@@ -160,15 +160,26 @@ it("keeps saying what he makes while he works, whatever the page", () => {
   });
 });
 
-it("opens Today from every page but Today itself", () => {
+it("opens Today from a pill link on every page but Today itself", () => {
   const away = renderToStaticMarkup(
     <CusoStatus overview={calm} view="chat" now={NOW} onOpen={() => {}} />,
   );
-  expect(away).toContain('<button type="button" class="cuso-says"');
+  // A real link, so it opens in a new tab too and takes the focus ring.
+  expect(away).toMatch(/<a class="cuso-says"[^>]*href="\/"/);
   expect(away).toContain("Open Today");
+  expect(away).toContain('class="cuso-dot"');
   const home = renderToStaticMarkup(
     <CusoStatus overview={calm} view="today" now={NOW} onOpen={() => {}} />,
   );
-  expect(home).not.toContain("<button");
+  expect(home).not.toContain("<a ");
   expect(home).toContain("On schedule");
+});
+
+it("stands in a light porthole, not on a half disc", () => {
+  const html = renderToStaticMarkup(
+    <CusoStatus overview={calm} view="chat" now={NOW} onOpen={() => {}} />,
+  );
+  expect(html).toMatch(
+    /<span class="cuso-figure" aria-hidden="true"><span class="cuso-ground"><\/span><img/,
+  );
 });

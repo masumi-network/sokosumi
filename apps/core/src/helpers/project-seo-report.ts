@@ -23,9 +23,11 @@ import {
   storedSeoChecklist,
 } from "@/schemas/seo-audit-coverage.schema";
 import { seoAuditFinalUrls } from "@/schemas/seo-page.schema";
+import { seoPageSpeed } from "@/schemas/seo-page-speed.schema";
 import * as seoDecisions from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import {
+  finiteReportNumber as numberAt,
   reportObject as object,
   omitUndefinedProperties,
   refusePrivateReport,
@@ -57,6 +59,8 @@ import {
   seoTopicLaunch,
 } from "./seo-content-history";
 import { readPageMarketEvidence } from "./seo-page-market-evidence";
+import { readPageSpeed } from "./seo-page-speed";
+import { publicSitemapList, workerSitemaps } from "./seo-public-sitemaps";
 import {
   readReviewSources,
   seoReviewSource,
@@ -127,6 +131,8 @@ const publicSeoPayload = z.object({
   rulebookVersion: text,
   researchCoverage: z.array(seoResearchCoverage).max(11).optional(),
   pageMarketEvidence: seoPageMarketEvidence.optional(),
+  publicSitemaps: publicSitemapList.optional().catch(undefined),
+  pageSpeed: seoPageSpeed.optional(),
   checks: storedSeoChecklist,
   keywords: z.array(keyword).max(5000),
   competitors: z.array(competitor).max(1000),
@@ -471,14 +477,6 @@ const legacy = z.object({
 });
 /** The SEO bot's own Report JSON, as far as Core reads it. */
 export type LegacySeoReport = z.infer<typeof legacy>;
-const numberAt = (value: unknown, keys: string[]): number | null => {
-  let current = value;
-  for (const key of keys) current = object(current)?.[key];
-  return typeof current === "number" && Number.isFinite(current)
-    ? current
-    : null;
-};
-
 /** Parse trusted artifact bytes, keeping an explicit projection rather than arbitrary report fields. */
 export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
   refusePrivateReport(raw);
@@ -533,6 +531,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       ...first,
       kind: "audit_full",
       pageUrls,
+      pageSpeed: pages.flatMap((page) => page.pageSpeed ?? []),
       strategyDecisions: decisions,
       decisionSources: decisions?.some((d) => d.kind === OPEN_STRATEGY)
         ? sources
@@ -692,6 +691,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     kind: "audit_full",
     requestId: null,
     pageUrls: [pageUrl],
+    publicSitemaps: workerSitemaps(raw, result),
+    pageSpeed: readPageSpeed(
+      object(raw)?.speed,
+      pageUrl,
+      result.header.finalUrl,
+    ),
     pageMarketEvidence: readPageMarketEvidence(
       object(raw)?.pageMarketEvidence,
       pageUrl,

@@ -1,5 +1,9 @@
 import { OPEN_STRATEGY } from "@/schemas/project-seo-action.schema";
 import type { ResearchCoverage } from "@/schemas/seo-audit-coverage.schema";
+import {
+  seoFirstScreen,
+  seoKeywordTrends,
+} from "@/schemas/seo-research-details.schema";
 import { reportObject } from "./project-seo-public-report";
 import type { PublicSeoPayload } from "./project-seo-report";
 
@@ -7,15 +11,12 @@ type Stage = ResearchCoverage["stages"][number];
 
 const explorationReasons: Record<string, string> = {
   published: "The exploration published a new recommendation.",
-  no_admitted_finding:
-    "The exploration found no new recommendation with enough evidence.",
-  publication_checks:
-    "The proposed finding did not pass the evidence or duplicate checks.",
+  no_admitted_finding: "The audit found no new recommendation.",
+  publication_checks: "The idea did not pass the final checks.",
   owner_evidence_requested: "This check requires private evidence.",
   deadline: "The audit reached its time limit.",
   insufficient_public_evidence: "There was too little usable public evidence.",
-  comparison_unavailable:
-    "The evidence needed for the comparison was unavailable.",
+  comparison_unavailable: "The audit could not complete the comparison.",
   disabled: "This audit did not enable free exploration.",
   owner_decision_present:
     "The audit already contains a decision from private evidence.",
@@ -24,15 +25,15 @@ const explorationReasons: Record<string, string> = {
   unverified_evidence: "The exploration evidence could not be verified.",
 };
 const editorReasons: Record<string, string> = {
-  market: "The market was unavailable for keyword validation.",
-  public_copy: "The editors had too little public page text.",
-  budget: "The remaining data budget could not cover validation.",
+  market: "The audit could not check keywords for this market.",
+  public_copy: "There was too little page text to suggest keywords.",
+  budget: "The remaining budget could not cover another keyword check.",
   credential: "The keyword data connection was unavailable.",
   deadline: "The audit reached its time limit.",
   unavailable: "Keyword validation was unavailable.",
   model_failure: "An editor could not complete its review.",
-  no_candidates: "No distinct phrase qualified for validation.",
-  unrecorded: "No validation receipt was saved.",
+  no_candidates: "There were no new search terms to check.",
+  unrecorded: "No result was saved for this check.",
 };
 
 function exploration(report: Record<string, unknown>): Stage {
@@ -75,7 +76,7 @@ function seasonal(report: Record<string, unknown>): Stage {
     name: "seasonal",
     status,
     ...(failed && {
-      reason: "At least one seasonal reviewer failed to return a valid result.",
+      reason: "Part of the seasonal check returned no usable result.",
     }),
   };
 }
@@ -100,8 +101,7 @@ function editorial(report: Record<string, unknown>): Stage {
     return {
       name: "editorial",
       status: "unknown",
-      reason:
-        "The list includes editorial research. The full stage outcome was not recorded.",
+      reason: "Some keyword research was saved. The final result is unknown.",
     };
   // This worker variant admitted editors only when the regular list had fewer than 20 rows.
   const legacyEditorsVariant =
@@ -124,7 +124,11 @@ export function pageResearchCoverage(
   pageUrl: string,
 ): ResearchCoverage {
   const report = reportObject(raw) ?? {};
+  const firstScreen = seoFirstScreen.safeParse(report.strategyInvestigation);
+  const trends = seoKeywordTrends.safeParse(report.trends);
   return {
+    ...(firstScreen.success && { firstScreen: firstScreen.data }),
+    ...(trends.success && { trends: trends.data }),
     pageUrl,
     scope: "page",
     stages: [seasonal(report), editorial(report), exploration(report)],
@@ -182,7 +186,7 @@ export function retainedResearchCoverage(
       )
     )
       editorial.reason =
-        "The list includes editorial research. The full stage outcome was not recorded.";
+        "Some keyword research was saved. The final result is unknown.";
     return {
       scope: "page",
       pageUrl,

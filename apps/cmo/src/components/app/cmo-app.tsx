@@ -7,6 +7,9 @@ import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCmoAppInitialUrl } from "../../hooks/effects/use-cmo-app-initial-url";
+import { useEventListener } from "../../hooks/effects/use-event-listener";
+import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -138,10 +141,16 @@ interface CmoAppProps {
   work?: ChatWork[];
   name: string;
   email: string;
+  /** The account's picture, when it has one. */
+  image?: string | null;
   /** Where a redirect (a channel connection) returns to. */
   initialView?: View;
   /** Why the channel connection that sent the founder back did not finish. */
   connectError?: string | null;
+  /** Why the ad-account connection that sent the founder back did not finish. */
+  adsError?: string | null;
+  /** Why the measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
   /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
   plans?: CmoSubscriptionPlan[];
   /** The person has another Cuso, for the sidebar's "Your Cusos". */
@@ -230,8 +239,11 @@ export function CmoApp({
   work: initialWork = [],
   name,
   email,
+  image = null,
   initialView = "today",
   connectError = null,
+  adsError = null,
+  measureError = null,
   plans = [],
   manyCusos = false,
   mayHire = false,
@@ -240,20 +252,42 @@ export function CmoApp({
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
   const [work, setWork] = useState(initialWork);
-  const [view, setView] = useState<View>(initialView);
+  const [nav, setNav] = useState({
+    view: initialView,
+    connectError,
+    adsError,
+    measureError,
+  });
+  const { view } = nav;
+  // Leaving the landing view consumes its one-shot OAuth return notice so
+  // returning later on the clean URL does not show it again.
+  const selectView = useCallback((next: View) => {
+    setNav((current) =>
+      current.view === next
+        ? current
+        : {
+            view: next,
+            connectError:
+              current.view === "channels" ? null : current.connectError,
+            adsError: current.view === "channels" ? null : current.adsError,
+            measureError:
+              current.view === "results" ? null : current.measureError,
+          },
+    );
+  }, []);
   // Each page has its own address, so reload, Back and new tabs land on it.
-  const go = useCallback((next: View) => {
-    setView(next);
-    if (window.location.pathname !== VIEW_PATHS[next]) {
-      window.history.pushState(null, "", VIEW_PATHS[next]);
-    }
-  }, []);
-  useEffect(() => {
-    const onPop = () =>
-      setView(viewFromPath(window.location.pathname) ?? "today");
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  const go = useCallback(
+    (next: View) => {
+      selectView(next);
+      if (window.location.pathname !== VIEW_PATHS[next]) {
+        window.history.pushState(null, "", VIEW_PATHS[next]);
+      }
+    },
+    [selectView],
+  );
+  useEventListener("window", "popstate", () =>
+    selectView(viewFromPath(window.location.pathname) ?? "today"),
+  );
   const [draft, setDraft] = useState("");
   // A post opened from Today opens on the Calendar.
   const [focusEntry, setFocusEntry] = useState<string | null>(null);
@@ -263,11 +297,7 @@ export function CmoApp({
   const end = useRef<HTMLDivElement>(null);
 
   // A connection redirect lands on /?step=connect; show the page's own address.
-  useEffect(() => {
-    if (window.location.search) {
-      window.history.replaceState(null, "", VIEW_PATHS[initialView]);
-    }
-  }, [initialView]);
+  useCmoAppInitialUrl(initialView);
 
   const refresh = useCallback(async () => {
     // On its own: the chat still shows when one of the two reads fails.
@@ -300,11 +330,10 @@ export function CmoApp({
     overview.botStatus === "RUNNING"
       ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
       : null;
-  useEffect(() => {
-    if (view === "chat" && threadLength > 0) {
-      end.current?.scrollIntoView({ block: "end" });
-    }
-  }, [threadLength, view, working]);
+  useScrollIntoViewWhen(end, view === "chat" && threadLength > 0, {
+    block: "end",
+    resetKey: `${threadLength}:${working === null ? "idle" : `busy:${working}`}`,
+  });
 
   const compose = useCallback(
     (text: string) => {
@@ -405,6 +434,7 @@ export function CmoApp({
         onSelect={go}
         name={name}
         email={email}
+        image={image}
         signOut={actions.signOut}
       />
 
@@ -590,6 +620,7 @@ export function CmoApp({
                   connectMeasurement={(provider) =>
                     actions.connectMeasurement(provider, "app")
                   }
+                  measureError={nav.measureError}
                   ads={actions}
                   onChange={setOverview}
                   openView={go}
@@ -620,7 +651,8 @@ export function CmoApp({
                   connectAds={actions.connectAds}
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
-                  connectError={connectError}
+                  connectError={nav.connectError}
+                  adsError={nav.adsError}
                   change={actions.changeChannel}
                   openSeo={() => go("seo")}
                   connectSearchConsole={() =>

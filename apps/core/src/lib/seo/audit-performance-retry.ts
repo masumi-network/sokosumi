@@ -1,5 +1,7 @@
 import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 
+import { auditPageDiscoveryComplete } from "@/schemas/seo-page-discovery.schema";
+
 /** A retry may recover individual Google reads. Never combine measurements for different page selections. */
 export function preserveAuditPerformance(
   previous: NativeSeoMetrics,
@@ -12,7 +14,24 @@ export function preserveAuditPerformance(
     !next.auditMeasuredPages
   )
     return next;
-  if (previous.auditPerformanceComplete) return previous;
+  const auditPropertyTotals =
+    previous.auditPropertyTotals ?? next.auditPropertyTotals;
+  const auditPageDiscovery = auditPageDiscoveryComplete(
+    previous.auditPageDiscovery,
+  )
+    ? previous.auditPageDiscovery
+    : (next.auditPageDiscovery ?? previous.auditPageDiscovery);
+  const property = {
+    ...(auditPropertyTotals && { auditPropertyTotals }),
+    ...(auditPageDiscovery && { auditPageDiscovery }),
+  };
+  const saved = { ...previous, ...property };
+  if (previous.auditPerformanceComplete) {
+    return previous.auditDiscovery?.status === "unavailable" &&
+      next.auditDiscovery
+      ? { ...saved, auditDiscovery: next.auditDiscovery }
+      : saved;
+  }
   const samePages = next.auditMeasuredPages.every((page) =>
     previous.auditMeasuredPages?.some(
       (old) =>
@@ -22,8 +41,8 @@ export function preserveAuditPerformance(
   if (!samePages) {
     // An unanswered inspection must not discard Google's previously verified canonical.
     return next.auditMeasuredPages.some((page) => page.basis === "unverified")
-      ? previous
-      : next;
+      ? saved
+      : { ...next, ...property };
   }
   // Google returns one aggregate row per period. Rates in a measured zero-impression row are undefined.
   const impressions = next.metrics.find(
@@ -48,6 +67,7 @@ export function preserveAuditPerformance(
   });
   return {
     ...next,
+    ...property,
     metrics,
     queries: next.queries ?? previous.queries,
     coverage:

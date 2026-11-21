@@ -518,6 +518,12 @@ export {
   seoInspectionEvidence,
 } from "./seo-index-verdict.js";
 export { seoIssueKey } from "./seo-issue-key.js";
+export {
+  isPublicSeoSitemapPage,
+  isSeoUtilityOrFilePath,
+  publicExplorationText,
+  publicExplorationUrl,
+} from "./seo-public-evidence-url.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export { seoReportFileFormat } from "./seo-report-file.js";
 export {
@@ -558,6 +564,7 @@ export {
 export {
   SEO_SEARCH_TYPES,
   SEO_TRAFFIC_CHANNELS,
+  seoSearchSiteHost,
   seoSearchUrlPrefixCovers,
 } from "./seo-traffic.js";
 export {

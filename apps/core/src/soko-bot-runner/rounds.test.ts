@@ -21,6 +21,29 @@ describe("background run rounds", () => {
     expect(reportText("✅ DONE — Page built.")).toBe("Page built.");
   });
 
+  it("reads DONE inside the JSON narrative a turn that could act answers in", () => {
+    const narrative = (message: string) =>
+      JSON.stringify({
+        kind: "REPORT",
+        message,
+        question: null,
+        observationToolCallIds: [],
+      });
+    const done = narrative("DONE: Hannah says her day's been productive.");
+    expect(isFinalReport(done)).toBe(true);
+    expect(isFinalReport(`\`\`\`json\n${done}\n\`\`\``)).toBe(true);
+    expect(isFinalReport(narrative("Still reading the inbox."))).toBe(false);
+    expect(JSON.parse(reportText(done))).toEqual({
+      kind: "REPORT",
+      message: "Hannah says her day's been productive.",
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(reportText(narrative("Plain report."))).toBe(
+      narrative("Plain report."),
+    );
+  });
+
   it("counts a round that only re-read things as idle, never one that waited or wrote", () => {
     expect(isIdleRound(["list_tasks", "get_task_status", "read_file"])).toBe(
       true,

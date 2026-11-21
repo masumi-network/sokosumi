@@ -9,6 +9,7 @@ import type { SeoCompetitorSite } from "./seo-competitors-model";
 import type { SeoCsvCell } from "./seo-csv";
 import { seoFollowUpText } from "./seo-followup-review";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
+import type { IdeaAssessment } from "./seo-keyword-shortlist";
 import type { SeoTopPage } from "./seo-search-model";
 import type { seoKeyEvents } from "./seo-traffic-model";
 
@@ -149,6 +150,32 @@ export function seoKeywordsTableExport(
     header: add(header, t("keywords.difficulty.title")),
     types: add(types, "number"),
     rows: rows.map((row, i) => add(row, groups[i].difficulty)),
+  };
+}
+
+export function seoKeywordIdeasExport(
+  groups: SeoKeywordGroup[],
+  assessments: ReadonlyMap<string, IdeaAssessment>,
+  t: Label,
+): SeoExport {
+  const table = seoKeywordsTableExport(groups, t);
+  return {
+    header: [
+      ...table.header,
+      t("keywords.shortlist.label"),
+      t("keywords.shortlist.gain"),
+    ],
+    types: [...(table.types ?? []), "text", "number"],
+    rows: table.rows.map((row, i) => {
+      const assessment = assessments.get(groups[i].lead.id);
+      return [
+        ...row,
+        assessment?.reason === "priority"
+          ? t("keywords.shortlist.label")
+          : t("keywords.map.idea"),
+        assessment?.extra ?? null,
+      ];
+    }),
   };
 }
 

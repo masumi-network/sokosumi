@@ -1,13 +1,8 @@
 "use client";
 
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
+
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 
 interface SeatManagementContextValue {
   showSeatManagement: boolean;
@@ -70,10 +65,11 @@ export function SeatManagementContextProvider({
   );
   // Seat handlers read and write these refs, not a setState updater: React
   // may defer an updater to the next render, so a value it sets is not
-  // there when the handler returns. The layout effect re-syncs them from
-  // committed values only, so a discarded render cannot leave them stale.
-  const latestOptimisticStateRef = useRef(optimisticState);
-  const latestServerUnusedSeatsRef = useRef(serverUnusedSeats);
+  // there when the handler returns. `useLatestRef` re-syncs them in a layout
+  // effect from committed values only, so a discarded render cannot leave them
+  // stale.
+  const latestOptimisticStateRef = useLatestRef(optimisticState);
+  const latestServerUnusedSeatsRef = useLatestRef(serverUnusedSeats);
   const [syncedServerUnusedSeats, setSyncedServerUnusedSeats] =
     useState(serverUnusedSeats);
 
@@ -81,11 +77,6 @@ export function SeatManagementContextProvider({
     setSyncedServerUnusedSeats(serverUnusedSeats);
     setOptimisticState(createInitialOptimisticState());
   }
-
-  useLayoutEffect(() => {
-    latestOptimisticStateRef.current = optimisticState;
-    latestServerUnusedSeatsRef.current = serverUnusedSeats;
-  });
 
   function updateOptimisticState(
     next: (prev: SeatOptimisticState) => SeatOptimisticState,

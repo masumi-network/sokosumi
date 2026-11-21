@@ -15,6 +15,7 @@ import {
 import type { SyncProjectSeoStatistics } from "@/schemas/project-seo-statistics.schema";
 import { seoSearchTypeHasQueries } from "@/schemas/project-seo-traffic.schema";
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
+import { auditPageDiscoveryComplete } from "@/schemas/seo-page-discovery.schema";
 import {
   inspectionCacheKey,
   inspectionsDue,
@@ -29,9 +30,18 @@ import {
 import type { SeoStatisticsIntegration } from "./seo-connections.service";
 import { syncLockService } from "./sync-lock.service";
 
+export interface AuditStatisticsScope {
+  taskId: string;
+  connectionVersion: string;
+  pageUrls: string[];
+  includeSitemaps?: true;
+  propertyTotals?: "include" | "only";
+  pageDiscovery?: boolean;
+}
+
 interface AutomaticStatistics<T> {
   actor: SeoActor;
-  auditTaskId?: string;
+  audit?: AuditStatisticsScope;
   input: SyncProjectSeoStatistics;
   integration: SeoStatisticsIntegration;
   pageIds: string[];
@@ -52,7 +62,7 @@ export async function withAutomaticSeoStatistics<T>(
   context: AutomaticStatistics<T>,
 ): Promise<T> {
   const { actor, input, integration, hooks } = context;
-  const auditTaskId = context.auditTaskId;
+  const auditTaskId = context.audit?.taskId;
   const fingerprint = sha256(
     JSON.stringify({
       workspaceId: actor.workspaceId,
@@ -105,7 +115,12 @@ export async function withAutomaticSeoStatistics<T>(
     if (!result.success || result.data.collectionFingerprint !== fingerprint)
       return null;
     const data = result.data;
-    if (auditTaskId) return data.auditPerformanceComplete ? data : null;
+    if (auditTaskId)
+      return data.auditPerformanceComplete ||
+        context.audit?.includeSitemaps ||
+        context.audit?.propertyTotals
+        ? data
+        : null;
     const age =
       Date.now() - new Date(data.collectedAt ?? data.observedAt).getTime();
     const retryQueries =
@@ -149,9 +164,25 @@ export async function withAutomaticSeoStatistics<T>(
     if (hooks.authorize) await prisma.$transaction(hooks.authorize);
     return context.readWorkspace();
   }
+  function auditComplete(data: NativeSeoMetrics) {
+    if (
+      context.audit?.pageDiscovery &&
+      !auditPageDiscoveryComplete(data.auditPageDiscovery)
+    )
+      return false;
+    if (context.audit?.propertyTotals === "only")
+      return !!data.auditPropertyTotals;
+    return (
+      data.auditPerformanceComplete &&
+      (!context.audit?.propertyTotals || !!data.auditPropertyTotals) &&
+      (!context.audit?.includeSitemaps ||
+        (data.auditDiscovery && data.auditDiscovery.status !== "unavailable"))
+    );
+  }
   const saved = input.automatic ? await fresh() : null;
-  if (auditTaskId && saved) return readCachedWorkspace();
-  if (saved && !inspectionsDue(saved) && (await isActive()))
+  if (auditTaskId && saved && auditComplete(saved))
+    return readCachedWorkspace();
+  if (!auditTaskId && saved && !inspectionsDue(saved) && (await isActive()))
     return readCachedWorkspace();
   // Reports that share URL Inspection data must not both spend the same page quota.
   const lockScope =
@@ -188,7 +219,10 @@ export async function withAutomaticSeoStatistics<T>(
           throw conflict("Statistics collection expired. Please retry.");
       },
     };
-    if (auditTaskId && current) return await readCachedWorkspace();
+    if (auditTaskId && current) {
+      if (auditComplete(current)) return await readCachedWorkspace();
+      return await context.collect(fingerprint, leasedHooks, current);
+    }
     if (current && !inspectionsDue(current)) {
       if (await isActive()) return readCachedWorkspace();
       return await context.activate(

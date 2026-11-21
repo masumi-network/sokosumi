@@ -63,7 +63,7 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   },
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => isMobileMock(),
   useIsMobileMedia: () => isMobileMock(),
@@ -135,11 +135,11 @@ vi.mock("@/lib/utils/notification-message", () => ({
 vi.mock("@/lib/utils/notification-time", () => ({
   useNotificationTimeFormatter: () => () => "today",
 }));
-vi.mock("@/lib/ably/use-notification-front-presence", () => ({
+vi.mock("@/hooks/effects/use-notification-front-presence", () => ({
   useNotificationFrontPresence: () => undefined,
 }));
 
-vi.mock("@/lib/ably/use-notification-realtime", () => ({
+vi.mock("@/hooks/effects/use-notification-realtime", () => ({
   useNotificationRealtime: ({
     onNotification,
   }: {

@@ -15,6 +15,8 @@ import type {
   SaveProjectSeoBrandTermsRequest,
   SaveProjectSeoCompetitorRequest,
   SaveProjectSeoKeywordRequest,
+  SeoConsoleExportInput,
+  SeoSiteTrafficInput,
   SyncProjectSeoStatisticsData,
   UpdateProjectSeoScopeRequest,
 } from "@sokosumi/core-client";
@@ -30,14 +32,20 @@ import {
   createSeoAuditActionTask,
   createSeoAuditMonitor,
   createSeoAuditScope,
+  getAuditConsoleExports,
+  getProjectConsoleExports,
   getProjectSeoWorkspace,
   getSeoAuditWorkspace,
   getSeoAuditWorkspaceMapping,
+  importAuditConsoleExport,
+  importProjectConsoleExport,
   importProjectSeoAudit,
   importSeoAuditReport,
   listProjectSeoStatisticsProperties,
   listSeoAuditStatisticsProperties,
   listSeoAudits,
+  readAuditSiteTraffic,
+  readProjectSiteTraffic,
   recordProjectSeoPageChange,
   recordSeoAuditPageChange,
   requestProjectSeoAnalysis,
@@ -64,6 +72,43 @@ export type SeoWorkspaceQuery = NonNullable<
 >;
 
 export const seoServiceNoRedirect = {
+  async siteTraffic(owner: SeoOwner, body: SeoSiteTrafficInput) {
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        (owner.kind === "audit"
+          ? readAuditSiteTraffic
+          : readProjectSiteTraffic)({ client, path: { id: owner.id }, body }),
+      "Failed to read website traffic",
+    );
+    return response.data;
+  },
+  async consoleExports(
+    owner: SeoOwner,
+    taskId: string,
+    body?: SeoConsoleExportInput,
+  ) {
+    const path = { id: owner.id, taskId };
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) => {
+        if (body) {
+          return (
+            owner.kind === "audit"
+              ? importAuditConsoleExport
+              : importProjectConsoleExport
+          )({ client, path, body });
+        }
+        return (
+          owner.kind === "audit"
+            ? getAuditConsoleExports
+            : getProjectConsoleExports
+        )({ client, path });
+      },
+      "Failed to access private Search Console exports",
+    );
+    return response.data;
+  },
   async listAudits(query: NonNullable<ListSeoAuditsData["query"]> = {}) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,

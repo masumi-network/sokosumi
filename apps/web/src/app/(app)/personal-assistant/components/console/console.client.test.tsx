@@ -12,6 +12,8 @@ import {
   within,
 } from "@testing-library/react";
 import { useContext } from "react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
@@ -436,6 +438,61 @@ describe("SokoBotConsole", () => {
       behavior: "auto",
     });
     reduce.mockRestore();
+  });
+
+  it("jumps instead of smooth-scrolling after SSR hydration under reduced motion", async () => {
+    viewMock.mockReturnValue(null);
+    scheduleParamMock.mockReturnValue("s2");
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const reduce = vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    const state = chatState(true);
+    state.bot.avatarImageUrl = "https://example.com/bot.png";
+    const schedule = {
+      systemKey: null,
+      cronExpression: "0 9 * * 1",
+      timezone: "UTC",
+      prompt: "Remind me",
+      enabled: true,
+      nextRunAt: "2030-01-02T09:00:00.000Z",
+      lastRunAt: null,
+      consecutiveFailures: 0,
+    };
+    state.bot.schedules = [
+      { ...schedule, id: "s1", name: "Morning check" },
+      { ...schedule, id: "s2", name: "Monday invoices" },
+    ];
+
+    const container = document.createElement("div");
+    const props = { initialState: state };
+    container.innerHTML = renderToString(consoleElement(props));
+    document.body.append(container);
+
+    let root: Root | null = null;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, consoleElement(props));
+      });
+      expect(scrollIntoView).toHaveBeenCalledOnce();
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: "center",
+        behavior: "auto",
+      });
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+      reduce.mockRestore();
+    }
   });
 
   it("lets the keyboard reach and scroll the memory", () => {

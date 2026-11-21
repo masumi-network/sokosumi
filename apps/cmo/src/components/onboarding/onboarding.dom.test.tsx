@@ -479,6 +479,92 @@ it("opens a tile into the side panel with a way to say what is off", async () =>
   expect(container.querySelector("aside")).toBeNull();
 });
 
+it("clears the updating banner after the stale timeout when a correction goes unanswered", async () => {
+  vi.useFakeTimers();
+  try {
+    const sent = vi.fn(async () => {});
+    const renderStep = (botStatus: CmoOverview["botStatus"]) =>
+      root.render(
+        <BrandStep
+          overview={draft({
+            brandBrainConfirmedAt: null,
+            strategy: null,
+            botStatus,
+          })}
+          messages={[]}
+          onCorrect={sent}
+          onSave={noop}
+          onAnswer={noop}
+          onApprove={async () => null}
+        />,
+      );
+
+    await act(async () => renderStep("IDLE"));
+
+    const tile = [
+      ...container.querySelectorAll<HTMLButtonElement>("button.ob-tile"),
+    ].find((candidate) => candidate.textContent?.startsWith("What you sell"));
+    await act(async () => tile?.click());
+    typeInto(
+      container.querySelector<HTMLInputElement>("aside #ob-tell"),
+      "Price is $149",
+    );
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>("aside button")]
+        .find((candidate) => candidate.textContent === "Send")
+        ?.click(),
+    );
+    expect(text()).toContain("Updating your Brand Brain");
+
+    // Idle bots time out after 30s if no reply arrives.
+    await act(async () => {
+      vi.advanceTimersByTime(29_999);
+    });
+    expect(text()).toContain("Updating your Brand Brain");
+
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(text()).not.toContain("Updating your Brand Brain");
+    expect(text()).toContain("That change didn't come through.");
+
+    // A new correction whose bot starts RUNNING switches to the 240s grace window.
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Close"]')
+        ?.click(),
+    );
+    const reopenTile = [
+      ...container.querySelectorAll<HTMLButtonElement>("button.ob-tile"),
+    ].find((candidate) => candidate.textContent?.startsWith("What you sell"));
+    await act(async () => reopenTile?.click());
+    typeInto(
+      container.querySelector<HTMLInputElement>("aside #ob-tell"),
+      "Updated positioning",
+    );
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>("aside button")]
+        .find((candidate) => candidate.textContent === "Send")
+        ?.click(),
+    );
+    await act(async () => renderStep("RUNNING"));
+    expect(text()).toContain("Updating your Brand Brain");
+
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(text()).toContain("Updating your Brand Brain");
+
+    await act(async () => {
+      vi.advanceTimersByTime(210_000);
+    });
+    expect(text()).not.toContain("Updating your Brand Brain");
+    expect(text()).toContain("That change didn't come through.");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 // Brand during onboarding: Cuso writes the plan meanwhile, so a correction
 // or an edit is a fix on its section, which Core runs after the plan and
 // fits the plan to.
@@ -849,6 +935,59 @@ it("moves between plan tabs with the arrow keys", async () => {
   });
   expect(selected()?.textContent).toBe("How we know it works");
   expect(text()).toContain("Connect your numbers");
+});
+
+it("clears the hiring measurement return error after leaving Results and returning via tabs or Brand", async () => {
+  const expectedError = "That connection didn't finish. Try again.";
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft({ viewerCanApprove: true })}
+        messages={[]}
+        initialStep="results"
+        measureError={expectedError}
+        skipped={["questions"]}
+        actions={actionsFor()}
+      />,
+    ),
+  );
+
+  expect(
+    container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
+  ).toBe("How we know it works");
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    expectedError,
+  );
+
+  await act(async () =>
+    [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => tab.textContent === "Your month")
+      ?.click(),
+  );
+  expect(text()).toContain("Up first");
+
+  await act(async () =>
+    [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => tab.textContent === "How we know it works")
+      ?.click(),
+  );
+  expect(text()).toContain("Connect your numbers");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+
+  // Leaving Strategy to Brand and returning remounts PlanReview; the consumed
+  // error must not come back.
+  await act(async () =>
+    container
+      .querySelectorAll<HTMLButtonElement>(".ob-steps button")[0]
+      ?.click(),
+  );
+  expect(text()).toContain("Here's acme.io as I see it.");
+
+  await press("Continue to Strategy");
+  expect(
+    container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
+  ).toBe("How we know it works");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
 });
 
 // Asking for the plan: no second offer while the request is in flight.

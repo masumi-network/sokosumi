@@ -2,18 +2,25 @@
 
 import { Pause, Play } from "lucide-react";
 import Image from "next/image";
-import { type PointerEvent, useLayoutEffect, useRef, useState } from "react";
+import { type PointerEvent, useRef, useState } from "react";
 
 import {
   usePageListSearch,
   usePageSearchQuery,
 } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useAnimationFrame } from "@/hooks/effects/use-animation-frame";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
+import {
+  applyStudioWallTransform,
+  useStudioWallPaint,
+} from "@/hooks/effects/use-studio-wall-paint";
 import { STUDIO_EMPTY_ADS } from "./studio-empty-ads";
 import { TemplateButton } from "./studio-template-picker";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
-import { buildStudioWall, getStudioWallTransform } from "./studio-wall-layout";
+import { buildStudioWall } from "./studio-wall-layout";
 import type { StudioLabels } from "./types";
 
 const DRAG_THRESHOLD = 6;
@@ -57,44 +64,41 @@ export function StudioTemplateCanvas(props: TemplateCanvasProps) {
 }
 
 function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvas, setCanvas] = useState<HTMLDivElement | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const columnsRef = useRef<(HTMLDivElement | null)[]>([]);
   const offset = useRef({ x: 0, y: 0 });
   const [wall, setWall] = useState(() =>
     buildStudioWall({ width: 0, height: 0 }),
   );
-  const wallRef = useRef(wall);
+  const wallRef = useStudioWallPaint(rowRef, columnsRef, offset, wall);
   const drag = useRef<Drag | null>(null);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
-
-  function paint() {
-    const current = wallRef.current;
-    const { x, columnY } = getStudioWallTransform(current, offset.current);
-    if (rowRef.current)
-      rowRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
-    columnsRef.current.forEach((column, index) => {
-      if (column)
-        column.style.transform = `translate3d(0, ${columnY[index % current.columns.length]}px, 0)`;
-    });
-  }
-
-  useLayoutEffect(() => {
-    wallRef.current = wall;
-    paint();
-  }, [wall]);
+  const reduceMotion = usePrefersReducedMotion();
 
   function pan(x: number, y: number) {
     offset.current.x += x;
     offset.current.y += y;
-    paint();
+    applyStudioWallTransform(
+      rowRef.current,
+      columnsRef.current,
+      wallRef.current,
+      offset.current,
+    );
   }
 
-  useMountEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const resize = () => {
+  useAnimationFrame(!reduceMotion, (deltaSeconds) => {
+    if (!pausedRef.current && !drag.current) {
+      const seconds = Math.min(deltaSeconds, 0.064);
+      pan(seconds * 12, seconds * 4);
+    }
+  });
+
+  useResizeObserver(
+    canvas,
+    () => {
+      if (!canvas) return;
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       setWall((current) =>
@@ -102,12 +106,14 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
           ? current
           : buildStudioWall({ width, height }),
       );
-    };
-    const observer = new ResizeObserver(resize);
-    observer.observe(canvas);
-    resize();
+    },
+    { immediate: true },
+  );
 
-    function handleWheel(event: WheelEvent) {
+  useEventListener(
+    canvas,
+    "wheel",
+    (event) => {
       if (event.ctrlKey || event.metaKey || drag.current) return;
       event.preventDefault();
       const factor =
@@ -117,37 +123,9 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
             ? wallRef.current.height
             : 1;
       pan(-event.deltaX * factor, -event.deltaY * factor);
-    }
-
-    const motion = window.matchMedia("(prefers-reduced-motion: no-preference)");
-    let frame = 0;
-    let lastTime: number | null = null;
-
-    function drift(time: number) {
-      if (lastTime !== null && !pausedRef.current && !drag.current) {
-        const seconds = Math.min(time - lastTime, 64) / 1000;
-        pan(seconds * 12, seconds * 4);
-      }
-      lastTime = time;
-      frame = requestAnimationFrame(drift);
-    }
-
-    function updateMotion() {
-      cancelAnimationFrame(frame);
-      lastTime = null;
-      if (motion.matches) frame = requestAnimationFrame(drift);
-    }
-
-    updateMotion();
-    motion.addEventListener("change", updateMotion);
-    canvas.addEventListener("wheel", handleWheel, { passive: false });
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-      motion.removeEventListener("change", updateMotion);
-      canvas.removeEventListener("wheel", handleWheel);
-    };
-  });
+    },
+    { passive: false },
+  );
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0 || drag.current) return;
@@ -213,7 +191,7 @@ function TemplateCanvas({ labels, onApplyTemplate }: TemplateCanvasProps) {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        ref={canvasRef}
+        ref={setCanvas}
       >
         <div
           className="absolute top-0 left-0 flex"

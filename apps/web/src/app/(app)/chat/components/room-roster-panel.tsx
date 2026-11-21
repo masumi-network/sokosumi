@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { groupRosterMembers } from "./group-roster-members";

@@ -2,7 +2,8 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
@@ -154,9 +155,10 @@ export function LaunchStep({
   // The reason shows below the networks, often off screen from the row the
   // founder pressed: bring it into view when a connection fails.
   const alertRef = useRef<HTMLParagraphElement>(null);
-  useEffect(() => {
-    if (error) alertRef.current?.scrollIntoView({ block: "nearest" });
-  }, [error]);
+  useScrollIntoViewWhen(alertRef, Boolean(error), {
+    block: "nearest",
+    resetKey: error,
+  });
   const [celebrating, setCelebrating] = useState(false);
   const [, startTransition] = useTransition();
   // One of the plan's networks is enough to start; the rest can follow.

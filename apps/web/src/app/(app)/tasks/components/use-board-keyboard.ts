@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffectEvent } from "react";
 import { useNewTaskOpener } from "@/app/components/new-task-button.client";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import {
   isEditableKeyboardTarget,
   OPEN_SURFACE_SELECTOR,
@@ -73,7 +72,8 @@ export function boardFocusTarget(
  */
 export function useBoardKeyboard() {
   const openNewTask = useNewTaskOpener();
-  const handleKey = useEffectEvent((event: KeyboardEvent) => {
+
+  useEventListener("window", "keydown", (event) => {
     if (event.defaultPrevented || event.isComposing) return;
     if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
       return;
@@ -97,12 +97,6 @@ export function useBoardKeyboard() {
     event.preventDefault();
     target.focus();
     target.scrollIntoView({ block: "nearest", inline: "nearest" });
-  });
-
-  useMountEffect(() => {
-    const listener = (event: KeyboardEvent) => handleKey(event);
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
   });
 }
 

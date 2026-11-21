@@ -1,6 +1,12 @@
 import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 import type { AuditClickHistory } from "@/schemas/seo-audit-performance.schema";
-import { withinSearchConsoleRetention } from "./native-statistics";
+import {
+  gscStatisticsArguments,
+  type NativeStatisticsQuery,
+  normalizeGscStatistics,
+  unwrapNativeStatistics,
+  withinSearchConsoleRetention,
+} from "./native-statistics";
 
 const MIN_CLICK_CHANGE = 10;
 const MIN_RELATIVE_CHANGE = 0.2;
@@ -81,4 +87,27 @@ export async function collectAuditClickHistory(
         ? "investigate_growth"
         : "investigate_loss",
   };
+}
+
+/** The matched window uses the same page filters, dimensions and Google series as the original audit. */
+export function auditClickHistoryFromSearchAnalytics(
+  metrics: NativeSeoMetrics,
+  query: NativeStatisticsQuery,
+  read: (args: Record<string, unknown>) => Promise<unknown>,
+) {
+  return collectAuditClickHistory(metrics, async (window) => {
+    const historical = { ...query, ...window };
+    const result = unwrapNativeStatistics(
+      await read(gscStatisticsArguments(historical, true)),
+      ["rows"],
+    );
+    return (
+      normalizeGscStatistics(
+        historical,
+        null,
+        result,
+        metrics.observedAt,
+      ).metrics.find((metric) => metric.key === "clicks")?.points ?? []
+    );
+  });
 }

@@ -3,7 +3,7 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { ChevronRight, CircleAlert, CircleCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +17,11 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   useSeoResultFormatter,
   useSeoResultTranslations,
@@ -33,25 +38,36 @@ const HOVER_OPEN_MS = 300;
 
 /**
  * A stop of the runs row with what happened there: a pointer on it shows the counts and the way to the details.
- * Focus opens no card: the card is out of the keyboard's reach, and a tap on a phone focuses the stop. Keyboard and
- * touch reach the details of the day in view from the footer below the row.
+ * Focus alone opens no card. A click, tap or keyboard activation pins the preview for interaction.
  */
 export function SeoRunDayHover({
   workspace,
   day,
+  previewLabel,
   nodes,
-  hint,
+  issues,
+  pinned,
+  allowHover,
+  onPinnedChange,
+  onSelectDay,
+  selectLabel,
   onDetails,
   children,
 }: {
   workspace: ProjectSeoWorkspace;
   /** The day as the stop names it. */
   day: string;
+  previewLabel: string;
   nodes: SeoStopNode[];
-  /** What a press on the stop does; none for the day in view. */
-  hint: string | null;
+  issues?: number | null;
+  /** A pinned preview stays open while the reader chooses a date or opens its details. */
+  pinned: boolean;
+  allowHover: boolean;
+  onPinnedChange: (open: boolean) => void;
+  onSelectDay?: () => void;
+  selectLabel?: string;
   onDetails: () => void;
-  /** The stop's own button: a press still shows the page as it was on that day. */
+  /** The stop button anchors both the hover preview and the interactive popover. */
   children: ReactNode;
 }) {
   const t = useTranslations("App.Seo");
@@ -59,6 +75,7 @@ export function SeoRunDayHover({
   const reportFormat = useSeoResultFormatter();
   // Always controlled: a card that switched to controlled while empty would come back open with no pointer on it.
   const [open, setOpen] = useState(false);
+  const openingDetails = useRef(false);
   const digest = seoStopDigest(nodes);
   const newest = digest.newestCheck;
   const result = newest ? seoNodeResult(workspace, newest) : null;
@@ -79,80 +96,126 @@ export function SeoRunDayHover({
       ? report("runs.failedSyncs", { count: digest.failedSyncs })
       : null,
   ].filter((count): count is string => count !== null);
-  return (
-    // A stop with nothing to show keeps the same tree with the card shut: a new tree would remount the button and
-    // drop its focus when a refetch gives the stop its events.
-    <HoverCard
-      openDelay={HOVER_OPEN_MS}
-      open={open && nodes.length > 0}
-      // Radix reports no change against a shut prop: an empty stop must not keep a wish to open.
-      onOpenChange={(next) => setOpen(next && nodes.length > 0)}
-    >
-      {/* A handler that prevents the default keeps Radix from opening the card on focus. */}
-      <HoverCardTrigger asChild onFocus={(event) => event.preventDefault()}>
-        {children}
-      </HoverCardTrigger>
-      {nodes.length ? (
-        <HoverCardContent className="w-72 p-0 text-sm">
-          <div className="space-y-3 p-4">
-            <p lang="en" className="text-muted-foreground text-xs">
-              {day}
-            </p>
-            {result !== null && coverage ? (
-              // The result is the headline of the card; the tests behind it sit under it.
-              <div lang="en" className="flex gap-3">
-                <span className="text-muted-foreground -mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border">
-                  {result ? (
-                    <CircleAlert className="size-3.5" />
-                  ) : (
-                    <CircleCheck className="size-3.5" />
-                  )}
-                </span>
-                <div className="min-w-0 space-y-0.5">
-                  <p className="font-medium">
-                    {report("timeline.result", { count: result })}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {[
-                      report("timeline.checkSummary", {
-                        checked: coverage.checked,
-                      }),
-                      coverage.skipped
-                        ? report("timeline.rulesSkipped", {
-                            count: coverage.skipped,
-                          })
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-              </div>
-            ) : null}
-            {hint ? (
-              <p className="text-muted-foreground text-xs">{hint}</p>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-3 border-t py-2 ps-4 pe-2">
-            {/* A stop of check requests alone has nothing to count: its details say what became of them. */}
-            {counts.length ? (
-              <p lang="en" className="text-muted-foreground min-w-0 text-xs">
-                {reportFormat.list(counts, { type: "unit" })}
+  const preview = (
+    <>
+      <div className="space-y-3 p-4">
+        <p lang="en" className="text-muted-foreground text-xs">
+          {day}
+        </p>
+        {result !== null && coverage ? (
+          // The result is the headline of the card; the tests behind it sit under it.
+          <div lang="en" className="flex gap-3">
+            <span className="text-muted-foreground -mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border">
+              {result ? (
+                <CircleAlert className="size-3.5" />
+              ) : (
+                <CircleCheck className="size-3.5" />
+              )}
+            </span>
+            <div className="min-w-0 space-y-0.5">
+              <p className="font-medium">
+                {report("timeline.result", { count: result })}
               </p>
-            ) : null}
+              <p className="text-muted-foreground text-xs">
+                {[
+                  report("timeline.checkSummary", {
+                    checked: coverage.checked,
+                  }),
+                  coverage.skipped
+                    ? report("timeline.rulesSkipped", {
+                        count: coverage.skipped,
+                      })
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </div>
+          </div>
+        ) : null}
+        {!nodes.length && issues != null && (
+          <p lang="en" className="font-medium">
+            {report("timeline.result", { count: issues })}
+          </p>
+        )}
+        {!nodes.length && (
+          <p className="text-muted-foreground text-sm">{t("runs.noEvents")}</p>
+        )}
+      </div>
+      {(nodes.length > 0 || onSelectDay) && (
+        <div className="flex flex-wrap items-center gap-2 border-t p-2">
+          {/* A stop of check requests alone has nothing to count: its details say what became of them. */}
+          {counts.length ? (
+            <p lang="en" className="text-muted-foreground min-w-0 text-xs">
+              {reportFormat.list(counts, { type: "unit" })}
+            </p>
+          ) : null}
+          {onSelectDay && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setOpen(false);
+                onPinnedChange(false);
+                onSelectDay();
+              }}
+            >
+              {selectLabel}
+            </Button>
+          )}
+          {nodes.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
               className="ms-auto"
-              onClick={onDetails}
+              onClick={() => {
+                openingDetails.current = pinned;
+                setOpen(false);
+                onPinnedChange(false);
+                onDetails();
+              }}
             >
               {t("runs.details")}
               <ChevronRight />
             </Button>
-          </div>
-        </HoverCardContent>
-      ) : null}
-    </HoverCard>
+          )}
+        </div>
+      )}
+    </>
+  );
+  return (
+    <Popover
+      open={pinned}
+      onOpenChange={(next) => {
+        setOpen(false);
+        openingDetails.current = false;
+        onPinnedChange(next);
+      }}
+    >
+      <HoverCard
+        openDelay={HOVER_OPEN_MS}
+        open={open && allowHover}
+        onOpenChange={(next) => setOpen(next && allowHover)}
+      >
+        <HoverCardTrigger asChild onFocus={(event) => event.preventDefault()}>
+          <PopoverTrigger asChild>{children}</PopoverTrigger>
+        </HoverCardTrigger>
+        {allowHover && (
+          <HoverCardContent className="w-72 max-w-[calc(100vw-2rem)] p-0 text-sm">
+            {preview}
+          </HoverCardContent>
+        )}
+      </HoverCard>
+      <PopoverContent
+        aria-label={previewLabel}
+        className="w-72 max-w-[calc(100vw-2rem)] p-0 text-sm"
+        onCloseAutoFocus={(event) => {
+          if (openingDetails.current) event.preventDefault();
+        }}
+      >
+        {preview}
+      </PopoverContent>
+    </Popover>
   );
 }
 

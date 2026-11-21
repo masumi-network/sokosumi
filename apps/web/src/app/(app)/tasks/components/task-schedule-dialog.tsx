@@ -30,7 +30,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
 import {
   createTaskSchedule,
   type TaskScheduleActionError,
@@ -216,9 +216,8 @@ function TaskScheduleDialogForm({
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
-  const uploadControllerRef = useRef<AbortController | null>(null);
+  const uploadController = useAbortController();
   const attachmentUrls = extractTaskAttachmentUrls(description);
-  useMountEffect(() => () => uploadControllerRef.current?.abort());
   // Keep the baseline stable for this keyed form's lifetime. Re-reading a
   // stored H cron on a same-revision refresh can select a different minute.
   const [initialSelection] = useState<TaskScheduleSelection>(() =>
@@ -279,10 +278,9 @@ function TaskScheduleDialogForm({
   }
 
   async function handleAttachFiles(files: File[]) {
-    if (files.length === 0 || uploadControllerRef.current || isSaving) return;
+    if (files.length === 0 || uploadController.isActive() || isSaving) return;
 
-    const controller = new AbortController();
-    uploadControllerRef.current = controller;
+    const controller = uploadController.start();
     setIsUploadingAttachments(true);
     try {
       const uploaded = await uploadComposeAttachments(files, {
@@ -307,7 +305,7 @@ function TaskScheduleDialogForm({
     } catch {
       // The shared uploader reports errors and allows another attempt.
     } finally {
-      uploadControllerRef.current = null;
+      uploadController.release(controller);
       if (!controller.signal.aborted) {
         setPendingUploadFiles([]);
         setIsUploadingAttachments(false);
@@ -316,7 +314,7 @@ function TaskScheduleDialogForm({
   }
 
   async function handleSave() {
-    if (saveDisabled || uploadControllerRef.current) return;
+    if (saveDisabled || uploadController.isActive()) return;
 
     const input: TaskScheduleBlueprintInput = {
       name: name.trim(),

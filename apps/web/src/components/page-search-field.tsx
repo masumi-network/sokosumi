@@ -6,8 +6,8 @@ import { type ComponentProps, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { usePageSearchShortcut } from "@/hooks/effects/use-page-search-shortcut";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { usePageSearchShortcut } from "@/hooks/use-page-search-shortcut";
 import { cn } from "@/lib/utils";
 
 export function PageSearchHint({ className }: { className?: string }) {
@@ -17,7 +17,7 @@ export function PageSearchHint({ className }: { className?: string }) {
     <Kbd
       aria-hidden="true"
       className={cn(
-        "text-muted-foreground pointer-events-none hidden @min-[14rem]/page-search:inline-flex",
+        "text-muted-foreground pointer-events-none hidden pointer-fine:@min-[14rem]/page-search:inline-flex",
         className,
       )}
     >
@@ -77,8 +77,8 @@ export function PageSearchField({
         className={cn(
           "bg-background ps-9 [&::-webkit-search-cancel-button]:hidden",
           value
-            ? "pe-10 @min-[14rem]/page-search:pe-24"
-            : "@min-[14rem]/page-search:pe-16",
+            ? "pe-10 pointer-fine:@min-[14rem]/page-search:pe-24"
+            : "pointer-fine:@min-[14rem]/page-search:pe-16",
           inHeader && "@2xl/page-toolbar:h-8",
           inputClassName,
         )}

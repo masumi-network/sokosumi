@@ -1,9 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import {
-  SEO_FULL_AUDIT_CREDITS,
-  SEO_FULL_AUDIT_MAX_SECONDS,
-  SEO_MIN_AUDIT_USD,
-} from "@sokosumi/utils";
+import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
   seoArticleDates,
@@ -16,6 +12,7 @@ import {
   seoDeviceSchema,
   seoObservationSchema,
 } from "./seo-audit-coverage.schema";
+import { publicSitemapInputFields } from "./seo-sitemap-evidence.schema";
 
 export {
   seoDeviceSchema,
@@ -45,10 +42,16 @@ import {
   seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
-import { seoAuditPerformanceSchema } from "./seo-audit-performance.schema";
-import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
+import {
+  auditSearchConsoleInputFields,
+  seoAuditPerformanceSchema,
+  validPrivateAuditScope,
+} from "./seo-audit-performance.schema";
+import {
+  seoCostPlusPriceSchema,
+  seoFullAuditLimitsSchema,
+} from "./seo-audit-price.schema";
 import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
-
 import {
   SEO_MAX_PAGES,
   seoBriefAction,
@@ -57,6 +60,7 @@ import {
   seoScopeSchema,
   seoUrlSchema,
 } from "./seo-page.schema";
+import { workspaceSiteEvidenceFields } from "./seo-site-evidence.schema";
 
 export {
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -145,8 +149,13 @@ export const importSeoAuditSchema = z
     taskId: z.string().min(1).max(128),
     fileId: z.string().min(1).max(128),
     recoverMarkets: z.boolean().optional(),
+    recoverPageSpeed: z.literal(true).optional(),
   })
   .strict()
+  .refine(
+    (input) => !(input.recoverPageSpeed && input.recoverMarkets),
+    "Choose one report section to recover",
+  )
   .openapi("ImportProjectSeoAuditRequest");
 export const requestSeoAnalysisSchema = z
   .object({
@@ -200,8 +209,8 @@ export const requestSeoAnalysisSchema = z
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
     fullAuditPrice: seoCostPlusPriceSchema.optional(),
-    searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
-    allowLimitedAudit: z.literal(true).optional(),
+    ...auditSearchConsoleInputFields,
+    ...publicSitemapInputFields,
     setupGoal: z
       .strictObject({
         pageId: seoIdSchema,
@@ -215,14 +224,7 @@ export const requestSeoAnalysisSchema = z
         pageIds: z.array(seoIdSchema).min(1).max(SEO_MAX_PAGES),
       })
       .optional(),
-    fullAuditLimits: z
-      .object({
-        usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
-        // 90 minutes: the worker contract accepts this owner-set site limit (owner, 2026-11-13).
-        seconds: z.number().int().min(60).max(SEO_FULL_AUDIT_MAX_SECONDS),
-      })
-      .strict()
-      .optional(),
+    fullAuditLimits: seoFullAuditLimitsSchema.optional(),
     idempotencyKey: z.string().trim().min(8).max(128),
     coworkerId: z.string().min(1).max(128).optional(),
   })
@@ -256,6 +258,10 @@ export const requestSeoAnalysisSchema = z
           ? input.sharedBrief.revision === input.setupGoal.expectedRevision
           : input.sharedBrief.revision > 0)),
     "Share goals from the reviewed brief revision in a full audit",
+  )
+  .refine(
+    validPrivateAuditScope,
+    "Property data requires a full audit with Search Console access",
   )
   .openapi("RequestProjectSeoAnalysisRequest");
 export const saveSeoKeywordSchema = z
@@ -691,6 +697,7 @@ export const projectSeoWorkspaceSchema = z
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** Private indexing assessment for the current viewer's audit and selected pages. */
     indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
+    ...workspaceSiteEvidenceFields,
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     landingEngagementChange: seoLandingEngagementChange.optional(),

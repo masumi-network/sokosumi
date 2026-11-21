@@ -3,7 +3,8 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { Clock, PenLine, Play } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
+import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
@@ -153,9 +154,7 @@ export function CalendarPage({
   const today = dayIn(overview.timeZone, now);
   const thisWeek = useRef<HTMLElement>(null);
   // The month opens on this week, not on weeks already gone out.
-  useEffect(() => {
-    thisWeek.current?.scrollIntoView({ block: "start" });
-  }, []);
+  useScrollIntoViewWhen(thisWeek, true, { block: "start" });
 
   // Posts Cuso made on request, outside the month: they go out only once
   // the owner says so, so they lead the page.

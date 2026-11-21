@@ -1,5 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
+import { SeoResearchDetails } from "./seo-research-details";
 import { SeoDate, SeoFoldSummary } from "./seo-shared";
 
 type Breakdown = NonNullable<
@@ -70,38 +71,40 @@ export function SeoResearchStatus({
   return (
     <section
       lang="en"
-      aria-label={t("summary.researchTitle")}
-      className="mt-3 min-w-0 space-y-2"
+      aria-label={t("research.checks")}
+      className="min-w-0 space-y-3"
     >
-      <div className="flex flex-wrap items-baseline gap-x-2">
-        <h3 className="text-sm font-semibold">{t("summary.researchTitle")}</h3>
-        <span className="text-xs text-muted-foreground">
-          <SeoDate report day value={observedAt} />
-        </span>
-      </div>
-      {data.map(({ scope, pageUrl, stages }) => (
+      <p className="text-xs text-muted-foreground">
+        <SeoDate report day value={observedAt} />
+      </p>
+      {data.map(({ scope, pageUrl, stages, firstScreen, trends }) => (
         <div key={scope + pageUrl}>
           {showScope && (
             <p className="break-all text-xs text-muted-foreground">
               {scope === "site" ? t("summary.wholeSite") : pageUrl}
             </p>
           )}
-          <dl className="space-y-1 text-sm">
+          <dl className="divide-y text-sm">
             {stages.map((stage) => (
               <div
                 key={stage.name}
-                className="flex flex-wrap items-baseline gap-x-2"
+                className="grid items-baseline gap-x-5 gap-y-1 py-3 sm:grid-cols-[minmax(10rem,1fr)_2fr]"
               >
-                <dt>{t(`summary.stage.${stage.name}`)}</dt>
+                <dt className="font-medium">
+                  {t(`summary.stage.${stage.name}`)}
+                </dt>
                 <dd className="text-muted-foreground">
                   {t(`summary.progress.${stage.status}`)}
                   {stage.reason && (
-                    <span className="block">{stage.reason}</span>
+                    <span className="mt-1 block max-w-prose text-xs leading-relaxed">
+                      {stage.reason}
+                    </span>
                   )}
                 </dd>
               </div>
             ))}
           </dl>
+          <SeoResearchDetails firstScreen={firstScreen} trends={trends} />
         </div>
       ))}
     </section>

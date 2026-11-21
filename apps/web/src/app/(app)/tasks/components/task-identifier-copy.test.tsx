@@ -5,7 +5,7 @@ import { TaskIdentifierCopy } from "./task-identifier-copy";
 
 const copyTextWithToastMock = vi.fn();
 
-vi.mock("@/hooks/use-clipboard", () => ({
+vi.mock("@/hooks/effects/use-clipboard", () => ({
   copyTextWithToast: (...args: unknown[]) => copyTextWithToastMock(...args),
 }));
 

@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { useClipboard } from "@/hooks/effects/use-clipboard";
 
 import type { ApiKeySuccessDisplayProps } from "./types";
 

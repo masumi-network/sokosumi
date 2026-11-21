@@ -3,7 +3,7 @@
 import type { DataRoomMember, DataRoomTreeRow } from "@sokosumi/core-client";
 import { UserPlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { cn } from "@/lib/utils";
 import {
   dataRoomRefusal,
@@ -62,9 +63,7 @@ export function DataRoomPeople({
   const emailsId = useId();
   const expiresId = useId();
   const emailsRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (focusInvite) emailsRef.current?.focus();
-  }, [focusInvite]);
+  useFocusWhen(emailsRef, focusInvite);
   const [emails, setEmails] = useState("");
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);

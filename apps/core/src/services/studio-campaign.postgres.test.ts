@@ -162,7 +162,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     });
     projectId = project.id;
     const grant = await prisma.transaction.create({
-      data: { userId, amount: convertCreditsToCents(100) },
+      data: { userId, amount: convertCreditsToCents(300) },
     });
     await prisma.creditBucket.create({
       data: { userId, amount: grant.amount, sourceTransactionId: grant.id },
@@ -404,7 +404,6 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         product: { id: product.id, name: product.name },
         exportHeadline: index === 0 ? approvedLine : secondApprovedLine,
         lettering: "overlay",
-        modelId: "muse-image",
         settings: { aspectRatio },
         prompt: productBrief(product),
         idempotencyKey: randomUUID(),
@@ -599,7 +598,6 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       prompt: "Use a darker background and keep the layout.",
       parentAssetId: firstAd.id,
       referenceAssetIds: [firstAd.id],
-      modelId: "muse-image",
     };
     const fromAssistant = () =>
       studio.request("/image-studio-agent/generations", {
@@ -814,7 +812,6 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
           `${path}/jobs`,
           json("POST", {
             prompt: "A clean studio tabletop for a coffee ad.",
-            modelId: "muse-image",
             useProductCutout: true,
             referenceFileIds: [file.id],
             idempotencyKey: randomUUID(),
@@ -887,7 +884,6 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       ) => {
         const payload = {
           prompt: "Make the backdrop darker.",
-          modelId: "muse-image",
           parentAssetId,
           referenceAssetIds: [parentAssetId],
           idempotencyKey: randomUUID(),

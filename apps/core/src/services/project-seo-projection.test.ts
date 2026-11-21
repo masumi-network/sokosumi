@@ -3283,7 +3283,7 @@ describe("scoped checklist and research coverage", () => {
       expect.objectContaining({
         name: "editorial",
         status: "unknown",
-        reason: expect.stringContaining("editorial research"),
+        reason: expect.stringContaining("keyword research"),
       }),
       { name: "exploration", status: "unknown" },
     ]);
@@ -3413,4 +3413,76 @@ it("returns site market evidence only for a scope covering the audited pages", (
       },
     }),
   ).toMatchObject({ verdict: base.strategy.verdict });
+});
+
+it("projects an unknown visitor check and each Google Trends row, excluding unknown child fields", () => {
+  const current = fixture();
+  const firstScreen = {
+    probe: "desktop_first_screen",
+    label: "Download for macOS",
+    state: "unknown",
+    reason: "The saved viewport did not show the control.",
+    record: "a".repeat(64),
+  };
+  const row = {
+    keyword: "macbook battery health",
+    peakMonths: ["April", "March", "May"],
+    seasonal: true,
+    trend: "falling",
+    change: 0.39,
+    status: "read",
+    note: "Relative interest.",
+  };
+  const failed = {
+    ...row,
+    keyword: "Akku prüfen",
+    status: "failed",
+    peakMonths: [],
+    seasonal: null,
+    trend: "not determined",
+    change: null,
+    note: "private-provider-sentinel",
+  };
+  const base = legacyReport();
+  const report = parsePublicSeoArtifact({
+    ...base,
+    strategyInvestigation: { ...firstScreen, extra: "drop" },
+    trends: {
+      keywords: [{ ...row, extra: "drop" }, failed],
+      note: "Relative interest.",
+    },
+  });
+  expect(JSON.stringify(report)).not.toContain("private-provider-sentinel");
+  // Previously imported reports can still contain the provider detail on disk.
+  const retained = structuredClone(report);
+  retained.researchCoverage![0]!.trends!.keywords[1]!.note = failed.note;
+  retained.researchCoverage![0]!.trends!.note =
+    "Context only. Values are relative, 0 to 100, within one request (Google Trends help).";
+  current.observations.push(observation(current, retained, now.toISOString()));
+  const [research] =
+    projectSeoProjection(current).observations[0]!.checklistBreakdown!.research;
+  expect(research?.trends?.note).toBe(
+    "For each term, 100 marks its peak search interest in this period.",
+  );
+  expect(research?.trends?.keywords).toEqual([
+    row,
+    {
+      ...failed,
+      note: "Google Trends returned no usable data.",
+    },
+  ]);
+  expect(research?.firstScreen).toEqual(firstScreen);
+  expect(
+    parsePublicSeoArtifact({
+      ...base,
+      strategyInvestigation: { ...firstScreen, record: "unbound" },
+    }).researchCoverage?.[0]?.firstScreen,
+  ).toBeUndefined();
+  expect(() =>
+    parsePublicSeoArtifact({
+      ...base,
+      searchConsole: {},
+      strategyInvestigation: firstScreen,
+    }),
+  ).toThrow();
 });

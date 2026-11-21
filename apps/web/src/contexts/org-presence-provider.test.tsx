@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { OrgPresenceStore } from "@/hooks/effects/use-org-presence-map";
 
 const lazyAblyProviderMock = vi.fn(
   ({ children }: { children: React.ReactNode }) => (
@@ -12,21 +14,37 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
     lazyAblyProviderMock(props),
 }));
 
-vi.mock("@/lib/ably/use-org-presence-publisher", () => ({
+vi.mock("@/hooks/effects/use-org-presence-publisher", () => ({
   useOrgPresencePublisher: vi.fn(),
 }));
 
 const stableLiveMap = new Map([["user_live", "online" as const]]);
 
-vi.mock("@/lib/ably/use-org-presence-map", () => ({
-  useOrgPresenceMap: vi.fn(() => stableLiveMap),
-}));
+vi.mock("@/hooks/effects/use-org-presence-map", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/hooks/effects/use-org-presence-map")
+    >();
+  return {
+    ...actual,
+    useOrgPresenceMapSync: vi.fn(
+      (organizationId: string | null | undefined, store: OrgPresenceStore) => {
+        useEffect(() => {
+          store.setPresenceMap(
+            organizationId ?? null,
+            organizationId ? stableLiveMap : actual.EMPTY_ORG_PRESENCE_MAP,
+          );
+        }, [organizationId, store]);
+      },
+    ),
+  };
+});
 
 import {
   OrgPresenceProvider,
   useMemberPresence,
 } from "@/contexts/org-presence-provider";
-import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
+import { useOrgPresencePublisher } from "@/hooks/effects/use-org-presence-publisher";
 
 function PresenceProbe({
   userId,
@@ -100,5 +118,25 @@ describe("OrgPresenceProvider", () => {
     await waitFor(() => {
       expect(screen.getByTestId("presence")).toHaveTextContent("online");
     });
+  });
+
+  it("clears live presence back to fallback when switching to personal workspace", async () => {
+    const { rerender } = render(
+      <OrgPresenceProvider organizationId="org_1">
+        <PresenceProbe userId="user_live" fallback="offline" />
+      </OrgPresenceProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("presence")).toHaveTextContent("online");
+    });
+
+    rerender(
+      <OrgPresenceProvider organizationId={null}>
+        <PresenceProbe userId="user_live" fallback="offline" />
+      </OrgPresenceProvider>,
+    );
+
+    expect(screen.getByTestId("presence")).toHaveTextContent("offline");
   });
 });

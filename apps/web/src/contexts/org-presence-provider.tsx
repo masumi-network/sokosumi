@@ -6,13 +6,17 @@ import {
   createContext,
   type ReactNode,
   use,
-  useCallback,
-  useEffect,
   useState,
+  useSyncExternalStore,
 } from "react";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { useOrgPresenceMap } from "@/lib/ably/use-org-presence-map";
-import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
+import {
+  createOrgPresenceStore,
+  EMPTY_ORG_PRESENCE_MAP,
+  type OrgPresenceStore,
+  useOrgPresenceMapSync,
+} from "@/hooks/effects/use-org-presence-map";
+import { useOrgPresencePublisher } from "@/hooks/effects/use-org-presence-publisher";
 
 const OrgPresenceMapContext = createContext<Map<
   string,
@@ -29,21 +33,17 @@ function OrgPresencePublisherBridge({
 }
 
 /**
- * Ably island: sync live map into parent state. Must not wrap paint-critical UI.
+ * Ably island: sync live map into the provider's external store. Must not wrap
+ * paint-critical UI.
  */
 function OrgPresenceMapSync({
   organizationId,
-  onMapChange,
+  store,
 }: {
   organizationId: string | null;
-  onMapChange: (map: Map<string, ChatPresenceState>) => void;
+  store: OrgPresenceStore;
 }) {
-  const presenceByUserId = useOrgPresenceMap(organizationId);
-
-  useEffect(() => {
-    onMapChange(presenceByUserId);
-  }, [onMapChange, presenceByUserId]);
-
+  useOrgPresenceMapSync(organizationId, store);
   return null;
 }
 
@@ -63,43 +63,24 @@ export function OrgPresenceProvider({
   organizationId,
   children,
 }: OrgPresenceProviderProps) {
-  const [presenceByUserId, setPresenceByUserId] = useState<
-    Map<string, ChatPresenceState>
-  >(() => new Map());
+  const [store] = useState(createOrgPresenceStore);
+  const snapshot = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
+  );
 
-  const handleMapChange = useCallback((map: Map<string, ChatPresenceState>) => {
-    setPresenceByUserId((previous) => {
-      if (previous.size === map.size) {
-        let same = true;
-        for (const [userId, presence] of map) {
-          if (previous.get(userId) !== presence) {
-            same = false;
-            break;
-          }
-        }
-        if (same) {
-          return previous;
-        }
-      }
-      return map;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (organizationId == null) {
-      setPresenceByUserId(new Map());
-    }
-  }, [organizationId]);
+  const providedPresenceMap =
+    organizationId != null && snapshot.organizationId === organizationId
+      ? snapshot.map
+      : EMPTY_ORG_PRESENCE_MAP;
 
   return (
-    <OrgPresenceMapContext value={presenceByUserId}>
+    <OrgPresenceMapContext value={providedPresenceMap}>
       {children}
       <LazyAblyProvider>
         <OrgPresencePublisherBridge organizationId={organizationId} />
-        <OrgPresenceMapSync
-          organizationId={organizationId}
-          onMapChange={handleMapChange}
-        />
+        <OrgPresenceMapSync organizationId={organizationId} store={store} />
       </LazyAblyProvider>
     </OrgPresenceMapContext>
   );

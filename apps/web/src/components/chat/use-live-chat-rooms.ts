@@ -1,13 +1,7 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
@@ -15,8 +9,8 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import {
-  subscribeOrganizationChatRoomRead,
-  subscribeOrganizationChatRoomsChanged,
+  useOrganizationChatRoomRead,
+  useOrganizationChatRoomsChanged,
 } from "@/components/chat/organization-chat-events";
 import { keepRoomUnreadState } from "@/components/chat/room-attention";
 import {
@@ -25,7 +19,7 @@ import {
   reconcileRoomAttention,
 } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
@@ -95,44 +89,47 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     getLatestMembershipVisibleRoomsSnapshot,
     () => null,
   );
-  useEffect(() => {
-    if (
-      !sidebarOwnsReads ||
-      !liveSnapshot ||
-      liveSnapshot.currentUserId !== currentUserId ||
-      liveSnapshot.organizationId !== organizationId
-    ) {
-      return;
-    }
-    setRooms([...liveSnapshot.rooms]);
-  }, [sidebarOwnsReads, liveSnapshot, currentUserId, organizationId]);
 
   const scope = currentUserId
     ? `${organizationId ?? ""}:${currentUserId}`
     : null;
-  const previousScopeRef = useRef<string | null>(null);
+  const [trackedScope, setTrackedScope] = useState<string | null>(scope);
+
+  const mirroredSnapshot =
+    sidebarOwnsReads &&
+    liveSnapshot &&
+    liveSnapshot.currentUserId === currentUserId &&
+    liveSnapshot.organizationId === organizationId
+      ? liveSnapshot
+      : null;
+  const [syncedSnapshot, setSyncedSnapshot] = useState<
+    typeof liveSnapshot | null
+  >(null);
+  if (mirroredSnapshot && mirroredSnapshot !== syncedSnapshot) {
+    setSyncedSnapshot(mirroredSnapshot);
+    setRooms(applyRoomReadOverlays([...mirroredSnapshot.rooms]));
+  } else if (!mirroredSnapshot && syncedSnapshot !== null) {
+    setSyncedSnapshot(null);
+  }
 
   // Drop the previous workspace's rows before the new GET lands so an
   // in-flight response cannot light the dot for the wrong org (SOK-986).
-  useEffect(() => {
-    if (previousScopeRef.current === scope) {
-      return;
+  // Runs after the mirror so a matching snapshot's local read overlays win.
+  if (trackedScope !== scope) {
+    const previous = trackedScope;
+    setTrackedScope(scope);
+    if (scope && previous !== null) {
+      latestAppliedRefreshRef.current = 0;
+      const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+      setRooms(
+        snapshot &&
+          snapshot.currentUserId === currentUserId &&
+          snapshot.organizationId === organizationId
+          ? applyRoomReadOverlays([...snapshot.rooms])
+          : null,
+      );
     }
-    const previous = previousScopeRef.current;
-    previousScopeRef.current = scope;
-    if (!scope || previous === null) {
-      return;
-    }
-    latestAppliedRefreshRef.current = 0;
-    const snapshot = getLatestMembershipVisibleRoomsSnapshot();
-    setRooms(
-      snapshot &&
-        snapshot.currentUserId === currentUserId &&
-        snapshot.organizationId === organizationId
-        ? applyRoomReadOverlays([...snapshot.rooms])
-        : null,
-    );
-  }, [scope, currentUserId, organizationId]);
+  }
 
   // Same GET read and scheduling rules as the sidebar's active collection
   // (SOK-986): timer reads pause while hidden or unfocused with one read on
@@ -161,45 +158,39 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     refreshOnRecovery: true,
   });
 
-  useMountEffect(() =>
-    subscribeOrganizationChatRoomRead((apply) =>
-      setRooms((current) => (current === null ? null : apply(current))),
-    ),
+  useOrganizationChatRoomRead((apply) =>
+    setRooms((current) => (current === null ? null : apply(current))),
   );
 
-  useEffect(
-    () =>
-      subscribeOrganizationChatRoomsChanged({
-        onRemoved: (removedRoomId) =>
-          setRooms((current) =>
-            current === null
-              ? null
-              : applyRoomReadOverlays(
-                  current.filter((row) => row.id !== removedRoomId),
-                ),
-          ),
-        onRoom: (room) =>
-          // The answers that land here do not count what is unread, so the
-          // room keeps what the title already counted for it.
-          setRooms((current) => {
-            // One room is not the list; the first read still decides it.
-            if (current === null) return null;
-            const held = current.find((row) => row.id === room.id);
-            const without = current.filter((row) => row.id !== room.id);
-            return applyRoomReadOverlays([
-              keepRoomUnreadState(held, room),
-              ...without,
-            ]);
-          }),
-        onInvalidated: (collections) => {
-          // Only the active collection holds what is unread.
-          if (!collections || collections.includes("active")) {
-            requestRefresh();
-          }
-        },
+  useOrganizationChatRoomsChanged({
+    onRemoved: (removedRoomId) =>
+      setRooms((current) =>
+        current === null
+          ? null
+          : applyRoomReadOverlays(
+              current.filter((row) => row.id !== removedRoomId),
+            ),
+      ),
+    onRoom: (room) =>
+      // The answers that land here do not count what is unread, so the
+      // room keeps what the title already counted for it.
+      setRooms((current) => {
+        // One room is not the list; the first read still decides it.
+        if (current === null) return null;
+        const held = current.find((row) => row.id === room.id);
+        const without = current.filter((row) => row.id !== room.id);
+        return applyRoomReadOverlays([
+          keepRoomUnreadState(held, room),
+          ...without,
+        ]);
       }),
-    [requestRefresh],
-  );
+    onInvalidated: (collections) => {
+      // Only the active collection holds what is unread.
+      if (!collections || collections.includes("active")) {
+        requestRefresh();
+      }
+    },
+  });
 
   return rooms;
 }

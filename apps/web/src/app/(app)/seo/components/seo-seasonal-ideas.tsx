@@ -42,20 +42,7 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
       timeZone: "UTC",
     });
   return (
-    <SeoSection
-      title={display("title")}
-      description={
-        ideas.some(
-          (idea) =>
-            idea.windows.length ||
-            idea.comparison?.status === "above_baseline" ||
-            idea.comparison?.status === "no_observed_rise",
-        ) ? (
-          <span lang="en">{t("timing")}</span>
-        ) : undefined
-      }
-      strong
-    >
+    <SeoSection title={display("title")} strong>
       <ul className="divide-y">
         {ideas.map((idea) => {
           const comparison = idea.comparison;
@@ -70,6 +57,9 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
           const status = comparison?.status;
           const hasComparison =
             status === "above_baseline" || status === "no_observed_rise";
+          const updatePage =
+            idea.origin !== "market_history" &&
+            idea.action === "improve_existing_page";
           const timing = seasonalIdeaTiming(idea, now);
           const action = model.data.actions.find(
             (row) => row.id === idea.actionId,
@@ -79,7 +69,7 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
           // What to confirm before acting, as one list: separate grey lines
           // read like more evidence and hid where the checks begin.
           const checks = [
-            ...((!hasComparison && !idea.windows.length) ||
+            ...((hasComparison || idea.windows.length > 0) &&
             idea.limitations.includes("demand_unverified")
               ? (["verifyDemand"] as const)
               : []),
@@ -98,7 +88,7 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                 idea.audience,
                 idea.event?.date,
               ])}
-              className="space-y-1 px-2 py-3 wrap-anywhere"
+              className="space-y-2 px-3 py-4 wrap-anywhere"
             >
               <h3 className="text-sm font-medium">
                 <bdi lang={idea.language}>{idea.keyword}</bdi>
@@ -148,11 +138,11 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                   })}
                 </p>
               )}
-              <p lang="en" className="text-sm">
-                {idea.origin === "market_history"
-                  ? t("historicalIdea")
-                  : t(idea.action, { audience: idea.audience })}
-              </p>
+              {updatePage && (
+                <p lang="en" className="text-sm">
+                  {t(idea.action, { audience: idea.audience })}
+                </p>
+              )}
               {action?.status === "unavailable" && (
                 <p className="text-muted-foreground text-sm">
                   {tActions("unavailable")}
@@ -172,21 +162,34 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                   )}
                 </p>
               )}
-              {checks.length > 0 && (
-                <ul
-                  lang="en"
-                  className="text-muted-foreground list-disc space-y-0.5 ps-5 text-sm"
-                >
-                  {checks.map((check) => (
-                    <li key={check}>{t(check)}</li>
-                  ))}
-                </ul>
+              {!hasComparison && !idea.windows.length && (
+                <p lang="en" className="text-muted-foreground text-sm">
+                  {t("verifyDemand")}
+                </p>
               )}
               <details className="text-sm">
                 <SeoFoldSummary className="text-muted-foreground min-h-10 w-fit font-medium">
                   {display("evidence")}
                 </SeoFoldSummary>
                 <div lang="en" className="space-y-2 pb-2">
+                  {!updatePage && (
+                    <p lang="en" className="text-sm">
+                      {idea.origin === "market_history"
+                        ? t("historicalIdea")
+                        : t(idea.action, { audience: idea.audience })}
+                    </p>
+                  )}
+                  {checks.length > 0 && (
+                    <ul
+                      lang="en"
+                      className="text-muted-foreground list-disc space-y-0.5 ps-5 text-sm"
+                    >
+                      {checks.map((check) => (
+                        <li key={check}>{t(check)}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="text-muted-foreground text-xs">{t("timing")}</p>
                   <SeoPageText url={idea.url} workspace={model.data} />
                   <blockquote dir="auto" lang="" className="border-s-2 ps-3">
                     {idea.pageQuote}

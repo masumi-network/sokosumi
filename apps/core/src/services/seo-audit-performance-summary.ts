@@ -1,4 +1,6 @@
 import prisma from "@/lib/db/prisma";
+import { auditDiscoveryResult } from "@/lib/seo/audit-discovery-actions";
+import { withinSearchConsoleRetention } from "@/lib/seo/native-statistics";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import {
@@ -10,6 +12,7 @@ import {
   AUDIT_QUERY_PREVIEW_LIMIT,
 } from "@/schemas/seo-audit-performance.schema";
 import { seoOwnerWhere } from "./project-seo-store";
+import { readPublicAuditSitemaps } from "./seo-audit-public-sitemaps";
 
 function totals(data: NativeSeoMetrics, previous = false) {
   function value(key: string) {
@@ -45,6 +48,15 @@ export async function readAuditPerformanceSummaries(
     },
     select: { sourceTaskId: true, payload: true },
   });
+  const withDiscovery = observations.flatMap((row) =>
+    row.sourceTaskId &&
+    nativeSeoMetricsSchema.safeParse(row.payload).data?.auditDiscovery
+      ? [row.sourceTaskId]
+      : [],
+  );
+  const publicRoots = withDiscovery.length
+    ? await readPublicAuditSitemaps(actor, withDiscovery)
+    : new Map<string, string[]>();
   const auditSearchConsole = observations.flatMap((row) => {
     const data = nativeSeoMetricsSchema.safeParse(row.payload).data;
     if (
@@ -53,12 +65,19 @@ export async function readAuditPerformanceSummaries(
       data.provider !== "search_console"
     )
       return [];
-    if (data.auditPerformanceComplete) retry.delete(row.sourceTaskId);
+    if (
+      data.auditPerformanceComplete &&
+      data.auditDiscovery?.status !== "unavailable"
+    )
+      retry.delete(row.sourceTaskId);
     const earlier = data.metrics.find((metric) => metric.previous)?.previous;
     return [
       {
         taskId: row.sourceTaskId,
         propertyId: data.propertyId,
+        ...(!withinSearchConsoleRetention(data.from) && {
+          propertyDataExpired: true as const,
+        }),
         pageUrls: data.pageUrls,
         from: data.from,
         to: data.to,
@@ -77,6 +96,13 @@ export async function readAuditPerformanceSummaries(
           evidence,
         })),
         coverage: data.coverage,
+        ...(data.auditDiscovery && {
+          discovery: auditDiscoveryResult(
+            data.auditDiscovery,
+            data.propertyId,
+            publicRoots.get(row.sourceTaskId) ?? [],
+          ),
+        }),
         ...((data.searchType ?? "web") === "web" &&
           data.countries &&
           data.pageUrls.length > 0 &&
@@ -90,6 +116,12 @@ export async function readAuditPerformanceSummaries(
           }),
         ...(data.auditClickHistory && { history: data.auditClickHistory }),
         ...totals(data),
+        ...(data.auditPageDiscovery && {
+          pageDiscovery: data.auditPageDiscovery,
+        }),
+        ...(data.auditPropertyTotals && {
+          propertyTotals: data.auditPropertyTotals,
+        }),
         previous: earlier
           ? { from: earlier.from, to: earlier.to, ...totals(data, true) }
           : null,

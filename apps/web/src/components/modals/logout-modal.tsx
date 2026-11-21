@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -40,7 +39,6 @@ export default function LogoutModal({
 }: LogoutModalProps) {
   const t = useTranslations("Components.Modals.LogoutModal");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleLogout = async () => {
     setLoading(true);
@@ -48,11 +46,6 @@ export default function LogoutModal({
       fetchOptions: {
         onError: () => {
           toast.error(t("error"));
-        },
-        onSuccess: () => {
-          const returnUrl =
-            window.location.pathname + window.location.search || "/";
-          router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
         },
       },
     });

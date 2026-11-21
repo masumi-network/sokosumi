@@ -11,6 +11,7 @@ const m = vi.hoisted(() => ({
   startCmoProduction: vi.fn(),
   draftProblems: vi.fn(),
   chargeCheck: vi.fn(),
+  referenceFindMany: vi.fn(),
   styles: { on: true },
 }));
 
@@ -28,7 +29,10 @@ vi.mock("@/lib/soko-bot/turn-loop", () => ({
   runtimeEvent: (type: string, data: unknown) => ({ type, data }),
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { sokoBotTurn: { findUnique: m.turnFindUnique } },
+  default: {
+    sokoBotTurn: { findUnique: m.turnFindUnique },
+    referenceImage: { findMany: m.referenceFindMany },
+  },
 }));
 vi.mock("@/services/brand-brain.service", () => ({
   getBrandBrain: async () => null,
@@ -51,7 +55,8 @@ vi.mock("@/services/cmo-production.service", async (original) => ({
   cmoConnectedChannels: async () => new Set(["x"]),
   readCmoProduction: m.readCmoProduction,
 }));
-vi.mock("@/services/reference-library.service", () => ({
+vi.mock("@/services/reference-library.service", async (original) => ({
+  ...(await original<typeof import("@/services/reference-library.service")>()),
   findStyleReferences: m.findStyleReferences,
   referenceLibraryAvailable: () => m.styles.on,
 }));
@@ -103,6 +108,7 @@ function written(id: string, extra: Record<string, unknown> = {}) {
     visualFileIds: null,
     slides: null,
     styleLook: null,
+    purpose: null,
     headline: null,
     slideHeadlines: null,
     script: null,
@@ -285,6 +291,97 @@ describe("writeCmoMonthPieces", () => {
         usage: expect.objectContaining({ inputTokens: 12_000, costUsd: 0.002 }),
       }),
     });
+  });
+
+  // cmo-v8: NMKR's how-to month took an infographic for 56 of 69 pictures.
+  it("picks each cmo-v8 picture's print among the kinds that keep the month varied", async () => {
+    const pieces = [
+      piece("v1", { format: "image", date: "2026-11-21", time: "09:00" }),
+      piece("v2", { format: "image", date: "2026-11-22", time: "09:00" }),
+    ];
+    m.referenceFindMany.mockResolvedValue([{ id: "ref-used", kind: "poster" }]);
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy: {
+          ...strategy,
+          calendar: [
+            ...pieces,
+            {
+              ...piece("v0", { format: "image", date: "2026-11-20" }),
+              styleReferenceId: "ref-used",
+            },
+          ],
+        },
+        pending: pieces,
+        failedMedia: new Set(),
+      })
+      .mockResolvedValueOnce({ strategy, pending: [], failedMedia: new Set() });
+    m.findStyleReferences
+      .mockResolvedValueOnce([{ id: "ref-label", kind: "label" }])
+      .mockResolvedValueOnce([{ id: "ref-chart", kind: "infographic" }]);
+    m.generateText.mockResolvedValue({
+      output: {
+        pieces: [
+          written("v1", {
+            visual: "Three steps of a mint",
+            styleLook: "steps",
+            purpose: "how-to",
+          }),
+          written("v2", {
+            visual: "Fees by plan",
+            styleLook: "a chart",
+            purpose: "data",
+          }),
+        ],
+      },
+      usage: { inputTokens: 1_000, outputTokens: 200 },
+      providerMetadata: { gateway: { cost: "0.001" } },
+    });
+    await writeCmoMonthPieces(runtime() as never, input, {
+      turn: { ...(authorized as any).turn, versionId: "cmo-v8" },
+    } as never);
+
+    const [first, second] = m.findStyleReferences.mock.calls.map(
+      ([query]) => query,
+    );
+    // After a poster on x, a how-to piece takes neither a poster nor an
+    // infographic; a piece of numbers may take one, but not the label
+    // its neighbour just took.
+    expect(first).toMatchObject({ purpose: "how-to", exclude: ["ref-used"] });
+    expect(first.kinds).not.toContain("poster");
+    expect(first.kinds).not.toContain("infographic");
+    expect(second).toMatchObject({ purpose: "data" });
+    expect(second.kinds).toContain("infographic");
+    expect(second.kinds).not.toContain("label");
+    expect(second.exclude).toEqual(["ref-used", "ref-label"]);
+  });
+
+  it("leaves a cmo-v7 Cuso's search as it was", async () => {
+    const pieces = [piece("v1", { format: "image" })];
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy,
+        pending: pieces,
+        failedMedia: new Set(),
+      })
+      .mockResolvedValueOnce({ strategy, pending: [], failedMedia: new Set() });
+    m.generateText.mockResolvedValue({
+      output: {
+        pieces: [
+          written("v1", {
+            visual: "Steps",
+            styleLook: "steps",
+            purpose: "how-to",
+          }),
+        ],
+      },
+      usage: { inputTokens: 1_000, outputTokens: 200 },
+      providerMetadata: { gateway: { cost: "0.001" } },
+    });
+    await writeCmoMonthPieces(runtime() as never, input, authorized);
+    const [query] = m.findStyleReferences.mock.calls[0]!;
+    expect(query.kinds).toBeUndefined();
+    expect(query.purpose).toBeUndefined();
   });
 
   it("asks once more with Core's reason, then hands back what still fails", async () => {

@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { SEO_MAX_PAGES, seoUrlSchema } from "./project-seo.schema";
+import { seoSiteEvidenceSchema } from "./seo-site-evidence.schema";
 import { taskWorkerContextSchema } from "./task-worker-context.schema";
 
 // The SEO worker refuses a Task packet longer than this (seo-bot MAX_ANALYSIS_REQUEST_CHARS).
@@ -14,6 +15,7 @@ export const seoRelatedIndexingSelectionSchema = z.strictObject({
 
 export const seoTaskRelatedPagesRequestSchema = z
   .strictObject({
+    siteEvidence: seoSiteEvidenceSchema.optional(),
     expectedContext: taskWorkerContextSchema,
     seedPageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
     relatedPageUrls: z.array(seoUrlSchema).max(SEO_MAX_PAGES),

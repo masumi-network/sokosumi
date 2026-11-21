@@ -1,5 +1,9 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 
+import {
+  filterTopLevelChatRoomMessages,
+  isTopLevelChatRoomMessage,
+} from "./chat-room-message-scope";
 import { mergeRoomMessages } from "./merge-room-messages";
 import { isOutboundLocalMessage } from "./outbound-room-message";
 
@@ -72,12 +76,18 @@ export function emptyRoomTranscript(): RoomTranscript {
   return { messages: [], rangeEdges: [], oldestHasMore: false };
 }
 
+function stripThreadReplies(messages: ChatRoomMessage[]): ChatRoomMessage[] {
+  return messages.every(isTopLevelChatRoomMessage)
+    ? messages
+    : filterTopLevelChatRoomMessages(messages);
+}
+
 /** Update rows without changing what the transcript knows about history. */
 export function updateRoomTranscriptMessages(
   transcript: RoomTranscript,
   update: (messages: ChatRoomMessage[]) => ChatRoomMessage[],
 ): RoomTranscript {
-  const messages = update(transcript.messages);
+  const messages = stripThreadReplies(update(transcript.messages));
   if (messages === transcript.messages) {
     return transcript;
   }
@@ -244,8 +254,10 @@ function mergeContiguousRange(
   reachesPresent: boolean,
 ): RoomTranscript {
   const hasMoreOlder = page.nextCursor != null;
-  const messages = mergeRoomMessages(transcript.messages, page.messages);
-  const sortedPage = page.messages.toSorted((left, right) =>
+  const existingMessages = stripThreadReplies(transcript.messages);
+  const pageMessages = stripThreadReplies(page.messages);
+  const messages = mergeRoomMessages(existingMessages, pageMessages);
+  const sortedPage = pageMessages.toSorted((left, right) =>
     compareKeys(keyOf(left), keyOf(right)),
   );
   const first = sortedPage[0];
@@ -269,7 +281,7 @@ function mergeContiguousRange(
   // not extend a range (a later page would look contiguous and hide the gap).
   const existing = loadedRanges({
     ...transcript,
-    messages: transcript.messages.filter(
+    messages: existingMessages.filter(
       (message) => !isOutboundLocalMessage(message),
     ),
   });

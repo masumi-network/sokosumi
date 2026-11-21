@@ -1,16 +1,17 @@
 "use client";
 
-import { useQueryState } from "nuqs";
-import { type ReactNode, useEffect, useMemo } from "react";
+import type { ReactNode } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
 } from "@/components/ui/tabs-classes";
+import { useNormalizedQueryTab } from "@/hooks/effects/use-normalized-query-tab";
 import { cn } from "@/lib/utils";
 
-type BillingTabValue = "subscription" | "credits" | "coupon";
+const ALL_BILLING_TABS = ["subscription", "credits", "coupon"] as const;
+const BILLING_TABS_WITHOUT_CREDITS = ["subscription", "coupon"] as const;
 
 interface BillingTabsProps {
   couponContent: ReactNode;
@@ -31,27 +32,15 @@ export function BillingTabs({
   subscriptionContent,
   tabLabels,
 }: BillingTabsProps) {
-  const [tab, setTab] = useQueryState("tab", {
-    defaultValue: "subscription",
-  });
+  const enabledTabs = showCreditsTab
+    ? ALL_BILLING_TABS
+    : BILLING_TABS_WITHOUT_CREDITS;
 
-  const enabledTabs = useMemo<BillingTabValue[]>(
-    () =>
-      showCreditsTab
-        ? ["subscription", "credits", "coupon"]
-        : ["subscription", "coupon"],
-    [showCreditsTab],
+  const [activeTab, setTab] = useNormalizedQueryTab(
+    "tab",
+    enabledTabs,
+    "subscription",
   );
-
-  const activeTab = enabledTabs.includes(tab as BillingTabValue)
-    ? (tab as BillingTabValue)
-    : "subscription";
-
-  useEffect(() => {
-    if (!enabledTabs.includes(tab as BillingTabValue)) {
-      void setTab("subscription");
-    }
-  }, [enabledTabs, setTab, tab]);
 
   return (
     <Tabs

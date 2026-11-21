@@ -11,7 +11,7 @@ import {
   Search,
   ShoppingBag,
 } from "lucide-react";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
@@ -539,23 +539,17 @@ export function Improvements({
 export function MeasureFunnel({
   sources,
   onConnect,
+  measureError = null,
 }: {
   sources: Source[];
   onConnect: (
     provider: Source["provider"],
   ) => Promise<{ url: string | null; error: string | null }>;
+  measureError?: string | null;
 }) {
   const [pending, setPending] = useState<Source["provider"] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(measureError);
   const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (
-      new URLSearchParams(window.location.search).get("measure") === "failed"
-    ) {
-      setError("That connection didn't finish. Try again.");
-    }
-  }, []);
 
   function connect(provider: Source["provider"]) {
     setPending(provider);

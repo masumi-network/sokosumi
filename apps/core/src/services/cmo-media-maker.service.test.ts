@@ -143,7 +143,10 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   type CmoMediaPiece,
+  cmoAllowedKinds,
   cmoImagePrompt,
+  cmoInfographicCap,
+  cmoMakesVariedMonth,
   cmoMediaState,
   cmoPictureOutdated,
   cmoPictureStyleProblem,
@@ -1226,5 +1229,103 @@ describe("logoForPicture", () => {
     expect(
       await logoForPicture(await plain("#0c0c0c"), { logo, darkLogo: null }),
     ).toBe(logo);
+  });
+});
+
+// NMKR's how-to month (2026-11-20): 56 of 69 pictures took an infographic.
+describe("a cmo-v8 month's kinds of print", () => {
+  const kindOf = new Map([
+    ["ref-info-1", "infographic"],
+    ["ref-info-2", "infographic"],
+    ["ref-poster", "poster"],
+    ["ref-poster-2", "poster"],
+    ["ref-poster-3", "poster"],
+    ["ref-ad", "ad"],
+    ["ref-label", "label"],
+  ]);
+  const at = (
+    id: string,
+    date: string,
+    styleReferenceId: string,
+    channel = "x",
+  ) => ({
+    ...piece({ id, channel, styleReferenceId }),
+    date,
+    time: "09:00",
+  });
+
+  it("are kept only by a cmo-v8 Cuso", () => {
+    expect(cmoMakesVariedMonth("cmo-v8")).toBe(true);
+    expect(cmoMakesVariedMonth("cmo-v7")).toBe(false);
+    expect(cmoMakesVariedMonth(null)).toBe(false);
+  });
+
+  it("hold at most one infographic in four pictures", () => {
+    expect(cmoInfographicCap(8)).toBe(2);
+    expect(cmoInfographicCap(3)).toBe(1);
+    const others = [at("a", "2026-11-02", "ref-info-1", "linkedin")];
+    const second = at("b", "2026-11-03", "ref-info-2");
+    expect(
+      cmoPictureStyleProblem([second], others, { kindOf, planned: 4 }),
+    ).toContain("b would make 2 infographics in a month of 4 pictures");
+    // Eight pictures make room for two; without kinds nothing is counted.
+    expect(
+      cmoPictureStyleProblem([second], others, { kindOf, planned: 8 }),
+    ).toBeNull();
+    expect(cmoPictureStyleProblem([second], others)).toBeNull();
+  });
+
+  it("give neighbouring pieces on one network different kinds", () => {
+    const others = [
+      at("a", "2026-11-02", "ref-ad"),
+      at("c", "2026-11-04", "ref-poster"),
+    ];
+    expect(
+      cmoPictureStyleProblem([at("b", "2026-11-03", "ref-poster-2")], others, {
+        kindOf,
+        planned: 12,
+      }),
+    ).toContain("b and c follow each other on x in one kind of print (poster)");
+    // Another network is no neighbour, and a month that already broke the
+    // rule keeps it: only what the save brings is refused.
+    expect(
+      cmoPictureStyleProblem(
+        [at("b", "2026-11-03", "ref-poster-2", "linkedin")],
+        [...others, at("e", "2026-11-05", "ref-poster-3")],
+        { kindOf, planned: 12 },
+      ),
+    ).toBeNull();
+  });
+
+  it("leave a pick the kinds that keep the rules", () => {
+    const month = [
+      { id: "a", channel: "x", date: "2026-11-02", time: "09:00", kind: "ad" },
+      {
+        id: "c",
+        channel: "x",
+        date: "2026-11-04",
+        time: "09:00",
+        kind: "poster",
+      },
+      { id: "i", channel: "linkedin", date: "2026-11-02", kind: "infographic" },
+    ];
+    const piece = { id: "b", channel: "x", date: "2026-11-03", time: "09:00" };
+    const howTo = cmoAllowedKinds({
+      piece,
+      month,
+      infographicSuits: false,
+      planned: 12,
+    });
+    expect(howTo).not.toContain("ad");
+    expect(howTo).not.toContain("poster");
+    expect(howTo).not.toContain("infographic");
+    expect(howTo).toContain("label");
+    // Numbers may take one while the month is under its cap.
+    expect(
+      cmoAllowedKinds({ piece, month, infographicSuits: true, planned: 12 }),
+    ).toContain("infographic");
+    expect(
+      cmoAllowedKinds({ piece, month, infographicSuits: true, planned: 4 }),
+    ).not.toContain("infographic");
   });
 });

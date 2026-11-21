@@ -26,13 +26,16 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
   type ComposeDraft,
   clearComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
-import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
+import {
+  type MentionRecordEntry,
+  resolveSelectedMentionKeys,
+} from "@/components/ui/mention-textarea-utils";
+import { usePersistComposeDraft } from "@/hooks/effects/use-compose-draft";
 import {
   type ChatRoomMessageLink,
   parseChatRoomMessageLink,
@@ -78,7 +81,6 @@ export interface RoomSessionSendResult {
 interface ComposerSnapshot {
   value: string;
   attachments: RoomComposerAttachment[];
-  mentionedIds: string[];
   pendingQuote: PendingRoomQuote | null;
   quotedLink: QuotedLink | null;
   skills: ChatRoomMessageSkill[];
@@ -160,7 +162,7 @@ export function RoomSessionComposer({
   onResolveMessageLink,
   requireBody = false,
   isSending,
-  showMentionShortcut,
+  showMentionShortcut = true,
   allowAttachments,
   allowSkills = true,
   focusOnMount = true,
@@ -185,7 +187,6 @@ export function RoomSessionComposer({
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
-  const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [composerSkills, setComposerSkills] = useState<ChatRoomMessageSkill[]>(
     [],
   );
@@ -266,7 +267,6 @@ export function RoomSessionComposer({
     (snapshot: ComposerSnapshot) => {
       setComposerValue(snapshot.value);
       setComposerAttachments(snapshot.attachments);
-      setMentionedIds(snapshot.mentionedIds);
       setComposerSkills(snapshot.skills);
       if (snapshot.pendingQuote) {
         onSetPendingQuote?.(snapshot.pendingQuote);
@@ -363,10 +363,12 @@ export function RoomSessionComposer({
     const clientMessageId = crypto.randomUUID();
     if (onBeforeSend && !onBeforeSend(clientMessageId)) return;
 
+    const mentionedIds = showMentionShortcut
+      ? resolveSelectedMentionKeys(composerValue, mentions)
+      : [];
     const snapshot: ComposerSnapshot = {
       value: composerValue,
       attachments: composerAttachments,
-      mentionedIds,
       pendingQuote,
       quotedLink,
       skills: allowSkills ? composerSkills : [],
@@ -375,7 +377,6 @@ export function RoomSessionComposer({
 
     setComposerValue("");
     setComposerAttachments([]);
-    setMentionedIds([]);
     setComposerSkills([]);
     onClearPendingQuote?.();
     latest.current.paste += 1;
@@ -387,7 +388,7 @@ export function RoomSessionComposer({
     const result = await onSend({
       content,
       attachments: snapshot.attachments,
-      mentionedIds: snapshot.mentionedIds,
+      mentionedIds,
       quote: quotePayload,
       clientMessageId,
       ...(snapshot.skills.length > 0 ? { skills: snapshot.skills } : {}),
@@ -427,7 +428,6 @@ export function RoomSessionComposer({
         sokoBotsBySlug={sokoBotsBySlug}
         channels={channels}
         channelLinks={channelLinks}
-        onSelectedKeysChange={setMentionedIds}
         placeholder={placeholder}
         attachments={composerAttachments}
         onAttachmentsChange={setComposerAttachments}

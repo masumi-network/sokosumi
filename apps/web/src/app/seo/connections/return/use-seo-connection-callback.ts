@@ -9,27 +9,9 @@ import {
   getComposioOAuthBroadcastChannelName,
 } from "@/lib/composio/oauth-popup-protocol";
 import {
-  readSeoConnectionHandoff,
   type SeoConnectionCallbackContext,
   seoConnectionErrorKey,
 } from "@/lib/seo/connection-callback";
-
-export function useSeoConnectionHandoff() {
-  const [context, setContext] = useState<
-    SeoConnectionCallbackContext | null | undefined
-  >();
-  const handoff = useRef<SeoConnectionCallbackContext | null | undefined>(
-    undefined,
-  );
-  useMountEffect(() => {
-    if (handoff.current === undefined) {
-      handoff.current = readSeoConnectionHandoff(window.name);
-      window.name = "";
-    }
-    setContext(handoff.current);
-  });
-  return context;
-}
 
 /** Native completion also works without popup storage, name, or an opener. */
 export function useSeoConnectionCallback(

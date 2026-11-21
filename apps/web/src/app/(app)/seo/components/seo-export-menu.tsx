@@ -17,6 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -45,6 +46,7 @@ export function SeoExportMenu({
   table,
   tableCopy = table,
   empty = false,
+  showTitle = false,
 }: {
   name: string;
   /** The list's title: a tab can hold two lists, so the button's name says which one it exports. */
@@ -62,6 +64,7 @@ export function SeoExportMenu({
    * rows it planned.
    */
   empty?: boolean;
+  showTitle?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const report = useSeoResultTranslations("App.Seo");
@@ -168,6 +171,7 @@ export function SeoExportMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {showTitle && <DropdownMenuLabel>{t(titleKey)}</DropdownMenuLabel>}
         <DropdownMenuItem disabled={empty} onSelect={download}>
           <Download aria-hidden />
           {t("export.csv")}

@@ -36,7 +36,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -276,21 +276,24 @@ export function TaskSchedulesView({
             onValueChange={setQuery}
           />
 
-          <ListGridViewSwitch
-            value={viewMode}
-            data-testid="schedules-view-mode-switch"
-            onChange={(next) => {
-              setViewMode(next);
-              document.cookie = serializeSchedulesViewModeCookie(next);
-            }}
-            labels={{ list: t("viewList"), grid: t("viewGrid") }}
-          />
-          {canCreate ? (
-            <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-              <Plus className="size-4" aria-hidden />
-              {t("newSchedule")}
-            </Button>
-          ) : null}
+          {/* Phone: search takes its row; view switch and create share the next. */}
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
+            <ListGridViewSwitch
+              value={viewMode}
+              data-testid="schedules-view-mode-switch"
+              onChange={(next) => {
+                setViewMode(next);
+                document.cookie = serializeSchedulesViewModeCookie(next);
+              }}
+              labels={{ list: t("viewList"), grid: t("viewGrid") }}
+            />
+            {canCreate ? (
+              <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+                <Plus className="size-4" aria-hidden />
+                {t("newSchedule")}
+              </Button>
+            ) : null}
+          </div>
         </PageSearchActions>
       </div>
 

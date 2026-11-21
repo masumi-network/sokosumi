@@ -7,10 +7,10 @@ import {
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
-import { SeoChecklistDetails, SeoResearchStatus } from "./seo-audit-coverage";
+import { SeoChecklistDetails } from "./seo-audit-coverage";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SEO_SEVERITY_MARK_CLASS, SeoDate, SeoSource } from "./seo-shared";
-import { lastAuditResearch, seoSummary } from "./seo-summary-model";
+import { seoSummary } from "./seo-summary-model";
 
 /**
  * Says if a time is of the day the tests tile shows. A row under the tile repeats no date of that day.
@@ -105,128 +105,118 @@ export function SeoSummaryTiles({
     filters &&
     seoRunsDateCheck(workspace, filters, tests.observationId)
   );
-  const audit = lastAuditResearch(workspace);
-  const research = audit?.checklistBreakdown && (
-    <SeoResearchStatus
-      data={audit.checklistBreakdown.research}
-      observedAt={audit.observedAt}
-    />
-  );
-  if (!issues && !tests) return research ?? null;
+  if (!issues && !tests) return null;
   const check =
     tests &&
     workspace.observations.find((row) => row.id === tests.observationId);
   const breakdown = check?.checklistBreakdown;
   return (
-    <>
-      <dl
-        className="stagger grid grid-cols-2 gap-2"
-        data-testid="seo-summary-tiles"
-      >
-        {issues ? (
-          <Tile
-            label={result("summary.issues")}
-            value={format.number(issues.total)}
-            testId="seo-summary-issues"
-          >
-            {/* No bar: the two counts under the number and the issue rows of the tab already show the split. */}
-            {issues.parts.length ? (
-              <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
-                {issues.parts.map((part) => (
-                  <li
-                    key={part.severity}
-                    className="inline-flex items-center gap-1.5"
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "size-2 rounded-full",
-                        SEO_SEVERITY_MARK_CLASS[part.severity],
-                      )}
-                    />
-                    {result("summary.severityCount", part)}
-                  </li>
-                ))}
-              </ul>
-            ) : issues.total === 0 ? (
-              result("summary.issuesNone")
-            ) : null}
-          </Tile>
-        ) : null}
-        {tests ? (
-          <Tile
-            label={result("summary.tests")}
-            value={format.number(tests.decided)}
-            rest={result("summary.of", { total: format.number(tests.total) })}
-            // The line under the number says the split only when two kinds are outside the count.
-            restHint={
-              tests.undecided && !tests.unavailable
-                ? result("summary.testsNoResult", { count: tests.undecided })
-                : undefined
-            }
-            // The issue count beside it is the message of the tab; this count asks for no action.
-            quiet
-            testId="seo-summary-tests"
-          >
-            {/* No bar: a nearly full bar reads as a health score, and this is a count of tests that ran. */}
-            <span className="flex flex-wrap gap-x-3">
-              {/* Tests without a result are the usual case (a page has no such element): alone, "201 of 231"
+    <dl
+      className="stagger grid grid-cols-2 gap-2"
+      data-testid="seo-summary-tiles"
+    >
+      {issues ? (
+        <Tile
+          label={result("summary.issues")}
+          value={format.number(issues.total)}
+          testId="seo-summary-issues"
+        >
+          {/* No bar: the two counts under the number and the issue rows of the tab already show the split. */}
+          {issues.parts.length ? (
+            <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
+              {issues.parts.map((part) => (
+                <li
+                  key={part.severity}
+                  className="inline-flex items-center gap-1.5"
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "size-2 rounded-full",
+                      SEO_SEVERITY_MARK_CLASS[part.severity],
+                    )}
+                  />
+                  {result("summary.severityCount", part)}
+                </li>
+              ))}
+            </ul>
+          ) : issues.total === 0 ? (
+            result("summary.issuesNone")
+          ) : null}
+        </Tile>
+      ) : null}
+      {tests ? (
+        <Tile
+          label={result("summary.tests")}
+          value={format.number(tests.decided)}
+          rest={result("summary.of", { total: format.number(tests.total) })}
+          // The line under the number says the split only when two kinds are outside the count.
+          restHint={
+            tests.undecided && !tests.unavailable
+              ? result("summary.testsNoResult", { count: tests.undecided })
+              : undefined
+          }
+          // The issue count beside it is the message of the tab; this count asks for no action.
+          quiet
+          testId="seo-summary-tests"
+        >
+          {/* No bar: a nearly full bar reads as a health score, and this is a count of tests that ran. */}
+          <span className="flex flex-wrap gap-x-3">
+            {/* Tests without a result are the usual case (a page has no such element): alone, "201 of 231"
                 says their count already. A test that could not run is a fault and always shows. With both, the
                 split is news: the same two counts, in the same words, as the row of the check in the Timeline. */}
-              {tests.undecided && tests.unavailable ? (
-                <span>
-                  {result("summary.testsNoResult", { count: tests.undecided })}
-                </span>
-              ) : null}
-              {tests.unavailable ? (
-                <span>
-                  {result("timeline.rulesUnavailable", {
-                    count: tests.unavailable,
-                  })}
-                </span>
-              ) : null}
-              {tests.undecided + tests.unavailable ? null : (
-                <span>{result("summary.testsAll")}</span>
-              )}
-              {/* The issues can come from older checks too; the tests are of this one. The date opens its results:
+            {tests.undecided && tests.unavailable ? (
+              <span>
+                {result("summary.testsNoResult", { count: tests.undecided })}
+              </span>
+            ) : null}
+            {tests.unavailable ? (
+              <span>
+                {result("timeline.rulesUnavailable", {
+                  count: tests.unavailable,
+                })}
+              </span>
+            ) : null}
+            {tests.undecided + tests.unavailable ? null : (
+              <span>{result("summary.testsAll")}</span>
+            )}
+            {/* The issues can come from older checks too; the tests are of this one. The date opens its results:
                 a page row of this check, under the tile, repeats no link to them. Where the runs row over the
                 tabs names the day, the link names the results alone. */}
-              {breakdown || check?.kind === "audit_full" ? (
-                testsDated && (
-                  <span>
-                    {result("agent.lastCheckOn")}{" "}
-                    <SeoDate report day value={tests.observedAt} />
-                  </span>
-                )
-              ) : testsDated ? (
+            {breakdown || check?.kind === "audit_full" ? (
+              testsDated && (
                 <span>
                   {result("agent.lastCheckOn")}{" "}
-                  {/* The date alone is the link: a link that broke into two underlined lines read as two links.
-                    It moves to the next line as one piece: a year alone on a line reads as a value. */}
-                  <span className="whitespace-nowrap">
-                    <SeoSource
-                      observationId={tests.observationId}
-                      workspace={workspace}
-                    >
-                      <SeoDate report day value={tests.observedAt} />
-                    </SeoSource>
-                  </span>
+                  <SeoDate report day value={tests.observedAt} />
                 </span>
-              ) : (
-                // "View results": the link says where it leads. A check without results to open shows nothing.
-                <SeoSource
-                  observationId={tests.observationId}
-                  workspace={workspace}
-                />
-              )}
-            </span>
-            {(breakdown || check?.kind === "audit_full") && (
-              <SeoChecklistDetails data={breakdown} />
+              )
+            ) : testsDated ? (
+              <span>
+                {result("agent.lastCheckOn")}{" "}
+                {/* The date alone is the link: a link that broke into two underlined lines read as two links.
+                    It moves to the next line as one piece: a year alone on a line reads as a value. */}
+                <span className="whitespace-nowrap">
+                  <SeoSource
+                    observationId={tests.observationId}
+                    workspace={workspace}
+                  >
+                    <SeoDate report day value={tests.observedAt} />
+                  </SeoSource>
+                </span>
+              </span>
+            ) : (
+              // "View results": the link says where it leads. A check without results to open shows nothing.
+              <SeoSource
+                observationId={tests.observationId}
+                workspace={workspace}
+              />
             )}
-          </Tile>
-        ) : null}
-      </dl>
-      {research}
-    </>
+          </span>
+          {(breakdown || check?.kind === "audit_full") && (
+            <SeoChecklistDetails data={breakdown} />
+          )}
+        </Tile>
+      ) : null}
+    </dl>
   );
 }

@@ -131,7 +131,9 @@ import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import {
@@ -377,7 +379,7 @@ function DrivePageWorkspace({
   );
 
   const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
-  const loadAllFoldersAbortRef = useRef<AbortController | null>(null);
+  const loadAllFoldersAbort = useAbortController(activeOrganizationId);
   const loadTasksAbortRef = useRef<AbortController | null>(null);
   const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(activeOrganizationId);
@@ -398,7 +400,7 @@ function DrivePageWorkspace({
     setMoveDialogOpen(false);
     setItemToMove(null);
     setSelectedDestination(null);
-    loadAllFoldersAbortRef.current?.abort();
+    loadAllFoldersAbort.abort();
     setAllFolders([]);
     setLoadingAllFolders(false);
     debouncedSetSearchQuery.cancel();
@@ -471,21 +473,18 @@ function DrivePageWorkspace({
 
   // The Workspace page takes file drops. One that lands beside it (sidebar,
   // app header) must not make the browser open the file and leave Files.
-  useEffect(() => {
-    if (!isWorkspaceView) return;
-    const ignoreFileDrop = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes("Files")) return;
-      event.preventDefault();
-      // The no-drop cursor: nothing happens here.
-      event.dataTransfer.dropEffect = "none";
-    };
-    window.addEventListener("dragover", ignoreFileDrop);
-    window.addEventListener("drop", ignoreFileDrop);
-    return () => {
-      window.removeEventListener("dragover", ignoreFileDrop);
-      window.removeEventListener("drop", ignoreFileDrop);
-    };
-  }, [isWorkspaceView]);
+  const ignoreFileDrop = (event: DragEvent) => {
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    event.preventDefault();
+    // The no-drop cursor: nothing happens here.
+    event.dataTransfer.dropEffect = "none";
+  };
+  useEventListener(
+    isWorkspaceView ? "window" : null,
+    "dragover",
+    ignoreFileDrop,
+  );
+  useEventListener(isWorkspaceView ? "window" : null, "drop", ignoreFileDrop);
   /**
    * The Workspace tab is the catalog, and nothing else.
    *
@@ -899,12 +898,6 @@ function DrivePageWorkspace({
 
     void fetchOrganizationName();
   }, [activeOrganizationId, session?.user?.id]);
-
-  useEffect(() => {
-    return () => {
-      loadAllFoldersAbortRef.current?.abort();
-    };
-  }, [activeOrganizationId]);
 
   /**
    * Run one upload at a time, busy from the moment files arrive: reading a
@@ -1333,9 +1326,7 @@ function DrivePageWorkspace({
   }
 
   async function loadAllFolders() {
-    loadAllFoldersAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadAllFoldersAbortRef.current = controller;
+    const controller = loadAllFoldersAbort.start();
     const requestedWorkspaceId = activeOrganizationId;
     setLoadingAllFolders(true);
     try {
@@ -1360,6 +1351,7 @@ function DrivePageWorkspace({
         setAllFolders([]);
       }
     } finally {
+      loadAllFoldersAbort.release(controller);
       if (
         !controller.signal.aborted &&
         workspaceIdRef.current === requestedWorkspaceId

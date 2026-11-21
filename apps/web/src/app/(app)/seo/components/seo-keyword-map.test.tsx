@@ -182,9 +182,9 @@ describe("SEO keyword map", () => {
     // The table gives every number without a pointer, the most extra clicks first.
     const rows = within(screen.getByRole("table")).getAllByRole("row");
     expect(rows.map((item) => item.textContent)).toEqual([
-      "KeywordSearches a monthDifficultyExtra clicks at top 3",
-      "battery health · Idea5,00070301",
-      "battery app1,0001253",
+      "KeywordSearches a monthDifficultyEst. gain at #10",
+      "battery health · Idea5,0007041",
+      "battery app1,000121",
     ]);
   });
 
@@ -720,7 +720,8 @@ it("marks recommended ideas in the graph and explains the same marker from the k
       keyword: "low competition",
       volume: 50,
       difficulty: 12,
-      conversion: "medium",
+      conversion: "high",
+      clicks: { now: 2, top10: 10, top3: 20, top1: 45 },
       source: "opportunity",
     }),
     row({ keyword: "unrated", volume: 100, difficulty: 65, source: "gap" }),
@@ -730,11 +731,18 @@ it("marks recommended ideas in the graph and explains the same marker from the k
       .getAllByTestId("seo-keyword-dot")
       .filter((dot) => dot.dataset.recommended),
   ).toHaveLength(1);
+  const featured = screen.getByRole("button", {
+    name: /low competition.*8 clicks/,
+  });
+  await user.click(featured);
+  await user.keyboard("{Escape}");
+  expect(featured).toHaveFocus();
   const graph = screen.getByRole("group", { name: "Keyword opportunities" });
   graph.focus();
   await user.keyboard("{ArrowRight}{Enter}");
   const details = within(await screen.findByTestId("seo-keyword-popover"));
-  expect(details.getByText("Recommended for lower competition")).toBeVisible();
+  expect(details.getByText(/Strong goal fit and low difficulty/)).toBeVisible();
+  expect(details.getByText(/400%/)).toBeVisible();
   expect(
     details.getByRole("button", { name: /Draft in Content Studio/ }),
   ).toBeDisabled();
@@ -756,7 +764,9 @@ it("expands the whole idea row, keeps tracking independent, and gives the detail
     </NextIntlClientProvider>,
   );
   const toggle = screen.getByRole("button", { name: idea.keyword });
-  expect(screen.queryByText("Recommended for lower competition")).toBeNull();
+  expect(
+    screen.queryByText("The estimated fit with your page goal is medium."),
+  ).toBeNull();
   const summary = toggle.closest("tr")!;
   await user.click(within(summary).getByRole("button", { name: "Track" }));
   expect(model.toggleKeyword).toHaveBeenCalledWith(idea);
@@ -764,14 +774,16 @@ it("expands the whole idea row, keeps tracking independent, and gives the detail
   await user.click(within(summary).getByText("14,800"));
   expect(toggle).toHaveAttribute("aria-expanded", "true");
   const panel = screen
-    .getByText("Recommended for lower competition")
+    .getByText("The estimated fit with your page goal is medium.")
     .closest("td")!;
   expect(panel.colSpan).toBe(summary.cells.length);
   expect(panel).toHaveTextContent("Top 10 +120");
   expect(panel).toHaveTextContent("Top 3 +891");
   toggle.focus();
   await user.keyboard(" ");
-  expect(screen.queryByText("Recommended for lower competition")).toBeNull();
+  expect(
+    screen.queryByText("The estimated fit with your page goal is medium."),
+  ).toBeNull();
 });
 
 it("folds exactly ten of eleven keyword ideas and expands the remaining idea", async () => {
@@ -795,4 +807,28 @@ it("folds exactly ten of eleven keyword ideas and expands the remaining idea", a
   );
   await user.click(screen.getByRole("button", { name: "Show 1 more idea" }));
   expect(screen.getByRole("button", { name: "reader idea 11" })).toBeVisible();
+});
+
+it("marks the recommended keyword itself and keeps group counts out of table rows", () => {
+  const ideas = keywordGroups([
+    row({
+      keyword: "long battery life",
+      source: "opportunity",
+      difficulty: 10,
+      conversion: "high",
+      clicks: { now: 1, top10: 20, top3: 25, top1: 40 },
+    }),
+    row({ keyword: "battery life", source: "gap", difficulty: 70 }),
+  ]).ideas;
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoKeywordIdeas ideas={ideas} model={model} />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText(/^1 idea is recommended/)).toBeVisible();
+  const keyword = screen
+    .getByRole("button", { name: "long battery life" })
+    .closest("tr")!;
+  expect(within(keyword).getByText("Recommended")).toBeVisible();
+  expect(screen.getAllByRole("row")).toHaveLength(2);
 });

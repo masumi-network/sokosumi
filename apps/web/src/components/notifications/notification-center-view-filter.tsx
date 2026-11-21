@@ -1,13 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useRef } from "react";
 import { useNeedsYouDataRoomQuestions } from "@/components/notifications/notification-data-room-questions";
 import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { isNotificationCenterView } from "@/contexts/notification-view-storage";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 
 // The strip's bottom line is an inset shadow rather than a border, because
@@ -73,11 +74,15 @@ export function NotificationCenterViewFilter({
   // Four labels do not fit the bell panel in every locale, so the strip
   // scrolls. A view chosen by click or restored on load must not sit past
   // the edge.
-  useEffect(() => {
-    listRef.current
-      ?.querySelector<HTMLElement>('[data-state="active"]')
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [view]);
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector<HTMLElement>('[data-state="active"]'),
+    true,
+    {
+      block: "nearest",
+      inline: "nearest",
+      resetKey: view,
+    },
+  );
 
   function handleValueChange(next: string): void {
     if (isNotificationCenterView(next)) {

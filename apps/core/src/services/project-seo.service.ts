@@ -465,7 +465,7 @@ async function loadSeoWorkspaceObservations(
       ? await prisma.projectSeoObservation.findMany({
           where: {
             ...where,
-            kind: "index_triage",
+            kind: { in: ["index_triage", "site_evidence", "index_inspection"] },
             ownerId: actor.userId,
             visibility: "PRIVATE",
             sourceTaskId: { in: taskIds },
@@ -475,8 +475,8 @@ async function loadSeoWorkspaceObservations(
             { createdAt: "desc" },
             { id: "desc" },
           ],
-          distinct: ["sourceTaskId"],
-          take: SEO_WORKSPACE_EVIDENCE_LIMIT,
+          distinct: ["sourceTaskId", "kind"],
+          take: SEO_WORKSPACE_EVIDENCE_LIMIT * 3,
         })
       : [];
   return {
@@ -568,14 +568,16 @@ export async function getProjectSeoWorkspace(
   const taskIds = [
     ...new Set([
       ...observations.flatMap((row) => {
-        const strategy = reportObject(reportObject(row.payload)?.strategy);
+        const payload = reportObject(row.payload);
+        const strategy = reportObject(payload?.strategy);
         return row.kind === "audit_full" &&
           row.source === "seo_coworker" &&
           row.sourceTaskId &&
           row.sourceFileId &&
-          strategy &&
-          strategy.markets == null &&
-          strategy.marketNote == null
+          (payload?.pageSpeed === undefined ||
+            (strategy &&
+              strategy.markets == null &&
+              strategy.marketNote == null))
           ? [row.sourceTaskId]
           : [];
       }),
@@ -669,8 +671,7 @@ export async function getProjectSeoWorkspace(
             task.ownerId === actor.userId &&
             task.assigneeId &&
             (task.projectId === null ||
-              (actor.owner.kind === "project" &&
-                task.projectId === actor.owner.id)) &&
+              task.projectId === currentOwner.projectId) &&
             !task.archivedAt &&
             !analyses.some(
               (a) => a.taskId === task.id && a.requestedBy !== actor.userId,

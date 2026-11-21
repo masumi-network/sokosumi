@@ -26,7 +26,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => mocks.isMobile,
 }));

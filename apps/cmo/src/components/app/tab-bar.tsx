@@ -1,7 +1,8 @@
 "use client";
 
 import { LogOut, Menu, Users } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useEventListener } from "../../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../../lib/agent";
 import type { View } from "../../lib/views";
 import { type CusoArt, cusoArt } from "../cuso";
@@ -39,24 +40,15 @@ export function TabBar({
   const root = useRef<HTMLElement>(null);
   const more = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: PointerEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent) {
-        if (event.key !== "Escape") return;
-        more.current?.focus();
-      } else if (root.current?.contains(event.target as Node)) {
-        return;
-      }
-      setOpen(false);
-    };
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
+  useEventListener(open ? "document" : null, "pointerdown", (event) => {
+    if (root.current?.contains(event.target as Node)) return;
+    setOpen(false);
+  });
+  useEventListener(open ? "document" : null, "keydown", (event) => {
+    if (event.key !== "Escape") return;
+    more.current?.focus();
+    setOpen(false);
+  });
 
   const pick = (next: View) => {
     setOpen(false);
