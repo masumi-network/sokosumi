@@ -12522,6 +12522,7 @@
       "runFullAudit": "Vollständiges Audit starten",
       "runPageCheck": "Seitenprüfung starten",
       "brief": {
+        "completionEvent": "GA4-Ereignis für den Abschluss (optional)",
         "title": "Audit-Briefing",
         "private": "Nur du kannst dieses Briefing lesen. Ein vollständiges Audit teilt ein Seitenziel nur, wenn du es auswählst.",
         "confirmed": "Von dir am {date} bestätigt.",
@@ -12584,6 +12585,8 @@
           "unknown": "Unentschieden"
         },
         "events": {
+          "configuredTitle": "Zielabschlüsse aus der organischen Suche",
+          "custom": "Konfigurierter Abschluss",
           "title": "Käufe und Registrierungen über die organische Suche",
           "source": "Nur du siehst diese GA4-Zahlen. Sie beziehen sich auf Besuche aus der organischen Suche, die auf dieser Seite begonnen haben.",
           "purchase": "Käufe",
@@ -12608,6 +12611,7 @@
           "matches_intent": "Der Indexstatus bei Google entspricht deiner Einstellung."
         },
         "goalControl": {
+          "handoff": "Mehr organische Sitzungen erreichten diese Seite. Die Zahl der Abschlüsse blieb gleich oder sank. Prüfe, wo Besucher vor dem Abschluss aussteigen.",
           "title": "Sitzungen mit {event}",
           "afterTask": "Aufgabe am {date} abgeschlossen",
           "rates": "Organische Suche: {organic} von {organicSessions, number} Sitzungen. Direkt: {direct} von {directSessions, number} Sitzungen.",
@@ -12896,20 +12900,39 @@
           "action": "Seitenziel: {action}",
           "studio": "Entwurf im Content Studio erstellen (demnächst)"
         },
+        "planning": {
+          "gap": "Mitbewerber erscheinen für „{keyword}“. Prüfen, ob die Erklärung zu {feature} diese Suche beantwortet.",
+          "idea": "Den Abschnitt zu {feature} für Leser prüfen, die nach „{keyword}“ suchen.",
+          "basis": "Die geschätzte Nachfrage in {market} beträgt {volume, number} Suchanfragen pro Monat. Eine fehlende Antwort ergänzen, wenn sie zur Seite passt.",
+          "related": "Diese verwandten Suchanfragen bei derselben Änderung prüfen: {queries}.",
+          "rising": "Das relative Interesse an „{keyword}“ stieg im Beobachtungszeitraum. Die vorhandene Antwort prüfen und die Nachfrage vor der Terminplanung bestätigen.",
+          "falling": "Das relative Interesse an „{keyword}“ sank im Beobachtungszeitraum. Marktnachfrage und Seitenimpressionen prüfen, bevor ein Rückgang dem Inhalt zugeschrieben wird."
+        },
         "seasonal": {
-          "timing": "DataForSEO Labs schätzt die monatlichen Suchanfragen für diesen Markt. Prüfe die aktuelle Nachfrage vor dem geplanten Zeitraum.",
-          "planFor": "Für {months} planen",
+          "draft": "Eine Antwort auf „{keyword}“ und die nächste Entscheidung der Leser skizzieren. Den Entwurf vor der Erweiterung mit verwandten Suchanfragen vergleichen.",
+          "keep": "Die vorhandene Antwort auf diese Frage beibehalten: {task}",
+          "clarify": "Diese Aufgabe auf der Seite genauer erklären: {task}",
+          "inspect": "Prüfen, wie die Seite diese Frage beantwortet: {task}",
+          "inspectIntent": "Die Frage hinter „{keyword}“ formulieren. Mit der vorhandenen Antwort vergleichen und einen Abschnitt oder einen eigenen Ratgeber wählen.",
+          "singleSignal": "Die geschätzten Suchanfragen lagen im {month} in einem beobachteten Zyklus {rise, number}% über dem Vergleichsmedian.",
+          "repeatSignal": "Im {month} lagen die geschätzten Suchanfragen {rise, number} % über dem jeweiligen Vergleichsmedian. Auch im vorherigen Jahreszyklus gab es einen Anstieg.",
+          "zeroSignal": "Im {month} lag die Schätzung bei {count, number} Suchen gegenüber einem Vergleichsmedian von null.",
+          "trendsAgree": "Auch Google Trends zeigte im {month} ein hohes relatives Interesse.",
+          "trendsDiffer": "Google Trends zeigte im {month} keinen Höchststand. Den Veröffentlichungstermin flexibel halten.",
+          "prepareNow": "Jetzt mit dem Entwurf für {months} beginnen",
+          "prepareFor": "Vorbereitung im {start} für {months}",
+          "keywordTest": "Suchbegriffe zum Testen: {queries}",
+          "hypothesis": "Arbeitshypothese: {reason}",
+          "whyTest": "Was spricht für diese Inhaltsidee?",
+          "checkOutcome": "So lässt sie sich testen: {check}",
           "datedEvent": "{event} · {date}",
           "evidence": "Seitenbeleg und Nachfragedaten",
           "above_baseline": "Die lokalen Suchanfragen lagen im Vorjahr über dem früheren Median.",
           "no_observed_rise": "Die lokalen Suchanfragen lagen im Vorjahr nicht über dem früheren Median.",
-          "windowRise": "Im letzten Jahr stiegen die Suchanfragen in diesen Monaten vor Ort.",
           "windowOther": "Vergleich für {target}: Im {prior} gab es geschätzt {volume, number} lokale Suchanfragen. Der Median der anderen beobachteten Monate ({months}) lag bei {baseline, number}.",
           "incompleteComparison": "Verfügbare Schätzwerte für lokale Suchanfragen im Vorjahr: {counts}. Für einen Vergleich fehlen Daten.",
-          "historicalIdea": "Prüfe diese Suchanfrage anhand der lokalen Daten von DataForSEO.",
-          "title": "Saisonale Keyword-Ideen",
+          "title": "Saisonale Inhaltsplanung",
           "audit": "{market} · Audit vom {date}",
-          "investigate_angle": "Prüfe diese Suchanfrage für die Zielgruppe {audience}.",
           "improve_existing_page": "Überarbeite die vorhandene Seite für die Zielgruppe {audience}.",
           "window": "Vergleich für {target}: Im {prior} gab es geschätzt {volume, number} lokale Suchanfragen. Der Median der drei früheren Monate lag bei {baseline, number}.",
           "comparison": "Im Vorjahr: {counts}. Der Median vor der Vorlaufzeit lag bei geschätzt {baseline, number} lokalen Suchanfragen.",
@@ -13109,7 +13132,10 @@
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
         "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder frag den SEO-Agenten nach den nächsten Schritten.",
-        "opportunitiesHelp": "Search-Console-Daten weisen darauf hin. Es sind keine Fehler, und sie versprechen keinen Traffic.",
+        "priorityReason": "Warum diese Seite Vorrang hat",
+        "measuredGoal": "Organische Sitzungen mit Einstieg auf dieser Seite verzeichneten vom {from} bis {to} Schlüsselereignisse. Deshalb hat die Seite bei vergleichbaren Maßnahmen Vorrang.",
+        "testRecommendation": "Empfehlung des Agenten",
+        "opportunitiesHelp": "Anhand der Belege zur Seite und des erwarteten Ergebnisses entscheiden, ob sich der Versuch lohnt.",
         "noOpportunitiesBody": "Die letzte Prüfung fand nichts zu beheben. Die Übersicht zeigt, was der SEO-Agent als Nächstes vorschlägt.",
         "kind": {
           "fix": "Bestätigtes Problem",
@@ -13826,6 +13852,65 @@
         "sortBest": "{column}, beste zuerst",
         "sortWorst": "{column}, schlechteste zuerst"
       },
+      "reportPlan": {
+        "changedShort": "Seit dem letzten Bericht hat sich der erste Schritt geändert.",
+        "verify": "Ergebnis prüfen",
+        "evidence": "Belege aus dem Audit",
+        "groups": {
+          "fixes": "Seitenkorrekturen ({count})",
+          "content": "Inhalte und Keywords ({count})"
+        },
+        "missingComparison": "Im Briefing ist {event} angegeben. Für diese Seite fehlen vergleichbare Abschlussraten aus organischen und direkten Sitzungen. Prüfe das GA4-Schlüsselereignis und vergleiche zwei vollständige Zeiträume.",
+        "hypothesis": {
+          "season": "Die Berichte legen einen Inhaltstest für „{query}“ nahe. Prüfe mit der vorgeschlagenen Änderung, ob die saisonalen Besucher hier ihre Antwort finden.",
+          "gap": "Wettbewerbs- und Seitendaten deuten darauf hin, dass die Seite weitere Suchanfragen nach „{query}“ bedienen könnte. Teste die Änderung und vergleiche relevante Klicks."
+        },
+        "missingOutcome": "Das Audit prüft {event}, um „{action}“ zu messen. Vergleichbare Abschlussraten fehlen. Verwendet deine GA4-Property einen anderen Namen, kannst du ihn im privaten Briefing angeben.",
+        "was": "Frühere Empfehlung: {step}",
+        "queries": "Zu berücksichtigende Suchanfragen: {queries}.",
+        "peaks": "Die lokalen Suchschätzungen lagen in {periods} über ihrem Vergleichswert.",
+        "prepare": "Plane das Briefing für {prepare}, vor dem erwarteten Anstieg für „{query}“ im Zeitraum {month}.",
+        "publish": "Bereite die Seite jetzt für die Nachfrage nach „{query}“ im Zeitraum {month} vor.",
+        "windowReason": "Die Vorbereitung für {month} kann beginnen. Die Nachfrage stieg in mehreren Jahren, und der Bericht nennt eine Lücke.",
+        "changed": "Seit dem letzten Bericht hat sich die Empfehlung geändert. {reason}",
+        "exposure": "Die Search Console erfasste vom {from} bis {to} für diese Seite {impressions} Impressionen. Diese gemessene Sichtbarkeit gibt dem Test Vorrang vor vergleichbaren Änderungen.",
+        "destination": "Laut Briefing sollen Besucher auf {url} die Aktion „{action}“ ausführen.",
+        "orderReason": "Der zweite Schritt führt Leser auf diesen Weg. Ihn zuerst prüfen, damit Leser den nächsten Schritt ausführen können.",
+        "title": "Empfohlener Plan",
+        "goal": "Aktuelles Ziel: {goal}",
+        "why": "Warum dieser Plan?",
+        "then": "Danach: {step}",
+        "alternative": "Erwogene Alternative",
+        "reassess": "Wann sollte sich der Plan ändern?",
+        "tie": "Beide Optionen haben dieselbe Priorität. Der Bericht nennt die erste Option früher.",
+        "open": "Maßnahme öffnen",
+        "empty": "Für die ausgewählten Seiten ergibt sich aus diesem Bericht kein belegter nächster Schritt.",
+        "linksEmpty": "Die verweisende Seite und ihren Linktext prüfen. Die Anzahl der Backlinks allein zeigt keine konkrete Gelegenheit.",
+        "first": {
+          "handoff": "Prüfe den Weg von dieser Seite zum Abschluss {event}.",
+          "checkTracking": "Den Abschluss von {event} und seine Messung vor einer Seitenänderung prüfen.",
+          "checkIntent": "Vor einer Inhaltsänderung die organischen Besucher dieser Seite vergleichen."
+        },
+        "basis": {
+          "handoff": "Mehr organische Besuche erreichten die Seite, doch die Abschlüsse stiegen nicht. Prüfe den Weg zur gewünschten Aktion.",
+          "access": "Der Bericht zeigt ein kritisches Hindernis für Suchmaschinen. Dieses zuerst beheben.",
+          "goalPath": "Der Befund betrifft den Weg zu einer Verkaufsaktion oder ein Angebot. Diesen Schritt vor der Bewerbung reparieren.",
+          "support": "Die Maßnahme betrifft eine Ratgeber- oder Hilfeseite aus dem Briefing und kann Lesern bei ihrer Aufgabe helfen.",
+          "traffic": "Der Vorschlag verbessert den Zugang über die Suche und passt zum Ziel Suchtraffic.",
+          "majorFix": "Der Bericht zeigt ein Zugangsproblem oder einen schwerwiegenden Seitenfehler. Diesen vor kleineren Änderungen beheben.",
+          "salesPage": "Das Briefing nennt für diese Seite eine Verkaufsaktion oder eine kommerzielle Rolle. Daher hat sie Vorrang.",
+          "experiment": "Seiten- oder Suchbelege stützen diese Idee. Zuerst mit einem kleinen Versuch prüfen.",
+          "fix": "Ein dokumentierter Befund stützt die Änderung. Den betroffenen Abschnitt nach der Reparatur prüfen.",
+          "checkTracking": "Die Zielrate sank bei organischen und direkten Besuchen. Eine gemeinsame Hürde oder ein Messproblem könnte beides erklären.",
+          "checkIntent": "Die Zielrate sank bei organischen Besuchern stärker. Vor einer Änderung prüfen, ob sich die Suchanfragen geändert haben."
+        },
+        "measure": {
+          "sales": "Organische Besuche und Abschlüsse über vergleichbare Zeiträume prüfen. Steigen nur die Besuche, den Übergang zur Aktion testen.",
+          "traffic": "Impressionen und Klicks der Zielanfragen vergleichen. Bei unpassenden Anfragen das Ziel überarbeiten. Bei mehr passenden Klicks die nächste verwandte Seite testen.",
+          "support": "Prüfen, ob Leser ihre Aufgabe abschließen. Steigen die Besuche und kommen dieselben Fragen beim Support an, die Antwort oder ihre Platzierung ändern.",
+          "general": "Die Prüfung auf dieser Seite wiederholen. Ist das Problem gelöst, die nächste Gelegenheit angehen. Andernfalls die Erklärung prüfen."
+        }
+      },
       "agent": {
         "ask": "SEO-Agent fragen",
         "title": "SEO-Agent",
@@ -14249,6 +14334,10 @@
           "metric": "Kennzahl",
           "within": "Änderung innerhalb der Seiten",
           "mix": "Änderung durch die Verteilung der Besuche",
+          "testMix": "Prüfen, welche Einstiegsseiten Besuche gewonnen haben und ob ihre organischen Sitzungen zu Schlüsselereignissen führten. Danach die zu bewerbenden Seiten auswählen.",
+          "testJourney": "Auf denselben Einstiegsseiten gingen Zeit und Seitenaufrufe im Mittel zurück. Prüfen, ob der nächste Schritt leicht zu finden ist, und die Zielerreichung vergleichen.",
+          "testCompletion": "Bei veränderter Interaktion zuerst die Zielerreichung je Einstiegsseite vergleichen. Ein kürzerer Besuch kann auf eine schnell gefundene Antwort hindeuten.",
+          "comparisonEvidence": "Begründung ansehen",
           "mixOnly": "Die Verteilung der Besuche auf die Einstiegsseiten erklärt die Änderung der durchschnittlichen Interaktionsdauer.",
           "sessions": "Die Zahl der organischen Einstiegssitzungen änderte sich von {before} auf {after}. Die letzten beiden Spalten zeigen die Beiträge in der Einheit der jeweiligen Kennzahl."
         },

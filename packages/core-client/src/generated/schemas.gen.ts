@@ -45605,6 +45605,102 @@ export const ProjectSeoWorkspaceSchema = {
                             'investigate_angle'
                         ]
                     },
+                    trendComparison: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                historicalPeriod: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                peak: {
+                                    type: 'boolean'
+                                }
+                            },
+                            required: [
+                                'historicalPeriod',
+                                'peak'
+                            ]
+                        },
+                        maxItems: 4
+                    },
+                    keywordIdeas: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 2,
+                            maxLength: 80
+                        },
+                        maxItems: 3
+                    },
+                    contentPlan: {
+                        type: 'object',
+                        properties: {
+                            disposition: {
+                                type: 'string',
+                                enum: [
+                                    'clarify',
+                                    'keep',
+                                    'inspect'
+                                ]
+                            },
+                            readerTask: {
+                                type: 'string',
+                                minLength: 8,
+                                maxLength: 180
+                            },
+                            passage: {
+                                type: 'string',
+                                minLength: 8,
+                                maxLength: 180
+                            },
+                            experiment: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    hypothesis: {
+                                        type: 'string',
+                                        minLength: 8,
+                                        maxLength: 180
+                                    },
+                                    targetQueries: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 2,
+                                            maxLength: 80
+                                        },
+                                        minItems: 1,
+                                        maxItems: 3
+                                    },
+                                    successCheck: {
+                                        type: 'string',
+                                        minLength: 8,
+                                        maxLength: 180
+                                    }
+                                },
+                                required: [
+                                    'hypothesis',
+                                    'targetQueries',
+                                    'successCheck'
+                                ]
+                            },
+                            nextStep: {
+                                type: 'string',
+                                minLength: 8,
+                                maxLength: 180
+                            }
+                        },
+                        required: [
+                            'disposition',
+                            'readerTask',
+                            'passage',
+                            'nextStep'
+                        ]
+                    },
                     limitations: {
                         type: 'array',
                         items: {
@@ -47027,6 +47123,164 @@ export const ProjectSeoObservationSchema = {
             type: 'integer',
             minimum: 0
         },
+        planCandidates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'access',
+                            'completion',
+                            'broken_link',
+                            'repair',
+                            'content',
+                            'internal_link',
+                            'experiment'
+                        ]
+                    },
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    evidence: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    nextCheck: {
+                        type: 'string'
+                    },
+                    alternative: {
+                        type: 'string'
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'major',
+                            'minor'
+                        ]
+                    },
+                    destinations: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        }
+                    },
+                    actionId: {
+                        type: 'string'
+                    },
+                    queries: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    season: {
+                        type: 'object',
+                        properties: {
+                            country: {
+                                type: 'string'
+                            },
+                            through: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            windows: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        month: {
+                                            type: 'string'
+                                        },
+                                        peaks: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string'
+                                            }
+                                        }
+                                    },
+                                    required: [
+                                        'month',
+                                        'peaks'
+                                    ]
+                                }
+                            },
+                            pageGap: {
+                                type: 'boolean'
+                            }
+                        },
+                        required: [
+                            'country',
+                            'through'
+                        ]
+                    }
+                },
+                required: [
+                    'kind',
+                    'pageUrl',
+                    'title',
+                    'reason',
+                    'evidence'
+                ]
+            }
+        },
+        planSignals: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [
+                            'gap',
+                            'rank',
+                            'editorial',
+                            'trend',
+                            'trend_flat',
+                            'covered',
+                            'season'
+                        ]
+                    },
+                    evidence: {
+                        type: 'string'
+                    },
+                    peaks: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'source',
+                    'evidence'
+                ]
+            }
+        },
         checklistBreakdown: {
             type: 'object',
             properties: {
@@ -47791,6 +48045,25 @@ export const ProjectSeoKeywordSchema = {
                 record: {
                     type: 'string',
                     pattern: '^[a-f0-9]{64}$'
+                },
+                angle: {
+                    type: 'object',
+                    properties: {
+                        quote: {
+                            type: 'string',
+                            minLength: 8,
+                            maxLength: 180
+                        },
+                        nextStep: {
+                            type: 'string',
+                            minLength: 8,
+                            maxLength: 180
+                        }
+                    },
+                    required: [
+                        'quote',
+                        'nextStep'
+                    ]
                 }
             },
             required: [
@@ -52163,6 +52436,10 @@ export const SeoAuditBriefSchema = {
                             null
                         ]
                     },
+                    completionEvent: {
+                        type: 'string',
+                        pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
+                    },
                     indexIntent: {
                         type: 'string',
                         enum: [
@@ -52234,10 +52511,7 @@ export const SeoAuditBriefSchema = {
                             },
                             event: {
                                 type: 'string',
-                                enum: [
-                                    'purchase',
-                                    'sign_up'
-                                ]
+                                pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
                             },
                             timeZone: {
                                 type: 'string',
@@ -52269,10 +52543,7 @@ export const SeoAuditBriefSchema = {
                             },
                             event: {
                                 type: 'string',
-                                enum: [
-                                    'purchase',
-                                    'sign_up'
-                                ]
+                                pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
                             },
                             before: {
                                 type: 'object',
@@ -52401,7 +52672,8 @@ export const SeoAuditBriefSchema = {
                                 enum: [
                                     'both_declined',
                                     'organic_declined',
-                                    'goal_held'
+                                    'goal_held',
+                                    'handoff'
                                 ]
                             }
                         },
@@ -52422,10 +52694,7 @@ export const SeoAuditBriefSchema = {
                             properties: {
                                 event: {
                                     type: 'string',
-                                    enum: [
-                                        'purchase',
-                                        'sign_up'
-                                    ]
+                                    pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
                                 },
                                 latest: {
                                     type: 'object',
@@ -52513,7 +52782,7 @@ export const SeoAuditBriefSchema = {
                             ],
                             additionalProperties: false
                         },
-                        maxItems: 2
+                        maxItems: 3
                     },
                     status: {
                         type: 'string',
@@ -52677,6 +52946,10 @@ export const SaveSeoAuditBriefRequestSchema = {
                             'none',
                             null
                         ]
+                    },
+                    completionEvent: {
+                        type: 'string',
+                        pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
                     },
                     indexIntent: {
                         type: 'string',

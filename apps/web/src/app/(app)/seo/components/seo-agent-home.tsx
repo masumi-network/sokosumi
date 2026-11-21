@@ -34,6 +34,7 @@ import { SeoAutomation } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoPropertyPerformance } from "./seo-property-performance";
+import { SeoReportPlan } from "./seo-report-plan";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
@@ -42,6 +43,7 @@ import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
 import { seoWorklistEvidence } from "./seo-worklist-evidence";
+import { useSelectedSeoPlan } from "./use-selected-seo-plan";
 import { useSeoAnalyticsLine } from "./use-seo-analytics-line";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
@@ -135,10 +137,15 @@ function SeoAgentPanel({
   );
   // Until the first check has a result, the setup card is the one thing to do: no step shows with it. A failed
   // sync has its alert and Retry in the verdict card, so the refresh step would say it twice.
+  const selectedPlan = useSelectedSeoPlan(model);
   const steps = setup
     ? []
     : brief.steps.filter(
         (step) =>
+          !(
+            step.kind === "action" &&
+            selectedPlan.actionKeys.has(seoActionKey(step.action))
+          ) &&
           step !== statisticsStep &&
           step !== analyticsStep &&
           !(step.kind === "refresh" && statisticsSync.state === "failed"),
@@ -302,6 +309,16 @@ function SeoAgentPanel({
       {/* The pictures come first: the keyword searches say what the site can win before the verdict says
           what to fix. */}
       {setup ? null : <SeoAgentGraphics model={model} />}
+      {!setup && (
+        <SeoReportPlan
+          selected={selectedPlan}
+          model={model}
+          onOpen={(action, button) => {
+            dialogRow.current = button;
+            setDialogKey(seoActionKey(action));
+          }}
+        />
+      )}
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
       ) : (
@@ -432,7 +449,8 @@ function SeoAgentPanel({
             {steps.map((step, index) => stepItem(step, index))}
           </ul>
         </div>
-      ) : (analyticsStep &&
+      ) : selectedPlan.plan ||
+        (analyticsStep &&
           (!analyticsLine.hidden || analyticsLine.analytics !== "unknown")) ||
         statisticsSync.state === "failed" ||
         evidence.length ? null : (
