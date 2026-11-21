@@ -12,6 +12,7 @@ const coreClientMock = {
   deleteTaskLink: vi.fn(),
   deleteTask: vi.fn(),
   getTaskById: vi.fn(),
+  getTaskContacts: vi.fn(),
   getTaskLinks: vi.fn(),
   getTasks: vi.fn(),
   getTasksSummary: vi.fn(),
@@ -563,5 +564,24 @@ describe("task.service", () => {
     const { taskService } = await import("./task.service");
 
     await expect(taskService.getActivitySummary({})).resolves.toBeNull();
+  });
+});
+
+describe("taskService.listTaskContacts", () => {
+  it("reads nothing when Core fails, but still redirects an expired session", async () => {
+    const { redirect } = await import("next/navigation");
+    const { taskService } = await import("./task.service");
+
+    coreClientMock.getTaskContacts.mockRejectedValueOnce(new Error("down"));
+    await expect(taskService.listTaskContacts("task-1")).resolves.toBeNull();
+
+    let signIn: unknown;
+    try {
+      redirect("/signin");
+    } catch (error) {
+      signIn = error;
+    }
+    coreClientMock.getTaskContacts.mockRejectedValueOnce(signIn);
+    await expect(taskService.listTaskContacts("task-1")).rejects.toBe(signIn);
   });
 });

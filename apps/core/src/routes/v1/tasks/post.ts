@@ -57,6 +57,7 @@ import {
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
+import { contactActor } from "@/routes/v1/contacts/context";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import {
   createTaskContextSchema,
@@ -251,6 +252,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     if (!canUseWorkspaceTags && requestedTagChanges) {
       throw forbidden("Workspace access is required to manage Task tags");
+    }
+    // Contacts are workspace data: only a Contacts actor with workspace
+    // access may tag them, checked before any contact id is looked up.
+    if (body.contactIds?.length) {
+      if (!canUseWorkspaceTags) {
+        throw forbidden("Workspace access is required to tag contacts");
+      }
+      await contactActor(c);
     }
 
     // A copy reads its source first: an unreadable source fails before any

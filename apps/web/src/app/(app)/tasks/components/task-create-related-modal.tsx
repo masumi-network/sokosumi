@@ -73,6 +73,7 @@ export function TaskCreateRelatedModal({
           runAt,
           context,
           visibility,
+          contactIds,
         }) => {
           const result = await createTaskAndLink({
             taskId,
@@ -90,6 +91,7 @@ export function TaskCreateRelatedModal({
             runAt,
             context,
             visibility,
+            contactIds,
             relation: selectedCreateRelatedOption.relation,
           });
 

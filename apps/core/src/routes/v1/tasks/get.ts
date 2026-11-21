@@ -47,6 +47,7 @@ import {
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
+import { contactActor } from "@/routes/v1/contacts/context";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
@@ -334,8 +335,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
     const scheduleFilter = scheduleId ? { scheduleId } : {};
+    // Contacts are workspace data: the filter needs a Contacts actor, so a
+    // bare Coworker cannot probe which Tasks a contact is tagged on.
     const contactFilter = contactId
-      ? { contacts: { some: { contactId } } }
+      ? {
+          contacts: {
+            some: {
+              contactId,
+              contact: { workspaceId: (await contactActor(c)).workspaceId },
+            },
+          },
+        }
       : {};
     // Agents work on sub-tasks assigned to them, so they always see them.
     const agentSubtaskFilter = parentTaskId ? { parentTaskId } : {};

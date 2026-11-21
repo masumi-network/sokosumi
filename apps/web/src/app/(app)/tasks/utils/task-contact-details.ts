@@ -1,77 +1,11 @@
 import type { Contact } from "@sokosumi/core-client";
+import {
+  TASK_CONTACT_DETAILS_END,
+  TASK_CONTACT_DETAILS_START,
+  TASK_CONTACT_LINK,
+} from "@sokosumi/utils";
 import { sortChannels } from "@/app/contacts/contacts-view";
 import { parseMentions } from "@/lib/utils/mention-parser";
-
-/**
- * Bound the contact details the form adds on save. The block between them is
- * rebuilt from the tagged contacts on every save, so edits and retries never
- * repeat it; text written after it (by the API or an agent) is kept. Rendered
- * Markdown drops the comments.
- */
-const DETAILS_START = "<!-- sokosumi:contacts -->";
-const DETAILS_END = "<!-- /sokosumi:contacts -->";
-const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
-const CONTACT_LINK = /\[((?:\\.|[^\]\\])*)\]\(\/contacts\?contact=([\w-]+)\)/g;
-
-/**
- * Last line of the details block starting at `start`, or -1 when it is not
- * one. Current blocks run to the end marker (no start marker or fence
- * between: saved items are single lines);
- * blocks saved before the end marker existed are only heading and list.
- */
-function detailsEnd(lines: readonly string[], start: number): number {
-  const end = lines.indexOf(DETAILS_END, start + 1);
-  const inside = lines.slice(start + 1, end);
-  if (
-    end !== -1 &&
-    !inside.some((line) => line === DETAILS_START || FENCE.test(line))
-  )
-    return end;
-  if (lines[start + 1] !== "" || lines[start + 3] !== "") return -1;
-  if (!/^\*\*.*\*\*$/.test(lines[start + 2] ?? "")) return -1;
-  let last = start + 3;
-  while (lines[last + 1]?.startsWith("- ")) last++;
-  return last === start + 3 ? -1 : last;
-}
-
-/**
- * The brief without the contact details a save added. Only marker lines
- * outside fenced code count, so a pasted example stays as written.
- */
-export function stripContactDetails(description: string): string {
-  const lines = description.split("\n");
-  const kept: string[] = [];
-  let fence: string | null = null;
-  let changed = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? "";
-    const [, mark, rest = ""] = FENCE.exec(line) ?? [];
-    if (fence) {
-      // A closing fence: same character, at least as long, nothing after.
-      if (mark?.[0] === fence[0] && mark.length >= fence.length && !rest.trim())
-        fence = null;
-    } else if (mark) {
-      fence = mark;
-    } else if (line === DETAILS_START) {
-      const end = detailsEnd(lines, i);
-      if (end !== -1) {
-        changed = true;
-        while (kept.at(-1)?.trim() === "") kept.pop();
-        i = end;
-        while (lines[i + 1]?.trim() === "") i++;
-        if (kept.length > 0 && i + 1 < lines.length) kept.push("");
-        continue;
-      }
-    }
-    kept.push(line);
-  }
-  return changed ? kept.join("\n").trim() : description;
-}
-
-/** Contact links as their plain names, for readers outside the workspace. */
-export function unlinkContacts(markdown: string): string {
-  return markdown.replace(CONTACT_LINK, "$1");
-}
 
 /**
  * Contacts the brief mentions, in order: `@id:slug` tokens picked from the @
@@ -86,7 +20,7 @@ export function mentionedContactIds(
       id: mention.id,
       at: mention.start,
     })),
-    ...[...brief.matchAll(CONTACT_LINK)].map((match) => ({
+    ...[...brief.matchAll(TASK_CONTACT_LINK)].map((match) => ({
       id: match[2] ?? "",
       at: match.index,
       link: true,
@@ -143,7 +77,7 @@ export function expandContactMentions(
   }
   body = `${body}${brief.slice(last)}`
     .replace(
-      CONTACT_LINK,
+      TASK_CONTACT_LINK,
       (link, label: string, id: string) => replace(id, label) ?? link,
     )
     .trimEnd();
@@ -158,10 +92,10 @@ export function expandContactMentions(
   const details = live.map((contact) => `- ${contactBrief(contact)}`);
   return [
     body,
-    DETAILS_START,
+    TASK_CONTACT_DETAILS_START,
     `**${heading}**`,
     details.join("\n"),
-    DETAILS_END,
+    TASK_CONTACT_DETAILS_END,
   ]
     .filter(Boolean)
     .join("\n\n");

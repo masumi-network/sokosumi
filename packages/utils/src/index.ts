@@ -664,6 +664,14 @@ export {
   taskChatRoomRefusal,
 } from "./task-chat-share.js";
 export {
+  authoredTaskBrief,
+  stripContactDetails,
+  TASK_CONTACT_DETAILS_END,
+  TASK_CONTACT_DETAILS_START,
+  TASK_CONTACT_LINK,
+  unlinkContacts,
+} from "./task-contact-details.js";
+export {
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
   parseTaskContextFromDescription,

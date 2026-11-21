@@ -1,10 +1,7 @@
 import type { Contact } from "@sokosumi/core-client";
+import { stripContactDetails, unlinkContacts } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-import {
-  expandContactMentions,
-  stripContactDetails,
-  unlinkContacts,
-} from "./task-contact-details";
+import { expandContactMentions } from "./task-contact-details";
 
 const maya = {
   id: "c1",

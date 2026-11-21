@@ -10,6 +10,7 @@ import {
   extractHttpLinks,
   removeSeoTaskRequest,
   removeTaskContextAttachmentLinks,
+  unlinkContacts,
 } from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
@@ -27,7 +28,6 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
-import { unlinkContacts } from "@/app/tasks/utils/task-contact-details";
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";

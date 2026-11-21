@@ -62,6 +62,7 @@ const {
   notifyWorkspaceApproversOfPendingGrantMock,
   projectFindFirstMock,
   projectUpdateManyMock,
+  contactActorMock,
   contactTouchMock,
   prismaTransactionMock,
   requestWorkspaceGrantMock,
@@ -76,6 +77,11 @@ const {
   uploadProjectBriefingFileMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
+  contactActorMock: vi.fn(async () => ({
+    workspaceId: "11111111-1111-7111-8111-111111111111",
+    userId: "user_123",
+    sokoBotId: null,
+  })),
   contactTouchMock: vi.fn(),
   ensureProjectFilesTokenMock: vi.fn(),
   generateTaskNameMock: vi.fn(),
@@ -208,6 +214,10 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskAssignableUser: requireTaskAssignableUserMock,
   requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
+}));
+
+vi.mock("@/routes/v1/contacts/context", () => ({
+  contactActor: contactActorMock,
 }));
 
 vi.mock("@/helpers/soko-bot-task-assign", () => ({
@@ -859,6 +869,25 @@ describe("POST /tasks", () => {
     });
 
     expect(response.status).toBe(404);
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses contact tags from a caller who is not a Contacts actor, before looking any up", async () => {
+    contactActorMock.mockRejectedValueOnce(
+      forbidden("Workspace owner required"),
+    );
+
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Send the proposal",
+        contactIds: ["01960001-0001-7001-8001-000000000077"],
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(contactTouchMock).not.toHaveBeenCalled();
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
@@ -1906,6 +1935,31 @@ describe("POST /tasks delegated coworker create grant", () => {
     expect(response.status).toBe(403);
     expect(loadCatalogMock).not.toHaveBeenCalled();
     expect(createWorkspaceTagAssignments).not.toHaveBeenCalled();
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an ungranted delegated create with contact IDs before looking any up", async () => {
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Parked Task",
+          description: null,
+          assigneeId: null,
+          contactIds: ["01960001-0001-7001-8001-000000000077"],
+          status: TaskStatus.DRAFT,
+          channel: Channel.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(contactActorMock).not.toHaveBeenCalled();
+    expect(contactTouchMock).not.toHaveBeenCalled();
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 

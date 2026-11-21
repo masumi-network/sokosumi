@@ -25,10 +25,12 @@ import type { useTaskFormModel } from "./use-task-form-model";
 
 /**
  * The contact a tag on `id` means now: a merged contact's survivor, or null
- * once it is archived, so a save never re-tags a contact Core would refuse.
+ * once it is archived or not in this workspace (a link a move left), so a
+ * save never re-tags a contact Core would refuse.
  */
 async function liveContact(id: string, hops = 0): Promise<Contact | null> {
-  const contact = await contactsService.get(id);
+  const contact = await contactsService.find(id);
+  if (!contact) return null;
   // ponytail: merges chain at most a few deep; 5 hops guards a cycle.
   if (contact.mergedIntoId && hops < 5)
     return liveContact(contact.mergedIntoId, hops + 1);

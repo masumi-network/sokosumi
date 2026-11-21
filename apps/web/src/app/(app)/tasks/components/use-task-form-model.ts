@@ -2,7 +2,10 @@
 
 import type { Contact, Project } from "@sokosumi/core-client";
 import { TaskStatus } from "@sokosumi/core-client";
-import { taskContextSelectionResolvesAnything } from "@sokosumi/utils";
+import {
+  stripContactDetails,
+  taskContextSelectionResolvesAnything,
+} from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useId, useMemo, useRef, useState } from "react";
@@ -27,7 +30,6 @@ import {
   canSelectQueuedTaskStatus,
   TASK_STATUS_DISPLAY_ORDER,
 } from "@/lib/utils/task-status-order";
-import { stripContactDetails } from "../utils/task-contact-details";
 import {
   getDefaultTaskContextSelection,
   getTaskContextSelectionFromDescription,

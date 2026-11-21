@@ -189,29 +189,34 @@ vi.mock("@/app/contacts/components/use-contacts-data", () => {
 
 vi.mock("@/lib/services/contacts.client", () => ({
   contactsService: {
-    get: vi.fn(async (id: string) => ({
-      id,
-      name:
-        {
-          "contact-1": "Maya Stone",
-          "contact-2": "Ivo Brandt",
-          "contact-3": "Maya S.",
-          "contact-4": "Old Lead",
-          "contact-9": "Lena Kraft",
-        }[id] ?? id,
-      // contact-3 was merged into Maya; contact-4 is archived.
-      mergedIntoId: id === "contact-3" ? "contact-1" : null,
-      archivedAt: id === "contact-4" ? new Date("2026-11-01") : null,
-      role: id === "contact-1" ? "Head of Sales" : null,
-      organization: id === "contact-1" ? "Stone Ventures" : null,
-      location: null,
-      kind: "PERSON",
-      avatarUrl: null,
-      channels:
-        id === "contact-1"
-          ? [{ id: "c", type: "EMAIL", value: "maya@example.com" }]
-          : [],
-    })),
+    find: vi.fn(async (id: string) => {
+      // contact-gone is not in this workspace; contact-down fails to load.
+      if (id === "contact-gone") return null;
+      if (id === "contact-down") throw new Error("Core down");
+      return {
+        id,
+        name:
+          {
+            "contact-1": "Maya Stone",
+            "contact-2": "Ivo Brandt",
+            "contact-3": "Maya S.",
+            "contact-4": "Old Lead",
+            "contact-9": "Lena Kraft",
+          }[id] ?? id,
+        // contact-3 was merged into Maya; contact-4 is archived.
+        mergedIntoId: id === "contact-3" ? "contact-1" : null,
+        archivedAt: id === "contact-4" ? new Date("2026-11-01") : null,
+        role: id === "contact-1" ? "Head of Sales" : null,
+        organization: id === "contact-1" ? "Stone Ventures" : null,
+        location: null,
+        kind: "PERSON",
+        avatarUrl: null,
+        channels:
+          id === "contact-1"
+            ? [{ id: "c", type: "EMAIL", value: "maya@example.com" }]
+            : [],
+      };
+    }),
   },
 }));
 
@@ -1479,6 +1484,34 @@ describe("TaskForm", () => {
       expect(updateTaskMock).toHaveBeenCalledWith(
         expect.objectContaining({ contactIds: [], description: "Call nobody" }),
       );
+    });
+
+    it("saves a Task whose brief still links a contact from another workspace", async () => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+      // A move dropped the tags; the old link stays until this save.
+      renderEdit([], "Call [Maya](/contacts?contact=contact-gone)");
+
+      const name = screen.getByDisplayValue("Task name");
+      await user.clear(name);
+      await user.type(name, "Renamed");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({ contactIds: [], description: "Call Maya" }),
+      );
+    });
+
+    it("does not save when a linked contact fails to load", async () => {
+      expectConsole("error", "Failed to save task");
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      renderEdit([], "Call [Maya](/contacts?contact=contact-down)");
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).not.toHaveBeenCalled();
     });
 
     it("leaves tags and the brief alone when tags could not be read", async () => {

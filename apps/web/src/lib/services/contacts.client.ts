@@ -188,6 +188,19 @@ export const contactsService = {
   async get(id: string) {
     return (await getContactsById({ ...options(), path: { id } })).data.data;
   },
+  /**
+   * The contact, or null when the workspace has none with this id (a link
+   * left from another workspace). Any other failure still throws.
+   */
+  async find(id: string) {
+    const { data, error, response } = await getContactsById({
+      client: getBrowserCoreClient(),
+      path: { id },
+    });
+    if (response?.status === 404) return null;
+    if (!data) throw error;
+    return data.data;
+  },
   async create(body: NonNullable<PostContactsData["body"]>) {
     return (await postContacts({ ...options(), body })).data.data;
   },

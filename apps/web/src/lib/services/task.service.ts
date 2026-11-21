@@ -22,6 +22,7 @@ import type {
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
 import { TaskStatus } from "@sokosumi/core-client";
+import { unstable_rethrow } from "next/navigation";
 import { coreClient } from "@/lib/clients/core.client";
 
 interface ListTasksParams {
@@ -415,7 +416,9 @@ export const taskService = (() => {
   ): Promise<TaskContact[] | null> {
     try {
       return (await coreClient.getTaskContacts(taskId)).data;
-    } catch {
+    } catch (error) {
+      // An expired session still redirects to sign-in.
+      unstable_rethrow(error);
       return null;
     }
   }

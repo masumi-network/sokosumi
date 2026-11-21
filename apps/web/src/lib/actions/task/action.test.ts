@@ -434,6 +434,25 @@ describe("task link actions", () => {
     );
     expect(createInput).not.toHaveProperty("status");
   });
+
+  it("tags the related Task's contacts", async () => {
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+    taskServiceMock.createTaskLink.mockResolvedValue({ id: "link-new" });
+    const { createTaskAndLink } = await import("./action");
+
+    await createTaskAndLink({
+      taskId: "task-1",
+      description: "Call Maya",
+      assigneeId: null,
+      status: TaskStatus.DRAFT,
+      contactIds: ["contact-1"],
+      relation: TaskLinkRelation.RELATED,
+    });
+
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ contactIds: ["contact-1"] }),
+    );
+  });
 });
 
 describe("updateTask context", () => {

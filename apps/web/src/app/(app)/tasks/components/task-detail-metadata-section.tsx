@@ -57,25 +57,16 @@ export async function TaskMetadataSection({
    */
   projectOptionsPromise: Promise<ProjectFilterOption[] | null>;
 }) {
-  const [
-    project,
-    session,
-    hasAssignedSeat,
-    t,
-    tTasks,
-    tStatus,
-    tPriority,
-    contacts,
-  ] = await Promise.all([
-    projectPromise,
-    sessionPromise,
-    hasAssignedSeatPromise,
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("App.Tasks"),
-    getTranslations("App.Tasks.Filters.statusOptions"),
-    getTranslations("App.Tasks.Priority"),
-    taskService.listTaskContacts(task.id),
-  ]);
+  const [project, session, hasAssignedSeat, t, tTasks, tStatus, tPriority] =
+    await Promise.all([
+      projectPromise,
+      sessionPromise,
+      hasAssignedSeatPromise,
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("App.Tasks"),
+      getTranslations("App.Tasks.Filters.statusOptions"),
+      getTranslations("App.Tasks.Priority"),
+    ]);
   const viewer = session?.user
     ? {
         id: session.user.id,
@@ -279,7 +270,15 @@ export async function TaskMetadataSection({
           }
         />
       </TaskTagCatalogProvider>
-      {contacts?.length ? <TaskContactsSection contacts={contacts} /> : null}
+      {/* Its own boundary: a contacts read never holds back the properties. */}
+      <Suspense fallback={null}>
+        <TaskContacts taskId={task.id} />
+      </Suspense>
     </div>
   );
+}
+
+async function TaskContacts({ taskId }: { taskId: string }) {
+  const contacts = await taskService.listTaskContacts(taskId);
+  return contacts?.length ? <TaskContactsSection contacts={contacts} /> : null;
 }

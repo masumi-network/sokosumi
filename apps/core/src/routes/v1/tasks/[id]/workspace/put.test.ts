@@ -992,6 +992,33 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
   });
 
+  it("leaves the source workspace's contact links and details behind", async () => {
+    taskFindFirstMock.mockResolvedValue(
+      createTaskRecord({
+        description:
+          "Call [Maya](/contacts?contact=c1) today\n\n<!-- sokosumi:contacts -->\n\n**Contacts**\n\n- **Maya** · maya@example.com\n\n<!-- /sokosumi:contacts -->\n\nAgent note",
+      }),
+    );
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId: "org_target" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      data: {
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        projectId: null,
+        contacts: { deleteMany: {} },
+        description: "Call Maya today\n\nAgent note",
+      },
+    });
+  });
+
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
     const app = createApp("org_current", {
       actor: "coworker",

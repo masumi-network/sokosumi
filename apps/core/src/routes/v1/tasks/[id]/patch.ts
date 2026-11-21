@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Channel, TaskStatus } from "@sokosumi/database";
 import {
+  authoredTaskBrief,
   calendarDateSchema,
   isTaskEditableStatus,
   parseTaskContextFromDescription,
@@ -397,12 +398,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // to do (SOKD-279).
       // Queued work turns READY later on its own, so it parks the same way.
       // The Web edit form sends the description with every save, so only a
-      // changed one is new instructions.
+      // changed one is new instructions. Its contact details block and
+      // contact links are rebuilt on each save, so they never count.
       const newInstructions =
         typeof description === "string" &&
-        description.trim() !== "" &&
-        description.trim() !==
-          parseTaskContextFromDescription(task.description ?? "").body.trim();
+        authoredTaskBrief(description) !== "" &&
+        authoredTaskBrief(description) !==
+          authoredTaskBrief(
+            parseTaskContextFromDescription(task.description ?? "").body,
+          );
       const parksForInstructions =
         !newInstructions &&
         (nextStatus === TaskStatus.READY || nextStatus === TaskStatus.QUEUED) &&

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
+import { stripContactDetails, unlinkContacts } from "@sokosumi/utils";
 import {
   requireOwnerForPersonalWorkspace,
   requireTaskAssignableCoworker,
@@ -192,6 +193,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      const description =
+        current.description &&
+        unlinkContacts(stripContactDetails(current.description));
       await tx.task.update({
         where: {
           id,
@@ -199,8 +203,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           workspaceId: targetWorkspace.id,
           projectId: null,
-          // Contacts belong to one workspace; their tags do not travel.
+          // Contacts belong to one workspace; their tags, links and details
+          // do not travel. Names stay as plain text.
           contacts: { deleteMany: {} },
+          ...(description !== current.description ? { description } : {}),
         },
       });
 

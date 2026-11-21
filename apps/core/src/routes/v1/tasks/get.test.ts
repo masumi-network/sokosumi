@@ -18,11 +18,13 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  contactActorMock,
   requireCoworkerCapabilityMock,
   taskCountMock,
   taskFindManyMock,
   vendorGrantFindUniqueMock,
 } = vi.hoisted(() => ({
+  contactActorMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
   taskCountMock: vi.fn(),
   taskFindManyMock: vi.fn(),
@@ -31,6 +33,10 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
+}));
+
+vi.mock("@/routes/v1/contacts/context", () => ({
+  contactActor: contactActorMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -977,6 +983,21 @@ describe("GET /tasks", () => {
 
   describe("contactId", () => {
     const CONTACT_ID = "01960001-0001-7001-8001-000000000077";
+    const WORKSPACE = "11111111-1111-7111-8111-111111111111";
+    const tagged = {
+      contacts: {
+        some: { contactId: CONTACT_ID, contact: { workspaceId: WORKSPACE } },
+      },
+    };
+
+    beforeEach(() => {
+      contactActorMock.mockReset();
+      contactActorMock.mockResolvedValue({
+        workspaceId: WORKSPACE,
+        userId: "user_123",
+        sokoBotId: null,
+      });
+    });
 
     it("lists the Tasks a contact is tagged on behind the visibility rules", async () => {
       const response = await createApp().request(
@@ -988,28 +1009,33 @@ describe("GET /tasks", () => {
         expect.objectContaining({
           where: {
             archivedAt: null,
-            workspaceId: "11111111-1111-7111-8111-111111111111",
+            workspaceId: WORKSPACE,
             AND: [...HUMAN_TASK_VISIBILITY_AND],
-            contacts: { some: { contactId: CONTACT_ID } },
+            ...tagged,
           },
         }),
       );
     });
 
-    it("narrows coworker and Soko Bot lists the same way", async () => {
-      await createApp(COWORKER_AUTH_CONTEXT, null).request(
-        `http://localhost/?contactId=${CONTACT_ID}`,
-      );
+    it("narrows a Soko Bot list the same way", async () => {
       await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
         `http://localhost/?contactId=${CONTACT_ID}`,
       );
 
-      expect(taskFindManyMock).toHaveBeenCalledTimes(2);
-      for (const [args] of taskFindManyMock.mock.calls) {
-        expect(args.where).toMatchObject({
-          contacts: { some: { contactId: CONTACT_ID } },
-        });
-      }
+      expect(taskFindManyMock.mock.calls[0]?.[0].where).toMatchObject(tagged);
+    });
+
+    it("refuses the filter to a caller who is not a Contacts actor", async () => {
+      contactActorMock.mockRejectedValue(
+        new HTTPException(403, { message: "Workspace owner required" }),
+      );
+
+      const response = await createApp(COWORKER_AUTH_CONTEXT, null).request(
+        `http://localhost/?contactId=${CONTACT_ID}`,
+      );
+
+      expect(response.status).toBe(403);
+      expect(taskFindManyMock).not.toHaveBeenCalled();
     });
 
     it("rejects a contactId that is not a UUID", async () => {

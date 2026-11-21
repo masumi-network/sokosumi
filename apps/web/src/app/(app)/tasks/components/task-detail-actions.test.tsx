@@ -48,6 +48,7 @@ const {
   isMobileMock,
   showCalendarClientUpgradeModalMock,
   createRelatedVisibilityMock,
+  createRelatedContactIdsMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
@@ -59,6 +60,7 @@ const {
   createRelatedVisibilityMock: {
     current: undefined as "PUBLIC" | "PRIVATE" | undefined,
   },
+  createRelatedContactIdsMock: { current: undefined as string[] | undefined },
 }));
 
 const { loadTaskScheduleDialogOptionsMock, scheduleDialogPropsMock } =
@@ -504,6 +506,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
       assigneeUserId?: string | null;
       status: TaskStatus;
       visibility?: "PUBLIC" | "PRIVATE";
+      contactIds?: string[];
       context: {
         brand: {
           enabled: boolean;
@@ -540,6 +543,9 @@ vi.mock("@/app/tasks/components/task-form", () => ({
             status: TaskStatus.READY,
             ...(createRelatedVisibilityMock.current
               ? { visibility: createRelatedVisibilityMock.current }
+              : {}),
+            ...(createRelatedContactIdsMock.current
+              ? { contactIds: createRelatedContactIdsMock.current }
               : {}),
             context: {
               brand: { enabled: true, source: "default", custom: null },
@@ -809,6 +815,7 @@ describe("TaskDetailActions", () => {
     vi.clearAllMocks();
     queryClient = new QueryClient();
     createRelatedVisibilityMock.current = undefined;
+    createRelatedContactIdsMock.current = undefined;
     isMobileMock.mockReturnValue(false);
     browserCoreClientMock.getTasks.mockReset();
     vi.mocked(setTaskStatusFromDrag).mockReset();
@@ -1962,6 +1969,35 @@ describe("TaskDetailActions", () => {
         expect.objectContaining({
           visibility: "PRIVATE",
         }),
+      );
+    });
+  });
+
+  it("tags the contacts the related Task mentions", async () => {
+    const user = userEvent.setup();
+    const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
+    createRelatedContactIdsMock.current = ["contact-1", "contact-2"];
+    createTaskAndLinkMock.mockResolvedValue(
+      createTaskAndLinkSuccess({
+        taskId: "task-1",
+        createdTaskId: "task-created",
+        linkId: "link-created",
+        name: "Created related task",
+      }),
+    );
+
+    renderActions();
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Create related" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Blocking" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Submit related task" }),
+    );
+
+    await waitFor(() => {
+      expect(createTaskAndLinkMock).toHaveBeenCalledWith(
+        expect.objectContaining({ contactIds: ["contact-1", "contact-2"] }),
       );
     });
   });

@@ -9,6 +9,8 @@ const taskActivitySectionMock = vi.fn();
 const taskMetadataMock = vi.fn();
 const taskDetailActionsMock = vi.fn();
 const taskSubtaskSectionMock = vi.fn();
+const taskContactsSectionMock = vi.fn();
+const getTaskContactsMock = vi.hoisted(() => vi.fn());
 const viewer = vi.hoisted(() => ({
   id: "user_admin",
   hasAssignedSeat: false,
@@ -59,6 +61,7 @@ vi.mock("@/lib/services/project.service", () => ({
 }));
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
+    getTaskContacts: getTaskContactsMock,
     getMySokoBotActivity: async () => ({
       data: {
         id: "bot-1",
@@ -90,6 +93,12 @@ vi.mock("@/app/tasks/components/task-activity", () => ({
   TaskActivitySection: (props: unknown) => {
     taskActivitySectionMock(props);
     return <div data-testid="task-activity" />;
+  },
+}));
+vi.mock("@/app/tasks/components/task-contacts", () => ({
+  TaskContactsSection: (props: unknown) => {
+    taskContactsSectionMock(props);
+    return null;
   },
 }));
 vi.mock("@/app/tasks/components/task-context-section", () => ({
@@ -370,5 +379,37 @@ describe("TaskDetailView (sub-task checklist)", () => {
     expect(await renderErrors(<TaskDetailView task={task} />)).toEqual([]);
 
     expect(taskSubtaskSectionMock).toHaveBeenCalled();
+  });
+});
+
+describe("TaskDetailView (tagged contacts)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    viewer.id = "user_owner";
+    viewer.hasAssignedSeat = true;
+  });
+
+  it("shows the contacts Core lists for the Task", async () => {
+    const contacts = [{ id: "contact-1", name: "Maya Stone" }];
+    getTaskContactsMock.mockResolvedValue({ data: contacts });
+
+    expect(
+      await renderErrors(<TaskDetailView task={createTask([])} />),
+    ).toEqual([]);
+
+    expect(getTaskContactsMock).toHaveBeenCalledWith("task_1");
+    expect(taskContactsSectionMock).toHaveBeenCalledWith({ contacts });
+    expect(taskMetadataMock).toHaveBeenCalled();
+  });
+
+  it("keeps the properties when the contacts cannot be read", async () => {
+    getTaskContactsMock.mockRejectedValue(new Error("Core down"));
+
+    expect(
+      await renderErrors(<TaskDetailView task={createTask([])} />),
+    ).toEqual([]);
+
+    expect(taskContactsSectionMock).not.toHaveBeenCalled();
+    expect(taskMetadataMock).toHaveBeenCalled();
   });
 });

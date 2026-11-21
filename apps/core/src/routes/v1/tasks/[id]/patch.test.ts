@@ -1046,10 +1046,14 @@ describe("PATCH /tasks/{id}", () => {
     function assignWithDescription(
       description: string,
       stored = "Use the February figures",
+      status: TaskStatus = TaskStatus.READY,
     ) {
       requireTaskWriteAccessMock.mockResolvedValue({
         id: "tsk_123",
-        status: TaskStatus.READY,
+        status,
+        ...(status === TaskStatus.QUEUED
+          ? { runAt: new Date(Date.now() + 86_400_000) }
+          : {}),
         description: stored,
         assigneeId: null,
         assigneeSokoBotId: null,
@@ -1086,6 +1090,36 @@ describe("PATCH /tasks/{id}", () => {
       expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
         TaskStatus.INPUT_REQUIRED,
       );
+    });
+
+    // The edit form rebuilds the contact details and links on every save.
+    it.each([TaskStatus.READY, TaskStatus.QUEUED])(
+      "parks a %s Task when only its contact details changed",
+      async (status) => {
+        const stored =
+          "Call [Maya](/contacts?contact=c1) about February\n\n<!-- sokosumi:contacts -->\n\n**Contacts**\n\n- **Maya** · maya@old.example\n\n<!-- /sokosumi:contacts -->";
+        const resent =
+          "Call [Maya Lee](/contacts?contact=c2) about February\n\n<!-- sokosumi:contacts -->\n\n**Kontakte**\n\n- **Maya Lee** · +49 30 1234\n\n<!-- /sokosumi:contacts -->";
+        expect(
+          (await assignWithDescription(resent, stored, status)).status,
+        ).toBe(200);
+        expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
+          TaskStatus.INPUT_REQUIRED,
+        );
+      },
+    );
+
+    it("keeps it Ready when the brief around a contact link changes", async () => {
+      const stored = "Call [Maya](/contacts?contact=c1) about February";
+      expect(
+        (
+          await assignWithDescription(
+            "Call [Maya](/contacts?contact=c1) about March",
+            stored,
+          )
+        ).status,
+      ).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
     });
 
     it("keeps it Ready when the same save changes the description", async () => {

@@ -768,6 +768,34 @@ describe("MarkdownEditor", () => {
     expect(savedMarkdown).toContain("@agent-1:writer-agent");
   });
 
+  it("offers and inserts a mention whose name has no ASCII slug", async () => {
+    const onChange = vi.fn();
+
+    render(
+      <MarkdownEditor
+        value=""
+        onChange={onChange}
+        mentions={{ "contact-1": { value: "王伟" } }}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "@王";
+    setCaretToEnd(editor);
+    fireEvent.input(editor);
+
+    expect(await screen.findByRole("option", { name: /王伟/ })).toBeVisible();
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(
+        editor.querySelector("span[data-mention-key='contact-1']"),
+      ).toHaveTextContent("王伟");
+    });
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toContain("@contact-1:contact-1");
+  });
+
   it("uses Tab to select mention when dropdown is visible", async () => {
     const onChange = vi.fn();
 

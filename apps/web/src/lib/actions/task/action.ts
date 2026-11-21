@@ -162,6 +162,8 @@ interface CreateAndLinkTaskParameters
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
+  /** Contacts to tag on the new Task. */
+  contactIds?: string[];
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
 }
@@ -620,6 +622,7 @@ export const createTaskAndLink = withSession<
     context,
     runAt,
     visibility,
+    contactIds,
     relation,
     note,
   }) => {
@@ -647,6 +650,7 @@ export const createTaskAndLink = withSession<
         status,
         runAt,
         visibility,
+        contactIds,
       });
 
       const link = await taskService.createTaskLink(normalizedTaskId, {

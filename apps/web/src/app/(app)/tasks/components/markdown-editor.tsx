@@ -284,10 +284,9 @@ export const MarkdownEditor = forwardRef<
 
     for (const [key, mention] of entries) {
       if (!mention.value) continue;
-      const slug = mention.slug
-        ? mention.slug
-        : slugifyMentionValue(mention.value);
-      if (!slug) continue;
+      // A name with no ASCII slug (王伟) falls back to its key, so it still
+      // shows; the menu and the editor keep the real name as the label.
+      const slug = mention.slug || slugifyMentionValue(mention.value) || key;
       normalized.push({
         key,
         value: mention.value,
