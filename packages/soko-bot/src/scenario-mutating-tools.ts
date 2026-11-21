@@ -10,6 +10,7 @@ export const MUTATING_TOOLS = new Set([
   "hire_agent",
   "post_chat",
   "ask_coworker",
+  "send_message",
   "upsert_contact",
   "update_contact",
   "log_contact_interaction",

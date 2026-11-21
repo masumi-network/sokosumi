@@ -175,6 +175,8 @@ export async function executeAuthorizedTool(
     case "read_chat":
     case "open_direct_chat":
     case "ask_coworker":
+    case "send_message":
+    case "list_recipients":
     case "preview_result":
     case "post_chat":
       return dispatchChatTools(runtime, input, authorized);
