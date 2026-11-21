@@ -1,6 +1,11 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { AGENT_NAME } from "./agent";
-import { channelLabel, connectedNetworks, waitsForNetwork } from "./calendar";
+import {
+  channelLabel,
+  connectedNetworks,
+  pieceMade,
+  waitsForNetwork,
+} from "./calendar";
 import { isAd, strategyApproved } from "./strategy";
 import type { View } from "./views";
 
@@ -31,6 +36,23 @@ export function monthEntries(overview: CmoOverview): Entry[] {
         a.date.localeCompare(b.date) ||
         (a.time ?? "").localeCompare(b.time ?? ""),
     );
+}
+
+/**
+ * The month's posts as they go out, and how many of them are made: the one
+ * count Today, the Calendar, the chat and Cuso's pill all say.
+ */
+export function monthMade(overview: CmoOverview): {
+  ready: number;
+  total: number;
+} {
+  const posts = monthEntries(overview).filter((entry) => !isAd(entry));
+  const media = new Set(overview.media.map((item) => item.entryId));
+  return {
+    ready: posts.filter((entry) => pieceMade(entry, media.has(entry.id)))
+      .length,
+    total: posts.length,
+  };
 }
 
 function plural(count: number, one: string, many: string): string {

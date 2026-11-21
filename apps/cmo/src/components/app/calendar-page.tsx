@@ -22,7 +22,7 @@ import {
   formatName,
 } from "../../lib/channels";
 import { monthLabel } from "../../lib/strategy";
-import { dayIn, waitingLine } from "../../lib/today";
+import { dayIn, monthMade, waitingLine } from "../../lib/today";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
 import { StatusDisc } from "../status";
@@ -208,7 +208,8 @@ export function CalendarPage({
   const made = (entry: Entry) => pieceMade(entry, Boolean(mediaFor(entry)));
   const connected = connectedNetworks(overview.channels);
   const waits = waitingLine(overview);
-  const ready = live.filter(made).length;
+  // Posts only, the count Today and the chat say; ads are counted apart.
+  const { ready, total } = monthMade(overview);
   const readable = shown.filter(made);
   const index = readable.findIndex((entry) => entry.id === openId);
   const open = index >= 0 ? readable[index] : undefined;
@@ -219,7 +220,7 @@ export function CalendarPage({
       <div className="card cal-head">
         <p className="note num">
           {monthLabel(live)} this month · {ready} ready
-          {ready < live.length ? ` · ${live.length - ready} being made` : ""}
+          {ready < total ? ` · ${total - ready} being made` : ""}
           {beyond.size > 0
             ? ` · ${beyond.size} more with a bigger plan, in Settings`
             : ""}

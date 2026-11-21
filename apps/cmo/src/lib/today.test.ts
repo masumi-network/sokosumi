@@ -8,6 +8,7 @@ import {
   dayIn,
   greeting,
   monthEntries,
+  monthMade,
   monthProgress,
   needsYou,
   waitingLine,
@@ -228,4 +229,41 @@ it("leaves out the posts the plan bought does not make, as the Calendar does", (
     production: { ...overview.production, beyondPlan: [beyond] },
   });
   expect(month.map((entry) => entry.id).sort()).toEqual(made.sort());
+});
+
+it("counts the month once, as it goes out, whatever Core's run still makes", () => {
+  const overview = cmoOverview();
+  const calendar = overview.strategy?.calendar ?? [];
+  const [first] = calendar;
+  if (!first) throw new Error("fixture has an entry");
+  const entry = (id: string, status: "idea" | "draft" | "scheduled") => ({
+    ...first,
+    id,
+    status,
+    draft: status === "idea" ? undefined : "Words",
+  });
+  const strategy = overview.strategy
+    ? {
+        ...overview.strategy,
+        calendar: [
+          entry("out", "scheduled"),
+          entry("written", "draft"),
+          entry("coming", "idea"),
+          entry("beyond", "scheduled"),
+        ],
+      }
+    : null;
+  expect(
+    monthMade({
+      ...overview,
+      strategy,
+      approvedStrategy: strategy,
+      production: {
+        ...overview.production,
+        ready: 8,
+        total: 11,
+        beyondPlan: ["beyond"],
+      },
+    }),
+  ).toEqual({ ready: 2, total: 3 });
 });

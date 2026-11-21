@@ -61,7 +61,9 @@ const cases = [
     },
     pose: "thinking",
     art: "thinking",
-    line: "8 of 11 made",
+    // The month's posts, as Today and the Calendar count them, not the
+    // pieces Core's run still makes (8 of 11).
+    line: "1 of 1 made",
   },
   {
     name: "a plan waiting for approval needs the owner",
@@ -156,7 +158,7 @@ it("keeps saying what he makes while he works, whatever the page", () => {
   });
   expect(cusoBubble(making, "chat", NOW)).toMatchObject({
     art: "thinking",
-    line: "8 of 11 made",
+    line: "1 of 1 made",
   });
 });
 
