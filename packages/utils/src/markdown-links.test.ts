@@ -49,6 +49,15 @@ describe("findMarkdownLinks", () => {
     assert.deepEqual(findMarkdownLinks("[]() [x]( ) [y](https://z [w]"), []);
   });
 
+  it("keeps balanced parentheses inside the url", () => {
+    assert.deepEqual(
+      findMarkdownLinks(
+        "[Mercury](https://en.wikipedia.org/wiki/Mercury_(planet)) next",
+      ).map((link) => link.rawUrl),
+      ["https://en.wikipedia.org/wiki/Mercury_(planet)"],
+    );
+  });
+
   it("keeps brackets inside the url (e.g. IPv6 literals)", () => {
     const matches = findMarkdownLinks(
       "[a](http://[::1]/x) and [b](http://[fe80::1]/y)",

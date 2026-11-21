@@ -3,7 +3,11 @@ import {
   findMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "./markdown-links.js";
-import { findBareHttpUrlHits, findHttpAutolinks } from "./markdown-url-scan.js";
+import {
+  collectMarkdownUrlExcludedRanges,
+  findBareHttpUrlHits,
+  findHttpAutolinks,
+} from "./markdown-url-scan.js";
 
 const MAX_UNFURL_CANDIDATES = 3;
 
@@ -35,7 +39,12 @@ function collectUrlHits(markdown: string): UrlHit[] {
     hits.push({ url, index: start });
   }
 
-  for (const { url, start } of findBareHttpUrlHits(markdown)) {
+  // A link's own destination is not text: scanning it again as a bare URL
+  // would trim its punctuation and add a second, different URL.
+  for (const { url, start } of findBareHttpUrlHits(
+    markdown,
+    collectMarkdownUrlExcludedRanges(markdown),
+  )) {
     hits.push({ url, index: start });
   }
 

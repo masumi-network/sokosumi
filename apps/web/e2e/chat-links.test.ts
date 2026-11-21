@@ -9,7 +9,7 @@ import { signUpWithOrganization } from "./sign-up.ts";
 
 /**
  * A new user posts two links in a new channel, opens the room's Links list,
- * finds both newest first, and jumps from one back to its message.
+ * finds both newest first, and jumps from the older one to its message.
  */
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -88,9 +88,17 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Show the message with example.com" })
         .click();
       await panel.waitFor({ state: "detached" });
+      // The jump lands on the plan's message: in view and marked, not the
+      // brief's message the room already shows at the bottom.
+      const landed = page.locator('[data-search-landed="true"]');
+      await landed.waitFor();
+      const landedText = await landed.innerText();
+      const landedInView = await landed.isVisible();
       await context.close();
 
       assert.deepEqual(hrefs, [BRIEF, PLAN]);
+      assert.match(landedText, /Plan is here/);
+      assert.ok(landedInView, "jumped-to message is on screen");
       assert.deepEqual(errors, []);
     });
   });

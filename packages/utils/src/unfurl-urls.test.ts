@@ -7,6 +7,15 @@ import {
 } from "./unfurl-urls.js";
 
 describe("listHttpUrls", () => {
+  it("keeps a link's own destination and does not rescan it as text", () => {
+    expect(listHttpUrls("<https://example.com/file.>")).toEqual([
+      "https://example.com/file.",
+    ]);
+    expect(
+      listHttpUrls("[Mercury](https://en.wikipedia.org/wiki/Mercury_(planet))"),
+    ).toEqual(["https://en.wikipedia.org/wiki/Mercury_(planet)"]);
+  });
+
   it("lists every web link once, file links included, with no cap", () => {
     expect(
       listHttpUrls(

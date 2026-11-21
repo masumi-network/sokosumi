@@ -55,11 +55,13 @@ export function findMarkdownLinks(input: string): MarkdownLinkMatch[] {
 
     const text = input.slice(open + 1, labelEnd);
 
-    // Scan the url: escaped pairs (`\x`) or any char except `)` and whitespace.
-    // `[` is allowed so bracketed destinations (e.g. IPv6 literals such as
-    // http://[::1]/path) still parse.
+    // Scan the url: escaped pairs (`\x`) or any char except an unbalanced `)`
+    // and whitespace. `[` is allowed so bracketed destinations (e.g. IPv6
+    // literals such as http://[::1]/path) still parse. Balanced parentheses
+    // stay in the url, as in CommonMark (`wiki/Mercury_(planet)`).
     const urlStart = labelEnd + 2;
     let j = urlStart;
+    let depth = 0;
     while (j < len) {
       const c = input[j];
       if (c === "\\") {
@@ -67,7 +69,12 @@ export function findMarkdownLinks(input: string): MarkdownLinkMatch[] {
         j += 2;
         continue;
       }
-      if (c === ")" || WHITESPACE.has(c)) break;
+      if (c === "(") depth += 1;
+      if (c === ")") {
+        if (depth === 0) break;
+        depth -= 1;
+      }
+      if (WHITESPACE.has(c)) break;
       j += 1;
     }
 
