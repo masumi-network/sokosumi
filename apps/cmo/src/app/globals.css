@@ -866,7 +866,46 @@ textarea {
   padding: 20px 20px 8px;
 }
 
-.side-name {
+.brand {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* The business is a menu button: the brand's pages and its site. */
+.brand-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 8px 4px 4px;
+  border: var(--line-width) solid var(--clear);
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.brand-button:hover,
+.brand-button[aria-expanded="true"] {
+  background: var(--card);
+}
+
+.brand-button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+/* One of the brand's pages is open: it reads as the page you are on. */
+.brand-button[data-active] {
+  border-color: var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.brand-name {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -874,27 +913,91 @@ textarea {
   line-height: 1.25;
 }
 
-.side-name b,
-.side-name a {
+.brand-name b,
+.brand-name span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.side-name b {
+.brand-name b {
   font-size: 1rem;
 }
 
-.side-name a {
+.brand-name span {
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.brand-chevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform 150ms;
+}
+
+.brand-button[aria-expanded="true"] .brand-chevron {
+  transform: rotate(180deg);
+}
+
+.brand-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 6;
+  display: grid;
+  gap: 2px;
+  width: max(100%, 220px);
+  padding: 6px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.brand-menu a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  color: var(--foreground);
+  font-size: 0.875rem;
   text-decoration: none;
 }
 
-.side-name a:hover {
-  color: var(--foreground);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.brand-menu a:hover,
+.brand-menu a:focus-visible {
+  background: var(--surface);
+}
+
+.brand-menu a:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+.brand-menu a[aria-current="page"] {
+  font-weight: 600;
+}
+
+.brand-menu a[aria-current="page"]::after {
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  content: "";
+}
+
+.brand-menu .brand-menu-site {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-control) var(--radius-control);
+  color: var(--muted);
+}
+
+/* A phone's top bar: only the brand's menu (desktop has the sidebar). */
+.phonebar {
+  display: none;
 }
 
 .side .ob-who {
@@ -1004,20 +1107,9 @@ textarea {
   overflow-y: auto;
 }
 
-.nav-main,
-.nav-brand {
+.nav-main {
   display: grid;
   gap: 4px;
-}
-
-.nav-group {
-  margin: 0;
-  padding: 16px 14px 6px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .nav a {
@@ -1033,10 +1125,6 @@ textarea {
   font-size: 1rem;
   text-decoration: none;
   white-space: nowrap;
-}
-
-.nav-brand a {
-  height: 40px;
 }
 
 .nav-label {
@@ -1069,6 +1157,8 @@ textarea {
   flex: 1 1 0;
   min-height: 72px;
   max-height: 440px;
+  /* At the sidebar's foot, whatever room the pages above leave. */
+  margin-top: auto;
   border-top: var(--line-width) solid var(--line);
   background: var(--primary);
 }
@@ -1188,7 +1278,7 @@ a.cuso-says:focus-visible {
 }
 
 /* A short window has no room for him: the pill stays. */
-@media (max-height: 690px) {
+@media (max-height: 520px) {
   .cuso-figure {
     display: none;
   }
@@ -1212,14 +1302,6 @@ a.cuso-says:focus-visible {
 
   .nav a {
     height: 40px;
-  }
-
-  .nav-brand a {
-    height: 34px;
-  }
-
-  .nav-group {
-    padding-top: 10px;
   }
 }
 
@@ -2298,6 +2380,20 @@ video.draft-media {
 
   .side {
     display: none;
+  }
+
+  .phonebar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    padding: 8px var(--page-x);
+    border-bottom: var(--line-width) solid var(--line);
+    background: var(--surface);
+  }
+
+  .phonebar .brand {
+    flex: 0 1 auto;
+    max-width: 100%;
   }
 
   .grid4,

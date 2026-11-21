@@ -26,6 +26,7 @@ import { HowIGotHere, Working } from "../cuso-trace";
 import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
+import { BrandMenu } from "./brand-menu";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
@@ -441,6 +442,10 @@ export function CmoApp({
       />
 
       <main className={view === "chat" ? "main main-chat" : "main"}>
+        {/* A phone has no sidebar: the brand's menu sits in a top bar. */}
+        <header className="phonebar">
+          <BrandMenu overview={overview} view={view} onSelect={go} />
+        </header>
         {pause ? (
           <PausedBanner
             pause={pause}
