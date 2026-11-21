@@ -48,6 +48,7 @@ const {
   resolveEffectiveDesignMdMock,
   taskUpdateMock,
   contactTouchMock,
+  contactActorMock,
 } = vi.hoisted(() => ({
   deliverCalendarInvalidationsNowMock: vi.fn(),
   dueDateChangeCreateMock: vi.fn(),
@@ -65,6 +66,11 @@ const {
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   taskUpdateMock: vi.fn(),
   contactTouchMock: vi.fn(),
+  contactActorMock: vi.fn(),
+}));
+
+vi.mock("@/routes/v1/contacts/context", () => ({
+  contactActor: contactActorMock,
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -441,6 +447,71 @@ describe("PATCH /tasks/{id}", () => {
     expect(response.status).toBe(404);
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
+
+  it("clears the contacts tagged on the Task", async () => {
+    contactTouchMock.mockResolvedValue(0);
+
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactIds: [] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(contactActorMock).toHaveBeenCalledOnce();
+    expect(taskUpdateMock.mock.calls[0]?.[0].data.contacts).toMatchObject({
+      deleteMany: { contactId: { notIn: [] } },
+    });
+  });
+
+  it.each([[["01960001-0001-7001-8001-000000000077"]], [[]]])(
+    "refuses contactIds %j without a Contacts actor, before any lookup",
+    async (contactIds) => {
+      contactActorMock.mockRejectedValueOnce(
+        forbidden("Workspace unavailable"),
+      );
+
+      const response = await createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactIds }),
+      });
+
+      expect(response.status).toBe(403);
+      expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
+      expect(contactTouchMock).not.toHaveBeenCalled();
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([[["01960001-0001-7001-8001-000000000077"]], [[]]])(
+    "refuses contactIds %j on a Task in another workspace",
+    async (contactIds) => {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: "22222222-2222-7222-8222-222222222222",
+        organizationId: "org_123",
+        ownerId: "user_123",
+        description: null,
+        visibility: TaskVisibility.PUBLIC,
+      });
+
+      const response = await createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactIds }),
+      });
+
+      expect(response.status).toBe(404);
+      expect(contactTouchMock).not.toHaveBeenCalled();
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("leaves tags alone when contactIds is absent", async () => {
     await createApp().request("http://localhost/tsk_123", {
@@ -1108,6 +1179,40 @@ describe("PATCH /tasks/{id}", () => {
         );
       },
     );
+
+    // An archived or missing contact's link comes back as its plain label.
+    it.each([
+      [TaskStatus.READY, "archived"],
+      [TaskStatus.QUEUED, "archived"],
+      [TaskStatus.READY, "missing"],
+      [TaskStatus.QUEUED, "missing"],
+    ])(
+      "parks a %s Task when a save unlinks a %s contact",
+      async (status, _why) => {
+        const stored =
+          "Call [Maya](/contacts?contact=c1) about February\n\n<!-- sokosumi:contacts -->\n\n**Contacts**\n\n- **Maya** · maya@old.example\n\n<!-- /sokosumi:contacts -->";
+        expect(
+          (
+            await assignWithDescription(
+              "Call Maya about February",
+              stored,
+              status,
+            )
+          ).status,
+        ).toBe(200);
+        expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
+          TaskStatus.INPUT_REQUIRED,
+        );
+      },
+    );
+
+    it("keeps it Ready when an unlinked contact's brief also changes", async () => {
+      const stored = "Call [Maya](/contacts?contact=c1) about February";
+      expect(
+        (await assignWithDescription("Call Maya about March", stored)).status,
+      ).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+    });
 
     it("keeps it Ready when the brief around a contact link changes", async () => {
       const stored = "Call [Maya](/contacts?contact=c1) about February";

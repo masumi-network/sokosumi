@@ -1019,6 +1019,29 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
   });
 
+  it("drops contact details saved after a code fence that never closes", async () => {
+    taskFindFirstMock.mockResolvedValue(
+      createTaskRecord({
+        description:
+          "Call [Maya](/contacts?contact=c1) with:\n\n```sh\nnpm test\n\n<!-- sokosumi:contacts -->\n\n**Contacts**\n\n- **Maya** · maya@example.com\n\n<!-- /sokosumi:contacts -->",
+      }),
+    );
+
+    const response = await createApp("org_current").request(
+      "http://localhost/tsk_123/workspace",
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organizationId: "org_target" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const { description } = taskUpdateMock.mock.calls[0]?.[0].data;
+    expect(description).toBe("Call Maya with:\n\n```sh\nnpm test");
+    expect(description).not.toContain("maya@example.com");
+  });
+
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
     const app = createApp("org_current", {
       actor: "coworker",

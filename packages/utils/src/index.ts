@@ -664,7 +664,7 @@ export {
   taskChatRoomRefusal,
 } from "./task-chat-share.js";
 export {
-  authoredTaskBrief,
+  sameAuthoredBrief,
   stripContactDetails,
   TASK_CONTACT_DETAILS_END,
   TASK_CONTACT_DETAILS_START,

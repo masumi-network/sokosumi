@@ -2,11 +2,12 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Channel, TaskStatus } from "@sokosumi/database";
 import {
-  authoredTaskBrief,
   calendarDateSchema,
   isTaskEditableStatus,
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
+  sameAuthoredBrief,
+  stripContactDetails,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
@@ -71,6 +72,7 @@ import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
+import { contactActor } from "@/routes/v1/contacts/context";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import {
   createTaskContextSchema,
@@ -259,6 +261,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       runAt === undefined &&
       contactIds === undefined;
 
+    // Contacts are workspace data: any explicit contactIds, even [] to clear,
+    // need a Contacts actor in the active workspace, checked before lookup.
+    if (contactIds !== undefined) await contactActor(c);
+
     const result = await retriedTransaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskWriteAccess(
         userContext,
@@ -266,7 +272,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
       if (
-        editsTags &&
+        (editsTags || contactIds !== undefined) &&
         taskSnapshot.workspaceId !==
           requireWorkspaceContext(c.var.workspaceContext).workspaceId
       ) {
@@ -402,11 +408,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // contact links are rebuilt on each save, so they never count.
       const newInstructions =
         typeof description === "string" &&
-        authoredTaskBrief(description) !== "" &&
-        authoredTaskBrief(description) !==
-          authoredTaskBrief(
-            parseTaskContextFromDescription(task.description ?? "").body,
-          );
+        stripContactDetails(description).trim() !== "" &&
+        !sameAuthoredBrief(
+          parseTaskContextFromDescription(task.description ?? "").body,
+          description,
+        );
       const parksForInstructions =
         !newInstructions &&
         (nextStatus === TaskStatus.READY || nextStatus === TaskStatus.QUEUED) &&

@@ -34,9 +34,17 @@ function detailsEnd(lines: readonly string[], start: number): number {
   return last === start + 3 ? -1 : last;
 }
 
+/** Whether `line` closes `fence`: same character, at least as long, nothing after. */
+function closesFence(line: string, fence: string): boolean {
+  const [, mark, rest = ""] = FENCE.exec(line) ?? [];
+  return mark?.[0] === fence[0] && mark.length >= fence.length && !rest.trim();
+}
+
 /**
  * The brief without the contact details a save added. Only marker lines
- * outside fenced code count, so a pasted example stays as written.
+ * outside fenced code count, so a pasted example stays as written. A fence
+ * that never closes protects nothing: the block a save appended after it
+ * still goes.
  */
 export function stripContactDetails(description: string): string {
   const lines = description.split("\n");
@@ -45,13 +53,12 @@ export function stripContactDetails(description: string): string {
   let changed = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? "";
-    const [, mark, rest = ""] = FENCE.exec(line) ?? [];
+    const [, mark] = FENCE.exec(line) ?? [];
     if (fence) {
-      // A closing fence: same character, at least as long, nothing after.
-      if (mark?.[0] === fence[0] && mark.length >= fence.length && !rest.trim())
-        fence = null;
+      if (closesFence(line, fence)) fence = null;
     } else if (mark) {
-      fence = mark;
+      if (lines.slice(i + 1).some((next) => closesFence(next, mark)))
+        fence = mark;
     } else if (line === TASK_CONTACT_DETAILS_START) {
       const end = detailsEnd(lines, i);
       if (end !== -1) {
@@ -73,14 +80,23 @@ export function unlinkContacts(markdown: string): string {
   return markdown.replace(TASK_CONTACT_LINK, "$1");
 }
 
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * What a person wrote in the brief: no contact details block, and each
- * contact link as one placeholder. A save rebuilds the block and points links
- * at a renamed or merged contact, so only a change outside those is new
- * instructions.
+ * Whether `next` keeps what a person wrote in `previous`. Besides the
+ * rebuilt details block and renamed or merged links, a save turns the link
+ * to an archived, missing or moved contact into its plain label, so each
+ * earlier link may come back as a link or as that label.
  */
-export function authoredTaskBrief(description: string): string {
-  return stripContactDetails(description)
-    .replace(TASK_CONTACT_LINK, "@contact")
-    .trim();
+export function sameAuthoredBrief(previous: string, next: string): boolean {
+  const before = stripContactDetails(previous).trim();
+  let pattern = "";
+  let last = 0;
+  for (const match of before.matchAll(TASK_CONTACT_LINK)) {
+    pattern += `${escapeRegExp(before.slice(last, match.index))}(?:${TASK_CONTACT_LINK.source}|${escapeRegExp(match[1] ?? "")})`;
+    last = match.index + match[0].length;
+  }
+  pattern += escapeRegExp(before.slice(last));
+  return new RegExp(`^${pattern}$`).test(stripContactDetails(next).trim());
 }
