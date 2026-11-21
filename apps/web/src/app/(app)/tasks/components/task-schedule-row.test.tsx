@@ -1,4 +1,4 @@
-import type { TaskSchedule } from "@sokosumi/core-client";
+import type { TaskScheduleListItem } from "@sokosumi/core-client";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -63,7 +63,9 @@ const OWNER: CoworkerOption = {
 
 const PROJECT = { id: "project_1", name: "Release planning", logo: null };
 
-function schedule(overrides: Partial<TaskSchedule> = {}): TaskSchedule {
+function schedule(
+  overrides: Partial<TaskScheduleListItem> = {},
+): TaskScheduleListItem {
   return {
     id: "01960001-0001-7001-8001-000000000001",
     creator: null,
@@ -99,11 +101,12 @@ function schedule(overrides: Partial<TaskSchedule> = {}): TaskSchedule {
     canWrite: true,
     canRunNow: true,
     canEditPlan: true,
+    lastTask: null,
     ...overrides,
   };
 }
 
-function renderRow(overrides: Partial<TaskSchedule> = {}) {
+function renderRow(overrides: Partial<TaskScheduleListItem> = {}) {
   return render(
     <ul>
       <TaskScheduleRow
@@ -135,6 +138,31 @@ describe("TaskScheduleRow", () => {
       "title",
       "Elena",
     );
+  });
+
+  it("links the newest Task it created, with that Task's status", () => {
+    renderRow({
+      lastTask: {
+        id: "task_1",
+        identifier: "REL-7",
+        name: "Weekly report",
+        status: "FAILED",
+      },
+    });
+
+    const link = screen.getByRole("link", {
+      name: "lastTaskLink(Weekly report, FAILED)",
+    });
+    expect(link).toHaveAttribute("href", "/tasks/REL-7-weekly-report");
+    expect(link).toHaveTextContent("lastTask");
+  });
+
+  it("says nothing about a last Task before the first one", () => {
+    renderRow();
+
+    expect(
+      screen.queryByRole("link", { name: /lastTaskLink/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("marks a workspace schedule as its own source", () => {

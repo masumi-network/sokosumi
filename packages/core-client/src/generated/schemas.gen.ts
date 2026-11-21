@@ -67359,6 +67359,99 @@ export const UndoMoveOverdueTasksRequestSchema = {
     ]
 } as const;
 
+export const TaskScheduleListItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/TaskSchedule'
+        },
+        {
+            type: 'object',
+            properties: {
+                lastTask: {
+                    type: [
+                        'object',
+                        'null'
+                    ],
+                    properties: {
+                        id: {
+                            type: 'string'
+                        },
+                        identifier: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        name: {
+                            type: 'string'
+                        },
+                        status: {
+                            $ref: '#/components/schemas/TaskStatus'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'identifier',
+                        'name',
+                        'status'
+                    ],
+                    description: 'The newest top-level, unarchived Task this schedule created that the caller can see. Its status is that Task\'s outcome, not whether the schedule\'s Runs are being released. Null when there is none.'
+                }
+            },
+            required: [
+                'lastTask'
+            ]
+        }
+    ]
+} as const;
+
+export const TaskScheduleStateSchema = {
+    type: 'string',
+    enum: [
+        'ACTIVE',
+        'PAUSED',
+        'ENDED'
+    ]
+} as const;
+
+export const TaskScheduleEndsModeSchema = {
+    type: 'string',
+    enum: [
+        'NEVER',
+        'ON',
+        'AFTER'
+    ]
+} as const;
+
+export const TaskScheduleSeoMonitorSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'page_check',
+                'rankings',
+                'links',
+                'audit_lite',
+                'audit_full'
+            ]
+        },
+        pageCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        auditId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The saved audit the monitor owner can open to review a full audit Run.'
+        }
+    },
+    required: [
+        'kind',
+        'pageCount'
+    ]
+} as const;
+
 export const TaskScheduleSchema = {
     type: 'object',
     properties: {
@@ -67593,53 +67686,6 @@ export const TaskScheduleSchema = {
         'canWrite',
         'canRunNow',
         'canEditPlan'
-    ]
-} as const;
-
-export const TaskScheduleStateSchema = {
-    type: 'string',
-    enum: [
-        'ACTIVE',
-        'PAUSED',
-        'ENDED'
-    ]
-} as const;
-
-export const TaskScheduleEndsModeSchema = {
-    type: 'string',
-    enum: [
-        'NEVER',
-        'ON',
-        'AFTER'
-    ]
-} as const;
-
-export const TaskScheduleSeoMonitorSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'page_check',
-                'rankings',
-                'links',
-                'audit_lite',
-                'audit_full'
-            ]
-        },
-        pageCount: {
-            type: 'integer',
-            minimum: 0
-        },
-        auditId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'The saved audit the monitor owner can open to review a full audit Run.'
-        }
-    },
-    required: [
-        'kind',
-        'pageCount'
     ]
 } as const;
 

@@ -1,12 +1,16 @@
 "use client";
 
-import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
+import {
+  type TaskScheduleListItem,
+  TaskScheduleState,
+} from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useOptimistic } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import {
   formatTaskScheduleRule,
   formatTaskScheduleTime,
@@ -29,9 +33,10 @@ import {
   TaskScheduleActions,
 } from "./task-schedule-actions";
 import { TaskScheduleStateBadge } from "./task-schedule-state-badge";
+import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskScheduleRowProps {
-  schedule: TaskSchedule;
+  schedule: TaskScheduleListItem;
   viewMode?: SchedulesViewMode;
   /** Names and avatars of stored assignees, wider than the create picker. */
   assigneeDisplayOptions: CoworkerOption[];
@@ -72,12 +77,13 @@ export function TaskScheduleRow({
 }: TaskScheduleRowProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const tSchedule = useTranslations("App.Tasks.Schedule");
+  const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const formatter = useFormatter();
   // A pause or resume shows at once. React drops this value when the action
   // ends: with the revalidated schedule, or alone when the change failed.
   const [schedule, showStateChange] = useOptimistic(
     savedSchedule,
-    (current, action: ScheduleToggleAction): TaskSchedule =>
+    (current, action: ScheduleToggleAction): TaskScheduleListItem =>
       action === "pause"
         ? { ...current, state: TaskScheduleState.PAUSED, nextRunAt: null }
         : { ...current, state: TaskScheduleState.ACTIVE },
@@ -184,6 +190,24 @@ export function TaskScheduleRow({
               })}
             </span>
             <span className="tabular-nums">{nextRunLabel}</span>
+            {/* The newest Task's own outcome; above the row's link so it opens that Task. */}
+            {schedule.lastTask ? (
+              <Link
+                aria-label={t("lastTaskLink", {
+                  name: schedule.lastTask.name,
+                  status: tStatus(schedule.lastTask.status),
+                })}
+                className="hover:text-foreground relative z-10 inline-flex min-h-6 items-center gap-1.5 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                href={taskHref(schedule.lastTask)}
+              >
+                {t("lastTask")}
+                <TaskStatusBadge
+                  className="rounded-sm"
+                  label={tStatus(schedule.lastTask.status)}
+                  status={schedule.lastTask.status}
+                />
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>

@@ -2508,6 +2508,8 @@
         "loadMoreError": "Weitere Zeitpläne ließen sich nicht laden.",
         "nextRun": "Nächster Lauf {datetime}",
         "noNextRun": "Kein anstehender Lauf",
+        "lastTask": "Letzter Task",
+        "lastTaskLink": "Letzter Task: {name}, {status}",
         "unassigned": "Nicht zugewiesen",
         "unavailableAssignee": "Nicht verfügbare Zuständigkeit",
         "workspace": "Workspace",

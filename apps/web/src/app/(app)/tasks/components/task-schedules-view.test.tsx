@@ -1,4 +1,7 @@
-import type { TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
+import type {
+  TaskScheduleListItem,
+  TaskScheduleState,
+} from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -92,7 +95,9 @@ const MEMBER: CoworkerOption = {
   kind: "user",
 };
 
-function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
+function schedule(
+  overrides: Partial<TaskScheduleListItem>,
+): TaskScheduleListItem {
   return {
     id: "01960001-0001-7001-8001-000000000001",
     creator: null,
@@ -128,12 +133,13 @@ function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
     canWrite: true,
     canRunNow: true,
     canEditPlan: true,
+    lastTask: null,
     ...overrides,
   };
 }
 
 function renderView(
-  schedules: TaskSchedule[],
+  schedules: TaskScheduleListItem[],
   {
     nextCursor = null,
     projectId = null,

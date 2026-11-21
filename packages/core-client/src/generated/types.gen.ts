@@ -16654,6 +16654,43 @@ export type UndoMoveOverdueTasksRequest = {
     }>;
 };
 
+export type TaskScheduleListItem = TaskSchedule & {
+    /**
+     * The newest top-level, unarchived Task this schedule created that the caller can see. Its status is that Task's outcome, not whether the schedule's Runs are being released. Null when there is none.
+     */
+    lastTask: {
+        id: string;
+        identifier: string | null;
+        name: string;
+        status: TaskStatus;
+    } | null;
+};
+
+export const TaskScheduleState = {
+    ACTIVE: 'ACTIVE',
+    PAUSED: 'PAUSED',
+    ENDED: 'ENDED'
+} as const;
+
+export type TaskScheduleState = typeof TaskScheduleState[keyof typeof TaskScheduleState];
+
+export const TaskScheduleEndsMode = {
+    NEVER: 'NEVER',
+    ON: 'ON',
+    AFTER: 'AFTER'
+} as const;
+
+export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof TaskScheduleEndsMode];
+
+export type TaskScheduleSeoMonitor = {
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    pageCount: number;
+    /**
+     * The saved audit the monitor owner can open to review a full audit Run.
+     */
+    auditId?: string;
+};
+
 export type TaskSchedule = {
     id: string;
     workspaceId: string;
@@ -16708,31 +16745,6 @@ export type TaskSchedule = {
      * The check and page count of an SEO monitor, so a client can write its plan sentence in the reader's language. Null for another schedule or a saved plan that no longer parses.
      */
     seoMonitor?: TaskScheduleSeoMonitor | null;
-};
-
-export const TaskScheduleState = {
-    ACTIVE: 'ACTIVE',
-    PAUSED: 'PAUSED',
-    ENDED: 'ENDED'
-} as const;
-
-export type TaskScheduleState = typeof TaskScheduleState[keyof typeof TaskScheduleState];
-
-export const TaskScheduleEndsMode = {
-    NEVER: 'NEVER',
-    ON: 'ON',
-    AFTER: 'AFTER'
-} as const;
-
-export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof TaskScheduleEndsMode];
-
-export type TaskScheduleSeoMonitor = {
-    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
-    pageCount: number;
-    /**
-     * The saved audit the monitor owner can open to review a full audit Run.
-     */
-    auditId?: string;
 };
 
 export type TaskScheduleAssignees = {
@@ -104449,7 +104461,7 @@ export type GetTasksSchedulesResponses = {
      * Task Schedules
      */
     200: {
-        data: Array<TaskSchedule>;
+        data: Array<TaskScheduleListItem>;
         meta: {
             timestamp: Date;
             requestId: string;

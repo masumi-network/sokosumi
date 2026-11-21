@@ -5,6 +5,7 @@ import type {
   CreateTaskScheduleRunRequest,
   TaskSchedule,
   TaskScheduleAssignees,
+  TaskScheduleListItem,
   TaskScheduleRun,
   TaskScheduleRunUpdate,
   TaskScheduleState,
@@ -22,7 +23,7 @@ export interface ListTaskSchedulesParams {
 }
 
 export interface TaskSchedulesPage {
-  schedules: TaskSchedule[];
+  schedules: TaskScheduleListItem[];
   nextCursor: string | null;
 }
 

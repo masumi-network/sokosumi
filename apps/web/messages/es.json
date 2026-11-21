@@ -2508,6 +2508,8 @@
         "loadMoreError": "No se pudieron cargar más programaciones.",
         "nextRun": "Próxima ejecución {datetime}",
         "noNextRun": "Sin próxima ejecución",
+        "lastTask": "Última tarea",
+        "lastTaskLink": "Última tarea: {name}, {status}",
         "unassigned": "Sin asignar",
         "unavailableAssignee": "Responsable no disponible",
         "workspace": "Espacio de trabajo",
