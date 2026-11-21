@@ -33,6 +33,7 @@ import {
   SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
+import { useLiveSokoBot } from "@/hooks/effects/use-live-soko-bot";
 import { usePersonalAssistantChromeVisible } from "@/hooks/effects/use-personal-assistant-chrome-visible";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -42,7 +43,6 @@ import {
   SIDEBAR_FEATURE_LABEL_CLASS,
   SidebarFeatureLabel,
 } from "./sidebar-feature-label";
-import { useLiveSokoBot } from "./use-live-soko-bot";
 
 /**
  * Soko Bots entry at the top of the sidebar: the team chart of everyone's

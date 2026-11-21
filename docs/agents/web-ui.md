@@ -151,6 +151,15 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-seo-connection-handoff` (`useSeoConnectionHandoff`) — StrictMode-safe `window.name` read-and-clear for the SEO OAuth callback return page
 - `use-cookie-consent-banner` (`useCookieConsentBanner`, `openCookieConsentPreferences`) — consent cookie hydration, OAuth brand lookup, reopen event subscription, and consent choice persistence
 - `use-conditional-passkey-autofill` (`useConditionalPasskeyAutofill`) — WebAuthn conditional passkey autofill lifecycle on sign-in (CMO also has `useCmoAppInitialUrl` under `apps/cmo/src/hooks/effects/use-cmo-app-initial-url.ts` and `useOnboardingReturnNotice` under `apps/cmo/src/hooks/effects/use-onboarding-return-notice.ts`)
+- `use-oauth-hand-back` (`useOAuthHandBack`) — one-shot OAuth provider hand-back with social sign-up conversion claim and optional auto-start on mount
+- `use-auto-context-switch` (`useAutoContextSwitch`) — one-shot workspace context switch on mount when active and target organizations differ
+- `use-account-notice-toast` (`useAccountNoticeToast`) — one-shot per-session `sessionStorage`-gated account notice toast
+- `use-email-change-return-notice` (`useEmailChangeReturnNotice`) — one-shot email-change return link toast, Core acknowledgement, and query parameter strip
+- `use-invalidate-project-scope-on-navigation` (`useInvalidateProjectScopeOnNavigation`) — invalidates the selected project-scope query when `pathname` changes after mount
+- `use-notification-service-worker-bridge` (`useNotificationServiceWorkerBridge`) — installs the notification service worker on mount when granted and wires click and banner-query handlers
+- `use-resume-task-follow-after-setup` (`useResumeTaskFollowAfterSetup`, `rememberFollowAfterSetup`) — consumes the one-shot `?follow=1` post-setup hand-off to follow a Task once the viewer's Soko Bot is available
+- `use-live-soko-bot` (`useLiveSokoBot`) — visibility-gated 5 s polling for the sidebar's Soko Bot status and last activity
+- `use-warm-likely-pages` (`useWarmLikelyPages`, `WARM_INTERVAL_MS`, `ACTIVE_WINDOW_MS`) — idle and interval prefetch loop for frequently visited pages while the tab is active
 
 ### React Query in migrations
 
