@@ -163,13 +163,14 @@ export function ProjectBrandProvider({
 
   // Browser storage exists only after hydration and the viewer once the
   // session loads, so a remembered failure comes in after the first render.
-  // The failure this page just saw keeps its `live` flag.
+  // The failure this page just saw keeps its `live` flag, and stays when
+  // storage could not keep it; a retry here clears it.
   useEffect(() => {
     const stored = viewerId
       ? readFailedProjectBrandGeneration(projectId, viewerId)
       : null;
     setFailure((current) =>
-      current && stored && current.failedAt === stored.failedAt
+      current?.live && (!stored || current.failedAt === stored.failedAt)
         ? current
         : stored,
     );

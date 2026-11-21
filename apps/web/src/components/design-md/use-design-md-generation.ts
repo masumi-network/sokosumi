@@ -148,6 +148,10 @@ export function useDesignMdGeneration({
             jobToken,
             owner,
           });
+          // Left while polling: the surface that resumes the pending job
+          // finishes it. Finalizing here could save this job's DESIGN.md
+          // over a newer one.
+          if (!mountedRef.current) return;
 
           if (!pollResult.ok) {
             failGeneration(
@@ -190,6 +194,7 @@ export function useDesignMdGeneration({
 
           completeGeneration(finalizeResult.value, attempt);
         } catch (error) {
+          if (!mountedRef.current) return;
           failGeneration(
             getUnknownErrorMessage(error, messages.generationFailed),
             attempt,

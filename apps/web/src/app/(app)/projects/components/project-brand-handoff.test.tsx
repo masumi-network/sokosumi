@@ -8,6 +8,7 @@ import {
 } from "@/app/projects/components/project-brand-card";
 import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
 import {
+  finalizeDesignMdGeneration,
   pollDesignMdGeneration,
   startDesignMdGeneration,
 } from "@/lib/actions/design-md/action";
@@ -100,7 +101,10 @@ describe("project brand generation across surfaces", () => {
     window.sessionStorage.clear();
     session.current = { data: { user: { id: "viewer-1" } } };
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it("shows a wizard failure on the project page without retrying", async () => {
     vi.mocked(startDesignMdGeneration).mockResolvedValue({
@@ -129,7 +133,7 @@ describe("project brand generation across surfaces", () => {
     expect(startDesignMdGeneration).toHaveBeenCalledOnce();
   });
 
-  it("ignores a late poll from a provider that has left", async () => {
+  it("ignores a late poll from a provider that has left, even a finished job", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     window.sessionStorage.setItem(
@@ -164,9 +168,16 @@ describe("project brand generation across surfaces", () => {
     );
     expect(window.sessionStorage.getItem(FAILURE_KEY)).toBeNull();
 
-    // The departed overview's poll answers late.
-    await act(async () => departedPoll.resolve(failedPoll));
+    // The departed overview's poll answers late that its job finished: it
+    // must not save that older DESIGN.md over the retry.
+    await act(async () =>
+      departedPoll.resolve({
+        ok: true,
+        value: { status: "done" },
+      } as PollResult),
+    );
 
+    expect(finalizeDesignMdGeneration).not.toHaveBeenCalled();
     expect(window.sessionStorage.getItem(FAILURE_KEY)).toBeNull();
     expect(window.sessionStorage.getItem(PENDING_KEY)).toContain("job-2");
     expect(screen.getByText("brandCard.generating")).toBeInTheDocument();
@@ -196,6 +207,35 @@ describe("project brand generation across surfaces", () => {
     expect(await screen.findByText("brandCard.generating")).toBeInTheDocument();
     expect(window.sessionStorage.getItem(PENDING_KEY)).toContain("job-1");
     expect(startDesignMdGeneration).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["no storage", () => true],
+    ["no room for the failure", (key: string) => key === FAILURE_KEY],
+  ])("keeps showing a failure it could not store (%s)", async (_, blocked) => {
+    const storage = window.sessionStorage;
+    vi.spyOn(window, "sessionStorage", "get").mockReturnValue({
+      getItem: (key: string) => storage.getItem(key),
+      removeItem: (key: string) => storage.removeItem(key),
+      setItem: (key: string, value: string) => {
+        if (blocked(key)) throw new Error("storage disabled");
+        storage.setItem(key, value);
+      },
+    } as Storage);
+    vi.mocked(startDesignMdGeneration).mockResolvedValue({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Could not resolve bad.invalid." },
+    } as StartResult);
+
+    render(overview());
+
+    expect(await screen.findByText("brandCard.failed")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "brandCard.websiteLabel" }),
+    ).toHaveAttribute("aria-invalid", "true");
+    expect(startDesignMdGeneration).toHaveBeenCalledOnce();
+    expect(storage.getItem(FAILURE_KEY)).toBeNull();
   });
 
   it("starts and resumes only once the viewer is known, so a failure is kept", async () => {

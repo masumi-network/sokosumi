@@ -205,7 +205,8 @@ function notifyChange(projectId: string): void {
  * an older one (a closed wizard, a provider that left) answering late
  * writes nothing. Without a viewer (session still loading) failures are not
  * kept, so callers start only once the viewer is known. `onFailureChange`
- * hears the new failure, or `null` when an attempt starts.
+ * hears the new failure, or `null` when an attempt starts; a caller that has
+ * left ignores it.
  */
 export function projectBrandJobCallbacks(
   projectId: string,
@@ -216,10 +217,14 @@ export function projectBrandJobCallbacks(
   return {
     onFailed: ({ attemptId, url }: { attemptId: string; url: string }) => {
       const website = projectBrandWebsite(url);
-      if (!owns(attemptId) || !viewerId || !website) return;
+      if (!website) return;
       const failure = { failedAt: new Date().toISOString(), website };
-      saveFailedProjectBrandGeneration(projectId, viewerId, failure);
+      // The hook reports only its own latest attempt, so the caller always
+      // hears it, even when storage is unavailable.
       onFailureChange?.(failure);
+      if (owns(attemptId) && viewerId) {
+        saveFailedProjectBrandGeneration(projectId, viewerId, failure);
+      }
     },
     onJobStarted: ({
       attemptId,
