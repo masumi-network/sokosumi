@@ -153,12 +153,7 @@ export function Sidebar({
           {BRAND.map(link)}
         </div>
       </div>
-      <CusoStatus
-        overview={overview}
-        view={view}
-        now={now}
-        onOpen={() => onSelect("today")}
-      />
+      <CusoStatus overview={overview} view={view} now={now} onOpen={onSelect} />
     </nav>
   );
 }

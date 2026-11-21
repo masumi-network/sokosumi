@@ -634,23 +634,32 @@ describe("Cuso on every page", () => {
     expect(rule(".cuso-figure")).toContain("pointer-events: none");
   });
 
-  it("stands on his light ground in both themes, so his black line reads", () => {
+  it("stands in his light porthole in both themes, so his black line reads", () => {
     expect(rule(".cuso-ground")).toContain("background: var(--stage)");
+    expect(rule(".cuso-ground")).toContain("border-radius: 50%");
   });
 
   it("leans no further into the page than its gutter", () => {
     const px = (name: string) =>
       Number(css.match(new RegExp(`${name}: (\\d+)px;`))?.[1]);
-    const tallest = Number(
-      rule(".cuso-figure").match(/--cuso-height: min\((\d+)px/)?.[1],
+    // The porthole stands against the sidebar's edge; he reaches past it.
+    const largest = Number(
+      rule(".cuso-figure").match(/--cuso-size: min\((\d+)px/)?.[1],
     );
-    const lean = Number(
-      rule(".cuso-figure").match(
-        /right: calc\(var\(--cuso-height\) \* -([\d.]+)\)/,
+    const reach = Number(
+      rule(".cuso-figure img").match(
+        /right: calc\(var\(--cuso-size\) \* -([\d.]+)\)/,
       )?.[1],
     );
-    expect(tallest * lean).toBeGreaterThan(0);
-    expect(tallest * lean).toBeLessThanOrEqual(px("--gutter") + px("--page-x"));
+    expect(rule(".cuso-figure")).toMatch(/\n\s*right: 0;/);
+    expect(largest * reach).toBeGreaterThan(0);
+    expect(largest * reach).toBeLessThanOrEqual(
+      px("--gutter") + px("--page-x"),
+    );
+  });
+
+  it("opens Today from a pill that shows where focus is", () => {
+    expect(css).toMatch(/a\.cuso-says:focus-visible \{[^}]*outline: 2px solid/);
   });
 
   it("moves only when motion is allowed", () => {
