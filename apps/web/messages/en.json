@@ -7502,7 +7502,7 @@
           "reasonPlaceholder": "Why are you moving the fleet? (required, recorded against every bot)",
           "notifyLabel": "Tell owners in their bot's chat",
           "notifyHint": "Each moved bot posts one fixed message saying which version it runs now and what changes for its owner. It does not start a turn.",
-          "notifyRequired": "Required for this version: it runs outside the EU, so every moved bot tells its owner. It does not start a turn.",
+          "notifyRequired": "Required: some of these bots run inside the EU now and this version runs outside it, so each of them tells its owner. It does not start a turn.",
           "confirm": "Move {count} bots",
           "nothingToMove": "Nothing to move for this selection.",
           "done": "Moved {moved} bots.",
