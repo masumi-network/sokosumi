@@ -737,7 +737,7 @@ export function socialPostNotSent(post: {
   if (post.status === "MISSED") return "It missed its time.";
   if (post.status !== "FAILED") return null;
   if (PAUSED_ERROR.test(error)) {
-    return `${network} paused our posting for a day, so it didn't go out. Ask Cuso to post it again.`;
+    return `${network} paused our posting for a day. Ask Cuso to post it again.`;
   }
   if (RECONNECT_ERROR.test(error)) {
     return `${network} needs reconnecting in Channels.`;
