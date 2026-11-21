@@ -7,6 +7,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { createOrGetCoworkerQuestionRoom } from "@/lib/soko-bot/coworker-question-room";
 import { directChatNeedle } from "@/lib/soko-bot/direct-chat-target";
+import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { resolveMentionedSokoBotIds } from "@/routes/v1/chats/rooms/helpers";
 import {
   type AuthorizedSokoBotRuntime,
@@ -420,6 +421,31 @@ async function deliverNow(turnId: string, toolCallId: string) {
   await deliverSokoBotEffect(effect.id);
 }
 
+/**
+ * The receipt was written when the message went out; the answer came after.
+ * Kept on it, so the answer's links count as sources and a later turn can
+ * read what they said.
+ */
+async function recordReply(
+  turnId: string,
+  toolCallId: string,
+  extra: Record<string, unknown>,
+) {
+  const where = { turnId_toolCallId: { turnId, toolCallId } };
+  const row = await prisma.sokoBotToolCall.findUnique({
+    where,
+    select: { result: true },
+  });
+  const base =
+    row?.result && typeof row.result === "object" && !Array.isArray(row.result)
+      ? row.result
+      : {};
+  await prisma.sokoBotToolCall.update({
+    where,
+    data: { result: persistedToolResult({ ...base, ...extra }) },
+  });
+}
+
 export async function sendMessage(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
@@ -493,7 +519,10 @@ export async function sendMessage(
   };
   while (waitMs > 0 && Date.now() - startedAt < waitMs) {
     const reply = await chatReplyOutcome(watch);
-    if (reply) return { ...result, reply };
+    if (reply) {
+      await recordReply(authorized.turn.id, input.toolCallId, { reply });
+      return { ...result, reply };
+    }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
   if (!input.then)

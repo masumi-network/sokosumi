@@ -6,7 +6,11 @@ const { db, watches, taint, deliver } = vi.hoisted(() => ({
     sokoBot: { findMany: vi.fn() },
     chatRoom: { findMany: vi.fn(), findFirst: vi.fn() },
     sokoBotTurn: { findMany: vi.fn() },
-    sokoBotToolCall: { findMany: vi.fn() },
+    sokoBotToolCall: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
     sokoBotEffectOutbox: { findFirst: vi.fn() },
   },
   watches: {
@@ -157,6 +161,14 @@ describe("sendMessage", () => {
       }),
     );
     expect(deliver.deliverSokoBotEffect).toHaveBeenCalledWith("effect-1");
+    // Kept on the receipt: its links are sources, and later turns can read it.
+    expect(db.sokoBotToolCall.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          result: expect.objectContaining({ reply: "- Mira: €25 per seat." }),
+        },
+      }),
+    );
     expect(result).toMatchObject({
       reply: "- Mira: €25 per seat.",
       messagesToThem: 1,
