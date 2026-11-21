@@ -27,6 +27,7 @@ import type { FileStore } from "@/lib/utils/file-search.client";
 import { rowLabel } from "./data-room-activity";
 
 const NO_FOLDER = "none";
+const EMAIL_FIELDS = new Set<string>(["contactEmail", "eu.email", "uk.email"]);
 
 type TextField = Exclude<
   keyof DataRoomCompany,
@@ -198,6 +199,7 @@ export function DataRoomCompanyPanel({
                 <Control
                   id={id}
                   rows={multiline ? 3 : undefined}
+                  type={EMAIL_FIELDS.has(field) ? "email" : undefined}
                   value={draft[field]}
                   onChange={(event) =>
                     setDraft((previous) => ({

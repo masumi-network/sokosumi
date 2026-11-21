@@ -66,6 +66,26 @@ describe("DataRoomCompanyPanel", () => {
     expect(onChanged).toHaveBeenCalled();
   });
 
+  it.each(["fields.contactEmail", "fields.eu.email", "fields.uk.email"])(
+    "refuses to save a %s that is not an email address",
+    async (label) => {
+      render(
+        <DataRoomCompanyPanel
+          store={store}
+          room={room}
+          rows={[]}
+          onChanged={vi.fn()}
+        />,
+      );
+      const field = screen.getByLabelText(label);
+      await userEvent.type(field, "legal-at-sumico");
+      await userEvent.click(screen.getByRole("button", { name: "save" }));
+
+      expect(field).toBeInvalid();
+      expect(api.updateDataRoom).not.toHaveBeenCalled();
+    },
+  );
+
   it("removes the Company page when the legal name is cleared", async () => {
     render(
       <DataRoomCompanyPanel

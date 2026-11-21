@@ -164,7 +164,8 @@ export function TableFindReplace({
             void (ready ? handleApply(ready) : handleFind());
           }}
         >
-          <fieldset disabled={pending || locked} className="grid gap-4">
+          {/* Read-only, not disabled, while searching: disabling the focused field drops focus. */}
+          <fieldset disabled={locked} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="find-replace-column">
                 {t("findReplace.column")}
@@ -175,6 +176,7 @@ export function TableFindReplace({
                   "bg-background h-10 rounded-md border px-3 py-2",
                 )}
                 value={columnId}
+                disabled={pending}
                 onChange={(event) => edit(setColumnId)(event.target.value)}
               >
                 {columns.map((item) => (
@@ -189,6 +191,7 @@ export function TableFindReplace({
               <Field
                 id="find-replace-find"
                 value={find}
+                readOnly={pending}
                 required
                 autoComplete="off"
                 onChange={(event) => edit(setFind)(event.target.value)}
@@ -201,6 +204,7 @@ export function TableFindReplace({
               <Field
                 id="find-replace-replace"
                 value={replace}
+                readOnly={pending}
                 autoComplete="off"
                 placeholder={t("findReplace.replaceEmpty")}
                 onChange={(event) => edit(setReplace)(event.target.value)}
