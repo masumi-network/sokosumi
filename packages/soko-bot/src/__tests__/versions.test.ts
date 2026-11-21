@@ -150,7 +150,7 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v34");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).toContain("enabledProviders");
@@ -208,7 +208,7 @@ describe("versions", () => {
   it("lets v33 read and follow a Project's posting instructions before drafting", () => {
     const v32 = getSokoBotVersion("v32");
     const v33 = getSokoBotVersion("v33");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v34");
     expect(v33.model).toBe(v32.model);
     expect(v33.systemPrompt).toBe(v32.systemPrompt);
     expect(v33.skills).toEqual(

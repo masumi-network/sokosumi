@@ -1,4 +1,5 @@
 import type { SokoBotVersion, TurnClassification } from "@sokosumi/soko-bot";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 
 /**
  * Why a turn runs on the model it does. Stored on the turn beside `modelId`.
@@ -7,6 +8,7 @@ import type { SokoBotVersion, TurnClassification } from "@sokosumi/soko-bot";
  */
 export type TurnModelReason =
   | "default"
+  | "strategy"
   | "background_run"
   | "orchestration"
   | "complex"
@@ -65,6 +67,9 @@ export function chooseTurnModel(input: TurnModelInput): {
 export const BACKGROUND_RUN_CLIENT_TURN_PREFIX = "background:";
 
 function strongReason(input: TurnModelInput): TurnModelReason | null {
+  // Every strategy turn: a plan, a patch, a Brand Brain fix or a finish round
+  // (owner, 2026-11-21). Sol passed all 11 strategy cases, Luna 7.
+  if (input.clientTurnId.startsWith(STRATEGY_TURN_PREFIX)) return "strategy";
   if (
     input.background &&
     input.clientTurnId.startsWith(BACKGROUND_RUN_CLIENT_TURN_PREFIX)

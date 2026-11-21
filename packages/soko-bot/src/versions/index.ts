@@ -102,7 +102,7 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v33,
   v34,
 ];
-export const DEFAULT_SOKO_BOT_VERSION_ID = "v33";
+export const DEFAULT_SOKO_BOT_VERSION_ID = "v34";
 
 /**
  * Versions of other products built on Soko Bots (CMO's Cuso). Kept out of
@@ -123,7 +123,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
-export const CMO_SOKO_BOT_VERSION_ID = cmoV8.id;
+export const CMO_SOKO_BOT_VERSION_ID = cmoV10.id;
 /**
  * Every Cuso version. A Cuso stays on the version he was hired on until he is
  * moved, so finding one means any of these, never only the newest.

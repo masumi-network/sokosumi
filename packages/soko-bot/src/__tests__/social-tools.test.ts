@@ -190,7 +190,7 @@ describe("Social tool contracts", () => {
         "# Social performance",
       );
     }
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v34");
   });
 
   it("tells the bot to read posting instructions before drafting", () => {
