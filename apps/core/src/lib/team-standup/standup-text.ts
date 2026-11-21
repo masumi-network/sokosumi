@@ -1,3 +1,5 @@
+import { handoffRequestBlock } from "@/lib/soko-bot/handoff-request";
+
 /**
  * The stand-up thread as people read it: what needs a person first, then the
  * matches, then one line per agent, then one summary line. Pure, so the text
@@ -155,11 +157,13 @@ export function handoffMessage(input: {
   return [
     `@${input.offeringHandle} from today's stand-up: ${input.askedFor}`,
     "",
-    "Request",
-    `- Goal: ${input.need}`,
-    `- Background: ${input.context}`,
-    "- What I need back: what you already have on this (findings, files or links), or say you have nothing.",
-    "- By: today",
+    handoffRequestBlock({
+      goal: input.need,
+      background: input.context,
+      deliverable:
+        "what you already have on this (findings, files or links), or say you have nothing.",
+      deadline: "today",
+    }),
     "",
     "Just answer here; nobody is starting paid work from this.",
   ].join("\n");

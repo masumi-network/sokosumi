@@ -92,6 +92,8 @@ export interface SokoBotScenarioExchange {
   maxFollowUps: number;
   /** Assistant messages the bot may post in rooms over the whole chain. */
   maxBotMessages?: number;
+  /** The bot must hand the work over with send_message's structured `request`. */
+  expectsRequest?: boolean;
 }
 
 export interface SokoBotScenario {

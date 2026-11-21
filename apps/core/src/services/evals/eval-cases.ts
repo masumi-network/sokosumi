@@ -117,6 +117,8 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "break-task-into-subtasks": "Delegation",
   "move-task-under-parent": "Delegation",
   "a2a-ask-and-relay": "Agent to agent",
+  "a2a-remembers-answer": "Agent to agent",
+  "a2a-structured-handoff": "Agent to agent",
   "a2a-multi-turn": "Agent to agent",
   "a2a-asks-back": "Agent to agent",
   "a2a-no-answer": "Agent to agent",
