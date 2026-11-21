@@ -1292,6 +1292,42 @@ export type SokoBot = {
     updatedAt: Date;
 };
 
+export type SokoBotConversation = {
+    turnId: string;
+    steps: Array<{
+        kind: 'turn';
+        at: string;
+        turnId: string;
+        title: string;
+        status: string;
+        model: string | null;
+        costUsd: number | null;
+        durationMs: number | null;
+    } | {
+        kind: 'asked';
+        at: string;
+        by: string;
+        to: string;
+        room: string;
+        text: string;
+    } | {
+        kind: 'answered';
+        at: string;
+        by: string;
+        byKind: 'person' | 'coworker' | 'assistant';
+        room: string;
+        text: string;
+        model: string | null;
+        costUsd: number | null;
+        durationMs: number | null;
+    }>;
+    totals: {
+        costUsd: number;
+        durationMs: number;
+        models: Array<string>;
+    };
+};
+
 export type AdminSokoBotActionRequest = {
     operationId: string;
     action: 'PAUSE' | 'RESUME' | 'RESET_SESSION' | 'RESET_MEMORY' | 'RETRY_LAST_FAILED' | 'RETRY_SCHEDULE_RUN' | 'DISABLE_SCHEDULE' | 'SET_VERSION';
@@ -20696,6 +20732,81 @@ export type GetAdminSokoBotTurnResponses = {
 };
 
 export type GetAdminSokoBotTurnResponse = GetAdminSokoBotTurnResponses[keyof GetAdminSokoBotTurnResponses];
+
+export type GetAdminSokoBotTurnConversationData = {
+    body?: never;
+    path: {
+        turnId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/turns/{turnId}/conversation';
+};
+
+export type GetAdminSokoBotTurnConversationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotTurnConversationError = GetAdminSokoBotTurnConversationErrors[keyof GetAdminSokoBotTurnConversationErrors];
+
+export type GetAdminSokoBotTurnConversationResponses = {
+    /**
+     * The conversation
+     */
+    200: {
+        data: SokoBotConversation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotTurnConversationResponse = GetAdminSokoBotTurnConversationResponses[keyof GetAdminSokoBotTurnConversationResponses];
 
 export type PerformAdminSokoBotActionData = {
     body?: AdminSokoBotActionRequest;
@@ -97145,6 +97256,66 @@ export type SendMySokoBotTurnFeedbackResponses = {
 };
 
 export type SendMySokoBotTurnFeedbackResponse = SendMySokoBotTurnFeedbackResponses[keyof SendMySokoBotTurnFeedbackResponses];
+
+export type GetMySokoBotTurnConversationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/turns/{id}/conversation';
+};
+
+export type GetMySokoBotTurnConversationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotTurnConversationError = GetMySokoBotTurnConversationErrors[keyof GetMySokoBotTurnConversationErrors];
+
+export type GetMySokoBotTurnConversationResponses = {
+    /**
+     * The conversation
+     */
+    200: {
+        data: SokoBotConversation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotTurnConversationResponse = GetMySokoBotTurnConversationResponses[keyof GetMySokoBotTurnConversationResponses];
 
 export type UpdateMySokoBotBoardFollowingData = {
     body?: UpdateSokoBotBoardFollowingRequest;

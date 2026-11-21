@@ -14,6 +14,7 @@ import {
   getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
   getAdminSokoBotTurn as coreGetAdminSokoBotTurn,
+  getAdminSokoBotTurnConversation as coreGetAdminSokoBotTurnConversation,
   getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminWritingSkills as coreGetAdminWritingSkills,
   listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
@@ -155,6 +156,19 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getAdminSokoBotTurnConversation(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotTurnConversation({
+          client,
+          path: { turnId },
+          cache: "no-store",
+        }),
+      "Failed to fetch the conversation",
+    );
+  }
+
   async function listAdminSokoBotChats(sokoBotId: string) {
     return executeCoreOperation(
       getClient,
@@ -283,6 +297,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     getAdminSokoBotFleetDays,
     getAdminSokoBot,
     getAdminSokoBotTurn,
+    getAdminSokoBotTurnConversation,
     listAdminSokoBotChats,
     listAdminSokoBotChatMessages,
     performAdminSokoBotAction,

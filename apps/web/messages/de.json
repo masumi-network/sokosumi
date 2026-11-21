@@ -1817,6 +1817,15 @@
           "scheduled": "Geplant: {name}",
           "background": "Hintergrundauftrag: {name}",
           "taskUpdate": "Task-Update"
+        },
+        "Conversation": {
+          "open": "Wie ich darauf kam",
+          "title": "Wie ich darauf kam",
+          "asked": "{by} fragte {to}",
+          "answered": "{by} antwortete",
+          "totals": "{cost} · {time} · {models}",
+          "loading": "Wird geladen…",
+          "error": "Das Gespräch konnte nicht geladen werden."
         }
       }
     },
@@ -7101,7 +7110,7 @@
           "counts": "Zähler",
           "omissions": "Auslassungen",
           "noSnapshot": "Für diesen Turn ist kein Kontext-Snapshot gespeichert.",
-          "conversation": "Unterhaltung",
+          "conversation": "Wen er gefragt hat, was zurückkam, und Modell, Kosten und Zeit je Schritt",
           "user": "Nutzer",
           "answer": "Antwort",
           "activity": "Aktivität",

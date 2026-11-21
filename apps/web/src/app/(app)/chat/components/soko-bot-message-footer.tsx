@@ -27,6 +27,7 @@ import { sendSokoBotTurnFeedbackAction } from "@/lib/actions/soko-bot/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
+import { SokoBotConversationButton } from "./soko-bot-conversation-dialog";
 
 interface SokoBotMessageMetadata {
   turn_id: string;
@@ -190,6 +191,10 @@ export function SokoBotFeedbackButtons({
   ];
   return (
     <>
+      <SokoBotConversationButton
+        turnId={turnId}
+        buttonClassName={buttonClassName}
+      />
       {options.map(({ useful, Icon, label }) => (
         <Button
           key={label}

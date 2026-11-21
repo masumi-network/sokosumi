@@ -1817,6 +1817,15 @@
           "scheduled": "Scheduled: {name}",
           "background": "Background run: {name}",
           "taskUpdate": "Task update"
+        },
+        "Conversation": {
+          "open": "How I got this",
+          "title": "How I got this",
+          "asked": "{by} asked {to}",
+          "answered": "{by} answered",
+          "totals": "{cost} · {time} · {models}",
+          "loading": "Loading…",
+          "error": "Could not load the conversation."
         }
       }
     },
@@ -7137,7 +7146,7 @@
           "counts": "Counts",
           "omissions": "Omissions",
           "noSnapshot": "No context snapshot stored for this turn.",
-          "conversation": "Conversation",
+          "conversation": "Who it asked, what came back, and each step's model, cost and time",
           "user": "User",
           "answer": "Answer",
           "activity": "Activity",

@@ -6,6 +6,7 @@ import type {
   AdminSokoBotVersionMigrationResult,
   ChatRoomMessage,
   SokoBotAvailability,
+  SokoBotConversation,
   SokoBotDeletionResult,
   SokoBotVersionDetail,
 } from "@sokosumi/core-client";
@@ -167,6 +168,26 @@ export const loadAdminSokoBotChatPageAction = withSession<
           parsed.data.cursor,
         ),
       ),
+    );
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+/** Any bot's conversation around a turn: who asked whom, each step's model, cost and time. */
+export const getAdminSokoBotTurnConversationAction = withSession<
+  AuthenticatedRequest & { turnId: unknown },
+  ActionResultDto<SokoBotConversation, ActionError>
+>(async ({ session, turnId }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = z.string().uuid().safeParse(turnId);
+    if (!parsed.success)
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    return toActionResult(
+      ok(await adminSokoBotService.turnConversation(parsed.data)),
     );
   } catch (error) {
     return toActionResult(err(mapError(error)));
