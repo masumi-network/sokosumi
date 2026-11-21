@@ -27,6 +27,7 @@ import { type Cuso, findCusoForBot } from "./cmo-cuso.service";
 import {
   markCmoLandingPageLive,
   readCmoSeo,
+  requestCmoArticleIdeas,
   saveCmoSeoSuggestions,
   searchCmoKeywords,
   setCmoSeoSuggestionStatus,
@@ -735,6 +736,30 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         where: { projectId, source: "cuso", kind: "page_change" },
       });
       await prisma.projectSeoResearch.delete({ where: { id: gsc.id } });
+    }
+  });
+
+  it("joins an article request that is still under way instead of starting a second one", async () => {
+    const running = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: cuso.sokoBotId,
+        workspaceId,
+        requestedByUserId: userId,
+        source: "EVENT",
+        status: "RUNNING",
+        clientTurnId: `cmo:seo-ideas:${cuso.sokoBotId}:1`,
+        userMessage: "The owner asked for more article ideas",
+        capabilityNames: [],
+        deadlineAt: new Date(Date.now() + 600_000),
+      },
+      select: { id: true },
+    });
+    try {
+      expect(await requestCmoArticleIdeas({ userId, projectId })).toEqual({
+        turnId: running.id,
+      });
+    } finally {
+      await prisma.sokoBotTurn.delete({ where: { id: running.id } });
     }
   });
 

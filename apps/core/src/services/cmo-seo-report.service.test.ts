@@ -19,7 +19,10 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   startCmoTurn: start,
 }));
 
-import { startCmoSeoReport } from "./cmo-seo-report.service";
+import {
+  CMO_SEO_REPORT_ROUTE,
+  startCmoSeoReport,
+} from "./cmo-seo-report.service";
 
 const cuso = {
   sokoBotId: "bot-1",
@@ -55,6 +58,21 @@ describe("startCmoSeoReport", () => {
     db.sokoBotTurn.findFirst.mockResolvedValue({ id: "turn-1" });
     await startCmoSeoReport(cuso, now);
     expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it("posts one message: no report card or chat post of its own, and the SEO tools it needs", () => {
+    const tools = CMO_SEO_REPORT_ROUTE.capabilities ?? [];
+    for (const tool of ["report_update", "post_chat", "check_search_rankings"])
+      expect(tools).not.toContain(tool);
+    for (const tool of ["read_seo", "save_seo_suggestions", "web_fetch"])
+      expect(tools).toContain(tool);
+  });
+
+  it("starts nothing when another sync already started the audit's turn", async () => {
+    start.mockRejectedValueOnce(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+    await expect(startCmoSeoReport(cuso, now)).resolves.toBeUndefined();
   });
 
   it("leaves Cusos before cmo-v12 and old audits alone", async () => {

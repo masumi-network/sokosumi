@@ -722,13 +722,36 @@ export async function readCmoSeo(
   };
 }
 
+/**
+ * The same SEO request of this Cuso's that is still under way: a second
+ * press joins it, so the owner gets one answer, not two of the same.
+ */
+async function seoTurnUnderWay(
+  sokoBotId: string,
+  prefix: string,
+): Promise<{ turnId: string } | null> {
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId,
+      clientTurnId: { startsWith: prefix },
+      status: { in: ["QUEUED", "STARTING", "RUNNING"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  return turn ? { turnId: turn.id } : null;
+}
+
 /** "More article ideas": Cuso researches and saves new articles; his answer lands in the chat. */
 export async function requestCmoArticleIdeas(
   target: CusoTarget,
 ): Promise<{ turnId: string }> {
   const cuso = await requireCuso(target);
+  const prefix = `cmo:seo-ideas:${cuso.sokoBotId}:`;
+  const underWay = await seoTurnUnderWay(cuso.sokoBotId, prefix);
+  if (underWay) return underWay;
   return startCmoTurn(cuso, target.userId, {
-    clientTurnId: `cmo:seo-ideas:${cuso.sokoBotId}:${Date.now()}`,
+    clientTurnId: `${prefix}${Date.now()}`,
     message: [
       `The owner asked for more article ideas for ${cuso.businessName}'s website (SEO tab).`,
       "Call read_seo, then research_keywords on two or three topics the Brand Brain says buyers search for and the site does not cover yet. Pick three keywords with real searches, a difficulty the site can win and the intent of a future customer, and that no open article already targets.",
@@ -745,8 +768,11 @@ export async function requestCmoArticle(
   target: CusoTarget,
 ): Promise<{ turnId: string }> {
   const cuso = await requireCuso(target);
+  const prefix = `cmo:seo-article:${cuso.sokoBotId}:`;
+  const underWay = await seoTurnUnderWay(cuso.sokoBotId, prefix);
+  if (underWay) return underWay;
   return startCmoTurn(cuso, target.userId, {
-    clientTurnId: `cmo:seo-article:${cuso.sokoBotId}:${Date.now()}`,
+    clientTurnId: `${prefix}${Date.now()}`,
     message: [
       `The owner asked you to write one new article for ${cuso.businessName}'s website (SEO page).`,
       "Call read_seo, then research_keywords on one or two topics the Brand Brain says buyers search for. Pick the one search worth most that no open article targets: a monthly volume from research, or one Google already shows the site for in Search Console (impressions, a position below the top three).",
