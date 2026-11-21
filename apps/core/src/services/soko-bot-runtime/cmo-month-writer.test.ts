@@ -27,6 +27,7 @@ vi.mock("@/lib/soko-bot/turn-loop", () => ({
     append = m.append;
   },
   runtimeEvent: (type: string, data: unknown) => ({ type, data }),
+  sokoBotToolCallTimeoutMs: () => 115_000,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -70,7 +71,9 @@ vi.mock("@/services/social-posts.service", () => ({
 
 import {
   cmoChunkProof,
+  cmoMonthWriterBudgetMs,
   cmoWriterChunks,
+  cmoWriterModelTimeoutMs,
   writeCmoMonthPieces,
 } from "./cmo-month-writer";
 
@@ -487,6 +490,39 @@ describe("writeCmoMonthPieces", () => {
       .filter((call) => call.capability === "update_social_post")
       .map((call) => call.input.text);
     expect(texts).toEqual(["Words of p1", "Words of p2", "Fresh p2"]);
+  });
+
+  it("answers inside its tool timeout when the chunks were slow", async () => {
+    // NMKR's test copy, 2026-11-21: calls took 96 to 119 s against a 90 s
+    // limit, so Cuso read "timed out twice" and ended the run.
+    let now = Date.parse("2026-11-21T08:31:49Z");
+    const start = now;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy,
+        pending: [piece("p1")],
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({ strategy, pending: [], failedMedia: new Set() });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText.mockImplementation(async () => {
+      now += 90_000;
+      return { output: { pieces: [written("p1")] } };
+    });
+    await writeCmoMonthPieces(runtime() as never, input, authorized);
+    clock.mockRestore();
+
+    // The month's checks would have run past the deadline: the next call does them.
+    expect(m.draftProblems).not.toHaveBeenCalled();
+    expect(now - start).toBeLessThan(115_000);
+  });
+
+  it("gives a model call only what the deadline leaves", () => {
+    expect(cmoWriterModelTimeoutMs(100_000, 0)).toBe(75_000);
+    expect(cmoWriterModelTimeoutMs(100_000, 50_000)).toBe(35_000);
+    expect(cmoWriterModelTimeoutMs(100_000, 90_000)).toBe(0);
+    expect(cmoMonthWriterBudgetMs()).toBe(100_000);
   });
 
   it("leaves pictures to the brand's own pictures where no library is set up", async () => {

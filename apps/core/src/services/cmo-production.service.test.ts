@@ -76,8 +76,14 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: botFindUnique,
     },
     polarSubscription: { findFirst: subscriptionFindFirst },
+    $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
+      work({
+        $queryRaw: async () => [{ locked: productionLock.free }],
+        sokoBotTurn: { count: turnCount },
+      }),
   },
 }));
+const productionLock = vi.hoisted(() => ({ free: true }));
 
 vi.mock("@/services/cmo-cuso.service", () => ({
   findCusoForBot: vi.fn(),
@@ -983,6 +989,47 @@ describe("advanceCmoProduction", () => {
     pgClock.now = nextDay;
     await advanceCmoProduction(cuso([post({})], runs), nextDay);
     expect(startTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps making the month after four runs in a day that each made pieces", async () => {
+    // NMKR's test copy, 2026-11-21: four runs in 11 minutes made 67 of 171
+    // pieces, and the cap then held the rest for a day.
+    pgClock.now = NOW;
+    const posts = [
+      post({ id: "a", date: "2026-11-05", draft: "Done." }),
+      post({ id: "b", date: "2026-11-06", draft: "Done." }),
+      post({ id: "c", date: "2026-11-07", draft: "Done." }),
+      post({ id: "d", date: "2026-11-08" }),
+    ];
+    const runs = [
+      [4, 2],
+      [3, 2],
+      [2, 1],
+      [1, 0],
+    ].map(([attempt, ready], index) => ({
+      clientTurnId: `${RUN}:${attempt}:${ready}`,
+      status: "COMPLETED",
+      createdAt: new Date(NOW.getTime() - (index + 1) * 60_000),
+    }));
+    const status = await advanceCmoProduction(cuso(posts, runs), NOW);
+    expect(status.state).toBe("running");
+    expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:5:3`);
+  });
+
+  it("starts an attempt once when a run's end and the sync race", async () => {
+    // NMKR's test copy, 2026-11-21: attempt 3 started twice, 0.6 s apart.
+    turnCount.mockImplementation(
+      async (args: { where: { clientTurnId?: { startsWith?: string } } }) =>
+        args.where.clientTurnId?.startsWith === `${RUN}:1:` ? 1 : 0,
+    );
+    const status = await advanceCmoProduction(cuso([post({})]), NOW);
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(status.state).not.toBe("running");
+    turnCount.mockResolvedValue(0);
+    productionLock.free = false;
+    await advanceCmoProduction(cuso([post({})]), NOW);
+    productionLock.free = true;
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("waits a day when the last run made nothing ready", async () => {

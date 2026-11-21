@@ -35,7 +35,18 @@ import {
   RuntimeEventLog,
   runtimeEvent,
   sokoBotMaxSteps,
+  sokoBotToolCallTimeoutMs,
 } from "./turn-loop";
+
+describe("sokoBotToolCallTimeoutMs", () => {
+  it("gives the month writer its time, inside the sandbox runner's two minutes", () => {
+    expect(sokoBotToolCallTimeoutMs("write_month_pieces")).toBe(115_000);
+    expect(sokoBotToolCallTimeoutMs("write_month_pieces")).toBeLessThan(
+      120_000,
+    );
+    expect(sokoBotToolCallTimeoutMs("save_strategy")).toBe(90_000);
+  });
+});
 
 describe("RuntimeEventLog", () => {
   it("gives a large batch of parallel requests one slot each, under the turn's lock", async () => {
