@@ -14,6 +14,7 @@ import {
   ImageRun,
   PageNumber,
   Paragraph,
+  ShadingType,
   TextRun,
 } from "docx";
 import { type EmptyNode, type IPlugin, toDocx } from "mdast2docx";
@@ -255,7 +256,12 @@ export async function POST(request: NextRequest) {
               } as unknown as Record<string, unknown>,
               {
                 plugins: [
-                  tablePlugin(),
+                  // The default `solid` header fill paints Word's pattern colour (black) over the header text.
+                  tablePlugin({
+                    firstRowCellProps: {
+                      shading: { type: ShadingType.CLEAR, fill: "b79c2f" },
+                    },
+                  }),
                   // imagePlugin parses SVG with the DOM from setupDomContext. It never
                   // loads the optional @xmldom/xmldom peer, so the lockfile omits it.
                   imagePlugin({

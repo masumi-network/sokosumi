@@ -62,6 +62,12 @@ describe("POST /api/export/docx structure", () => {
       '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="4"/></w:numPr>',
     ]);
     expect(xml).toContain("<w:tbl>");
+    // A `solid` header fill paints the pattern colour (black) over the text; `clear` shows the fill.
+    expect(xml).not.toContain('w:val="solid"');
+    expect(xml.match(/<w:shd [^>]*\/>/g)).toEqual(
+      Array(2).fill('<w:shd w:fill="b79c2f" w:val="clear"/>'),
+    );
+    expect(xml).toMatch(/w:val="clear"\/>.*?<w:b\/>.*?Channel</);
     for (const text of ["Launch plan", "LinkedIn", "Review", "Budget", "500"])
       expect(xml).toContain(text);
   });
