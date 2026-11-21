@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { CoreHttpClient } from "../../api/http-client.js";
 import {
   type CommandContext,
@@ -15,6 +18,7 @@ import {
  *   sokosumi evals run --suite cmo --repeats 1 --wait
  *   sokosumi evals run --cases ambiguous-request,chat-post --wait --tick
  *   sokosumi evals show RUN_ID --markdown
+ *   sokosumi evals show RUN_ID --summary-md --slug cmo-v8
  */
 interface EvalsCommandContext extends CommandContext {
   subcommand?: string;
@@ -46,6 +50,7 @@ interface EvalRun {
   suites: string[];
   repeats: number;
   commitSha: string | null;
+  commitMessage?: string | null;
   prNumber: number | null;
   environment: string;
   models: Record<string, string | null>;
@@ -65,7 +70,8 @@ interface EvalCaseReport {
     status: string;
     error: string | null;
     checks: { label: string; pass: boolean; actual: string }[];
-    judge: { verdict?: string; issues?: string[] } | null;
+    judge: { verdict?: string; rationale?: string; issues?: string[] } | null;
+    judgeModel?: string | null;
   }[];
 }
 
@@ -185,6 +191,159 @@ function formatReportMarkdown(report: EvalRunReport): string[] {
   return lines;
 }
 
+function bots(models: EvalRun["models"]): string {
+  const bot = (name: string, version?: string | null, model?: string | null) =>
+    version ? `${name} ${version}${model ? ` (${model})` : ""}` : null;
+  return (
+    [
+      bot("Soko Bot", models.sokoBotVersionId, models.sokoBotModel),
+      bot("Cuso", models.cusoVersionId, models.cusoModel),
+    ]
+      .filter(Boolean)
+      .join(", ") || "not recorded"
+  );
+}
+
+function failedCaseLines(evalCase: EvalCaseReport): string[] {
+  const checks = new Set(
+    evalCase.results.flatMap((result) =>
+      result.checks
+        .filter((check) => !check.pass)
+        .map((check) => `${check.label}: ${check.actual}`),
+    ),
+  );
+  const judges = new Set(
+    evalCase.results.flatMap((result) =>
+      result.judge?.verdict && result.judge.verdict !== "pass"
+        ? [
+            `${result.judge.verdict}, ${result.judge.rationale ?? result.judge.issues?.[0] ?? ""}`,
+          ]
+        : [],
+    ),
+  );
+  const errors = new Set(
+    evalCase.results.flatMap((result) => (result.error ? [result.error] : [])),
+  );
+  return [
+    `### \`${evalCase.caseId}\`: ${evalCase.title}`,
+    "",
+    ...[...checks].map((check) => `- Failed check: ${check}`),
+    ...[...judges].map((judge) => `- Judge: ${judge}`),
+    ...[...errors].map((error) => `- Error: ${error}`),
+    "",
+  ];
+}
+
+/** The run as a file for docs/evals/runs; the agent fills in the last sections. */
+function formatSummaryMarkdown(report: EvalRunReport, slug: string): string[] {
+  const { run } = report;
+  const judges = [
+    ...new Set(
+      report.cases.flatMap((evalCase) =>
+        evalCase.results.flatMap((result) =>
+          result.judgeModel ? [result.judgeModel] : [],
+        ),
+      ),
+    ),
+  ];
+  const changed = sorted(report.cases).filter(
+    (evalCase) => evalCase.passRate !== evalCase.baselinePassRate,
+  );
+  const failed = sorted(report.cases).filter((evalCase) =>
+    evalCase.states.some((state) => state === "FAILED" || state === "ERROR"),
+  );
+  const commit = run.commitSha
+    ? `\`${run.commitSha.slice(0, 7)}\`${run.commitMessage ? ` ${run.commitMessage}` : ""}`
+    : "not recorded";
+  return [
+    `# Eval run: ${slug}`,
+    "",
+    `- Date: ${run.createdAt.slice(0, 10)}`,
+    `- Run: \`${run.id}\` (${run.trigger.toLowerCase()}, ${run.status.toLowerCase()})`,
+    `- Environment: ${run.environment}`,
+    `- Commit: ${commit}${run.prNumber ? `, PR #${run.prNumber}` : ""}`,
+    `- Bots: ${bots(run.models)}`,
+    `- Judge: ${judges.join(", ") || "none recorded"}`,
+    `- Repeats: ${run.repeats}`,
+    `- Cost: $${report.summary.costUsd.toFixed(2)}`,
+    "",
+    "## Results",
+    "",
+    ...formatReportMarkdown(report),
+    "",
+    "## Before and after",
+    "",
+    ...(report.baseline
+      ? [
+          `Baseline: weekly run ${report.baseline.id} of ${report.baseline.createdAt.slice(0, 10)} (${runRef({ prNumber: report.baseline.prNumber, commitSha: null })}).`,
+          "",
+          ...(changed.length
+            ? [
+                "| Case | Before | After | Outcome |",
+                "| --- | --- | --- | --- |",
+                ...changed.map(
+                  (evalCase) =>
+                    `| \`${evalCase.caseId}\` | ${percent(evalCase.baselinePassRate)} | ${percent(evalCase.passRate)} | ${evalCase.outcome} |`,
+                ),
+              ]
+            : ["Every case passed as often as in the baseline."]),
+        ]
+      : ["No baseline: no weekly run before this one on this environment."]),
+    "",
+    "## Failed cases",
+    "",
+    ...(failed.length ? failed.flatMap(failedCaseLines) : ["None.", ""]),
+    "## Why the failures happened",
+    "",
+    "_To fill in: the cause of each failure, or why it does not matter._",
+    "",
+    "## Verdict",
+    "",
+    "_To fill in: ship or don't ship, because …_",
+    "",
+    "## Links",
+    "",
+    "_Sheets, screenshots, the PR._",
+  ];
+}
+
+function currentBranch(): string | null {
+  try {
+    return (
+      execFileSync("git", ["branch", "--show-current"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function summarySlug(report: EvalRunReport, options?: CommandOptions): string {
+  const slug =
+    optionString(options, "slug") ??
+    (report.run.prNumber ? `pr-${report.run.prNumber}` : currentBranch()) ??
+    report.run.id.slice(0, 8);
+  return slug
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function writeSummary(
+  context: EvalsCommandContext,
+  report: EvalRunReport,
+) {
+  const slug = summarySlug(report, context.options);
+  const path =
+    optionString(context.options, "out") ??
+    join("docs/evals/runs", `${report.run.createdAt.slice(0, 10)}-${slug}.md`);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${formatSummaryMarkdown(report, slug).join("\n")}\n`);
+  writeText(context.stdout, [`Wrote ${path}`]);
+}
+
 function validate(context: EvalsCommandContext) {
   const subcommand = EVALS_COMMANDS.find(
     (command) => command === context.subcommand,
@@ -194,7 +353,9 @@ function validate(context: EvalsCommandContext) {
       "Usage: sokosumi evals run|show|list|cases [options]. See sokosumi --help.",
     );
   if (subcommand === "show" && !context.positionalId)
-    throw new Error("Usage: sokosumi evals show RUN_ID [--markdown]");
+    throw new Error(
+      "Usage: sokosumi evals show RUN_ID [--markdown | --summary-md [--slug S] [--out PATH]]",
+    );
   if (subcommand !== "show" && context.positionalId)
     throw new Error(`Unexpected argument: ${context.positionalId}`);
   return subcommand;
@@ -258,8 +419,13 @@ async function waitForRun(
   }
 }
 
-function writeReport(context: EvalsCommandContext, report: EvalRunReport) {
-  if (context.json) writeJson(context.stdout, report);
+async function writeReport(
+  context: EvalsCommandContext,
+  report: EvalRunReport,
+) {
+  if (option(context.options, "summary-md") === true)
+    await writeSummary(context, report);
+  else if (context.json) writeJson(context.stdout, report);
   else if (option(context.options, "markdown") === true)
     writeText(context.stdout, formatReportMarkdown(report));
   else writeText(context.stdout, formatReportText(report));
@@ -332,7 +498,7 @@ export async function runEvalsCommand(
         context.signal,
       ),
     );
-    writeReport(context, report);
+    await writeReport(context, report);
     return;
   }
   const run = data<EvalRun>(
@@ -352,5 +518,5 @@ export async function runEvalsCommand(
     return;
   }
   if (!json) writeText(stdout, [`Started eval run ${run.id}. Waiting for it…`]);
-  writeReport(context, await waitForRun(client, run.id, context));
+  await writeReport(context, await waitForRun(client, run.id, context));
 }
