@@ -383,6 +383,7 @@ export async function Home({ searchParams, view }: HomeProps) {
       work={work}
       name={session.user.name}
       email={session.user.email}
+      image={session.user.image ?? null}
       initialView={step === "connect" ? "channels" : view}
       connectError={
         step === "connect"

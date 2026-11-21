@@ -2269,7 +2269,18 @@
           "updateError": "Projekt konnte nicht geändert werden",
           "needsDescription": "Diese Aufgabe hat keinen Text. Sie kann nur dorthin, wo eine Kontextdatei angehängt bleibt. Füge eine Beschreibung hinzu, um sie frei zu verschieben."
         },
-        "organizationReadOnly": "schreibgeschützt"
+        "organizationReadOnly": "schreibgeschützt",
+        "saveTable": {
+          "save": "Als Tabelle speichern",
+          "open": "Tabelle öffnen",
+          "title": "Tabelle zu {task}",
+          "description": "Gespeichert aus dem Task „{task}“ am {date}.",
+          "untitledColumn": "Spalte {position}",
+          "saved": "{count, plural, one {# Zeile in einer neuen Tabelle gespeichert.} other {# Zeilen in einer neuen Tabelle gespeichert.}}",
+          "partial": "{saved} von {total} Zeilen gespeichert. Tippe erneut auf „Als Tabelle speichern“, um den Rest zu speichern.",
+          "failed": "Die Tabelle konnte nicht gespeichert werden. Versuch es noch einmal.",
+          "tooLarge": "Diese Tabelle ist zu groß zum Speichern. Eine Tabelle fasst bis zu 100 Spalten, Spaltennamen mit bis zu 100 Zeichen, Zellen mit bis zu 20.000 Zeichen und Zeilen mit bis zu 1 MB Text. Kürze die längsten Zellen oder Zeilen und versuch es noch einmal."
+        }
       },
       "NewTask": {
         "ContextAttachments": {
@@ -3568,9 +3579,13 @@
           "ready": "Bereit",
           "generating": "Wird erstellt…",
           "notSet": "Nicht eingerichtet",
+          "failed": "Fehlgeschlagen",
+          "failedReason": "Aus {host} konnte keine DESIGN.md erstellt werden. Prüfe die Adresse und versuche es erneut.",
+          "lastTried": "Zuletzt versucht: {when}",
           "generate": "Aus Website erstellen",
           "missingWebsite": "Füge eine Projektwebsite hinzu, bevor du Markenkontext erstellst.",
           "websiteInvalid": "Gib eine Website wie example.com ein.",
+          "websiteLabel": "Projektwebsite",
           "open": "Öffnen",
           "edit": "Bearbeiten",
           "remove": "Entfernen",
@@ -5958,7 +5973,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Tags, Personen, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Personen, Projekten, Kanälen, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -5975,7 +5990,9 @@
       "tagsGroup": "Tags",
       "tagTasksGroup": "Aufgaben mit dem Tag {tag}",
       "tagsError": "Tags konnten nicht geladen werden",
-      "tagTasksError": "Diese Aufgaben konnten nicht geladen werden"
+      "tagTasksError": "Diese Aufgaben konnten nicht geladen werden",
+      "projectsGroup": "Projekte",
+      "channelsGroup": "Kanäle"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",

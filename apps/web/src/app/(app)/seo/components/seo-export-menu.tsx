@@ -7,6 +7,11 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  finishTableCopy,
+  type TableCopy,
+  tableCopyRows,
+} from "@/app/drive/tables/table-copy";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,7 +24,6 @@ import {
   useSeoResultFormatter,
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
-import { dataTableService } from "@/lib/services/data-table.client";
 import { seoAuditName } from "./seo-audit-name";
 import { seoCsv } from "./seo-csv";
 import { type SeoExport, seoTablePlan } from "./seo-export-model";
@@ -29,12 +33,6 @@ const UTF8_BOM = "﻿";
 /** The toasts carry the way to the new Table or how to finish it: they stay until dismissed. */
 const STAY = { duration: Infinity, closeButton: true };
 const TITLE_MAX = createDataTableSchema.shape.title.maxLength ?? 160;
-
-type Attempt = {
-  plan: ReturnType<typeof seoTablePlan>;
-  tableId?: string;
-  done: number;
-};
 
 /**
  * The exports of one list behind one button beside its title or filters: a CSV file named "<name>-<today>.csv", or a copy
@@ -74,7 +72,7 @@ export function SeoExportMenu({
   const locale = useLocale();
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const attempt = useRef<Attempt | null>(null);
+  const attempt = useRef<TableCopy | null>(null);
   const site = seoAuditName(
     workspace.auditName ?? "",
     workspace.websiteUrl ?? "",
@@ -131,19 +129,12 @@ export function SeoExportMenu({
         };
       }
       const current = attempt.current;
-      const { plan } = current;
-      current.tableId ??= (await dataTableService.create(plan.table)).id;
-      // One batch at a time, in order: a retry resumes at the first batch not saved.
-      for (; current.done < plan.batches.length; current.done++)
-        await dataTableService.batch(
-          current.tableId,
-          plan.batches[current.done],
-        );
+      // A retry resumes at the first batch not saved.
+      const id = await finishTableCopy(current);
       attempt.current = null;
-      const id = current.tableId;
       toast.success(
         t("export.tableCopied", {
-          count: plan.batches.reduce((sum, b) => sum + b.insert.length, 0),
+          count: tableCopyRows(current).total,
         }),
         {
           ...STAY,

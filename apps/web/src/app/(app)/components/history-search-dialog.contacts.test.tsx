@@ -27,6 +27,15 @@ vi.mock("@/app/components/new-task-wizard-provider", () => ({
   }),
 }));
 
+// Projects and Channels read the session and rooms; covered in go-to tests.
+// Here they answer at once with nothing, so only this file's groups count.
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  useScopeProjects: () => ({ rows: [] }),
+}));
+vi.mock("@/components/chat/use-live-chat-rooms", () => ({
+  useLiveChatRoomsRead: () => ({ rooms: [], failed: false }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
@@ -73,6 +82,8 @@ const labels = {
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
   tagsError: "Couldn't load tags",
   tagTasksError: "Couldn't load these tasks",
+  projectsGroup: "Projects",
+  channelsGroup: "Channels",
 };
 
 function contact(

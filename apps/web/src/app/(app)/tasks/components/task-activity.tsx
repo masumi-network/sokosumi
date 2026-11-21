@@ -62,10 +62,12 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
+import { useTaskResultTableComponents } from "./task-result-table-action";
 import {
   getTaskStatusDotColorClass,
   TaskStatusInline,
 } from "./task-status-badge";
+import { TaskTableEvent } from "./task-table-event";
 
 interface TaskActivityProps {
   taskId: string;
@@ -105,6 +107,13 @@ interface TaskActivityProps {
   mentionableUsers?: readonly MentionableUser[];
   /** Sits in the header beside Jump to latest: follow and participant controls. */
   headerAction?: ReactNode;
+  /** The Task's name and project: tables in the activity offer Save as table to a reader who can comment. */
+  tableSource?: {
+    taskId: string;
+    workspaceId: string;
+    title: string;
+    projectId: string | null;
+  };
 }
 
 export interface MentionableUser {
@@ -216,8 +225,12 @@ function TaskActivityContent({
   canComment = true,
   mentionableUsers = NO_MENTIONABLE_USERS,
   headerAction,
+  tableSource,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
+  const markdownComponents = useTaskResultTableComponents(
+    canComment ? (tableSource ?? null) : null,
+  );
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const resolvedAgentNameById = useMemo(
     () => agentNameById ?? new Map<string, string>(),
@@ -697,14 +710,19 @@ function TaskActivityContent({
                       />
                     </div>
                     {formattedComment ? (
-                      <ExpandableMarkdown
-                        content={formattedComment}
-                        className="prose-sm text-foreground text-sm"
-                        expandLabel={expandLabel}
-                        collapseLabel={collapseLabel}
-                        fadeClassName="to-transparent"
-                        defaultOpen={shouldHighlightDoneBorder}
-                      />
+                      <TaskTableEvent
+                        value={isNewOptimisticEvent ? null : event.id}
+                      >
+                        <ExpandableMarkdown
+                          content={formattedComment}
+                          className="prose-sm text-foreground text-sm"
+                          expandLabel={expandLabel}
+                          collapseLabel={collapseLabel}
+                          fadeClassName="to-transparent"
+                          defaultOpen={shouldHighlightDoneBorder}
+                          components={markdownComponents}
+                        />
+                      </TaskTableEvent>
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
                       <p className="text-foreground text-sm">

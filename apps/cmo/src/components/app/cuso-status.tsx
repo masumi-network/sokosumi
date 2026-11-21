@@ -1,5 +1,4 @@
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 
 import { AGENT_NAME } from "../../lib/agent";
@@ -8,6 +7,7 @@ import { type CusoPose, cusoPose, cusoStatus } from "../../lib/thread";
 import { needsYou } from "../../lib/today";
 import type { View } from "../../lib/views";
 import { type CusoArt, cusoArt } from "../cuso";
+import { ViewLink } from "./view-link";
 
 /** The drawing each state shows: he points at the owner when needed. */
 const ART: Record<CusoPose, CusoArt> = {
@@ -93,18 +93,18 @@ export function cusoBubble(
 
 interface CusoStatusProps {
   overview: CmoOverview;
-  /** The page the owner is on: his bubble speaks about it. */
+  /** The page the owner is on: his pill speaks about it. */
   view: View;
   /** The time "just filed" counts from; tests and the preview pin it. */
   now?: Date;
   /** Opens Today, where everything that needs the owner is. */
-  onOpen: () => void;
+  onOpen: (view: View) => void;
 }
 
 /**
- * Cuso at the foot of the sidebar on every page: large, on an Iris stage,
- * standing on his light ground and leaning out over the sidebar's edge into
- * the page's gutter. His bubble says what he is doing and opens Today. The
+ * Cuso at the foot of the sidebar on every page: large, on an Iris stage, in
+ * a light porthole, his arm out over its rim and the sidebar's edge into the
+ * page's gutter. His pill says what he is doing and links to Today. The
  * drawing never takes a press; the words carry the state.
  */
 export function CusoStatus({
@@ -117,7 +117,10 @@ export function CusoStatus({
   const working = pose === "reading" || pose === "thinking";
   const words = (
     <>
-      {working ? <span className="ob-box-dot" aria-hidden="true" /> : null}
+      <span
+        className={working ? "ob-box-dot" : "cuso-dot"}
+        aria-hidden="true"
+      />
       {line}
     </>
   );
@@ -129,15 +132,14 @@ export function CusoStatus({
           {words}
         </p>
       ) : (
-        <button
-          type="button"
+        <ViewLink
+          view="today"
+          open={onOpen}
           className="cuso-says"
           aria-label={`${AGENT_NAME}: ${line}. Open Today`}
-          onClick={onOpen}
         >
           {words}
-          <ArrowRight size={16} aria-hidden="true" />
-        </button>
+        </ViewLink>
       )}
       <span className="cuso-figure" aria-hidden="true">
         <span className="cuso-ground" />

@@ -61,7 +61,8 @@ export type ValueOptionName =
   | "cases"
   | "repeats"
   | "soko-bot-version"
-  | "cuso-version";
+  | "cuso-version"
+  | "out";
 
 type CliOptionValue = string | string[];
 
@@ -126,6 +127,8 @@ export interface CliOptions {
   wait?: boolean;
   tick?: boolean;
   markdown?: boolean;
+  "summary-md"?: boolean;
+  out?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
@@ -236,7 +239,7 @@ Organizer setup on Preprod (platform admin):
 
 Evals (platform admin; Core runs them on the deployment you select):
   sokosumi evals run [--suite soko-bot|cmo] [--cases ID,ID] [--repeats 1-3] [--soko-bot-version V] [--cuso-version V] [--wait] [--tick]
-  sokosumi evals show RUN_ID [--markdown]
+  sokosumi evals show RUN_ID [--markdown] [--summary-md [--slug S] [--out PATH]]
   sokosumi evals list [--limit N]
   sokosumi evals cases
   --wait follows the run until it ends; --tick also moves it on, for a Core without the minute cron (preview, local).

@@ -104,3 +104,28 @@ it("lists the daily pages, then the brand's in a quiet group of their own", asyn
     "/seo",
   );
 });
+
+it("shows the person as a plain avatar: their picture, else their initial", async () => {
+  const render = (image: string | null) =>
+    act(async () =>
+      root.render(
+        <Sidebar
+          overview={cmoOverview()}
+          view="today"
+          onSelect={() => {}}
+          name="Patrick"
+          email="patrick@example.com"
+          image={image}
+        />,
+      ),
+    );
+  await render(null);
+  const initialOnly = container.querySelector(".who-button .avatar-initial");
+  expect(initialOnly?.textContent).toBe("P");
+  expect(container.querySelector(".who-button img")).toBeNull();
+  await render("https://example.com/me.png");
+  const photo = container.querySelector<HTMLImageElement>(".who-button img");
+  expect(photo?.getAttribute("src")).toBe("https://example.com/me.png");
+  expect(photo?.getAttribute("alt")).toBe("");
+  expect(container.querySelector(".avatar-initial")).toBeNull();
+});
