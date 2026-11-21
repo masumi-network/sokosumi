@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sidebar";
 import { SIDEBAR_ROW_LABEL_INSET_CLASS } from "@/components/ui/sidebar-classes";
 import { SidebarSectionContent } from "@/components/ui/sidebar-section";
+import { useChatUnreadsFilter } from "@/hooks/effects/use-chat-unreads-filter";
 import { useRememberPinnedRooms } from "@/hooks/effects/use-remember-pinned-rooms";
 import { cn } from "@/lib/utils";
 import { moveIdToSlot } from "@/lib/utils/move-id";
@@ -83,7 +84,6 @@ import {
   EMPTY_UNREAD_FILTER_PASS,
 } from "./unread-filter-pass";
 import { useChatPageSearch } from "./use-chat-page-search";
-import { useChatUnreadsFilter } from "./use-chat-unreads-filter";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 import { useOtherWorkspaceRooms } from "./use-other-workspace-rooms";
 import { useSidebarSectionShowAll } from "./use-sidebar-section-show-all";

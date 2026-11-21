@@ -1,8 +1,16 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  getPushRepairOutcome,
+  recordPushRepairOutcome,
+  subscribePushRepairOutcome,
+} from "@/lib/ably/push-repair-outcome.client";
+import {
+  hasUnfinishedPushTeardown,
+  readAblyPushDeviceId,
+} from "@/lib/ably/release-push-device.client";
 import { preferencesBrowserClient } from "@/lib/clients/core.preferences.browser.client";
 import {
   type BrowserNotificationPermission,
@@ -24,15 +32,6 @@ import {
   getPushDevicesQueryOptions,
   refreshPushDevices,
 } from "@/queries/push-devices";
-import {
-  getPushRepairOutcome,
-  recordPushRepairOutcome,
-  subscribePushRepairOutcome,
-} from "./push-repair-outcome.client";
-import {
-  hasUnfinishedPushTeardown,
-  readAblyPushDeviceId,
-} from "./release-push-device.client";
 
 /**
  * Loads the activation module on the click that needs it. That module pulls in
@@ -41,7 +40,7 @@ import {
  * lazy boundary everywhere else too (`contexts/lazy-ably-provider.tsx`).
  */
 function loadPushActivation() {
-  return import("./push-activation.client");
+  return import("@/lib/ably/push-activation.client");
 }
 
 /**
@@ -252,7 +251,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   }, []);
 
   // Browser-only reads, so they cannot run during render.
-  useMountEffect(() => {
+  useEffect(() => {
     setIsSupported(isPushSupported());
     // Read once beside the support read, and never again: both answer from
     // APIs this browser either has or does not, and neither appears while the
@@ -281,7 +280,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       unsubscribe();
       unsubscribeRepair();
     };
-  });
+  }, []);
 
   /**
    * Runs one save against the session user, and leaves the reported device

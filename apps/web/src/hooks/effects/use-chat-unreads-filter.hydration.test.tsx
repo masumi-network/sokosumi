@@ -1,5 +1,5 @@
 // Testing Library's act turns on the act environment React's own act needs.
-import { act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
@@ -50,5 +50,28 @@ describe("useChatUnreadsFilter hydration", () => {
     expect(
       document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
     ).toBe(true);
+  });
+
+  it("removes the boot mark once the filter is turned off", () => {
+    document.cookie = serializeChatUnreadsFilterCookie(true);
+    document.documentElement.setAttribute(
+      CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+      "",
+    );
+
+    const { result } = renderHook(() => useChatUnreadsFilter());
+    expect(result.current[0]).toBe(true);
+    expect(
+      document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
+    ).toBe(true);
+
+    act(() => {
+      result.current[1](false);
+    });
+
+    expect(result.current[0]).toBe(false);
+    expect(
+      document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
+    ).toBe(false);
   });
 });

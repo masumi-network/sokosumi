@@ -1,42 +1,24 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useLayoutEffect,
-  useMemo,
-} from "react";
+import { useSearchParams } from "next/navigation";
+import { createContext, type ReactNode, useContext, useMemo } from "react";
 import { saveTasksView } from "@/app/tasks/actions";
 import {
   hasTasksViewParams,
   pickTasksViewQuery,
 } from "@/app/tasks/utils/tasks-filters";
-
-/**
- * The view this tab saved last, per workspace. A visited copy of the page can
- * carry an older saved view; this one is newer, so it wins over it.
- */
-const lastSavedViewByWorkspace = new Map<string, string>();
-
-function workspaceKey(activeOrganizationId: string | null) {
-  return activeOrganizationId ?? "personal";
-}
+import {
+  forgetSavedTasksView,
+  rememberSavedTasksView,
+  useTasksRestoredViewUrl,
+  withTasksView,
+} from "@/hooks/effects/use-tasks-restored-view-url";
 
 interface RestoredView {
   query: string | null;
 }
 
 const RestoredViewContext = createContext<RestoredView>({ query: null });
-
-function withView(searchParams: URLSearchParams, viewQuery: string) {
-  const merged = new URLSearchParams(searchParams.toString());
-  for (const [key, value] of new URLSearchParams(viewQuery)) {
-    merged.set(key, value);
-  }
-  return merged;
-}
 
 /**
  * The page's search params, with the saved view the server opened in place of
@@ -49,7 +31,7 @@ export function useTasksSearchParams(): URLSearchParams {
   return useMemo(() => {
     const current = new URLSearchParams(searchParams.toString());
     return query && !hasTasksViewParams(current)
-      ? withView(current, query)
+      ? withTasksView(current, query)
       : current;
   }, [query, searchParams]);
 }
@@ -69,33 +51,9 @@ export function TasksSearchParamsProvider({
   activeOrganizationId,
   children,
 }: TasksSearchParamsProviderProps) {
-  const router = useRouter();
   const value = useMemo(() => ({ query: restoredQuery }), [restoredQuery]);
 
-  // Writes the opened view into the address bar, so a reload or a shared link
-  // shows it. No navigation: the page already renders it.
-  useLayoutEffect(() => {
-    if (restoredQuery === null) return;
-    const current = new URLSearchParams(window.location.search);
-    if (hasTasksViewParams(current)) return;
-    const newer = lastSavedViewByWorkspace.get(
-      workspaceKey(activeOrganizationId),
-    );
-    if (newer !== undefined && newer !== restoredQuery) {
-      // A visited copy of the page from before this tab's last save: load
-      // the newer view. It names a scope, so the server does not restore.
-      router.replace(`${window.location.pathname}?${withView(current, newer)}`);
-      return;
-    }
-    if (!restoredQuery) return;
-    // A null state lets Next adopt the new URL into useSearchParams; its own
-    // state would make Next skip the sync and later restore the bare URL.
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}?${withView(current, restoredQuery)}${window.location.hash}`,
-    );
-  }, [activeOrganizationId, restoredQuery, router]);
+  useTasksRestoredViewUrl(restoredQuery, activeOrganizationId);
 
   return (
     <RestoredViewContext.Provider value={value}>
@@ -115,16 +73,12 @@ export function replaceTasksQuery(
   activeOrganizationId: string | null,
 ) {
   const viewQuery = pickTasksViewQuery(nextSearchParams);
-  const key = workspaceKey(activeOrganizationId);
-  if (lastSavedViewByWorkspace.get(key) !== viewQuery) {
-    lastSavedViewByWorkspace.set(key, viewQuery);
+  if (rememberSavedTasksView(activeOrganizationId, viewQuery)) {
     // Sent before the navigation: a navigation lets an action already sent
     // finish, but holds a later one back until the new board has loaded.
     // Server actions run one at a time, so the last change is the last save.
     const forget = () => {
-      if (lastSavedViewByWorkspace.get(key) === viewQuery) {
-        lastSavedViewByWorkspace.delete(key);
-      }
+      forgetSavedTasksView(activeOrganizationId, viewQuery);
     };
     saveTasksView(viewQuery, activeOrganizationId)
       .then((saved) => {

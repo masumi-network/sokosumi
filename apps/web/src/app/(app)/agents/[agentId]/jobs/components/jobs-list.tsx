@@ -6,19 +6,13 @@ import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useAnimationFrameBatch } from "@/hooks/effects/use-animation-frame-batch";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { cn } from "@/lib/utils";
@@ -62,20 +56,7 @@ function JobsStatusRealtimeListener({
   channelName: string;
   onStatusUpdate: (updates: JobStatusUpdateData[]) => void;
 }) {
-  const animationFrameRef = useRef<number | null>(null);
-  const pendingUpdatesRef = useRef<JobStatusUpdateData[]>([]);
-  const isMountedRef = useRef(true);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      pendingUpdatesRef.current = [];
-      if (animationFrameRef.current !== null) {
-        window.cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
+  const enqueueStatusUpdate = useAnimationFrameBatch(onStatusUpdate);
 
   useChannel(channelName, JOB_STATUS_EVENT_NAME, (message) => {
     const parsedResult = jobStatusDataSchema.safeParse(message.data);
@@ -89,30 +70,10 @@ function JobsStatusRealtimeListener({
       return;
     }
 
-    pendingUpdatesRef.current.push({
+    enqueueStatusUpdate({
       jobId: parsedResult.data.jobId,
       jobStatus: parsedResult.data.jobStatus,
       jobStatusSettled: parsedResult.data.jobStatusSettled,
-    });
-
-    if (animationFrameRef.current !== null) {
-      return;
-    }
-
-    animationFrameRef.current = window.requestAnimationFrame(() => {
-      animationFrameRef.current = null;
-      if (!isMountedRef.current) {
-        pendingUpdatesRef.current = [];
-        return;
-      }
-
-      const updates = pendingUpdatesRef.current;
-      pendingUpdatesRef.current = [];
-      if (updates.length === 0) {
-        return;
-      }
-
-      onStatusUpdate(updates);
     });
   });
 
