@@ -28,7 +28,7 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
     intent:
       "Asks Mira, waits for her answer, and tells the owner what she said, without making anything up in between.",
     prompt:
-      "Ask Mira, our research Coworker, what Langdock's cheapest plan costs per seat, and tell me what she says.",
+      "Ask Mira, our research Coworker, what Langdock's cheapest plan costs per seat today (prices change, so ask her fresh), and tell me what she says.",
     exchange: {
       with: "coworker",
       replies: [
@@ -49,6 +49,63 @@ export const A2A_SCENARIOS: SokoBotScenario[] = [
       anyTools: ["ask_coworker", "post_chat", "send_message"],
       forbiddenTools: ["create_task", "hire_agent"],
       answerMatches: "25",
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "a2a-remembers-answer",
+    title: "Does not ask again what it was just told",
+    intent:
+      "Asked what the previous case had Mira answer, the bot uses what it learned (memory or her last answer) instead of asking her again.",
+    prompt: "How much does Langdock's cheapest plan cost per seat?",
+    exchange: {
+      with: "coworker",
+      replies: ["Same as before: €25 per seat a month on the Team plan."],
+      maxFollowUps: 1,
+    },
+    rubric:
+      "Mira told the bot earlier today that Langdock's Team plan is €25 per seat a month billed yearly (€30 monthly). The bot answers from that, saying it is what Mira said and when, without messaging Mira again. Asking Mira again, answering from a web search as if new, or inventing a price fails.",
+    expect: {
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      forbiddenTools: ["send_message", "ask_coworker", "post_chat"],
+      answerMatches: "25",
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "a2a-structured-handoff",
+    title: "Hands work over with a clear request",
+    intent:
+      "Hands Mira a piece of work with goal, deliverable and deadline, reads her status and link, and reports both.",
+    prompt:
+      "No Task needed: ask Mira in chat to put together a short table comparing Langdock's plans for the board deck, by Friday. Tell me what she says.",
+    exchange: {
+      with: "coworker",
+      replies: [
+        "Done: the comparison table is at https://docs.example.com/langdock-plans. Team is €25 per seat a month, Business €40, Enterprise on request.",
+      ],
+      maxFollowUps: 2,
+      expectsRequest: true,
+    },
+    rubric:
+      "The bot hands the work to Mira with a clear request: the goal (a comparison of Langdock's plans for the board deck), the deliverable (a short table) and the deadline (Friday). Mira answers that it is done with a link. The bot tells the owner it is done, gives the link https://docs.example.com/langdock-plans and her numbers (Team €25, Business €40). Leaving out the link, calling it in progress, or inventing numbers fails.",
+    expect: {
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["ask_coworker", "post_chat", "send_message"],
+      forbiddenTools: ["hire_agent", "create_task"],
+      answerMatches: "docs\\.example\\.com/langdock-plans",
       noInventedIds: true,
     },
   },
