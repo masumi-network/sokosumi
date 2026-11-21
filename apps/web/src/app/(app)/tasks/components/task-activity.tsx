@@ -125,6 +125,7 @@ export interface MentionableUser {
 }
 
 const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
+const NO_AGENT_LINKS = new Map<string, string>();
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
@@ -270,6 +271,11 @@ function TaskActivityContent({
     }
     return names;
   }, [userById, mentionableUsers, viewerId]);
+  // A downloaded file has no Sokosumi origin, so its mentions are plain names, not app links.
+  const exportNameById = useMemo(
+    () => new Map([...resolvedAgentNameById, ...mentionUserNameById]),
+    [resolvedAgentNameById, mentionUserNameById],
+  );
 
   const [syncedEvents, setSyncedEvents] = useState(events);
   if (syncedEvents !== events) {
@@ -730,7 +736,11 @@ function TaskActivityContent({
                     ) : null}
                     {shouldHighlightDoneBorder && formattedComment ? (
                       <TaskResultDownload
-                        markdown={formattedComment}
+                        markdown={formatMentionsAsMarkdownLinks(
+                          event.comment ?? "",
+                          NO_AGENT_LINKS,
+                          exportNameById,
+                        )}
                         fileName={taskName}
                       />
                     ) : null}

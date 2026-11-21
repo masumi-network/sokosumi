@@ -504,17 +504,36 @@ describe("TaskActivitySection", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:x");
     vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+    const saved: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push(this.download);
+    });
     const events: TaskEvent[] = [
       createEvent("completed-with-comment", {
         createdAt: "2026-01-01T12:00:00.000Z",
         status: TaskStatus.COMPLETED,
-        comment: "## Plan\n\n- Ads",
+        comment: [
+          "## Plan by @agent-1",
+          "",
+          "- Newsletter",
+          "- LinkedIn",
+          "",
+          "1. Draft",
+          "2. Review",
+          "",
+          "| Channel | Budget |",
+          "| --- | --- |",
+          "| Ads | 500 |",
+        ].join("\n"),
       }),
     ];
     render(
       <TaskActivitySection
         {...baseProps}
         events={events}
+        agentNameById={new Map([["agent-1", "Writer"]])}
         taskName="Launch plan"
       />,
     );
@@ -524,12 +543,17 @@ describe("TaskActivitySection", () => {
       await screen.findByRole("menuitem", { name: "exportAsPdf" }),
     );
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await waitFor(() => expect(saved).toEqual(["Launch plan.pdf"]));
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("/api/export/pdf");
-    const body = JSON.parse(String(init?.body));
-    expect(body.fileName).toBe("Launch plan");
-    expect(body.html).toContain("<h2>Plan</h2>");
+    const { html, fileName } = JSON.parse(String(init?.body));
+    expect(fileName).toBe("Launch plan");
+    // A file opened outside Sokosumi gets the mention as a name, not an app link.
+    expect(html).toContain("<h2>Plan by @Writer</h2>");
+    expect(html).not.toContain("/agents/");
+    expect(html).toMatch(/<ul>\s*<li>Newsletter<\/li>\s*<li>LinkedIn<\/li>/);
+    expect(html).toMatch(/<ol>\s*<li>Draft<\/li>\s*<li>Review<\/li>/);
+    expect(html).toMatch(/<table>[\s\S]*<th>Channel<\/th>[\s\S]*<td>500<\/td>/);
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
