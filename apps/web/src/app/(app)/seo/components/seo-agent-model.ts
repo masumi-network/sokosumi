@@ -47,7 +47,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
       ? { propertyId: searchSaved.propertyId, channel: searchSaved.channel }
       : null;
   // Every fix is a step: the Agent tab folds the ones after the first.
-  const steps: SeoAgentStep[] = [...fixes, ...opportunities].map((action) => ({
+  const steps: SeoAgentStep[] = overview.recommendedActions.map((action) => ({
     kind: "action",
     action,
   }));

@@ -36,11 +36,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       disabled: body.disabled,
       adminUserId: auth.userId,
       reason: body.reason ?? null,
+      standupPaused: body.standupPaused,
     });
     return ok(c, {
       disabled: availability.disabled,
       disabledAt: availability.disabledAt?.toISOString() ?? null,
       disabledReason: availability.disabledReason,
+      standupPaused: availability.standupPaused,
     });
   });
 }

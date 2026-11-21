@@ -159,6 +159,17 @@ export const sokoBotService = {
     return response.data;
   },
 
+  async setJoinsTeamStandup(
+    enabled: boolean,
+    botId?: string,
+  ): Promise<SokoBot> {
+    const response = await coreClient.updateMySokoBotTeamStandup(
+      { enabled },
+      botId,
+    );
+    return response.data;
+  },
+
   async rename(name: string, botId?: string): Promise<SokoBot> {
     const response = await coreClient.renameMySokoBot({ name }, botId);
     return response.data;

@@ -430,7 +430,7 @@ export function senderProfile(
   }
   return {
     kind: "unknown",
-    name: "Unknown",
+    name: sender.type === "system" ? sender.name : "Unknown",
     image: null,
   };
 }

@@ -543,6 +543,11 @@ const chatRoomMessageSenderSchema = z
     z.object({
       type: z.literal("unknown"),
     }),
+    z.object({
+      /** Core's own voice, such as the team stand-up's thread. */
+      type: z.literal("system"),
+      name: z.string().openapi({ example: "Stand-up" }),
+    }),
   ])
   .openapi("ChatRoomMessageSender");
 

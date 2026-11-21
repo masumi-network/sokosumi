@@ -7427,6 +7427,15 @@
           "previousRun": "Previous run",
           "batchProgress": "Running {done} of {total}"
         },
+        "StandupSwitch": {
+          "stateRunning": "Team stand-ups run where organizations turned them on.",
+          "statePaused": "Team stand-ups are paused for every organization.",
+          "pause": "Pause stand-ups",
+          "resume": "Resume stand-ups",
+          "paused": "Stand-ups paused.",
+          "resumed": "Stand-ups resumed.",
+          "error": "Could not change the stand-up switch."
+        },
         "KillSwitch": {
           "stateEnabled": "Soko Bot is running normally.",
           "stateDisabled": "Disabled — {reason}",
@@ -10986,6 +10995,9 @@
         "mailAutoReadDescription": "After each check, mark mail that is neither urgent nor notable as read. Important mail stays unread for you.",
         "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
+        "teamStandupTitle": "Join the team stand-up",
+        "teamStandupDescription": "Share this assistant's work (Tasks and posts, never mail or calendar) in your organization's daily stand-up.",
+        "teamStandupError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
         "archive": "Archive",
@@ -12510,6 +12522,7 @@
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
       "brief": {
+        "completionEvent": "GA4 event that records completion (optional)",
         "title": "Audit brief",
         "private": "Only you can read this brief. A full audit shares a page goal only when you select it.",
         "confirmed": "Confirmed by you on {date}.",
@@ -12572,6 +12585,8 @@
           "unknown": "Undecided"
         },
         "events": {
+          "configuredTitle": "Goal completions from organic search",
+          "custom": "Configured completion",
           "title": "Purchases and signups from organic search",
           "source": "Only you can see these GA4 counts. They cover organic search visits that started on this page.",
           "purchase": "Purchases",
@@ -12596,6 +12611,7 @@
           "matches_intent": "Google’s index status matches your visibility setting."
         },
         "goalControl": {
+          "handoff": "More organic sessions reached this page, while the number completing the selected event stayed flat or fell. Follow the path to completion and check where visitors leave.",
           "title": "Sessions with {event}",
           "afterTask": "Task completed on {date}",
           "rates": "Organic search {organic} of {organicSessions, number} sessions. Direct {direct} of {directSessions, number} sessions.",
@@ -12884,20 +12900,39 @@
           "action": "Page goal: {action}",
           "studio": "Draft in Content Studio (coming soon)"
         },
+        "planning": {
+          "gap": "Competitors rank for “{keyword}”. Check whether your explanation of {feature} answers that search.",
+          "idea": "Review the section on {feature} for readers searching for “{keyword}”.",
+          "basis": "Estimated demand in {market} is {volume, number} searches per month. Add the missing answer here if it fits the page.",
+          "related": "Review these related searches in the same edit: {queries}.",
+          "rising": "Relative interest in “{keyword}” rose over the period. Review the existing answer and confirm current demand before setting a publication date.",
+          "falling": "Relative interest in “{keyword}” fell over the period. Check market demand alongside page impressions before attributing a decline to the content."
+        },
         "seasonal": {
-          "timing": "DataForSEO Labs estimates monthly searches in this market. Check this year’s demand as the period approaches.",
-          "planFor": "Plan for {months}",
+          "draft": "Outline an answer for “{keyword}” and the decision a reader faces next. Test that outline against related queries before adding a section.",
+          "keep": "Keep the existing answer for this task: {task}",
+          "clarify": "Clarify this task on the page: {task}",
+          "inspect": "Check how the page answers this question: {task}",
+          "inspectIntent": "Outline the reader’s question behind “{keyword}”. Compare it with the existing answer to choose a section to improve or a separate guide.",
+          "singleSignal": "Estimated searches in {month} were {rise, number}% above their comparison median in one observed cycle.",
+          "repeatSignal": "Estimated searches in {month} were {rise, number}% above their comparison median. A rise also appeared in the preceding annual cycle.",
+          "zeroSignal": "In {month}, the estimate reached {count, number} searches from a comparison median of zero.",
+          "trendsAgree": "Google Trends also showed high relative interest in {month}.",
+          "trendsDiffer": "Google Trends did not identify {month} as a peak. Keep the publishing date flexible.",
+          "prepareNow": "Start the brief now for {months}",
+          "prepareFor": "Prepare in {start} for {months}",
+          "keywordTest": "Keyword ideas to test: {queries}",
+          "hypothesis": "Working hypothesis: {reason}",
+          "whyTest": "Why try this content idea?",
+          "checkOutcome": "How to test it: {check}",
           "datedEvent": "{event} · {date}",
           "evidence": "Page and demand evidence",
           "above_baseline": "Local searches exceeded the earlier median last year.",
           "no_observed_rise": "Local searches did not rise above the earlier median last year.",
-          "windowRise": "Local searches rose in these months last year.",
           "windowOther": "For {target}, {prior} had {volume, number} estimated local searches. The median was {baseline, number} across the other observed months ({months}).",
           "incompleteComparison": "Available local search estimates from last year: {counts}. There is too little data to compare demand.",
-          "historicalIdea": "Research this search using the local DataForSEO history.",
-          "title": "Seasonal keyword ideas",
+          "title": "Seasonal content planning",
           "audit": "{market} · Audit on {date}",
-          "investigate_angle": "Check this search for {audience}.",
           "improve_existing_page": "Update the existing page for {audience}.",
           "window": "For {target}, review {prior}: {volume, number} estimated local searches. The earlier three-month median was {baseline, number}.",
           "comparison": "Last year: {counts}. The median before the lead-up was {baseline, number} estimated local searches.",
@@ -13097,7 +13132,10 @@
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
         "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or ask the SEO agent what to do next.",
-        "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
+        "priorityReason": "Why this page takes priority",
+        "measuredGoal": "Organic sessions that started on this page recorded key events from {from} to {to}. That puts this page ahead of otherwise comparable work.",
+        "testRecommendation": "Agent recommendation",
+        "opportunitiesHelp": "Use the page evidence and the expected outcome to decide whether to try this opportunity.",
         "noOpportunitiesBody": "The last check found nothing to fix. The Overview lists what the SEO agent suggests next.",
         "kind": {
           "fix": "Confirmed issue",
@@ -13814,6 +13852,65 @@
         "sortBest": "{column}, best first",
         "sortWorst": "{column}, worst first"
       },
+      "reportPlan": {
+        "changedShort": "Since the previous report, the first step has changed.",
+        "verify": "How to check the result",
+        "evidence": "Audit evidence",
+        "groups": {
+          "fixes": "Page fixes ({count})",
+          "content": "Content and keywords ({count})"
+        },
+        "missingComparison": "The brief names {event}, but this page has no comparable organic and direct completion rates. Check that GA4 records it as a key event and compare two complete periods.",
+        "hypothesis": {
+          "season": "The reports suggest a content test for “{query}”. Use the page change above to see whether the seasonal audience finds its answer here.",
+          "gap": "Competitor and page evidence suggest the existing page could serve more searches for “{query}”. Test the proposed edit and compare relevant clicks."
+        },
+        "missingOutcome": "The audit checks for {event} when measuring “{action}”. Comparable completion rates are unavailable. If your GA4 property uses a different event name, you can set it in the private brief.",
+        "was": "Earlier recommendation: {step}",
+        "queries": "Searches to cover: {queries}.",
+        "peaks": "Local search estimates exceeded their comparison baseline in {periods}.",
+        "prepare": "Schedule the page brief for {prepare}, ahead of the expected {month} rise for “{query}”.",
+        "publish": "Prepare the page now for the {month} demand window for “{query}”.",
+        "windowReason": "The preparation window for {month} is open. Earlier demand rose in multiple years and the report identified a gap.",
+        "changed": "Since the previous report, the recommendation changed. {reason}",
+        "exposure": "Search Console recorded {impressions} impressions for this page from {from} to {to}. Its measured visibility gives this traffic test priority among comparable edits.",
+        "destination": "The brief names “{action}” as the visitor’s action on {url}.",
+        "orderReason": "The second step brings readers to this route. Test the route first so those readers can take the next step.",
+        "title": "Recommended plan",
+        "goal": "Current objective: {goal}",
+        "why": "Why this plan?",
+        "then": "Then: {step}",
+        "alternative": "Other option considered",
+        "reassess": "What would change the plan?",
+        "tie": "Both options fit the same priority. This report listed the first one earlier.",
+        "open": "Open action details",
+        "empty": "There is no supported next action for the selected pages in this report.",
+        "linksEmpty": "Use a referring page and its link text to choose a link opportunity. Backlink totals alone cannot identify one.",
+        "first": {
+          "handoff": "Trace the visitor’s path from this page to the {event} completion.",
+          "checkTracking": "Check the {event} completion step and its tracking before editing the page.",
+          "checkIntent": "Compare the organic visitors reaching this page before changing its content."
+        },
+        "basis": {
+          "handoff": "More organic visits reached the page while completed sessions stayed flat or fell. Test the handoff to the stated action.",
+          "access": "The report found a critical obstacle to search access. Resolve it before investing in visibility for this page.",
+          "goalPath": "This affects the path to a sales action or the availability of an offer. Fix that step before sending more visitors to it.",
+          "support": "This work addresses a guide or support page named in the brief. It can help readers complete their task.",
+          "traffic": "This recommendation targets how searchers discover the page. It directly serves the search traffic objective.",
+          "majorFix": "The report found an access issue or a high-impact page problem. Resolve it before testing a smaller change.",
+          "salesPage": "The brief identifies a sales action or a commercial role for this page. That gives its improvement priority.",
+          "experiment": "The report connects this opportunity to page or search evidence. Use a small test to decide whether to expand it.",
+          "fix": "A recorded finding supports this change. Verify the affected part of the page after the repair.",
+          "checkTracking": "The latest goal comparison shows declines in both organic and direct sessions. A shared completion or tracking problem could explain both.",
+          "checkIntent": "The latest goal comparison shows a larger decline among organic visitors. Check whether the search audience changed before choosing an edit."
+        },
+        "measure": {
+          "sales": "Compare organic visits and completions of the stated action over comparable periods. If visits grow while completions stay flat, test the handoff to that action.",
+          "traffic": "Compare impressions and clicks for the intended queries. If impressions grow only for unrelated searches, revise the target. If relevant clicks grow, test the next related page.",
+          "support": "Check whether readers complete the stated task. If visits grow while the same question keeps reaching support, revise the answer or its placement.",
+          "general": "Repeat the cited check on this page. If the change solves the observed problem, move to the next opportunity. If it persists, reconsider the explanation."
+        }
+      },
       "agent": {
         "ask": "Ask the SEO agent",
         "title": "SEO agent",
@@ -14237,6 +14334,10 @@
           "metric": "Measure",
           "within": "Change within pages",
           "mix": "Change from the mix of visits",
+          "testMix": "Compare which entry pages gained visits and whether their organic sessions led to key events. Use that result to choose which pages to promote.",
+          "testJourney": "Visitors spent less time and viewed fewer pages within the same landing pages on average. Test whether the next step is easy to find and compare goal completion.",
+          "testCompletion": "Compare goal completion on the landing pages where engagement changed before choosing a content edit. A faster visit could mean a reader found the answer sooner.",
+          "comparisonEvidence": "Why this recommendation",
           "mixOnly": "The distribution of visits across landing pages accounted for the change in average engagement.",
           "sessions": "Organic landing sessions went from {before} to {after}. The last two columns show each contribution in the same units as the measure."
         },
@@ -14708,6 +14809,30 @@
       "posts": "Search posts",
       "controlShortcut": "Ctrl+F",
       "loadedResults": "{count, plural, =0 {No matches in loaded items} one {# match in loaded items} other {# matches in loaded items}}"
+    },
+    "TeamStandup": {
+      "title": "Daily agent stand-up",
+      "enabledLabel": "Run the stand-up",
+      "enabledHelp": "Every weekday the agents post one thread in the Stand-up channel: what was done, what's next, what waits on a person, and up to three hand-offs between agents. Lines come from Tasks and posts, never from mail or calendars. Nothing new means nothing is posted.",
+      "timeLabel": "Time",
+      "timezoneLabel": "Time zone",
+      "weekdaysLabel": "Days",
+      "weekday": {
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat",
+        "7": "Sun"
+      },
+      "next": "Next stand-up: {when} ({zone})",
+      "save": "Save",
+      "saved": "Stand-up settings saved.",
+      "saveError": "Could not save the stand-up settings.",
+      "adminOnly": "Only owners and admins can change this.",
+      "loadError": "Could not load the stand-up settings.",
+      "retry": "Retry"
     }
   },
   "Share": {

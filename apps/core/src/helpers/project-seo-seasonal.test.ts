@@ -308,3 +308,116 @@ it("accepts a later recurring peak and rejects handpicked comparison months from
   };
   expect(imported([winter, spring], plateau)).toEqual([winter]);
 });
+
+it("keeps a checked editorial instruction in the task, and a keep decision never becomes work", () => {
+  const plan = {
+    disposition: "clarify" as const,
+    readerTask: "Store a sail for winter",
+    passage: insight.pageQuote,
+    nextStep: "Add a drying step before the storage instructions.",
+  };
+  const idea = readSeasonalInsight({
+    ...insight,
+    ...supported,
+    contentPlan: plan,
+    demand: insight.demand,
+  })!;
+  expect(seasonalIdeaAction(idea)?.title).toBe(plan.nextStep);
+  expect(
+    seasonalIdeaAction({
+      ...idea,
+      contentPlan: { ...plan, disposition: "keep" },
+    }),
+  ).toBeNull();
+});
+
+it("imports a first March peak after two quiet winters and requires its underlying observations for a test", () => {
+  const months = Array.from({ length: 36 }, (_, i) => {
+    const d = new Date(Date.UTC(2023, 10 + i, 1));
+    const month = d.getUTCMonth() + 1;
+    return {
+      year: d.getUTCFullYear(),
+      month,
+      search_volume: month === 3 ? 100 : 15,
+    };
+  });
+  const cycle = (year: number) => ({
+    historicalPeriod: year + "-03",
+    historicalVolume: 100,
+    baselineMedian: 15,
+    referenceMonths: months
+      .filter(
+        (row) =>
+          (row.year === year - 1 && row.month >= 7) ||
+          (row.year === year && row.month < 3),
+      )
+      .map((row) => row.year + "-" + String(row.month).padStart(2, "0")),
+  });
+  const contentPlan = {
+    disposition: "inspect",
+    readerTask: "Choose a repair method",
+    passage: insight.pageQuote,
+    nextStep: "Draft a guide to sail repairs.",
+    experiment: {
+      hypothesis: "Owners may be preparing their boats for spring.",
+      targetQueries: ["spring sail repairs"],
+      successCheck: "Compare visits from repair queries after publication.",
+    },
+  };
+  const raw = {
+    ...insight,
+    contentPlan,
+    windows: [
+      { targetPeriod: "2027-03", ...cycle(2026), earlierCycle: cycle(2025) },
+    ],
+    demand: { ...insight.demand, months },
+  };
+  const idea = readSeasonalInsight(raw)!;
+  expect(seasonalIdeaAction(idea)?.title).toBe(contentPlan.nextStep);
+  expect(
+    seasonalIdeaAction(readSeasonalInsight({ ...raw, demand: undefined })!),
+  ).toBeNull();
+});
+
+it("requires a measured baseline before promoting a calendar hypothesis", () => {
+  const event = { name: "Christmas", date: "2026-12-25", scope: "Germany" };
+  const plan = {
+    disposition: "inspect",
+    readerTask: "Plan winter repairs",
+    passage: insight.pageQuote,
+    nextStep: "Draft a winter repair guide.",
+    experiment: {
+      hypothesis: "Owners may be preparing for winter repairs.",
+      targetQueries: ["winter sail repairs"],
+      successCheck: "Compare repair queries after publication.",
+    },
+  };
+  const old = [8, 9, 10, 11, 12].map((month) => ({
+    year: 2025,
+    month,
+    search_volume: month === 12 ? 80 : 20,
+  }));
+  const raw = {
+    ...insight,
+    event,
+    contentPlan: plan,
+    demand: { ...insight.demand, months: old },
+    comparison: {
+      status: "above_baseline",
+      leadMonth: { period: "2025-11", volume: 20 },
+      eventMonth: { period: "2025-12", volume: 80 },
+      baselineMedian: 20,
+    },
+  };
+  expect(seasonalIdeaAction(readSeasonalInsight(raw)!)?.title).toBe(
+    plan.nextStep,
+  );
+  expect(
+    seasonalIdeaAction(
+      readSeasonalInsight({
+        ...raw,
+        demand: { ...raw.demand, months: old.slice(1) },
+      })!,
+    ),
+  ).toBeNull();
+});

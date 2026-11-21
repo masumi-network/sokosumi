@@ -80,11 +80,13 @@ import {
   updateMySokoBotBoardFollowing as coreUpdateMySokoBotBoardFollowing,
   updateMySokoBotProactive as coreUpdateMySokoBotProactive,
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
+  updateMySokoBotTeamStandup as coreUpdateMySokoBotTeamStandup,
   updateMySokoBotVersion as coreUpdateMySokoBotVersion,
   updateSokoBotBoardFollowing as coreUpdateSokoBotBoardFollowing,
   updateSokoBotMcpTool as coreUpdateSokoBotMcpTool,
   updateSokoBotProactive as coreUpdateSokoBotProactive,
   updateSokoBotSchedule as coreUpdateSokoBotSchedule,
+  updateSokoBotTeamStandup as coreUpdateSokoBotTeamStandup,
 } from "@sokosumi/core-client";
 import { createEvalsAdminClient } from "./core.evals-admin";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
@@ -226,6 +228,24 @@ export function createSokoBotClient(getClient: GetCoreClient) {
             })
           : coreUpdateMySokoBotBoardFollowing({ client, body }),
       "Failed to update board following",
+    );
+  }
+
+  async function updateMySokoBotTeamStandup(
+    body: { enabled: boolean },
+    sokoBotId?: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreUpdateSokoBotTeamStandup({
+              client,
+              path: { sokoBotId },
+              body,
+            })
+          : coreUpdateMySokoBotTeamStandup({ client, body }),
+      "Failed to update the team stand-up setting",
     );
   }
 
@@ -755,6 +775,7 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     updateMySokoBotProactive,
     sendMySokoBotTurnFeedback,
     updateMySokoBotBoardFollowing,
+    updateMySokoBotTeamStandup,
     renameMySokoBot,
     updateMySokoBotVersion,
     getSokoBotTeam,
