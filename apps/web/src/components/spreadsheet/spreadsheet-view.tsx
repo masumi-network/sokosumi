@@ -69,14 +69,25 @@ export function SpreadsheetFileView({
         <p className="text-muted-foreground text-sm">{t("failed")}</p>
       </div>
     );
-  return <SpreadsheetView sheets={state.sheets} />;
+  // A CSV has no bold or styles to mark its column names, so its first row is
+  // taken as them, as table import's "First row contains column names" does.
+  return <SpreadsheetView sheets={state.sheets} headerRow={kind === "csv"} />;
 }
 
-export function SpreadsheetView({ sheets }: { sheets: Spreadsheet[] }) {
+export function SpreadsheetView({
+  sheets,
+  headerRow = false,
+}: {
+  sheets: Spreadsheet[];
+  /** Show the first row as column headers, pinned while the rows scroll. */
+  headerRow?: boolean;
+}) {
   const t = useTranslations("Components.SpreadsheetView");
   const [active, setActive] = useState(0);
   const sheet = sheets[active] ?? sheets[0];
   if (!sheet) return null;
+  const [head, ...rest] = sheet.rows;
+  const body = headerRow ? rest : sheet.rows;
 
   return (
     <div className="grid min-w-0 gap-3">
@@ -114,8 +125,29 @@ export function SpreadsheetView({ sheets }: { sheets: Spreadsheet[] }) {
       ) : (
         <div className="max-h-[70dvh] overflow-auto rounded-md border">
           <table className="w-max min-w-full border-collapse text-sm">
+            {headerRow && head ? (
+              // Collapsed borders stay behind a sticky row; the inset shadow
+              // draws its bottom edge instead.
+              <thead className="bg-card-background sticky top-0 z-10 shadow-[inset_0_-1px_0_var(--color-border)]">
+                <tr>
+                  {head.map((cell, cellIndex) => (
+                    <th
+                      key={cellIndex}
+                      scope="col"
+                      className={cn(
+                        "max-w-80 border-e px-3 py-1.5 text-start align-top font-semibold whitespace-pre-wrap last:border-e-0",
+                        // Over a column of numbers, align with them.
+                        rest[0]?.[cellIndex]?.numeric && "text-end",
+                      )}
+                    >
+                      {cell.text}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            ) : null}
             <tbody>
-              {sheet.rows.map((row, rowIndex) => (
+              {body.map((row, rowIndex) => (
                 <tr
                   // Rows have no identity beyond their place in the sheet.
                   key={rowIndex}
