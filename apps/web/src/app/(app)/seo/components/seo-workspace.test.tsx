@@ -8311,7 +8311,7 @@ describe("SEO workspace integration", () => {
     act(() =>
       within(first).getByRole("button", { name: "Open action" }).focus(),
     );
-    await act(() => clients.at(-1)!.invalidateQueries());
+    await act(async () => clients.at(-1)!.invalidateQueries());
     // The next action leads in the card. Focus left with the button, so it goes to the verdict.
     await waitFor(() =>
       expect(
@@ -8345,7 +8345,7 @@ describe("SEO workspace integration", () => {
           : action,
       ),
     };
-    await act(() => clients.at(-1)!.invalidateQueries());
+    await act(async () => clients.at(-1)!.invalidateQueries());
     await waitFor(() =>
       expect(
         within(

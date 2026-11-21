@@ -27,8 +27,12 @@ export type ConversationStep =
       title: string;
       status: string;
       model: string | null;
+      /** Why the turn ran on its model (strong model for hard work, or the default). */
+      modelReason: string | null;
       costUsd: number | null;
       durationMs: number | null;
+      /** Its model calls, by role and the model that answered. */
+      calls: ModelCallGroup[];
     }
   | {
       kind: "asked";
@@ -49,6 +53,39 @@ export type ConversationStep =
       costUsd: number | null;
       durationMs: number | null;
     };
+
+export interface ModelCallGroup {
+  role: string;
+  model: string;
+  calls: number;
+  costUsd: number;
+}
+
+/** A turn's model calls (upmodel's ledger), grouped by role and answering model. */
+function groupCalls(
+  calls: {
+    role: string;
+    requestedModel: string;
+    answeredModel: string | null;
+    costUsdMicros: bigint;
+  }[],
+): ModelCallGroup[] {
+  const groups = new Map<string, ModelCallGroup>();
+  for (const call of calls) {
+    const model = call.answeredModel ?? call.requestedModel;
+    const key = `${call.role} ${model}`;
+    const group = groups.get(key) ?? {
+      role: call.role,
+      model,
+      calls: 0,
+      costUsd: 0,
+    };
+    group.calls += 1;
+    group.costUsd += Number(call.costUsdMicros) / 1e6;
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
 
 export interface SokoBotConversation {
   turnId: string;
@@ -107,8 +144,18 @@ export async function sokoBotConversation(
       userMessage: true,
       status: true,
       modelId: true,
+      modelReason: true,
       costUsdMicros: true,
       durationMs: true,
+      modelCalls: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          role: true,
+          requestedModel: true,
+          answeredModel: true,
+          costUsdMicros: true,
+        },
+      },
       sokoBot: { select: { id: true, name: true } },
       toolCalls: {
         where: {
@@ -129,8 +176,10 @@ export async function sokoBotConversation(
       title: turnTitle(turn),
       status: turn.status,
       model: turn.modelId,
+      modelReason: turn.modelReason,
       costUsd: usd(turn.costUsdMicros),
       durationMs: turn.durationMs,
+      calls: groupCalls(turn.modelCalls),
     });
     for (const call of turn.toolCalls) {
       const result = call.result as {

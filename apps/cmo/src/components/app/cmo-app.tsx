@@ -473,6 +473,7 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
+                    openSeo={() => go("seo")}
                     loadText={actions.loadChatWorkText}
                     loadTable={actions.loadChatWorkTable}
                   />
@@ -760,6 +761,7 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
+  openSeo,
   loadText,
   loadTable,
 }: {
@@ -768,6 +770,7 @@ function ThreadEntry({
   actions: CardActions;
   name: string;
   openCalendar: () => void;
+  openSeo: () => void;
   loadText: (id: string) => Promise<string | null>;
   loadTable: (id: string) => Promise<ChatTable | null>;
 }) {
@@ -810,6 +813,7 @@ function ThreadEntry({
           compose={actions.compose}
           loadText={loadText}
           loadTable={loadTable}
+          openSeo={openSeo}
         />
       </CusoSays>
     );

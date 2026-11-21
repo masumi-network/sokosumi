@@ -214,7 +214,7 @@ describe("TaskDetailLink", () => {
   it("prefetches the task detail content when the reader heads for the link", async () => {
     render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
 
-    await act(() =>
+    await act(async () =>
       approachElement(screen.getByRole("link", { name: "Open task" })),
     );
 
@@ -229,7 +229,7 @@ describe("TaskDetailLink", () => {
   it("prefetches only the shell for a predicted Tab stop", async () => {
     render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
 
-    await act(() =>
+    await act(async () =>
       approachElement(screen.getByRole("link", { name: "Open task" }), "tab"),
     );
 
@@ -240,7 +240,7 @@ describe("TaskDetailLink", () => {
   it("prefetches only the shell for a predicted touch", async () => {
     render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
 
-    await act(() =>
+    await act(async () =>
       approachElement(screen.getByRole("link", { name: "Open task" }), "touch"),
     );
 

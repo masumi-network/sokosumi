@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/ably/realtime-channel-environment", () => ({
@@ -187,21 +187,21 @@ describe("useOrgPresenceMap", () => {
         | undefined;
     }
 
-    handlerFor("enter")?.({
-      clientId: "user_self:instanceA1",
-      data: { lastActiveAt: Date.now(), visible: true },
+    act(() => {
+      handlerFor("enter")?.({
+        clientId: "user_self:instanceA1",
+        data: { lastActiveAt: Date.now(), visible: true },
+      });
     });
-    await waitFor(() => {
-      expect(result.current.get("user_self")).toBe("online");
-    });
+    expect(result.current.get("user_self")).toBe("online");
 
-    handlerFor("update")?.({
-      clientId: "user_self:instanceA1",
-      data: { lastActiveAt: Date.now(), visible: false },
+    act(() => {
+      handlerFor("update")?.({
+        clientId: "user_self:instanceA1",
+        data: { lastActiveAt: Date.now(), visible: false },
+      });
     });
-    await waitFor(() => {
-      expect(result.current.get("user_self")).toBe("afk");
-    });
+    expect(result.current.get("user_self")).toBe("afk");
   });
 
   it("does not attach when authorize fails", async () => {

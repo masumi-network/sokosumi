@@ -221,7 +221,7 @@ describe("WorkspaceCalendar", () => {
     ).toHaveLength(1);
   });
 
-  it("never commits a stale/clickable item for a frame when a fresh server page arrives", () => {
+  it("never commits a stale/clickable item for a frame when a fresh server page arrives", async () => {
     // Bypasses RTL's act()-wrapped render/rerender on purpose: act() flushes
     // passive effects synchronously, so a useEffect-based prop sync would
     // always look correct through it, masking exactly the transient commit
@@ -246,32 +246,34 @@ describe("WorkspaceCalendar", () => {
     }
 
     try {
-      flushSync(() => {
-        root.render(<Tree items={ITEMS} />);
+      await act(async () => {
+        flushSync(() => {
+          root.render(<Tree items={ITEMS} />);
+        });
+
+        expect(
+          within(container).getAllByRole("button", {
+            name: /Prepare release notes/,
+          }).length,
+        ).toBeGreaterThan(0);
+
+        // Simulate `router.refresh()` delivering a fresh server page where the
+        // task was cleared/rescheduled out of view — a brand-new `items` array.
+        flushSync(() => {
+          root.render(<Tree items={[]} />);
+        });
+
+        // Assert immediately after the synchronous commit, before any passive
+        // effect can run: the cleared item must already be gone, not still
+        // rendered (and clickable) for one commit.
+        expect(
+          within(container).queryAllByRole("button", {
+            name: /Prepare release notes/,
+          }),
+        ).toHaveLength(0);
       });
-
-      expect(
-        within(container).getAllByRole("button", {
-          name: /Prepare release notes/,
-        }).length,
-      ).toBeGreaterThan(0);
-
-      // Simulate `router.refresh()` delivering a fresh server page where the
-      // task was cleared/rescheduled out of view — a brand-new `items` array.
-      flushSync(() => {
-        root.render(<Tree items={[]} />);
-      });
-
-      // Assert immediately after the synchronous commit, before any passive
-      // effect can run: the cleared item must already be gone, not still
-      // rendered (and clickable) for one commit.
-      expect(
-        within(container).queryAllByRole("button", {
-          name: /Prepare release notes/,
-        }),
-      ).toHaveLength(0);
     } finally {
-      root.unmount();
+      act(() => root.unmount());
       container.remove();
     }
   });
@@ -484,7 +486,11 @@ describe("WorkspaceCalendar", () => {
       "status",
       "timezone",
     ]);
-    props.sections.find((section) => section.id === "scope")?.onChange("owned");
+    await act(async () => {
+      props.sections
+        .find((section) => section.id === "scope")
+        ?.onChange("owned");
+    });
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
 
     const updates = onUrlUpdate.mock.calls.map(([event]) =>
@@ -574,9 +580,11 @@ describe("WorkspaceCalendar", () => {
         onChange: (value: string | null) => void;
       }>;
     };
-    props.sections
-      .find((section) => section.id === "coworker")
-      ?.onChange("coworker-1");
+    await act(async () => {
+      props.sections
+        .find((section) => section.id === "coworker")
+        ?.onChange("coworker-1");
+    });
 
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
     const updates = onUrlUpdate.mock.calls.map(([event]) =>
@@ -605,9 +613,11 @@ describe("WorkspaceCalendar", () => {
         onChange: (value: string | null) => void;
       }>;
     };
-    props.sections
-      .find((section) => section.id === "status")
-      ?.onChange("READY");
+    await act(async () => {
+      props.sections
+        .find((section) => section.id === "status")
+        ?.onChange("READY");
+    });
 
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
     const updates = onUrlUpdate.mock.calls.map(([event]) =>

@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
-import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { useAutoContextSwitch } from "@/hooks/effects/use-auto-context-switch";
 
 interface AutoContextSwitchProps {
   activeOrganizationId: string | null;
@@ -15,28 +13,11 @@ export function AutoContextSwitch({
   targetOrganizationId,
   successMessage,
 }: AutoContextSwitchProps) {
-  const { handleSelectWorkspace } = useWorkspaceSwitcher();
-  const hasTriggeredRef = useRef(false);
-  const initialSwitchRef = useRef({
-    shouldSwitch: activeOrganizationId !== targetOrganizationId,
-    successMessage,
+  useAutoContextSwitch({
+    activeOrganizationId,
     targetOrganizationId,
+    successMessage,
   });
-
-  useEffect(() => {
-    const initialSwitch = initialSwitchRef.current;
-
-    if (!initialSwitch.shouldSwitch || hasTriggeredRef.current) {
-      return;
-    }
-
-    hasTriggeredRef.current = true;
-    void handleSelectWorkspace(initialSwitch.targetOrganizationId, {
-      shouldRedirectAgentJobsBasePath: false,
-      shouldRedirectTaskDetailPath: false,
-      successMessage: initialSwitch.successMessage,
-    });
-  }, [handleSelectWorkspace]);
 
   return null;
 }

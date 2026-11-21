@@ -1002,12 +1002,16 @@ async function keepCmoSeo(cuso: Cuso, now: Date): Promise<void> {
     );
     await keepCmoSeoAudit(cuso, now);
     await verifyCmoSeoChanges(cuso);
+    const { startCmoSeoReport } = await import(
+      "@/services/cmo-seo-report.service"
+    );
+    await startCmoSeoReport(cuso, now);
   } catch (error) {
     recordCoreWarning(
       { operation: "cmo_seo_sync", sokoBot: { id: cuso.sokoBotId } },
       {
         message: "CMO SEO sync skipped a Cuso",
-        why: "Keeping the weekly SEO audit or checking done page changes threw",
+        why: "Keeping the weekly SEO audit, checking done page changes or starting the weekly SEO report threw",
         fix: "The next sync tries again. If it repeats, look up the error name and code under failure.",
       },
       { failure: messageSafeErrorFields(error) },

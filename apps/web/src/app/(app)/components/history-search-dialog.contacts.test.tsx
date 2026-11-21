@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -61,6 +67,7 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 }));
 
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
+import { HISTORY_SEARCH_DEBOUNCE_MS } from "@/app/components/use-history-search-corpus";
 
 const labels = {
   dialogTitle: "Search",
@@ -148,17 +155,28 @@ describe("HistorySearchDialog People group", () => {
   });
 
   it("asks Core once for the final query, not per keystroke", async () => {
+    vi.useFakeTimers();
     listContactsMock.mockResolvedValue({ contacts: [] });
-    const user = userEvent.setup();
-    renderDialog();
+    try {
+      renderDialog();
 
-    await user.type(screen.getByPlaceholderText("Search..."), "nina");
+      const search = screen.getByPlaceholderText("Search...");
+      for (const value of ["n", "ni", "nin", "nina"]) {
+        fireEvent.change(search, { target: { value } });
+      }
+      expect(listContactsMock).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(listContactsMock).toHaveBeenCalled());
-    // Past another debounce window: no late calls for "n", "ni", "nin".
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(listContactsMock).toHaveBeenCalledTimes(1);
-    expect(listContactsMock).toHaveBeenCalledWith({ search: "nina", limit: 5 });
+      // Past another debounce window: no late calls for "n", "ni", "nin".
+      await act(async () =>
+        vi.advanceTimersByTimeAsync(HISTORY_SEARCH_DEBOUNCE_MS * 2),
+      );
+      expect(listContactsMock).toHaveBeenCalledExactlyOnceWith({
+        search: "nina",
+        limit: 5,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not say No results found while contacts are loading", async () => {
@@ -168,17 +186,26 @@ describe("HistorySearchDialog People group", () => {
         answer = resolve;
       }),
     );
-    const user = userEvent.setup();
-    renderDialog();
+    vi.useFakeTimers();
+    try {
+      renderDialog();
+      fireEvent.change(screen.getByPlaceholderText("Search..."), {
+        target: { value: "nina" },
+      });
+      await act(async () =>
+        vi.advanceTimersByTimeAsync(HISTORY_SEARCH_DEBOUNCE_MS * 2),
+      );
+      expect(listContactsMock).toHaveBeenCalled();
+      // History and Tags have answered empty by now; People has not.
+      expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+      expect(screen.getByText("Loading...")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
 
-    await user.type(screen.getByPlaceholderText("Search..."), "nina");
-    await waitFor(() => expect(listContactsMock).toHaveBeenCalled());
-    // History and Tags have answered empty by now; People has not.
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
-
-    answer({ contacts: [contact("c-1", "Nina Berg", "Acme")] });
+    await act(async () =>
+      answer({ contacts: [contact("c-1", "Nina Berg", "Acme")] }),
+    );
     expect(await screen.findByText("Nina Berg")).toBeInTheDocument();
   });
 

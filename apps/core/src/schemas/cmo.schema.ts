@@ -8,6 +8,7 @@ import {
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
+import { cmoSeoSuggestionSchema } from "@/schemas/cmo-seo.schema";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
 import { socialAccountChoiceSchema } from "@/schemas/project-social-connection.schema";
 import { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
@@ -328,9 +329,10 @@ export const cmoChatWorkItemSchema = z
         "question",
         "seo",
         "audit",
+        "seo_saved",
       ])
       .describe(
-        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).",
+        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), the SEO specialist's weekly audit of the site (audit), or the page changes and articles he saved to the SEO page (seo_saved).",
       ),
     state: z
       .enum(["making", "waiting", "ready", "failed", "stopped"])
@@ -386,6 +388,12 @@ export const cmoChatWorkItemSchema = z
       .union([z.string(), z.null()])
       .describe(
         "A background run's own turn: its report in the room is this card.",
+      ),
+    suggestions: z
+      .array(cmoSeoSuggestionSchema)
+      .optional()
+      .describe(
+        "seo_saved: what Cuso saved to the SEO page, as the page shows it.",
       ),
   })
   .openapi("CmoChatWorkItem");

@@ -358,7 +358,7 @@ describe("RoomMembersPanel", () => {
     expect(options.duration).toBe(Infinity);
     expect(options.closeButton).toBe(true);
 
-    options.action.onClick();
+    await act(async () => options.action.onClick());
 
     await waitFor(() => {
       expect(addRoomMembersActionMock).toHaveBeenCalledWith("room-1", {
@@ -480,7 +480,7 @@ describe("RoomMembersPanel", () => {
       );
     });
     const [, options] = toastMock.success.mock.calls[0];
-    options.action.onClick();
+    await act(async () => options.action.onClick());
 
     await waitFor(() => {
       expect(addRoomMembersActionMock).toHaveBeenCalledWith("room-1", {
@@ -540,7 +540,7 @@ describe("RoomMembersPanel", () => {
     await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
     refreshMock.mockClear();
     const [, options] = toastMock.success.mock.calls[0];
-    options.action.onClick();
+    await act(async () => options.action.onClick());
     await waitFor(() =>
       expect(toastMock.error).toHaveBeenCalledWith(
         "Unable to restore. Try adding again.",

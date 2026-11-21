@@ -46,7 +46,7 @@ describe("useDesignMdGeneration", () => {
     } as Awaited<ReturnType<typeof startDesignMdGeneration>>);
     const { onFailed, onStarted, result } = renderGeneration();
 
-    await act(() => result.current.generate({ url: URL }));
+    await act(async () => result.current.generate({ url: URL }));
 
     const attempt = { attemptId: expect.any(String), url: URL };
     expect(onStarted).toHaveBeenCalledWith(attempt);
@@ -73,31 +73,35 @@ describe("useDesignMdGeneration", () => {
   });
 
   it("hands over a job whose start answers after unmount, without polling", async () => {
-    let answer!: (
-      value: Awaited<ReturnType<typeof startDesignMdGeneration>>,
-    ) => void;
-    vi.mocked(startDesignMdGeneration).mockReturnValue(
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
-    const { onJobStarted, onStarted, result, unmount } = renderGeneration();
+    vi.useFakeTimers();
+    try {
+      const answer =
+        Promise.withResolvers<
+          Awaited<ReturnType<typeof startDesignMdGeneration>>
+        >();
+      vi.mocked(startDesignMdGeneration).mockReturnValue(answer.promise);
+      const { onJobStarted, onStarted, result, unmount } = renderGeneration();
 
-    const started = result.current.generate({ url: URL });
-    unmount();
-    answer({
-      ok: true,
-      value: { kind: "queued", jobId: "job-1", jobToken: "token-1" },
-    } as Awaited<ReturnType<typeof startDesignMdGeneration>>);
-    await started;
-    await new Promise((resolve) => setTimeout(resolve, 10));
+      await act(async () => {
+        const started = result.current.generate({ url: URL });
+        unmount();
+        answer.resolve({
+          ok: true,
+          value: { kind: "queued", jobId: "job-1", jobToken: "token-1" },
+        });
+        await started;
+        await vi.advanceTimersByTimeAsync(0);
+      });
 
-    expect(onJobStarted).toHaveBeenCalledWith({
-      attemptId: onStarted.mock.calls[0]?.[0].attemptId,
-      jobId: "job-1",
-      jobToken: "token-1",
-      url: URL,
-    });
-    expect(pollDesignMdGeneration).not.toHaveBeenCalled();
+      expect(onJobStarted).toHaveBeenCalledWith({
+        attemptId: onStarted.mock.calls[0]?.[0].attemptId,
+        jobId: "job-1",
+        jobToken: "token-1",
+        url: URL,
+      });
+      expect(pollDesignMdGeneration).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

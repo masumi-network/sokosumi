@@ -1459,6 +1459,7 @@ export async function markLandingPageLive(
 export async function askCusoForArticles(
   projectId: string,
   articleId?: string,
+  write = false,
 ): Promise<string | null> {
   const core = await requireCore();
   const { error } = articleId
@@ -1466,7 +1467,11 @@ export async function askCusoForArticles(
         ...core,
         path: { projectId, id: articleId },
       })
-    : await requestCmoArticleIdeasForProject({ ...core, path: { projectId } });
+    : await requestCmoArticleIdeasForProject({
+        ...core,
+        path: { projectId },
+        body: { write },
+      });
   return error ? errorText(error, `${AGENT_NAME} could not start`) : null;
 }
 

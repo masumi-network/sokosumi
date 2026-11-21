@@ -1,5 +1,6 @@
 import type { TableColumn, TableRow, TableView } from "@sokosumi/core-client";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -281,7 +282,7 @@ it("F2: polling row removal pins the edited row and preserves its original versi
   await waitFor(() => expect(f.batch).toHaveBeenCalledOnce());
   expect(f.batch.mock.calls[0][1].patch[0].version).toBe(1);
 });
-it("F11: typing after Escape starts another edit", () => {
+it("F11: typing after Escape starts another edit", async () => {
   const save = vi.fn();
   render(
     <table>
@@ -311,7 +312,7 @@ it("F11: typing after Escape starts another edit", () => {
   const next = openCell();
   expect(next).toHaveValue("Original");
   fireEvent.change(next, { target: { value: "New edit" } });
-  fireEvent.blur(next);
+  await act(async () => fireEvent.blur(next));
   expect(save).toHaveBeenCalledWith(1, "New edit");
 });
 it("F11: IME composition keys do not submit or cancel the draft", () => {
@@ -917,13 +918,13 @@ it("blocks link navigation when a cell save goes unresolved after listeners inst
   const cell = openCell();
   fireEvent.focus(cell);
   fireEvent.change(cell, { target: { value: "Pending value" } });
-  fireEvent.blur(cell);
+  await act(async () => fireEvent.blur(cell));
   await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(1));
   // The back affordance is the labelled link the other detail pages use, so
   // its accessible name comes from its own text rather than an `aria-label`.
   const link = screen.getByRole("link", { name: "backToFiles" });
   const click = new MouseEvent("click", { bubbles: true, cancelable: true });
-  link.dispatchEvent(click);
+  act(() => link.dispatchEvent(click));
   await waitFor(() =>
     expect(
       screen
@@ -1180,7 +1181,7 @@ it("S2: arrow keys move the selection between cells", () => {
   render(<TableEditor id={f.column.tableId} />);
   const [first, next] = screen.getAllByRole("gridcell");
   expect(first).toHaveAttribute("tabindex", "0");
-  first.focus();
+  act(() => first.focus());
   fireEvent.keyDown(first, { key: "ArrowRight" });
   expect(next).toHaveFocus();
   expect(next).toHaveAttribute("aria-selected", "true");
