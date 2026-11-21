@@ -14,7 +14,6 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
-import { withinSearchConsoleRetention } from "@/lib/seo/native-statistics";
 import {
   GSC_TASK_OPERATIONS,
   GSC_TASK_READ_BUDGET,
@@ -40,6 +39,14 @@ import {
 /** The whole provider step, including tool discovery. */
 const GSC_TASK_READ_TIMEOUT_MS = 45_000;
 const BUDGET_KIND = "task_gsc_read_budget";
+const DAY_MS = 86_400_000;
+/**
+ * The oldest start date a Task read accepts. The worker asks for 16 calendar
+ * months, and 16 calendar months are at most 489 days. Its range ends the day
+ * before the capture, and time zones add up to a day more. So 500 days, not
+ * the 480-day GSC_RETENTION_DAYS of the stored reads.
+ */
+const GSC_TASK_START_MAX_DAYS = 500;
 const budgetSchema = z.record(z.string(), z.number().int().nonnegative());
 
 /** The web Task page the worker shows the owner. The worker validates exactly this form. */
@@ -189,7 +196,8 @@ export async function readSeoTaskSearchConsole(
     requireApprovedTarget(read, access.propertyId);
     if (
       read.operation === "searchAnalytics.query" &&
-      !withinSearchConsoleRetention(read.query.startDate)
+      Date.parse(`${read.query.startDate}T00:00:00Z`) <
+        Date.now() - GSC_TASK_START_MAX_DAYS * DAY_MS
     )
       throw unprocessableEntity(
         "The period starts outside Search Console retention",

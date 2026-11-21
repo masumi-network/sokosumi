@@ -4,6 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { importProjectSeoAudit } from "@/services/project-seo-import.service";
 import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
 import {
+  day,
   PAGE_URLS,
   PROPERTY,
   searchConsoleReadFixture,
@@ -52,7 +53,16 @@ describe.skipIf(!searchConsoleReadsEnabled)(
   "Task-scoped Search Console read boundaries",
   () => {
     const fx = searchConsoleReadFixture(network, ids.executor);
-    const { setAccess } = fx;
+    const { query, read, setAccess } = fx;
+    it("accepts a start date 489 days back and refuses one 501 days back", async () => {
+      const sixteenMonths = await read(query({ startDate: day(-489) }));
+      expect(sixteenMonths.status, await sixteenMonths.clone().text()).toBe(
+        200,
+      );
+      expect((await read(query({ startDate: day(-501) }))).status).toBe(422);
+      expect(fx.reads).toHaveLength(1);
+    });
+
     it("imports a report with Search Console sections only for an audit approved with Search Console", async () => {
       await prisma.task.update({
         where: { id: fx.taskId },

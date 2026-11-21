@@ -201,7 +201,7 @@ describe.skipIf(!enabled)("Task-scoped Search Console reads", () => {
       { rowLimit: 0 },
       { startRow: 975_001 },
       { startDate: day(-3), endDate: day(-30) },
-      { startDate: day(-500) },
+      { startDate: day(-501) },
       { dimensions: ["hour"] },
       {
         dimensionFilterGroups: [
