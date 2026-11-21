@@ -4091,12 +4091,24 @@ export class SokoBotControlPlane {
       );
     }
     const target = await resolveSokoBotVersion(input.toVersionId);
+    const notice = composeSokoBotVersionNotice(target);
+    const euPinned = new Map<string | null, boolean>();
     // Moving a bot off EU-pinned inference changes where its owner's data is
-    // processed; that is never done without telling them.
-    const notice =
-      input.notifyOwners || target.inferenceRegion !== "eu"
-        ? composeSokoBotVersionNotice(target)
-        : null;
+    // processed; that is never done without telling them. A move that keeps
+    // it where it was needs no notice unless the operator asks for one.
+    const mustTell = async (versionId: string | null): Promise<boolean> => {
+      if (input.notifyOwners) return true;
+      if (target.inferenceRegion === "eu") return false;
+      let pinned = euPinned.get(versionId);
+      if (pinned === undefined) {
+        pinned = await resolveSokoBotVersion(versionId)
+          .then((version) => version.inferenceRegion === "eu")
+          // A version Core can no longer read: assume the bot was in the EU.
+          .catch(() => true);
+        euPinned.set(versionId, pinned);
+      }
+      return pinned;
+    };
     const bots = await prisma.sokoBot.findMany({
       where: {
         archivedAt: null,
@@ -4148,7 +4160,7 @@ export class SokoBotControlPlane {
       }
       // The move stands whether or not the owner hears about it: a notice
       // that fails is counted as not sent, never as a failed move.
-      if (notice) {
+      if (await mustTell(bot.versionId)) {
         const { postSokoBotOwnerNotice } = await import(
           "@/services/soko-bot-chat.service"
         );
