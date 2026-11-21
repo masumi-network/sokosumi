@@ -70,8 +70,8 @@ vi.mock("@/services/social-posts.service", () => ({
 }));
 
 import {
-  CMO_MONTH_WRITER_BUDGET_MS,
   cmoChunkProof,
+  cmoMonthWriterBudgetMs,
   cmoWriterChunks,
   cmoWriterModelTimeoutMs,
   writeCmoMonthPieces,
@@ -521,7 +521,7 @@ describe("writeCmoMonthPieces", () => {
     expect(cmoWriterModelTimeoutMs(100_000, 0)).toBe(75_000);
     expect(cmoWriterModelTimeoutMs(100_000, 50_000)).toBe(35_000);
     expect(cmoWriterModelTimeoutMs(100_000, 90_000)).toBe(0);
-    expect(CMO_MONTH_WRITER_BUDGET_MS).toBe(100_000);
+    expect(cmoMonthWriterBudgetMs()).toBe(100_000);
   });
 
   it("leaves pictures to the brand's own pictures where no library is set up", async () => {

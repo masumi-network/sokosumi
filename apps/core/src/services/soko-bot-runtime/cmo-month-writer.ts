@@ -74,7 +74,7 @@ import { type RuntimeOperations } from "./operations";
  * the chunks at once, every result saved through the same tools Cuso's own
  * saves go through, so each piece passes the same checks and leaves the same
  * receipts. A call must answer within its tool timeout, so it takes at most
- * PIECES_PER_CALL pieces and works to one deadline, CMO_MONTH_WRITER_BUDGET_MS:
+ * PIECES_PER_CALL pieces and works to one deadline, cmoMonthWriterBudgetMs():
  * a model call, the saves, the month's checks and the repair each stop in
  * time to answer; what it did not save stays pending for the next call.
  */
@@ -83,8 +83,9 @@ const PIECES_PER_CHUNK = 10;
 const MODEL_TIMEOUT_MS = 75_000;
 /** What the writer leaves of its tool timeout to answer and log. */
 const ANSWER_MARGIN_MS = 15_000;
-export const CMO_MONTH_WRITER_BUDGET_MS =
-  sokoBotToolCallTimeoutMs("write_month_pieces") - ANSWER_MARGIN_MS;
+export function cmoMonthWriterBudgetMs(): number {
+  return sokoBotToolCallTimeoutMs("write_month_pieces") - ANSWER_MARGIN_MS;
+}
 /** A model call ends this long before the deadline, so its pieces still save. */
 const SAVE_RESERVE_MS = 15_000;
 /** The month's checks read every draft; they start only with this much left. */
@@ -341,7 +342,7 @@ export async function writeCmoMonthPieces(
   next: string;
 }> {
   const startedAt = Date.now();
-  const deadline = startedAt + CMO_MONTH_WRITER_BUDGET_MS;
+  const deadline = startedAt + cmoMonthWriterBudgetMs();
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: authorized.turn.id },
     select: { clientTurnId: true },
