@@ -233,16 +233,25 @@ export async function finalizeSokoBotIntegration(input: {
   });
   if (!row) throw new SokoBotIntegrationError("Not connected", "NOT_FOUND");
   const composio = requireComposio();
-  const accountId = row.pendingComposioAccountId ?? row.composioAccountId;
+  const verified = input.expectedComposioAccountId;
   if (
-    input.expectedComposioAccountId &&
-    input.expectedComposioAccountId !== accountId
+    verified &&
+    verified !== row.composioAccountId &&
+    verified !== row.pendingComposioAccountId
   ) {
     throw new SokoBotIntegrationError(
       "Connection changed; retry finalizing OAuth",
     );
   }
+  // A second Connect click starts another attempt, while the owner may sign
+  // in through the first one: the attempt Composio verified wins.
+  const accountId =
+    verified ?? row.pendingComposioAccountId ?? row.composioAccountId;
   const replacing = accountId !== row.composioAccountId;
+  const abandoned =
+    row.pendingComposioAccountId && row.pendingComposioAccountId !== accountId
+      ? row.pendingComposioAccountId
+      : null;
   if (replacing) {
     await assertSokoBotIntegrationReplace(
       input.userId,
@@ -285,6 +294,7 @@ export async function finalizeSokoBotIntegration(input: {
           ? (account.statusReason ?? account.status)
           : null,
       ...(status === "ACTIVE" ? { lastErrorAt: null } : {}),
+      ...(abandoned ? { pendingComposioAccountId: null } : {}),
       ...(replacing
         ? {
             composioAccountId: accountId,
@@ -354,10 +364,9 @@ export async function finalizeSokoBotIntegration(input: {
     );
   // Preserve the existing replacement policy, but only revoke after the new
   // account is active and persisted. Never delete unrelated upstream accounts.
-  if (replacing) {
-    await composio.connectedAccounts
-      .delete(row.composioAccountId)
-      .catch(() => undefined);
+  for (const unused of [replacing ? row.composioAccountId : null, abandoned]) {
+    if (unused)
+      await composio.connectedAccounts.delete(unused).catch(() => undefined);
   }
   return status;
 }

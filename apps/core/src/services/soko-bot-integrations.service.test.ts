@@ -339,6 +339,39 @@ describe("Soko Bot OAuth replacement", () => {
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
+  it("finishes the first attempt Composio verified when a second click left another pending", async () => {
+    mocks.find.mockResolvedValue({
+      ...existing,
+      status: "PENDING",
+      pendingComposioAccountId: "second-click",
+    });
+    mocks.get.mockResolvedValue({
+      id: "selected",
+      status: "ACTIVE",
+      toolkit: { slug: "gmail" },
+      isDisabled: false,
+    });
+    await expect(
+      finalizeSokoBotIntegration({
+        ...input,
+        expectedComposioAccountId: "selected",
+      }),
+    ).resolves.toBe("ACTIVE");
+    expect(mocks.get).toHaveBeenCalledWith("selected");
+    const update = mocks.updateMany.mock.calls[0][0];
+    expect(update.where).toEqual({
+      id: "integration",
+      composioAccountId: "selected",
+      pendingComposioAccountId: "second-click",
+    });
+    expect(update.data).toMatchObject({
+      status: "ACTIVE",
+      pendingComposioAccountId: null,
+    });
+    expect(update.data).not.toHaveProperty("composioAccountId");
+    expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("second-click");
+  });
+
   it("switches only to the pending ID after verification and resets mailbox ingest state", async () => {
     mocks.find.mockResolvedValue({
       ...existing,
