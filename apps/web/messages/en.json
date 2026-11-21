@@ -13824,7 +13824,6 @@
         "changedShort": "Since the previous report, the first step has changed.",
         "verify": "How to check the result",
         "evidence": "Audit evidence",
-        "whyItem": "Why this action?",
         "groups": {
           "fixes": "Page fixes ({count})",
           "content": "Content and keywords ({count})"

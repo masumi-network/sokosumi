@@ -13824,7 +13824,6 @@
         "changedShort": "El primer paso ha cambiado desde el informe anterior.",
         "verify": "Cómo comprobar el resultado",
         "evidence": "Datos de la auditoría",
-        "whyItem": "¿Por qué esta acción?",
         "groups": {
           "fixes": "Correcciones de página ({count})",
           "content": "Contenido y palabras clave ({count})"

@@ -18,6 +18,11 @@ import { SeoFoldSummary, SeoPageText } from "./seo-shared";
 import type { useSelectedSeoPlan } from "./use-selected-seo-plan";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+/** Every fold of the plan is one row: its words at the start, its arrow at the end of the card. */
+const FOLD_ROW_CLASS = "min-h-12 justify-between gap-4";
+/** What a fold shows: lines of reading width, with room before the next row. */
+const FOLD_BODY_CLASS = "max-w-prose space-y-3 pt-1 pb-4";
+
 export function SeoReportPlan({
   model,
   onOpen,
@@ -63,6 +68,16 @@ export function SeoReportPlan({
   for (const option of options) {
     if (duplicates.has(option.label)) option.label += " · " + option.value;
   }
+  const evidenceList = (lines: string[]) =>
+    lines.length > 0 && (
+      <ul className="text-muted-foreground list-disc space-y-2 ps-5">
+        {lines.map((line, i) => (
+          <li key={i} dir="auto">
+            {line}
+          </li>
+        ))}
+      </ul>
+    );
   const actionButton = (id?: string, origin?: string) => {
     const action =
       !historical &&
@@ -80,35 +95,40 @@ export function SeoReportPlan({
       </Button>
     ) : null;
   };
-  function actionReason(item: NonNullable<typeof plan>["lead"]) {
+  // One more step of the plan: a row with its title and page. It opens in place, as the rows of the worklist do.
+  function planStep(
+    item: NonNullable<typeof plan>["lead"],
+    originId: string | undefined,
+    title: string = item.title,
+  ) {
     return (
-      <details className="max-w-prose space-y-2">
-        <SeoFoldSummary className="min-h-9">
-          {ui("reportPlan.whyItem")}
+      <details className="min-w-0">
+        <SeoFoldSummary className={cn(FOLD_ROW_CLASS, "py-2")}>
+          <span className="min-w-0 space-y-0.5">
+            <h5 className="font-medium">{title}</h5>
+            <SeoPageText url={item.pageUrl} workspace={model.data} />
+          </span>
         </SeoFoldSummary>
-        <p>{item.reason}</p>
-        {item.nextCheck && <p>{item.nextCheck}</p>}
-        {item.evidence.length > 0 && (
-          <details>
-            <SeoFoldSummary className="min-h-9">
-              {ui("reportPlan.evidence")}
-            </SeoFoldSummary>
-            <ul className="text-muted-foreground list-disc space-y-2 ps-5">
-              {item.evidence.map((line, i) => (
-                <li key={i} dir="auto">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
+        <div className={FOLD_BODY_CLASS}>
+          {item.queries?.length ? (
+            <p className="text-muted-foreground">
+              {t("reportPlan.queries", {
+                queries: item.queries.join(", "),
+              })}
+            </p>
+          ) : null}
+          <p>{item.reason}</p>
+          {item.nextCheck && <p>{item.nextCheck}</p>}
+          {evidenceList(item.evidence)}
+          {actionButton(item.actionId, originId)}
+        </div>
       </details>
     );
   }
   return (
     <section
       aria-label={ui("reportPlan.title")}
-      className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-5 p-4 sm:p-6")}
+      className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">{ui("reportPlan.title")}</h3>
@@ -132,7 +152,7 @@ export function SeoReportPlan({
         <div
           key={report.id}
           lang="en"
-          className="min-w-0 space-y-5 break-words text-sm leading-relaxed"
+          className="min-w-0 space-y-4 break-words text-sm leading-relaxed"
         >
           {change && (
             <p className="font-medium">{t("reportPlan.changedShort")}</p>
@@ -179,190 +199,159 @@ export function SeoReportPlan({
               })}
             </p>
           )}
-          {plan.follow && (
-            <div className="space-y-2">
-              <p>
-                {t("reportPlan.then", { step: plan.follow.title })}
-                {plan.follow.pageUrl !== plan.lead.pageUrl && (
-                  <SeoPageText
-                    url={plan.follow.pageUrl}
-                    workspace={model.data}
-                  />
+          <div className="divide-y border-t">
+            <details key={report.id}>
+              <SeoFoldSummary className={cn(FOLD_ROW_CLASS, "font-medium")}>
+                {ui("reportPlan.why")}
+              </SeoFoldSummary>
+              <div className={FOLD_BODY_CLASS}>
+                <p>
+                  {plan.reconsider
+                    ? t(`reportPlan.basis.${plan.basis}`)
+                    : summary}
+                </p>
+                {plan.timing && (
+                  <p>
+                    {t("reportPlan.peaks", {
+                      periods: plan.timing.peaks.join(", "),
+                    })}
+                  </p>
                 )}
-              </p>
-              {actionReason(plan.follow)}
-              {actionButton(plan.follow.actionId, plan.followOrigin)}
-            </div>
-          )}
-          <details key={report.id} className="max-w-prose space-y-3">
-            <SeoFoldSummary className="min-h-10 font-medium">
-              {ui("reportPlan.why")}
-            </SeoFoldSummary>
-            <p>
-              {plan.reconsider ? t(`reportPlan.basis.${plan.basis}`) : summary}
-            </p>
-            {plan.timing && (
-              <p>
-                {t("reportPlan.peaks", {
-                  periods: plan.timing.peaks.join(", "),
-                })}
-              </p>
-            )}
-            {plan.timing && !!plan.lead.queries?.length && (
-              <p>
-                {t("reportPlan.queries", {
-                  queries: plan.lead.queries.join(", "),
-                })}
-              </p>
-            )}
-            {plan.sources.map((source, i) => (
-              <p key={i}>
-                {source.evidence}{" "}
-                {source.reportId === report.id ? (
-                  options.find((o) => o.value === report.id)?.label
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="link"
-                    onClick={() => setPicked(source.reportId)}
-                  >
-                    {options.find((o) => o.value === source.reportId)?.label}
-                  </Button>
+                {plan.timing && !!plan.lead.queries?.length && (
+                  <p>
+                    {t("reportPlan.queries", {
+                      queries: plan.lead.queries.join(", "),
+                    })}
+                  </p>
                 )}
-              </p>
-            ))}
-            {change && (
-              <p>
-                {t("reportPlan.was", { step: change.previous })}{" "}
-                <Button
-                  variant="link"
-                  size="sm"
-                  onClick={() => setPicked(change.reportId)}
-                >
-                  {options.find((o) => o.value === change.reportId)?.label}
-                </Button>
-              </p>
-            )}
-            {plan.missingOutcome && (
-              <p>
-                {plan.eventName
-                  ? t("reportPlan.missingComparison", { event: plan.eventName })
-                  : t("reportPlan.missingOutcome", {
-                      event: plan.detectedName ?? "",
+                {plan.sources.map((source, i) => (
+                  <p key={i}>
+                    {source.evidence}{" "}
+                    {source.reportId === report.id ? (
+                      options.find((o) => o.value === report.id)?.label
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="link"
+                        onClick={() => setPicked(source.reportId)}
+                      >
+                        {
+                          options.find((o) => o.value === source.reportId)
+                            ?.label
+                        }
+                      </Button>
+                    )}
+                  </p>
+                ))}
+                {change && (
+                  <p>
+                    {t("reportPlan.was", { step: change.previous })}{" "}
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => setPicked(change.reportId)}
+                    >
+                      {options.find((o) => o.value === change.reportId)?.label}
+                    </Button>
+                  </p>
+                )}
+                {plan.missingOutcome && (
+                  <p>
+                    {plan.eventName
+                      ? t("reportPlan.missingComparison", {
+                          event: plan.eventName,
+                        })
+                      : t("reportPlan.missingOutcome", {
+                          event: plan.detectedName ?? "",
+                          action: t(
+                            `brief.actions.${plan.missingOutcome.replaceAll(" ", "_")}`,
+                          ),
+                        })}{" "}
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => model.setDialog("brief")}
+                    >
+                      {ui("brief.title")}
+                    </Button>
+                  </p>
+                )}
+                {plan.exposure && (
+                  <p>
+                    {t("reportPlan.exposure", {
+                      impressions: format.number(plan.exposure.impressions),
+                      from: new Date(plan.exposure.from)
+                        .toISOString()
+                        .slice(0, 10),
+                      to: new Date(plan.exposure.to).toISOString().slice(0, 10),
+                    })}
+                  </p>
+                )}
+                {plan.destination && plan.goal?.action && (
+                  <p>
+                    {t("reportPlan.destination", {
                       action: t(
-                        `brief.actions.${plan.missingOutcome.replaceAll(" ", "_")}`,
+                        `brief.actions.${plan.goal.action.replaceAll(" ", "_")}`,
                       ),
-                    })}{" "}
-                <Button
-                  variant="link"
-                  size="sm"
-                  onClick={() => model.setDialog("brief")}
-                >
-                  {ui("brief.title")}
-                </Button>
-              </p>
-            )}
-            {plan.exposure && (
-              <p>
-                {t("reportPlan.exposure", {
-                  impressions: format.number(plan.exposure.impressions),
-                  from: new Date(plan.exposure.from).toISOString().slice(0, 10),
-                  to: new Date(plan.exposure.to).toISOString().slice(0, 10),
-                })}
-              </p>
-            )}
-            {plan.destination && plan.goal?.action && (
-              <p>
-                {t("reportPlan.destination", {
-                  action: t(
-                    `brief.actions.${plan.goal.action.replaceAll(" ", "_")}`,
-                  ),
-                  url: plan.destination,
-                })}
-              </p>
-            )}
-            {plan.compareOrder && <p>{t("reportPlan.orderReason")}</p>}
-            {(plan.lead.evidence.length > 0 || reasonDetails.length > 0) && (
-              <details>
-                <SeoFoldSummary className="min-h-9">
-                  {ui("reportPlan.evidence")}
-                </SeoFoldSummary>
+                      url: plan.destination,
+                    })}
+                  </p>
+                )}
+                {plan.compareOrder && <p>{t("reportPlan.orderReason")}</p>}
                 {!plan.reconsider &&
-                  reasonDetails.map((line, i) => (
-                    <p key={i} className="my-2">
-                      {line}
-                    </p>
-                  ))}
-                <ul className="text-muted-foreground list-disc space-y-2 ps-5">
-                  {plan.lead.evidence.map((line, i) => (
-                    <li key={i} dir="auto">
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-            {plan.control && <SeoGoalInvestigation control={plan.control} />}
-            {plan.review && <p>{seoFollowUpText(plan.review, t)}</p>}
-            {plan.lead.alternative && <p>{plan.lead.alternative}</p>}
-            <div className="space-y-1">
-              <h5 className="font-medium">{ui("reportPlan.verify")}</h5>
-              <p>
-                {!plan.reconsider && plan.lead.nextCheck
-                  ? plan.lead.nextCheck
-                  : t(`reportPlan.measure.${plan.objective ?? "general"}`)}
-              </p>
-            </div>
-          </details>
-          {plan.more.length > 0 && (
-            <div className="divide-y border-t">
-              {(["fixes", "content"] as const).map((section) => {
-                const rows = plan.more.filter((row) => row.section === section);
-                if (!rows.length) return null;
-                return (
-                  <details key={section} className="group min-w-0 py-2">
-                    <SeoFoldSummary className="min-h-11 justify-between gap-4 py-1 font-medium">
-                      <span>
-                        <span>
-                          {t(`reportPlan.groups.${section}`, {
-                            count: rows.length,
-                          })}
-                        </span>
-                        <span
-                          aria-hidden="true"
-                          className="text-muted-foreground block max-w-prose font-normal group-open:hidden"
-                        >
-                          {rows[0]?.item.title}
-                        </span>
-                      </span>
-                    </SeoFoldSummary>
-                    <ul className="divide-y">
-                      {rows.map(({ item, originId }, i) => (
-                        <li key={i} className="space-y-2 py-4">
-                          <h5 className="max-w-prose font-medium">
-                            {item.title}
-                          </h5>
-                          <SeoPageText
-                            url={item.pageUrl}
-                            workspace={model.data}
-                          />
-                          {item.queries?.length ? (
-                            <p className="text-muted-foreground">
-                              {t("reportPlan.queries", {
-                                queries: item.queries.join(", "),
-                              })}
-                            </p>
-                          ) : null}
-                          {actionReason(item)}
-                          {actionButton(item.actionId, originId)}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                );
-              })}
-            </div>
-          )}
+                  reasonDetails.map((line, i) => <p key={i}>{line}</p>)}
+                {plan.lead.evidence.length > 0 && (
+                  <div className="space-y-1">
+                    <h5 className="font-medium">{ui("reportPlan.evidence")}</h5>
+                    {evidenceList(plan.lead.evidence)}
+                  </div>
+                )}
+                {plan.control && (
+                  <SeoGoalInvestigation control={plan.control} />
+                )}
+                {plan.review && <p>{seoFollowUpText(plan.review, t)}</p>}
+                {plan.lead.alternative && (
+                  <div className="space-y-1">
+                    <h5 className="font-medium">
+                      {ui("reportPlan.alternative")}
+                    </h5>
+                    <p>{plan.lead.alternative}</p>
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <h5 className="font-medium">{ui("reportPlan.verify")}</h5>
+                  <p>
+                    {!plan.reconsider && plan.lead.nextCheck
+                      ? plan.lead.nextCheck
+                      : t(`reportPlan.measure.${plan.objective ?? "general"}`)}
+                  </p>
+                </div>
+              </div>
+            </details>
+            {plan.follow &&
+              planStep(
+                plan.follow,
+                plan.followOrigin,
+                t("reportPlan.then", { step: plan.follow.title }),
+              )}
+            {(["fixes", "content"] as const).map((section) => {
+              const rows = plan.more.filter((row) => row.section === section);
+              if (!rows.length) return null;
+              return (
+                <details key={section} className="min-w-0">
+                  <SeoFoldSummary className={cn(FOLD_ROW_CLASS, "font-medium")}>
+                    {t(`reportPlan.groups.${section}`, { count: rows.length })}
+                  </SeoFoldSummary>
+                  {/* The steps of a group stand in from its title, so the group reads as their parent. */}
+                  <ul className="ms-4 divide-y border-t">
+                    {rows.map(({ item, originId }, i) => (
+                      <li key={i}>{planStep(item, originId)}</li>
+                    ))}
+                  </ul>
+                </details>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <p lang="en" className="text-muted-foreground text-sm">

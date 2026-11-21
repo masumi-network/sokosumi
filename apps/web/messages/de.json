@@ -13824,7 +13824,6 @@
         "changedShort": "Seit dem letzten Bericht hat sich der erste Schritt geändert.",
         "verify": "Ergebnis prüfen",
         "evidence": "Belege aus dem Audit",
-        "whyItem": "Warum diese Maßnahme?",
         "groups": {
           "fixes": "Seitenkorrekturen ({count})",
           "content": "Inhalte und Keywords ({count})"

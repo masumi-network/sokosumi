@@ -9146,6 +9146,7 @@ it("opens a report plan on the Agent tab and switches its recommendation and rea
       title: "Compare battery replacement costs.",
       reason: "Searchers ask how much a replacement costs.",
       queries: ["battery replacement cost"],
+      actionId: "idea-costs",
     },
     {
       ...candidate,
@@ -9169,6 +9170,23 @@ it("opens a report plan on the Agent tab and switches its recommendation and rea
     ],
   };
   workspace.observations.push(earlier);
+  workspace.actions = [
+    {
+      id: "idea-costs",
+      observationId: first.id,
+      pageUrl,
+      findingIds: [],
+      title: "Compare battery replacement costs.",
+      why: "Searchers ask how much a replacement costs.",
+      effort: "low",
+      expectedEffect: "",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "opportunity",
+      evidence: [],
+    },
+  ];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) =>
@@ -9202,6 +9220,22 @@ it("opens a report plan on the Agent tab and switches its recommendation and rea
   expect(
     card.getByRole("heading", { name: "Compare battery replacement costs." }),
   ).toBeVisible();
+  // A step below the first action opens its own action from the plan.
+  expect(
+    card.getByRole("button", { name: "Open action details" }),
+  ).not.toBeVisible();
+  await user.click(
+    card.getByRole("heading", { name: "Compare battery replacement costs." }),
+  );
+  expect(
+    card.getByText("Searches to cover: battery replacement cost."),
+  ).toBeVisible();
+  await user.click(card.getByRole("button", { name: "Open action details" }));
+  const opened = within(await screen.findByRole("dialog"));
+  expect(
+    opened.getAllByText("Compare battery replacement costs.").length,
+  ).toBeGreaterThan(0);
+  await user.keyboard("{Escape}");
   await user.click(card.getByText("Page fixes (1)"));
   expect(
     card.getByRole("heading", { name: "Fix the language redirect." }),
