@@ -83,15 +83,19 @@ describe("a talking video's posts on other networks", () => {
 describe("a post that did not go out", () => {
   const spendCap =
     'X rejected the post: Request failed error: `{"detail":"Your monthly spend cap has been reached.","status":403}`';
+  const duplicate =
+    'X rejected the post: Request failed error: `{"detail":"You are not allowed to create a Tweet with duplicate content.","status":403}`';
 
   it("says why in the owner's words, not the network's JSON", () => {
     expect(
       socialPostNotSent({
         status: "FAILED",
         provider: "x",
-        lastError: spendCap,
+        lastError: duplicate,
       }),
-    ).toBe("X refused it: Your monthly spend cap has been reached.");
+    ).toBe(
+      "X refused it: You are not allowed to create a Tweet with duplicate content.",
+    );
     expect(
       socialPostNotSent({
         status: "FAILED",
@@ -115,10 +119,36 @@ describe("a post that did not go out", () => {
     ).toBe("It missed its time.");
   });
 
+  it("never asks the owner to raise our app's cap", () => {
+    // Paused and moved on by the publisher: it waits, in our words.
+    expect(
+      socialPostNotSent({
+        status: "SCHEDULED",
+        provider: "x",
+        lastError: "X paused our posting for now. We try again every hour.",
+      }),
+    ).toBe("X paused our posting for now; Cuso will try again.");
+    // Failed on the cap before the publisher held such posts, or after a day.
+    for (const lastError of [
+      spendCap,
+      "X paused our posting for a day, so this post didn't go out.",
+    ]) {
+      const said = socialPostNotSent({
+        status: "FAILED",
+        provider: "x",
+        lastError,
+      });
+      expect(said).toBe(
+        "X paused our posting for a day, so it didn't go out. Ask Cuso to post it again.",
+      );
+      expect(said).not.toMatch(/cap/i);
+    }
+  });
+
   it("is said nowhere for a post on its way or out", () => {
     for (const status of ["DRAFT", "SCHEDULED", "PUBLISHED"] as const) {
       expect(
-        socialPostNotSent({ status, provider: "x", lastError: spendCap }),
+        socialPostNotSent({ status, provider: "x", lastError: duplicate }),
       ).toBeNull();
     }
   });
@@ -140,7 +170,7 @@ describe("a post that did not go out", () => {
     );
     expect(post?.entry.status).toBe("draft");
     expect(post?.entry.notSent).toBe(
-      "X refused it: Your monthly spend cap has been reached.",
+      "X paused our posting for a day, so it didn't go out. Ask Cuso to post it again.",
     );
   });
 });
