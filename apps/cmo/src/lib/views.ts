@@ -10,6 +10,8 @@ export const VIEW_PATHS = {
   brain: "/brand-brain",
   channels: "/channels",
   settings: "/settings",
+  /** Under Settings: every picture Cuso made, chosen or not. */
+  pictures: "/pictures",
 } as const;
 
 export type View = keyof typeof VIEW_PATHS;

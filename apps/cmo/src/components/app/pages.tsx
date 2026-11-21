@@ -622,6 +622,7 @@ export function SettingsPage({
   changePlan,
   openPortal,
   subscribe,
+  openPictures,
 }: PageProps & {
   name: string;
   email: string;
@@ -638,6 +639,8 @@ export function SettingsPage({
   openPortal: OpenPortal;
   /** Starts the CMO plan checkout. */
   subscribe: StartTopUp;
+  /** Opens every picture Cuso made. */
+  openPictures?: () => void;
 }) {
   return (
     <div className="page-body">
@@ -667,6 +670,28 @@ export function SettingsPage({
           ) : null}
         </div>
       </section>
+      {openPictures ? (
+        <section className="card">
+          <h3>Pictures</h3>
+          <div className="li">
+            <span className="grow note">
+              Every picture {AGENT_NAME} made for your posts: the one on each
+              post, and the ones he left out and why.
+            </span>
+            <a
+              className="button button-secondary button-small"
+              href="/pictures"
+              onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+                event.preventDefault();
+                openPictures();
+              }}
+            >
+              See pictures
+            </a>
+          </div>
+        </section>
+      ) : null}
       <section className="card">
         <h3>Autonomy</h3>
         <p className="muted">
