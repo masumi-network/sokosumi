@@ -1,9 +1,7 @@
 "use client";
 
 import type { StudioAssetRating } from "@sokosumi/core-client";
-import { useCallback, useRef, useState } from "react";
-
-import { useInterval } from "@/hooks/effects/use-interval";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { StudioAsset, StudioJob, StudioState } from "./types";
 import { isActive } from "./types";
@@ -270,13 +268,14 @@ export function useStudioState(options: {
 
   // Synchronizing with a server is exactly what an Effect is for. The interval
   // tightens while something is in flight and relaxes when nothing is.
-  useInterval(
-    () => {
+  useEffect(() => {
+    if (!projectId) return;
+    const period = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
+    const timer = setInterval(() => {
       void refresh();
-    },
-    projectId ? (hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS) : null,
-    { resetKey: refresh },
-  );
+    }, period);
+    return () => clearInterval(timer);
+  }, [projectId, hasActive, refresh]);
 
   /**
    * Fetch the next page of older versions and keep what is already shown.

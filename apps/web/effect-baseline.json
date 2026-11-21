@@ -65,6 +65,7 @@
   "src/app/(app)/projects/components/image-studio/studio-headline-image.ts": 1,
   "src/app/(app)/projects/components/image-studio/studio-image.tsx": 1,
   "src/app/(app)/projects/components/image-studio/use-generation-queue.ts": 2,
+  "src/app/(app)/projects/components/image-studio/use-studio-state.ts": 1,
   "src/app/(app)/projects/components/project-brand-card.tsx": 1,
   "src/app/(app)/projects/components/project-brand-setup.tsx": 1,
   "src/app/(app)/projects/components/project-close-status.tsx": 1,
