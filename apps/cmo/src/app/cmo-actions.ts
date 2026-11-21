@@ -16,6 +16,7 @@ import {
   type CmoKeywordSearch,
   type CmoMeasurement,
   type CmoOverview,
+  type CmoPictureGroup,
   type CmoSeo,
   type CmoSubscriptionPlan,
   type CmoTikTokCreator,
@@ -39,6 +40,7 @@ import {
   getCmoChatWorkTextForProject,
   getCmoCompetitorsForProject,
   getCmoOverviewForProject,
+  getCmoPicturesForProject,
   getCmoSeoForProject,
   getContactLists,
   initiateCmoSocialConnectionForProject,
@@ -1469,6 +1471,24 @@ export async function askCusoForArticles(
 }
 
 /** The Competitors page of this Cuso; null when it cannot be read. */
+/** Every picture Cuso made for the month's posts (Settings, Pictures). */
+export async function loadPictures(
+  projectId: string,
+  filters: { network?: string; month?: string; chosen?: boolean },
+): Promise<CmoPictureGroup[] | null> {
+  const core = await requireCore();
+  const { data } = await getCmoPicturesForProject({
+    ...core,
+    path: { projectId },
+    query: {
+      network: filters.network,
+      month: filters.month,
+      chosen: filters.chosen ? "true" : undefined,
+    },
+  });
+  return data?.data.groups ?? null;
+}
+
 export async function loadCompetitors(
   projectId: string,
 ): Promise<CmoCompetitors | null> {

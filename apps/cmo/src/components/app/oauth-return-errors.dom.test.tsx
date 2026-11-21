@@ -55,6 +55,7 @@ function stubActions(): CmoAppActions {
     readTikTokCreator: async () => ({ creator: null, error: null }),
     declineDraft: noopDraft,
     editDraft: noopDraft,
+    pictures: { loadPictures: async () => [] },
     competitors: {
       loadCompetitors: async () => null,
       addCompetitor: noopCompetitor,

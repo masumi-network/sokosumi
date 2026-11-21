@@ -98,6 +98,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           readTikTokCreator: async () => ({ creator: null, error: null }),
           declineDraft: result,
           editDraft: result,
+          pictures: { loadPictures: async () => [] },
           competitors: {
             loadCompetitors: async () => null,
             addCompetitor: async () => ({ competitors: null, error: null }),
