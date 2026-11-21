@@ -175,6 +175,7 @@ vi.mock("sonner", () => ({
     custom: (...args: unknown[]) => toastCustomMock(...args),
     dismiss: (...args: unknown[]) => toastDismissMock(...args),
     error: (...args: unknown[]) => toastErrorMock(...args),
+    loading: vi.fn(),
     success: vi.fn(),
   },
 }));
@@ -494,6 +495,58 @@ describe("TaskActivitySection", () => {
       "data-default-open",
       "true",
     );
+  });
+
+  it("downloads a finished result as a PDF named after the Task", async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init?: RequestInit) => new Response("%PDF"),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:x");
+    vi.spyOn(URL, "revokeObjectURL").mockReturnValue(undefined);
+    const events: TaskEvent[] = [
+      createEvent("completed-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+        comment: "## Plan\n\n- Ads",
+      }),
+    ];
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        taskName="Launch plan"
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "download" }));
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "exportAsPdf" }),
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("/api/export/pdf");
+    const body = JSON.parse(String(init?.body));
+    expect(body.fileName).toBe("Launch plan");
+    expect(body.html).toContain("<h2>Plan</h2>");
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("offers no download on a comment that is not the result", () => {
+    const events: TaskEvent[] = [
+      createEvent("running-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.RUNNING,
+        comment: "Still working on it.",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(
+      screen.queryByRole("button", { name: "download" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not force-expand a non-completed comment's markdown", () => {

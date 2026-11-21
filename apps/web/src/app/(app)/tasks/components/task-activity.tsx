@@ -62,6 +62,7 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
+import { TaskResultDownload } from "./task-result-download";
 import { useTaskResultTableComponents } from "./task-result-table-action";
 import {
   getTaskStatusDotColorClass,
@@ -114,6 +115,8 @@ interface TaskActivityProps {
     title: string;
     projectId: string | null;
   };
+  /** Names the files a finished result downloads as. */
+  taskName?: string;
 }
 
 export interface MentionableUser {
@@ -226,6 +229,7 @@ function TaskActivityContent({
   mentionableUsers = NO_MENTIONABLE_USERS,
   headerAction,
   tableSource,
+  taskName = "result",
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const markdownComponents = useTaskResultTableComponents(
@@ -723,6 +727,12 @@ function TaskActivityContent({
                           components={markdownComponents}
                         />
                       </TaskTableEvent>
+                    ) : null}
+                    {shouldHighlightDoneBorder && formattedComment ? (
+                      <TaskResultDownload
+                        markdown={formattedComment}
+                        fileName={taskName}
+                      />
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
                       <p className="text-foreground text-sm">

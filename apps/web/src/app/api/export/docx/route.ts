@@ -52,6 +52,18 @@ interface GenerateDocxRequest {
   kanjiLogoPng?: string;
 }
 
+/**
+ * `@m2d/list` gives each list item both a bullet (its nesting counter) and the list's numbering, and
+ * `docx` then writes two list markers (`numPr`) into the paragraph, which is invalid Word XML. Keep the
+ * numbering, which carries the list's kind; nested lists are siblings and keep their own copy.
+ */
+const oneListMarker: IPlugin<EmptyNode> = {
+  block: (_docx, node, props) => {
+    if (node.type === "paragraph" && props.numbering) delete props.bullet;
+    return [];
+  },
+};
+
 const docTitle = "Sokosumi Export";
 const docAuthor = "Sokosumi";
 const appAuthorUrl = "https://sokosumi.com";
@@ -250,6 +262,7 @@ export async function POST(request: NextRequest) {
                     cacheConfig: { cacheMode: "memory", cache: {} },
                   }),
                   listPlugin(),
+                  oneListMarker,
                   mathPlugin(),
                   ...(hasHtml ? [htmlPlugin()] : []),
                 ] as IPlugin<EmptyNode>[],
