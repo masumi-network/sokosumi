@@ -642,29 +642,32 @@ describe("Cuso on every page", () => {
   it("leans no further into the page than its gutter", () => {
     const px = (name: string) =>
       Number(css.match(new RegExp(`${name}: (\\d+)px;`))?.[1]);
-    const factor = (selector: string, property: string) =>
+    const percent = (selector: string, property: string) =>
       Number(
         rule(selector).match(
-          new RegExp(
-            `\\n\\s*${property}: calc\\(var\\(--cuso-size\\) \\* ([\\d.]+)\\)`,
-          ),
+          new RegExp(`\\n\\s*${property}: ([\\d.]+)%;`),
         )?.[1],
-      );
-    // The circle is centred on the sidebar; the drawing's hand is its right edge.
-    expect(rule(".cuso-figure")).toContain(
-      "left: calc(50% - var(--cuso-size) / 2);",
+      ) / 100;
+    // The circle is centred on the sidebar; the pointing drawing's hand is its right edge.
+    expect(rule(".cuso-figure")).toMatch(
+      /\n\s*left: 50%;[\s\S]*translate: -50% 0;/,
     );
     const largest = Number(
-      rule(".cuso-figure").match(/--cuso-size: min\((\d+)px/)?.[1],
+      rule(".cuso-figure").match(/\n\s*height: min\((\d+)px/)?.[1],
     );
     const drawing = 624 / 652;
     const hand =
       largest *
-      (factor(".cuso-figure img", "left") +
-        factor(".cuso-figure img", "height") * drawing);
+      (percent(".cuso-pose-pointing", "left") +
+        percent(".cuso-pose-pointing", "height") * drawing);
     const past = hand - largest / 2 - px("--side-width") / 2;
     expect(Number.isFinite(past)).toBe(true);
     expect(past).toBeLessThanOrEqual(px("--gutter") + px("--page-x"));
+  });
+
+  it("sizes his stage without a container query, which restarts his motion on every page", () => {
+    expect(rule(".cuso-status")).not.toMatch(/container/);
+    expect(css).not.toMatch(/@container stage/);
   });
 
   it("draws the person's avatar flat: a menu button with hover and focus, no shadow", () => {
@@ -678,14 +681,14 @@ describe("Cuso on every page", () => {
   });
 
   it("moves only when motion is allowed", () => {
-    const moving = [
-      ...css.matchAll(/\n( *)\.cuso-figure img \{[^}]*animation/g),
-    ];
-    expect(moving).toHaveLength(1);
-    const before = css.slice(0, moving[0]?.index);
-    expect(
-      before.lastIndexOf("@media (prefers-reduced-motion: no-preference)"),
-    ).toBeGreaterThan(before.lastIndexOf("\n}"));
+    const moving = [...css.matchAll(/\n( *)\.cuso-poses \{[^}]*animation/g)];
+    expect(moving.length).toBeGreaterThan(0);
+    for (const match of moving) {
+      const before = css.slice(0, match.index);
+      expect(
+        before.lastIndexOf("@media (prefers-reduced-motion: no-preference)"),
+      ).toBeGreaterThan(before.lastIndexOf("\n}"));
+    }
   });
 
   it("steps back while a sheet or dialog is open", () => {
