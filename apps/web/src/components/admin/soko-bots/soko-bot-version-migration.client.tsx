@@ -69,9 +69,17 @@ export function SokoBotVersionMigration({
         ? 0
         : (inUse.find((entry) => entry.versionId === from)?.count ?? 0);
 
-  // Core tells owners regardless when the target runs outside the EU.
-  const noticeRequired =
-    versions.find((version) => version.id === to)?.euPinned === false;
+  // Core tells owners regardless when a bot leaves EU-pinned inference. A
+  // version this page does not list counts as EU-pinned, as it does in Core.
+  const isEuPinned = (versionId: string) =>
+    versions.find((version) => version.id === versionId)?.euPinned ?? true;
+  const sources =
+    from === EVERY_BOT
+      ? inUse
+          .map((entry) => entry.versionId)
+          .filter((versionId) => versionId !== to)
+      : [from];
+  const noticeRequired = !isEuPinned(to) && sources.some(isEuPinned);
   const willNotify = notifyOwners || noticeRequired;
 
   function migrate() {
