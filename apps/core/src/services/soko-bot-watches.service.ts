@@ -35,11 +35,16 @@ const MAX_WAITING_PER_BOT = 25;
 const BATCH = 50;
 const OUTCOME_CHARS = 1_500;
 /**
- * A Coworker's reply is the follow-up's whole point: at 400 characters
- * Hannah's 560-character list ended on "(Bit…". Nine in ten replies fit.
+ * Everything the other side said is the follow-up's whole point: at 400
+ * characters Hannah's 560-character list ended on "(Bit…", and a 6,000-
+ * character comparison lost its bottom line at 4,000. One reply may use the
+ * whole budget; what still does not fit is marked as cut.
  */
-const REPLY_CHARS = 4_000;
-const REPLIES_CHARS = 12_000;
+const REPLIES_CHARS = 24_000;
+const REPLY_MESSAGES = 20;
+/** People type in bursts: their answer counts once they paused this long. */
+const PERSON_PAUSE_MS = 90_000;
+const ANSWERING_MENTION = ["staged", "pending", "sent"];
 const PENDING_STUDIO = new Set([
   "PENDING",
   "SUBMITTING",
@@ -78,14 +83,6 @@ function isBeingWritten(message: { metadata: unknown }): boolean {
 function clip(text: string, max = OUTCOME_CHARS): string {
   const flat = text.trim();
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
-}
-
-/** Clipped text that says it was cut, so the bot does not relay half as all. */
-function clipSaid(text: string, max: number): string {
-  const flat = text.trim();
-  return flat.length > max
-    ? `${flat.slice(0, max)}… [cut: the first ${max.toLocaleString("en-US")} of ${flat.length.toLocaleString("en-US")} characters]`
-    : flat;
 }
 
 /**
@@ -144,10 +141,58 @@ export async function watchOutcome(watch: {
     if (ACTIVE_TURN.has(run.status)) return null;
     return `The background run "${run.backgroundTitle ?? watch.targetId}" ended ${run.status}. Its report: ${clip(run.finalAnswer ?? "(none)")}`;
   }
+  return chatReplyOutcome(watch);
+}
+
+/**
+ * A chat wait is done once everyone the bot asked has finished: every
+ * Coworker or assistant it mentioned since its question has answered or
+ * failed, nothing is still being written, and a person's last message is a
+ * pause old. The follow-up then gets everything they said since the question,
+ * whole, with who did not answer.
+ */
+export async function chatReplyOutcome(
+  watch: { targetId: string; sokoBotId: string; createdAt: Date },
+  options: { partial?: boolean } = {},
+): Promise<string | null> {
+  const roomId = watch.targetId;
+  const question = await prisma.chatRoomMessage.findFirst({
+    where: {
+      roomId,
+      senderSokoBotId: watch.sokoBotId,
+      createdAt: { lte: watch.createdAt },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  const since =
+    question &&
+    watch.createdAt.getTime() - question.createdAt.getTime() < 60 * 60_000
+      ? question.createdAt
+      : watch.createdAt;
+  const mentions = await prisma.chatRoomMention.findMany({
+    where: {
+      message: {
+        roomId,
+        senderSokoBotId: watch.sokoBotId,
+        createdAt: { gte: since },
+      },
+    },
+    select: {
+      status: true,
+      error: true,
+      coworker: { select: { name: true } },
+      sokoBot: { select: { name: true } },
+    },
+  });
+  const answering = mentions.filter((mention) =>
+    ANSWERING_MENTION.includes(mention.status),
+  );
+  if (answering.length > 0 && !options.partial) return null;
   const replies = await prisma.chatRoomMessage.findMany({
     where: {
-      roomId: watch.targetId,
-      createdAt: { gt: watch.createdAt },
+      roomId,
+      createdAt: { gt: since },
       deletedAt: null,
       // A Coworker's reply starts empty and fills as it is written.
       content: { not: "" },
@@ -157,26 +202,70 @@ export async function watchOutcome(watch: {
       ],
     },
     orderBy: { createdAt: "asc" },
-    take: 10,
+    take: REPLY_MESSAGES + 1,
     select: {
       content: true,
       metadata: true,
+      createdAt: true,
+      senderUserId: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
       senderSokoBot: { select: { name: true } },
     },
   });
+  const written = replies.filter((reply) => !isBeingWritten(reply));
   // A reply still being written is no answer yet: the next check reads it.
-  if (replies.length === 0 || replies.some(isBeingWritten)) return null;
-  return clipSaid(
-    `New in the chat (room ${watch.targetId}):\n${replies
-      .map(
-        (reply) =>
-          `- ${reply.senderUser?.name ?? reply.senderCoworker?.name ?? reply.senderSokoBot?.name ?? "Someone"}: ${clipSaid(reply.content, REPLY_CHARS)}`,
-      )
-      .join("\n")}`,
-    REPLIES_CHARS,
-  );
+  if (written.length < replies.length && !options.partial) return null;
+  const failed = mentions.filter((mention) => mention.status === "failed");
+  if (written.length === 0 && failed.length === 0 && !options.partial)
+    return null;
+  const lastByPerson = written.findLast((reply) => reply.senderUserId);
+  if (
+    !options.partial &&
+    lastByPerson &&
+    (await databaseNow()).getTime() - lastByPerson.createdAt.getTime() <
+      PERSON_PAUSE_MS
+  )
+    return null;
+  const shown = written.slice(0, REPLY_MESSAGES);
+  const lines: string[] = [];
+  let left = REPLIES_CHARS;
+  let cut = written.length > shown.length;
+  for (const reply of shown) {
+    const name =
+      reply.senderUser?.name ??
+      reply.senderCoworker?.name ??
+      reply.senderSokoBot?.name ??
+      "Someone";
+    const text = reply.content.trim();
+    const kept = text.slice(0, Math.max(0, left));
+    left -= kept.length;
+    if (kept.length < text.length) cut = true;
+    lines.push(
+      kept.length < text.length
+        ? `- ${name}: ${kept}… [cut here: ${kept.length.toLocaleString("en-US")} of ${text.length.toLocaleString("en-US")} characters shown]`
+        : `- ${name}: ${text}`,
+    );
+  }
+  const who = (mention: (typeof mentions)[number]) =>
+    mention.coworker?.name ?? mention.sokoBot?.name ?? "Someone";
+  const silent = [
+    ...failed.map(
+      (mention) =>
+        `${who(mention)} did not answer${mention.error ? ` (${clip(mention.error, 120)})` : ""}.`,
+    ),
+    ...answering.map((mention) => `${who(mention)} is still answering.`),
+  ];
+  return [
+    shown.length
+      ? `Everything said in the chat since your question (room ${roomId}), in full:`
+      : `No answer in the chat (room ${roomId}).`,
+    ...lines,
+    ...silent,
+    cut
+      ? `Not all of it fit: what is marked cut is cut, so say so when you pass it on rather than presenting it as everything.`
+      : "That is all of it; nothing was cut.",
+  ].join("\n");
 }
 
 /**
@@ -492,9 +581,15 @@ export async function syncSokoBotWatches(input: {
   for (const watch of watches) {
     if (!input.shouldContinue()) break;
     result.checked += 1;
-    const outcome = await watchOutcome(watch).catch(() => null);
-    const timedOut = !outcome && watch.expiresAt <= new Date();
-    if (!outcome && !timedOut) continue;
+    const done = await watchOutcome(watch).catch(() => null);
+    const timedOut = !done && watch.expiresAt <= new Date();
+    if (!done && !timedOut) continue;
+    // A wait that ran out still hands over what was said so far.
+    const outcome =
+      done ??
+      (watch.kind === "chat_reply"
+        ? await chatReplyOutcome(watch, { partial: true }).catch(() => null)
+        : null);
     if (!outcome && watch.kind === "app_connected") {
       await prisma.sokoBotWatch.updateMany({
         where: { id: watch.id, status: "WAITING" },
