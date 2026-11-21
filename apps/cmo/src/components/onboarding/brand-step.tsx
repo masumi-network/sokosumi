@@ -57,7 +57,6 @@ import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
 
 /** Brand colours the site card shows, at most. */
-const MAX_COLORS = 5;
 
 /** Insights "What I noticed" lists, at most. */
 const MAX_INSIGHTS = 3;
@@ -757,22 +756,12 @@ interface SiteCardProps {
   host: string;
 }
 
-/** The homepage as visitors see it, with the brand's colours. */
+/** The homepage as visitors see it; its colours are in "Your look". */
 function SiteCard({ overview, host }: SiteCardProps) {
-  const colors = (overview.brandVisual?.colors ?? []).slice(0, MAX_COLORS);
   return (
     <div className="card ob-sitecard">
       <h2>Your site</h2>
       <SiteShowcase media={overview.brandMedia} host={host} />
-      {colors.length > 0 ? (
-        <ul className="ob-swatches" aria-label="Brand colours">
-          {colors.map((color) => (
-            <li key={color} style={{ background: color }}>
-              <span className="ob-sr">{color}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </div>
   );
 }

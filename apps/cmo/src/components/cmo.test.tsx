@@ -627,6 +627,31 @@ describe("pages", () => {
     expect(html).toContain('<a href="/channels">Channels</a>');
   });
 
+  it("shows no approval card that would only say No ads", () => {
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={overview({
+          ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+          strategy: {
+            ...strategy,
+            questions: [],
+            ads: {
+              monthly: 0,
+              currency: "USD",
+              expect: "Nothing paid.",
+              without: "Posts bring the visits.",
+              setByOwner: false,
+            },
+          },
+        })}
+        onOpenCalendar={() => {}}
+        connectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).not.toContain("What you approved");
+    expect(html).not.toContain("No ads");
+  });
+
   it("lists only answered questions as approved", () => {
     const html = renderToStaticMarkup(
       <StrategyPage
