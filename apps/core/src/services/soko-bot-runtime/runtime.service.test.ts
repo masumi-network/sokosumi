@@ -432,9 +432,11 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 }));
 vi.mock("@/services/reference-library.service", () => ({
   referenceLibraryAvailable: images.libraryAvailable,
+  readStyleTraits: async () => null,
 }));
 vi.mock("@/services/cmo-media-maker.service", () => ({
   cmoMakesVariedMonth: () => false,
+  cmoWritesSceneVisuals: () => false,
   MAX_STYLE_BRAND_PICTURES: 2,
   REFERENCE_STYLE_MODELS: [
     "gpt-image-2-6",
@@ -446,7 +448,7 @@ vi.mock("@/services/cmo-media-maker.service", () => ({
     brandPictures?: number;
   }) =>
     `styled: ${input.piece.visual} / ${input.piece.headline ?? "no words"}${input.brandPictures ? ` / ${input.brandPictures} brand` : ""}`,
-  loadStyleBrand: async () => ({ colours: [], logo: null }),
+  loadStyleBrand: async () => ({ colours: [], logo: null, logoFileId: null }),
   finishCmoChatPicture: images.finishChatPicture,
 }));
 vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {

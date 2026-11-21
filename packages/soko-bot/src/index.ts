@@ -272,6 +272,7 @@ export {
 export {
   CMO_BATCHED_PRODUCTION_SKILL,
   CMO_PIECE_WRITING_GUIDE,
+  CMO_SCENE_PIECE_WRITING_GUIDE,
   CMO_VARIED_PIECE_WRITING_GUIDE,
   cmoWritesMonthAtOnce,
 } from "./versions/cmo-skills.js";
@@ -279,6 +280,7 @@ export {
   CMO_CLAIMS_STRATEGY_SKILL,
   CMO_VARIED_PRODUCTION_SKILL,
 } from "./versions/cmo-v8-skills.js";
+export { CMO_SCENE_PRODUCTION_SKILL } from "./versions/cmo-v9-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

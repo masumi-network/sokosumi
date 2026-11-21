@@ -39,7 +39,10 @@ import {
   requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
-import { cmoMakesVariedMonth } from "@/services/cmo-media-maker.service";
+import {
+  cmoMakesVariedMonth,
+  cmoWritesSceneVisuals,
+} from "@/services/cmo-media-maker.service";
 import {
   CMO_CALENDAR_REVIEWS_PER_TURN,
   CMO_PLAN_REVIEWS_PER_TURN,
@@ -630,6 +633,7 @@ export async function saveCmoRecord(
               executing,
               clear: cmoStrategySaveClears(input.input),
               pictureKinds: cmoMakesVariedMonth(authorized.turn.versionId),
+              sceneVisuals: cmoWritesSceneVisuals(authorized.turn.versionId),
               // A plan, change or patch that breaks a hard rule is refused
               // at save time. A rhythm's save sees only 31 days of the
               // calendar, so the review only advises it.

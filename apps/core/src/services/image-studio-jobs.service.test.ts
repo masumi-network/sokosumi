@@ -30,6 +30,7 @@ const {
   snapshotUpsertMock,
   waitUntilMock,
   adEventCreateMock,
+  readReferenceImageMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -57,6 +58,7 @@ const {
   snapshotUpsertMock: vi.fn(),
   waitUntilMock: vi.fn(),
   adEventCreateMock: vi.fn(),
+  readReferenceImageMock: vi.fn(async () => null),
 }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
@@ -142,6 +144,9 @@ vi.mock("@/services/file-search.service", () => ({
 
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
+}));
+vi.mock("@/services/reference-library.service", () => ({
+  readReferenceImage: readReferenceImageMock,
 }));
 
 vi.mock("@sokosumi/net", async (importOriginal) => ({
@@ -1051,6 +1056,44 @@ describe("image studio job submission", () => {
           prompt: expect.stringMatching(/^A fox icon\n\nFollow this project/),
         }),
       }),
+    );
+  });
+
+  // A styled picture's prompt was 4,300 characters with the brand block
+  // first, and the block's ad copy was lettered into it (2026-11-20).
+  it("sends a picture in a library style its brief alone", async () => {
+    const designMdUrl =
+      "https://abc123.public.blob.vercel-storage.com/design-md/styled-brand.md";
+    projectFindUniqueMock.mockResolvedValue({
+      designMdUrl,
+      contextMd: "We never use serif.",
+    });
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response("# Brand\nUse crimson.", { status: 200 }),
+    );
+    readReferenceImageMock.mockResolvedValue({
+      bytes: Buffer.from("print"),
+      contentType: "image/jpeg",
+      description: "a poster",
+    } as never);
+    uploadReferenceMock.mockResolvedValue("https://v3b.fal.media/files/s.jpg");
+    const stored = jobRow({
+      model: "google/nano-banana-2.1/edit",
+      kind: "EDIT",
+      prompt: "Image 1 is a 1930s poster.",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+    });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "s-1" });
+    await createImageJob({
+      ...BASE_INPUT,
+      prompt: "Image 1 is a 1930s poster.",
+      modelId: "nano-banana-2-1",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+    });
+    expect(submitToQueueMock.mock.calls[0]![0].input.prompt).toBe(
+      "Image 1 is a 1930s poster.",
     );
   });
 

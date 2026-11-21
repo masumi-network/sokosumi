@@ -13,8 +13,12 @@ import { vectorLiteral } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
 import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
 
-/** References below this are blank, damaged or mostly text. */
-const MIN_USABLE = 3;
+/**
+ * References below this are blank, damaged, a book spread or a photo of a
+ * print. On NMKR's 40 styled pictures (2026-11-20) only 2 references were
+ * rated 5, and the library still holds over 22,000 at 4 or 5.
+ */
+const MIN_USABLE = 4;
 const MAX_RESULTS = 8;
 
 export type ReferenceKind = (typeof REFERENCE_KINDS)[number];
@@ -61,7 +65,11 @@ export async function findStyleReferences(
     limit?: number;
     /** References already taken, left out of the results. */
     exclude?: readonly string[];
-    /** False leaves infographics out, whatever kinds asks for. */
+    /**
+     * False leaves infographics out, whatever kinds asks for. An infographic
+     * that is offered is figure-led: a page mostly of text (24 of NMKR's 40
+     * references were) lends a picture nothing but paragraphs to imitate.
+     */
     infographics?: boolean;
   },
   embed: EmbedTexts = embedTexts,
@@ -79,6 +87,7 @@ export async function findStyleReferences(
     FROM "reference_image"
     WHERE "embedding" IS NOT NULL
       AND "usable" >= ${MIN_USABLE}
+      AND "textAmount" <> 'lots'
       AND (${kinds}::text[] IS NULL OR "kind" = ANY(${kinds}::text[]))
       AND NOT ("kind" = ANY(${leftOut}::text[]))
       AND (${input.purpose ?? null}::text IS NULL OR ${input.purpose ?? null} = ANY("suits"))
@@ -141,4 +150,24 @@ export async function readReferenceImage(
     contentType: result.blob.contentType ?? "image/jpeg",
     description: row.description,
   };
+}
+
+/** What a reference is, as the catalogue describes it, for the picture's prompt. */
+export type StyleTraits = Pick<
+  StyleReference,
+  "kind" | "era" | "technique" | "layout" | "lettering"
+>;
+
+/** A reference's own technique, layout and lettering, named in the prompt. */
+export async function readStyleTraits(id: string): Promise<StyleTraits | null> {
+  return prisma.referenceImage.findUnique({
+    where: { id },
+    select: {
+      kind: true,
+      era: true,
+      technique: true,
+      layout: true,
+      lettering: true,
+    },
+  });
 }

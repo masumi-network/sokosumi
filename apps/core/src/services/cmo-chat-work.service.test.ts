@@ -52,6 +52,8 @@ vi.mock("@sokosumi/database/helpers", () => ({
 vi.mock("@/services/cmo-media-maker.service", () => ({
   CMO_STYLE_PASSED: "Style passed",
   CMO_STYLE_REJECTED: "Style check: ",
+  cmoStylePassed: (error: string | null) =>
+    error?.startsWith("Style passed") ?? false,
 }));
 // Records (tables, contacts, runs, questions) have their own tests.
 vi.mock("@/services/cmo-chat-records.service", () => ({
