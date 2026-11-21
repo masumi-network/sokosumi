@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
-import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import {
+  CMO_PRODUCTION_TURN_PREFIX,
+  isSokoBotSilentAnswer,
+} from "@sokosumi/soko-bot";
 import { taskNotificationHref } from "@sokosumi/utils";
 import { z } from "zod";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
@@ -78,12 +81,16 @@ export async function enqueueSokoBotDelivery(
   const background = Boolean(turn.parentTurnId);
   // A stopped run stays quiet: whoever stopped it already said so, and the
   // note arrived an hour later when the cancellation finally settled.
+  // A Cuso's month is one progress card in CMO; a production run's answer
+  // (receipts, "timed out") is not for the owner.
   const reason = background
     ? !turn.destinationRoomId
       ? "NO_DESTINATION"
       : turn.status === "CANCELLED"
         ? "CANCELLED"
-        : null
+        : turn.clientTurnId?.startsWith(CMO_PRODUCTION_TURN_PREFIX)
+          ? "CMO_PRODUCTION"
+          : null
     : turn.source === "CHAT" && !isChat
       ? "ASSISTANT_PAGE"
       : !turn.destinationRoomId
