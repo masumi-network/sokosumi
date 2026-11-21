@@ -170,6 +170,28 @@ export function failedSeoSpecialists(raw: unknown) {
   return failed;
 }
 
+/** The worker's codes for an outside data source that gave no answer (seo-bot `source-failures.ts`). */
+export const SEO_SOURCE_FAILURES = [
+  "webRiskNotRun",
+  "webRiskFailed",
+  "lighthouseFailed",
+] as const;
+
+/** Keep only known codes, from any page of the report. Never retain provider messages. */
+export function failedSeoSources(raw: unknown) {
+  const input = reportObject(raw);
+  const pages =
+    input?.kind === "site" && Array.isArray(input.pages)
+      ? input.pages
+      : [input];
+  return SEO_SOURCE_FAILURES.filter((code) =>
+    pages.some((page) => {
+      const codes = reportObject(page)?.sourceFailures;
+      return Array.isArray(codes) && codes.includes(code);
+    }),
+  );
+}
+
 // Prisma rejects explicit undefined inside JSON. Zod can retain it for an absent or unreadable optional field.
 export function omitUndefinedProperties<T extends object>(parsed: T): T {
   for (const key of Object.keys(parsed) as (keyof T)[]) {

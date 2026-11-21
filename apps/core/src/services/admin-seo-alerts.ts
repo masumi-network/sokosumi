@@ -97,6 +97,7 @@ export async function listAdminSeoAlerts(
         receipt.not_connected, receipt.needs_property, receipt.unavailable, report."pageIds" IS NOT NULL AS imported,
         coalesce(cardinality(report."pageIds"), 0) AS completed_pages,
         CASE WHEN jsonb_typeof(report.payload -> 'specialistFailures') = 'array' THEN report.payload -> 'specialistFailures' END AS specialists,
+        CASE WHEN jsonb_typeof(report.payload -> 'sourceFailures') = 'array' THEN report.payload -> 'sourceFailures' END AS sources,
         CASE WHEN jsonb_typeof(report.payload -> 'pageRunFailures') = 'number' AND
           (report.payload ->> 'pageRunFailures') ~ '^(10|[0-9])$'
         THEN (report.payload ->> 'pageRunFailures')::int ELSE page_errors.failed_pages END AS failed_pages
@@ -150,6 +151,9 @@ export async function listAdminSeoAlerts(
           CASE WHEN specialists ? 'editorialGemini' THEN 'editorialGemini' END,
           CASE WHEN specialists ? 'editorialCodex' THEN 'editorialCodex' END,
           CASE WHEN specialists ? 'editorialValidation' THEN 'editorialValidation' END,
+          CASE WHEN sources ? 'webRiskNotRun' THEN 'webRiskNotRun' END,
+          CASE WHEN sources ? 'webRiskFailed' THEN 'webRiskFailed' END,
+          CASE WHEN sources ? 'lighthouseFailed' THEN 'lighthouseFailed' END,
           CASE WHEN consent = 'null' THEN 'gscSkipped' END,
           CASE WHEN consent IS DISTINCT FROM 'null' AND not_connected THEN 'gscDisconnected' END,
           CASE WHEN consent IS DISTINCT FROM 'null' AND needs_property THEN 'gscProperty' END,
