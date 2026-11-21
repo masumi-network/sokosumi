@@ -739,29 +739,34 @@ export function SettingsPage({
           setTimeZone={setTimeZone}
         />
         <ul className="list">
-          {overview.routines.map((routine) => (
-            <li key={routine.key} className="li routine">
-              <span className="grow">
-                <b>{routine.name}</b>
-                <br />
-                <span className="note">{routine.description}</span>
-              </span>
-              <span className="note num">
-                {routine.when}
-                {routine.nextRunAt &&
+          {overview.routines
+            // The reminder is for a strategy waiting; once approved it never runs.
+            .filter(
+              (routine) =>
                 !(
                   routine.key === "cmo-strategy-nudge" &&
                   strategyApproved(overview)
-                ) ? (
-                  <>
-                    <br />
-                    Next:{" "}
-                    {formatRoutineRun(routine.nextRunAt, routine.timezone)}
-                  </>
-                ) : null}
-              </span>
-            </li>
-          ))}
+                ),
+            )
+            .map((routine) => (
+              <li key={routine.key} className="li routine">
+                <span className="grow">
+                  <b>{routine.name}</b>
+                  <br />
+                  <span className="note">{routine.description}</span>
+                </span>
+                <span className="note num">
+                  {routine.when}
+                  {routine.nextRunAt ? (
+                    <>
+                      <br />
+                      Next:{" "}
+                      {formatRoutineRun(routine.nextRunAt, routine.timezone)}
+                    </>
+                  ) : null}
+                </span>
+              </li>
+            ))}
         </ul>
       </section>
       {mayHire ? (

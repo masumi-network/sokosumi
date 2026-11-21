@@ -723,7 +723,8 @@ export function PlanReview({
         ) : null}
 
         {locked ? (
-          answers.length > 0 || ads ? (
+          // "No ads" alone is no answer worth a card.
+          answers.length > 0 || (ads && ads.monthly > 0) ? (
             <div className="card ob-checks">
               <h2>{approved ? "What you approved" : "Your answers"}</h2>
               <ul className="ob-approved">
