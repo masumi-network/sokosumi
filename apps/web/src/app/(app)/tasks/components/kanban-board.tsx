@@ -9,6 +9,7 @@ import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
 import { compareTasks, type TasksSort } from "@/app/tasks/utils/task-sort";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
+import { BoardEdgeShortcuts } from "./board-edge-shortcuts";
 import { DragScrollContainer } from "./drag-scroll-container";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";
@@ -118,6 +119,16 @@ export function KanbanBoard({
           columnContent
         );
       })}
+      <BoardEdgeShortcuts
+        columns={columns.map((column) => ({
+          id: column.id,
+          title: labels.columns[column.id],
+          statusColor: COLUMN_STATUS_COLORS[column.id],
+          count:
+            tasks.filter((task) => task.columnId === column.id).length +
+            (columnHiddenCountById?.[column.id] ?? 0),
+        }))}
+      />
     </DragScrollContainer>
   );
 }
