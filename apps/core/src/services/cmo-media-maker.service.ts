@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { ProjectImageJobStatus } from "@sokosumi/database";
 import {
+  CMO_SCENE_PRODUCTION_SKILL,
   CMO_VARIED_PRODUCTION_SKILL,
   type CmoCalendarEntry,
   getSokoBotVersion,
@@ -238,9 +239,63 @@ type OtherStyledEntry = Pick<StyledEntry, "id" | "styleReferenceId"> &
 export function cmoMakesVariedMonth(
   versionId: string | null | undefined,
 ): boolean {
-  return getSokoBotVersion(versionId).skills.includes(
-    CMO_VARIED_PRODUCTION_SKILL,
+  const { skills } = getSokoBotVersion(versionId);
+  return (
+    skills.includes(CMO_VARIED_PRODUCTION_SKILL) ||
+    skills.includes(CMO_SCENE_PRODUCTION_SKILL)
   );
+}
+
+/** Whether a Cuso version writes a styled picture's visual as a scene alone (cmo-v9). */
+export function cmoWritesSceneVisuals(
+  versionId: string | null | undefined,
+): boolean {
+  return getSokoBotVersion(versionId).skills.includes(
+    CMO_SCENE_PRODUCTION_SKILL,
+  );
+}
+
+/**
+ * Words that give a styled picture its own look. NMKR's visuals (2026-11-20)
+ * named "cream paper, dark ink, one green accent" (31 of 40) and "no extra
+ * text" (39 of 40), and the look overrode the print's every time.
+ */
+const LOOK_WORDS: readonly RegExp[] = [
+  /#[0-9a-f]{3,6}\b/i,
+  /\b(?:styled?|look of|in the manner of|rendered|render it)\b/i,
+  /\b(?:lithograph\w*|woodcut|woodblock|wood engraving|engraving|etching|screen ?print\w*|silkscreen|letterpress|gouache|watercolou?r|halftone|risograph)\b/i,
+  /\b(?:illustrat\w+|vintage|retro|art deco|bauhaus|modernist|swiss|isotype|pictograms?|icons?|diagrams?|infographic\w*|editorial|flat graphic|minimalist)\b/i,
+  /\b(?:palette|accent|colou?r scheme|brand colou?rs?|monochrome|sepia|duotone|linework|line work|muted|neutral tones?|warm tones?|texture)\b/i,
+  /\b(?:cream|light|aged|off-white|textured|kraft|old|white) (?:paper|canvas|ground|background)\b/i,
+  /\b(?:dark|black|green|one|two|single|bright) inks?\b/i,
+  /\b(?:\d{4}s|\d{1,2}(?:st|nd|rd|th)[- ]century|mid-century)\b/i,
+  /\b(?:no|avoid|without any|do not|don't|never)\b(?:\s+\w+){0,3}\s+(?:text|words?|labels?|prices?|logos?|lettering|captions?|interface|numbers?|screens?)\b/i,
+  /\bavoid\b/i,
+];
+
+/** The look words a styled visual names, as written. */
+export function cmoVisualLookWords(visual: string): string[] {
+  return LOOK_WORDS.flatMap((pattern) => visual.match(pattern)?.[0] ?? []);
+}
+
+/**
+ * Why styled visuals cannot be saved by a cmo-v9 Cuso, or null: a styled
+ * picture's look comes from its print, so its visual is the scene alone.
+ */
+export function cmoSceneVisualProblem(
+  saved: readonly StyledEntry[],
+): string | null {
+  // Where the library is set up every picture takes a style, so a visual
+  // sent without its reference is a styled one too.
+  const named = saved.flatMap((entry) => {
+    const words =
+      cmoPieceTakesStyle(entry) && entry.visual
+        ? cmoVisualLookWords(entry.visual)
+        : [];
+    return words.length > 0 ? [`${entry.id} (${words.join(", ")})`] : [];
+  });
+  if (named.length === 0) return null;
+  return `Nothing was saved: a styled picture takes its look from its print, and these visuals name a look of their own: ${named.join("; ")}. Write each visual as one concrete scene: who or what, doing what, where, often a physical metaphor for the piece's point. Describe the scene only: no medium, era, colours, paper or "no …" list. Then save again.`;
 }
 
 /**

@@ -48,6 +48,7 @@ import {
 import {
   cmoPictureStyleProblem,
   cmoPieceTakesStyle,
+  cmoSceneVisualProblem,
 } from "@/services/cmo-media-maker.service";
 import {
   CMO_MAX_VIDEOS_PER_MONTH,
@@ -1209,6 +1210,8 @@ export async function saveCmoStrategy(
     rules?: boolean;
     /** The month's pictures vary their kind of print (cmo-v8). */
     pictureKinds?: boolean;
+    /** A styled picture's visual is a scene alone (cmo-v9). */
+    sceneVisuals?: boolean;
   } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<MarketingStrategy> {
@@ -1235,6 +1238,14 @@ export async function saveCmoStrategy(
         options.pictureKinds ?? false,
       );
       if (problem) throw unprocessableEntity(problem);
+      const scene = options.sceneVisuals
+        ? cmoSceneVisualProblem(
+            ((strategy.calendar ?? []) as CmoCalendarEntry[]).filter(
+              (entry) => entry.status !== "skipped",
+            ),
+          )
+        : null;
+      if (scene) throw unprocessableEntity(scene);
     }
     await planMarketingStrategyPosts(db, {
       version: approved,

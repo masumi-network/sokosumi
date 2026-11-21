@@ -436,6 +436,7 @@ vi.mock("@/services/reference-library.service", () => ({
 }));
 vi.mock("@/services/cmo-media-maker.service", () => ({
   cmoMakesVariedMonth: () => false,
+  cmoWritesSceneVisuals: () => false,
   MAX_STYLE_BRAND_PICTURES: 2,
   REFERENCE_STYLE_MODELS: [
     "gpt-image-2-6",
