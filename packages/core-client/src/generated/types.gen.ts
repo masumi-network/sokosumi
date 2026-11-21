@@ -1300,6 +1300,13 @@ export type SokoBotConversation = {
         turnId: string;
         title: string;
         status: string;
+        modelReason: string | null;
+        calls: Array<{
+            role: string;
+            model: string;
+            calls: number;
+            costUsd: number;
+        }>;
         model: string | null;
         costUsd: number | null;
         durationMs: number | null;

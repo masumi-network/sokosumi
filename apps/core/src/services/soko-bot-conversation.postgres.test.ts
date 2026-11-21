@@ -165,6 +165,31 @@ describe.skipIf(!enabled)("Soko Bot conversation", () => {
         createdAt: at(20),
       },
     });
+    await prisma.sokoBotModelCall.createMany({
+      data: [
+        {
+          turnId: asked.id,
+          role: "agent",
+          requestedModel: "openai/gpt-6.1-terra",
+          answeredModel: "openai/gpt-6.1-terra",
+          costUsdMicros: 3_000n,
+        },
+        {
+          turnId: asked.id,
+          role: "agent",
+          requestedModel: "openai/gpt-6.1-terra",
+          answeredModel: "openai/gpt-6.1-terra",
+          costUsdMicros: 5_000n,
+        },
+        {
+          turnId: asked.id,
+          role: "classifier",
+          requestedModel: "jev",
+          answeredModel: null,
+          costUsdMicros: 1_000n,
+        },
+      ],
+    });
     const followUp = await turn({
       parentTurnId: asked.id,
       userMessage: "Follow-up",
@@ -189,6 +214,17 @@ describe.skipIf(!enabled)("Soko Bot conversation", () => {
       ["answered", "Juno"],
       ["turn", "Follow-up: tell Robin"],
     ]);
+    expect(conversation?.steps[0]).toMatchObject({
+      calls: [
+        {
+          role: "agent",
+          model: "openai/gpt-6.1-terra",
+          calls: 2,
+          costUsd: 0.008,
+        },
+        { role: "classifier", model: "jev", calls: 1, costUsd: 0.001 },
+      ],
+    });
     expect(conversation?.steps[3]).toMatchObject({
       byKind: "assistant",
       model: "openai/gpt-6-luna",

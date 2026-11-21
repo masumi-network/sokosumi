@@ -5501,6 +5501,38 @@ export const SokoBotConversationSchema = {
                             status: {
                                 type: 'string'
                             },
+                            modelReason: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            calls: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        role: {
+                                            type: 'string'
+                                        },
+                                        model: {
+                                            type: 'string'
+                                        },
+                                        calls: {
+                                            type: 'integer'
+                                        },
+                                        costUsd: {
+                                            type: 'number'
+                                        }
+                                    },
+                                    required: [
+                                        'role',
+                                        'model',
+                                        'calls',
+                                        'costUsd'
+                                    ]
+                                }
+                            },
                             model: {
                                 type: [
                                     'string',
@@ -5526,6 +5558,8 @@ export const SokoBotConversationSchema = {
                             'turnId',
                             'title',
                             'status',
+                            'modelReason',
+                            'calls',
                             'model',
                             'costUsd',
                             'durationMs'
