@@ -58,15 +58,20 @@ async function scrollPreview(page: Page) {
     scroller.scrollTop = 600;
     await settle();
     const head = th.getBoundingClientRect();
+    // Geometry inside the scrollport, not a hit test, so page chrome above
+    // the preview or a page scrolled off it cannot change the answer.
     const port = scroller.getBoundingClientRect();
-    const atBottom = document.elementFromPoint(
-      port.left + port.width / 2,
-      port.bottom - 8,
-    );
+    const headerEnd = Math.min(Math.max(head.bottom, port.top), port.bottom);
+    const rows = [...scroller.querySelectorAll("tbody tr")];
     return {
       scrolled: scroller.scrollTop > 0,
-      // The rows are what shows at the foot of the preview, not the header.
-      bodyAtFoot: Boolean(atBottom?.closest("tbody")),
+      // Rows show in the scrollport below whatever the header still covers.
+      bodyAtFoot:
+        headerEnd < port.bottom &&
+        rows.some((row) => {
+          const box = row.getBoundingClientRect();
+          return box.top < port.bottom && box.bottom > headerEnd;
+        }),
       headerAtTop: Math.abs(head.top - top()) <= 1,
       headerScrolledAway: head.bottom <= top(),
       firstRowUnderHeader:
