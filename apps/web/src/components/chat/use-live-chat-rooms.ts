@@ -181,22 +181,25 @@ export function useLiveChatRoomsRead(): {
   // (SOK-986): timer reads pause while hidden or unfocused with one read on
   // return, invalidations read at once, and a slow recovery cadence while
   // Ably is connected.
-  const refreshRooms = useCallback(async (isCurrent: () => boolean) => {
-    const requestRevision = beginRoomAttentionRefresh();
-    const page = await fetchSidebarRoomCollection("active");
-    if (!isCurrent()) return;
-    if (!page) {
-      setFailedScope(scopeRef.current);
-      return;
-    }
-    if (requestRevision < latestAppliedRefreshRef.current) return;
-    setFailedScope(null);
-    latestAppliedRefreshRef.current = requestRevision;
-    setHeld({
-      scope: scopeRef.current,
-      rooms: reconcileRoomAttention(page.rooms, requestRevision),
-    });
-  }, []);
+  const refreshRooms = useCallback(
+    async (isCurrent: () => boolean) => {
+      const requestRevision = beginRoomAttentionRefresh();
+      const page = await fetchSidebarRoomCollection("active");
+      if (!isCurrent()) return;
+      if (!page) {
+        setFailedScope(scopeRef.current);
+        return;
+      }
+      if (requestRevision < latestAppliedRefreshRef.current) return;
+      setFailedScope(null);
+      latestAppliedRefreshRef.current = requestRevision;
+      setHeld({
+        scope: scopeRef.current,
+        rooms: reconcileRoomAttention(page.rooms, requestRevision),
+      });
+    },
+    [scopeRef],
+  );
   const requestRefresh = useChatRefreshScheduler({
     key:
       scope && ownershipSettled && !sidebarOwnsReads ? `${scope}:unread` : null,
