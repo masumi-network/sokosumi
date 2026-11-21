@@ -204,3 +204,24 @@ it("looks things up on SEO and Competitors while nothing else goes on", () => {
   // What needs the owner still comes first.
   expect(cusoBubble(cmoOverview(), "seo", NOW).art).toBe("pointing");
 });
+
+it("says the month stopped on every page, never a calm page line", () => {
+  const stuck = cmoOverview({
+    ...approved,
+    channels: [channel],
+    production: production({ state: "stuck", ready: 4 }),
+  });
+  for (const view of ["today", "calendar", "settings"] as const) {
+    const line = cusoBubble(stuck, view, NOW).line;
+    expect(line).toMatch(/^Stopped at \d+ of \d+$/);
+  }
+});
+
+it("counts the month while the next run is about to start, not on schedule", () => {
+  const starting = cmoOverview({
+    ...approved,
+    channels: [channel],
+    production: production({ state: "starting", ready: 4 }),
+  });
+  expect(cusoBubble(starting, "today", NOW).line).toMatch(/^\d+ of \d+ made$/);
+});
