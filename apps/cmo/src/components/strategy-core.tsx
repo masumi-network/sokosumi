@@ -11,7 +11,7 @@ import {
   Search,
   ShoppingBag,
 } from "lucide-react";
-import { type ReactNode, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
@@ -123,9 +123,10 @@ export function stageLabel(stage: Stage["stage"]): string {
 }
 
 /**
- * The funnel, one card a stage: the classic step, the goal, what Cuso does
- * there on which channels, the owner's part, and the number that shows it
- * works with how that number is known. Nothing is folded away.
+ * The funnel: one drawing at fixed proportions, a slice per stage narrowing
+ * to the sale, beside the stages in the same order. Each stage says its goal,
+ * what Cuso does there on which channels, the owner's part, and the number
+ * that shows it works. Nothing is folded away.
  */
 export function FunnelPlan({
   stages,
@@ -135,17 +136,22 @@ export function FunnelPlan({
   improvements: NonNullable<Strategy["improvements"]>;
 }) {
   return (
-    <ol className="sc-funnel">
-      {stages.map((stage, index) => {
-        const { label, people } = STAGES[stage.stage];
-        return (
-          <li key={stage.stage} className="sc-stage">
-            <FunnelSegment index={index} of={stages.length}>
-              <span className="sc-stage-number num">{index + 1}</span>
-              <h3 className="sc-stage-name">{label}</h3>
-              <span className="sc-stage-people">{people}</span>
-            </FunnelSegment>
-            <div className="sc-stage-body">
+    <div className="sc-funnel-wrap">
+      <FunnelShape stages={stages} />
+      <ol className="sc-funnel">
+        {stages.map((stage, index) => {
+          const { label, people } = STAGES[stage.stage];
+          return (
+            <li key={stage.stage} className="sc-stage">
+              <div className="sc-stage-head">
+                <span
+                  className={`sc-stage-number num ${sliceFill(index, stages.length)}`}
+                >
+                  {index + 1}
+                </span>
+                <h3 className="sc-stage-name">{label}</h3>
+                <span className="sc-stage-people">{people}</span>
+              </div>
               <p className="sc-goal">{stage.goal}</p>
               <dl className="sc-stage-parts">
                 <div>
@@ -167,48 +173,63 @@ export function FunnelPlan({
                   </dd>
                 </div>
               </dl>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
 /** How wide the funnel still is, in percent, where its last stage ends. */
-const FUNNEL_END = 40;
+const FUNNEL_END = 36;
+/** One slice's height in the drawing, where the funnel is 100 wide. */
+const SLICE_HEIGHT = 24;
 /** A stage's fill, top to bottom; the last one, the sale, is always green. */
-const SEGMENT_FILLS = ["paper", "iris", "yellow"] as const;
+const SLICE_FILLS = ["paper", "iris", "yellow"] as const;
+
+function sliceFill(index: number, of: number): string {
+  return index === of - 1 ? "green" : (SLICE_FILLS[index] ?? "yellow");
+}
 
 /**
- * One stage's slice of the funnel: as wide at its top as the stage above
- * ends, narrower at its bottom, so the stages stack into one funnel.
+ * The funnel drawn once in its own proportions (the viewBox keeps them), so
+ * it never stretches with the text beside it: each slice as wide at its top
+ * as the one above ends, narrower at its bottom.
  */
-function FunnelSegment({
-  index,
-  of,
-  children,
-}: {
-  index: number;
-  of: number;
-  children: ReactNode;
-}) {
-  const edge = (at: number) =>
-    ((100 - FUNNEL_END) / 2) * (at / Math.max(of, 1));
-  const [top, bottom] = [edge(index), edge(index + 1)];
-  const fill = index === of - 1 ? "green" : (SEGMENT_FILLS[index] ?? "yellow");
+function FunnelShape({ stages }: { stages: Stage[] }) {
+  const of = Math.max(stages.length, 1);
+  const height = of * SLICE_HEIGHT;
+  const edge = (at: number) => ((100 - FUNNEL_END) / 2) * (at / of);
   return (
     <div
-      className={`sc-segment ${fill}`}
-      style={{ ["--sc-inset" as string]: `${bottom}%` }}
+      className="sc-funnel-shape"
+      style={{ aspectRatio: `100 / ${height}` }}
+      aria-hidden="true"
     >
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <polygon
-          points={`${top},0 ${100 - top},0 ${100 - bottom},100 ${bottom},100`}
-          vectorEffect="non-scaling-stroke"
-        />
+      <svg viewBox={`0 0 100 ${height}`}>
+        {stages.map((stage, index) => {
+          const [top, bottom] = [edge(index), edge(index + 1)];
+          const [y0, y1] = [index * SLICE_HEIGHT, (index + 1) * SLICE_HEIGHT];
+          return (
+            <polygon
+              key={stage.stage}
+              className={`sc-segment ${sliceFill(index, stages.length)}`}
+              points={`${top},${y0} ${100 - top},${y0} ${100 - bottom},${y1} ${bottom},${y1}`}
+              vectorEffect="non-scaling-stroke"
+            />
+          );
+        })}
       </svg>
-      <div className="sc-segment-text">{children}</div>
+      {stages.map((stage, index) => (
+        <span
+          key={stage.stage}
+          className={`sc-slice-label ${sliceFill(index, stages.length)}`}
+          style={{ top: `${((index + 0.5) / of) * 100}%` }}
+        >
+          {STAGES[stage.stage].label}
+        </span>
+      ))}
     </div>
   );
 }

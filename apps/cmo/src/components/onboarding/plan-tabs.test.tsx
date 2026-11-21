@@ -111,8 +111,9 @@ it("draws each stage as a slice of one funnel that narrows to the sale", () => {
       improvements={richPlan.improvements ?? []}
     />,
   );
-  const slices = [...html.matchAll(/<polygon points="([^"]+)"/g)].map((match) =>
-    (match[1] ?? "").split(" ").map((point) => Number(point.split(",")[0])),
+  const slices = [...html.matchAll(/<polygon[^>]*points="([^"]+)"/g)].map(
+    (match) =>
+      (match[1] ?? "").split(" ").map((point) => Number(point.split(",")[0])),
   );
   expect(slices).toHaveLength(richPlan.funnel?.length ?? 0);
   slices.forEach((slice, index) => {
