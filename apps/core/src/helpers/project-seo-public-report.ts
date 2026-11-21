@@ -54,6 +54,62 @@ export function refusePrivateReport(raw: unknown): void {
     );
 }
 
+const SEARCH_CONSOLE_FIELDS = [
+  "searchConsole",
+  "searchConsoleNear",
+  "searchHistory",
+  // The worker fills this from the Search Console investigation of a granted Task.
+  "privateStrategyDecisions",
+];
+const SEARCH_CONSOLE_KEYWORD_FIELDS = [
+  "searchConsole",
+  "searchConsoleNote",
+  "primary",
+];
+const SEARCH_CONSOLE_CONNECTION = "search_console";
+
+function omitKeys(input: Record<string, unknown>, keys: string[]) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([key]) => !keys.includes(key)),
+  );
+}
+
+/**
+ * A report file of an audit approved with Search Console may hold the worker's
+ * Search Console sections. The owner decided this on 2026-11-21. Core still
+ * stores none of these sections, so it drops them before the public
+ * projection. Every other private field still reaches refusePrivateReport.
+ */
+export function withoutApprovedSearchConsole(raw: unknown): unknown {
+  const input = reportObject(raw);
+  if (!input) return raw;
+  const copy = omitKeys(input, SEARCH_CONSOLE_FIELDS);
+  const request = reportObject(input.request);
+  if (
+    request &&
+    Array.isArray(request.connections) &&
+    request.connections.every((item) => item === SEARCH_CONSOLE_CONNECTION)
+  )
+    copy.request = omitKeys(request, ["connections"]);
+  const header = reportObject(input.header);
+  if (header && Array.isArray(header.focusKeywords))
+    copy.header = {
+      ...header,
+      focusKeywords: header.focusKeywords.map((row) => {
+        const item = reportObject(row);
+        return item ? omitKeys(item, SEARCH_CONSOLE_KEYWORD_FIELDS) : row;
+      }),
+    };
+  if (Array.isArray(input.pages))
+    copy.pages = input.pages.map((page) => {
+      const item = reportObject(page);
+      return item && item.report !== undefined
+        ? { ...item, report: withoutApprovedSearchConsole(item.report) }
+        : withoutApprovedSearchConsole(page);
+    });
+  return copy;
+}
+
 // Emitted by the worker for a page that started and raised an exception.
 export const SEO_REPORT_IMPORT_REJECTED =
   "The source report or its current authority could not be validated";

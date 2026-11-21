@@ -6,13 +6,14 @@
 
 1. Connects Search Console (optional, for real positions).
 2. Opens SEO from the brand menu: clicks from Google and their trend first, then the next three things to do (page changes with the exact new text, articles to write), with the audit and keyword search one click deeper.
-3. Presses "Write it" on an idea, or asks Cuso for a page for a keyword.
-4. Copies the text to their own website and marks the change Done; the next audit checks it.
-5. Asks Cuso where they rank for a search a few weeks later.
+3. Reads Cuso's weekly SEO message in the chat (cmo-v12): what moved on Google and the changes worth most, each as before and after.
+4. Presses "Write an article" or "Write it" on an idea, or asks Cuso in chat for articles; each comes back whole, ready to copy.
+5. Copies the text to their own website and marks the change Done; the next audit checks it.
+6. Asks Cuso where they rank for a search a few weeks later.
 
 **They expect**
 
-- Exact text to paste, not advice.
+- Exact text to paste, not advice, with what it replaces.
 - Numbers with their source, nothing invented.
 - To see whether it worked: positions and clicks going up.
 

@@ -2,7 +2,9 @@ import { z } from "zod";
 
 import { plainExcerpt } from "@/helpers/job-digest";
 import prisma from "@/lib/db/prisma";
+import type { CmoSeoSuggestion } from "@/schemas/cmo-seo.schema";
 import type { Cuso } from "@/services/cmo-cuso.service";
+import { toSuggestion } from "@/services/cmo-seo.service";
 import {
   type CmoSeoAuditRun,
   listCmoSeoAuditRuns,
@@ -15,16 +17,18 @@ import { readSeoCheck } from "@/services/cmo-seo-rankings.service";
  * adds what Cuso makes and hands to a Coworker or a hired Agent.
  */
 export interface CmoChatSeoWork {
-  /** The tool call that asked for a check; a weekly audit's own id. */
+  /** The tool call that asked for a check or saved suggestions; a weekly audit's own id. */
   id: string;
-  kind: "seo" | "audit";
+  kind: "seo" | "audit" | "seo_saved";
   state: "making" | "ready" | "failed";
   at: Date;
   title: string;
-  by: string;
+  by: string | null;
   /** What it found, or why it could not finish. */
   text: string | null;
   readable: boolean;
+  /** seo_saved: the page changes and articles, as the SEO page shows them. */
+  suggestions?: CmoSeoSuggestion[];
 }
 
 type Target = Pick<Cuso, "sokoBotId" | "projectId">;
@@ -154,7 +158,62 @@ export async function listCmoChatSeoWork(
       };
     }),
   );
-  return [...checks, ...audits.map(auditWork)];
+  return [
+    ...checks,
+    ...audits.map(auditWork),
+    ...(await savedWork(cuso, since)),
+  ];
+}
+
+const SAVED = "save_seo_suggestions";
+const savedSchema = z.object({
+  saved: z.array(z.object({ id: z.string().uuid() })),
+});
+
+/**
+ * Each save_seo_suggestions call that saved a page change or an article, as
+ * one card where it was made: what it saved, as the SEO page shows it now.
+ * What the owner skipped since drops out; a card with nothing left shows none.
+ */
+async function savedWork(cuso: Target, since: Date): Promise<CmoChatSeoWork[]> {
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: {
+      status: "COMPLETED",
+      capability: SAVED,
+      turn: { sokoBotId: cuso.sokoBotId, createdAt: { gte: since } },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: SHOWN_CHECKS,
+    select: { id: true, createdAt: true, result: true },
+  });
+  const idsOf = (result: unknown) =>
+    savedSchema.safeParse(result).data?.saved.map((item) => item.id) ?? [];
+  const rows = await prisma.projectSeoSuggestion.findMany({
+    where: {
+      id: { in: calls.flatMap((call) => idsOf(call.result)) },
+      projectId: cuso.projectId,
+      kind: { in: ["page_change", "article"] },
+      status: { not: "dismissed" },
+    },
+  });
+  const byId = new Map(rows.map((row) => [row.id, toSuggestion(row)]));
+  return calls.flatMap((call) => {
+    const suggestions = idsOf(call.result).flatMap((id) => byId.get(id) ?? []);
+    if (suggestions.length === 0) return [];
+    return [
+      {
+        id: call.id,
+        kind: "seo_saved" as const,
+        state: "ready" as const,
+        at: call.createdAt,
+        title: "Saved to your SEO page",
+        by: null,
+        text: null,
+        readable: false,
+        suggestions,
+      },
+    ];
+  });
 }
 
 /** A finished position check's whole result; null for anything else. */

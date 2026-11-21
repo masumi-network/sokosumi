@@ -1314,6 +1314,15 @@ export const sokoBotConversationSchema = z
           turnId: z.string(),
           title: z.string(),
           status: z.string(),
+          modelReason: z.string().nullable(),
+          calls: z.array(
+            z.object({
+              role: z.string(),
+              model: z.string(),
+              calls: z.number().int(),
+              costUsd: z.number(),
+            }),
+          ),
           ...conversationPriced,
         }),
         z.object({

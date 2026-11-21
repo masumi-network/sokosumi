@@ -14,6 +14,11 @@ import {
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import {
+  composeHandoff,
+  describeReply,
+  guardPrivateData,
+} from "./chat-message-handoff";
 import { type RuntimeOperations } from "./operations";
 
 /**
@@ -157,8 +162,12 @@ export async function listRecipients(
   query?: string,
 ) {
   const everyone = await directory(runtime, authorized, query);
+  const answers = await lastAnswers(runtime, authorized);
   return {
     recipients: everyone.map((recipient) => ({
+      ...(answers.get(recipientKey(recipient))
+        ? { lastAnswer: answers.get(recipientKey(recipient)) }
+        : {}),
       to:
         recipient.kind === "room"
           ? `#${recipient.name}`
@@ -243,6 +252,48 @@ export async function resolveRecipient(
       everyone.slice(0, 30).map(describe).join("; ") || "nobody yet"
     }.`,
   );
+}
+
+const ANSWER_DAYS = 30;
+
+/** The latest answer each recipient gave the bot in the last 30 days, so it does not ask again. */
+async function lastAnswers(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+) {
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: {
+      capability: "send_message",
+      status: "COMPLETED",
+      createdAt: { gte: new Date(Date.now() - ANSWER_DAYS * 24 * 60 * 60_000) },
+      turn: { sokoBotId: authorized.turn.sokoBotId },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: { input: true, result: true, createdAt: true },
+  });
+  const answers = new Map<
+    string,
+    { date: string; asked: string; answer: string }
+  >();
+  for (const call of calls) {
+    const input = call.input as { to?: unknown; message?: unknown } | null;
+    const reply = (call.result as { reply?: unknown } | null)?.reply;
+    if (typeof input?.to !== "string" || typeof reply !== "string") continue;
+    const matches = matching(
+      await directory(runtime, authorized, searchWords(input.to)),
+      input.to,
+    );
+    if (matches.length !== 1) continue;
+    const key = recipientKey(matches[0]!);
+    if (answers.has(key)) continue;
+    answers.set(key, {
+      date: call.createdAt.toISOString().slice(0, 10),
+      asked: String(input.message ?? "").slice(0, 200),
+      answer: reply.slice(0, 600),
+    });
+  }
+  return answers;
 }
 
 /** The conversation a turn belongs to: the turn that was asked and its follow-ups. */
@@ -455,6 +506,14 @@ export async function sendMessage(
     waitSeconds?: number;
     then?: string;
     resultReferences?: ChatResultReference[];
+    request?: {
+      goal: string;
+      deliverable?: string;
+      deadline?: string;
+      context?: string;
+    };
+    taskId?: string;
+    projectId?: string;
     toolCallId: string;
   },
 ) {
@@ -489,7 +548,20 @@ export async function sendMessage(
       `You have sent ${describe(recipient)} ${sent.toThem} messages in this conversation. Stop and report what you have and what is still open.`,
     );
   const toThem = sent.toThem + 1;
-  const posted = await postToRecipient(runtime, authorized, recipient, input);
+  const { message, handoff } = await composeHandoff(authorized, input);
+  const origin = await prisma.sokoBotTurn.findUnique({
+    where: { id: conversation[0] },
+    select: { userMessage: true },
+  });
+  await guardPrivateData({
+    turnIds: conversation,
+    ownerRequest: origin?.userMessage ?? "",
+    message,
+  });
+  const posted = await postToRecipient(runtime, authorized, recipient, {
+    ...input,
+    message,
+  });
   await deliverNow(authorized.turn.id, input.toolCallId).catch(() => undefined);
   const result = {
     ...posted,
@@ -520,8 +592,12 @@ export async function sendMessage(
   while (waitMs > 0 && Date.now() - startedAt < waitMs) {
     const reply = await chatReplyOutcome(watch);
     if (reply) {
-      await recordReply(authorized.turn.id, input.toolCallId, { reply });
-      return { ...result, reply };
+      const answer = {
+        reply,
+        ...(handoff ? await describeReply(reply) : {}),
+      };
+      await recordReply(authorized.turn.id, input.toolCallId, answer);
+      return { ...result, ...answer };
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }

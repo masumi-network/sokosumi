@@ -45,7 +45,19 @@ async function prepare(lane: EvalLaneRecord, setup: StandupEvalSetup) {
   await prisma.teamStandupRun.deleteMany({
     where: { standup: { organizationId: lane.organizationId } },
   });
-  if (setup === "quiet") return world;
+  if (setup === "quiet") {
+    // A stand-up that just ran: the window starts now, whatever earlier
+    // cases in this lane did today.
+    const standup = await standupFor(lane);
+    await prisma.teamStandupRun.create({
+      data: {
+        standupId: standup.id,
+        scheduledFor: new Date(0),
+        status: "QUIET",
+      },
+    });
+    return world;
+  }
   await setEvalCoworkerScript(world.coworkerId, [MIRA_ANSWER]);
   const task = (data: {
     name: string;

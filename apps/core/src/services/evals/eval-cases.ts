@@ -20,6 +20,7 @@ import {
   isCompetitorEvalCase,
 } from "./eval-cmo-competitors";
 import { CMO_ADS_CASE_ID, CMO_FUNNEL_CASE_ID } from "./eval-cmo-funnel";
+import { isCmoSeoReportCase } from "./eval-cmo-seo-report";
 import { CMO_CORRECTION_CASE_ID } from "./eval-cmo-variety";
 import { MEETING_PREP_SCENARIO } from "./eval-meeting-prep";
 import type { StandupEvalSetup } from "./eval-standup";
@@ -117,6 +118,8 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "break-task-into-subtasks": "Delegation",
   "move-task-under-parent": "Delegation",
   "a2a-ask-and-relay": "Agent to agent",
+  "a2a-remembers-answer": "Agent to agent",
+  "a2a-structured-handoff": "Agent to agent",
   "a2a-multi-turn": "Agent to agent",
   "a2a-asks-back": "Agent to agent",
   "a2a-no-answer": "Agent to agent",
@@ -230,7 +233,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
                     ? "cmo-plan-ads"
                     : scenario.id === "cmo-seo-skipped-idea"
                       ? "cmo-seo-skipped"
-                      : "cmo-brand",
+                      : isCmoSeoReportCase(scenario.id)
+                        ? "cmo-seo-report"
+                        : "cmo-brand",
             ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),

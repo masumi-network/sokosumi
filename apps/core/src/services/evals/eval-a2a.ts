@@ -107,7 +107,13 @@ export async function ensureA2aWorld(lane: EvalLaneRecord): Promise<A2aWorld> {
   // Paused, she would refuse every mention as unprompted work.
   await prisma.sokoBot.update({
     where: { id: junoId },
-    data: { proactivePaused: false, ingestTimezone: "Europe/Berlin" },
+    // Every case asks her; the daily limit for turns nobody started would
+    // end the day's runs early.
+    data: {
+      proactivePaused: false,
+      proactiveDailyLimit: 1_000,
+      ingestTimezone: "Europe/Berlin",
+    },
   });
   await prisma.chatRoomSokoBotMember.upsert({
     where: {
@@ -522,6 +528,26 @@ export async function a2aChecks(input: {
       actual: String(followUps),
     },
   ];
+  if (exchange.expectsRequest) {
+    const sent = await prisma.chatRoomMessage.findMany({
+      where: {
+        senderSokoBotId: input.lane.sokoBotId,
+        createdAt: { gte: input.startedAt },
+        room: { kind: { not: "direct" } },
+      },
+      select: { content: true },
+    });
+    const structured = sent.some(
+      (message) =>
+        /\nRequest\n- Goal: /.test(message.content) &&
+        /- By: /.test(message.content),
+    );
+    checks.push({
+      label: "The hand-off went out as a request (goal, deliverable, by when)",
+      pass: structured,
+      actual: structured ? "yes" : `${sent.length} message(s) without one`,
+    });
+  }
   if (exchange.maxBotMessages !== undefined) {
     const posted = await prisma.chatRoomMessage.count({
       where: {

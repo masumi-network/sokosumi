@@ -9,6 +9,7 @@ import {
   serpRead,
   siteStrategyReport,
 } from "@/test-fixtures/project-seo";
+import { withoutApprovedSearchConsole } from "./project-seo-public-report";
 import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
@@ -509,6 +510,37 @@ describe("public SEO report trust boundary", () => {
         },
       }),
     ).toThrow("Private search evidence");
+  });
+
+  it("drops only Search Console sections for an approved audit and still refuses other private evidence", () => {
+    const page = (request: Record<string, unknown>, extra = {}) => ({
+      kind: "site",
+      rulebookVersion: "test",
+      pages: [{ ...legacyReport(), request, ...extra }],
+    });
+    const decisions = {
+      privateStrategyDecisions: [{ decision: "fixture-strategy-marker" }],
+    };
+    const approved = withoutApprovedSearchConsole({
+      ...page(
+        { url: SEO_TEST_PAGE, connections: ["search_console"] },
+        { searchConsole: { clicks: 1 }, searchConsoleNear: [], ...decisions },
+      ),
+      ...decisions,
+    });
+    expect(parsePublicSeoArtifact(approved).pageUrls).toEqual([SEO_TEST_PAGE]);
+    expect(JSON.stringify(approved)).not.toContain("fixture-strategy-marker");
+    expect(() =>
+      parsePublicSeoArtifact({ ...page({ url: SEO_TEST_PAGE }), ...decisions }),
+    ).toThrow("Only public SEO evidence");
+    for (const report of [
+      page({ url: SEO_TEST_PAGE, connections: ["search_console", "bing"] }),
+      page({ url: SEO_TEST_PAGE }, { bing: { clicks: 1 } }),
+      page({ url: SEO_TEST_PAGE }, { outcomeReading: { clicks: 1 } }),
+    ])
+      expect(() =>
+        parsePublicSeoArtifact(withoutApprovedSearchConsole(report)),
+      ).toThrow("Only public SEO evidence");
   });
 
   it("imports a site audit whose failed page the worker names as skipped, and refuses one that drops a page silently", () => {

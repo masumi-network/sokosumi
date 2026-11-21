@@ -5501,6 +5501,38 @@ export const SokoBotConversationSchema = {
                             status: {
                                 type: 'string'
                             },
+                            modelReason: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            calls: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        role: {
+                                            type: 'string'
+                                        },
+                                        model: {
+                                            type: 'string'
+                                        },
+                                        calls: {
+                                            type: 'integer'
+                                        },
+                                        costUsd: {
+                                            type: 'number'
+                                        }
+                                    },
+                                    required: [
+                                        'role',
+                                        'model',
+                                        'calls',
+                                        'costUsd'
+                                    ]
+                                }
+                            },
                             model: {
                                 type: [
                                     'string',
@@ -5526,6 +5558,8 @@ export const SokoBotConversationSchema = {
                             'turnId',
                             'title',
                             'status',
+                            'modelReason',
+                            'calls',
                             'model',
                             'costUsd',
                             'durationMs'
@@ -62134,9 +62168,10 @@ export const CmoChatWorkItemSchema = {
                 'run',
                 'question',
                 'seo',
-                'audit'
+                'audit',
+                'seo_saved'
             ],
-            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist\'s weekly audit of the site (audit).'
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), the SEO specialist\'s weekly audit of the site (audit), or the page changes and articles he saved to the SEO page (seo_saved).'
         },
         state: {
             type: 'string',
@@ -62297,6 +62332,13 @@ export const CmoChatWorkItemSchema = {
                 }
             ],
             description: 'A background run\'s own turn: its report in the room is this card.'
+        },
+        suggestions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            },
+            description: 'seo_saved: what Cuso saved to the SEO page, as the page shows it.'
         }
     },
     required: [
@@ -62345,6 +62387,212 @@ export const CmoChatTableSchema = {
         'columns',
         'rows',
         'total'
+    ]
+} as const;
+
+export const CmoSeoSuggestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'article',
+                'page_change',
+                'landing_page'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'audit',
+                'cuso'
+            ]
+        },
+        title: {
+            type: 'string'
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        why: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        newText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        currentText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        element: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'title',
+                'description',
+                'heading',
+                'text',
+                null
+            ]
+        },
+        draft: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    sourceUrl: {
+                        type: 'string'
+                    },
+                    quote: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'text',
+                    'sourceUrl',
+                    'quote'
+                ]
+            }
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoEvidence'
+            }
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'open',
+                'done',
+                'verified',
+                'dismissed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        doneAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        verifiedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'source',
+        'title',
+        'keyword',
+        'pageUrl',
+        'why',
+        'body',
+        'newText',
+        'currentText',
+        'element',
+        'draft',
+        'sources',
+        'evidence',
+        'status',
+        'createdAt',
+        'doneAt',
+        'verifiedAt'
+    ]
+} as const;
+
+export const CmoSeoEvidenceSchema = {
+    type: 'object',
+    properties: {
+        metric: {
+            type: 'string',
+            enum: [
+                'searchVolume',
+                'difficulty',
+                'intent',
+                'position',
+                'clicks',
+                'impressions',
+                'ctr',
+                'auditIssue'
+            ]
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        value: {
+            type: 'string'
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'keyword_research',
+                'search_console',
+                'weekly_audit'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'metric',
+        'keyword',
+        'pageUrl',
+        'value',
+        'source',
+        'observedAt'
     ]
 } as const;
 
@@ -63129,191 +63377,6 @@ export const CmoSearchConsoleSchema = {
         'previousTotals',
         'nearFirstPage',
         'lowClickRate'
-    ]
-} as const;
-
-export const CmoSeoSuggestionSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'article',
-                'page_change',
-                'landing_page'
-            ]
-        },
-        source: {
-            type: 'string',
-            enum: [
-                'audit',
-                'cuso'
-            ]
-        },
-        title: {
-            type: 'string'
-        },
-        keyword: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        pageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        why: {
-            type: 'string'
-        },
-        body: {
-            type: 'string'
-        },
-        newText: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        draft: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        sources: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string'
-                    },
-                    sourceUrl: {
-                        type: 'string'
-                    },
-                    quote: {
-                        type: 'string'
-                    }
-                },
-                required: [
-                    'text',
-                    'sourceUrl',
-                    'quote'
-                ]
-            }
-        },
-        evidence: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/CmoSeoEvidence'
-            }
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'open',
-                'done',
-                'verified',
-                'dismissed'
-            ]
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time'
-        },
-        doneAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time'
-        },
-        verifiedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time'
-        }
-    },
-    required: [
-        'id',
-        'kind',
-        'source',
-        'title',
-        'keyword',
-        'pageUrl',
-        'why',
-        'body',
-        'newText',
-        'draft',
-        'sources',
-        'evidence',
-        'status',
-        'createdAt',
-        'doneAt',
-        'verifiedAt'
-    ]
-} as const;
-
-export const CmoSeoEvidenceSchema = {
-    type: 'object',
-    properties: {
-        metric: {
-            type: 'string',
-            enum: [
-                'searchVolume',
-                'difficulty',
-                'intent',
-                'position',
-                'clicks',
-                'impressions',
-                'ctr',
-                'auditIssue'
-            ]
-        },
-        keyword: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        pageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        value: {
-            type: 'string'
-        },
-        source: {
-            type: 'string',
-            enum: [
-                'keyword_research',
-                'search_console',
-                'weekly_audit'
-            ]
-        },
-        observedAt: {
-            type: 'string',
-            format: 'date-time'
-        }
-    },
-    required: [
-        'metric',
-        'keyword',
-        'pageUrl',
-        'value',
-        'source',
-        'observedAt'
     ]
 } as const;
 
@@ -68933,6 +68996,324 @@ export const SeoTaskRelatedPagesRequestSchema = {
         'expectedContext',
         'seedPageUrls',
         'relatedPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskSearchConsoleStatusSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string',
+            enum: [
+                'search-console'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'NOT_CONNECTED',
+                'PENDING',
+                'CONNECTED',
+                'UNAVAILABLE'
+            ]
+        },
+        reason: {
+            type: 'string',
+            enum: [
+                'not_connected',
+                'reconnect',
+                'property',
+                'unavailable',
+                'limited_audit'
+            ]
+        },
+        authenticationUrl: {
+            type: 'string'
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'status',
+        'authenticationUrl',
+        'expiresAt'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskSearchConsoleReplySchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'integer',
+            minimum: 200,
+            maximum: 599
+        },
+        body: {
+            type: 'object',
+            additionalProperties: {},
+            description: 'Google\'s native JSON body for the operation'
+        }
+    },
+    required: [
+        'status',
+        'body'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskSearchConsoleReadSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                operation: {
+                    type: 'string',
+                    enum: [
+                        'sites.list'
+                    ]
+                },
+                expectedOwnerId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 128
+                },
+                expectedOrganizationId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    minLength: 1,
+                    maxLength: 128
+                }
+            },
+            required: [
+                'operation',
+                'expectedOwnerId',
+                'expectedOrganizationId'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                operation: {
+                    type: 'string',
+                    enum: [
+                        'searchAnalytics.query'
+                    ]
+                },
+                siteUrl: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                query: {
+                    $ref: '#/components/schemas/SeoTaskSearchAnalyticsQuery'
+                },
+                expectedOwnerId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 128
+                },
+                expectedOrganizationId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    minLength: 1,
+                    maxLength: 128
+                }
+            },
+            required: [
+                'operation',
+                'siteUrl',
+                'query',
+                'expectedOwnerId',
+                'expectedOrganizationId'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                operation: {
+                    type: 'string',
+                    enum: [
+                        'urlInspection.inspect'
+                    ]
+                },
+                siteUrl: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                inspectionUrl: {
+                    type: 'string',
+                    maxLength: 4096,
+                    format: 'uri'
+                },
+                expectedOwnerId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 128
+                },
+                expectedOrganizationId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    minLength: 1,
+                    maxLength: 128
+                }
+            },
+            required: [
+                'operation',
+                'siteUrl',
+                'inspectionUrl',
+                'expectedOwnerId',
+                'expectedOrganizationId'
+            ],
+            additionalProperties: false
+        }
+    ]
+} as const;
+
+export const SeoTaskSearchAnalyticsQuerySchema = {
+    type: 'object',
+    properties: {
+        startDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        endDate: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        dimensions: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'query',
+                    'page',
+                    'country',
+                    'device',
+                    'date',
+                    'searchAppearance'
+                ]
+            },
+            maxItems: 6
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'web',
+                'image',
+                'video',
+                'news',
+                'discover',
+                'googleNews'
+            ]
+        },
+        dimensionFilterGroups: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    groupType: {
+                        type: 'string',
+                        enum: [
+                            'and'
+                        ]
+                    },
+                    filters: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                dimension: {
+                                    type: 'string',
+                                    enum: [
+                                        'query',
+                                        'page',
+                                        'country',
+                                        'device',
+                                        'searchAppearance'
+                                    ]
+                                },
+                                operator: {
+                                    type: 'string',
+                                    enum: [
+                                        'contains',
+                                        'equals',
+                                        'notContains',
+                                        'notEquals',
+                                        'includingRegex',
+                                        'excludingRegex'
+                                    ]
+                                },
+                                expression: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 4096
+                                }
+                            },
+                            required: [
+                                'dimension',
+                                'expression'
+                            ],
+                            additionalProperties: false
+                        },
+                        minItems: 1,
+                        maxItems: 16
+                    }
+                },
+                required: [
+                    'filters'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 4
+        },
+        aggregationType: {
+            type: 'string',
+            enum: [
+                'auto',
+                'byPage',
+                'byProperty',
+                'byNewsShowcasePanel'
+            ]
+        },
+        dataState: {
+            type: 'string',
+            enum: [
+                'final',
+                'all'
+            ]
+        },
+        rowLimit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 25000
+        },
+        startRow: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 975000
+        }
+    },
+    required: [
+        'startDate',
+        'endDate',
+        'rowLimit',
+        'startRow'
     ],
     additionalProperties: false
 } as const;

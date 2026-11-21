@@ -24,6 +24,7 @@ import { cmoV7 } from "./cmo-v7.js";
 import { cmoV8 } from "./cmo-v8.js";
 import { cmoV9 } from "./cmo-v9.js";
 import { cmoV10 } from "./cmo-v10.js";
+import { cmoV12 } from "./cmo-v12.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -65,6 +66,7 @@ import { v32 } from "./v32.js";
 import { v33 } from "./v33.js";
 import { v34 } from "./v34.js";
 import { v35 } from "./v35.js";
+import { v36 } from "./v36.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -103,6 +105,7 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v33,
   v34,
   v35,
+  v36,
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v34";
 
@@ -122,6 +125,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV8,
   cmoV9,
   cmoV10,
+  cmoV12,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */

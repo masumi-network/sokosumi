@@ -652,19 +652,30 @@ export function pageText(html: string): string {
   return flat(parts.join(""));
 }
 
+/**
+ * Whether the page carries the text (its title, description or heading
+ * included); null when the page could not be read.
+ */
+export async function pageCarriesText(
+  pageUrl: string,
+  text: string,
+): Promise<boolean | null> {
+  const response = await ssrfSafeFetch(pageUrl, {
+    maxResponseBytes: PAGE_BYTES,
+    headers: { "user-agent": "Mozilla/5.0 (compatible; CMO.XYZ page check)" },
+    signal: AbortSignal.timeout(15_000),
+  }).catch(() => null);
+  if (!response?.ok) return null;
+  const wanted = flat(text).slice(0, 160);
+  return !!wanted && pageText(await response.text()).includes(wanted);
+}
+
 /** Whether the page now carries the new text (its title, description or heading included). */
 export async function pageShowsText(
   pageUrl: string,
   text: string,
 ): Promise<boolean> {
-  const response = await ssrfSafeFetch(pageUrl, {
-    maxResponseBytes: PAGE_BYTES,
-    headers: { "user-agent": "Mozilla/5.0 (compatible; CMO.XYZ page check)" },
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) return false;
-  const wanted = flat(text).slice(0, 160);
-  return !!wanted && pageText(await response.text()).includes(wanted);
+  return (await pageCarriesText(pageUrl, text)) === true;
 }
 
 /**
