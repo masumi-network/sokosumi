@@ -6,7 +6,6 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
-  useEffect,
   useId,
   useState,
 } from "react";
@@ -25,6 +24,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { cn } from "@/lib/utils";
 
 export interface AsyncSearchComboboxLabels {
@@ -115,12 +115,13 @@ export function AsyncSearchCombobox<T>({
   const [searchSession, setSearchSession] = useState(0);
 
   // Debounce: mirror the input into `debouncedQuery` after the configured delay.
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+  useTimeout(
+    () => {
       setDebouncedQuery(query.trim());
-    }, debounceTime);
-    return () => window.clearTimeout(timeoutId);
-  }, [query, debounceTime]);
+    },
+    debounceTime,
+    query,
+  );
 
   const activeQuery = open && debouncedQuery.length > 0;
   const searchQuery = useQuery({

@@ -1,14 +1,9 @@
 "use client";
 
 import type { SpeedInsights as SpeedInsightsComponent } from "@vercel/speed-insights/next";
-import { type ComponentProps, type ComponentType, useState } from "react";
+import type { ComponentProps } from "react";
 
-import { useMountEffect } from "@/hooks/use-mount-effect";
-
-interface LoadedAnalytics {
-  Analytics: ComponentType;
-  SpeedInsights: typeof SpeedInsightsComponent;
-}
+import { useClientAnalyticsModules } from "@/hooks/effects/use-client-analytics-modules";
 
 type BeforeSend = NonNullable<
   ComponentProps<typeof SpeedInsightsComponent>["beforeSend"]
@@ -25,26 +20,7 @@ const dropBackgroundTabLoads: BeforeSend = (event) =>
     : event;
 
 export function ClientAnalytics() {
-  const [loaded, setLoaded] = useState<LoadedAnalytics | null>(null);
-
-  useMountEffect(() => {
-    let cancelled = false;
-    void Promise.all([
-      import("@vercel/analytics/next"),
-      import("@vercel/speed-insights/next"),
-    ]).then(([analyticsMod, speedInsightsMod]) => {
-      if (cancelled) {
-        return;
-      }
-      setLoaded({
-        Analytics: analyticsMod.Analytics,
-        SpeedInsights: speedInsightsMod.SpeedInsights,
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  });
+  const loaded = useClientAnalyticsModules();
 
   if (!loaded) {
     return null;
