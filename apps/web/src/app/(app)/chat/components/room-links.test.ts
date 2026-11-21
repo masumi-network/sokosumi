@@ -21,13 +21,33 @@ describe("roomLinks", () => {
     ]);
   });
 
-  it("skips messages whose http text is not a web link, and file links", () => {
+  it("lists every link in a message, with no cap", () => {
+    const many = message(
+      "m1",
+      "https://a.example https://b.example https://c.example https://d.example",
+    );
+
+    expect(roomLinks([many]).map((link) => link.url)).toEqual([
+      "https://a.example",
+      "https://b.example",
+      "https://c.example",
+      "https://d.example",
+    ]);
+  });
+
+  it("keeps links to documents but skips the room's own attachments", () => {
+    const pdf = message("m2", "Brief: https://vendor.example/brief.pdf");
+
     expect(
       roomLinks([
         message("m1", "the word http alone"),
-        message("m2", "https://example.com/report.pdf"),
+        pdf,
+        message(
+          "m3",
+          "[a.png](https://abc.public.blob.vercel-storage.com/users/u-1/chats/550e8400-e29b-41d4-a716-446655440000/a.png)",
+        ),
       ]),
-    ).toEqual([]);
+    ).toEqual([{ url: "https://vendor.example/brief.pdf", message: pdf }]);
   });
 });
 

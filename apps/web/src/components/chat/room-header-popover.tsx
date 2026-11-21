@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -46,6 +46,7 @@ export function RoomHeaderPopover({
   const open = anchor?.open ?? ownOpen;
   const setOpen = anchor?.onOpenChange ?? setOwnOpen;
   const anchorRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   // A trigger's restore skips a close by outside click; match it.
   const interactedOutsideRef = useRef(false);
 
@@ -87,10 +88,13 @@ export function RoomHeaderPopover({
               }
             : undefined
         }
-        className="max-h-[min(32rem,70dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto p-2"
+        aria-labelledby={titleId}
+        className="max-h-[min(32rem,70dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain p-2"
         data-testid={`${testId}-panel`}
       >
-        <h2 className="px-2 pt-1 pb-2 text-sm font-semibold">{title}</h2>
+        <h2 id={titleId} className="px-2 pt-1 pb-2 text-sm font-semibold">
+          {title}
+        </h2>
         {children(() => setOpen(false))}
         {footer ? (
           <p className="text-muted-foreground px-2 pt-2 text-xs text-pretty">

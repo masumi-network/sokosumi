@@ -9860,10 +9860,12 @@
         "open": "Links",
         "title": "Links in this chat",
         "empty": "No links shared here yet.",
+        "emptyRecent": "No links in the newest messages. Load older to look further back.",
         "error": "Couldn't load links. Try again.",
+        "retry": "Try again",
         "loadOlder": "Load older",
         "showInChat": "Show the message with {host}",
-        "note": "Newest first, from messages and thread replies. Files are not listed."
+        "note": "Newest first, from messages and thread replies. Files attached in the chat are not listed."
       },
       "SavedMessages": {
         "save": "Save for later",

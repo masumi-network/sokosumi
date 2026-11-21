@@ -29,7 +29,10 @@ function page(messages: ChatRoomMessage[], nextCursor: string | null) {
 const onJump = vi.fn();
 
 function renderLinks() {
-  const client = new QueryClient();
+  // The app's default: data stays fresh for a minute.
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: 60_000 } },
+  });
   render(
     <QueryClientProvider client={client}>
       <RoomLinksPopover roomId="room-1" onJumpToMessage={onJump} />
@@ -52,6 +55,9 @@ describe("RoomLinksPopover", () => {
 
     await user.click(screen.getByRole("button", { name: "open" }));
 
+    expect(
+      await screen.findByRole("dialog", { name: "title" }),
+    ).toBeInTheDocument();
     const links = await screen.findAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "https://example.com/plan",
@@ -81,7 +87,8 @@ describe("RoomLinksPopover", () => {
 
     await user.click(screen.getByRole("button", { name: "open" }));
     // A page with no links still offers older ones instead of saying none.
-    await user.click(await screen.findByRole("button", { name: "loadOlder" }));
+    expect(await screen.findByText("emptyRecent")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "loadOlder" }));
 
     expect(await screen.findByRole("link")).toHaveAttribute(
       "href",
@@ -103,5 +110,63 @@ describe("RoomLinksPopover", () => {
     await user.click(screen.getByRole("button", { name: "open" }));
 
     expect(await screen.findByText("empty")).toBeInTheDocument();
+  });
+
+  it("shows a link posted after the list was last opened", async () => {
+    core.getChatRoomMessages
+      .mockResolvedValueOnce(page([], null))
+      .mockResolvedValueOnce(
+        page([message("m1", "https://new.example")], null),
+      );
+    const user = userEvent.setup();
+    renderLinks();
+
+    await user.click(screen.getByRole("button", { name: "open" }));
+    await screen.findByText("empty");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "open" }));
+
+    expect(await screen.findByRole("link")).toHaveAttribute(
+      "href",
+      "https://new.example",
+    );
+    expect(core.getChatRoomMessages).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a failed first load in place", async () => {
+    core.getChatRoomMessages
+      .mockRejectedValueOnce(new Error("down"))
+      .mockResolvedValueOnce(page([message("m1", "https://a.example")], null));
+    const user = userEvent.setup();
+    renderLinks();
+
+    await user.click(screen.getByRole("button", { name: "open" }));
+    await screen.findByText("error");
+    await user.click(screen.getByRole("button", { name: "retry" }));
+
+    expect(await screen.findByRole("link")).toHaveAttribute(
+      "href",
+      "https://a.example",
+    );
+  });
+
+  it("keeps the loaded links when older ones fail to load", async () => {
+    core.getChatRoomMessages
+      .mockResolvedValueOnce(page([message("m2", "https://a.example")], "m2"))
+      .mockRejectedValueOnce(new Error("down"));
+    const user = userEvent.setup();
+    renderLinks();
+
+    await user.click(screen.getByRole("button", { name: "open" }));
+    await user.click(await screen.findByRole("button", { name: "loadOlder" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("error");
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "https://a.example",
+    );
+    expect(
+      screen.getByRole("button", { name: "loadOlder" }),
+    ).toBeInTheDocument();
   });
 });

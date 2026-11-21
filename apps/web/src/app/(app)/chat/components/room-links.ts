@@ -1,5 +1,5 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { selectUnfurlCandidateUrls } from "@sokosumi/utils";
+import { listHttpUrls, parseChatRoomFileUrl } from "@sokosumi/utils";
 
 export interface RoomLink {
   url: string;
@@ -7,16 +7,15 @@ export interface RoomLink {
 }
 
 /**
- * The web links in these messages, in message order. Files are left out:
- * the room's files have their own list.
+ * The web links in these messages, in message order, links to documents
+ * included. Files attached in the chat are left out: they are uploads, not
+ * links someone shared.
  */
-// ponytail: up to 3 links per message (the unfurl cap); lift if people post link lists.
 export function roomLinks(messages: readonly ChatRoomMessage[]): RoomLink[] {
   return messages.flatMap((message) =>
-    selectUnfurlCandidateUrls(message.content).map((url) => ({
-      url,
-      message,
-    })),
+    listHttpUrls(message.content)
+      .filter((url) => !parseChatRoomFileUrl(url))
+      .map((url) => ({ url, message })),
   );
 }
 

@@ -1,9 +1,25 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  listHttpUrls,
   selectUnfurlCandidateUrls,
   unfurlCardHasPreviewContent,
 } from "./unfurl-urls.js";
+
+describe("listHttpUrls", () => {
+  it("lists every web link once, file links included, with no cap", () => {
+    expect(
+      listHttpUrls(
+        "[a](https://a.example) <https://b.example> https://c.example/doc.pdf https://d.example https://a.example ftp://e.example",
+      ),
+    ).toEqual([
+      "https://a.example",
+      "https://b.example",
+      "https://c.example/doc.pdf",
+      "https://d.example",
+    ]);
+  });
+});
 
 describe("selectUnfurlCandidateUrls", () => {
   it("collects markdown links, autolinks, and bare URLs in first-appearance order", () => {

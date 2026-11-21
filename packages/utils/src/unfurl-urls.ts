@@ -12,13 +12,10 @@ interface UrlHit {
   index: number;
 }
 
-function isEligibleHttpUrl(url: string): boolean {
+function isHttpUrl(url: string): boolean {
   try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return false;
-    }
-    return !isFileLikeUrl(url);
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:";
   } catch {
     return false;
   }
@@ -46,27 +43,28 @@ function collectUrlHits(markdown: string): UrlHit[] {
 }
 
 /**
+ * Every unique http(s) URL in markdown, file links included:
+ * `[text](url)`, `<autolink>`, and bare URLs in text.
+ * Order = first appearance.
+ */
+export function listHttpUrls(markdown: string): string[] {
+  const hits = collectUrlHits(markdown).toSorted((a, b) => a.index - b.index);
+  const urls = new Set<string>();
+  for (const { url } of hits) {
+    if (url && isHttpUrl(url)) urls.add(url);
+  }
+  return [...urls];
+}
+
+/**
  * Collect up to 3 unique non-file http(s) URLs from markdown:
  * `[text](url)`, `<autolink>`, and bare URLs in text.
  * Order = first appearance.
  */
 export function selectUnfurlCandidateUrls(markdown: string): string[] {
-  const hits = collectUrlHits(markdown).toSorted((a, b) => a.index - b.index);
-  const selected: string[] = [];
-  const seen = new Set<string>();
-
-  for (const { url } of hits) {
-    if (!url || seen.has(url) || !isEligibleHttpUrl(url)) {
-      continue;
-    }
-    seen.add(url);
-    selected.push(url);
-    if (selected.length >= MAX_UNFURL_CANDIDATES) {
-      break;
-    }
-  }
-
-  return selected;
+  return listHttpUrls(markdown)
+    .filter((url) => !isFileLikeUrl(url))
+    .slice(0, MAX_UNFURL_CANDIDATES);
 }
 
 export interface UnfurlPreviewContent {

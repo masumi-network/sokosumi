@@ -9860,10 +9860,12 @@
         "open": "Enlaces",
         "title": "Enlaces en este chat",
         "empty": "Aún no se ha compartido ningún enlace aquí.",
+        "emptyRecent": "No hay enlaces en los mensajes más recientes. Carga los anteriores para buscar más atrás.",
         "error": "No se pudieron cargar los enlaces. Inténtalo de nuevo.",
+        "retry": "Reintentar",
         "loadOlder": "Cargar anteriores",
         "showInChat": "Mostrar el mensaje con {host}",
-        "note": "Los más recientes primero, de mensajes y respuestas en hilos. No incluye archivos."
+        "note": "Los más recientes primero, de mensajes y respuestas en hilos. No incluye archivos adjuntos en el chat."
       },
       "SavedMessages": {
         "save": "Guardar para después",

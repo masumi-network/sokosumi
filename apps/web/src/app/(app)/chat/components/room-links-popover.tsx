@@ -83,6 +83,9 @@ function LinksList({
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor,
+    // The list mounts on open and drops its cache on close, so every open
+    // shows the links as they are now, edits and deletes included.
+    gcTime: 0,
     refetchOnWindowFocus: false,
     retry: false,
   });
@@ -95,11 +98,21 @@ function LinksList({
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
-      ) : query.isError ? (
-        <p className="text-muted-foreground px-2 pb-2 text-sm">{t("error")}</p>
-      ) : links.length === 0 && !query.hasNextPage ? (
+      ) : query.isError && !query.isFetchNextPageError ? (
+        <div className="flex flex-col items-start gap-1 px-2 pb-2">
+          <p className="text-muted-foreground text-sm">{t("error")}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            loading={query.isRefetching}
+            onClick={() => void query.refetch()}
+          >
+            {t("retry")}
+          </Button>
+        </div>
+      ) : links.length === 0 ? (
         <p className="text-muted-foreground px-2 pb-2 text-sm text-pretty">
-          {t("empty")}
+          {query.hasNextPage ? t("emptyRecent") : t("empty")}
         </p>
       ) : (
         <ul className="flex flex-col">
@@ -154,6 +167,11 @@ function LinksList({
           })}
         </ul>
       )}
+      {query.isFetchNextPageError ? (
+        <p className="text-muted-foreground px-2 pt-1 text-sm" role="alert">
+          {t("error")}
+        </p>
+      ) : null}
       {query.hasNextPage ? (
         <Button
           variant="ghost"
