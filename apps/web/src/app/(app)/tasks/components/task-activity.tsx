@@ -110,7 +110,7 @@ interface TaskActivityProps {
   /** The Task's name and project: tables in the activity offer Save as table to a reader who can comment. */
   tableSource?: {
     taskId: string;
-    workspaceId: string | null;
+    workspaceId: string;
     title: string;
     projectId: string | null;
   };

@@ -88,6 +88,7 @@ describe("taskResultTablePlan", () => {
 describe("taskTableSource", () => {
   const task = {
     id: "task-1",
+    workspace: { id: "workspace-1" },
     name: "Find leads",
     projectId: null,
     visibility: "PUBLIC" as const,
@@ -96,7 +97,7 @@ describe("taskTableSource", () => {
   it("offers Save as table where the Table's readers can already read the Task", () => {
     expect(taskTableSource(task)).toEqual({
       taskId: "task-1",
-      workspaceId: "org-1",
+      workspaceId: "workspace-1",
       title: "Find leads",
       projectId: null,
     });
@@ -104,7 +105,7 @@ describe("taskTableSource", () => {
       taskTableSource({ ...task, visibility: "PRIVATE", organizationId: null }),
     ).toEqual({
       taskId: "task-1",
-      workspaceId: null,
+      workspaceId: "workspace-1",
       title: "Find leads",
       projectId: null,
     });

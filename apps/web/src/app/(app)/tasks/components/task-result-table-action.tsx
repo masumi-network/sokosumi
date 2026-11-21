@@ -30,12 +30,12 @@ import {
 import { TaskTableEvent } from "./task-table-event";
 
 /**
- * The Task a saved Table comes from: its name titles the Table, and the Table joins its workspace (null:
- * personal) and project.
+ * The Task a saved Table comes from: its name titles the Table, and the Table joins its workspace and
+ * project.
  */
 type Source = {
   taskId: string;
-  workspaceId: string | null;
+  workspaceId: string;
   title: string;
   projectId: string | null;
 };
@@ -189,12 +189,12 @@ export function useTaskResultTableComponents(
   source: Source | null,
 ): Components | undefined {
   const taskId = source?.taskId;
-  const workspaceId = source?.workspaceId ?? null;
+  const workspaceId = source?.workspaceId;
   const title = source?.title;
   const projectId = source?.projectId ?? null;
   return useMemo(
     () =>
-      taskId === undefined || title === undefined
+      taskId === undefined || workspaceId === undefined || title === undefined
         ? undefined
         : {
             table: (props) => (

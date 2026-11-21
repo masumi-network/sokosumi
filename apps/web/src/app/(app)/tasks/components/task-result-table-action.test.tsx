@@ -6,6 +6,7 @@ import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import Markdown from "@/components/markdown";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
+import { taskTableSource } from "./task-result-table";
 import { useTaskResultTableComponents } from "./task-result-table-action";
 import { TaskTableEvent } from "./task-table-event";
 
@@ -38,20 +39,14 @@ beforeEach(() => {
 type Where = {
   /** The activity events, one comment each; null is a comment not saved yet. */
   events?: (string | null)[];
-  workspaceId?: string | null;
-  projectId?: string | null;
 };
 
-function Result({
-  events = ["event-1"],
-  workspaceId = null,
-  projectId = "00000000-0000-4000-8000-000000000001",
-}: Where) {
+function Result({ events = ["event-1"] }: Where) {
   const components = useTaskResultTableComponents({
     taskId: `task-${taskId}`,
-    workspaceId,
+    workspaceId: "workspace-1",
     title: "Find leads",
-    projectId,
+    projectId: "00000000-0000-4000-8000-000000000001",
   });
   return events.map((event) => (
     <TaskTableEvent key={event} value={event}>
@@ -143,13 +138,22 @@ it("keeps the same table in another activity event its own copy", async () => {
 });
 
 it("starts a fresh copy once the Task moves to another workspace", async () => {
+  // A move changes the workspace only: the Task id, its billing organization and its (empty) project stay.
+  const task = {
+    id: `task-${taskId}`,
+    name: "Find leads",
+    projectId: null,
+    visibility: "PUBLIC" as const,
+    organizationId: "org-1",
+  };
   const user = userEvent.setup();
-  const before = renderResult();
+  const before = renderSource(
+    taskTableSource({ ...task, workspace: { id: "workspace-1" } }),
+  );
   await user.click(screen.getByRole("button", { name: "Save as table" }));
   before.unmount();
 
-  // A move keeps the Task id and clears its project; the old Table stays behind.
-  renderResult({ workspaceId: "org-2", projectId: null });
+  renderSource(taskTableSource({ ...task, workspace: { id: "workspace-2" } }));
   expect(
     screen.queryByRole("link", { name: "Open table" }),
   ).not.toBeInTheDocument();
@@ -157,6 +161,32 @@ it("starts a fresh copy once the Task moves to another workspace", async () => {
     screen.getByRole("button", { name: "Save as table" }),
   ).toBeInTheDocument();
 });
+
+function SourceResult({
+  source,
+}: {
+  source: ReturnType<typeof taskTableSource>;
+}) {
+  const components = useTaskResultTableComponents(source ?? null);
+  return (
+    <TaskTableEvent value="event-1">
+      <Markdown components={components}>{RESULT}</Markdown>
+    </TaskTableEvent>
+  );
+}
+
+function renderSource(source: ReturnType<typeof taskTableSource>) {
+  return render(
+    <NextIntlClientProvider
+      locale="en"
+      messages={messages}
+      timeZone="UTC"
+      formats={createFormats()}
+    >
+      <SourceResult source={source} />
+    </NextIntlClientProvider>,
+  );
+}
 
 it("offers nothing on a comment not saved yet, whose row is replaced once it is", () => {
   renderResult({ events: [null] });
@@ -205,7 +235,7 @@ it("refuses a table too large to save whole, before creating anything", async ()
 function WideResult() {
   const components = useTaskResultTableComponents({
     taskId: `task-${taskId}`,
-    workspaceId: null,
+    workspaceId: "workspace-1",
     title: "Wide",
     projectId: null,
   });
@@ -222,7 +252,7 @@ function WideResult() {
 function Collapsible() {
   const components = useTaskResultTableComponents({
     taskId: `task-${taskId}`,
-    workspaceId: null,
+    workspaceId: "workspace-1",
     title: "Find leads",
     projectId: null,
   });

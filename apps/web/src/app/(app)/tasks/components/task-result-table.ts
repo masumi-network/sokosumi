@@ -21,13 +21,14 @@ export function taskTableSource(
   task: Pick<
     Task,
     "id" | "name" | "projectId" | "visibility" | "organizationId"
-  >,
+  > & { workspace: Pick<Task["workspace"], "id"> },
 ) {
   if (task.organizationId && task.visibility === TaskVisibility.PRIVATE)
     return undefined;
   return {
     taskId: task.id,
-    workspaceId: task.organizationId ?? null,
+    // Where the Task sits now. A move changes it but keeps the billing organization (`organizationId`).
+    workspaceId: task.workspace.id,
     title: task.name,
     projectId: task.projectId,
   };
