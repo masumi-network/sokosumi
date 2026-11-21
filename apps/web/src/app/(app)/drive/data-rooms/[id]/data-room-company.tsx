@@ -160,6 +160,8 @@ export function DataRoomCompanyPanel({
 
   return (
     <form
+      // Without a legal name the save removes the page, so an old malformed email must not block it.
+      noValidate={!draft.legalName.trim()}
       className={cn(HOLDER_ITEM_CLASS, "grid gap-6 p-4")}
       onSubmit={async (event) => {
         event.preventDefault();

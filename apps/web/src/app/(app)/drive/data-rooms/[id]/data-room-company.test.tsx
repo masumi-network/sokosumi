@@ -86,11 +86,19 @@ describe("DataRoomCompanyPanel", () => {
     },
   );
 
-  it("removes the Company page when the legal name is cleared", async () => {
+  it("removes the Company page when the legal name is cleared, even with an old malformed email", async () => {
+    const legacy = {
+      ...room,
+      company: {
+        ...room.company,
+        contactEmail: "legal-at-sumico",
+        euRepresentative: { name: "Phil Isenmann", email: "phil at sumico" },
+      },
+    } as DataRoom;
     render(
       <DataRoomCompanyPanel
         store={store}
-        room={room}
+        room={legacy}
         rows={[]}
         onChanged={vi.fn()}
       />,
