@@ -58,3 +58,32 @@ it("says a planned ad needs its account, once, instead of calling it optional", 
     "Connect Google Ads",
   );
 });
+
+it("shows every network a month goes out on, a talking video on each of its networks, in their own words", () => {
+  const html = feeds([
+    piece("x1", { channel: "x", format: "post" }),
+    piece("li1"),
+    piece("ig1", { channel: "instagram", format: "carousel" }),
+    piece("fb1", { channel: "facebook", format: "image" }),
+    piece("v1", {
+      channel: "instagram",
+      format: "talking_video",
+      alsoOn: ["youtube", "tiktok"],
+    }),
+    piece("nl", { channel: "newsletter", format: "issue" }),
+  ]);
+  for (const name of [
+    "X",
+    "LinkedIn",
+    "Instagram",
+    "Facebook",
+    "YouTube",
+    "TikTok",
+    "Inbox",
+  ]) {
+    expect(html).toContain(`<b>${name}</b>`);
+  }
+  expect(html).toMatch(/<b class="num">1<\/b> Reel<\/span>/);
+  expect(html).toMatch(/<b class="num">1<\/b> YouTube Short</);
+  expect(html).toMatch(/<b class="num">1<\/b> TikTok</);
+});

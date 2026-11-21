@@ -10,6 +10,7 @@ import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
 import {
   monthPostCount,
+  planChosen,
   planCount,
   strategyApproved,
 } from "../../lib/strategy";
@@ -476,7 +477,9 @@ export function PlanReview({
     strategy: { ...strategy, questions },
   });
   const count = planCount(strategy.calendar, overview.production.beyondPlan);
-  const month = count.label;
+  // Before a plan is picked the month is the most a plan makes: "Up to …".
+  const atMost = !planChosen(overview);
+  const month = atMost ? `Up to ${count.label}` : count.label;
   // Core refuses to approve a month short of what it promises.
   const short = overview.strategyShort;
 
@@ -518,9 +521,11 @@ export function PlanReview({
   // What it rests on and the language of the posts, in plain words. No page
   // count: the screenshots Core keeps are not the pages Cuso read.
   const line = [
-    count.inPlan < count.planned
-      ? `For the next four weeks: ${month}. Built from your website and your answers.`
-      : `${month} for the next four weeks, built from your website and your answers.`,
+    atMost
+      ? `${month} for the next four weeks on the biggest plan, built from your website and your answers. The plan you pick decides how many ${AGENT_NAME} makes.`
+      : count.inPlan < count.planned
+        ? `For the next four weeks: ${month}. Built from your website and your answers.`
+        : `${month} for the next four weeks, built from your website and your answers.`,
     strategy.contentLanguage
       ? `The posts are written in ${strategy.contentLanguage}.`
       : null,
@@ -785,7 +790,7 @@ export function PlanReview({
             {strategy.pace ? (
               <p className="ob-pace note">
                 This month is written at the most a plan makes. Next you pick
-                your plan, and with it how much of the month {AGENT_NAME} makes.
+                your plan and see what each one makes on every network.
               </p>
             ) : null}
             {ads ? (

@@ -151,7 +151,7 @@ describe("strategy reveal", () => {
     );
   });
 
-  it("shows each pillar's share, and once the month is made, the share Cuso's pieces have", () => {
+  it("shows each content pillar's share, and once the month is made, the share Cuso's pieces have", () => {
     const pillars = [
       { name: "Setup proof", share: 60, why: "Shows setup takes minutes" },
       { name: "Founder stories", share: 40 },
@@ -176,9 +176,14 @@ describe("strategy reveal", () => {
         }
       />,
     );
-    expect(planned).toContain("What the posts are about");
+    expect(planned).toContain("Content pillars");
+    expect(planned).not.toContain("What the posts are about");
+    expect(planned).toContain("A content pillar is a topic your posts");
     expect(planned).toContain("Shows setup takes minutes");
-    expect(planned).toContain("4 posts planned");
+    // The share is counted from the calendar, not the share Cuso wrote.
+    expect(planned).toContain("4 posts · 100%");
+    expect(planned).toContain("0%");
+    expect(planned).toMatch(/class="bb-pillar-networks"><span><svg/);
     expect(planned).not.toContain("% made");
 
     const made = {

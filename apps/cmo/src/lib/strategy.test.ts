@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 
-import { monthLabel, monthPostCount, planCount } from "./strategy";
+import { cmoBilling } from "../test-fixtures/cmo";
+import { monthLabel, monthPostCount, planChosen, planCount } from "./strategy";
 
 const entry = (id: string, extra: Record<string, unknown> = {}) =>
   ({
@@ -46,4 +47,16 @@ it("says planned and in your plan when the plan bought makes fewer", () => {
   const month = [entry("a"), entry("b"), entry("c")];
   expect(planCount(month, ["c"]).label).toBe("3 planned, 2 in your plan");
   expect(planCount(month, []).label).toBe("3 posts");
+});
+
+it("knows a plan is chosen only with a CMO plan or Tester credits", () => {
+  expect(
+    planChosen({
+      billing: cmoBilling({ tier: null, hasTesterCredits: false }),
+    }),
+  ).toBe(false);
+  expect(planChosen({ billing: cmoBilling({ tier: "growth" }) })).toBe(true);
+  expect(
+    planChosen({ billing: cmoBilling({ tier: null, hasTesterCredits: true }) }),
+  ).toBe(true);
 });

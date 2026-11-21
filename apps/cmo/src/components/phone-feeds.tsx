@@ -60,6 +60,13 @@ const SCREENS: Omit<Screen, "entries">[] = [
     one: "Instagram post",
     many: "Instagram posts",
   },
+  {
+    key: "tiktok",
+    name: "TikTok",
+    icon: "tiktok",
+    one: "TikTok",
+    many: "TikToks",
+  },
   { key: "x", name: "X", icon: "x", one: "post on X", many: "posts on X" },
   {
     key: "facebook",
@@ -96,18 +103,39 @@ function adsName(channel: string): string {
 }
 
 /**
- * The busiest places first, up to four phones. Ads in the month are planned
- * like every other piece; the caption says when their account is missing.
+ * Each piece on every network it goes out on: a talking video planned on one
+ * network also shows on each network in its `alsoOn` (before approval; after
+ * it each copy is its own entry with `videoOf`).
+ */
+function onEveryNetwork(pieces: Entry[]): Entry[] {
+  const split = new Set(pieces.flatMap((entry) => entry.videoOf ?? []));
+  return pieces.flatMap((entry) =>
+    entry.videoOf || split.has(entry.id)
+      ? [entry]
+      : [
+          entry,
+          ...(entry.alsoOn ?? []).map((channel) => ({
+            ...entry,
+            id: `${entry.id}@${channel}`,
+            channel,
+          })),
+        ],
+  );
+}
+
+/**
+ * One phone for every place the month shows up, the busiest first. Ads in
+ * the month are planned like every other piece; the caption says when their
+ * account is missing.
  */
 export function feedScreens(calendar: Entry[]): Screen[] {
-  const pieces = planPieces(calendar);
+  const pieces = onEveryNetwork(planPieces(calendar));
   return SCREENS.map((screen) => ({
     ...screen,
     entries: pieces.filter((entry) => screenKey(entry) === screen.key),
   }))
     .filter((screen) => screen.entries.length > 0)
     .sort((a, b) => b.entries.length - a.entries.length)
-    .slice(0, 4)
     .map((screen) => {
       if (screen.key !== "ads") return screen;
       const channel = screen.entries[0]?.channel ?? "meta_ads";
@@ -118,6 +146,38 @@ export function feedScreens(calendar: Entry[]): Screen[] {
         ads: channelKey(channel) === "google_ads" ? "google_ads" : "meta_ads",
       };
     });
+}
+
+/** A network's own name for its short videos. */
+const VIDEO_NAMES: Record<string, [string, string]> = {
+  instagram: ["Reel", "Reels"],
+  facebook: ["Reel", "Reels"],
+  youtube: ["YouTube Short", "YouTube Shorts"],
+  tiktok: ["TikTok", "TikToks"],
+};
+
+/**
+ * What a phone holds in the network's own words: "8 Reels · 11 posts", "26
+ * YouTube Shorts". Videos count apart where the network names them.
+ */
+export function screenCounts(
+  screen: Screen,
+): { count: number; name: string }[] {
+  const names = VIDEO_NAMES[screen.key];
+  const videos = names
+    ? screen.entries.filter((entry) =>
+        formatHasVideo(entry.channel, entry.format),
+      ).length
+    : 0;
+  const rest = screen.entries.length - videos;
+  return [
+    ...(videos > 0 && names
+      ? [{ count: videos, name: videos === 1 ? names[0] : names[1] }]
+      : []),
+    ...(rest > 0
+      ? [{ count: rest, name: rest === 1 ? screen.one : screen.many }]
+      : []),
+  ];
 }
 
 /**
@@ -224,8 +284,12 @@ export function PhoneFeeds({
               </>
             ) : (
               <>
-                <b className="num">{screen.entries.length}</b>{" "}
-                {screen.entries.length === 1 ? screen.one : screen.many}
+                {screenCounts(screen).map(({ count, name }, index) => (
+                  <span key={name}>
+                    {index > 0 ? " · " : null}
+                    <b className="num">{count}</b> {name}
+                  </span>
+                ))}
                 {screen.ads && !overview.adProviders.includes(screen.ads) ? (
                   <small>
                     Planned. Connect {screen.name} in Channels to launch them.

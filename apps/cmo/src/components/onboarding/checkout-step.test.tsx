@@ -183,7 +183,7 @@ describe("CheckoutStep", () => {
       plan: { ...posts, calendar: [...posts.calendar, ad("a1"), ad("a2")] },
     });
     const count = posts.calendar.length;
-    expect(text()).toContain(`${count} posts from your strategy`);
+    expect(text()).toContain(`Up to ${count} posts from your strategy`);
     expect(text()).not.toContain("Google Ads, written in your voice");
     expect(text()).toContain("2 ads, live only when you launch them");
   });
@@ -214,6 +214,9 @@ describe("CheckoutStep", () => {
     expect(cards()[2]).toContain(
       "21 posts, 7 pictures and 0 videos a month from your strategy",
     );
+    // Each plan says what it makes on each network.
+    expect(cards()[0]).toContain("X 7");
+    expect(cards()[2]).toContain("X 21");
     expect(cards()[2]).toContain("Makes all of it");
     expect(cards()[1]).not.toContain("Makes all of it");
     expect(button("Start Scale for $1,000 a month")).toBeTruthy();

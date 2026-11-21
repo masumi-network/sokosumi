@@ -40,6 +40,33 @@ function makesLine({
   return `${counted(posts, "post", "posts")}, ${counted(pictures, "picture", "pictures")} and ${counted(videos, "video", "videos")} a month from your strategy`;
 }
 
+/**
+ * The posts a plan makes on each network, busiest first: "X 84 · LinkedIn
+ * 28". Ads and newsletter issues are made on every plan, so they stay out.
+ */
+export function madeByNetwork(
+  strategy: Strategy,
+  made: ReadonlySet<string>,
+): { network: string; posts: number }[] {
+  const counts = new Map<string, number>();
+  for (const entry of strategy.calendar) {
+    if (!made.has(entry.id)) continue;
+    // A talking video not yet split into its copies goes out on each network.
+    const split = strategy.calendar.some((copy) => copy.videoOf === entry.id);
+    for (const network of [
+      entry.channel,
+      ...(split ? [] : (entry.alsoOn ?? [])),
+    ]) {
+      const key = channelKey(network) ?? network;
+      if (channelInfo(key)?.owner !== "connect") continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return [...counts]
+    .map(([network, posts]) => ({ network: channelLabel(network), posts }))
+    .sort((a, b) => b.posts - a.posts);
+}
+
 /** What each plan posts, as the landing page says it, when there is no strategy yet. */
 const PLAN_LINES = [
   "One post a day on each account you connect.",
@@ -86,7 +113,8 @@ function monthOf(strategy: Strategy) {
     ...new Set(
       live
         .filter((entry) => channelInfo(entry.channel)?.group !== "ads")
-        .map((entry) => channelKey(entry.channel) ?? entry.channel),
+        .flatMap((entry) => [entry.channel, ...(entry.alsoOn ?? [])])
+        .map((channel) => channelKey(channel) ?? channel),
     ),
   ].map(channelLabel);
   return {
@@ -210,7 +238,7 @@ export function CheckoutStep({
           <li>
             <Check size={16} aria-hidden="true" />
             <span>
-              <b>{month.pieces} posts</b> from your strategy
+              <b>Up to {month.pieces} posts</b> from your strategy
               {month.channels.length > 0
                 ? ` for ${joinNames(month.channels)}`
                 : ""}
@@ -296,12 +324,23 @@ export function CheckoutStep({
                   {price(plan, interval === "year" ? 12 : 1)}{" "}
                   <span className="ob-small muted">a month</span>
                 </span>
-                {makes.get(plan.tier) ? (
-                  <span className="ob-small">
-                    {makesLine(
-                      makes.get(plan.tier) as ReturnType<typeof planMakes>,
-                    )}
-                  </span>
+                {makes.get(plan.tier) && strategy ? (
+                  <>
+                    <span className="ob-small">
+                      {makesLine(
+                        makes.get(plan.tier) as ReturnType<typeof planMakes>,
+                      )}
+                    </span>
+                    <span className="ob-small ob-plan-networks">
+                      {madeByNetwork(
+                        strategy,
+                        (makes.get(plan.tier) as ReturnType<typeof planMakes>)
+                          .made,
+                      )
+                        .map(({ network, posts }) => `${network} ${posts}`)
+                        .join(" · ")}
+                    </span>
+                  </>
                 ) : PLAN_LINES[place] ? (
                   <span className="ob-small">{PLAN_LINES[place]}</span>
                 ) : null}
