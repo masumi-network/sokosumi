@@ -53,6 +53,22 @@ Don't ship yet; this is an experiment for Patrick to choose from. The proposal:
 - References are chosen by a stored composition line.
 - Muse stays first, with GPT Image as the remake.
 
+## Models on D2
+
+Same D2 prompt and pieces on seven fal edit models, two tries each (Muse three). Prices are what fal billed at our size (`x-fal-billable-units`); speed is the median time from submit to picture. Cost $4.45.
+
+| Model               | Passed | $ / picture | $ / passed | Speed   |
+| ------------------- | ------ | ----------- | ---------- | ------- |
+| Muse Image          | 19/24  | 0.010       | 0.026      | 27 s    |
+| GPT Image 2.6       | 8/8    | 0.210       | 0.219      | 13–60 s |
+| MAI-Image 2.7       | 10/16  | 0.043       | 0.085      | 38 s    |
+| MAI-Image 2.7 Flash | 6/16   | 0.013       | 0.062      | 21 s    |
+| Seedream 5.5        | 5/16   | 0.054       | 0.206      | 30 s    |
+| FLUX.3 Klein        | 0/16   | 0.009       | none       | 5 s     |
+| Kling Image V4      | 4/16   | 0.069       | 0.320      | 59 s    |
+
+MAI-Image 2.7 draws the richest scenes of the new models and fails mostly on added icons, numbers or a second logo. FLUX.3 Klein cannot letter. Seedream and Kling misspell and drop the wordmark. Proposed mix for the picker: 3 Muse Image + 2 MAI-Image 2.7, with GPT Image only when none of the five passes.
+
 ## Links
 
 - Results page with the full grid: https://claude.ai/artifact/T6PHRgXbkrMWX24T1qbypg
