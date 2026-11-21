@@ -415,6 +415,34 @@ export async function judgeEvalScenarioTurn(
 }
 
 /**
+ * Grades an agent-to-agent case: the owner's turn and every follow-up, plus
+ * what the rooms said meanwhile. The verdict is stored on the last turn.
+ */
+export async function judgeEvalChain(
+  turnIds: string[],
+  scenario: SokoBotScenario,
+  roomLog: { room: string; from: string; content: string }[],
+): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
+  const transcripts = await Promise.all(
+    turnIds.map(async (id) => (await loadTranscript(id)).transcript),
+  );
+  const last = transcripts.at(-1);
+  if (!last) throw new SokoBotLabJudgeError("Turn not found");
+  const call = await askJudge({
+    ...labJudgePayload(scenario, last),
+    note: "This case is a chain: `earlierTurns` are the owner's turn and the follow-ups before `turn`, in order, and `chatLog` is what the chat rooms said meanwhile (the other side's real answers). Grade the whole chain; `turn.finalAnswer` is what the owner read last.",
+    earlierTurns: transcripts
+      .slice(0, -1)
+      .map((transcript, index) =>
+        index === 0 ? transcript : { ...transcript, contextPacket: null },
+      ),
+    chatLog: roomLog,
+  });
+  await storeTurnVerdict(turnIds.at(-1)!, call);
+  return { verdict: call.verdict, model: sokoBotJudgeModel() };
+}
+
+/**
  * Grades one lab turn against its scenario rubric and records the run
  * (deterministic checks + verdict) so the admin overview can compare
  * versions across users and sessions.
