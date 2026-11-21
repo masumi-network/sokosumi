@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { z } from "@hono/zod-openapi";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
@@ -64,6 +66,41 @@ export function gscTaskToolArguments(
       dimension_filter_groups: query.dimensionFilterGroups,
     }),
     ...(query.aggregationType && { aggregation_type: query.aggregationType }),
+  };
+}
+
+const textHash = (text: string) =>
+  createHash("sha256").update(text).digest("hex");
+
+/**
+ * What one read asked for, for its audit entry. Text the worker chose (a
+ * filter expression, the inspected URL) is kept as its SHA-256 only. So the
+ * log holds no page URL and no search term, and a known value can still be
+ * compared with it. Every other query field is a date, a number or an enum
+ * value.
+ */
+export function gscTaskReadRecord(read: SeoTaskSearchConsoleRead) {
+  if (read.operation === "sites.list") return { operation: read.operation };
+  if (read.operation === "urlInspection.inspect")
+    return {
+      operation: read.operation,
+      inspectionUrlSha256: textHash(read.inspectionUrl),
+    };
+  const { dimensionFilterGroups, ...query } = read.query;
+  return {
+    operation: read.operation,
+    query: {
+      ...query,
+      ...(dimensionFilterGroups && {
+        filters: dimensionFilterGroups.flatMap((group) =>
+          group.filters.map(({ dimension, operator, expression }) => ({
+            dimension,
+            ...(operator && { operator }),
+            expressionSha256: textHash(expression),
+          })),
+        ),
+      }),
+    },
   };
 }
 

@@ -11,12 +11,13 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { recordCoreWarning } from "@/lib/evlog";
+import { recordCoreWarning, tryUseLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
 import {
   GSC_TASK_OPERATIONS,
   GSC_TASK_READ_BUDGET,
+  gscTaskReadRecord,
   gscTaskReplyBody,
   gscTaskToolArguments,
   isAuditPageUrl,
@@ -222,14 +223,23 @@ function recheck(
 }
 
 /**
- * One Task-scoped Google read for the SEO worker. Core keeps the account and
- * every credential. The provider call runs outside any database transaction,
- * and the reply leaves Core only after the Task and connection are unchanged.
+ * What `runRead` tells the audit entry about the provider step.
+ * - `not_started`: Core refused the read before the step.
+ * - `no_answer`: the step started and gave Core no body. It begins with tool
+ *   discovery, so Google may not have been asked.
+ * - `answered`: the step gave Core a body. Core can still refuse that body
+ *   (502), fail to read it (503) or hold the reply back (409).
  */
-export async function readSeoTaskSearchConsole(
+interface ReadTrace {
+  providerStep: "not_started" | "no_answer" | "answered";
+}
+
+/** The read itself. `trace` tells the caller how far the provider step went. */
+async function runRead(
   auth: AuthenticationContext,
   taskId: string,
   read: SeoTaskSearchConsoleRead,
+  trace: ReadTrace,
 ): Promise<SeoTaskSearchConsoleReply> {
   const expected = {
     ownerId: read.expectedOwnerId,
@@ -259,6 +269,7 @@ export async function readSeoTaskSearchConsole(
   }, "The audit or Google connection changed. Please retry.");
   const { integration, access } = requireConnectedSearchConsole(before);
   let reply: SeoTaskSearchConsoleReply;
+  trace.providerStep = "no_answer";
   try {
     const data = await withDeadline(
       readNativeSeoTool(
@@ -267,6 +278,7 @@ export async function readSeoTaskSearchConsole(
         gscTaskToolArguments(read, access.propertyId),
       ),
     );
+    trace.providerStep = "answered";
     reply = gscTaskReplyBody(read, access.propertyId, data);
   } catch (error) {
     if (error instanceof HTTPException && error.status === 502) throw error;
@@ -291,5 +303,80 @@ export async function readSeoTaskSearchConsole(
     );
   }
   await recheck(auth, taskId, expected, before);
+  return reply;
+}
+
+/**
+ * The audit entry of one read attempt, on the request's wide event: who asked,
+ * for which Task, what, and how it ended. A refusal is `denied` with the error
+ * kind or the HTTP status as its reason. `providerStep` tells how far the
+ * provider step went. Outside a request there is no wide event and no entry.
+ */
+function auditRead(
+  auth: AuthenticationContext,
+  taskId: string,
+  read: SeoTaskSearchConsoleRead,
+  result: ReadTrace & { rows?: number; error?: unknown },
+) {
+  const { providerStep, rows, error } = result;
+  const fields = {
+    action: "seo-task.search-console.read",
+    actor:
+      auth.actor === "coworker"
+        ? { type: "agent" as const, id: auth.coworkerId }
+        : auth.actor === "sokoBot"
+          ? { type: "agent" as const, id: auth.sokoBotId }
+          : { type: "user" as const, id: auth.userId },
+    target: {
+      type: "task",
+      id: taskId,
+      expectedOwnerId: read.expectedOwnerId,
+      expectedOrganizationId: read.expectedOrganizationId,
+      ...gscTaskReadRecord(read),
+      providerStep,
+      ...(rows !== undefined && { rows }),
+    },
+  };
+  const log = tryUseLogger();
+  if (!("error" in result))
+    return log?.audit({ ...fields, outcome: "success" });
+  const status = error instanceof HTTPException ? error.status : 500;
+  const kind =
+    error instanceof HTTPException
+      ? (error.cause as { kind?: unknown } | undefined)?.kind
+      : undefined;
+  const reason = typeof kind === "string" ? kind : `http_${status}`;
+  if (status < 500) return log?.audit.deny(reason, fields);
+  log?.audit({ ...fields, outcome: "failure", reason });
+}
+
+/**
+ * One Task-scoped Google read for the SEO worker. Core keeps the account and
+ * every credential. The provider call runs outside any database transaction,
+ * and the reply leaves Core only after the Task and connection are unchanged.
+ * Every attempt that reaches this function leaves one audit entry. A request
+ * the route refuses earlier (no key, a body outside the schema) leaves none.
+ */
+export async function readSeoTaskSearchConsole(
+  auth: AuthenticationContext,
+  taskId: string,
+  read: SeoTaskSearchConsoleRead,
+): Promise<SeoTaskSearchConsoleReply> {
+  const trace: ReadTrace = { providerStep: "not_started" };
+  let reply: SeoTaskSearchConsoleReply;
+  try {
+    reply = await runRead(auth, taskId, read, trace);
+  } catch (error) {
+    auditRead(auth, taskId, read, { ...trace, error });
+    throw error;
+  }
+  const { rows } = reply.body;
+  auditRead(auth, taskId, read, {
+    ...trace,
+    // Google leaves `rows` out when a query matches nothing.
+    ...(read.operation === "searchAnalytics.query" && {
+      rows: Array.isArray(rows) ? rows.length : 0,
+    }),
+  });
   return reply;
 }

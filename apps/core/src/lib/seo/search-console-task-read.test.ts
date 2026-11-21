@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { seoTaskSearchConsoleReadSchema } from "@/schemas/seo-task-search-console.schema";
 import {
+  gscTaskReadRecord,
   gscTaskReplyBody,
   gscTaskToolArguments,
   holdsCredentialField,
@@ -285,5 +286,62 @@ describe("gscTaskReplyBody", () => {
       );
     }
     expect(holdsCredentialField({ inspectionResult: INSPECTION })).toBe(false);
+  });
+});
+
+describe("gscTaskReadRecord", () => {
+  const PAGE = "https://example.test/pricing";
+  const sha256 = expect.stringMatching(/^[0-9a-f]{64}$/);
+
+  it("keeps the shape of a query and no filter text", () => {
+    const record = gscTaskReadRecord(
+      analytics({
+        dimensions: ["query"],
+        dimensionFilterGroups: [
+          {
+            filters: [
+              { dimension: "page", operator: "equals", expression: PAGE },
+              { dimension: "query", expression: "private term" },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(record).toEqual({
+      operation: "searchAnalytics.query",
+      query: {
+        startDate: "2025-07-21",
+        endDate: "2026-11-20",
+        rowLimit: 100,
+        startRow: 0,
+        dimensions: ["query"],
+        filters: [
+          { dimension: "page", operator: "equals", expressionSha256: sha256 },
+          { dimension: "query", expressionSha256: sha256 },
+        ],
+      },
+    });
+    const text = JSON.stringify(record);
+    expect(text).not.toContain("example.test");
+    expect(text).not.toContain("private term");
+  });
+
+  it("gives the same hash for the same text, and no inspected URL", () => {
+    const inspect = (inspectionUrl: string) =>
+      gscTaskReadRecord(
+        seoTaskSearchConsoleReadSchema.parse({
+          operation: "urlInspection.inspect",
+          siteUrl: PROPERTY,
+          inspectionUrl,
+          ...expected,
+        }),
+      );
+    expect(inspect(PAGE)).toEqual({
+      operation: "urlInspection.inspect",
+      inspectionUrlSha256: sha256,
+    });
+    expect(inspect(PAGE)).toEqual(inspect(PAGE));
+    expect(inspect(PAGE)).not.toEqual(inspect(`${PAGE}/other`));
+    expect(gscTaskReadRecord(sitesList)).toEqual({ operation: "sites.list" });
   });
 });
