@@ -177,7 +177,10 @@ export const SEO_SOURCE_FAILURES = [
   "lighthouseFailed",
 ] as const;
 
-/** Keep only known codes, from any page of the report. Never retain provider messages. */
+/**
+ * Keep only known codes, from any page of the report. The worker sets them on page reports only,
+ * so a site report's own field is not read. Never retain provider messages.
+ */
 export function failedSeoSources(raw: unknown) {
   const input = reportObject(raw);
   const pages =
