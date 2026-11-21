@@ -1,5 +1,5 @@
 import type { TaskParticipant } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -156,7 +156,7 @@ describe("TaskMetadataParticipantsField", () => {
     expect(
       screen.getByRole("button", { name: "Participants: Viewer" }),
     ).toBeInTheDocument();
-    resolve({ ok: true });
+    await act(async () => resolve({ ok: true }));
   });
 
   it("says there are none in an open, empty row", async () => {

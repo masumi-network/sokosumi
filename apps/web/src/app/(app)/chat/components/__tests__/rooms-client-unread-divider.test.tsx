@@ -1,6 +1,12 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
@@ -270,7 +276,7 @@ describe("RoomsClient opens a room at the Unread divider", () => {
     const view = render(<a href={`/chat/rooms/${room.id}`}>{room.name}</a>, {
       wrapper: RetainedRooms,
     });
-    screen.getByRole("link", { name: room.name }).click();
+    fireEvent.click(screen.getByRole("link", { name: room.name }));
     await waitFor(() => expect(openAtUnreadCalls()).toHaveLength(1));
 
     view.rerender(
@@ -287,6 +293,7 @@ describe("RoomsClient opens a room at the Unread divider", () => {
     expect(openAtUnreadCalls()).toEqual([
       [room.id, null, { openAtUnread: true }, expect.any(Function)],
     ]);
+    view.unmount();
     clearMembershipVisibleRoomsSnapshot();
   });
 

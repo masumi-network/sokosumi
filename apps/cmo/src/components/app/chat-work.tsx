@@ -11,6 +11,8 @@ import {
   waitingNote,
 } from "../../lib/chat-work";
 import { DraftText } from "../draft-text";
+import { BeforeAfter } from "./seo-before-after";
+import { ViewLink } from "./view-link";
 
 interface MadeInChatProps {
   work: ChatWork;
@@ -20,6 +22,8 @@ interface MadeInChatProps {
   loadText: (id: string) => Promise<string | null>;
   /** All of a table's rows, shown inside the chat. */
   loadTable: (id: string) => Promise<ChatTable | null>;
+  /** Opens the SEO page, where saved page changes and articles live. */
+  openSeo?: () => void;
 }
 
 /**
@@ -37,7 +41,54 @@ export function MadeInChat(props: MadeInChatProps) {
       <MadeTable work={work} table={work.table} loadTable={props.loadTable} />
     );
   if (work.kind === "contacts") return <MadeContacts work={work} />;
+  if (work.kind === "seo_saved")
+    return <MadeSeo work={work} openSeo={props.openSeo} />;
   return <MadeWords {...props} />;
+}
+
+/**
+ * The page changes and articles Cuso saved to the SEO page: each change as
+ * its before and after, each article by its title and search.
+ */
+function MadeSeo({ work, openSeo }: { work: ChatWork; openSeo?: () => void }) {
+  const suggestions = work.suggestions ?? [];
+  return (
+    <div className="made made-words made-seo">
+      <p className="made-title">{work.title}</p>
+      <ul className="list">
+        {suggestions.map((item) => (
+          <li key={item.id} className="li seo-item">
+            <div className="grow stack-sm">
+              <b>{item.title}</b>
+              {item.kind === "page_change" &&
+              item.newText &&
+              item.currentText ? (
+                <BeforeAfter change={item} newText={item.newText} />
+              ) : item.kind === "page_change" && item.newText ? (
+                <p>{item.newText}</p>
+              ) : (
+                <span className="note">
+                  {item.keyword ? `For the search "${item.keyword}". ` : ""}
+                  {item.draft ? "Written, ready to copy." : item.why}
+                </span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {openSeo ? (
+        <div className="made-acts">
+          <ViewLink
+            view="seo"
+            open={openSeo}
+            className="button button-ghost button-small"
+          >
+            Open SEO
+          </ViewLink>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /**

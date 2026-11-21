@@ -26,3 +26,24 @@ export function getSeoAnalysisExecution() {
       (liveMainnet ? MAINNET_SEO_EXECUTOR : undefined),
   };
 }
+
+/** The configured SEO worker, and for a scoped executor only inside its own Task context. */
+export function isConfiguredSeoExecutor(
+  coworker: { coworkerId: string; context?: unknown },
+  context: {
+    ownerId: string;
+    organizationId: string | null;
+    workspaceId: string;
+  },
+) {
+  const { executor } = getSeoAnalysisExecution();
+  return (
+    !coworker.context &&
+    !!executor &&
+    executor.coworkerId === coworker.coworkerId &&
+    ("mode" in executor ||
+      (executor.workspaceId === context.workspaceId &&
+        executor.ownerId === context.ownerId &&
+        executor.organizationId === context.organizationId))
+  );
+}

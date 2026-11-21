@@ -267,8 +267,8 @@ describe("SignUpForm with a password", () => {
     expect(username).toHaveAttribute("spellcheck", "false");
   });
 
-  it("stacks the name fields on a phone and pairs them from the sm breakpoint", () => {
-    renderForm();
+  it("stacks the name fields on a phone and pairs them from the sm breakpoint", async () => {
+    await act(async () => renderForm());
 
     const lastName = screen.getByLabelText("lastNameLabel");
     let row = screen.getByLabelText("firstNameLabel").parentElement;

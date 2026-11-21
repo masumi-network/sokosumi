@@ -492,6 +492,10 @@ export {
   type SeoCapabilityUnlock,
 } from "./seo-capabilities.js";
 export {
+  allowsSeoCompletionEvent,
+  seoCompletionEvent,
+} from "./seo-completion-event.js";
+export {
   PAID_DATA_MARKUP_PERCENT,
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_FULL_AUDIT_CREDITS,

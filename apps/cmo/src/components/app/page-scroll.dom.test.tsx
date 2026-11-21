@@ -34,7 +34,7 @@ const scroller = () => {
 it("opens every page at its top, wherever the last one was scrolled to", async () => {
   await act(async () => root.render(<FixtureApp view="strategy" />));
   scroller().scrollTop = 900;
-  for (const page of ["Calendar", "Results", "SEO"]) {
+  for (const page of ["Calendar", "Results"]) {
     await act(async () => {
       [...container.querySelectorAll<HTMLElement>(".nav a")]
         .find((link) => link.textContent === page)

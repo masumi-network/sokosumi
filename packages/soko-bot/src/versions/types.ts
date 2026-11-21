@@ -22,8 +22,20 @@ export interface SokoBotVersion {
   createdAt: string;
   summary: string;
   model: string;
+  /**
+   * A stronger model for the turns that need it: strategy, background runs,
+   * orchestration and chat Jev reads as complex (`turn-model.ts` in Core).
+   * Omit to run every turn on `model`.
+   */
+  strongModel?: string;
   systemPrompt: string;
   skills: readonly string[];
+  /**
+   * `send_message`: the bot reaches anyone through send_message and
+   * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
+   * Omitted: the reverse, as every version before v35 was written.
+   */
+  messaging?: "send_message";
   /** Tool allowlist on top of the route ceiling; omit for all. */
   capabilities?: readonly SokoBotCapability[];
   /** AI Gateway regional inference pin; omit for global routing. */

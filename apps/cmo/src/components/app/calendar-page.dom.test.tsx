@@ -118,12 +118,41 @@ it("opens a post as it looks on its network and saves the owner's own words thro
   expect(container.querySelector(".sheet textarea")).toBeNull();
 });
 
-it("offers no edit on a post that is already out", async () => {
+it("offers no edit and no change on a post that is already out", async () => {
   await render(drafts());
   await press("Launch day countdown");
   expect(container.querySelector(".sheet .post")).not.toBeNull();
-  expect(container.querySelector(".sheet")?.textContent).not.toContain(
-    "Edit text",
+  const sheet = container.querySelector(".sheet")?.textContent;
+  expect(sheet).not.toContain("Edit text");
+  expect(sheet).not.toContain("Change this post");
+});
+
+it("says a post didn't go out, and why when it is open", async () => {
+  const calendar = (overview.strategy?.calendar ?? []).map((entry) =>
+    entry.title === "What a slipped launch costs"
+      ? { ...entry, notSent: "X refused it." }
+      : entry,
+  );
+  const strategy = overview.strategy
+    ? { ...overview.strategy, calendar }
+    : null;
+  await act(async () =>
+    root.render(
+      <CalendarPage
+        overview={{ ...overview, strategy, approvedStrategy: strategy }}
+        drafts={drafts()}
+        onAsk={async () => {}}
+      />,
+    ),
+  );
+  const card = [...container.querySelectorAll("button.cal-card")].find(
+    (button) => button.textContent?.includes("What a slipped launch costs"),
+  );
+  expect(card?.textContent).toContain("Didn't go out");
+  expect(card?.textContent).not.toContain("Written");
+  await press("What a slipped launch costs");
+  expect(container.querySelector(".sheet")?.textContent).toContain(
+    "Didn't go out. X refused it.",
   );
 });
 
@@ -157,4 +186,39 @@ it("marks this week and what goes out today, and tints a post's words with its n
     "Today 09:00",
   );
   expect(slipped?.querySelector(".cal-words")?.classList).toContain("net-x");
+});
+
+it("says a post X paused is retrying, and never asks the owner to raise a cap", async () => {
+  const calendar = (overview.strategy?.calendar ?? []).map((entry) =>
+    entry.title === "Inside the test stand"
+      ? {
+          ...entry,
+          status: "scheduled" as const,
+          notSent: "X paused our posting for now; Cuso will try again.",
+        }
+      : entry,
+  );
+  const strategy = overview.strategy
+    ? { ...overview.strategy, calendar }
+    : null;
+  await act(async () =>
+    root.render(
+      <CalendarPage
+        overview={{ ...overview, strategy, approvedStrategy: strategy }}
+        drafts={drafts()}
+        onAsk={async () => {}}
+      />,
+    ),
+  );
+  const card = [...container.querySelectorAll("button.cal-card")].find(
+    (button) => button.textContent?.includes("Inside the test stand"),
+  );
+  expect(card?.textContent).toContain("Retrying");
+  expect(card?.textContent).not.toContain("Didn't go out");
+  await press("Inside the test stand");
+  const sheet = container.querySelector(".sheet")?.textContent ?? "";
+  expect(sheet).toContain(
+    "Retrying. X paused our posting for now; Cuso will try again.",
+  );
+  expect(sheet).not.toMatch(/cap/i);
 });

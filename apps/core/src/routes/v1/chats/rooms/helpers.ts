@@ -40,6 +40,10 @@ import {
   readLegacyBackgroundFailureSnapshot,
 } from "@/lib/soko-bot/background-failure";
 import {
+  isStandupHostMessage,
+  STANDUP_ROOM_NAME,
+} from "@/lib/team-standup/standup-text";
+import {
   type ChatRoom,
   type ChatRoomMessageQuote,
   type ChatRoomMessageSkill,
@@ -781,7 +785,9 @@ export function mapChatRoomMessage(
    */
   threadUnreadReplyCount?: number,
 ) {
-  const sender = mapChatRoomMessageSender(message, currentUserId);
+  const sender = isStandupHostMessage(message)
+    ? { type: "system" as const, name: STANDUP_ROOM_NAME }
+    : mapChatRoomMessageSender(message, currentUserId);
 
   const reactionCounts = new Map<
     string,

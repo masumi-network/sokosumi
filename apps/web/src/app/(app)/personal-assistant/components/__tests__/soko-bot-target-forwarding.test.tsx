@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   renderHook,
@@ -262,7 +263,7 @@ describe("console panels act on the shared bot in context", () => {
     const { result } = renderHook(() => useIntegrationActions(), {
       wrapper: SharedBot,
     });
-    result.current.connect("gmail");
+    await act(async () => result.current.connect("gmail"));
     await waitFor(() => expect(assign).toHaveBeenCalled());
     expect(actions.connectSokoBotIntegrationAction).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -271,7 +272,7 @@ describe("console panels act on the shared bot in context", () => {
       }),
     );
     expect(rememberMock).toHaveBeenCalledWith(BOT_ID);
-    result.current.disconnect("gmail");
+    await act(async () => result.current.disconnect("gmail"));
     await waitFor(() =>
       expect(actions.disconnectSokoBotIntegrationAction).toHaveBeenCalledWith(
         withBot,

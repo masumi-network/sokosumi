@@ -121,6 +121,7 @@ import {
 } from "@/lib/soko-bot/evaluation-dispatch";
 import { safeEventText, safeReasoningSummary } from "@/lib/soko-bot/event-text";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import { recordModelCall, withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   capturePreference,
   MIN_PREFERENCE_CONFIDENCE,
@@ -142,6 +143,7 @@ import {
   PERSON_SCHEDULE_CAPABILITIES,
   withOwnScheduleTools,
 } from "@/lib/soko-bot/system-routes";
+import { chooseTurnModel } from "@/lib/soko-bot/turn-model";
 import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
@@ -2416,7 +2418,12 @@ export class SokoBotControlPlane {
                 : { chatMentionId: null }),
             },
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            select: { status: true, finalAnswer: true },
+            select: {
+              status: true,
+              finalAnswer: true,
+              modelReason: true,
+              createdAt: true,
+            },
           })
         : null;
     const classifierContext = await loadClassificationContext(
@@ -2797,6 +2804,15 @@ export class SokoBotControlPlane {
                 select: { id: true, version: true },
               }),
         );
+        const turnModel = chooseTurnModel({
+          version,
+          clientTurnId,
+          preset: input.presetRoute !== undefined,
+          background: input.background !== undefined,
+          classification: classification.classification,
+          previous: previousTurn,
+          now: reservedAt,
+        });
         const created = await tx.sokoBotTurn.create({
           data: {
             sokoBotId: bot.id,
@@ -2807,6 +2823,8 @@ export class SokoBotControlPlane {
             route: classification.classification.route,
             clientTurnId,
             versionId: version.id,
+            modelId: turnModel.model,
+            modelReason: turnModel.reason,
             createdAt: reservedAt,
             userMessage: message,
             destinationRoomId: destinationRoom?.id ?? null,
@@ -3076,6 +3094,17 @@ export class SokoBotControlPlane {
         return { turn: created, memoryRevision };
       }, "Soko Bot turn collided with another request");
       turn = reservation.turn;
+      if (classification.model)
+        await recordModelCall({
+          turnId: turn.id,
+          role: "classifier",
+          label: classification.version,
+          requestedModel: classification.model,
+          providerMetadata: classification.usage?.providerMetadata,
+          usage: classification.usage ?? undefined,
+          costUsd: classification.usage?.costUsd ?? 0,
+          failed: classification.failed,
+        });
     } catch (error) {
       // Another request with this idempotency key may have committed between
       // the optimistic read and serializable acquisition. Return its durable
@@ -3424,7 +3453,18 @@ export class SokoBotControlPlane {
     await this.reconcileTurn(turnId, undefined, leaseToken);
   }
 
+  /** Checks run while draining (claim check, receipts) record on the turn. */
   async reconcileTurn(
+    turnId: string,
+    signal: AbortSignal | undefined,
+    leaseToken: string,
+  ): Promise<void> {
+    return withModelCallTurn(turnId, () =>
+      this.drainTurn(turnId, signal, leaseToken),
+    );
+  }
+
+  private async drainTurn(
     turnId: string,
     signal: AbortSignal | undefined,
     leaseToken: string,
@@ -4051,12 +4091,24 @@ export class SokoBotControlPlane {
       );
     }
     const target = await resolveSokoBotVersion(input.toVersionId);
+    const notice = composeSokoBotVersionNotice(target);
+    const euPinned = new Map<string | null, boolean>();
     // Moving a bot off EU-pinned inference changes where its owner's data is
-    // processed; that is never done without telling them.
-    const notice =
-      input.notifyOwners || target.inferenceRegion !== "eu"
-        ? composeSokoBotVersionNotice(target)
-        : null;
+    // processed; that is never done without telling them. A move that keeps
+    // it where it was needs no notice unless the operator asks for one.
+    const mustTell = async (versionId: string | null): Promise<boolean> => {
+      if (input.notifyOwners) return true;
+      if (target.inferenceRegion === "eu") return false;
+      let pinned = euPinned.get(versionId);
+      if (pinned === undefined) {
+        pinned = await resolveSokoBotVersion(versionId)
+          .then((version) => version.inferenceRegion === "eu")
+          // A version Core can no longer read: assume the bot was in the EU.
+          .catch(() => true);
+        euPinned.set(versionId, pinned);
+      }
+      return pinned;
+    };
     const bots = await prisma.sokoBot.findMany({
       where: {
         archivedAt: null,
@@ -4108,7 +4160,7 @@ export class SokoBotControlPlane {
       }
       // The move stands whether or not the owner hears about it: a notice
       // that fails is counted as not sent, never as a failed move.
-      if (notice) {
+      if (await mustTell(bot.versionId)) {
         const { postSokoBotOwnerNotice } = await import(
           "@/services/soko-bot-chat.service"
         );
@@ -4299,6 +4351,10 @@ export class SokoBotControlPlane {
           include: {
             events: { orderBy: { sequence: "asc" } },
             toolCalls: { orderBy: { createdAt: "asc" } },
+            modelCalls: {
+              orderBy: { createdAt: "asc" },
+              omit: { turnId: true, generationId: true },
+            },
             delegations: true,
             pendingDecisions: true,
             // The packet is the whole model input, often hundreds of KB per

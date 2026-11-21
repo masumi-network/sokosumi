@@ -6,7 +6,11 @@ import {
 } from "./project-seo.schema";
 
 export const seoLandingEvents = ["purchase", "sign_up"] as const;
-export const seoLandingEventSchema = z.enum(seoLandingEvents);
+export const seoLandingEventSchema = z
+  .string()
+  .regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/);
+// A page has two legacy events and at most one owner-selected completion.
+export const maxPageOutcomeEvents = seoLandingEvents.length + 1;
 export const seoOutcomeWindow = z.strictObject({
   from: seoDateSchema,
   to: seoDateSchema,
@@ -38,7 +42,12 @@ export const seoGoalInvestigation = z.strictObject({
   before: goalPeriod,
   after: goalPeriod,
   weekdayMix: z.literal("uneven").optional(),
-  assessment: z.enum(["both_declined", "organic_declined", "goal_held"]),
+  assessment: z.enum([
+    "both_declined",
+    "organic_declined",
+    "goal_held",
+    "handoff",
+  ]),
 });
 export type SeoGoalInvestigation = z.infer<typeof seoGoalInvestigation>;
 
@@ -62,7 +71,7 @@ export const privateLandingOutcomeSchema = z
           count: z.number().int().nonnegative(),
         }),
       )
-      .max(SEO_MAX_PAGES * seoLandingEvents.length),
+      .max(SEO_MAX_PAGES * maxPageOutcomeEvents),
   })
   .refine(
     (v) =>

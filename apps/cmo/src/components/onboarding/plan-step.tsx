@@ -9,8 +9,8 @@ import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
 import {
-  monthLabel,
   monthPostCount,
+  planCount,
   strategyApproved,
 } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
@@ -475,7 +475,8 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const month = monthLabel(strategy.calendar);
+  const count = planCount(strategy.calendar, overview.production.beyondPlan);
+  const month = count.label;
   // Core refuses to approve a month short of what it promises.
   const short = overview.strategyShort;
 
@@ -517,7 +518,9 @@ export function PlanReview({
   // What it rests on and the language of the posts, in plain words. No page
   // count: the screenshots Core keeps are not the pages Cuso read.
   const line = [
-    `${month} for the next four weeks, built from your website and your answers.`,
+    count.inPlan < count.planned
+      ? `For the next four weeks: ${month}. Built from your website and your answers.`
+      : `${month} for the next four weeks, built from your website and your answers.`,
     strategy.contentLanguage
       ? `The posts are written in ${strategy.contentLanguage}.`
       : null,
@@ -695,7 +698,8 @@ export function PlanReview({
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
             <p className="muted">
-              {replanning}. About two minutes; your new strategy opens here.
+              {/[.?!]$/.test(replanning) ? replanning : `${replanning}.`} About
+              two minutes; your new strategy opens here.
             </p>
           </div>
         </div>
@@ -707,7 +711,7 @@ export function PlanReview({
           headline
           goal={goal}
           statement={sentence !== goal ? sentence : undefined}
-          facts={goalFacts(strategy)}
+          facts={goalFacts(strategy, month)}
         />
         {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
 
@@ -723,7 +727,8 @@ export function PlanReview({
         ) : null}
 
         {locked ? (
-          answers.length > 0 || ads ? (
+          // "No ads" alone is no answer worth a card.
+          answers.length > 0 || (ads && ads.monthly > 0) ? (
             <div className="card ob-checks">
               <h2>{approved ? "What you approved" : "Your answers"}</h2>
               <ul className="ob-approved">
@@ -941,7 +946,10 @@ function firstClause(text: string): string {
 }
 
 /** Who, what, where and how much, from whatever the plan fills in. */
-function goalFacts(strategy: Strategy): { term: string; value: string }[] {
+function goalFacts(
+  strategy: Strategy,
+  month: string,
+): { term: string; value: string }[] {
   const who =
     strategy.focus?.segment ?? strategy.idea?.who ?? strategy.audience;
   const offer =
@@ -956,7 +964,7 @@ function goalFacts(strategy: Strategy): { term: string; value: string }[] {
     { term: "Where", value: where },
     {
       term: "This month",
-      value: pieces > 0 ? monthLabel(strategy.calendar) : "",
+      value: pieces > 0 ? month : "",
     },
   ];
   return facts.filter((fact): fact is { term: string; value: string } =>

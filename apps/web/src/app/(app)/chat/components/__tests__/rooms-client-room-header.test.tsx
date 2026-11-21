@@ -2,6 +2,7 @@ import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import {
   act,
+  cleanup,
   fireEvent,
   screen,
   waitFor,
@@ -265,11 +266,14 @@ function rowFor(content: string) {
 }
 
 describe("RoomsClient read-only Direct updates", () => {
-  afterEach(() => clearMembershipVisibleRoomsSnapshot());
+  afterEach(() => {
+    cleanup();
+    clearMembershipVisibleRoomsSnapshot();
+  });
 
   it("replaces the composer when the sidebar refresh learns the peer left", async () => {
     const room = humanDirectRoom();
-    renderRoom(room);
+    await act(async () => renderRoom(room));
     expect(screen.getByTestId("room-session-composer")).toBeInTheDocument();
 
     act(() => {
@@ -303,14 +307,16 @@ describe("RoomsClient read-only Direct updates", () => {
 
   it("restores the composer when a later room fetch includes the returning peer", async () => {
     const room = humanDirectRoom();
-    renderRoom({
-      ...room,
-      isReadOnly: true,
-      userMembers: [participant("user-1", "Ada")],
-      formerUserMembers: [
-        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
-      ],
-    });
+    await act(async () =>
+      renderRoom({
+        ...room,
+        isReadOnly: true,
+        userMembers: [participant("user-1", "Ada")],
+        formerUserMembers: [
+          { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+        ],
+      }),
+    );
     expect(screen.queryByTestId("room-session-composer")).toBeNull();
 
     act(() => {
@@ -323,7 +329,7 @@ describe("RoomsClient read-only Direct updates", () => {
     });
   });
 
-  it("uses a refreshed page roster ahead of a stale read-only sidebar snapshot", () => {
+  it("uses a refreshed page roster ahead of a stale read-only sidebar snapshot", async () => {
     const room = humanDirectRoom();
     const readOnlyRoom = {
       ...room,
@@ -333,27 +339,31 @@ describe("RoomsClient read-only Direct updates", () => {
         { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
       ],
     };
-    const view = renderRoom(readOnlyRoom);
+    const view = await act(async () => renderRoom(readOnlyRoom));
     act(() => {
       publishMembershipVisibleRooms([readOnlyRoom], organization.id, "user-1");
     });
-    view.rerender(<RoomsClient {...roomClientProps(room)} />);
+    await act(async () =>
+      view.rerender(<RoomsClient {...roomClientProps(room)} />),
+    );
 
     expect(screen.getByTestId("room-session-composer")).toBeInTheDocument();
     expect(screen.queryByText("readOnlyDirectNotice")).toBeNull();
   });
 
-  it("ignores attention-only updates to the sidebar's older roster", () => {
+  it("ignores attention-only updates to the sidebar's older roster", async () => {
     const room = humanDirectRoom();
     publishMembershipVisibleRooms([room], organization.id, "user-1");
-    renderRoom({
-      ...room,
-      isReadOnly: true,
-      userMembers: [participant("user-1", "Ada")],
-      formerUserMembers: [
-        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
-      ],
-    });
+    await act(async () =>
+      renderRoom({
+        ...room,
+        isReadOnly: true,
+        userMembers: [participant("user-1", "Ada")],
+        formerUserMembers: [
+          { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+        ],
+      }),
+    );
 
     act(() => {
       publishMembershipVisibleRooms(
@@ -367,42 +377,51 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
   });
 
-  it("keeps a fresh read-only page disabled when the sidebar still has the old roster", () => {
+  it("keeps a fresh read-only page disabled when the sidebar still has the old roster", async () => {
     const room = humanDirectRoom();
     publishMembershipVisibleRooms([room], organization.id, "user-1");
-    renderRoom({
-      ...room,
-      isReadOnly: true,
-      userMembers: [participant("user-1", "Ada")],
-      formerUserMembers: [
-        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
-      ],
-    });
-
-    expect(screen.queryByTestId("room-session-composer")).toBeNull();
-    expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
-    expect(screen.getByTestId("room-open-title")).toHaveTextContent("Bob");
-  });
-  it("offers no Quote, Reaction or new Thread on a read-only Direct", () => {
-    renderRoom(
-      {
-        ...humanDirectRoom(),
+    await act(async () =>
+      renderRoom({
+        ...room,
         isReadOnly: true,
         userMembers: [participant("user-1", "Ada")],
         formerUserMembers: [
           { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
         ],
-      },
-      {
-        messages: [
-          { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
-          {
-            ...sampleMessage("has replies", "msg-2"),
-            roomId: "room-direct",
-            threadReplyCount: 2,
-          },
-        ],
-      },
+      }),
+    );
+
+    expect(screen.queryByTestId("room-session-composer")).toBeNull();
+    expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent("Bob");
+  });
+  it("offers no Quote, Reaction or new Thread on a read-only Direct", async () => {
+    await act(async () =>
+      renderRoom(
+        {
+          ...humanDirectRoom(),
+          isReadOnly: true,
+          userMembers: [participant("user-1", "Ada")],
+          formerUserMembers: [
+            {
+              id: "user-2",
+              name: "Bob",
+              email: "bob@example.com",
+              image: null,
+            },
+          ],
+        },
+        {
+          messages: [
+            { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
+            {
+              ...sampleMessage("has replies", "msg-2"),
+              roomId: "room-direct",
+              threadReplyCount: 2,
+            },
+          ],
+        },
+      ),
     );
 
     const plain = rowFor("no replies");
@@ -418,7 +437,9 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(withReplies).toHaveAttribute("data-can-open-thread", "true");
     expect(withReplies).toHaveAttribute("data-can-quote", "false");
     expect(withReplies).toHaveAttribute("data-can-react", "false");
-    fireEvent.click(screen.getByLabelText("open thread msg-2"));
+    await act(async () =>
+      fireEvent.click(screen.getByLabelText("open thread msg-2")),
+    );
     expect(screen.getByTestId("thread-panel")).toHaveAttribute(
       "data-can-quote",
       "false",
@@ -427,14 +448,16 @@ describe("RoomsClient read-only Direct updates", () => {
 
   it("gives a read-only Direct's empty Threads no hint to start one", async () => {
     const user = userEvent.setup();
-    renderRoom({
-      ...humanDirectRoom(),
-      isReadOnly: true,
-      userMembers: [participant("user-1", "Ada")],
-      formerUserMembers: [
-        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
-      ],
-    });
+    await act(async () =>
+      renderRoom({
+        ...humanDirectRoom(),
+        isReadOnly: true,
+        userMembers: [participant("user-1", "Ada")],
+        formerUserMembers: [
+          { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+        ],
+      }),
+    );
 
     await user.click(screen.getByTestId("unread-threads-trigger"));
     expect(screen.getByTestId("thread-list-panel")).toHaveAttribute(
@@ -445,7 +468,7 @@ describe("RoomsClient read-only Direct updates", () => {
 
   it("tells a writable Direct's empty Threads how one starts", async () => {
     const user = userEvent.setup();
-    renderRoom(humanDirectRoom());
+    await act(async () => renderRoom(humanDirectRoom()));
 
     await user.click(screen.getByTestId("unread-threads-trigger"));
     expect(screen.getByTestId("thread-list-panel")).toHaveAttribute(
@@ -454,18 +477,22 @@ describe("RoomsClient read-only Direct updates", () => {
     );
   });
 
-  it("keeps Quote, Reactions and Threads on a writable Direct", () => {
-    renderRoom(humanDirectRoom(), {
-      messages: [
-        { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
-      ],
-    });
+  it("keeps Quote, Reactions and Threads on a writable Direct", async () => {
+    await act(async () =>
+      renderRoom(humanDirectRoom(), {
+        messages: [
+          { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
+        ],
+      }),
+    );
 
     const row = rowFor("no replies");
     expect(row).toHaveAttribute("data-can-quote", "true");
     expect(row).toHaveAttribute("data-can-react", "true");
     expect(row).toHaveAttribute("data-can-open-thread", "true");
-    fireEvent.click(screen.getByLabelText("open thread msg-1"));
+    await act(async () =>
+      fireEvent.click(screen.getByLabelText("open thread msg-1")),
+    );
     expect(screen.getByTestId("thread-panel")).toHaveAttribute(
       "data-can-quote",
       "true",

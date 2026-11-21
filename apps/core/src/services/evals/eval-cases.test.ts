@@ -27,7 +27,6 @@ function toolsCaseChecks(): Set<string> {
  * case before it ships, and a tool that gains one leaves the list.
  */
 const NOT_YET_COVERED = new Set([
-  "ask_coworker",
   "create_ad_campaign",
   "create_project",
   "delete_ad_campaign",

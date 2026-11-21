@@ -35,6 +35,9 @@ export const cmoSeoSuggestionSchema = z
     why: z.string(),
     body: z.string(),
     newText: z.string().nullable(),
+    /** A page change: what the page says there today, as Core read it back. */
+    currentText: z.string().nullable(),
+    element: z.enum(["title", "description", "heading", "text"]).nullable(),
     draft: z.string().nullable(),
     /** A landing page: what it says about the competitor, each with the competitor's own words. */
     sources: z.array(
@@ -62,6 +65,9 @@ export const cmoKeywordIdeaSchema = z
     /** Where the site ranks for it today: Search Console's average, else the latest audit's read. */
     position: z.number().nullable(),
     positionSource: z.enum(["search_console", "weekly_audit"]).nullable(),
+    /** Search Console, last 28 settled days: how often Google showed the site for it, and the clicks. */
+    impressions: z.number().nullable(),
+    clicks: z.number().nullable(),
   })
   .openapi("CmoKeywordIdea");
 export type CmoKeywordIdea = z.infer<typeof cmoKeywordIdeaSchema>;
@@ -99,6 +105,15 @@ export const cmoSearchConsoleSchema = z
     to: z.string().nullable(),
     observedAt: at.nullable(),
     totals: z
+      .object({
+        clicks: z.number(),
+        impressions: z.number(),
+        ctr: z.number().nullable(),
+        position: z.number().nullable(),
+      })
+      .nullable(),
+    /** The same numbers for the 28 days before `from`, for the trend. */
+    previousTotals: z
       .object({
         clicks: z.number(),
         impressions: z.number(),
@@ -230,4 +245,6 @@ export const cmoSeoPageChangeInputSchema = z.object({
   newText: z.string().trim().min(2).max(2000),
   why: z.string().trim().min(10).max(600),
   keyword: z.string().trim().min(2).max(80).optional(),
+  element: z.enum(["title", "description", "heading", "text"]).optional(),
+  currentText: z.string().trim().min(2).max(2000).optional(),
 });

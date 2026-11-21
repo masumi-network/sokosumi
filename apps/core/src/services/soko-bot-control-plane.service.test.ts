@@ -251,6 +251,7 @@ vi.mock("@/lib/db/database-now", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    sokoBotModelCall: { create: vi.fn().mockResolvedValue({}) },
     sokoBotIntent: { findMany: intentFindManyMock },
     chatRoomMention: {
       findUnique: vi.fn().mockResolvedValue({ message: { roomId: "room-1" } }),
@@ -3011,7 +3012,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT.filter(
         (capability) =>
           !isSokoBotNewsletterCapability(capability) &&
-          !isSokoBotAnnouncementCapability(capability),
+          !isSokoBotAnnouncementCapability(capability) &&
+          // v35's messaging tools; this bot runs an earlier version.
+          capability !== "send_message" &&
+          capability !== "list_recipients",
       ),
     );
   });
@@ -6273,6 +6277,34 @@ describe("SET_VERSION and fleet migration", () => {
     expect(result).toMatchObject({ moved: 1, notified: 1 });
     expect(postOwnerNoticeMock.mock.calls[0][0].content).toMatch(
       /outside the EU/,
+    );
+  });
+
+  it("does not tell owners when the move keeps them outside the EU", async () => {
+    botFindManyMock.mockResolvedValue([
+      { id: BOT_ID, versionId: "v19" },
+      { id: "bot-eu", versionId: "v20" },
+    ]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v19" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockResolvedValue({ messageId: "m1" });
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v21",
+      reason: "Same models, new prompt",
+      notifyOwners: false,
+    });
+
+    // v19 already ran outside the EU: only the bot leaving v20 (EU) hears.
+    expect(result).toMatchObject({ moved: 2, notified: 1 });
+    expect(postOwnerNoticeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ sokoBotId: "bot-eu" }),
     );
   });
 

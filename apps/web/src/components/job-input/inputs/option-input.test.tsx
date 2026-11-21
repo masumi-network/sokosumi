@@ -1,6 +1,6 @@
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { JobInputsFormBuilder } from "@/components/job-input/job-inputs-form-builder";
@@ -17,7 +17,7 @@ vi.mock("@/components/markdown", () => ({
 }));
 
 describe("OptionInput", () => {
-  it("renders single select when option values include an empty string", () => {
+  it("renders single select when option values include an empty string", async () => {
     const inputFields: InputFieldSchemaType[] = [
       {
         id: "single-option",
@@ -35,7 +35,7 @@ describe("OptionInput", () => {
       },
     ];
 
-    expect(() =>
+    await act(async () =>
       render(
         <JobInputsFormBuilder
           inputFields={inputFields}
@@ -43,7 +43,7 @@ describe("OptionInput", () => {
           renderFooter={() => <button type="submit">Submit</button>}
         />,
       ),
-    ).not.toThrow();
+    );
 
     expect(screen.getByRole("combobox")).toBeInTheDocument();
   });

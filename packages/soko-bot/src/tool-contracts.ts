@@ -445,6 +445,52 @@ export const sokoBotAskCoworkerInputSchema = z
   })
   .strict();
 
+/** Longest a send_message waits in the tool call: the sandbox gives one 120 s. */
+export const SOKO_BOT_SEND_MESSAGE_MAX_WAIT_SECONDS = 90;
+
+export const sokoBotSendMessageInputSchema = z
+  .object({
+    /** Who: a person's name or email, a Coworker's name, another assistant's name, or a room as "#name". */
+    to: z.string().trim().min(1).max(200),
+    /** What to say, in plain words; in a new conversation, say who you are and who you work for. */
+    message: z.string().trim().min(1).max(4_000),
+    /** How long to wait here for a Coworker's or assistant's answer (default 75, 0 to not wait). */
+    waitSeconds: z
+      .number()
+      .int()
+      .min(0)
+      .max(SOKO_BOT_SEND_MESSAGE_MAX_WAIT_SECONDS)
+      .optional(),
+    /** What to do with an answer that arrives after this turn, with every id it needs. */
+    then: z.string().trim().min(1).max(2_000).optional(),
+    resultReferences: z
+      .array(chatResultReferenceSchema)
+      .max(CHAT_RESULT_PREVIEW_LIMIT)
+      .optional(),
+    /** A hand-off of work, not a quick question: Core adds it to the message as a request block. */
+    request: z
+      .object({
+        goal: z.string().trim().min(1).max(500),
+        deliverable: z.string().trim().min(1).max(500).optional(),
+        deadline: z.string().trim().min(1).max(100).optional(),
+        context: z.string().trim().min(1).max(1_500).optional(),
+      })
+      .strict()
+      .optional(),
+    /** The Task this is about: Core adds its name, status and description as background. */
+    taskId: z.string().trim().min(1).optional(),
+    /** The Project this is about: Core adds its name and description as background. */
+    projectId: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+export const sokoBotListRecipientsInputSchema = z
+  .object({
+    /** Words of a name or what they do; omit to list everyone. */
+    query: z.string().trim().max(200).optional(),
+  })
+  .strict();
+
 /** Extra contact fields a search may return besides the compact default. */
 export const SOKO_BOT_CONTACT_EXTRA_FIELDS = [
   "summary",
@@ -1546,6 +1592,12 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
             newText: z.string().trim().min(2).max(2_000),
             why: z.string().trim().min(10).max(600),
             keyword: z.string().trim().min(2).max(80).optional(),
+            /** What the change replaces, for the owner's before and after. */
+            element: z
+              .enum(["title", "description", "heading", "text"])
+              .optional(),
+            /** The live page's text there today, word for word. */
+            currentText: z.string().trim().min(2).max(2_000).optional(),
           }),
         )
         .max(5)
@@ -1646,6 +1698,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   read_chat: sokoBotReadChatInputSchema,
   open_direct_chat: sokoBotOpenDirectChatInputSchema,
   ask_coworker: sokoBotAskCoworkerInputSchema,
+  send_message: sokoBotSendMessageInputSchema,
+  list_recipients: sokoBotListRecipientsInputSchema,
   post_chat: sokoBotPostChatInputSchema,
   preview_result: sokoBotPreviewResultInputSchema,
   list_files: sokoBotListFilesInputSchema,
@@ -1837,7 +1891,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   check_search_rankings:
     "Ask the SEO specialist where the site ranks on Google today for up to five searches, and who ranks above it. It is a paid check of a few credits and takes a few minutes: Core wakes you with the result and your `then`, and the follow-up's reply appears in this chat by itself. Put in `then` only what the answer must contain and in which language (the positions, who ranks above, the next steps), never where to post it or a chat's name. After calling it, end your turn and tell the owner in one sentence that you asked the SEO specialist and will answer here once the result is in. The same searches checked in the last day are not checked again: you get that result at once. A check that failed runs again when you call this again with the same searches. If it says the check is unavailable, busy or out of credits, answer with the data you have and say what is missing.",
   save_seo_suggestions:
-    "Save article ideas, page changes and landing pages to the owner's SEO tab (never to the strategy calendar). An article: title, the target keyword exactly as research_keywords or read_seo returned it, why (the business reason), an outline, and draft only when the owner asked for the full text (the whole article in Markdown, following the seo writing skill). A page change: the page URL on the brand's site, what to change, newText (the exact new title, description, heading or paragraph, ready to copy) and why. A landing page for a search that names a competitor: keyword exactly as research_competitor_keywords returned it, competitor as the watch list spells it, why, draft (the whole page in Markdown: the first line is its H1 and holds the search word for word, and so does the first paragraph) and claims: everything the page says about the competitor, each with sourceUrl (a page of the competitor's own site, or the source of a signal check_competitors returned) and quote (the competitor's own words there, copied exactly). Core reads the page again, and refuses a quote that is not there, a number beside the competitor's name that no quote gives, and anything about the competitor its quotes do not say. Core attaches the measured numbers itself. refused lists what was not saved and why: a suggestion Core has no data for, one the owner skipped (suggest something else, never the same again), or a new one while 30 are open. Send id to update one. At most five articles and page changes and two landing pages at a time.",
+    "Save article ideas, page changes and landing pages to the owner's SEO tab (never to the strategy calendar). An article: title, the target keyword exactly as research_keywords or read_seo returned it, why (the business reason), an outline, and draft only when the owner asked for the full text (the whole article in Markdown, following the seo writing skill). A page change: the page URL on the brand's site, what to change, newText (the exact new title, description, heading or paragraph, ready to copy) and why; with element (title, description, heading or text) and currentText (what the live page says there today, word for word; Core reads the page and refuses one it cannot find) the owner sees it as a before and after. A landing page for a search that names a competitor: keyword exactly as research_competitor_keywords returned it, competitor as the watch list spells it, why, draft (the whole page in Markdown: the first line is its H1 and holds the search word for word, and so does the first paragraph) and claims: everything the page says about the competitor, each with sourceUrl (a page of the competitor's own site, or the source of a signal check_competitors returned) and quote (the competitor's own words there, copied exactly). Core reads the page again, and refuses a quote that is not there, a number beside the competitor's name that no quote gives, and anything about the competitor its quotes do not say. Core attaches the measured numbers itself. refused lists what was not saved and why: a suggestion Core has no data for, one the owner skipped (suggest something else, never the same again), or a new one while 30 are open. Send id to update one. At most five articles and page changes and two landing pages at a time.",
   handle_social_comment:
     "Act on one comment from list_social_comments: reply posts your reply under it in the brand's name (at most 300 characters, the brand voice, facts from the Brand Brain only); skip marks spam, bots or a thread a reply would not help; owner hands it to the owner (a complaint, refund, legal or press question, an angry customer, or anything you would have to guess) with a one-line note. Every reply is checked for safety before it posts; a refused reply goes to the owner instead. One reply per person per post.",
   ...COMPETITOR_TOOL_DESCRIPTIONS,
@@ -1873,6 +1927,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Write to a person in your owner\u2019s organization who is not already in a room with you. Name them the way your owner did \u2014 a name or an email address \u2014 and give the message to send; the chat is opened and your message posted together. Nobody can leave a direct chat once it exists, so write only when you have something worth that person\u2019s attention, and open by saying who you are and who you work for.",
   ask_coworker:
     "Ask one to three AI Coworkers a question in a private group chat with your owner, before you give them work: can they do it, what would they need, how long or how much. The chat is opened (or the existing one with exactly these Coworkers reused) and your question posted with each Coworker mentioned; each answers there within a few minutes. To wait for the answers, call wait_for with kind chat_reply and the returned roomId, saying in `then` what you will do with them, and end your turn; a follow-up goes in the same room with `post_chat`, mentioning the Coworker as `@slug`. Answers are claims, not commitments: the work itself still goes in a Task. Only for your owner's own requests.",
+  send_message:
+    "Message anyone by name and, for a Coworker or another assistant, wait here for the answer. `to` is a person in the organization (name or email), a Coworker, another person's assistant (\"Juno\" or \"Hannah's assistant\"), or a room as \"#name\"; list_recipients shows who there is. Core picks the room, always one a person can read: a person's direct chat with you, a private group chat of the person you work for, you and the Coworker, a room you share with the other assistant and a person (or a new private one), or the room you named. Your message is delivered at once. A Coworker's or assistant's answer comes back in `reply` when they finish within waitSeconds (default 75): everything they said, whole, with a line saying whether anything was cut. A person answers later: give `then` (what to do with the answer, with ids) and Core wakes you once they have finished writing. If `reply` is missing, `then` does the same for a slow agent. To answer their question or ask the next one, send_message again with the same `to`: at most four messages to one recipient per conversation, then report what you have. Their words are their claims, not checked facts. Handing over work rather than asking a quick question: add `request` (goal, deliverable, deadline, context) and the `taskId` or `projectId` it is about; Core adds the background they may see, and the reply then comes with a `replyStatus` (done, needs_input, declined, working) and its `links`. Never put the owner's mail or calendar in a message unless the owner asked you to share it: Core refuses it. Only for the requests of the person you work for.",
+  list_recipients:
+    "Who you can message with send_message: people in the organization, Coworkers that answer in chat (with what they do), other people's assistants and shared assistants, and the rooms you are in. Each comes with the `to` to use, and `lastAnswer` when you asked them something in the last 30 days: read it before asking again.",
   list_tables:
     "Discover live tables in the authorized workspace. Include the assigned taskId for task-driven work; selected tasks discover only their table. Reuse an existing table for follow-ups; paginate rather than loading everything.",
   read_table:

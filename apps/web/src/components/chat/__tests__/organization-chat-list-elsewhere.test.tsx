@@ -478,7 +478,9 @@ describe("OrganizationChatList Elsewhere rows", () => {
       await findElsewhereRow("launch");
 
       listElsewhereMock.mockReturnValue(new Promise(() => {}));
-      view.rerender(createOrganizationChatList({ organizationId: "org-2" }));
+      await act(async () =>
+        view.rerender(createOrganizationChatList({ organizationId: "org-2" })),
+      );
 
       expect(elsewhereList()).toBeNull();
     });

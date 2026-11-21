@@ -1476,7 +1476,7 @@ describe("TaskForm", () => {
       vi.stubGlobal("fetch", suggest);
       try {
         renderCopy({ assigneeId: "coworker-2" });
-        await act(() => vi.advanceTimersByTimeAsync(15_000));
+        await act(async () => vi.advanceTimersByTimeAsync(15_000));
         expect(suggest).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
@@ -4117,17 +4117,17 @@ describe("TaskForm draft tags", () => {
         }),
       );
       renderComposer(undefined, client);
-      await act(() => vi.advanceTimersByTimeAsync(2000));
+      await act(async () => vi.advanceTimersByTimeAsync(2000));
       expect(suggestTaskTags).not.toHaveBeenCalled();
       await act(async () => {
         catalog.resolve([label]);
       });
-      await act(() => vi.advanceTimersByTimeAsync(1));
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       expect(suggestTaskTags).toHaveBeenCalledTimes(1);
       expect(screen.getByText(label.displayName)).toBeVisible();
       client.setQueryData(queryKey, [{ ...label, color: "pink" }]);
-      await act(() => vi.advanceTimersByTimeAsync(11000));
+      await act(async () => vi.advanceTimersByTimeAsync(11000));
       expect(suggestTaskTags).toHaveBeenCalledTimes(1);
       client.setQueryData(queryKey, [
         {
@@ -4136,9 +4136,9 @@ describe("TaskForm draft tags", () => {
           vocabularyVersion: 2,
         },
       ]);
-      await act(() => vi.advanceTimersByTimeAsync(1));
+      await act(async () => vi.advanceTimersByTimeAsync(1));
       expect(screen.queryByText(label.displayName)).not.toBeInTheDocument();
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       expect(suggestTaskTags).toHaveBeenCalledTimes(2);
     } finally {
       vi.unstubAllGlobals();
@@ -4173,12 +4173,12 @@ describe("TaskForm draft tags", () => {
         .fn()
         .mockResolvedValue(createTaskSuccess("t", "Task"));
       renderComposer(onCreateTask, client);
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       fireEvent.click(screen.getByRole("button", { name: "remove" }));
       client.setQueryData(queryKey, [{ ...label, archived: true }], {
         updatedAt: Date.now() + 1,
       });
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
       await act(async () =>
         fireEvent.click(screen.getByRole("button", { name: "Create Task" })),
@@ -4212,14 +4212,14 @@ describe("TaskForm draft tags", () => {
         .fn()
         .mockResolvedValue(createTaskSuccess("t", "Task"));
       renderComposer(onCreateTask);
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       for (const value of [`${description}.`, description.toUpperCase()]) {
         fireEvent.change(screen.getByTestId("markdown-editor"), {
           target: { value },
         });
         expect(screen.getByText("Procurement")).toBeVisible();
       }
-      await act(() => vi.advanceTimersByTimeAsync(10_000));
+      await act(async () => vi.advanceTimersByTimeAsync(10_000));
       expect(suggestTaskTags).toHaveBeenCalledOnce();
       fireEvent.click(screen.getByRole("button", { name: "remove" }));
       await act(async () =>
@@ -4267,7 +4267,7 @@ describe("TaskForm draft tags", () => {
         .fn()
         .mockResolvedValue(createTaskSuccess("t", "Task"));
       renderComposer(onCreate);
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       const tags = within(screen.getByRole("region", { name: "Tags" }));
       const topic = tags
         .getByText("vocabulary.research")
@@ -4350,10 +4350,13 @@ describe("TaskForm draft tags", () => {
           .mockReset()
           .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
         renderComposer();
-        await act(() => vi.advanceTimersByTimeAsync(1200));
+        await act(async () => vi.advanceTimersByTimeAsync(1200));
         expect(suggestTaskTags).toHaveBeenCalledOnce();
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-        const submit = screen.getByRole("button", { name: "Create Task" });
+        const submit = screen.getByRole("button", {
+          name: "Create Task",
+          busy: false,
+        });
         expect(submit).toBeEnabled();
         await act(async () => fireEvent.click(submit));
         expect(createTask).toHaveBeenCalledOnce();
@@ -4384,7 +4387,7 @@ describe("TaskForm draft tags", () => {
         .fn()
         .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
       renderComposer(onCreateTask);
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       const tags = screen.getByRole("region", { name: "Tags" });
       const topic = within(tags)
         .getByText("vocabulary.research")
@@ -4396,7 +4399,7 @@ describe("TaskForm draft tags", () => {
       fireEvent.change(screen.getByTestId("markdown-editor"), {
         target: { value: `${description} before Friday` },
       });
-      await act(() => vi.advanceTimersByTimeAsync(10000));
+      await act(async () => vi.advanceTimersByTimeAsync(10000));
       expect(suggestTaskTags).toHaveBeenCalledTimes(2);
       expect(
         within(tags).queryByText("vocabulary.research"),
@@ -4437,7 +4440,7 @@ describe("TaskForm draft tags", () => {
           }),
       );
       renderComposer(onCreateTask);
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       await act(async () =>
         fireEvent.click(screen.getByRole("button", { name: "Create Task" })),
       );
@@ -4487,7 +4490,7 @@ describe("TaskForm draft tags", () => {
       );
       // No assignee is prefilled, so this is the wizard and step 1 is on screen.
       expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
-      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
       expect(suggestTaskTags).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();

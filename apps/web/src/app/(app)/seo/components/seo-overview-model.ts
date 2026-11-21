@@ -87,8 +87,42 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
       ...action.findingIds.map((id) => findingRanks.get(id) ?? NON_ISSUE_RANK),
     );
   // Preserve strategic proposals without findings and all existing Task history.
+  const experiments = new Set(
+    (workspace.seasonalIdeas ?? [])
+      .filter((idea) => idea.contentPlan?.experiment && idea.actionId)
+      .map((idea) => idea.actionId),
+  );
+  const landing = workspace.landingPages;
+  const goalPages = new Set(
+    landing?.channel === "organic"
+      ? landing.rows
+          .filter(
+            (row) =>
+              row.sessions > 0 &&
+              row.keyEvents > 0 &&
+              new URL(row.pageUrl).hostname === landing.verifiedHost &&
+              !landing.skippedUrls?.includes(row.pageUrl),
+          )
+          .map((row) => row.pageUrl)
+      : [],
+  );
+  const hasMeasuredGoal = (action: Action) =>
+    action.status === "recommended" && goalPages.has(action.pageUrl);
+  const isExperiment = (action: Action) =>
+    Boolean(action.decision) || experiments.has(action.id);
+  const priority = (action: Action) => {
+    const severity = SEO_ISSUE_SEVERITY_NAMES[actionRank(action)];
+    if (severity === "critical") return 0;
+    if (severity === "major") return 1;
+    if (isExperiment(action) && action.status === "recommended") return 2;
+    if (severity === "minor") return 3;
+    if (action.kind === "fix") return 4;
+    return 5;
+  };
   const actions = workspace.actions.toSorted(
-    (left, right) => actionRank(left) - actionRank(right),
+    (left, right) =>
+      priority(left) - priority(right) ||
+      Number(hasMeasuredGoal(right)) - Number(hasMeasuredGoal(left)),
   );
   // The worst issue an action fixes; an action from search data alone has none.
   const actionSeverity = (action: Action) =>
@@ -156,6 +190,8 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     diagnostics,
     actions,
     actionSeverity,
+    hasMeasuredGoal,
+    isExperiment,
     actionProblem,
     unplanned,
     recommendedActions,

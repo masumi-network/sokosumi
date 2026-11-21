@@ -133,7 +133,9 @@ it.each(["de", "es"] as const)(
 
     expect(screen.getByRole("heading", { name: query })).toBeVisible();
     expect(
-      screen.getByText("Plan for December 2026").closest("[lang]"),
+      screen
+        .getByText("Prepare in November 2026 for December 2026")
+        .closest("[lang]"),
     ).toHaveAttribute("lang", "en");
     expect(screen.getByText(query)).toHaveAttribute("lang", "fr");
     expect(
@@ -156,7 +158,9 @@ it("shows the month to plan for and opens the source figures on demand", async (
   const user = userEvent.setup();
   const view = render(page([winter], "sail"));
   expect(screen.getByRole("heading", { name: winter.keyword })).toBeVisible();
-  expect(screen.getByText("Plan for December 2026")).toBeVisible();
+  expect(
+    screen.getByText("Prepare in November 2026 for December 2026"),
+  ).toBeVisible();
   const summary = screen.getByText("Page and demand evidence");
   expect(summary.closest("details")).not.toHaveAttribute("open");
   await user.click(summary);
@@ -214,6 +218,7 @@ it("shows the available estimate even when history cannot support a seasonal com
     page([
       {
         ...holiday,
+        event: { ...holiday.event!, date: new Date("2026-12-01T00:00:00Z") },
         limitations: ["demand_unverified"],
         comparison: {
           leadMonth: { period: "2025-09", volume: null },
@@ -298,7 +303,7 @@ it("keeps a current planned month and an event on its market day", () => {
     ),
   );
   expect(
-    screen.getByText("Plan for November 2026 and December 2026"),
+    screen.getByText("Start the brief now for November 2026 and December 2026"),
   ).toBeVisible();
   view.rerender(page([holiday], "", new Date("2026-11-08T18:29:00Z")));
   expect(screen.queryByText(/has passed/)).toBeNull();
@@ -463,4 +468,84 @@ it("qualifies an unconfirmed market and shows the second measured year in Englis
       /In December 2024, estimated searches reached 55 against a median of 15/,
     ),
   ).toBeVisible();
+});
+
+it("leads with a checked reader task and shows the conflicting Trends month before the evidence disclosure", () => {
+  const contentPlan = {
+    disposition: "keep" as const,
+    readerTask: "Store a sail over winter",
+    passage: winter.pageQuote,
+    nextStep: "Keep the drying instructions until the storage method changes.",
+  };
+  render(
+    page([
+      {
+        ...winter,
+        contentPlan,
+        trendComparison: [{ historicalPeriod: "2025-12", peak: false }],
+      },
+    ]),
+  );
+  expect(screen.getByText(contentPlan.nextStep)).toBeVisible();
+  expect(
+    screen.getByText(/Google Trends did not identify December 2025 as a peak/),
+  ).toBeVisible();
+  expect(
+    screen.getByText("Page and demand evidence").closest("details"),
+  ).not.toHaveAttribute("open");
+  expect(
+    screen.queryByRole("button", { name: /Create draft task/ }),
+  ).toBeNull();
+});
+
+it("shows the two MacBook peaks as one editorial brief and keeps the monthly ledger in the disclosure", () => {
+  const idea = {
+    ...winter,
+    country: "US",
+    language: "en",
+    keyword: "macbook battery health",
+    limitations: ["existing_page_may_cover" as const],
+    windows: ["2025-11", "2026-01"].map((historicalPeriod, i) => ({
+      targetPeriod: ["2026-11", "2027-01"][i],
+      historicalPeriod,
+      historicalVolume: 1000,
+      baselineMedian: 590,
+    })),
+  };
+  render(page([idea]));
+  expect(
+    screen.getByText(/November 2025 and January 2026 were 69% above/),
+  ).toBeVisible();
+  expect(
+    screen.getByText("Start the brief now for November 2026 and January 2027"),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: /Create draft task/ }),
+  ).toBeNull();
+});
+
+it("shows proposed terms and discloses the hypothesis and the outcome check on click", async () => {
+  const experiment = {
+    hypothesis:
+      "Buyers may be deciding whether a used sail is worth repairing.",
+    targetQueries: ["used sail repair cost"],
+    successCheck:
+      "Compare clicks from repair queries after publishing the guide.",
+  };
+  const plan = {
+    disposition: "inspect" as const,
+    readerTask: "Estimate the cost of a repair",
+    passage: winter.pageQuote,
+    nextStep: "Draft a repair versus replacement comparison.",
+    experiment,
+  };
+  render(page([{ ...winter, contentPlan: plan }], "repair cost"));
+  expect(screen.getByText(plan.nextStep)).toBeVisible();
+  expect(
+    screen.getByText(/Keyword ideas to test: used sail repair cost/),
+  ).toBeVisible();
+  expect(screen.getByText(/Buyers may be deciding/)).not.toBeVisible();
+  await userEvent.setup().click(screen.getByText("Why try this content idea?"));
+  expect(screen.getByText(/Buyers may be deciding/)).toBeVisible();
+  expect(screen.getByText(/Compare clicks from repair queries/)).toBeVisible();
 });

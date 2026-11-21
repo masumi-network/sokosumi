@@ -35,6 +35,7 @@ function buildAdminSokoBotTurn(overrides: Record<string, unknown> = {}) {
     updatedAt: "2026-09-02T09:00:00.000Z",
     deadlineAt: "2026-09-02T09:05:00.000Z",
     contextSnapshot: null,
+    modelCalls: [],
     ...overrides,
   };
 }

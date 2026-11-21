@@ -16,6 +16,7 @@ import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { getDefaultSokoBotVersionId } from "@/services/soko-bot-version.service";
+import { closeA2aWorld } from "./eval-a2a";
 
 /**
  * Eval lanes: one eval organization per lane, each a small, fixed world the
@@ -480,4 +481,5 @@ export async function resetEvalLaneForSokoBot(
   await prisma.contact.deleteMany({ where: { workspaceId } });
   await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
   await seedEvalMcpServer(lane);
+  await closeA2aWorld(lane);
 }

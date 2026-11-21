@@ -1,5 +1,11 @@
 import type { OrganizationRecord } from "@sokosumi/core-client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OrganizationRemoveForm from "@/components/organizations/organization-remove/form";
@@ -120,14 +126,16 @@ describe("OrganizationRemoveForm", () => {
     vi.clearAllMocks();
   });
 
-  it("lists mapped blockers and disables confirm while any remain", () => {
-    render(
-      <OrganizationRemoveForm
-        organization={createOrganization({})}
-        setIsLoading={vi.fn()}
-        onOpenChange={vi.fn()}
-        blockers={["ORGANIZATION_HAS_ADDITIONAL_MEMBERS", "LAST_WORKSPACE"]}
-      />,
+  it("lists mapped blockers and disables confirm while any remain", async () => {
+    await act(async () =>
+      render(
+        <OrganizationRemoveForm
+          organization={createOrganization({})}
+          setIsLoading={vi.fn()}
+          onOpenChange={vi.fn()}
+          blockers={["ORGANIZATION_HAS_ADDITIONAL_MEMBERS", "LAST_WORKSPACE"]}
+        />,
+      ),
     );
 
     expect(
@@ -146,14 +154,16 @@ describe("OrganizationRemoveForm", () => {
     expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
   });
 
-  it("lists billing blockers with a billing link and disables confirm", () => {
-    render(
-      <OrganizationRemoveForm
-        organization={createOrganization({})}
-        setIsLoading={vi.fn()}
-        onOpenChange={vi.fn()}
-        blockers={["RUNNING_SUBSCRIPTION", "ENTERPRISE_CONTRACT_ACTIVE"]}
-      />,
+  it("lists billing blockers with a billing link and disables confirm", async () => {
+    await act(async () =>
+      render(
+        <OrganizationRemoveForm
+          organization={createOrganization({})}
+          setIsLoading={vi.fn()}
+          onOpenChange={vi.fn()}
+          blockers={["RUNNING_SUBSCRIPTION", "ENTERPRISE_CONTRACT_ACTIVE"]}
+        />,
+      ),
     );
 
     expect(
@@ -173,14 +183,20 @@ describe("OrganizationRemoveForm", () => {
     expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
   });
 
-  it("lists in-flight work blockers with way-out links", () => {
-    render(
-      <OrganizationRemoveForm
-        organization={createOrganization({})}
-        setIsLoading={vi.fn()}
-        onOpenChange={vi.fn()}
-        blockers={["IN_FLIGHT_JOB", "UNSETTLED_ON_CHAIN_JOB", "IN_FLIGHT_TASK"]}
-      />,
+  it("lists in-flight work blockers with way-out links", async () => {
+    await act(async () =>
+      render(
+        <OrganizationRemoveForm
+          organization={createOrganization({})}
+          setIsLoading={vi.fn()}
+          onOpenChange={vi.fn()}
+          blockers={[
+            "IN_FLIGHT_JOB",
+            "UNSETTLED_ON_CHAIN_JOB",
+            "IN_FLIGHT_TASK",
+          ]}
+        />,
+      ),
     );
 
     expect(

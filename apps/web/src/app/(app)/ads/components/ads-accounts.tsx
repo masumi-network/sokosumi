@@ -271,6 +271,8 @@ export function AdsAccounts({
     >
       {accounts.length === 0 ? (
         <EmptyState
+          // The empty tab sits on a panel like the rest of the page (DESIGN.md, Page surfaces).
+          className="bg-card-background rounded-xl p-8"
           action={connectControls}
           description={t("emptyBody")}
           title={t("emptyTitle")}

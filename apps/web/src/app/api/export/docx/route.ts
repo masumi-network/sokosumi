@@ -14,6 +14,7 @@ import {
   ImageRun,
   PageNumber,
   Paragraph,
+  ShadingType,
   TextRun,
 } from "docx";
 import { type EmptyNode, type IPlugin, toDocx } from "mdast2docx";
@@ -51,6 +52,18 @@ interface GenerateDocxRequest {
   logoPng?: string;
   kanjiLogoPng?: string;
 }
+
+/**
+ * `@m2d/list` gives each list item both a bullet (its nesting counter) and the list's numbering, and
+ * `docx` then writes two list markers (`numPr`) into the paragraph, which is invalid Word XML. Keep the
+ * numbering, which carries the list's kind; nested lists are siblings and keep their own copy.
+ */
+const oneListMarker: IPlugin<EmptyNode> = {
+  block: (_docx, node, props) => {
+    if (node.type === "paragraph" && props.numbering) delete props.bullet;
+    return [];
+  },
+};
 
 const docTitle = "Sokosumi Export";
 const docAuthor = "Sokosumi";
@@ -243,13 +256,19 @@ export async function POST(request: NextRequest) {
               } as unknown as Record<string, unknown>,
               {
                 plugins: [
-                  tablePlugin(),
+                  // The default `solid` header fill paints Word's pattern colour (black) over the header text.
+                  tablePlugin({
+                    firstRowCellProps: {
+                      shading: { type: ShadingType.CLEAR, fill: "b79c2f" },
+                    },
+                  }),
                   // imagePlugin parses SVG with the DOM from setupDomContext. It never
                   // loads the optional @xmldom/xmldom peer, so the lockfile omits it.
                   imagePlugin({
                     cacheConfig: { cacheMode: "memory", cache: {} },
                   }),
                   listPlugin(),
+                  oneListMarker,
                   mathPlugin(),
                   ...(hasHtml ? [htmlPlugin()] : []),
                 ] as IPlugin<EmptyNode>[],

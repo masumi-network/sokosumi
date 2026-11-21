@@ -19,6 +19,7 @@ import {
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaRef,
   type SocialPostProvider,
+  socialPostProviderLabel,
 } from "@sokosumi/utils";
 import {
   conflict,
@@ -709,6 +710,45 @@ const CALENDAR_STATUS: Record<SocialPostStatus, CmoCalendarEntry["status"]> = {
   CANCELED: "skipped",
 };
 
+const RECONNECT_ERROR = /reconnect|revoked|authoriz/i;
+/**
+ * A network pausing our app's posting: our words from Core's publisher, or the
+ * network's own cap error on posts from before. Never the owner's to fix.
+ */
+const PAUSED_ERROR =
+  /paused our posting|spend.?cap|usage.?cap|UsageCapExceeded/i;
+
+/**
+ * Why a post did not go out, as the owner reads it on the Calendar and
+ * Today; null for a post that has not failed or missed its time. A post the
+ * network's pause moved on stays scheduled and says it waits.
+ */
+export function socialPostNotSent(post: {
+  status: SocialPostStatus;
+  provider: string;
+  lastError: string | null;
+}): string | null {
+  const provider = post.provider.toLowerCase() as SocialPostProvider;
+  const network = socialPostProviderLabel(provider) ?? post.provider;
+  const error = post.lastError ?? "";
+  if (post.status === "SCHEDULED" && PAUSED_ERROR.test(error)) {
+    return `${network} paused our posting for now; Cuso will try again.`;
+  }
+  if (post.status === "MISSED") return "It missed its time.";
+  if (post.status !== "FAILED") return null;
+  if (PAUSED_ERROR.test(error)) {
+    return `${network} paused our posting for a day. Ask Cuso to post it again.`;
+  }
+  if (RECONNECT_ERROR.test(error)) {
+    return `${network} needs reconnecting in Channels.`;
+  }
+  // Networks answer with JSON; its "detail" is the one human sentence.
+  const detail = /"detail"\s*:\s*"([^"]{1,200})"/.exec(error)?.[1]?.trim();
+  return detail
+    ? `${network} refused it: ${detail.replace(/\.?$/, ".")}`
+    : `${network} refused it.`;
+}
+
 /** The Social posts a version's calendar became, oldest first. */
 export async function listMarketingStrategyPosts(
   version: Pick<MarketingStrategy, "id" | "projectId">,
@@ -723,6 +763,7 @@ export async function listMarketingStrategyPosts(
       text: true,
       media: true,
       status: true,
+      lastError: true,
       revision: true,
       scheduledAt: true,
       createdAt: true,
@@ -751,6 +792,7 @@ export async function listMarketingStrategyPosts(
       post.text.trim() !== "" &&
       post.text !== placeholderText({ ...planning, title }, post.provider);
     const status = CALENDAR_STATUS[post.status];
+    const notSent = socialPostNotSent(post);
     return {
       entry: {
         ...planning,
@@ -764,6 +806,7 @@ export async function listMarketingStrategyPosts(
         time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
         status: status === "draft" && !written ? "idea" : status,
         ...(written ? { draft: post.text } : {}),
+        ...(notSent ? { notSent } : {}),
       },
       entryId: planning?.id ?? null,
       media: parseSocialPostMedia(post.media, post.id),

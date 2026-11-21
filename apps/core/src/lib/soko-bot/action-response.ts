@@ -285,9 +285,10 @@ async function cmoReportedByCard(
 }
 
 /**
- * Whether a Cuso turn saved his Brand Brain or strategy. Those writes carry
- * no action receipt, so without this a correction he applied would end on
- * "Nothing was changed in this turn."
+ * Whether a Cuso turn saved his Brand Brain, strategy or SEO suggestions.
+ * Those writes carry no action receipt, so without this a correction he
+ * applied, or a weekly SEO report, would end on "Nothing was changed in this
+ * turn."
  */
 async function cmoSavedRecord(
   tx: Prisma.TransactionClient,
@@ -298,7 +299,9 @@ async function cmoSavedRecord(
   const saves = await tx.sokoBotToolCall.count({
     where: {
       turnId,
-      capability: { in: ["save_brand_brain", "save_strategy"] },
+      capability: {
+        in: ["save_brand_brain", "save_strategy", "save_seo_suggestions"],
+      },
       status: "COMPLETED",
     },
   });

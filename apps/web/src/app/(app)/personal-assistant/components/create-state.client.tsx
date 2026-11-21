@@ -25,6 +25,7 @@ import {
   SokoBotSetupSteps,
 } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
+import { FormErrorText } from "@/components/ui/form";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -204,8 +205,10 @@ export function CreateState({
   return (
     <div className={SOKO_BOT_SETUP_FRAME_CLASS}>
       <SokoBotSetupSteps current={step === "name" ? 1 : 2} />
+      {/* noValidate: an empty name gets the same inline error as a blank one, not the browser's bubble. */}
       <form
         hidden={step !== "name"}
+        noValidate
         onSubmit={handleContinue}
         className={step === "name" ? "flex flex-col gap-8" : "hidden"}
       >
@@ -229,13 +232,9 @@ export function CreateState({
             aria-describedby={blank ? `${nameId}-error` : undefined}
           />
           {blank ? (
-            <p
-              id={`${nameId}-error`}
-              role="alert"
-              className="text-destructive text-xs"
-            >
+            <FormErrorText id={`${nameId}-error`} role="alert">
               {t("nameRequired")}
-            </p>
+            </FormErrorText>
           ) : null}
         </div>
         <div className="flex flex-col gap-2">

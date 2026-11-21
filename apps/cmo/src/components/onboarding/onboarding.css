@@ -2634,21 +2634,6 @@ body:has(.ob) .site-header {
   translate: calc(-100% + 9px) 50%;
 }
 
-.ob-swatches {
-  display: flex;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ob-swatches li {
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-mark);
-}
-
 /* Side panel: a summary line, findings in hairline rows, one labelled field. */
 .ob-side-summary {
   font-size: 0.875rem;

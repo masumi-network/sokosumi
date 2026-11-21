@@ -187,6 +187,19 @@ describe("SEO action worklist", () => {
   });
 });
 
+it("puts an idea with evidence after the major fix and before the minor cleanup", () => {
+  const idea = {
+    ...action("idea", "Test a cost section"),
+    decision: {
+      kind: "content_opportunity",
+      alternative: "Keep the page as it is.",
+      nextCheck: "Compare clicks next month.",
+    },
+  } as ProjectSeoAction;
+  render(view([low, idea, high]));
+  expect(titles()).toEqual([high.title, idea.title, low.title]);
+});
+
 it("shows the alternative, evidence and next check for a strategy action", async () => {
   const user = userEvent.setup();
   const item = {

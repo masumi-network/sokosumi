@@ -1,5 +1,5 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode, Ref } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -146,9 +146,9 @@ function renderThreadPanel(
 }
 
 describe("ThreadPanel older boundary", () => {
-  it("does not auto-load after a failed older page until the reader retries", () => {
+  it("does not auto-load after a failed older page until the reader retries", async () => {
     const onLoadOlder = vi.fn();
-    renderThreadPanel("failed", onLoadOlder);
+    await act(async () => renderThreadPanel("failed", onLoadOlder));
 
     expect(observers).toHaveLength(0);
     expect(screen.getByRole("alert")).toHaveTextContent("Boundary.loadFailed");
@@ -162,12 +162,12 @@ describe("ThreadPanel older boundary", () => {
     expect(onLoadOlder).toHaveBeenCalledTimes(1);
   });
 
-  it("auto-loads while idle when the older boundary scrolls into view", () => {
+  it("auto-loads while idle when the older boundary scrolls into view", async () => {
     const onLoadOlder = vi.fn();
-    renderThreadPanel("idle", onLoadOlder);
+    await act(async () => renderThreadPanel("idle", onLoadOlder));
 
     expect(observers).toHaveLength(1);
-    observers[0]?.callback([{ isIntersecting: true }]);
+    act(() => observers[0]?.callback([{ isIntersecting: true }]));
 
     expect(onLoadOlder).toHaveBeenCalledTimes(1);
   });
