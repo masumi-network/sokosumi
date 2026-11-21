@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.1](https://github.com/masumi-network/sokosumi/compare/macos-v1.2.0...macos-v1.2.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **apple:** flip the tampered byte in the appcast check test ([#7618](https://github.com/masumi-network/sokosumi/issues/7618)) ([0c5325a](https://github.com/masumi-network/sokosumi/commit/0c5325a29670f99c975666faeb0506f99da9c1c0))
+* **chat:** ground meeting briefs in the invite and identify agent senders ([#7670](https://github.com/masumi-network/sokosumi/issues/7670)) ([8a23913](https://github.com/masumi-network/sokosumi/commit/8a23913cbc4aa6c656d16ace5a6ed6b407ce1b4f))
+* **chat:** show owner-safe assistant turn failures ([#7650](https://github.com/masumi-network/sokosumi/issues/7650)) ([5f4f6c2](https://github.com/masumi-network/sokosumi/commit/5f4f6c21edb8c26cc7b4a52543f076753fdb6ec7))
+* **core:** classify AI Gateway budget failures ([#7607](https://github.com/masumi-network/sokosumi/issues/7607)) ([5a877df](https://github.com/masumi-network/sokosumi/commit/5a877df483653356d76876ba283dec0505340cef))
+
 ## [1.2.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.1.1...macos-v1.2.0) (2026-10-19)
 
 
