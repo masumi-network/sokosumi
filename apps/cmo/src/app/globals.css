@@ -1994,6 +1994,22 @@ video.draft-media {
   display: none;
 }
 
+/* On a phone the suggestions keep to one row that scrolls sideways, so the
+   thread keeps its room above the composer. */
+@media (max-width: 860px) {
+  .suggest {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    /* Room for the chips' hard shadow inside the scroller. */
+    padding: 0 6px 6px 0;
+    scrollbar-width: none;
+  }
+
+  .suggest > * {
+    flex: none;
+  }
+}
+
 .composer {
   display: flex;
   flex-direction: column;
@@ -3930,6 +3946,14 @@ button.cal-card:hover {
   display: block;
   max-height: calc(1.25em * 6);
   overflow: hidden;
+}
+
+/* One card a row on a phone: a post's words take their own height, not a
+   picture's, so two lines leave no empty box under them. */
+@media (max-width: 560px) {
+  .cal-thumb.cal-words {
+    aspect-ratio: auto;
+  }
 }
 
 .cal-thumb img,
