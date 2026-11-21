@@ -2,7 +2,6 @@ import { getPrivateCachedMembershipVisibleRooms } from "@/app/components/private
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { chatSignalsService } from "@/lib/services/chat-signals.service";
 
-import { CatchUpTabs } from "../components/catch-up-tabs";
 import { DecisionsView } from "../components/decisions-view";
 
 /** Catch up's Decisions tab: decisions across the reader's rooms, read or not. */
@@ -18,13 +17,10 @@ export default async function ChatCatchUpDecisionsPage() {
   ]);
 
   return (
-    <>
-      <CatchUpTabs active="decisions" />
-      <DecisionsView
-        initialPage={initialPage}
-        initialRooms={roomsPage.rooms}
-        currentUserId={session.user.id}
-      />
-    </>
+    <DecisionsView
+      initialPage={initialPage}
+      initialRooms={roomsPage.rooms}
+      currentUserId={session.user.id}
+    />
   );
 }

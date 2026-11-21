@@ -198,7 +198,9 @@ export function DecisionsView({
           ) : null}
         </div>
       </div>
-      <p className="text-muted-foreground px-1 text-xs">{t("note")}</p>
+      {visible.length > 0 ? (
+        <p className="text-muted-foreground px-1 text-xs">{t("note")}</p>
+      ) : null}
     </div>
   );
 }
