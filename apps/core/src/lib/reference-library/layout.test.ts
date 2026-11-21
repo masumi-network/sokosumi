@@ -51,7 +51,20 @@ describe("pickBestPicture", () => {
       costUsd: 0.02,
     });
     const content = generateText.mock.calls[0]?.[0].messages[0].content;
-    expect(content).toHaveLength(4);
+    // The brief, then each image after its own label.
+    expect(
+      content.map(
+        (part: { type: string; text?: string }) => part.text ?? part.type,
+      ),
+    ).toEqual([
+      content[0].text,
+      "Layout:",
+      "file",
+      "Candidate 1:",
+      "file",
+      "Candidate 2:",
+      "file",
+    ]);
     expect(JSON.parse(content[0].text)).toMatchObject({
       brandLook: "Flat brand look.",
     });
