@@ -1,0 +1,189 @@
+import assert from "node:assert/strict";
+import { mkdirSync } from "node:fs";
+import { after, before, describe, test } from "node:test";
+
+import { type Browser, chromium, type Page } from "playwright";
+
+import { resolveBaseUrl } from "./base-url.ts";
+import { createMailbox } from "./mailbox.ts";
+
+// A new user's Files path, end to end: make a folder, upload an invented CSV,
+// turn the folder into a data room, fill its Company tab, then search a
+// Files Table with Find and replace from the keyboard. Each size signs up its
+// own disposable mail.tm inbox.
+const BASE_URL = resolveBaseUrl(process.env);
+const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
+const CSV = ["Item,Price", "Sourdough,6.50", "Rye loaf,5.80"].join("\n");
+
+const PROJECTS = [
+  { name: "phone", width: 375, height: 812, isMobile: true },
+  { name: "tablet", width: 768, height: 1024, isMobile: true },
+  { name: "desktop", width: 1440, height: 900, isMobile: false },
+];
+
+async function shot(page: Page, size: string, step: string) {
+  await page.screenshot({ path: `${RESULTS_DIR}drive-${size}-${step}.png` });
+}
+
+let browser: Browser;
+before(async () => {
+  mkdirSync(RESULTS_DIR, { recursive: true });
+  console.log(`E2E_BASE_URL=${BASE_URL}`);
+  browser = await chromium.launch();
+});
+after(() => browser.close());
+
+for (const { name: size, isMobile, ...viewport } of PROJECTS) {
+  describe(size, () => {
+    test("a new user files a CSV, fills a data room's Company tab and searches a table by keyboard", async () => {
+      const context = await browser.newContext({
+        viewport,
+        isMobile,
+        hasTouch: isMobile,
+      });
+      const page = await context.newPage();
+      page.setDefaultTimeout(30_000);
+      const errors: string[] = [];
+      page.on("pageerror", (e) => errors.push(e.message));
+
+      const mailbox = await createMailbox();
+      await page.goto(`${BASE_URL}/signup`);
+      await page.getByLabel("Email").fill(mailbox.address);
+      await page.getByRole("button", { name: "Continue with email" }).click();
+      await page.getByLabel("First name").fill("E2E");
+      await page.getByLabel("Last name").fill("Tester");
+      await page
+        .getByLabel("Code from the email")
+        .fill(await mailbox.nextCode());
+      await page.getByRole("button", { name: "Register" }).click();
+      await page.getByRole("button", { name: "Continue" }).click();
+      await page.getByRole("link", { name: "Later" }).click();
+      await page.waitForURL(`${BASE_URL}/`);
+
+      // A folder with one file in it.
+      await page.goto(`${BASE_URL}/drive?view=workspace`);
+      await page
+        .getByRole("tab", { name: "Workspace", selected: true })
+        .waitFor();
+      await shot(page, size, "0-workspace");
+      // The toolbar can take a click before it hydrates; try again until the dialog opens.
+      const folderDialog = page.getByRole("dialog", {
+        name: "Create new folder",
+      });
+      const more = page.getByRole("button", { name: "More actions" });
+      for (let attempt = 0; attempt < 5; attempt++) {
+        if (await more.isVisible()) {
+          await more.click();
+          await page.getByRole("menuitem", { name: "New" }).click();
+        } else {
+          await page.getByRole("button", { name: "New", exact: true }).click();
+        }
+        if (
+          await folderDialog
+            .waitFor({ timeout: 3_000 })
+            .then(() => true)
+            .catch(() => false)
+        )
+          break;
+      }
+      await folderDialog.getByRole("textbox").fill("E2E launch");
+      await page.keyboard.press("Enter");
+      await page.waitForURL(/folder=E2E/);
+      await page
+        .locator('input[type="file"]:not([webkitdirectory])')
+        .setInputFiles({
+          name: "prices.csv",
+          mimeType: "text/csv",
+          buffer: Buffer.from(CSV),
+        });
+      const fileLink = page.getByRole("link", { name: "prices.csv" });
+      await fileLink.waitFor();
+      const box = await fileLink.boundingBox();
+      assert.ok(
+        box && box.height >= 24,
+        `file name link is ${box?.height}px tall`,
+      );
+      await shot(page, size, "1-folder");
+
+      // The folder becomes a data room; its Company tab checks emails.
+      await page
+        .getByRole("button", { name: "Data room for E2E launch" })
+        .click();
+      await page.getByRole("button", { name: "Make data room" }).click();
+      await page.waitForURL(/\/drive\/data-rooms\//);
+      await page.getByRole("tab", { name: "Company" }).click();
+      const legalName = page.getByLabel("Legal name");
+      const email = page.getByLabel("Legal contact email");
+      const save = page.getByRole("button", { name: "Save company details" });
+      const saved = page.getByText("Company details saved");
+      await legalName.fill("E2E Bakery GmbH");
+      await email.fill("legal-at-e2e");
+      await save.click();
+      assert.equal(
+        await email.evaluate((field) => field.matches(":invalid")),
+        true,
+        "a malformed email is invalid",
+      );
+      await page.waitForTimeout(1_000);
+      assert.equal(await saved.count(), 0, "a malformed email is not saved");
+      assert.equal(
+        await email.evaluate((field) => {
+          const { left, top, width, height } = field.getBoundingClientRect();
+          return (
+            document.elementFromPoint(left + width / 2, top + height / 2) ===
+            field
+          );
+        }),
+        true,
+        "the invalid email field is not hidden under the header",
+      );
+      await shot(page, size, "2-invalid-email");
+      await email.fill("legal@e2e.example");
+      await save.click();
+      await saved.first().waitFor();
+      await shot(page, size, "3-saved");
+
+      // A Files Table, searched from the keyboard: the Find field keeps focus.
+      await page.goto(`${BASE_URL}/drive?view=tables`);
+      await page.getByRole("button", { name: "New table" }).click();
+      const create = page.getByRole("dialog", { name: "New table" });
+      await create.getByLabel("Title").fill("Price list");
+      await create.locator('input[type="file"]').setInputFiles({
+        name: "prices.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from(CSV),
+      });
+      await create.getByText("Map columns and preview").waitFor();
+      await create.getByRole("button", { name: "Create table" }).click();
+      await page.waitForURL(/\/drive\/tables\//);
+      await page.getByText("Rye loaf", { exact: true }).waitFor();
+      await page.getByRole("button", { name: "Table options" }).click();
+      await page.getByRole("menuitem", { name: "Find and replace" }).click();
+      const dialog = page.getByRole("dialog", { name: "Find and replace" });
+      const find = dialog.getByLabel("Find");
+      await find.click();
+      await page.keyboard.type("rye");
+      await page.keyboard.press("Enter");
+      await dialog.getByText("No cell in this column holds exactly").waitFor();
+      await page.keyboard.type(" loaf");
+      assert.equal(
+        await find.inputValue(),
+        "rye loaf",
+        `typing after Enter landed in ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 120))}`,
+      );
+      await page.keyboard.press("Enter");
+      await dialog.getByText("1 cell will change.").waitFor();
+      await shot(page, size, "4-find-keyboard");
+      await page.keyboard.press("Escape");
+
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      await context.close();
+      assert.equal(overflow, 0, `page overflows by ${overflow}px`);
+      assert.deepEqual(errors, []);
+    });
+  });
+}
