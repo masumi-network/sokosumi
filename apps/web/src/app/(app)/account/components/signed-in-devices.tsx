@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Monitor, Smartphone } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -28,17 +29,14 @@ import {
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth/auth.client";
 import {
+  listMySessions,
+  signOutMySession,
+} from "@/lib/services/user-sessions.browser";
+import {
   getBrowserFromUserAgent,
   getOSFromUserAgent,
   type OS,
 } from "@/lib/utils/user-agent";
-
-interface DeviceSession {
-  id: string;
-  token: string;
-  userAgent?: string | null;
-  createdAt: Date | string;
-}
 
 const OS_NAMES: Record<OS, string | null> = {
   "Windows Phone": "Windows Phone",
@@ -50,28 +48,17 @@ const OS_NAMES: Record<OS, string | null> = {
   Unknown: null,
 };
 
-interface SignedInDevicesProps {
-  /** The session this page was loaded with, shown as "This device". */
-  currentSessionId: string | null;
-}
-
-export function SignedInDevices({ currentSessionId }: SignedInDevicesProps) {
+export function SignedInDevices() {
   const t = useTranslations("App.Account.SignedInDevices");
   const formatter = useFormatter();
-  const [revokingToken, setRevokingToken] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [revokingOthers, setRevokingOthers] = useState(false);
-  const busy = revokingToken !== null || revokingOthers;
+  const busy = revokingId !== null || revokingOthers;
 
   const sessionsQuery = useQuery({
     queryKey: ["account", "sessions"],
-    queryFn: async (): Promise<DeviceSession[]> => {
-      const result = await authClient.listSessions();
-      if (result.error) {
-        throw new Error(result.error.message || "Failed to load sessions");
-      }
-      return result.data ?? [];
-    },
+    queryFn: listMySessions,
     retry: false,
     staleTime: 0,
     refetchOnWindowFocus: false,
@@ -79,11 +66,10 @@ export function SignedInDevices({ currentSessionId }: SignedInDevicesProps) {
 
   const sessions = [...(sessionsQuery.data ?? [])].sort(
     (left, right) =>
-      Number(right.id === currentSessionId) -
-        Number(left.id === currentSessionId) ||
+      Number(right.current) - Number(left.current) ||
       new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   );
-  const hasOthers = sessions.some((session) => session.id !== currentSessionId);
+  const hasOthers = sessions.some((session) => !session.current);
 
   function deviceLabel(userAgent?: string | null) {
     const browser = getBrowserFromUserAgent(userAgent ?? "");
@@ -92,20 +78,16 @@ export function SignedInDevices({ currentSessionId }: SignedInDevicesProps) {
     return browser ?? os ?? t("unknownDevice");
   }
 
-  async function handleSignOut(token: string) {
-    setRevokingToken(token);
+  async function handleSignOut(sessionId: string) {
+    setRevokingId(sessionId);
     try {
-      const result = await authClient.revokeSession({ token });
-      if (result.error) {
-        toast.error(t("signOutError"));
-        return;
-      }
+      await signOutMySession(sessionId);
       await sessionsQuery.refetch();
       toast.success(t("signedOut"));
     } catch {
       toast.error(t("signOutError"));
     } finally {
-      setRevokingToken(null);
+      setRevokingId(null);
     }
   }
 
@@ -130,8 +112,21 @@ export function SignedInDevices({ currentSessionId }: SignedInDevicesProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
+        <CardTitle>
+          <h2>{t("title")}</h2>
+        </CardTitle>
+        <CardDescription>
+          {t.rich("description", {
+            link: (chunks) => (
+              <Link
+                href="/account/notifications"
+                className="text-foreground underline underline-offset-4"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {sessionsQuery.isPending ? (
@@ -158,7 +153,7 @@ export function SignedInDevices({ currentSessionId }: SignedInDevicesProps) {
           <ul className="flex flex-col divide-y rounded-lg border">
             {sessions.map((session) => {
               const label = deviceLabel(session.userAgent);
-              const isCurrent = session.id === currentSessionId;
+              const isCurrent = session.current;
               const Icon = getOSFromUserAgent(session.userAgent ?? "").isMobile
                 ? Smartphone
                 : Monitor;
@@ -196,10 +191,10 @@ export function SignedInDevices({ currentSessionId }: SignedInDevicesProps) {
                       size="sm"
                       className="shrink-0"
                       disabled={busy}
-                      loading={revokingToken === session.token}
+                      loading={revokingId === session.id}
                       aria-label={t("signOutDevice", { device: label })}
                       onClick={() => {
-                        void handleSignOut(session.token);
+                        void handleSignOut(session.id);
                       }}
                     >
                       {t("signOut")}

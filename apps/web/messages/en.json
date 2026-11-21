@@ -8306,7 +8306,7 @@
       },
       "SignedInDevices": {
         "title": "Signed-in devices",
-        "description": "Browsers where your account is signed in right now. A device you sign out can stay open for a few minutes.",
+        "description": "Browsers where your account is signed in right now. A device you sign out can stay open for a few minutes, and keeps getting notifications until you remove it under <link>Notifications</link>.",
         "loading": "Loading devices…",
         "loadError": "We could not load your devices right now.",
         "retry": "Retry",

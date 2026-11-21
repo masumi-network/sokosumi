@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TestQueryProvider } from "@/test/query-provider";
 
@@ -16,8 +17,22 @@ vi.mock("next-intl", async () => {
   const formatter = createTestFormatter();
   return {
     useFormatter: () => formatter,
-    useTranslations: () => (key: string, values?: Record<string, string>) =>
-      values ? `${key}(${Object.values(values).join(",")})` : key,
+    useTranslations: () =>
+      Object.assign(
+        (key: string, values?: Record<string, string>) =>
+          values ? `${key}(${Object.values(values).join(",")})` : key,
+        {
+          rich: (
+            key: string,
+            values: { link: (chunks: ReactNode) => ReactNode },
+          ) => (
+            <>
+              {key}
+              {values.link("link")}
+            </>
+          ),
+        },
+      ),
   };
 });
 
@@ -28,12 +43,19 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("next/link", () => ({
+  default: ({ children, href }: { children: ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
+
+vi.mock("@/lib/services/user-sessions.browser", () => ({
+  listMySessions: () => mockListSessions(),
+  signOutMySession: (id: string) => mockRevokeSession(id),
+}));
+
 vi.mock("@/lib/auth/auth.client", () => ({
-  authClient: {
-    listSessions: () => mockListSessions(),
-    revokeSession: (input: unknown) => mockRevokeSession(input),
-    revokeOtherSessions: () => mockRevokeOtherSessions(),
-  },
+  authClient: { revokeOtherSessions: () => mockRevokeOtherSessions() },
 }));
 
 const MAC_SAFARI =
@@ -43,13 +65,13 @@ const WINDOWS_EDGE =
 
 let sessions: Array<{
   id: string;
-  token: string;
   userAgent: string | null;
   createdAt: string;
+  current: boolean;
 }>;
 
 function renderDevices() {
-  return render(<SignedInDevices currentSessionId="current" />, {
+  return render(<SignedInDevices />, {
     wrapper: TestQueryProvider,
   });
 }
@@ -60,29 +82,37 @@ describe("SignedInDevices", () => {
     sessions = [
       {
         id: "other",
-        token: "other-token",
         userAgent: WINDOWS_EDGE,
         createdAt: "2026-11-20T09:00:00.000Z",
+        current: false,
       },
       {
         id: "current",
-        token: "current-token",
         userAgent: MAC_SAFARI,
         createdAt: "2026-11-01T09:00:00.000Z",
+        current: true,
       },
     ];
-    mockListSessions.mockImplementation(async () => ({
-      data: sessions,
-      error: null,
-    }));
-    mockRevokeSession.mockImplementation(async ({ token }) => {
-      sessions = sessions.filter((session) => session.token !== token);
-      return { data: { status: true }, error: null };
+    mockListSessions.mockImplementation(async () => sessions);
+    mockRevokeSession.mockImplementation(async (id: string) => {
+      sessions = sessions.filter((session) => session.id !== id);
     });
     mockRevokeOtherSessions.mockImplementation(async () => {
       sessions = sessions.filter((session) => session.id === "current");
       return { data: { status: true }, error: null };
     });
+  });
+
+  it("names the section as a heading and links to notification devices", async () => {
+    renderDevices();
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "title" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "link" })).toHaveAttribute(
+      "href",
+      "/account/notifications",
+    );
   });
 
   it("lists this device first, without a sign-out button", async () => {
@@ -105,7 +135,7 @@ describe("SignedInDevices", () => {
       }),
     );
 
-    expect(mockRevokeSession).toHaveBeenCalledWith({ token: "other-token" });
+    expect(mockRevokeSession).toHaveBeenCalledWith("other");
     await waitFor(() => {
       expect(screen.getAllByRole("listitem")).toHaveLength(1);
     });
@@ -130,10 +160,7 @@ describe("SignedInDevices", () => {
 
   it("keeps the device and says so when sign-out fails", async () => {
     const user = userEvent.setup();
-    mockRevokeSession.mockResolvedValueOnce({
-      data: null,
-      error: { message: "nope" },
-    });
+    mockRevokeSession.mockRejectedValueOnce(new Error("nope"));
     renderDevices();
 
     await user.click(
@@ -147,10 +174,7 @@ describe("SignedInDevices", () => {
   });
 
   it("offers a retry when the list does not load", async () => {
-    mockListSessions.mockResolvedValueOnce({
-      data: null,
-      error: { message: "down" },
-    });
+    mockListSessions.mockRejectedValueOnce(new Error("down"));
     renderDevices();
 
     expect(await screen.findByText("loadError")).toBeInTheDocument();

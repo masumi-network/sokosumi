@@ -24385,6 +24385,49 @@ export const NotificationPreferenceSchema = {
     ]
 } as const;
 
+export const UserSessionsSchema = {
+    type: 'object',
+    properties: {
+        sessions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/UserSession'
+            }
+        }
+    },
+    required: [
+        'sessions'
+    ]
+} as const;
+
+export const UserSessionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        userAgent: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        current: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'userAgent',
+        'createdAt',
+        'current'
+    ]
+} as const;
+
 export const UserWorkspacesSchema = {
     type: 'object',
     properties: {

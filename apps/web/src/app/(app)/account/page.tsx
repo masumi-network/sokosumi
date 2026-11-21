@@ -156,7 +156,6 @@ async function AccountPageContent() {
           }
           fallbackOrganizationId={members[0]?.organization.id ?? null}
           currentOrganizationId={session?.session.activeOrganizationId ?? null}
-          currentSessionId={session?.session.id ?? null}
           deletionBlockers={deletionBlockers}
           deletionPreflightFailed={deletionPreflightFailed}
           deletionPreflightLoadError={deletionPreflightLoadError}

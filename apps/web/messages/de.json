@@ -8270,7 +8270,7 @@
       },
       "SignedInDevices": {
         "title": "Angemeldete Geräte",
-        "description": "Browser, in denen dein Konto gerade angemeldet ist. Ein abgemeldetes Gerät kann noch einige Minuten offen bleiben.",
+        "description": "Browser, in denen dein Konto gerade angemeldet ist. Ein abgemeldetes Gerät kann noch einige Minuten offen bleiben und bekommt weiter Benachrichtigungen, bis du es unter <link>Benachrichtigungen</link> entfernst.",
         "loading": "Geräte werden geladen…",
         "loadError": "Wir konnten deine Geräte gerade nicht laden.",
         "retry": "Erneut versuchen",
