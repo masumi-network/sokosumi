@@ -159,6 +159,22 @@ describe("isAuditPageUrl", () => {
   });
 });
 
+describe("holdsCredentialField", () => {
+  it("reads a 200,000-element array without a stack overflow", () => {
+    const long = Array.from({ length: 200_000 }, (_, index) => index);
+    expect(holdsCredentialField(long)).toBe(false);
+  });
+
+  it("allows the pagination key nextPageToken and no other token key", () => {
+    expect(holdsCredentialField({ rows: [], nextPageToken: "x" })).toBe(false);
+    expect(holdsCredentialField({ rows: [], next_page_token: "x" })).toBe(
+      false,
+    );
+    expect(holdsCredentialField({ rows: [], accessToken: "x" })).toBe(true);
+    expect(holdsCredentialField({ rows: [], pageToken: "x" })).toBe(true);
+  });
+});
+
 describe("gscTaskReplyBody", () => {
   it("keeps only the approved property in the site list, with a null permission level", () => {
     const data = {
@@ -191,6 +207,24 @@ describe("gscTaskReplyBody", () => {
         data: JSON.stringify(body),
       }),
     ).toEqual({ status: 200, body });
+  });
+
+  it("accepts an analytics reply with only metadata, and refuses a metadata value that is no object", () => {
+    const metadata = { firstIncompleteDate: "2026-11-19" };
+    expect(
+      gscTaskReplyBody(analytics({ dataState: "all" }), PROPERTY, {
+        successful: true,
+        data: { metadata },
+      }),
+    ).toEqual({ status: 200, body: { metadata } });
+    for (const data of [{ metadata: 1 }, { metadata: [metadata] }])
+      expect(
+        replyStatus(() => gscTaskReplyBody(analytics(), PROPERTY, data)),
+        JSON.stringify(data),
+      ).toBe(502);
+    expect(
+      replyStatus(() => gscTaskReplyBody(inspect, PROPERTY, { metadata })),
+    ).toBe(502);
   });
 
   it("returns the whole inspection result", () => {

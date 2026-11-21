@@ -112,6 +112,11 @@ const CREDENTIAL_KEY_PARTS = [
   "connectedaccountid",
   "authconfigid",
 ];
+/** Exact normalized names that hold a credential part but are no credential. */
+const CREDENTIAL_KEY_NAMES_ALLOWED = new Set([
+  // Pagination key of Google list replies and provider wrappers.
+  "nextpagetoken",
+]);
 
 /** True when any object key at any depth names a credential. */
 export function holdsCredentialField(value: unknown): boolean {
@@ -120,12 +125,17 @@ export function holdsCredentialField(value: unknown): boolean {
     const item = stack.pop();
     if (item === null || typeof item !== "object") continue;
     if (Array.isArray(item)) {
-      stack.push(...item);
+      // A spread of a very long array overflows the call stack.
+      for (const child of item) stack.push(child);
       continue;
     }
     for (const [key, child] of Object.entries(item)) {
       const name = key.replace(/[_-]/g, "").toLowerCase();
-      if (CREDENTIAL_KEY_PARTS.some((part) => name.includes(part))) return true;
+      if (
+        !CREDENTIAL_KEY_NAMES_ALLOWED.has(name) &&
+        CREDENTIAL_KEY_PARTS.some((part) => name.includes(part))
+      )
+        return true;
       stack.push(child);
     }
   }
@@ -195,8 +205,15 @@ export function gscTaskReplyBody(
     throw badGateway("The Search Console reply was refused");
   const unsupported = () =>
     badGateway("The Search Console reply has an unsupported format");
+  // An analytics reply with no rows may hold only `metadata`.
+  const onlyMetadata =
+    read.operation === "searchAnalytics.query" &&
+    typeof body.metadata === "object" &&
+    body.metadata !== null &&
+    !Array.isArray(body.metadata);
   // A renamed envelope must not read as "no rows". An empty object still does.
   if (
+    !onlyMetadata &&
     !keys.some((key) => Object.hasOwn(body, key)) &&
     Object.keys(body).some((key) => key !== "kind")
   )
