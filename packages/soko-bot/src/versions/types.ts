@@ -30,6 +30,12 @@ export interface SokoBotVersion {
   strongModel?: string;
   systemPrompt: string;
   skills: readonly string[];
+  /**
+   * `send_message`: the bot reaches anyone through send_message and
+   * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
+   * Omitted: the reverse, as every version before v35 was written.
+   */
+  messaging?: "send_message";
   /** Tool allowlist on top of the route ceiling; omit for all. */
   capabilities?: readonly SokoBotCapability[];
   /** AI Gateway regional inference pin; omit for global routing. */

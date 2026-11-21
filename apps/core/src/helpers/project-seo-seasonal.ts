@@ -70,18 +70,46 @@ export function completeKeywordMonths(input: unknown, asOf: string) {
 export function readSeasonalInsight(raw: unknown): SeasonalIdea | null {
   const parsed = seoSeasonalIdeaSchema.safeParse(raw);
   if (!parsed.success) return null;
-  const { observedMonths: _supplied, ...idea } = parsed.data;
+  const {
+    observedMonths: _supplied,
+    contentPlan,
+    trendComparison,
+    ...idea
+  } = parsed.data;
   const months = observedMonths(raw, idea);
-  const supported = validateEarlierCycles(idea, months ?? []);
-  return months ? { ...supported, observedMonths: months } : supported;
+  const supported = validateEarlierCycles(
+    idea,
+    months ?? [],
+    Boolean(contentPlan?.experiment),
+  );
+  const comparisons = trendComparison?.filter(
+    (row) =>
+      supported.windows.some(
+        (w) => w.historicalPeriod === row.historicalPeriod,
+      ) &&
+      trendComparison.filter(
+        (other) => other.historicalPeriod === row.historicalPeriod,
+      ).length === 1,
+  );
+  return {
+    ...supported,
+    ...(months && { observedMonths: months }),
+    ...(contentPlan && !idea.origin && { contentPlan }),
+    ...(comparisons?.length &&
+      !idea.marketBasis && { trendComparison: comparisons }),
+  };
 }
 
 /** Only an update to the audited page with a measured rise, and no open doubt besides timing, becomes work. */
 export function seasonalIdeaAction(idea: SeasonalIdea) {
+  const experiment = idea.contentPlan?.experiment;
   if (
+    (!experiment &&
+      idea.contentPlan &&
+      idea.contentPlan.disposition !== "clarify") ||
     idea.marketBasis ||
     idea.origin === "market_history" ||
-    idea.action !== "improve_existing_page" ||
+    (!experiment && idea.action !== "improve_existing_page") ||
     idea.limitations.some((limit) => limit !== "timing_uncertain")
   )
     return null;
@@ -108,6 +136,9 @@ export function seasonalIdeaAction(idea: SeasonalIdea) {
     idea.language,
     auditedSeoPageKey(idea.url),
     idea.keyword.normalize("NFKC").toLowerCase().trim(),
+    ...(experiment && idea.action === "investigate_angle"
+      ? ["editorial_test"]
+      : []),
     idea.event?.name ?? null,
     idea.event?.date ?? [...new Set(windows.map((w) => w.targetPeriod))].sort(),
   ]);
@@ -115,6 +146,7 @@ export function seasonalIdeaAction(idea: SeasonalIdea) {
     ? `${idea.event.name} on ${idea.event.date}`
     : windows.map((w) => w.targetPeriod).join(", ");
   const evidence = [
+    ...(idea.contentPlan ? [idea.contentPlan.passage] : []),
     `Page quote: "${idea.pageQuote}"`,
     ...(idea.event && comparison?.baselineMedian != null
       ? [comparison.leadMonth, comparison.eventMonth].flatMap((row) =>
@@ -132,9 +164,16 @@ export function seasonalIdeaAction(idea: SeasonalIdea) {
   return {
     id: "seasonal:" + createHash("sha256").update(identity).digest("hex"),
     pageUrl: idea.url,
-    title: `Update the page for "${idea.keyword}" before ${timing}`,
-    why: `The audited page covers this search for ${idea.audience}. Last year, estimated searches for "${idea.keyword}" rose ${idea.event ? `around ${idea.event.name}` : "in the same months"}. This is a timing suggestion, not a forecast.`,
+    title:
+      idea.contentPlan?.nextStep ??
+      `Update the page for "${idea.keyword}" before ${timing}`,
+    why: experiment
+      ? `Working hypothesis: ${experiment.hypothesis} Target queries to test: ${experiment.targetQueries.join(", ")}. Planning window: ${timing}.`
+      : idea.contentPlan
+        ? `Review the reader task “${idea.contentPlan.readerTask}” for ${timing}. The timing comes from earlier local search estimates.`
+        : `The audited page covers this search for ${idea.audience}. Last year, estimated searches for "${idea.keyword}" rose ${idea.event ? `around ${idea.event.name}` : "in the same months"}. This is a timing suggestion, not a forecast.`,
     expectedEffect:
+      experiment?.successCheck ??
       "Hypothesis: an existing page that answers this search before the season can earn more of its visits. Compare the next season; no traffic change is promised.",
     edit: null,
     effort: "unknown" as const,

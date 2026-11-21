@@ -12007,6 +12007,22 @@ export type ProjectSeoWorkspace = {
         language: string;
         pageQuote: string;
         action: 'improve_existing_page' | 'investigate_angle';
+        trendComparison?: Array<{
+            historicalPeriod: string;
+            peak: boolean;
+        }>;
+        keywordIdeas?: Array<string>;
+        contentPlan?: {
+            disposition: 'clarify' | 'keep' | 'inspect';
+            readerTask: string;
+            passage: string;
+            experiment?: {
+                hypothesis: string;
+                targetQueries: Array<string>;
+                successCheck: string;
+            } | null;
+            nextStep: string;
+        };
         limitations: Array<'demand_unverified' | 'timing_uncertain' | 'audience_fit_uncertain' | 'offer_unverified' | 'existing_page_may_cover'>;
         event: {
             name: string;
@@ -12257,6 +12273,35 @@ export type ProjectSeoObservation = {
     rulebookVersion: string;
     artifactHash: string;
     issues: number;
+    planCandidates?: Array<{
+        kind: 'access' | 'completion' | 'broken_link' | 'repair' | 'content' | 'internal_link' | 'experiment';
+        pageUrl: string;
+        title: string;
+        reason: string;
+        evidence: Array<string>;
+        nextCheck?: string;
+        alternative?: string;
+        severity?: 'critical' | 'major' | 'minor';
+        destinations?: Array<string>;
+        actionId?: string;
+        queries?: Array<string>;
+        season?: {
+            country: string;
+            through: Date;
+            windows?: Array<{
+                month: string;
+                peaks: Array<string>;
+            }>;
+            pageGap?: boolean;
+        };
+    }>;
+    planSignals?: Array<{
+        query: string;
+        pageUrl: string;
+        source: 'gap' | 'rank' | 'editorial' | 'trend' | 'trend_flat' | 'covered' | 'season';
+        evidence: string;
+        peaks?: Array<string>;
+    }>;
     checklistBreakdown?: {
         passed: number | null;
         flagged: number | null;
@@ -12384,6 +12429,10 @@ export type ProjectSeoKeyword = {
     editorial?: {
         models: Array<'gemini' | 'codex'>;
         record: string;
+        angle?: {
+            quote: string;
+            nextStep: string;
+        };
     };
     ideaRank?: number | null;
     difficulty: number | null;
@@ -13171,6 +13220,7 @@ export type SeoAuditBrief = {
         role: 'guide' | 'product' | 'pricing' | 'support' | 'comparison' | 'other' | null;
         job: string | null;
         action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
+        completionEvent?: string;
         indexIntent: 'index' | 'exclude' | 'unknown';
     }>;
     revision: number;
@@ -13183,13 +13233,13 @@ export type SeoAuditBrief = {
             from: string;
             to: string;
             count: number;
-            event: 'purchase' | 'sign_up';
+            event: string;
             timeZone: string;
         };
         goalInvestigation?: {
             pageUrl: string;
             timeZone: string;
-            event: 'purchase' | 'sign_up';
+            event: string;
             before: {
                 from: string;
                 to: string;
@@ -13215,10 +13265,10 @@ export type SeoAuditBrief = {
                 };
             };
             weekdayMix?: 'uneven';
-            assessment: 'both_declined' | 'organic_declined' | 'goal_held';
+            assessment: 'both_declined' | 'organic_declined' | 'goal_held' | 'handoff';
         };
         outcomes?: Array<{
-            event: 'purchase' | 'sign_up';
+            event: string;
             latest: {
                 from: string;
                 to: string;
@@ -13257,6 +13307,7 @@ export type SaveSeoAuditBriefRequest = {
         role: 'guide' | 'product' | 'pricing' | 'support' | 'comparison' | 'other' | null;
         job: string | null;
         action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
+        completionEvent?: string;
         indexIntent: 'index' | 'exclude' | 'unknown';
     }>;
     expectedRevision: number;

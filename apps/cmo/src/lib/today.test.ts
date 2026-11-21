@@ -202,7 +202,7 @@ it("counts a post that did not go out on its own and asks the owner to look", ()
   const failed = {
     ...first,
     status: "draft" as const,
-    notSent: "X refused it: Your monthly spend cap has been reached.",
+    notSent: "LinkedIn refused it.",
   };
   const strategy = overview.strategy
     ? { ...overview.strategy, calendar: [failed, ...rest] }
@@ -212,7 +212,7 @@ it("counts a post that did not go out on its own and asks the owner to look", ()
   expect(needsYou(withFailed)).toContainEqual({
     id: "not-sent",
     title: "1 post didn't go out",
-    detail: "X refused it: Your monthly spend cap has been reached.",
+    detail: "LinkedIn refused it.",
     action: "See post",
     view: "calendar",
     entryId: first.id,
@@ -266,4 +266,24 @@ it("counts the month once, as it goes out, whatever Core's run still makes", () 
       },
     }),
   ).toEqual({ ready: 2, total: 3 });
+});
+
+it("leaves a post X paused out of Needs you: it is still scheduled, and Core retries it", () => {
+  const overview = cmoOverview();
+  const [first, ...rest] = overview.strategy?.calendar ?? [];
+  if (!first) throw new Error("fixture has an entry");
+  const paused = {
+    ...first,
+    status: "scheduled" as const,
+    notSent: "X paused our posting for now; Cuso will try again.",
+  };
+  const strategy = overview.strategy
+    ? { ...overview.strategy, calendar: [paused, ...rest] }
+    : null;
+  const held = { ...overview, strategy, approvedStrategy: strategy };
+  expect(needsYou(held).map((item) => item.id)).not.toContain("not-sent");
+  expect(monthProgress(monthEntries(held))).toMatchObject({
+    notSent: 0,
+    scheduled: 1,
+  });
 });

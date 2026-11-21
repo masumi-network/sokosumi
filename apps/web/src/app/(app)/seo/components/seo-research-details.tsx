@@ -15,6 +15,11 @@ export function SeoResearchDetails({
 }: Pick<Research, "firstScreen" | "trends">) {
   const format = useSeoResultFormatter();
   const t = useSeoResultTranslations("App.Seo");
+  const signal = trends?.keywords.find(
+    (row) =>
+      row.status === "read" &&
+      (row.trend === "rising" || row.trend === "falling"),
+  );
   return (
     <>
       {firstScreen && (
@@ -35,6 +40,11 @@ export function SeoResearchDetails({
           </p>
           <p className="text-muted-foreground text-sm">{firstScreen.reason}</p>
         </details>
+      )}
+      {signal && (signal.trend === "rising" || signal.trend === "falling") && (
+        <p lang="en" className="mt-2 text-sm">
+          {t(`keywords.planning.${signal.trend}`, { keyword: signal.keyword })}
+        </p>
       )}
       {trends && trends.keywords.length > 0 && (
         <details className="border-t py-1" lang="en">

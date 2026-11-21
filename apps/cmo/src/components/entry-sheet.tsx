@@ -10,7 +10,8 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
+import { useEntryFiledText } from "../hooks/effects/use-entry-filed-text";
 import { useEventListener } from "../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../lib/agent";
 import { channelLabel, formatDay, isSocialProvider } from "../lib/calendar";
@@ -63,21 +64,7 @@ export function EntrySheet({
   onNext?: () => void;
 }) {
   const filed = Boolean(entry.fileId && !entry.draft);
-  const [filedText, setFiledText] = useState<string | null>(null);
-  useEffect(() => {
-    // Stepping to another piece must not show the last one's words.
-    setFiledText(null);
-    if (!filed || !loadText) return;
-    let current = true;
-    loadText(entry.id)
-      .then((text) => {
-        if (current) setFiledText(text);
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [entry.id, filed, loadText]);
+  const filedText = useEntryFiledText(entry.id, filed, loadText);
   const draft = entry.draft ?? filedText;
   useEventListener("window", "keydown", (event) => {
     if (event.key === "Escape") onClose();

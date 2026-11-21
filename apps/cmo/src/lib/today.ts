@@ -55,6 +55,11 @@ export function monthMade(overview: CmoOverview): {
   };
 }
 
+/** Failed or missed its time: written, with Core's reason why it did not go out. */
+function didNotGoOut(entry: Entry): boolean {
+  return entry.status === "draft" && Boolean(entry.notSent);
+}
+
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? `1 ${one}` : `${count} ${many}`;
 }
@@ -113,7 +118,9 @@ export function needsYou(overview: CmoOverview): NeedsYou[] {
       view: "calendar",
     });
   }
-  const notSent = monthEntries(overview).filter((entry) => entry.notSent);
+  // A post a network's pause moved on is still scheduled: Core retries it,
+  // nothing for the owner to do.
+  const notSent = monthEntries(overview).filter(didNotGoOut);
   const [first] = notSent;
   if (first?.notSent) {
     items.push({
@@ -196,12 +203,13 @@ export function monthProgress(month: Entry[]): MonthProgress {
   // Ads are launched by the owner and never go out as posts.
   const entries = month.filter((entry) => !isAd(entry));
   const count = (status: Entry["status"]) =>
-    entries.filter((entry) => entry.status === status && !entry.notSent).length;
+    entries.filter((entry) => entry.status === status && !didNotGoOut(entry))
+      .length;
   return {
     out: count("published"),
     scheduled: count("scheduled"),
     written: count("draft"),
-    notSent: entries.filter((entry) => entry.notSent).length,
+    notSent: entries.filter(didNotGoOut).length,
     planned: count("idea"),
     total: entries.length,
   };

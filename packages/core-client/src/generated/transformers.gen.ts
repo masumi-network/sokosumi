@@ -4586,6 +4586,14 @@ const projectSeoPageSchemaResponseTransformer = (data: any) => {
 
 const projectSeoObservationSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
+    if (data.planCandidates) {
+        data.planCandidates = data.planCandidates.map((item: any) => {
+            if (item.season) {
+                item.season.through = new Date(item.season.through);
+            }
+            return item;
+        });
+    }
     return data;
 };
 
