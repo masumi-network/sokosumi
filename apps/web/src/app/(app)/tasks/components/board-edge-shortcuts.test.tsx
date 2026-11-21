@@ -99,6 +99,25 @@ describe("BoardEdgeShortcuts", () => {
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
 
+  // The row scrolls sideways, so it clips anything drawn outside a button:
+  // the focus ring sits inside the pill instead of around it.
+  it("draws each shortcut's focus ring inside the button", () => {
+    const { rerender } = render(<Board />);
+    layOut(screen.getByTestId("scroller"));
+    rerender(<Board />);
+    act(() => {
+      fireEvent.scroll(screen.getByTestId("scroller"));
+    });
+    const button = screen.getByRole("button", { name: /Done/ });
+    expect(button).toHaveClass(
+      "focus-visible:inset-ring-2",
+      "focus-visible:inset-ring-ring",
+      "focus-visible:ring-0",
+      "focus-visible:ring-offset-0",
+    );
+    expect(button).not.toHaveClass("focus-visible:ring-2");
+  });
+
   // The shortcuts sit in their own row above the columns, never over a card,
   // and the row keeps its height whether or not it has shortcuts.
   it("keeps the shortcuts in a reserved row outside the scrolling board", () => {
