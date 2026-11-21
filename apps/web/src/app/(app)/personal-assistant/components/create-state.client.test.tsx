@@ -113,6 +113,22 @@ describe("CreateState", () => {
     expect(back.parentElement?.className).toContain("sticky");
   });
 
+  it("says a name is needed in the page, not a browser bubble, when it is empty", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    const input = screen.getByLabelText("Name");
+
+    // Without `noValidate` the browser blocks the submit with its own bubble first.
+    expect(input).toBeRequired();
+    expect(input.closest("form")).toHaveAttribute("novalidate");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription("Enter a name.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter a name.");
+    expect(input).toHaveFocus();
+  });
+
   it("says a name is needed when it holds only spaces", async () => {
     const user = userEvent.setup();
     renderCreate();

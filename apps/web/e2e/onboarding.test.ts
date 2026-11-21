@@ -114,6 +114,12 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.getByRole("button", { name: "Continue" }).click();
 
       await expectStep(page, /\/setup\/assistant$/, "Name your Soko Bot");
+      // An empty name gets the page's own error, not the browser's bubble.
+      await page.getByRole("button", { name: "Continue" }).click();
+      await page
+        .getByRole("alert")
+        .filter({ hasText: "Enter a name." })
+        .waitFor();
       await page.getByRole("textbox", { name: "Name" }).fill(BOT);
       await page.getByRole("button", { name: "Continue" }).click();
       await page
