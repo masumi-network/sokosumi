@@ -26,8 +26,8 @@ vi.mock("@/app/components/project-scope/use-project-scope", () => ({
 import {
   ACTIVE_WINDOW_MS,
   WARM_INTERVAL_MS,
-  WarmLikelyPages,
-} from "./warm-likely-pages.client";
+} from "@/hooks/effects/use-warm-likely-pages";
+import { WarmLikelyPages } from "./warm-likely-pages.client";
 
 const FULL = expect.objectContaining({ kind: "full" });
 

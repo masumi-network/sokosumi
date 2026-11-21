@@ -8,10 +8,8 @@ import {
   ROOM_CONTENT_COLUMN_CLASSNAME,
   ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
 } from "@/app/chat/components/room-message-list-skeleton";
-import {
-  useRoomPanelSlide,
-  useRoomPanelSlideOut,
-} from "@/app/chat/components/use-room-panel-slide";
+import { useRoomPanelSlide } from "@/app/chat/components/use-room-panel-slide";
+import { useRoomPanelSlideOut } from "@/hooks/effects/use-room-panel-slide-out";
 import { cn } from "@/lib/utils";
 
 /** Root height for open room (no mobile tab bar). Instant + live must match. */
