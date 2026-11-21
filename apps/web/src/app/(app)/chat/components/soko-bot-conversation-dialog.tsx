@@ -131,6 +131,21 @@ export function SokoBotConversationButton({
                     <p className="text-sm whitespace-pre-wrap">{step.text}</p>
                   )}
                   <StepMeta step={step} />
+                  {step.kind === "turn" && step.modelReason ? (
+                    <p className="text-muted-foreground text-xs">
+                      {step.modelReason}
+                    </p>
+                  ) : null}
+                  {step.kind === "turn" && step.calls.length > 0 ? (
+                    <ul className="text-muted-foreground font-mono text-xs tabular-nums">
+                      {step.calls.map((group) => (
+                        <li key={`${group.role}-${group.model}`}>
+                          {group.role} · {group.model} ×{group.calls} ·{" "}
+                          {usd(group.costUsd)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </li>
               ))}
             </ol>
