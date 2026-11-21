@@ -6,10 +6,9 @@ import "../onboarding/onboarding.css";
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import { useCallback, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useCmoAppInitialUrl } from "../../hooks/effects/use-cmo-app-initial-url";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
-import { useInterval } from "../../hooks/effects/use-interval";
 import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
@@ -315,11 +314,17 @@ export function CmoApp({
     setMessages(state.messages);
   }, [actions]);
 
-  const poll = useCallback(() => {
-    if (document.visibilityState === "visible") void refresh();
+  useEffect(() => {
+    const poll = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const timer = window.setInterval(poll, POLL_MS);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", poll);
+    };
   }, [refresh]);
-  useInterval(poll, POLL_MS, { resetKey: refresh });
-  useEventListener("document", "visibilitychange", poll);
 
   const thread = buildThread(overview, messages, work);
   const threadLength = thread.length;

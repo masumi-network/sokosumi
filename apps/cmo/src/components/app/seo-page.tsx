@@ -7,8 +7,7 @@ import type {
   CmoSeoSuggestion,
 } from "@sokosumi/core-client";
 import { Check, Copy, Download, Loader2 } from "lucide-react";
-import { useCallback, useState } from "react";
-import { useInterval } from "../../hooks/effects/use-interval";
+import { useCallback, useEffect, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { seoLead } from "../../lib/page-lead";
 import {
@@ -655,10 +654,11 @@ export function SeoPage({
       setFailed(true);
     }
   }, [actions]);
-  useInterval(() => void refresh(), REFRESH_MS, {
-    immediate: true,
-    resetKey: refresh,
-  });
+  useEffect(() => {
+    void refresh();
+    const timer = setInterval(() => void refresh(), REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [refresh]);
 
   if (!seo)
     return (

@@ -30,15 +30,18 @@ describe("useAdCampaigns", () => {
   function Probe({
     connected,
     loadAdCampaigns,
+    onRender,
   }: {
     connected: boolean;
     loadAdCampaigns: (range: "LAST_7_DAYS") => Promise<AdAccounts>;
+    onRender?: (accounts: AdAccounts | null) => void;
   }) {
     const [accounts] = useAdCampaigns(connected, loadAdCampaigns);
+    onRender?.(accounts);
     return <span data-count={accounts === null ? "null" : accounts.length} />;
   }
 
-  it("loads when connected, falls back to empty array on error, and ignores late resolutions after unmount", async () => {
+  it("loads when connected and falls back to an empty array on error", async () => {
     const deferred = Promise.withResolvers<AdAccounts>();
     const loadAdCampaigns = vi.fn(() => deferred.promise);
 
@@ -75,5 +78,44 @@ describe("useAdCampaigns", () => {
     expect(container.querySelector("span")?.getAttribute("data-count")).toBe(
       "0",
     );
+  });
+
+  it("ignores a late resolution or rejection after unmount or cleanup", async () => {
+    const first = Promise.withResolvers<AdAccounts>();
+    const second = Promise.withResolvers<AdAccounts>();
+    const loadFirst = vi.fn(() => first.promise);
+    const loadSecond = vi.fn(() => second.promise);
+    const onRender = vi.fn<(accounts: AdAccounts | null) => void>();
+
+    await act(async () =>
+      root.render(
+        <Probe connected loadAdCampaigns={loadFirst} onRender={onRender} />,
+      ),
+    );
+
+    // Replace loader before first settles: first's late resolution must not win.
+    await act(async () =>
+      root.render(
+        <Probe connected loadAdCampaigns={loadSecond} onRender={onRender} />,
+      ),
+    );
+    await act(async () => {
+      first.resolve([{} as AdAccounts[number], {} as AdAccounts[number]]);
+      await Promise.resolve();
+    });
+    expect(container.querySelector("span")?.getAttribute("data-count")).toBe(
+      "null",
+    );
+
+    // Unmount before second settles: late resolution must be ignored.
+    const rendersBeforeUnmount = onRender.mock.calls.length;
+    await act(async () => root.unmount());
+    root = createRoot(container);
+
+    await act(async () => {
+      second.resolve([{} as AdAccounts[number]]);
+      await Promise.resolve();
+    });
+    expect(onRender).toHaveBeenCalledTimes(rendersBeforeUnmount);
   });
 });

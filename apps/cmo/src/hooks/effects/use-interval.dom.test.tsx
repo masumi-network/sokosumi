@@ -29,15 +29,11 @@ describe("useInterval (CMO)", () => {
   function Probe({
     callback,
     delayMs,
-    immediate,
-    resetKey,
   }: {
     callback: () => void;
     delayMs: number | null;
-    immediate?: boolean;
-    resetKey?: unknown;
   }) {
-    useInterval(callback, delayMs, { immediate, resetKey });
+    useInterval(callback, delayMs);
     return null;
   }
 
@@ -91,37 +87,5 @@ describe("useInterval (CMO)", () => {
     });
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);
-  });
-
-  it("runs immediately and restarts the timer when resetKey changes", async () => {
-    const callback = vi.fn();
-    await act(async () =>
-      root.render(
-        <Probe callback={callback} delayMs={1_000} immediate resetKey="a" />,
-      ),
-    );
-    expect(callback).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      vi.advanceTimersByTime(600);
-    });
-    expect(callback).toHaveBeenCalledTimes(1);
-
-    await act(async () =>
-      root.render(
-        <Probe callback={callback} delayMs={1_000} immediate resetKey="b" />,
-      ),
-    );
-    expect(callback).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      vi.advanceTimersByTime(999);
-    });
-    expect(callback).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(callback).toHaveBeenCalledTimes(3);
   });
 });

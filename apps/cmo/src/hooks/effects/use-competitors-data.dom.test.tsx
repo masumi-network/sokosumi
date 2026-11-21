@@ -41,7 +41,7 @@ describe("useCompetitorsData", () => {
     );
   }
 
-  it("loads competitors, marks failure on null or rejection, and supports reload", async () => {
+  it("loads competitors, marks failure on null, and supports reload", async () => {
     const loadCompetitors = vi
       .fn<() => Promise<CmoCompetitors | null>>()
       .mockResolvedValueOnce(null)
@@ -61,5 +61,18 @@ describe("useCompetitorsData", () => {
       "ready",
     );
     expect(loadCompetitors).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows failure when loadCompetitors rejects", async () => {
+    const loadCompetitors = vi
+      .fn<() => Promise<CmoCompetitors | null>>()
+      .mockRejectedValueOnce(new Error("network down"));
+
+    await act(async () =>
+      root.render(<Probe loadCompetitors={loadCompetitors} />),
+    );
+    expect(container.querySelector("span")?.getAttribute("data-state")).toBe(
+      "failed",
+    );
   });
 });
