@@ -301,6 +301,7 @@ function SeoAgentPanel({
             ? t("setup.checkEnded")
             : ""}
       </p>
+      {/* First on the tab, in one place on every width: a move would remount the control and drop an approval in flight. */}
       {banner}
       {analyticsStep && !setup ? (
         <SeoAgentStatistics model={model} line={analyticsLine} />
