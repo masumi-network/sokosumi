@@ -22,6 +22,7 @@ import { PasskeySettings } from "./passkey-settings";
 import { PasswordForm } from "./password-form";
 import { PreferencesSection } from "./preferences-section";
 import { ProfileImageSection } from "./profile-image-section";
+import { SignedInDevices } from "./signed-in-devices";
 
 interface AccountSettingsProps {
   accounts: Account[];
@@ -41,6 +42,7 @@ interface AccountSettingsProps {
   hasOrganizationMembership?: boolean;
   fallbackOrganizationId?: string | null;
   currentOrganizationId?: string | null;
+  currentSessionId?: string | null;
   deletionBlockers?: UserDeletionEvaluation["blockers"];
   deletionPreflightFailed?: boolean;
   deletionPreflightLoadError?: ReactNode;
@@ -66,6 +68,7 @@ export function AccountSettings({
   hasOrganizationMembership = false,
   fallbackOrganizationId = null,
   currentOrganizationId = null,
+  currentSessionId = null,
   deletionBlockers = [],
   deletionPreflightFailed = false,
   deletionPreflightLoadError,
@@ -106,6 +109,9 @@ export function AccountSettings({
             accounts={accounts}
             canAddPasskey={!credentialAccountsLoadError}
           />
+        </div>
+        <div className="md:col-span-2">
+          <SignedInDevices currentSessionId={currentSessionId} />
         </div>
       </div>
 

@@ -29,6 +29,7 @@ vi.mock("./email-form", () => ({ EmailForm: () => null }));
 vi.mock("./name-form", () => ({ NameForm: () => null }));
 vi.mock("./new-password-form", () => ({ NewPasswordForm: () => null }));
 vi.mock("./passkey-settings", () => ({ PasskeySettings: () => null }));
+vi.mock("./signed-in-devices", () => ({ SignedInDevices: () => null }));
 vi.mock("./password-form", () => ({ PasswordForm: () => null }));
 vi.mock("./preferences-section", () => ({ PreferencesSection: () => null }));
 vi.mock("./profile-image-section", () => ({ ProfileImageSection: () => null }));
