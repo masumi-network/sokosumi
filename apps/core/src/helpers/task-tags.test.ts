@@ -25,20 +25,35 @@ describe("stored task tags", () => {
       }).automatic,
     ).toEqual([]);
   });
+  // An edit moves the automatic tags to previousAutomaticTags and requeues.
   it.each([
-    ["pending", ["research"], true],
-    ["running", ["research"], true],
-    ["complete", ["research"], false],
-    ["failed", ["research"], false],
-    ["pending", [], false],
+    ["pending", ["research"]],
+    ["running", ["research"]],
+    ["complete", []],
+    // Retries exhausted: the old tags no longer stand in for current ones.
+    ["failed", []],
   ])(
-    "marks kept automatic tags as checking while state is %s (tags %j)",
-    (tagClassificationState, automaticTags, checking) => {
-      expect(
-        mapTaskTags({ automaticTags, tagClassificationState }).checking,
-      ).toBe(checking || undefined);
+    "shows previous automatic tags as checking only while %s",
+    (tagClassificationState, shown) => {
+      const tags = mapTaskTags({
+        automaticTags: [],
+        previousAutomaticTags: ["research", "social"],
+        rejectedTags: ["social"],
+        tagClassificationState,
+      });
+      expect(tags.automatic).toEqual(shown);
+      expect(tags.checking).toBe(shown.length ? true : undefined);
     },
   );
+  it("prefers current automatic tags over previous ones", () => {
+    expect(
+      mapTaskTags({
+        automaticTags: ["writing"],
+        previousAutomaticTags: ["research"],
+        tagClassificationState: "pending",
+      }),
+    ).toEqual({ automatic: ["writing"], manual: [], rejected: [] });
+  });
 });
 describe("Jev answer validation", () => {
   const answers = () =>

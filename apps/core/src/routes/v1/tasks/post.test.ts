@@ -2600,6 +2600,7 @@ describe("POST /tasks inline tag classification failure modes", () => {
           automaticTags: ["research"],
           manualTags: ["design"],
           rejectedTags: ["strategy"],
+          tagClassificationState: "complete",
         });
 
         const response = await createAppForMethod("session").request(
@@ -2651,6 +2652,45 @@ describe("POST /tasks inline tag classification failure modes", () => {
             tagClassificationLease: null,
             tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
           },
+        });
+      },
+    );
+
+    it.each(["pending", "running", "failed", "unclassified"])(
+      "copies no automatic tags from a %s source, so the copy is classified itself",
+      async (tagClassificationState) => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue({
+          workspaceTags: [],
+          workspaceId: sameWorkspace,
+          id: sourceId,
+          // Before the migration lands, previous Core may still have left
+          // tags here; either column holds tags for an older revision.
+          automaticTags: ["research"],
+          previousAutomaticTags: ["writing"],
+          manualTags: ["design"],
+          rejectedTags: ["strategy"],
+          tagClassificationState,
+        });
+
+        const response = await createAppForMethod("session").request(
+          "http://localhost/",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...body,
+              name: "Weekly report",
+              copyOfTaskId: sourceId,
+            }),
+          },
+        );
+
+        expect(response.status).toBe(201);
+        // Manual corrections still copy; the row keeps the insert's `pending`
+        // state, so the queue classifies the copy.
+        expect(taskUpdateMock).toHaveBeenCalledExactlyOnceWith({
+          where: { id: "tsk_123" },
+          data: { manualTags: ["design"], rejectedTags: ["strategy"] },
         });
       },
     );

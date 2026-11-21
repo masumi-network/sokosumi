@@ -43,6 +43,7 @@ it.skipIf(!enabled)(
         select: {
           updatedAt: true,
           automaticTags: true,
+          previousAutomaticTags: true,
           manualTags: true,
           rejectedTags: true,
           tagContentRevision: true,
@@ -108,9 +109,11 @@ it.skipIf(!enabled)(
         where: { id: taskId },
         data: { name: "SYNTHETIC edited Task" },
       });
-      // The last automatic tags stay until the new revision succeeds.
+      // Previous Core reads automaticTags only, so it still sees none (as
+      // before); new Core shows the previous ones as checking.
       expect(await snapshot()).toMatchObject({
-        automaticTags: ["writing"],
+        automaticTags: [],
+        previousAutomaticTags: ["writing"],
         tagClassificationState: "pending",
         tagClassificationAttempts: 0,
         tagClassificationLease: null,
@@ -124,7 +127,8 @@ it.skipIf(!enabled)(
       await run();
       expect(classify).toHaveBeenCalledTimes(2);
       expect(await snapshot()).toMatchObject({
-        automaticTags: ["writing"],
+        automaticTags: [],
+        previousAutomaticTags: ["writing"],
         tagClassificationState: "pending",
         tagClassificationAttempts: 1,
         tagClassificationLease: "queued:retry",
@@ -154,6 +158,27 @@ it.skipIf(!enabled)(
       await run();
       expect(classify).toHaveBeenCalledTimes(4);
       expect((await snapshot()).tagClassificationState).toBe("complete");
+
+      // A second edit before classification keeps the last classified tags.
+      const rename = (name: string) =>
+        prisma.task.updateMany({ where: { id: taskId }, data: { name } });
+      await rename("SYNTHETIC renamed once");
+      await rename("SYNTHETIC renamed twice");
+      expect(await snapshot()).toMatchObject({
+        automaticTags: [],
+        previousAutomaticTags: ["research"],
+      });
+      // After retries run out, an edit carries nothing stale forward.
+      await prisma.task.updateMany({
+        where: { id: taskId },
+        data: { tagClassificationState: "failed" },
+      });
+      await rename("SYNTHETIC renamed after failure");
+      expect(await snapshot()).toMatchObject({
+        automaticTags: [],
+        previousAutomaticTags: [],
+        tagClassificationState: "pending",
+      });
     } finally {
       await prisma.task.deleteMany({ where: { id: taskId } });
       await prisma.workspace.deleteMany({ where: { userId: user.id } });

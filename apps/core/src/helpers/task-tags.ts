@@ -45,6 +45,7 @@ export const taskTagsSchema = z
 
 interface StoredTaskTags {
   automaticTags?: string[];
+  previousAutomaticTags?: string[];
   manualTags?: string[];
   rejectedTags?: string[];
   tagClassificationState?: string;
@@ -71,15 +72,22 @@ function knownTags(ids: string[] = []) {
 export function mapTaskTags(task: StoredTaskTags) {
   const manual = knownTags(task.manualTags);
   const rejected = knownTags(task.rejectedTags);
-  const automatic = knownTags(task.automaticTags)
-    .filter((id) => !manual.includes(id) && !rejected.includes(id))
-    .slice(0, Math.max(0, MAX_TASK_TAGS - manual.length));
-  // An edit keeps the last automatic tags until the new revision succeeds.
+  // After an edit, the tags it cleared stand in until the new ones arrive.
   const checking =
-    automatic.length > 0 &&
+    !task.automaticTags?.length &&
     (task.tagClassificationState === "pending" ||
       task.tagClassificationState === "running");
-  return { automatic, manual, rejected, ...(checking && { checking }) };
+  const automatic = knownTags(
+    checking ? task.previousAutomaticTags : task.automaticTags,
+  )
+    .filter((id) => !manual.includes(id) && !rejected.includes(id))
+    .slice(0, Math.max(0, MAX_TASK_TAGS - manual.length));
+  return {
+    automatic,
+    manual,
+    rejected,
+    ...(checking && automatic.length > 0 && { checking: true }),
+  };
 }
 
 const answerSchema = z.object({
