@@ -1,8 +1,8 @@
 import type { SokoBotTurnStatus } from "@sokosumi/database";
 import { z } from "zod";
-
 import { plainExcerpt } from "@/helpers/job-digest";
 import prisma from "@/lib/db/prisma";
+import { BACKGROUND_RUN_CLIENT_TURN_PREFIX } from "@/lib/soko-bot/turn-model";
 import type { Cuso } from "@/services/cmo-cuso.service";
 
 /**
@@ -61,8 +61,6 @@ const CARD_ROWS = 5;
 /** Rows "Show all" opens inside the chat. */
 export const CMO_CHAT_TABLE_ROWS = 200;
 const EXCERPT = 280;
-/** Runs a bot started with `start_background_run` carry this in their key. */
-const MEMBER_RUN_PREFIX = "background:";
 
 const MADE_TABLE = ["create_table", "export_contacts_to_table"];
 const WROTE_ROWS = "write_table_rows";
@@ -224,7 +222,7 @@ async function listRuns(cuso: Target): Promise<CmoChatRecord[]> {
     where: {
       sokoBotId: cuso.sokoBotId,
       parentTurnId: { not: null },
-      clientTurnId: { startsWith: MEMBER_RUN_PREFIX },
+      clientTurnId: { startsWith: BACKGROUND_RUN_CLIENT_TURN_PREFIX },
       createdAt: { gte: since() },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],

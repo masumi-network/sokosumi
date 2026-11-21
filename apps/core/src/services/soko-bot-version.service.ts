@@ -177,22 +177,28 @@ export async function isKnownSokoBotVersionId(slug: string): Promise<boolean> {
   return row !== null;
 }
 
-function isApprovedVersion(version: {
+type VersionModels = {
   model: string;
+  strongModel?: string;
   inferenceRegion?: string | null;
-}): boolean {
+};
+
+/** Both the version's model and its stronger one must pass the policy. */
+function isApprovedVersion(version: VersionModels): boolean {
   try {
-    assertSokoBotModelPolicy({ role: "agent", ...version });
+    for (const model of [version.model, version.strongModel ?? version.model])
+      assertSokoBotModelPolicy({
+        role: "agent",
+        model,
+        inferenceRegion: version.inferenceRegion,
+      });
     return true;
   } catch {
     return false;
   }
 }
 
-function assertApprovedVersion(version: {
-  model: string;
-  inferenceRegion?: string | null;
-}): void {
+function assertApprovedVersion(version: VersionModels): void {
   if (!isApprovedVersion(version))
     throw unprocessableEntity(
       "Choose an approved EU model before saving or selecting this version",

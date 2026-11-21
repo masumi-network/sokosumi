@@ -142,6 +142,7 @@ import {
   PERSON_SCHEDULE_CAPABILITIES,
   withOwnScheduleTools,
 } from "@/lib/soko-bot/system-routes";
+import { chooseTurnModel } from "@/lib/soko-bot/turn-model";
 import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
@@ -2416,7 +2417,12 @@ export class SokoBotControlPlane {
                 : { chatMentionId: null }),
             },
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            select: { status: true, finalAnswer: true },
+            select: {
+              status: true,
+              finalAnswer: true,
+              modelReason: true,
+              createdAt: true,
+            },
           })
         : null;
     const classifierContext = await loadClassificationContext(
@@ -2797,6 +2803,15 @@ export class SokoBotControlPlane {
                 select: { id: true, version: true },
               }),
         );
+        const turnModel = chooseTurnModel({
+          version,
+          clientTurnId,
+          preset: input.presetRoute !== undefined,
+          background: input.background !== undefined,
+          classification: classification.classification,
+          previous: previousTurn,
+          now: reservedAt,
+        });
         const created = await tx.sokoBotTurn.create({
           data: {
             sokoBotId: bot.id,
@@ -2807,6 +2822,8 @@ export class SokoBotControlPlane {
             route: classification.classification.route,
             clientTurnId,
             versionId: version.id,
+            modelId: turnModel.model,
+            modelReason: turnModel.reason,
             createdAt: reservedAt,
             userMessage: message,
             destinationRoomId: destinationRoom?.id ?? null,

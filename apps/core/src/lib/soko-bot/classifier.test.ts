@@ -95,11 +95,47 @@ describe("Jev route selection", () => {
     });
   });
 
+  it("reads how complex the work is, for the turn's model", async () => {
+    const evaluation = jevRoute("DELEGATE_TASK");
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          complexity: {
+            choice: "COMPLEX",
+            probabilities: { SIMPLE: 0.05, NORMAL: 0.25, COMPLEX: 0.7 },
+          },
+        },
+      }),
+    ).classify("plan the launch across the team", EMPTY_CONTEXT);
+    expect(result.classification.complexity).toEqual({
+      label: "COMPLEX",
+      probabilities: { SIMPLE: 0.05, NORMAL: 0.25, COMPLEX: 0.7 },
+    });
+  });
+
+  it("leaves complexity out when Jev names no known label", async () => {
+    const evaluation = jevRoute("DIRECT_RESPONSE");
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          complexity: { choice: "HUGE" },
+        },
+      }),
+    ).classify("hi", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DIRECT_RESPONSE");
+    expect(result.classification.complexity).toBeUndefined();
+  });
+
   it("asks Jev every signal question alongside the route", () => {
     expect(Object.keys(routeQuestions(false))).toEqual(
       expect.arrayContaining([
         "route",
         "writeScope",
+        "complexity",
         "refersToEarlier",
         "statesPreference",
         "aboutMail",

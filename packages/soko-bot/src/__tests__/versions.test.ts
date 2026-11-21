@@ -195,6 +195,16 @@ describe("versions", () => {
     );
   });
 
+  it("gives v34 v33's prompt and skills with a stronger model for hard work", () => {
+    const v33 = getSokoBotVersion("v33");
+    const v34 = getSokoBotVersion("v34");
+    expect(v34.model).toBe(v33.model);
+    expect(v34.systemPrompt).toBe(v33.systemPrompt);
+    expect(v34.skills).toEqual(v33.skills);
+    expect(v34.strongModel).toBe("openai/gpt-6.1-terra");
+    expect(v33.strongModel).toBeUndefined();
+  });
+
   it("lets v33 read and follow a Project's posting instructions before drafting", () => {
     const v32 = getSokoBotVersion("v32");
     const v33 = getSokoBotVersion("v33");

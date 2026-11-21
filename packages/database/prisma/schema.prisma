@@ -2816,6 +2816,9 @@ model SokoBotTurn {
   continuationTokenKeyId      String?
 
   modelId        String?
+  /// Why the turn runs on `modelId`: `default` (the version's model) or the
+  /// rule that chose the version's stronger model (lib/soko-bot/turn-model.ts).
+  modelReason    String?
   runtimeVersion String?
   usage          Json?
   /// Billable cost: the agent loop alone. Drives `sokoBotUsageCents`, so
