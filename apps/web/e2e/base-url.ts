@@ -19,3 +19,22 @@ export function resolveBaseUrl(env: Record<string, string | undefined>) {
   }
   return url.origin;
 }
+
+/** A PR preview's Web host; its Core is the same deployment pair with `core` for `app`. */
+const PR_PREVIEW_APP =
+  /^sokosumi-app-(mainnet|preprod)-git-([a-z0-9-]+)\.preview\.sokosumi\.com$/;
+
+/**
+ * Core for a PR preview, for specs that write their own test data through the API. Only a PR
+ * preview pairs, so no other target (preprod, local, a bare Vercel URL, production) gets writes.
+ */
+export function resolvePreviewCoreUrl(baseUrl: string) {
+  const { protocol, hostname } = new URL(baseUrl);
+  const match = PR_PREVIEW_APP.exec(hostname);
+  if (protocol !== "https:" || !match) {
+    throw new Error(
+      `Writing test data through Core needs a PR preview (sokosumi-app-<network>-git-<branch>.preview.sokosumi.com), not ${hostname}`,
+    );
+  }
+  return `https://sokosumi-core-${match[1]}-git-${match[2]}.preview.sokosumi.com`;
+}
