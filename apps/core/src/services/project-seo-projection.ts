@@ -11,8 +11,8 @@ import { seoIssueKey } from "@sokosumi/utils";
 import { internalServerError } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import { scopedObservationChecks } from "@/helpers/seo-checklist-breakdown";
-import { scopedPageMarketEvidence } from "@/helpers/seo-page-market-evidence";
 import { scopedPageSpeed } from "@/helpers/seo-page-speed";
+import { scopedReportEvidence } from "@/helpers/seo-report-plan";
 import {
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
@@ -295,7 +295,7 @@ export function projectSeoProjection(
       artifactHash: row.artifactHash,
       issues,
       ...(checklistBreakdown && { checklistBreakdown }),
-      ...scopedPageMarketEvidence(data, selectedUrls),
+      ...scopedReportEvidence(data, selectedUrls),
       ...(data.kind === "audit_full" &&
         (data.pageSpeed !== undefined
           ? { pageSpeed: scopedPageSpeed(data.pageSpeed, selectedUrls) }

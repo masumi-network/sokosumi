@@ -93,6 +93,59 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
       <h3 id={heading} className="sr-only">
         {report("statistics.search_console")}
       </h3>
+      {evidence.opportunities?.length > 0 && (
+        <section aria-labelledby={recommendations} className="space-y-2">
+          <h4 id={recommendations} className="font-medium">
+            {report("reportFiles.recommendations")}
+          </h4>
+          <ul className="divide-y">
+            {evidence.opportunities.map((item) => (
+              <li key={item.id} className="space-y-1 py-2">
+                <p className="break-words font-medium">{item.title}</p>
+                {item.pageUrl && (
+                  <p className="break-all text-muted-foreground">
+                    {item.pageUrl}
+                  </p>
+                )}
+                <p>{item.why}</p>
+                <p>{item.expectedEffect}</p>
+                {item.evidence.length > 0 && (
+                  <details>
+                    <SeoFoldSummary>
+                      {report("actions.evidence")}
+                    </SeoFoldSummary>
+                    <ul className="list-disc space-y-1 ps-5">
+                      {item.evidence.map((line) => (
+                        <li className="break-words" key={line}>
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {evidence.history && (
+        <section className="space-y-1">
+          <h4 className="font-medium">
+            {report("reportFiles.matchedHistory")}
+          </h4>
+          <p>{period(evidence.history)}</p>
+          {evidence.history.clicks !== null && (
+            <p>
+              {report("reportFiles.matchedClicks", {
+                count: evidence.history.clicks,
+              })}
+            </p>
+          )}
+          <p>
+            {report(`reportFiles.historyDecision.${evidence.history.decision}`)}
+          </p>
+        </section>
+      )}
       {!propertyTotals &&
         (!hasPageMetrics || unverified || Boolean(topClickedPages?.length)) && (
           <p className="text-muted-foreground">{period(evidence)}</p>
@@ -185,59 +238,6 @@ export function SeoAuditSearchConsole({ evidence }: { evidence: Evidence }) {
       )}
       {evidence.discovery && (
         <SeoAuditDiscovery evidence={evidence.discovery} />
-      )}
-      {evidence.history && (
-        <section className="space-y-1">
-          <h4 className="font-medium">
-            {report("reportFiles.matchedHistory")}
-          </h4>
-          <p>{period(evidence.history)}</p>
-          {evidence.history.clicks !== null && (
-            <p>
-              {report("reportFiles.matchedClicks", {
-                count: evidence.history.clicks,
-              })}
-            </p>
-          )}
-          <p>
-            {report(`reportFiles.historyDecision.${evidence.history.decision}`)}
-          </p>
-        </section>
-      )}
-      {evidence.opportunities?.length > 0 && (
-        <section aria-labelledby={recommendations} className="space-y-2">
-          <h4 id={recommendations} className="font-medium">
-            {report("reportFiles.recommendations")}
-          </h4>
-          <ul className="divide-y">
-            {evidence.opportunities.map((item) => (
-              <li key={item.id} className="space-y-1 py-2">
-                <p className="break-words font-medium">{item.title}</p>
-                {item.pageUrl && (
-                  <p className="break-all text-muted-foreground">
-                    {item.pageUrl}
-                  </p>
-                )}
-                <p>{item.why}</p>
-                <p>{item.expectedEffect}</p>
-                {item.evidence.length > 0 && (
-                  <details>
-                    <SeoFoldSummary>
-                      {report("actions.evidence")}
-                    </SeoFoldSummary>
-                    <ul className="list-disc space-y-1 ps-5">
-                      {item.evidence.map((line) => (
-                        <li className="break-words" key={line}>
-                          {line}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
       )}
       {queries?.rows.length ? (
         <details key={evidence.taskId + "-queries"}>

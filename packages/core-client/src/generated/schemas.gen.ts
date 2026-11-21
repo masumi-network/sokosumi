@@ -4212,6 +4212,18 @@ export const AdminSokoBotTurnSchema = {
         {
             type: 'object',
             properties: {
+                modelReason: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                modelCalls: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotModelCall'
+                    }
+                },
                 eveSessionId: {
                     type: [
                         'string',
@@ -4237,6 +4249,8 @@ export const AdminSokoBotTurnSchema = {
             },
             required: [
                 'toolCalls',
+                'modelReason',
+                'modelCalls',
                 'eveSessionId',
                 'eveTurnId',
                 'contextSnapshot'
@@ -4619,6 +4633,97 @@ export const SokoBotContextSummarySchema = {
         'recentTurns',
         'memoryVersion',
         'bytes'
+    ]
+} as const;
+
+export const SokoBotModelCallSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        role: {
+            type: 'string'
+        },
+        label: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        requestedModel: {
+            type: 'string'
+        },
+        answeredModel: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        provider: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        region: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        zeroDataRetention: {
+            type: [
+                'boolean',
+                'null'
+            ]
+        },
+        inputTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        cacheReadTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        cacheWriteTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        outputTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        costUsd: {
+            type: 'number',
+            minimum: 0
+        },
+        failed: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'role',
+        'label',
+        'requestedModel',
+        'answeredModel',
+        'provider',
+        'region',
+        'zeroDataRetention',
+        'inputTokens',
+        'cacheReadTokens',
+        'cacheWriteTokens',
+        'outputTokens',
+        'costUsd',
+        'failed'
     ]
 } as const;
 
@@ -5362,6 +5467,194 @@ export const SokoBotSchema = {
         'consecutiveTurnFailures',
         'createdAt',
         'updatedAt'
+    ]
+} as const;
+
+export const SokoBotConversationSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                oneOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'turn'
+                                ]
+                            },
+                            at: {
+                                type: 'string'
+                            },
+                            turnId: {
+                                type: 'string'
+                            },
+                            title: {
+                                type: 'string'
+                            },
+                            status: {
+                                type: 'string'
+                            },
+                            model: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            costUsd: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            durationMs: {
+                                type: [
+                                    'integer',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'at',
+                            'turnId',
+                            'title',
+                            'status',
+                            'model',
+                            'costUsd',
+                            'durationMs'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'asked'
+                                ]
+                            },
+                            at: {
+                                type: 'string'
+                            },
+                            by: {
+                                type: 'string'
+                            },
+                            to: {
+                                type: 'string'
+                            },
+                            room: {
+                                type: 'string'
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'at',
+                            'by',
+                            'to',
+                            'room',
+                            'text'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'answered'
+                                ]
+                            },
+                            at: {
+                                type: 'string'
+                            },
+                            by: {
+                                type: 'string'
+                            },
+                            byKind: {
+                                type: 'string',
+                                enum: [
+                                    'person',
+                                    'coworker',
+                                    'assistant'
+                                ]
+                            },
+                            room: {
+                                type: 'string'
+                            },
+                            text: {
+                                type: 'string'
+                            },
+                            model: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            costUsd: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            durationMs: {
+                                type: [
+                                    'integer',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'at',
+                            'by',
+                            'byKind',
+                            'room',
+                            'text',
+                            'model',
+                            'costUsd',
+                            'durationMs'
+                        ]
+                    }
+                ]
+            }
+        },
+        totals: {
+            type: 'object',
+            properties: {
+                costUsd: {
+                    type: 'number'
+                },
+                durationMs: {
+                    type: 'integer'
+                },
+                models: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    }
+                }
+            },
+            required: [
+                'costUsd',
+                'durationMs',
+                'models'
+            ]
+        }
+    },
+    required: [
+        'turnId',
+        'steps',
+        'totals'
     ]
 } as const;
 
@@ -45605,6 +45898,102 @@ export const ProjectSeoWorkspaceSchema = {
                             'investigate_angle'
                         ]
                     },
+                    trendComparison: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                historicalPeriod: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                peak: {
+                                    type: 'boolean'
+                                }
+                            },
+                            required: [
+                                'historicalPeriod',
+                                'peak'
+                            ]
+                        },
+                        maxItems: 4
+                    },
+                    keywordIdeas: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 2,
+                            maxLength: 80
+                        },
+                        maxItems: 3
+                    },
+                    contentPlan: {
+                        type: 'object',
+                        properties: {
+                            disposition: {
+                                type: 'string',
+                                enum: [
+                                    'clarify',
+                                    'keep',
+                                    'inspect'
+                                ]
+                            },
+                            readerTask: {
+                                type: 'string',
+                                minLength: 8,
+                                maxLength: 180
+                            },
+                            passage: {
+                                type: 'string',
+                                minLength: 8,
+                                maxLength: 180
+                            },
+                            experiment: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    hypothesis: {
+                                        type: 'string',
+                                        minLength: 8,
+                                        maxLength: 180
+                                    },
+                                    targetQueries: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 2,
+                                            maxLength: 80
+                                        },
+                                        minItems: 1,
+                                        maxItems: 3
+                                    },
+                                    successCheck: {
+                                        type: 'string',
+                                        minLength: 8,
+                                        maxLength: 180
+                                    }
+                                },
+                                required: [
+                                    'hypothesis',
+                                    'targetQueries',
+                                    'successCheck'
+                                ]
+                            },
+                            nextStep: {
+                                type: 'string',
+                                minLength: 8,
+                                maxLength: 180
+                            }
+                        },
+                        required: [
+                            'disposition',
+                            'readerTask',
+                            'passage',
+                            'nextStep'
+                        ]
+                    },
                     limitations: {
                         type: 'array',
                         items: {
@@ -47027,6 +47416,164 @@ export const ProjectSeoObservationSchema = {
             type: 'integer',
             minimum: 0
         },
+        planCandidates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'access',
+                            'completion',
+                            'broken_link',
+                            'repair',
+                            'content',
+                            'internal_link',
+                            'experiment'
+                        ]
+                    },
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    evidence: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    nextCheck: {
+                        type: 'string'
+                    },
+                    alternative: {
+                        type: 'string'
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'major',
+                            'minor'
+                        ]
+                    },
+                    destinations: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        }
+                    },
+                    actionId: {
+                        type: 'string'
+                    },
+                    queries: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    season: {
+                        type: 'object',
+                        properties: {
+                            country: {
+                                type: 'string'
+                            },
+                            through: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            windows: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        month: {
+                                            type: 'string'
+                                        },
+                                        peaks: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string'
+                                            }
+                                        }
+                                    },
+                                    required: [
+                                        'month',
+                                        'peaks'
+                                    ]
+                                }
+                            },
+                            pageGap: {
+                                type: 'boolean'
+                            }
+                        },
+                        required: [
+                            'country',
+                            'through'
+                        ]
+                    }
+                },
+                required: [
+                    'kind',
+                    'pageUrl',
+                    'title',
+                    'reason',
+                    'evidence'
+                ]
+            }
+        },
+        planSignals: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [
+                            'gap',
+                            'rank',
+                            'editorial',
+                            'trend',
+                            'trend_flat',
+                            'covered',
+                            'season'
+                        ]
+                    },
+                    evidence: {
+                        type: 'string'
+                    },
+                    peaks: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'source',
+                    'evidence'
+                ]
+            }
+        },
         checklistBreakdown: {
             type: 'object',
             properties: {
@@ -47791,6 +48338,25 @@ export const ProjectSeoKeywordSchema = {
                 record: {
                     type: 'string',
                     pattern: '^[a-f0-9]{64}$'
+                },
+                angle: {
+                    type: 'object',
+                    properties: {
+                        quote: {
+                            type: 'string',
+                            minLength: 8,
+                            maxLength: 180
+                        },
+                        nextStep: {
+                            type: 'string',
+                            minLength: 8,
+                            maxLength: 180
+                        }
+                    },
+                    required: [
+                        'quote',
+                        'nextStep'
+                    ]
                 }
             },
             required: [
@@ -52163,6 +52729,10 @@ export const SeoAuditBriefSchema = {
                             null
                         ]
                     },
+                    completionEvent: {
+                        type: 'string',
+                        pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
+                    },
                     indexIntent: {
                         type: 'string',
                         enum: [
@@ -52234,10 +52804,7 @@ export const SeoAuditBriefSchema = {
                             },
                             event: {
                                 type: 'string',
-                                enum: [
-                                    'purchase',
-                                    'sign_up'
-                                ]
+                                pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
                             },
                             timeZone: {
                                 type: 'string',
@@ -52269,10 +52836,7 @@ export const SeoAuditBriefSchema = {
                             },
                             event: {
                                 type: 'string',
-                                enum: [
-                                    'purchase',
-                                    'sign_up'
-                                ]
+                                pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
                             },
                             before: {
                                 type: 'object',
@@ -52401,7 +52965,8 @@ export const SeoAuditBriefSchema = {
                                 enum: [
                                     'both_declined',
                                     'organic_declined',
-                                    'goal_held'
+                                    'goal_held',
+                                    'handoff'
                                 ]
                             }
                         },
@@ -52422,10 +52987,7 @@ export const SeoAuditBriefSchema = {
                             properties: {
                                 event: {
                                     type: 'string',
-                                    enum: [
-                                        'purchase',
-                                        'sign_up'
-                                    ]
+                                    pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
                                 },
                                 latest: {
                                     type: 'object',
@@ -52513,7 +53075,7 @@ export const SeoAuditBriefSchema = {
                             ],
                             additionalProperties: false
                         },
-                        maxItems: 2
+                        maxItems: 3
                     },
                     status: {
                         type: 'string',
@@ -52677,6 +53239,10 @@ export const SaveSeoAuditBriefRequestSchema = {
                             'none',
                             null
                         ]
+                    },
+                    completionEvent: {
+                        type: 'string',
+                        pattern: '^[A-Za-z][A-Za-z0-9_]{0,39}$'
                     },
                     indexIntent: {
                         type: 'string',

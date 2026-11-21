@@ -333,7 +333,7 @@ export function followUpMessage(input: {
  * replies); its follow-up belongs to the turn that was asked, so it keeps
  * that turn's tools and posts where it was asked.
  */
-async function watchOriginTurnId(turnId: string): Promise<string> {
+export async function watchOriginTurnId(turnId: string): Promise<string> {
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
     select: { parentTurnId: true },

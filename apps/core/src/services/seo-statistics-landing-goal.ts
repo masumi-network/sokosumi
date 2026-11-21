@@ -1,15 +1,11 @@
-import prisma from "@/lib/db/prisma";
 import {
   ga4ReportSchema,
   type NativeStatisticsQuery,
   previousSeoPeriod,
   unwrapNativeStatistics,
 } from "@/lib/seo/native-statistics";
-import type { SeoActor } from "@/schemas/project-seo.schema";
 import type { SeoLandingPages } from "@/schemas/project-seo-traffic.schema";
-import { seoBriefContent } from "@/schemas/seo-audit-brief.schema";
 import type { SeoGoalInvestigation } from "@/schemas/seo-landing-outcomes.schema";
-import { currentBrief } from "./seo-audit-brief.service";
 
 const LANDING = "landingPagePlusQueryString";
 const CHANNEL = "sessionDefaultChannelGroup";
@@ -112,15 +108,13 @@ async function readGoalPeriod(
 
 export async function investigateLandingGoal({
   query,
-  actor,
-  pages,
+  configured,
   before,
   after,
   read,
 }: {
   query: NativeStatisticsQuery;
-  actor: SeoActor;
-  pages: { id: string; url: string }[];
+  configured: ReadonlyMap<string, string | undefined>;
   before: SeoLandingPages;
   after: SeoLandingPages;
   read: ReadReport;
@@ -128,7 +122,6 @@ export async function investigateLandingGoal({
   const zone = after.timeZone;
   const duration = Date.parse(query.to) - Date.parse(query.from) + DAY_MS;
   if (
-    actor.sokoBotId ||
     before.channel !== "organic" ||
     after.channel !== "organic" ||
     !zone ||
@@ -146,6 +139,7 @@ export async function investigateLandingGoal({
         (prior) => prior.pageUrl === row.pageUrl,
       );
       if (
+        !configured.get(row.pageUrl) ||
         !earlier ||
         !Number.isSafeInteger(earlier.sessions) ||
         !Number.isSafeInteger(row.sessions) ||
@@ -158,7 +152,10 @@ export async function investigateLandingGoal({
         return [];
       const beforeRate = earlier.keyEvents / earlier.sessions;
       const afterRate = row.keyEvents / row.sessions;
-      return decreased(beforeRate, afterRate)
+      return decreased(beforeRate, afterRate) ||
+        (row.sessions > earlier.sessions &&
+          configured.get(row.pageUrl) !== "purchase" &&
+          configured.get(row.pageUrl) !== "sign_up")
         ? [{ row, earlier, decline: 1 - afterRate / beforeRate }]
         : [];
     })
@@ -167,15 +164,8 @@ export async function investigateLandingGoal({
         b.decline - a.decline || a.row.pageUrl.localeCompare(b.row.pageUrl),
     );
   if (!candidates.length) return;
-  const brief = seoBriefContent.safeParse(
-    (await currentBrief(actor, prisma))?.payload,
-  );
-  if (!brief.success) return;
   for (const { row, earlier } of candidates) {
-    const page = pages.find((p) => p.url === row.pageUrl);
-    const goal = brief.data.pages.find((p) => p.pageId === page?.id)?.action;
-    const event =
-      goal === "buy" ? "purchase" : goal === "sign up" ? "sign_up" : null;
+    const event = configured.get(row.pageUrl);
     if (!event) continue;
     const [baseline, recent] = await Promise.all([
       readGoalPeriod(
@@ -204,11 +194,22 @@ export async function investigateLandingGoal({
       baseline.direct.rate * baseline.direct.sessions < MIN_BASELINE_EVENTS
     )
       return;
-    const assessment = !decreased(baseline.organic.rate, recent.organic.rate)
-      ? "goal_held"
-      : decreased(baseline.direct.rate, recent.direct.rate)
+    const organicDeclined = decreased(
+      baseline.organic.rate,
+      recent.organic.rate,
+    );
+    const completionsHeld =
+      recent.organic.sessions > baseline.organic.sessions &&
+      Math.round(recent.organic.sessions * recent.organic.rate) <=
+        Math.round(baseline.organic.sessions * baseline.organic.rate);
+    const assessment =
+      organicDeclined && decreased(baseline.direct.rate, recent.direct.rate)
         ? "both_declined"
-        : "organic_declined";
+        : completionsHeld
+          ? "handoff"
+          : organicDeclined
+            ? "organic_declined"
+            : "goal_held";
     return {
       pageUrl: row.pageUrl,
       timeZone: zone,

@@ -57,6 +57,15 @@ export function PieceState({
   /** Say why too, where there is room (the open post). */
   why?: boolean;
 }) {
+  if (notSent && status === "scheduled") {
+    // A network paused our posting; Core moved the post on and retries it.
+    return (
+      <span className="state">
+        <Clock size={13} aria-hidden="true" />
+        {why ? `Retrying. ${notSent}` : "Retrying"}
+      </span>
+    );
+  }
   if (notSent) {
     return (
       <span className="state">

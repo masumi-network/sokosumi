@@ -57,6 +57,7 @@ import mountGetMySokoBotStats from "./me/stats/get.js";
 import mountUpdateMySokoBotTeamStandup, {
   mountById as mountUpdateSokoBotTeamStandup,
 } from "./me/team-standup/put.js";
+import mountGetMySokoBotTurnConversation from "./me/turns/[id]/conversation/get.js";
 import mountSendMySokoBotTurnFeedback from "./me/turns/[id]/feedback/post.js";
 import mountCancelMySokoBotTurn, {
   mountById as mountCancelSokoBotTurn,
@@ -122,6 +123,7 @@ mountSetMySokoBotAvatarCode(app);
 mountListSokoBotVersions(app);
 mountUpdateMySokoBotProactive(app);
 mountSendMySokoBotTurnFeedback(app);
+mountGetMySokoBotTurnConversation(app);
 mountUpdateMySokoBotBoardFollowing(app);
 mountUpdateMySokoBotTeamStandup(app);
 mountRenameMySokoBot(app);

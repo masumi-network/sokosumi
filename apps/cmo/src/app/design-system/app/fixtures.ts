@@ -493,7 +493,7 @@ export const busyOverview: CmoOverview = (() => {
           ...(refused
             ? {
                 notSent:
-                  "X refused it: Your monthly spend cap has been reached.",
+                  "X paused our posting for a day. Ask Cuso to post it again.",
               }
             : {}),
         };

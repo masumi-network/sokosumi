@@ -174,8 +174,8 @@ describe("CMO version", () => {
 
   // Owner, 2026-11-20: varied pictures, no repeated messages, corrections
   // that reach the whole plan, stronger LinkedIn openings.
-  it("makes cmo-v8 the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v8");
+  it("makes cmo-v10 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v10");
   });
 
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
@@ -260,8 +260,19 @@ describe("CMO version", () => {
       "- purpose, with styleLook",
     );
     expect(CMO_VARIED_PIECE_WRITING_GUIDE).not.toContain("one concrete scene");
-    // A new hire stays on cmo-v8 until cmo-v9 is rolled out.
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v8");
+    // New hires start on cmo-v10, cmo-v9 with the stronger model.
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v10");
+  });
+
+  it("has cmo-v10 run cmo-v9 word for word with a stronger model for hard work", () => {
+    const v9 = getSokoBotVersion("cmo-v9");
+    const v10 = getSokoBotVersion("cmo-v10");
+    expect(v10.profile).toBe("cmo");
+    expect(v10.model).toBe(v9.model);
+    expect(v10.systemPrompt).toBe(v9.systemPrompt);
+    expect(v10.skills).toEqual(v9.skills);
+    expect(v10.strongModel).toBe("openai/gpt-6.2-sol");
+    expect(v9.strongModel).toBeUndefined();
   });
 
   it("keeps a piece's claim on its plan entry and its Social post", () => {

@@ -1,3 +1,5 @@
+import { seoCompletionEvent } from "@sokosumi/utils";
+import prisma from "@/lib/db/prisma";
 import {
   assertGa4LandingHost,
   ga4LandingHostArguments,
@@ -13,7 +15,10 @@ import {
   unwrapNativeStatistics,
 } from "@/lib/seo/native-statistics";
 import type { SeoActor } from "@/schemas/project-seo.schema";
+import { seoBriefContent } from "@/schemas/seo-audit-brief.schema";
+import { seoLandingEvents } from "@/schemas/seo-landing-outcomes.schema";
 import { sha256 } from "./project-seo-store";
+import { currentBrief } from "./seo-audit-brief.service";
 import {
   connectionVersion,
   type SeoStatisticsIntegration,
@@ -98,24 +103,57 @@ export async function collectLandingPages(
   // A property without these events (or a failed event read) still has measured sessions and generic key events.
   if (actor.sokoBotId || landingPages.channel !== "organic")
     return { landingPages, ...evidence, outcomes: undefined };
-  const named = await read(ga4LandingOutcomeArguments(landingPlan.query))
+  const brief = seoBriefContent.safeParse(
+    (await currentBrief(actor, prisma).catch(() => null))?.payload,
+  ).data;
+  const configured = new Map(
+    pages.map((page) => [
+      page.url,
+      seoCompletionEvent(brief?.pages.find((goal) => goal.pageId === page.id)),
+    ]),
+  );
+  const defaults: readonly string[] = seoLandingEvents;
+  const events = [
+    ...new Set([
+      ...defaults,
+      ...landingPlan.query.pageUrls.flatMap((url) => configured.get(url) ?? []),
+    ]),
+  ];
+  const named = await read(
+    ga4LandingOutcomeArguments(landingPlan.query, events),
+  )
     .then((raw) =>
       normalizeGa4LandingOutcomes(
         landingPlan.query,
         unwrapNativeStatistics(raw, ["metricHeaders"]),
+        events,
       ),
     )
     .catch(() => null);
   // Retain observed named counts if their calendar cannot support the optional comparison.
   const sameCalendar =
     !named?.rows.length || named.timeZone === landingPages.timeZone;
+  // A default custom event name is only a discovery hint until this exact page reports it.
+  const measurable = new Map(configured);
+  for (const page of pages) {
+    const event = configured.get(page.url);
+    const ownerEvent = brief?.pages.find(
+      (goal) => goal.pageId === page.id,
+    )?.completionEvent;
+    if (
+      event &&
+      !defaults.includes(event) &&
+      !ownerEvent &&
+      !named?.rows.some((r) => r.pageUrl === page.url && r.event === event)
+    )
+      measurable.delete(page.url);
+  }
   const goalInvestigation =
     sameCalendar &&
     previousLanding &&
     (await investigateLandingGoal({
       query,
-      actor,
-      pages,
+      configured: measurable,
       before: previousLanding,
       after: landingPages,
       read,
@@ -136,7 +174,12 @@ export async function collectLandingPages(
       timeZone: goalInvestigation
         ? goalInvestigation.timeZone
         : named!.timeZone,
-      rows: named?.rows ?? [],
+      rows:
+        named?.rows.filter(
+          (row) =>
+            defaults.includes(row.event) ||
+            configured.get(row.pageUrl) === row.event,
+        ) ?? [],
       ...(goalInvestigation && { goalInvestigation }),
     },
   };

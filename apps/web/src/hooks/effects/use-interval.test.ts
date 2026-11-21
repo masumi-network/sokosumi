@@ -151,4 +151,65 @@ describe("useInterval", () => {
     });
     expect(callback).toHaveBeenCalledTimes(3);
   });
+
+  it("restarts the interval when resetKey changes with the same delay", () => {
+    const callback = vi.fn();
+    const { rerender } = renderHook(
+      ({ resetKey }: { resetKey: string }) =>
+        useInterval(callback, 1_000, { resetKey }),
+      { initialProps: { resetKey: "a" } },
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(callback).not.toHaveBeenCalled();
+
+    rerender({ resetKey: "b" });
+
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+    expect(callback).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs immediately again when resetKey changes with immediate true", () => {
+    const callback = vi.fn();
+    const { rerender } = renderHook(
+      ({ resetKey }: { resetKey: number | null }) =>
+        useInterval(callback, resetKey === null ? null : 1_000, {
+          immediate: true,
+          resetKey,
+        }),
+      { initialProps: { resetKey: 100 as number | null } },
+    );
+
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    rerender({ resetKey: 200 });
+    expect(callback).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+    expect(callback).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(callback).toHaveBeenCalledTimes(3);
+
+    rerender({ resetKey: null });
+    expect(callback).toHaveBeenCalledTimes(3);
+  });
 });

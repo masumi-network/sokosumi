@@ -240,6 +240,35 @@ describe("classifyPublishError", () => {
     ).toMatchObject({ kind: "rejected", transient: false });
   });
 
+  it("reads X's spend cap as our posting paused, in our words, and retries", () => {
+    const classified = classifyPublishError(
+      new ComposioToolError({
+        message: "X publish failed",
+        providerMessage:
+          'Request failed error: `{"detail":"Your monthly spend cap has been reached.","status":403}`',
+        providerStatus: 403,
+      }),
+      "x",
+    );
+    expect(classified).toEqual({
+      kind: "platform_paused",
+      transient: true,
+      summary: "X paused our posting for now. We try again every hour.",
+    });
+    // Never the cap itself, which the owner cannot raise.
+    expect(classified.summary).not.toMatch(/cap/i);
+    expect(
+      classifyPublishError(
+        new ComposioApiError(
+          429,
+          undefined,
+          "UsageCapExceeded: Usage cap exceeded",
+        ),
+        "x",
+      ),
+    ).toMatchObject({ kind: "platform_paused", transient: true });
+  });
+
   it("keeps a non-authentication 403 rejection from another provider", () => {
     expect(
       classifyPublishError(

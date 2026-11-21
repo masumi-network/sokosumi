@@ -17,6 +17,8 @@ import { TurnActivity } from "@/components/soko-bot/turn-activity";
 import { TurnQuality } from "@/components/soko-bot/turn-quality";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { AdminTurnConversation } from "./admin-turn-conversation.client";
+import { TurnModelCalls } from "./turn-model-calls";
 
 interface AdminTurnsPanelProps {
   turns: AdminSokoBotTurn[];
@@ -126,6 +128,12 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                   </summary>
 
                   <div className="space-y-5 border-t px-4 py-4">
+                    <div className="flex items-center gap-2 text-xs">
+                      <AdminTurnConversation turnId={turn.id} />
+                      <span className="text-muted-foreground">
+                        {t("conversation")}
+                      </span>
+                    </div>
                     <MetaGrid
                       columns={4}
                       items={[
@@ -294,6 +302,11 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                             mono: true,
                           },
                           {
+                            label: t("modelReason"),
+                            value: turn.modelReason,
+                            mono: true,
+                          },
+                          {
                             label: t("inputTokens"),
                             value: turn.usage
                               ? format.number(turn.usage.inputTokens)
@@ -330,6 +343,13 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                           {t("noUsage")}
                         </p>
                       ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                        {t("modelCalls")}
+                      </h3>
+                      <TurnModelCalls calls={turn.modelCalls} />
                     </div>
 
                     <div className="space-y-2">

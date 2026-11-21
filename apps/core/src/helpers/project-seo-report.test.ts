@@ -302,7 +302,15 @@ describe("public SEO report trust boundary", () => {
 
   it("keeps the model origins and DataForSEO receipt with the measured keyword idea", () => {
     const fixture = legacyReport();
-    const editorial = { models: ["gemini", "codex"], record: "a".repeat(64) };
+    const editorial = {
+      models: ["gemini", "codex"],
+      record: "a".repeat(64),
+      angle: {
+        quote: "Battery condition in settings",
+        nextStep:
+          "Explain what each battery condition means beside the settings instructions.",
+      },
+    };
     const report = parsePublicSeoArtifact({
       ...fixture,
       keywordOpportunities: {

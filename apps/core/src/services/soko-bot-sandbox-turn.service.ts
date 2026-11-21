@@ -27,6 +27,7 @@ import {
   actionInputHash,
 } from "@/lib/soko-bot/action-receipts";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
+import { recordModelCall } from "@/lib/soko-bot/model-calls";
 import {
   assertSokoBotInferenceRegion,
   sokoBotInferenceEvidence,
@@ -63,6 +64,7 @@ import {
   sokoBotMaxSteps,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { turnRunModel } from "@/lib/soko-bot/turn-model";
 import { modelUserMessage } from "@/lib/soko-bot/turn-model-context";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import {
@@ -572,7 +574,7 @@ function gatewayBudgetScopeFromResponse(text: string) {
 
 /**
  * One model call from the runner. Core owns the Gateway key and the EU
- * routing policy: only the turn's version model, only the Gateway protocol
+ * routing policy: only the turn's model, only the Gateway protocol
  * headers, and Core's provider options in place of whatever the runner sent.
  * Usage is metered here — the runner's own report is never trusted — and
  * before the region check, so a rejected call is still billed.
@@ -591,7 +593,8 @@ export async function proxySandboxModelCall(
   );
   if (request.headers.get("ai-language-model-streaming") !== "true")
     throw badRequest("Model calls must stream");
-  if (request.headers.get("ai-language-model-id") !== version.model)
+  const model = turnRunModel(version, authorized.turn.modelId);
+  if (request.headers.get("ai-language-model-id") !== model)
     throw forbidden("Model is not this turn's");
   const purpose = await loadSokoBotTurnPurpose(claims.turnId);
   const apiKey = aiGatewayApiKey(purpose);
@@ -607,7 +610,7 @@ export async function proxySandboxModelCall(
   }
   const policy = sokoBotModelRequest({
     role: "agent",
-    model: version.model,
+    model,
     inferenceRegion: version.inferenceRegion,
     purpose,
   });
@@ -625,7 +628,7 @@ export async function proxySandboxModelCall(
   };
 
   const log = logFor(claims);
-  await log.append(runtimeEvent("step.started", { modelId: version.model }));
+  await log.append(runtimeEvent("step.started", { modelId: model }));
   const headers = new Headers({
     authorization: `Bearer ${apiKey}`,
     "content-type": "application/json",
@@ -681,14 +684,21 @@ export async function proxySandboxModelCall(
   await log.append(
     runtimeEvent("step.completed", {
       // A search runs in its own model call; its spend shows as search.
-      modelId: ranSearch ? "web_search" : version.model,
+      modelId: ranSearch ? "web_search" : model,
       inference: sokoBotInferenceEvidence(finish.providerMetadata),
       usage: gatewayCallUsage(finish),
     }),
   );
+  await recordModelCall({
+    turnId: claims.turnId,
+    role: ranSearch ? "search" : "agent",
+    requestedModel: model,
+    providerMetadata: finish.providerMetadata,
+    usage: gatewayCallUsage(finish),
+  });
   try {
     assertSokoBotInferenceRegion(finish.providerMetadata, {
-      model: version.model,
+      model,
       role: "agent",
     });
   } catch (error) {

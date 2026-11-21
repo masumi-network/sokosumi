@@ -4,6 +4,7 @@ import type { SokoBotIntegrationCatalogEntry } from "@sokosumi/core-client";
 import {
   type InstallSokoBotSkillResponse,
   type SokoBot,
+  type SokoBotConversation,
   type SokoBotDeletionResult,
   type SokoBotLabRun,
   type SokoBotLabTaskEvent,
@@ -419,6 +420,21 @@ export const sendSokoBotTurnFeedbackAction = withSession<
   try {
     await sokoBotService.sendTurnFeedback(parsedId.data, parsedUseful.data);
     return toActionResult(ok({ useful: parsedUseful.data }));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const getSokoBotTurnConversationAction = withSession<
+  AuthenticatedRequest & { turnId: unknown },
+  ActionResultDto<SokoBotConversation, ActionError>
+>(async ({ turnId }) => {
+  const parsed = z.string().uuid().safeParse(turnId);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(
+      ok(await sokoBotService.getTurnConversation(parsed.data)),
+    );
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
