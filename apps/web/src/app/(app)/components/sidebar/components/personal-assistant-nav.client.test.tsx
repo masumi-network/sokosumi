@@ -14,7 +14,6 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
     values ? `${key}(${Object.values(values).join(",")})` : key,
   useFormatter: () => ({ relativeTime, dateTime }),
-  useNow: () => NOW,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -77,8 +76,6 @@ import PersonalAssistantNav, {
   LastActive,
   type SidebarSokoBotLive,
 } from "./personal-assistant-nav.client";
-
-const NOW = new Date("2026-10-27T12:00:00Z");
 
 const bot: SidebarSokoBotLive = {
   id: "bot-1",
@@ -255,7 +252,8 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
 
     expect(row()).toHaveAccessibleName(/activeAgo\(2h ago\)/);
     expect(relativeTime).toHaveBeenCalledWith(lastActivityAt, {
-      now: NOW,
+      // The clock Home's rows count from, not one of its own.
+      now: expect.any(Number),
       style: "narrow",
     });
   });
