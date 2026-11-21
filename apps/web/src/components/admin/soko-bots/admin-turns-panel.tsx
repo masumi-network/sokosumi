@@ -17,6 +17,7 @@ import { TurnActivity } from "@/components/soko-bot/turn-activity";
 import { TurnQuality } from "@/components/soko-bot/turn-quality";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { AdminTurnConversation } from "./admin-turn-conversation.client";
 
 interface AdminTurnsPanelProps {
   turns: AdminSokoBotTurn[];
@@ -126,6 +127,12 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                   </summary>
 
                   <div className="space-y-5 border-t px-4 py-4">
+                    <div className="flex items-center gap-2 text-xs">
+                      <AdminTurnConversation turnId={turn.id} />
+                      <span className="text-muted-foreground">
+                        {t("conversation")}
+                      </span>
+                    </div>
                     <MetaGrid
                       columns={4}
                       items={[

@@ -103,6 +103,11 @@ export const adminSokoBotService = {
     return response.data;
   },
 
+  async turnConversation(turnId: string) {
+    const response = await coreClient.getAdminSokoBotTurnConversation(turnId);
+    return response.data;
+  },
+
   async deleteBot(sokoBotId: string) {
     const response = await coreClient.deleteAdminSokoBot(sokoBotId);
     return response.data;

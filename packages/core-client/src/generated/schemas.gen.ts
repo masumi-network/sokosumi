@@ -5365,6 +5365,194 @@ export const SokoBotSchema = {
     ]
 } as const;
 
+export const SokoBotConversationSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                oneOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'turn'
+                                ]
+                            },
+                            at: {
+                                type: 'string'
+                            },
+                            turnId: {
+                                type: 'string'
+                            },
+                            title: {
+                                type: 'string'
+                            },
+                            status: {
+                                type: 'string'
+                            },
+                            model: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            costUsd: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            durationMs: {
+                                type: [
+                                    'integer',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'at',
+                            'turnId',
+                            'title',
+                            'status',
+                            'model',
+                            'costUsd',
+                            'durationMs'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'asked'
+                                ]
+                            },
+                            at: {
+                                type: 'string'
+                            },
+                            by: {
+                                type: 'string'
+                            },
+                            to: {
+                                type: 'string'
+                            },
+                            room: {
+                                type: 'string'
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'at',
+                            'by',
+                            'to',
+                            'room',
+                            'text'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'answered'
+                                ]
+                            },
+                            at: {
+                                type: 'string'
+                            },
+                            by: {
+                                type: 'string'
+                            },
+                            byKind: {
+                                type: 'string',
+                                enum: [
+                                    'person',
+                                    'coworker',
+                                    'assistant'
+                                ]
+                            },
+                            room: {
+                                type: 'string'
+                            },
+                            text: {
+                                type: 'string'
+                            },
+                            model: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            costUsd: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ]
+                            },
+                            durationMs: {
+                                type: [
+                                    'integer',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'at',
+                            'by',
+                            'byKind',
+                            'room',
+                            'text',
+                            'model',
+                            'costUsd',
+                            'durationMs'
+                        ]
+                    }
+                ]
+            }
+        },
+        totals: {
+            type: 'object',
+            properties: {
+                costUsd: {
+                    type: 'number'
+                },
+                durationMs: {
+                    type: 'integer'
+                },
+                models: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    }
+                }
+            },
+            required: [
+                'costUsd',
+                'durationMs',
+                'models'
+            ]
+        }
+    },
+    required: [
+        'turnId',
+        'steps',
+        'totals'
+    ]
+} as const;
+
 export const AdminSokoBotActionRequestSchema = {
     type: 'object',
     properties: {

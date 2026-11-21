@@ -1817,6 +1817,15 @@
           "scheduled": "Programado: {name}",
           "background": "Trabajo en segundo plano: {name}",
           "taskUpdate": "Actualización de tarea"
+        },
+        "Conversation": {
+          "open": "Cómo llegué a esto",
+          "title": "Cómo llegué a esto",
+          "asked": "{by} preguntó a {to}",
+          "answered": "{by} respondió",
+          "totals": "{cost} · {time} · {models}",
+          "loading": "Cargando…",
+          "error": "No se pudo cargar la conversación."
         }
       }
     },
@@ -7101,7 +7110,7 @@
           "counts": "Recuentos",
           "omissions": "Omisiones",
           "noSnapshot": "No hay instantánea de contexto guardada para este turno.",
-          "conversation": "Conversación",
+          "conversation": "A quién preguntó, qué respondieron, y el modelo, coste y tiempo de cada paso",
           "user": "Usuario",
           "answer": "Respuesta",
           "activity": "Actividad",

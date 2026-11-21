@@ -35,6 +35,7 @@ import {
   getMySokoBotActivity as coreGetMySokoBotActivity,
   getMySokoBotStats as coreGetMySokoBotStats,
   getMySokoBotTurn as coreGetMySokoBotTurn,
+  getMySokoBotTurnConversation as coreGetMySokoBotTurnConversation,
   getMySokoBotTurnResults as coreGetMySokoBotTurnResults,
   getMySokoBotUsage as coreGetMySokoBotUsage,
   getSokoBot as coreGetSokoBot,
@@ -210,6 +211,19 @@ export function createSokoBotClient(getClient: GetCoreClient) {
       (client) =>
         coreSendMySokoBotTurnFeedback({ client, path: { id: turnId }, body }),
       "Failed to send feedback",
+    );
+  }
+
+  async function getMySokoBotTurnConversation(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetMySokoBotTurnConversation({
+          client,
+          path: { id: turnId },
+          cache: "no-store",
+        }),
+      "Failed to load the conversation",
     );
   }
 
@@ -774,6 +788,7 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     listSokoBotVersions,
     updateMySokoBotProactive,
     sendMySokoBotTurnFeedback,
+    getMySokoBotTurnConversation,
     updateMySokoBotBoardFollowing,
     updateMySokoBotTeamStandup,
     renameMySokoBot,

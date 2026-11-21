@@ -12,6 +12,7 @@ import type {
   SharedSokoBotSummary,
   SimulateSokoBotTaskEventRequest,
   SokoBot,
+  SokoBotConversation,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
   SokoBotIntegrationCatalogEntry,
@@ -144,6 +145,11 @@ export const sokoBotService = {
     botId?: string,
   ): Promise<SokoBot> {
     const response = await coreClient.updateMySokoBotProactive(input, botId);
+    return response.data;
+  },
+
+  async getTurnConversation(turnId: string): Promise<SokoBotConversation> {
+    const response = await coreClient.getMySokoBotTurnConversation(turnId);
     return response.data;
   },
 
