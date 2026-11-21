@@ -124,6 +124,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "a2a-several-messages": "Agent to agent",
   "a2a-bot-to-bot": "Agent to agent",
   "a2a-coworker-declines": "Agent to agent",
+  "a2a-who-to-ask": "Agent to agent",
   "a2a-hop-limit": "Agent to agent",
 };
 

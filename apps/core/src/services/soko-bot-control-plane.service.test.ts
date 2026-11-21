@@ -3011,7 +3011,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT.filter(
         (capability) =>
           !isSokoBotNewsletterCapability(capability) &&
-          !isSokoBotAnnouncementCapability(capability),
+          !isSokoBotAnnouncementCapability(capability) &&
+          // v35's messaging tools; this bot runs an earlier version.
+          capability !== "send_message" &&
+          capability !== "list_recipients",
       ),
     );
   });

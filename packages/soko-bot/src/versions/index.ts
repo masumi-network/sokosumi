@@ -62,6 +62,7 @@ import { v30 } from "./v30.js";
 import { v31 } from "./v31.js";
 import { v32 } from "./v32.js";
 import { v33 } from "./v33.js";
+import { v35 } from "./v35.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -98,6 +99,7 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v31,
   v32,
   v33,
+  v35,
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v33";
 
@@ -213,10 +215,15 @@ export function applyVersionCapabilities(
   capabilities: readonly SokoBotCapability[],
 ): SokoBotCapability[] {
   const cmo = version.profile === "cmo";
+  const messagingTools: readonly SokoBotCapability[] =
+    version.messaging === "send_message"
+      ? ["post_chat", "open_direct_chat", "ask_coworker"]
+      : ["send_message", "list_recipients"];
   const routed = capabilities.filter(
     (capability) =>
       !isSokoBotCmoCapability(capability) &&
-      !(cmo && isSokoBotCompetitorCapability(capability)),
+      !(cmo && isSokoBotCompetitorCapability(capability)) &&
+      !messagingTools.includes(capability),
   );
   const allowed = version.capabilities
     ? routed.filter((capability) =>

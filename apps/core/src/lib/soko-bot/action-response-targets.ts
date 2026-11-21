@@ -43,6 +43,7 @@ export const ACTION_LABELS: Record<string, string> = {
   post_chat: "Queued chat message",
   open_direct_chat: "Queued direct message",
   ask_coworker: "Asked a Coworker",
+  send_message: "Sent a message",
   upsert_contact: "Saved contact",
   update_contact: "Updated contact",
   log_contact_interaction: "Logged a contact interaction",
