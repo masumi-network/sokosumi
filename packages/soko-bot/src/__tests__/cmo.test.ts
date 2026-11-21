@@ -179,10 +179,10 @@ describe("CMO version", () => {
     );
   });
 
-  // Owner, 2026-11-20: varied pictures, no repeated messages, corrections
-  // that reach the whole plan, stronger LinkedIn openings.
-  it("makes cmo-v10 the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v10");
+  // Owner, 2026-11-21: one Cuso with the stronger model, picked pictures,
+  // weekly SEO reports and part patches.
+  it("makes cmo-v13 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v13");
   });
 
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
@@ -267,8 +267,6 @@ describe("CMO version", () => {
       "- purpose, with styleLook",
     );
     expect(CMO_VARIED_PIECE_WRITING_GUIDE).not.toContain("one concrete scene");
-    // New hires start on cmo-v10, cmo-v9 with the stronger model.
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v10");
   });
 
   it("has cmo-v10 run cmo-v9 word for word with a stronger model for hard work", () => {
