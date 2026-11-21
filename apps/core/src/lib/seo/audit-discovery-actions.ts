@@ -25,14 +25,13 @@ export function auditDiscoveryResult(
       actions.push({
         url: row.path,
         action:
-          "Open the sitemap error details in Search Console. Fix the reported entries and check the next Google read.",
+          "Review the errors in Search Console. Fix the sitemap, then check again after Google reads it.",
         evidence: `Google reported ${row.errors} errors.`,
       });
     else if (row.warnings && row.warnings > 0)
       actions.push({
         url: row.path,
-        action:
-          "Check the sitemap warnings to see which entries Google could process.",
+        action: "Review the sitemap warnings in Search Console.",
         evidence: `Google reported ${row.warnings} warnings.`,
       });
   }
@@ -41,10 +40,9 @@ export function auditDiscoveryResult(
       if (!evidence.sitemaps.some((row) => row.path === url))
         actions.push({
           url,
-          action:
-            "Submit this existing sitemap in Search Console if you want Google’s processing history.",
+          action: "Submit this sitemap to see when Google reads it.",
           evidence:
-            "The audit read this public sitemap. It did not appear in the submitted list for this property.",
+            "The sitemap is public. Search Console didn’t list it as submitted for this site.",
         });
     }
   for (const page of evidence.inspections) {
@@ -54,13 +52,13 @@ export function auditDiscoveryResult(
     let action: string;
     if (/currently not indexed/.test(reason))
       action =
-        "Check this page’s intended canonical and its contextual internal links. Compare the next URL inspection after a new Google crawl.";
+        "Check which URL should appear in search and which pages link to it. Inspect it again after Google revisits.";
     else if (/not found|soft 404|server error/.test(reason))
       action =
-        "Check live HTTP status and incoming links. Repair the URL if it should exist, or update links that still point to it.";
+        "Open the URL. If it should work, fix it. Otherwise, update links that point to it.";
     else if (/blocked by|noindex/.test(reason))
       action =
-        "Confirm that this page should appear in search before changing its index directive or access settings.";
+        "Check whether this page should appear in search before unblocking it.";
     else continue;
     actions.push({
       url: page.page,

@@ -80,6 +80,61 @@ describe("website-scoped Search Console traffic", () => {
         search_type: "web",
       });
   });
+  it("uses the picked URL for the daily chart, headline and ranking, including a discovered page", async () => {
+    const dates = [
+      { keys: [request.to], clicks: 3, impressions: 5 },
+      { keys: [request.from], clicks: 6, impressions: 12 },
+    ];
+    const read = vi.fn((args: Record<string, unknown>) =>
+      (args.dimensions as string[])[0] === "date"
+        ? Promise.resolve({ rows: dates })
+        : google(args),
+    );
+    const filtered = {
+      ...request,
+      scope: "selected" as const,
+      pageUrls: [pricing],
+      includeDaily: true,
+    };
+    const report = await readSiteTraffic(
+      filtered,
+      apex,
+      [apex],
+      [inspection],
+      read,
+    );
+    expect(report.daily).toEqual([
+      { date: request.from, clicks: 6, impressions: 12 },
+      { date: request.to, clicks: 3, impressions: 5 },
+    ]);
+    expect(report.totals).toEqual({ clicks: 9, impressions: 17 });
+    expect(report.pages.map((p) => p.url)).toEqual([pricing]);
+    expect(
+      new Set(
+        read.mock.calls.map(([args]) =>
+          JSON.stringify(args.dimension_filter_groups),
+        ),
+      ).size,
+    ).toBe(1);
+    await expect(
+      readSiteTraffic(
+        { ...filtered, pageUrls: [foreign] },
+        apex,
+        [apex],
+        [],
+        read,
+      ),
+    ).rejects.toThrow("Page filter");
+    for (const keys of [[request.to], ["1999-01-01"], ["2026-02-31"]]) {
+      await expect(
+        readSiteTraffic(filtered, apex, [apex], [], async (args) =>
+          (args.dimensions as string[])[0] === "date"
+            ? { rows: [dates[0], { ...dates[1], keys }] }
+            : google(args),
+        ),
+      ).rejects.toThrow(/traffic date/);
+    }
+  });
   it("counts each verified variant once, even when both addresses were selected", async () => {
     const report = await readSiteTraffic(
       { ...request, scope: "selected" },

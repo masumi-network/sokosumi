@@ -51710,6 +51710,32 @@ export const SeoSiteTrafficReportSchema = {
                 'impressions'
             ]
         },
+        daily: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    clicks: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    impressions: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    date: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                    }
+                },
+                required: [
+                    'clicks',
+                    'impressions',
+                    'date'
+                ]
+            },
+            maxItems: 366
+        },
         limited: {
             type: 'boolean'
         },
@@ -51810,6 +51836,19 @@ export const SeoSiteTrafficInputSchema = {
             },
             minItems: 1,
             maxItems: 10
+        },
+        pageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        includeDaily: {
+            type: 'boolean'
         },
         from: {
             type: 'string',

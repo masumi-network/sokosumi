@@ -11,7 +11,6 @@ type Keyword = ProjectSeoWorkspace["keywords"][number];
 /** A rank up to this one is on the first results page. */
 export const SEO_FIRST_PAGE_RANK = 10;
 
-const MAX_VISIBLE_IDEAS = 50;
 function hasRankedIdeas(rows: Keyword[]) {
   return rows.some((row) => row.ideaRank !== undefined);
 }
@@ -206,8 +205,7 @@ export function keywordGroups(rows: Keyword[], broad = hasRankedIdeas(rows)) {
           lead.countryCode,
           lead.languageCode,
         ]);
-        if (distinct.has(key) || distinct.size === MAX_VISIBLE_IDEAS)
-          return false;
+        if (distinct.has(key)) return false;
         distinct.add(key);
         return true;
       })

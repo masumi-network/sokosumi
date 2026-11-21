@@ -108,143 +108,166 @@ export function SeoMarkets({
   );
   const candidates = comparison?.rows.filter((row) => row.candidate) ?? [];
   const others = comparison?.rows.filter((row) => !row.candidate) ?? [];
+  const versions = page?.pageMarketEvidence?.regionalVersions;
+  const onlyPage = Boolean(
+    page && !comparison && !note && !countries && !versions?.length,
+  );
   return (
     <section
       lang="en"
       aria-label={t("title")}
       className="min-w-0 space-y-3 border-t pt-4 text-sm"
     >
-      <h3 className="font-semibold">{t("title")}</h3>
-      {comparison ? (
-        <>
-          <p>
-            {t("basis")} ·{" "}
-            <SeoDate day report value={site?.observedAt ?? null} />
-          </p>
-          {candidates.length ? (
+      <details
+        open={Boolean(candidates.length || foreign.length || versions?.length)}
+      >
+        <SeoFoldSummary className="min-h-11 justify-between gap-3 px-2">
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-3">
+            <span className="font-semibold">{t("title")}</span>
+            {onlyPage && (
+              <span className="text-muted-foreground text-xs">
+                {t("noVersions")}
+              </span>
+            )}
+          </span>
+        </SeoFoldSummary>
+        <div className="space-y-3 px-2 pb-3">
+          {comparison ? (
             <>
-              {table(candidates, t("title"))}
               <p>
-                {t("next", {
-                  markets: candidates
-                    .map((row) => marketName(row.country, row.language))
-                    .join(", "),
-                })}
+                {t("basis")} ·{" "}
+                <SeoDate day report value={site?.observedAt ?? null} />
               </p>
-            </>
-          ) : (
-            <p>
-              {t(
-                comparison.outside === null
-                  ? "noRivals"
-                  : !comparison.siteVisits
-                    ? "noSite"
-                    : "noCandidates",
+              {candidates.length ? (
+                <>
+                  {table(candidates, t("title"))}
+                  <p>
+                    {t("next", {
+                      markets: candidates
+                        .map((row) => marketName(row.country, row.language))
+                        .join(", "),
+                    })}
+                  </p>
+                </>
+              ) : (
+                <p>
+                  {t(
+                    comparison.outside === null
+                      ? "noRivals"
+                      : !comparison.siteVisits
+                        ? "noSite"
+                        : "noCandidates",
+                  )}
+                </p>
               )}
-            </p>
-          )}
-          {others.length > 0 && (
-            <details>
-              <SeoFoldSummary>
-                {t("other", { count: others.length })}
-              </SeoFoldSummary>
-              {table(others, t("other", { count: others.length }))}
-            </details>
-          )}
-          {comparison.outside !== null && (
-            <p>{t("outside", { share: percent(comparison.outside) })}</p>
-          )}
-          <details>
-            <SeoFoldSummary>{t("sources")}</SeoFoldSummary>
-            <ul>
-              {comparison.hosts.map((host) => (
-                <li key={host.host}>
-                  {host.host} · {t(host.role)} ·{" "}
-                  {host.unavailable || host.etv === null
-                    ? t("unknown")
-                    : format.number(host.etv, {
-                        maximumFractionDigits: 1,
-                      })}{" "}
-                  · <SeoDate report day value={host.fetchedAt} />
-                </li>
-              ))}
-            </ul>
-          </details>
-        </>
-      ) : note ? (
-        <p>
-          {t(`note.${note}`)} · <SeoDate day report value={site.observedAt} />
-        </p>
-      ) : (
-        <p>{t("missing")}</p>
-      )}
-      {page && (
-        <>
-          <p>
-            {t("pageBasis")} · <SeoDate report day value={page.observedAt} />
-          </p>
-          {pageUrl && <p className="break-all">{pageUrl}</p>}
-          {page.pageMarketEvidence?.regionalVersions.length ? (
-            <ul>
-              {page.pageMarketEvidence.regionalVersions.map((v) => (
-                <li key={[v.language, v.country, v.url].join("|")}>
-                  <span>{marketName(v.country, v.language)}</span> ·{" "}
-                  <span className="break-all">{v.url}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>{t("noVersions")}</p>
-          )}
-        </>
-      )}
-      {countries && evidence && (
-        <div className="space-y-1">
-          <h4 className="font-medium">{t("observed")}</h4>
-          <p>
-            <SeoPeriod
-              report
-              from={new Date(evidence.from).toISOString().slice(0, 10)}
-              to={new Date(evidence.to).toISOString().slice(0, 10)}
-            />{" "}
-            · {t("selectedPages")}
-          </p>
-          <details>
-            <SeoFoldSummary>{t("measuredPages")}</SeoFoldSummary>
-            <ul>
-              {evidence.pageUrls.map((url) => (
-                <li key={url} className="break-all">
-                  {url}
-                </li>
-              ))}
-            </ul>
-          </details>
-          {evidence.coverage === "partial" && <p>{t("partial")}</p>}
-          {foreign.length ? (
-            <>
-              <ul>{foreign.slice(0, SEO_BREAKDOWN_SHOWN).map(exposureLine)}</ul>
-              {foreign.length > SEO_BREAKDOWN_SHOWN && (
+              {others.length > 0 && (
                 <details>
                   <SeoFoldSummary>
-                    {t("moreCountries", {
-                      count: foreign.length - SEO_BREAKDOWN_SHOWN,
-                    })}
+                    {t("other", { count: others.length })}
                   </SeoFoldSummary>
-                  <ul>
-                    {foreign.slice(SEO_BREAKDOWN_SHOWN).map(exposureLine)}
-                  </ul>
+                  {table(others, t("other", { count: others.length }))}
                 </details>
               )}
-              <p>
-                {t("countryNext", { country: countryName(foreign[0].key) })}
-              </p>
+              {comparison.outside !== null && (
+                <p>{t("outside", { share: percent(comparison.outside) })}</p>
+              )}
+              <details>
+                <SeoFoldSummary>{t("sources")}</SeoFoldSummary>
+                <ul>
+                  {comparison.hosts.map((host) => (
+                    <li key={host.host}>
+                      {host.host} · {t(host.role)} ·{" "}
+                      {host.unavailable || host.etv === null
+                        ? t("unknown")
+                        : format.number(host.etv, {
+                            maximumFractionDigits: 1,
+                          })}{" "}
+                      · <SeoDate report day value={host.fetchedAt} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
             </>
+          ) : note ? (
+            <p>
+              {t(`note.${note}`)} ·{" "}
+              <SeoDate day report value={site.observedAt} />
+            </p>
           ) : (
-            <p>{t("noExposure")}</p>
+            <p>{t("missing")}</p>
           )}
-          {countries.truncated && <p>{t("truncated")}</p>}
+          {page && (
+            <>
+              <p>
+                {t("pageBasis")} ·{" "}
+                <SeoDate report day value={page.observedAt} />
+              </p>
+              {pageUrl && <p className="break-all">{pageUrl}</p>}
+              {versions?.length ? (
+                <ul>
+                  {versions.map((v) => (
+                    <li key={[v.language, v.country, v.url].join("|")}>
+                      <span>{marketName(v.country, v.language)}</span> ·{" "}
+                      <span className="break-all">{v.url}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                !onlyPage && <p>{t("noVersions")}</p>
+              )}
+            </>
+          )}
+          {countries && evidence && (
+            <div className="space-y-1">
+              <h4 className="font-medium">{t("observed")}</h4>
+              <p>
+                <SeoPeriod
+                  report
+                  from={new Date(evidence.from).toISOString().slice(0, 10)}
+                  to={new Date(evidence.to).toISOString().slice(0, 10)}
+                />{" "}
+                · {t("selectedPages")}
+              </p>
+              <details>
+                <SeoFoldSummary>{t("measuredPages")}</SeoFoldSummary>
+                <ul>
+                  {evidence.pageUrls.map((url) => (
+                    <li key={url} className="break-all">
+                      {url}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+              {evidence.coverage === "partial" && <p>{t("partial")}</p>}
+              {foreign.length ? (
+                <>
+                  <ul>
+                    {foreign.slice(0, SEO_BREAKDOWN_SHOWN).map(exposureLine)}
+                  </ul>
+                  {foreign.length > SEO_BREAKDOWN_SHOWN && (
+                    <details>
+                      <SeoFoldSummary>
+                        {t("moreCountries", {
+                          count: foreign.length - SEO_BREAKDOWN_SHOWN,
+                        })}
+                      </SeoFoldSummary>
+                      <ul>
+                        {foreign.slice(SEO_BREAKDOWN_SHOWN).map(exposureLine)}
+                      </ul>
+                    </details>
+                  )}
+                  <p>
+                    {t("countryNext", { country: countryName(foreign[0].key) })}
+                  </p>
+                </>
+              ) : (
+                <p>{t("noExposure")}</p>
+              )}
+              {countries.truncated && <p>{t("truncated")}</p>}
+            </div>
+          )}
         </div>
-      )}
+      </details>
     </section>
   );
 }

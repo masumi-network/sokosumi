@@ -397,7 +397,7 @@ export function searchConsoleSettledEnd(
 
 export function withinPeriod(
   date: string,
-  query: NativeStatisticsQuery,
+  query: Pick<NativeStatisticsQuery, "from" | "to">,
 ): boolean {
   const parsed = new Date(`${date}T00:00:00Z`);
   return (

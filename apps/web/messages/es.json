@@ -12478,6 +12478,10 @@
       "dateFrom": "Actividad desde",
       "dateTo": "Actividad hasta",
       "invalidDates": "Elige una fecha final igual o posterior a la inicial.",
+      "menu": {
+        "google": "Datos de Google",
+        "audit": "Auditoría"
+      },
       "manage": "Gestionar SEO",
       "addPage": "Añadir una página",
       "createScope": "Guardar selección de páginas",
@@ -12669,7 +12673,6 @@
         "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
         "pickTile": "Elige un número de arriba para verlo en el gráfico.",
         "tooFewToCompare": "{period}: {current, plural, one {# impresión} other {# impresiones}}. Semana anterior: {previous}. Muy pocas para comparar semanas.",
-        "noteCount": "{count, plural, one {# nota} other {# notas}}",
         "fromCheck": "Comprobado el <date></date>",
         "pageMeasurements": "Mediciones",
         "pageNotes": "Notas ({count})",
@@ -12850,20 +12853,13 @@
             "medium": "Probabilidad de conversión media",
             "high": "Probabilidad de conversión alta"
           },
-          "note": "La probabilidad de conversión es una estimación de la comprobación: según lo que busca la persona y lo bien que encaja tu producto. No es una tasa medida.",
+          "note": "El ajuste al objetivo se estima según lo que la gente busca y lo que ofrece la página.",
           "high": "Alta",
           "medium": "Media",
           "low": "Baja"
         },
         "recommendation": {
-          "mix": "Primero aparecen las ideas con poca competencia que encajan bien con el objetivo de la página. Después se alternan los dos grupos mientras ambos tengan ideas. Abre una fila para ver el motivo.",
-          "both": "Recomendada por su baja competencia y su ajuste al objetivo",
-          "competition": "Recomendada por su baja competencia",
-          "goal": "Recomendada por su ajuste al objetivo",
           "editorial": "Proposed by {models}. DataForSEO measured demand and difficulty in this market.",
-          "easeEvidence": "Dificultad {value, number}/100 (inferior a {limit}).",
-          "goalEvidence": "La auditoría estima una probabilidad alta de alcanzar el objetivo de la página.",
-          "legend": "Idea recomendada",
           "page": "Página auditada",
           "action": "Objetivo de la página: {action}",
           "studio": "Redactar en Content Studio (próximamente)"
@@ -12875,7 +12871,7 @@
           "evidence": "Fuente de la página y datos de demanda",
           "above_baseline": "El año pasado, las búsquedas locales superaron la mediana anterior.",
           "no_observed_rise": "El año pasado, las búsquedas locales no superaron la mediana anterior.",
-          "windowRise": "En esos meses del año pasado hubo más búsquedas locales que en los meses de referencia.",
+          "windowRise": "Las búsquedas locales aumentaron en estos meses el año pasado.",
           "windowOther": "Para {target}, en {prior} hubo unas {volume, number} búsquedas locales. La mediana de los demás meses observados ({months}) fue de {baseline, number}.",
           "incompleteComparison": "Estimaciones disponibles de búsquedas locales del año pasado: {counts}. Faltan datos para comparar la demanda.",
           "historicalIdea": "Investiga esta búsqueda con el historial local de DataForSEO.",
@@ -12915,7 +12911,7 @@
         "searchKeywords": "Filtrar palabras clave",
         "map": {
           "title": "Oportunidades de palabras clave",
-          "subtitle": "Búsquedas al mes frente a la dificultad. Arriba a la izquierda es lo mejor.",
+          "subtitle": "Más arriba hay más búsquedas al mes. Más a la izquierda hay menos competencia.",
           "checked": "Sus palabras clave",
           "idea": "Idea",
           "hint": "Use las flechas izquierda y derecha para moverse entre las palabras clave, Intro para abrir una, y + o - para hacer zoom.",
@@ -12923,7 +12919,6 @@
           "difficulty": "Dificultad {value} de 100",
           "top10": "{clicks, plural, =0 {Top 10: sin clics adicionales} one {Top 10: +# clic al mes} other {Top 10: +# clics al mes}}",
           "top3": "{clicks, plural, =0 {Top 3: sin clics adicionales} one {Top 3: +# clic al mes} other {Top 3: +# clics al mes}}",
-          "gain": "Clics adicionales en el top 3",
           "table": "Mostrar como tabla",
           "source": "Los clics son estimaciones a partir de las búsquedas mensuales y la cuota de clics de cada puesto de Google (Advanced Web Ranking, julio de 2026). La dificultad viene de DataForSEO.",
           "zoomIn": "Acercar",
@@ -13001,6 +12996,25 @@
             "medium": "Dificultad media",
             "hard": "Difícil de posicionar"
           }
+        },
+        "shortlist": {
+          "label": "Recomendada",
+          "chartKey": "Recomendada · clics adicionales estimados en la posición 10",
+          "summary": "{count, plural, one {# idea recomendada} other {# ideas recomendadas}} por su relevancia, baja competencia y posibles clics adicionales.",
+          "none": "Ninguna idea cumple los tres criterios: relevancia, baja competencia y posibles clics adicionales.",
+          "gain": "Aumento estimado en puesto 10",
+          "clicks": "{count, plural, =0 {0 clics/mes} one {+# clic/mes} other {+# clics/mes}}",
+          "lift": "Un {percent} más de clics al mes que la estimación actual.",
+          "priority": "Buen ajuste al objetivo y baja dificultad. La mediana de las ideas de este mercado es de {median, number} clics adicionales al mes.",
+          "fitUnknown": "Falta valorar el ajuste al objetivo.",
+          "medium": "El ajuste estimado al objetivo de la página es medio.",
+          "low": "El ajuste estimado al objetivo de la página es bajo.",
+          "difficultyUnknown": "Falta medir la dificultad.",
+          "competition": "La competencia es demasiado alta para recomendar esta idea.",
+          "gainUnknown": "No hay una estimación de clics para el puesto 10.",
+          "noGain": "Llegar al puesto 10 no aportaría más clics según la estimación.",
+          "smallerGain": "El aumento queda por debajo de la mediana de {median, number} clics adicionales al mes en este mercado.",
+          "smallerLift": "El aumento porcentual queda por debajo de la mediana de las ideas con clics iniciales en este mercado."
         }
       },
       "competitors": {
@@ -13034,7 +13048,8 @@
         "dialogHelp": "Añade un sitio con el que compites. Se queda en esta lista como tu competidor.",
         "searchPlaceholder": "Filtrar sitios",
         "rankHint": "Mejor posición: el lugar más alto que ocupa una página de este sitio para una de tus palabras clave.",
-        "domainsShort": "Sitios que enlazan"
+        "domainsShort": "Sitios que enlazan",
+        "about": "Acerca de estas cifras"
       },
       "actions": {
         "title": "Acciones",
@@ -13186,7 +13201,33 @@
         "checkAnchor": "Revisa la entrada vacía en Search Console y comprueba el texto de los enlaces y el texto alternativo de las imágenes de origen.",
         "checkDomain": "Abre este dominio en el informe de enlaces y revisa a qué páginas tuyas enlaza."
       },
+      "planning": {
+        "savedActions": "Acciones guardadas de la auditoría",
+        "title": "Planificación estratégica",
+        "paint": "Mejorar la velocidad de carga ({device})",
+        "retestMobile": "Volver a medir la carga en móviles",
+        "retestDesktop": "Volver a medir la carga en ordenadores",
+        "labLcp": "En la prueba, el mayor elemento apareció tras {seconds} s.",
+        "trace": "Busca la imagen o el bloque de texto más grande. Comprueba qué retrasa su aparición.",
+        "retest": "Repite la misma prueba ({device}) y compara los tiempos.",
+        "inspectionHistory": "Historial de inspecciones"
+      },
+      "research": {
+        "latest": "Última revisión",
+        "checkCount": "{count, plural, one {# comprobación} other {# comprobaciones}}",
+        "checks": "Comprobaciones de investigación",
+        "incomplete": "{stage} sin completar",
+        "coverage": "{verified} de {total} verificadas · {deferred} aplazadas",
+        "targets": "{count, plural, one {# URL de destino} other {# URL de destino}}",
+        "console": "{actions, plural, one {# acción} other {# acciones}} · {changes, plural, one {# cambio} other {# cambios}}"
+      },
       "siteEvidence": {
+        "eligible": "URL aptas",
+        "verified": "Verificadas",
+        "deferredCount": "Aplazadas",
+        "otherTargets": "Otros destinos de la muestra ({count})",
+        "unknownResponse": "Respuesta desconocida",
+        "linkingPages": "{count, plural, one {# página enlazante en la muestra} other {# páginas enlazantes en la muestra}}",
         "discovered": "URLs aptas: {count}. Respuestas públicas verificadas: {checked}. Pendientes: {deferred}.",
         "deferred": "URLs pendientes ({count} visibles)",
         "reasons": {
@@ -13200,25 +13241,25 @@
         "suppliedSitemap_read": "La auditoría leyó el sitemap indicado.",
         "suppliedSitemap_blocked": "La auditoría no pudo confirmar el alcance del sitio y el permiso de rastreo del sitemap indicado.",
         "suppliedSitemap_unavailable": "El sitemap indicado no estaba disponible o no pudo leerse dentro de los límites de la auditoría.",
-        "downloadSitemap": "Descargar borrador XML de sitemap con las páginas verificadas de esta muestra",
+        "downloadSitemap": "Descargar el borrador del sitemap de páginas verificadas",
         "heading": "Enlaces internos e indexación",
         "coverage": "Muestra pública del {date}: {pages} páginas y {targets} URL de destino.",
         "partial": "La auditoría solo recopiló parte de la muestra.",
         "sampledPages": "Páginas públicas de la muestra",
         "response": "El destino devolvió HTTP {status}.",
-        "unverified": "No se verificó el estado HTTP del destino.",
+        "unverified": "La respuesta de la página sigue sin verificar.",
         "destination": "Destino final:",
         "google": "Inspección de URL de Google: {reason}.",
         "trend": "Páginas de la muestra que enlazan aquí: {previous} el {date}, ahora {current}.",
         "decline": "En tres comprobaciones seguidas, cada vez menos páginas de la muestra enlazaron aquí",
         "linkCount": "{date}: {count, plural, one {# página con enlace} other {# páginas con enlace}}",
-        "lostDonors": "Páginas que antes enlazaban aquí y no tenían ese enlace en la última muestra",
+        "lostDonors": "Páginas donde el enlace dejó de aparecer",
         "unknownDonors": "Se desconoce la cobertura de enlaces porque no se muestrearon páginas de origen.",
         "partialDonors": "Páginas con enlaces observadas en esta muestra parcial: {count}.",
         "baseline": "Páginas de la muestra que enlazan aquí: {count}. No hay una muestra anterior comparable.",
-        "donors": "Páginas que enlazan a este destino",
+        "donors": "Páginas con enlaces aquí",
         "content": "(enlace en el contenido)",
-        "sitemaps": "Sitemaps que incluyen este destino"
+        "sitemaps": "Sitemaps que incluyen esta página"
       },
       "discovery": {
         "actionsHeading": "Acciones de Search Console",
@@ -13239,7 +13280,7 @@
         "submitted": "Last submitted: {date}.",
         "read": "Last downloaded by Google: {date}.",
         "crawl": "Last crawled by Google: {date}.",
-        "canonical": "Google canonical: {url}",
+        "canonical": "URL preferida por Google: {url}",
         "inspections": "Inspected URLs in this audit ({count})"
       },
       "pageDiscovery": {
@@ -13263,12 +13304,10 @@
         "limited": "Se muestra una selección de los resultados que devolvió Google."
       },
       "reportFiles": {
-        "noQueryRecommendations": "Search Console no devolvió consultas para estas páginas y fechas. Esta comprobación no tiene recomendaciones basadas en consultas.",
         "recommendations": "Recomendaciones de esta comprobación",
         "recoverSearch": "Recuperar resultados de Search Console",
         "recoverSearchFailed": "No se pudieron recuperar los resultados de Search Console. Vuelve a intentarlo.",
         "crawlDetails": "Detalles del rastreo",
-        "performanceScope": "Los datos de página que siguen corresponden a las URL auditadas.",
         "topClickedPages": "Páginas con más clics en la búsqueda",
         "propertyPerformance": "Rendimiento en la búsqueda web de toda la propiedad",
         "propertyTotalsFailed": "No se pudieron cargar todos los datos de la propiedad. Vuelve a intentarlo.",
@@ -13279,7 +13318,6 @@
         "auditedUrls": "URLs auditadas",
         "googleCanonical": "URL canónica de Google medida: {url}",
         "canonicalUnverified": "Se midió la URL enviada. No se verificó la URL canónica.",
-        "withSearchConsole": "Informes y Search Console",
         "missingSearchConsole": "No hay resultados de Search Console disponibles para esta comprobación.",
         "period": "Del {from} al {to}",
         "matchedHistory": "Comparación con los mismos días de la semana del año anterior",
@@ -13290,6 +13328,7 @@
           "monitor": "La comparación anual no confirmó el cambio reciente. Observa el próximo período comparable.",
           "insufficient_history": "El historial comparable no basta para confirmar el cambio reciente."
         },
+        "thisPeriod": "Este periodo",
         "previousPeriod": "Periodo anterior",
         "title": "Archivos del informe",
         "run": "Comprobación",
@@ -13311,7 +13350,9 @@
         "marketsChecked": "Comparación de mercados comprobada",
         "importHelp": "Importa este informe para añadir sus hallazgos a tus resultados de SEO.",
         "recoverPageSpeed": "Leer el rendimiento de página del informe guardado",
-        "speedChecked": "Se leyó el rendimiento de página del informe guardado"
+        "speedChecked": "Se leyó el rendimiento de página del informe guardado",
+        "noPageMetrics": "No se guardaron datos de rendimiento de las páginas para esta comprobación.",
+        "consoleResults": "Resultados de Search Console"
       },
       "timeline": {
         "statuses": {
@@ -13819,6 +13860,8 @@
         "askHow": "Preparar un plan",
         "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
         "draftFix": "Pedir una corrección al agente",
+        "reviewEvidence": "Ver {count, plural, one {# acción de la auditoría} other {# acciones de la auditoría}}",
+        "connectedSearch": "Search Console está conectado",
         "statisticsMissing": "Las estadísticas no están configuradas",
         "demand": {
           "title": "Palabras clave comprobadas con más búsquedas",
@@ -13833,7 +13876,8 @@
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
       "runs": {
         "details": "Detalles",
-        "detailsOf": "Detalles del {day}",
+        "previewOf": "Vista previa de {day}",
+        "noEvents": "No hay detalles de eventos disponibles en esta vista.",
         "since": "Lo que pasó después del {day}.",
         "sinceStart": "Lo que pasó hasta este día.",
         "sinceAll": "Todo lo registrado hasta ahora.",
@@ -14104,7 +14148,7 @@
           "peakMonths": "Meses de mayor interés",
           "seasonal": "Estacional",
           "trend": "Tendencia",
-          "change": "Razón de cambio",
+          "change": "Cambio durante el año",
           "evidence": "Evidencia",
           "visible": "Visible",
           "outside_first_screen": "Fuera de la primera pantalla",
@@ -14131,7 +14175,20 @@
         "testsAll": "Todas las pruebas tienen resultado"
       },
       "siteTraffic": {
-        "scope": "Alcance de Search Console",
+        "noMatches": "Ninguna página coincide",
+        "clear": "Borrar selección",
+        "filter": "Filtro de tráfico",
+        "choose": "Elegir páginas ({count})",
+        "find": "Buscar una página",
+        "apply": "Aplicar filtro",
+        "savedReports": "Informes guardados de las páginas seguidas",
+        "trend": "Tráfico de búsqueda diario",
+        "pages": "Tráfico por página",
+        "seenWithoutClicks": "<page></page> apareció {count, plural, one {una vez} other {# veces}} sin recibir clics.",
+        "clicks": "Clics",
+        "impressions": "Apariciones",
+        "addresses": "Otras direcciones",
+        "propertyPages": "Todas las páginas de esta propiedad",
         "site": "Todo el sitio",
         "selected": "Páginas seleccionadas",
         "sort": "Ordenar páginas por",
@@ -14143,7 +14200,7 @@
         "loading": "Cargando el tráfico de Search Console.",
         "failed": "No se pudo consultar el tráfico de esta selección.",
         "unavailable": "Los datos actuales requieren una propiedad de Search Console que corresponda a este sitio.",
-        "saved": "Mediciones guardadas para las páginas seleccionadas"
+        "saved": "Tráfico de las páginas seleccionadas"
       },
       "traffic": {
         "periodInsight": {
@@ -14183,7 +14240,6 @@
         "sessions": "Sesiones",
         "keyEventsShort": "Eventos clave",
         "noAiData": "Sin datos del canal «AI Assistant»",
-        "noAiDataBody": "Google Analytics no registró sesiones en su canal «AI Assistant» para estas páginas en este periodo.",
         "brandSplit": "División por marca",
         "brandViews": {
           "all": "Todas las consultas",
@@ -14199,7 +14255,6 @@
         "cancelBrandTerms": "Cancelar",
         "brandSaved": "Términos de marca guardados",
         "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
-        "noQueryDataBody": "Para Discover y Google News no se leen consultas. Los clics y las impresiones de este tipo aparecen arriba.",
         "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
       },
       "export": {
@@ -14221,8 +14276,12 @@
       },
       "improve": {
         "catalog": {
-          "title": "Limitaciones del agente",
-          "help": "Qué revisa el agente, qué falta y qué debes hacer por tu cuenta."
+          "title": "Qué puede hacer el agente SEO",
+          "help": "Comprobaciones, recomendaciones y tareas a tu cargo.",
+          "checks": "Qué revisa",
+          "audit": "Revisa la velocidad, los enlaces y la indexación de las páginas seleccionadas.",
+          "rankings": "Prioriza las mejoras y compara palabras clave y competidores con los datos de búsqueda disponibles.",
+          "traffic": "Muestra el tráfico de búsqueda y los eventos clave cuando tus cuentas de Google aportan esos datos."
         },
         "groups": {
           "technical": "Técnica",
@@ -14240,18 +14299,18 @@
         "copied": "Solicitud copiada. Envíala al equipo de Sokosumi.",
         "copyFailed": "No se pudo copiar la solicitud.",
         "summary": {
-          "title": "Qué puedes esperar",
-          "site": "Las revisiones cubren las páginas seleccionadas. Un rastreo completo o una revisión de migración requiere trabajo adicional.",
-          "content": "El agente sugiere cambios en las páginas. No incluye artículos completos ni planes de contenido de todo el sitio.",
-          "research": "No incluye investigación detallada de enlaces, posiciones por ciudad ni seguimiento de contactos.",
-          "measurement": "Las reseñas del negocio, menciones de marca en IA, ingresos e impacto de cada cambio no se miden por completo.",
-          "publishing": "Tú aplicas los cambios, vuelves a revisar las correcciones y compartes informes con clientes."
+          "title": "Qué haces tú",
+          "site": "Planificar rastreos completos y migraciones del sitio.",
+          "content": "Escribir artículos y planificar el contenido del sitio.",
+          "research": "Investigar enlaces y posiciones locales, y gestionar los contactos.",
+          "measurement": "Medir reseñas, menciones en IA, ingresos y el efecto de cada cambio.",
+          "publishing": "Aplicar cambios, volver a comprobarlos y compartir informes."
         },
         "gaps": {
           "noSearchTraffic": "Las estadísticas de tráfico de búsqueda aún no están disponibles. Los resultados de indexación aparecen en esta auditoría.",
           "statisticsIncomplete": "Faltan algunas estadísticas de Google. El agente solo puede evaluar los datos disponibles.",
           "checksIncomplete": "Algunas revisiones no dieron resultados. Esta auditoría puede pasar por alto problemas.",
-          "title": "Datos que faltan en la auditoría",
+          "title": "Datos que faltan en esta auditoría",
           "noSearchConsole": "No hay datos de Search Console: no se miden los clics, las búsquedas ni el estado en el índice de Google.",
           "noAnalytics": "No hay datos de Google Analytics: no se miden las visitas ni los eventos clave.",
           "statisticsUnavailable": "La última sincronización de estadísticas no pudo leer los datos.",
@@ -14470,14 +14529,14 @@
         }
       },
       "shareOfVoice": {
-        "title": "Cuota de voz",
-        "description": "Cuota estimada de clics orgánicos en las palabras clave seguidas en la semana del {week}, a partir de {count, plural, one {# lectura de palabra clave} other {# lecturas de palabras clave}}. Cada palabra clave cuenta igual.",
+        "title": "Porcentaje estimado de clics de búsqueda",
+        "description": "Semana del {week} · {count, plural, one {# consulta comprobada} other {# consultas comprobadas}}. Todas las consultas tienen el mismo peso.",
         "site": "Tus páginas",
         "others": "Otros sitios",
         "unattributed": "Resultados sin sitio conocido",
         "change": "{points} pts",
         "changeNote": "Puntos: cambio desde la semana del {week}.",
-        "method": "Una estimación, no una medición: cada resultado orgánico recibe el porcentaje de clics de su posición (Advanced Web Ranking, julio de 2026).",
+        "method": "Las estimaciones usan la tasa de clics habitual en cada posición de Google (Advanced Web Ranking, julio de 2026).",
         "weekly": "Valores semanales",
         "week": "Semana del",
         "siteShare": "Cuota de tus páginas"
@@ -14496,9 +14555,9 @@
         "sources": "Source domains, estimated monthly visits and read dates",
         "site": "Audited site",
         "product": "Competing product",
-        "missing": "This audit has no competitor comparison.",
-        "pageBasis": "Single-page check: declared regional versions",
-        "noVersions": "The saved page evidence lists no country-specific language version.",
+        "missing": "Sin comparación de competidores.",
+        "pageBasis": "Página revisada",
+        "noVersions": "Esta auditoría no contiene versiones regionales.",
         "observed": "Observed search exposure by country",
         "selectedPages": "Google Search Console, selected pages, outside the audit country",
         "measuredPages": "Audited pages in these totals",
@@ -14557,9 +14616,11 @@
         }
       },
       "pageSpeed": {
+        "overTarget": "Supera el objetivo de 2,5 s",
+        "withinTarget": "Dentro del objetivo de 2,5 s",
         "title": "Page speed",
-        "lab": "Lighthouse lab test",
-        "field": "Real-user measurements from CrUX",
+        "lab": "Prueba de Lighthouse",
+        "field": "Velocidad para visitantes reales",
         "scope": {
           "url": "This URL",
           "origin": "Entire origin",
@@ -14567,10 +14628,10 @@
         },
         "scores": "Lighthouse scores (out of 100)",
         "unavailable": "Google could not return usable measurements.",
-        "not_checked": "This audit did not check this source.",
+        "not_checked": "Sin comprobar en esta auditoría.",
         "no_data": "Google reported no real-user data for this URL.",
-        "quota": "Google’s PageSpeed quota was exhausted.",
-        "deadline": "The time budget expired.",
+        "quota": "Se alcanzó el límite de pruebas de Google.",
+        "deadline": "La prueba se quedó sin tiempo.",
         "single": "One run",
         "multiple": "Median of {ok} usable runs out of {runs}",
         "score": {
@@ -14581,11 +14642,11 @@
           "agenticBrowsing": "Agentic browsing"
         },
         "metricsTitle": {
-          "lcp": "Largest contentful paint",
-          "fcp": "First contentful paint",
+          "lcp": "Aparición del mayor elemento (LCP)",
+          "fcp": "Aparición del primer contenido (FCP)",
           "tbt": "Total blocking time",
           "si": "Speed index",
-          "cls": "Cumulative layout shift",
+          "cls": "Cambios inesperados de diseño (CLS)",
           "inp": "Interaction to next paint",
           "ttfb": "Time to first byte"
         },
@@ -14593,7 +14654,8 @@
         "p75": "75th percentile",
         "date": "Audit date",
         "budget": "The audit used its PageSpeed request budget.",
-        "unsafe": "The audit could not verify a public landing page."
+        "unsafe": "The audit could not verify a public landing page.",
+        "paintTime": "{device} · el mayor elemento apareció en {time}"
       }
     },
     "AdDataConsent": {

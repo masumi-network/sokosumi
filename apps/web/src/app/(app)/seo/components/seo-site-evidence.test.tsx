@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { expect, it } from "vitest";
@@ -46,6 +46,10 @@ it("shows dated public link evidence in English without a Google result", () => 
       </SeoResultMessagesProvider>
     </NextIntlClientProvider>,
   );
+  expect(
+    screen.getByText("Replace the broken link on the guide page."),
+  ).not.toBeVisible();
+  fireEvent.click(screen.getByText("/removed"));
   expect(screen.getByRole("link", { name: target })).toHaveAttribute(
     "href",
     target,
@@ -53,16 +57,18 @@ it("shows dated public link evidence in English without a Google result", () => 
   expect(
     screen.getByText("The audit collected only part of the sample."),
   ).toBeVisible();
-  expect(
-    screen.getByText(
-      "Eligible URLs: 25. Public responses verified: 1. Deferred: 24.",
-    ),
-  ).toBeVisible();
+  for (const [label, value] of [
+    ["Eligible URLs", "25"],
+    ["Verified", "1"],
+    ["Deferred", "24"],
+  ]) {
+    expect(screen.getByText(label).nextElementSibling).toHaveTextContent(value);
+  }
   expect(screen.getByText("Deferred URLs (1 shown)")).toBeVisible();
   expect(
     screen.getByText("The audit reached its public request limit."),
   ).toBeInTheDocument();
-  expect(screen.getByText("Target returned HTTP 404.")).toBeVisible();
+  expect(screen.getByText("HTTP 404")).toBeVisible();
   expect(
     screen.getByText("Replace the broken link on the guide page."),
   ).toBeVisible();
@@ -102,6 +108,7 @@ it("labels Google referring URLs and sitemaps separately from sampled internal l
     </NextIntlClientProvider>,
   );
   const user = userEvent.setup();
+  await user.click(screen.getByText("/page"));
   await user.click(screen.getByText(en.App.Seo.discovery.referringPages));
   await user.click(screen.getByText(en.App.Seo.discovery.reportedSitemaps));
   expect(screen.getByRole("link", { name: referrer })).toHaveAttribute(
@@ -156,6 +163,7 @@ it("shows three dated counts and the missing source for a repeated decline", () 
       />
     </NextIntlClientProvider>,
   );
+  fireEvent.click(screen.getByText("/service"));
   expect(
     screen.getByRole("heading", { name: en.App.Seo.siteEvidence.decline }),
   ).toBeVisible();
@@ -203,6 +211,7 @@ it.each([
         />
       </NextIntlClientProvider>,
     );
+    fireEvent.click(screen.getByText("/target"));
     expect(screen.getByText(label)).toBeVisible();
     expect(screen.queryByText(/No comparable earlier sample/)).toBeNull();
   },

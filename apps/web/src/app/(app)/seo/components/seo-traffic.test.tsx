@@ -14,6 +14,7 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
+import { SeoSiteTrafficReportView } from "./seo-site-traffic";
 import {
   SEO_TEST_PROJECT,
   seoTestMetric,
@@ -41,6 +42,7 @@ function renderTraffic(
   searchParams = "",
   searchConnected = false,
   searchConsoleStatus?: Promise<Response>,
+  propertyIds?: string[],
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0 } },
@@ -56,7 +58,9 @@ function renderTraffic(
       )
         return searchConsoleStatus;
       if (url.pathname.endsWith("/statistics/traffic")) {
-        const { scope, from, to } = JSON.parse(String(init?.body));
+        const { scope, from, to, pageUrls, propertyId } = JSON.parse(
+          String(init?.body),
+        );
         const site = scope === "site";
         const home = {
           url: "https://www.example.com/",
@@ -68,18 +72,33 @@ function renderTraffic(
           clicks: 6,
           impressions: 12,
         };
+        const aboutOnly = pageUrls?.length === 1 && pageUrls[0] === about.url;
+        const totals = site
+          ? { clicks: 9, impressions: 90 }
+          : aboutOnly
+            ? { clicks: 6, impressions: 12 }
+            : { clicks: 3, impressions: 78 };
         return Response.json({
           site: "example.com",
-          propertyId: "sc-domain:example.com",
+          propertyId,
           from,
           to,
           limited: false,
-          totals: site
-            ? { clicks: 9, impressions: 90 }
-            : { clicks: 3, impressions: 78 },
+          totals,
+          daily: [{ date: from, ...totals }],
           pages: [
-            { ...home, submitted: ["https://example.com/"], variants: [home] },
-            ...(site ? [{ ...about, submitted: [], variants: [about] }] : []),
+            ...(!aboutOnly
+              ? [
+                  {
+                    ...home,
+                    submitted: ["https://example.com/"],
+                    variants: [home],
+                  },
+                ]
+              : []),
+            ...(site || aboutOnly
+              ? [{ ...about, submitted: [], variants: [about] }]
+              : []),
           ],
         });
       }
@@ -99,7 +118,7 @@ function renderTraffic(
           provider: "search_console",
           status: "available",
           reason: null,
-          properties: [
+          properties: propertyIds?.map((id) => ({ id, name: id })) ?? [
             { id: "sc-domain:second-site.test", name: "second-site.test" },
             { id: "sc-domain:example.com", name: "example.com" },
           ],
@@ -129,9 +148,66 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 afterEach(() => {
+  sessionStorage.clear();
   cleanup();
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
+});
+
+it("ranks five pages at a time and keeps Google's total when only some pages were returned", async () => {
+  const pages = Array.from({ length: 7 }, (_, i) => {
+    const row = {
+      url: `https://www.example.com/page-${i}`,
+      clicks: 6 - i,
+      impressions: i * 10,
+    };
+    return { ...row, submitted: [], variants: [row] };
+  });
+  render(
+    <NextIntlClientProvider
+      locale="en"
+      timeZone="UTC"
+      messages={messages}
+      formats={createFormats()}
+    >
+      <SeoSiteTrafficReportView
+        report={{
+          site: "example.com",
+          propertyId: "sc-domain:example.com",
+          from: "2026-08-22",
+          to: "2026-11-19",
+          totals: { clicks: 50, impressions: 800 },
+          limited: true,
+          pages,
+        }}
+      />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByText("800", { selector: "dd" })).toBeVisible();
+  expect(screen.getAllByRole("row")).toHaveLength(6);
+  expect(within(screen.getByRole("table")).queryByText("/page-6")).toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Show more pages" }),
+  );
+  expect(within(screen.getByRole("table")).getByText("/page-6")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Show more pages" })).toBeNull();
+});
+
+it("opens a daily chart when the newest provider only has totals", () => {
+  const workspace = seoTestWorkspace();
+  workspace.metrics = [
+    { ...seoTestMetric(), points: [] },
+    {
+      ...seoTestMetric(),
+      id: "ga4:sessions",
+      source: "ga4",
+      key: "sessions",
+      label: "Sessions",
+      observedAt: new Date("2026-01-02T00:00:00Z"),
+    },
+  ];
+  renderTraffic(workspace);
+  expect(screen.getByText("Sessions per day")).toBeVisible();
 });
 
 it("loads the whole website when the workspace also tracks a different domain and more than ten pages", async () => {
@@ -155,35 +231,57 @@ it("loads the whole website when the workspace also tracks a different domain an
   expect(body.pageIds).not.toContain(extra[0].id);
 });
 it("opens traffic for the current website and narrows it to the selected page and its verified URL", async () => {
-  renderTraffic(seoTestWorkspace(), "&to=2024-03-01", true);
+  const workspace = seoTestWorkspace();
+  renderTraffic(workspace, "&to=2024-03-01", true);
   const user = userEvent.setup();
-  expect(
-    screen.getByRole("button", { name: "Whole site", pressed: true }),
-  ).toBeVisible();
-  const report = (
-    await screen.findByRole("heading", { name: "example.com", level: 2 })
-  ).closest("section")!;
-  expect(within(report).getByText("90")).toBeVisible();
-  expect(report.querySelector("summary")?.textContent).toContain("/about");
+  const filter = await screen.findByRole("combobox", {
+    name: "Traffic filter",
+  });
+  expect(filter).toHaveTextContent("Whole site");
+  const ranking = () =>
+    screen
+      .getByRole("heading", { name: "Traffic by page" })
+      .closest("section")!;
+  const daily = () =>
+    screen
+      .getByRole("heading", { name: "Daily search traffic" })
+      .closest("section")!;
+  expect(await screen.findByText("90", { selector: "dd" })).toBeVisible();
+  expect(within(ranking()).getAllByRole("row")[1]).toHaveTextContent("/about");
   await user.click(
-    within(report).getByRole("combobox", { name: "Order pages by" }),
+    within(ranking()).getByRole("button", { name: "Times shown" }),
   );
-  await user.click(screen.getByRole("option", { name: "Search impressions" }));
-  expect(report.querySelector("summary")?.textContent).toContain(
-    "www.example.com",
+  expect(within(ranking()).getAllByRole("row")[1]).toHaveTextContent(
+    "Home page",
   );
-  await user.click(screen.getByRole("button", { name: "Selected pages" }));
-  const selected = (await screen.findByText("78", { selector: "dd" })).closest(
-    "section",
-  )!;
-  expect(within(selected).queryByText("https://example.com/about")).toBeNull();
-  await user.click(selected.querySelector("summary")!);
+  await user.click(filter);
+  await user.click(screen.getByRole("option", { name: "Selected pages" }));
+  expect(await screen.findByText("78", { selector: "dd" })).toBeVisible();
+  await user.click(ranking().querySelector("summary")!);
   expect(
-    within(selected).getByRole("link", { name: "https://www.example.com/" }),
+    within(ranking()).getByRole("link", { name: "https://example.com/" }),
   ).toBeVisible();
   expect(
-    within(selected).getByRole("link", { name: "https://example.com/" }),
+    within(ranking()).queryByRole("link", {
+      name: "https://example.com/about",
+    }),
+  ).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Choose pages (1)" }));
+  await user.click(
+    screen.getByRole("checkbox", { name: "https://www.example.com/" }),
+  );
+  await user.click(
+    screen.getByRole("checkbox", { name: "https://example.com/about" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Apply filter" }));
+  expect(await screen.findByText("12", { selector: "dd" })).toBeVisible();
+  expect(within(daily()).getByRole("table")).toHaveTextContent("12");
+  expect(
+    within(ranking()).getByRole("link", { name: "https://example.com/about" }),
   ).toBeVisible();
+  expect(
+    within(ranking()).queryByRole("link", { name: "https://www.example.com/" }),
+  ).toBeNull();
   const calls = vi
     .mocked(fetch)
     .mock.calls.filter(([url]) => String(url).endsWith("/statistics/traffic"))
@@ -192,7 +290,51 @@ it("opens traffic for the current website and narrows it to the selected page an
   expect(calls.map(({ scope, propertyId }) => [scope, propertyId])).toEqual([
     ["site", "sc-domain:example.com"],
     ["selected", "sc-domain:example.com"],
+    ["selected", "sc-domain:example.com"],
   ]);
+  expect(calls.at(-1)).toMatchObject({
+    pageUrls: ["https://example.com/about"],
+    includeDaily: true,
+  });
+  cleanup();
+  renderTraffic(workspace, "&to=2024-03-01&trafficScope=selected", true);
+  expect(await screen.findByText("12", { selector: "dd" })).toBeVisible();
+  expect(within(daily()).getByRole("table")).toHaveTextContent("12");
+});
+
+it("keeps a property covering both a tracked and a discovered page in a mixed selection", async () => {
+  const user = userEvent.setup();
+  const workspace = seoTestWorkspace();
+  const root = "https://example.com/";
+  const blog = root + "blog/";
+  workspace.pages[0].url = blog + "post";
+  workspace.pages.push({
+    ...workspace.pages[0],
+    id: crypto.randomUUID(),
+    url: root,
+  });
+  renderTraffic(workspace, "", true, undefined, [root, blog]);
+  await screen.findByText("90", { selector: "dd" });
+  await user.click(screen.getByRole("combobox", { name: "Traffic filter" }));
+  await user.click(screen.getByRole("option", { name: "Selected pages" }));
+  await user.click(screen.getByRole("button", { name: "Choose pages (1)" }));
+  await user.click(screen.getByRole("checkbox", { name: root + "about" }));
+  await user.click(screen.getByRole("button", { name: "Apply filter" }));
+  await waitFor(() =>
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) =>
+          String(url).endsWith("/statistics/traffic"),
+        )
+        .map(([, init]) => JSON.parse(String(init?.body)))
+        .at(-1),
+    ).toMatchObject({
+      scope: "selected",
+      propertyId: root,
+      pageUrls: [root + "about", blog + "post"],
+    }),
+  );
 });
 
 describe("SEO Traffic search type", () => {
@@ -216,9 +358,18 @@ describe("SEO Traffic search type", () => {
     expect(queries.queryByText("Search Console is not connected")).toBeNull();
     response.resolve(new Response(null, { status: 503 }));
     expect(
-      await queries.findByText("Could not check this connection. Try again."),
+      await screen.findByText("Could not read traffic for this selection."),
     ).toBeVisible();
-    expect(queries.getByRole("button", { name: "Try again" })).toBeVisible();
+    await userEvent.click(screen.getByText("Saved reports for tracked pages"));
+    const failed = await screen.findByText(
+      "Could not check this connection. Try again.",
+    );
+    expect(failed).toBeVisible();
+    expect(
+      within(failed.closest("section")!).getByRole("button", {
+        name: "Try again",
+      }),
+    ).toBeVisible();
   });
 
   it("shows a scoped Search Console investigation only for complete matched weeks from the personal workspace", async () => {
@@ -351,7 +502,7 @@ describe("SEO Traffic search type", () => {
       ];
       renderTraffic(workspace);
       const section = screen
-        .getByRole("heading", { name: "Traffic" })
+        .getByRole("heading", { name: "Traffic for selected pages" })
         .closest("section");
       if (!section) throw new Error("Measurements section missing");
       expect(within(section).getByText(/Jan 1.*2, 2026/)).toBeVisible();
