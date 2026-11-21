@@ -96,6 +96,14 @@ export function BoardEdgeShortcuts({ columns }: { columns: EdgeColumn[] }) {
               // The row clips outside it: the focus ring goes inside the pill.
               className="h-7 gap-1.5 rounded-full px-2.5 text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:inset-ring-2 focus-visible:inset-ring-ring"
               onClick={() => show(column.id)}
+              // Tab does not scroll this row on its own: keep the focused
+              // shortcut in view on a narrow screen.
+              onFocus={(event) =>
+                event.currentTarget.scrollIntoView({
+                  block: "nearest",
+                  inline: "nearest",
+                })
+              }
             >
               <span
                 className={cn(

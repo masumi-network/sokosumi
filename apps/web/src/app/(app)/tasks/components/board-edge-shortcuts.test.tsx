@@ -118,6 +118,27 @@ describe("BoardEdgeShortcuts", () => {
     expect(button).not.toHaveClass("focus-visible:ring-2");
   });
 
+  // On a narrow screen the row scrolls sideways; a shortcut reached with Tab
+  // must come fully into view, not sit focused past the row's edge.
+  it("brings a focused shortcut into view inside its row", () => {
+    const { rerender } = render(<Board />);
+    layOut(screen.getByTestId("scroller"));
+    rerender(<Board />);
+    act(() => {
+      fireEvent.scroll(screen.getByTestId("scroller"));
+    });
+    const button = screen.getByRole("button", { name: /Done/ });
+    const scrollIntoView = vi.fn();
+    button.scrollIntoView = scrollIntoView;
+    act(() => {
+      button.focus();
+    });
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "nearest",
+      inline: "nearest",
+    });
+  });
+
   // The shortcuts sit in their own row above the columns, never over a card,
   // and the row keeps its height whether or not it has shortcuts.
   it("keeps the shortcuts in a reserved row outside the scrolling board", () => {
