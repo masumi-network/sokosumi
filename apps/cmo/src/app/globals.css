@@ -1800,21 +1800,21 @@ video.draft-media {
   aspect-ratio: 9 / 16;
 }
 
-/* Month calendar */
-.cal {
+/* The plan's month in the chat's strategy card: a mark a piece. */
+.mini-cal {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
 }
 
-.cal .dow {
+.mini-cal-dow {
   color: var(--muted);
   font-size: 0.6875rem;
   font-weight: 500;
   text-align: center;
 }
 
-.cal .d {
+.mini-cal-day {
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
@@ -1825,57 +1825,36 @@ video.draft-media {
   background: var(--surface);
 }
 
-.cal .d.blank {
+.mini-cal-day.blank {
   background: transparent;
 }
 
-.cal.big .d {
-  flex-direction: column;
-  flex-wrap: nowrap;
-  min-height: 80px;
-  padding: 6px;
-}
-
-.cal .n {
-  color: var(--muted);
-  font-size: 0.6875rem;
-  line-height: 1;
-}
-
-.entry-chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.6875rem;
-  line-height: 1.3;
-}
-
-.k {
+.kind-mark {
   display: inline-block;
   flex: none;
   width: 7px;
   height: 7px;
 }
 
-.k.post {
+.kind-post {
   border-radius: 50%;
   background: var(--foreground);
 }
 
-.k.ad {
+.kind-ad {
   background: var(--muted);
 }
 
-.k.article {
+.kind-article {
   border: var(--line-width-small) solid var(--line);
 }
 
-.k.news {
+.kind-news {
   border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
 }
 
-.legend {
+.plan-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -1883,7 +1862,7 @@ video.draft-media {
   font-size: 0.75rem;
 }
 
-.legend span {
+.plan-legend span {
   display: inline-flex;
   align-items: center;
   gap: 4px;
