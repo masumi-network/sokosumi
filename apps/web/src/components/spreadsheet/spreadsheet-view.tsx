@@ -2,10 +2,11 @@
 
 import { Sheet as SheetIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
 import {
   MAX_ROWS,
   readSpreadsheet,
@@ -84,6 +85,21 @@ export function SpreadsheetView({
 }) {
   const t = useTranslations("Components.SpreadsheetView");
   const [active, setActive] = useState(0);
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const [thead, setThead] = useState<HTMLTableSectionElement | null>(null);
+  const [pinned, setPinned] = useState(true);
+  const measured = useMemo(() => [scroller, thead], [scroller, thead]);
+  // A header taller than a third of the preview, after wrapping, a narrow
+  // window or enlarged text, would cover the rows if pinned. It stays in the
+  // flow instead, whole, and scrolls away with them.
+  useLayoutResizeObserver(
+    measured,
+    () => {
+      if (scroller && thead)
+        setPinned(thead.offsetHeight <= scroller.clientHeight / 3);
+    },
+    { immediate: true },
+  );
   const sheet = sheets[active] ?? sheets[0];
   if (!sheet) return null;
   const [head, ...rest] = sheet.rows;
@@ -94,11 +110,6 @@ export function SpreadsheetView({
     const text = head?.[index]?.text;
     return text?.trim() ? text : null;
   });
-  // A label past about three lines would cover the rows if pinned, so such a
-  // header stays in the flow, whole, and scrolls away with the rows.
-  const pinned = labels.every(
-    (label) => !label || (label.split("\n").length <= 3 && label.length <= 120),
-  );
 
   return (
     <div className="grid min-w-0 gap-3">
@@ -134,12 +145,16 @@ export function SpreadsheetView({
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         ) : null
       ) : (
-        <div className="max-h-[70dvh] overflow-auto rounded-md border">
+        <div
+          ref={setScroller}
+          className="max-h-[70dvh] overflow-auto rounded-md border"
+        >
           <table className="w-max min-w-full border-collapse text-sm">
             {headerRow && head ? (
               // Collapsed borders stay behind a sticky row; the inset shadow
               // draws its bottom edge instead.
               <thead
+                ref={setThead}
                 className={cn(
                   "bg-card-background shadow-[inset_0_-1px_0_var(--color-border)]",
                   pinned && "sticky top-0 z-10",

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
@@ -58,16 +58,49 @@ describe("SpreadsheetFileView", () => {
     ]);
   });
 
-  it("shows a tall header whole, in the flow instead of pinned", async () => {
-    const label = Array.from({ length: 40 }, (_, i) => `line ${i}`).join("\n");
+  it("pins the header only while its rendered height leaves room for the rows", async () => {
+    // happy-dom has no layout: heights and resize callbacks are set by hand.
+    const resized: ResizeObserverCallback[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: ResizeObserverCallback) {
+          resized.push(callback);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const label = "W ".repeat(60).trim();
     renderCsv(`"${label}",Price\nRye,5.80\n`);
+    const [first] = await screen.findAllByRole("columnheader");
+    const head = first?.closest("thead") as HTMLElement;
+    const scroller = head.closest("table")?.parentElement as HTMLElement;
+    let headHeight = 32;
+    let scrollerHeight = 560;
+    Object.defineProperty(head, "offsetHeight", { get: () => headHeight });
+    Object.defineProperty(scroller, "clientHeight", {
+      get: () => scrollerHeight,
+    });
+    const resize = (next: { head?: number; scroller?: number }) =>
+      act(() => {
+        headHeight = next.head ?? headHeight;
+        scrollerHeight = next.scroller ?? scrollerHeight;
+        for (const callback of resized) callback([], {} as ResizeObserver);
+      });
 
-    const [tall] = await screen.findAllByRole("columnheader");
-    // Nothing clamps or hides the label: it reads in full on screen.
-    expect(tall?.textContent).toBe(label);
-    expect(tall?.querySelector("[class*='line-clamp']")).toBeNull();
-    // Pinned, it would cover the rows; it scrolls away with them instead.
-    expect(tall?.closest("thead")?.className).not.toContain("sticky");
+    resize({});
+    expect(head.className).toContain("sticky");
+    // The window shrinks and the text is enlarged: the wrapped label now
+    // takes most of the preview, so it scrolls with the rows instead.
+    resize({ head: 264, scroller: 177 });
+    expect(head.className).not.toContain("sticky");
+    // The whole label stays on screen and named as the column's header.
+    expect(first?.textContent).toBe(label);
+    expect(first?.querySelector("[class*='line-clamp']")).toBeNull();
+    // Back to normal size: pinned again.
+    resize({ head: 32, scroller: 560 });
+    expect(head.className).toContain("sticky");
   });
 });
 
