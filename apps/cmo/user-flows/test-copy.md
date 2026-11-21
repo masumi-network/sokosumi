@@ -17,7 +17,7 @@
 - Posts scheduled 12 hours ahead or later on the real accounts; the ones planned sooner stay drafts.
 - Refused, with the reason: approving a draft that has no time, Post now, a comment reply, anything with ads, connecting an account.
 - After the teardown: `clean: true`, `publishedPosts: 0`, `providerRevocations: 0`, and the real Cuso exactly as before.
-- A copy nobody tears down is gone within six hours and ten minutes.
+- A copy nobody tears down is gone within ten hours and ten minutes.
 - The SEO tab shows the real Cuso's latest audit. A copy starts an audit of its own only when none ran for the site in the last seven days.
 
 **Today:** ad accounts are not linked, so a copy shows none. A copy has no published posts, so it has no comments to answer and no post statistics.

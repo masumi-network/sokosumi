@@ -648,12 +648,18 @@ export async function buildActionResponse(
     !actionText.length &&
     !question &&
     Boolean((await turnInfo())?.parentTurnId);
+  // Cuso's owner reads his words and CMO's cards; "Updated social post
+  // (28×)." beside them is bookkeeping. Refusals and unknowns still show.
+  const receiptsShown =
+    message && (await isCmo())
+      ? actionText.filter((line) => !receiptLines.includes(line))
+      : actionText;
   const text =
     silent || cardSaysIt
       ? "Nothing to add."
       : calls.length || narrativeText.length
         ? [
-            actionText.join("\n"),
+            receiptsShown.join("\n"),
             reportedByCard ? "" : attachments.join("\n"),
             narrativeText.join("\n"),
           ]

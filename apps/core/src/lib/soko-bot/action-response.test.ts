@@ -1070,6 +1070,26 @@ describe("authoritative action responses", () => {
     expect(personal.answerText).toContain("Created social post");
   });
 
+  it("never shows Cuso's owner the receipt lines beside his own words", async () => {
+    const updated = receipt({
+      capability: "update_social_post",
+      targetId: "post-one",
+    });
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "EVENT",
+      versionId: "cmo-v8",
+    });
+    db.sokoBotToolCall.count.mockResolvedValue(0);
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([updated]);
+    const cuso = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: "The first week's posts are written.",
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(cuso.answerText).toBe("The first week's posts are written.");
+  });
+
   it("keeps Cuso's answer after he saved the Brand Brain", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
     db.sokoBotTurn.findUnique.mockResolvedValue({
