@@ -157,7 +157,6 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-email-change-return-notice` (`useEmailChangeReturnNotice`) — one-shot email-change return link toast, Core acknowledgement, and query parameter strip
 - `use-invalidate-project-scope-on-navigation` (`useInvalidateProjectScopeOnNavigation`) — invalidates the selected project-scope query when `pathname` changes after mount
 - `use-notification-service-worker-bridge` (`useNotificationServiceWorkerBridge`) — installs the notification service worker on mount when granted and wires click and banner-query handlers
-- `use-resume-task-follow-after-setup` (`useResumeTaskFollowAfterSetup`, `rememberFollowAfterSetup`) — consumes the one-shot `?follow=1` post-setup hand-off to follow a Task once the viewer's Soko Bot is available
 
 ### React Query in migrations
 

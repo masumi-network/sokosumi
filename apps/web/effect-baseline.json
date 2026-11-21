@@ -82,6 +82,7 @@
   "src/app/(app)/tasks/components/task-activity-composer.tsx": 1,
   "src/app/(app)/tasks/components/task-activity.tsx": 2,
   "src/app/(app)/tasks/components/task-files.tsx": 1,
+  "src/app/(app)/tasks/components/task-follow-control.tsx": 1,
   "src/app/(app)/tasks/components/task-link-task-picker-dialog.tsx": 2,
   "src/app/(app)/tasks/components/task-schedule-copy-project-picker.tsx": 2,
   "src/app/(app)/tasks/components/task-schedules-view.tsx": 2,
