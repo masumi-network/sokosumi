@@ -28,6 +28,10 @@ import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
+  modelCallTelemetryFor,
+  withModelCallTurn,
+} from "@/lib/soko-bot/model-calls";
+import {
   assertSokoBotInferenceRegion,
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
@@ -180,6 +184,7 @@ async function runTurn(
           },
           system: turn.system,
           messages: [{ role: "user", content: message }],
+          telemetry: modelCallTelemetryFor("soko-bot-agent"),
           tools: offered,
           prepareStep: prepareEvaluationStep,
           stopWhen: [stepCountIs(maxSteps), endedByTool],
@@ -401,7 +406,11 @@ export class InProcessSokoBotRuntime implements SokoBotRuntime {
   async createSession(input: RuntimeTurnInput): Promise<RuntimeTurnRef> {
     const sessionId = input.sessionId ?? `sess_${randomUUID()}`;
     // Known background work: what the turn logs gets its own events.
-    waitUntil(runAsBackgroundWork(() => runTurn(sessionId, input)));
+    waitUntil(
+      runAsBackgroundWork(() =>
+        withModelCallTurn(input.turnId, () => runTurn(sessionId, input)),
+      ),
+    );
     return {
       sessionId,
       runtimeVersion: IN_PROCESS_RUNTIME_VERSION,

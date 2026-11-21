@@ -26,7 +26,7 @@ describe("useGalleryFilter", () => {
       }),
     });
 
-    await act(() => result.current.setQuery("news"));
+    await act(async () => result.current.setQuery("news"));
 
     const last = onUrlUpdate.mock.calls.at(-1)?.[0];
     expect(last?.searchParams.get("query")).toBe("news");
@@ -54,7 +54,7 @@ describe("useGalleryFilter", () => {
       }),
     });
 
-    await act(() => result.current.setQuery("news web"));
+    await act(async () => result.current.setQuery("news web"));
 
     expect(result.current.query).toBe("news web");
     expect(result.current.catalogQuery).toBe("news web");

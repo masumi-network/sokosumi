@@ -8,7 +8,11 @@ import {
   cmoAuditSummary,
   pageText,
 } from "./cmo-seo-audit.service";
-import { searchWords, withSiteSearches } from "./cmo-seo-research.service";
+import {
+  searchWords,
+  totalsOf,
+  withSiteSearches,
+} from "./cmo-seo-research.service";
 
 const report = publicSeoPayloadSchema.parse(
   JSON.parse(
@@ -201,5 +205,22 @@ describe("searchWords", () => {
     expect(
       searchWords("How to set up a Cardano NFT marketplace with minting fees"),
     ).toEqual(["set", "up", "cardano", "nft", "marketplace", "mint", "fee"]);
+  });
+});
+
+describe("totalsOf", () => {
+  it("weights the position by impressions and leaves an empty period without rates", () => {
+    expect(
+      totalsOf([
+        { clicks: 3, impressions: 100, position: 10 },
+        { clicks: 1, impressions: 300, position: 20 },
+      ]),
+    ).toEqual({ clicks: 4, impressions: 400, ctr: 0.01, position: 17.5 });
+    expect(totalsOf([])).toEqual({
+      clicks: 0,
+      impressions: 0,
+      ctr: null,
+      position: null,
+    });
   });
 });

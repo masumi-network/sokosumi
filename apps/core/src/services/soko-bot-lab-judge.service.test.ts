@@ -15,6 +15,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
     sokoBotLabRun: { upsert: vi.fn() },
+    sokoBotModelCall: { create: vi.fn() },
   },
 }));
 

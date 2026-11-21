@@ -26,6 +26,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       disabled: availability.disabled,
       disabledAt: availability.disabledAt?.toISOString() ?? null,
       disabledReason: availability.disabledReason,
+      standupPaused: availability.standupPaused,
     });
   });
 }

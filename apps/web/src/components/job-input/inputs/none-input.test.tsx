@@ -1,6 +1,6 @@
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { JobInputsFormBuilder } from "@/components/job-input/job-inputs-form-builder";
@@ -17,7 +17,7 @@ vi.mock("@/components/markdown", () => ({
 }));
 
 describe("NoneInput", () => {
-  it("renders readonly markdown description for none field", () => {
+  it("renders readonly markdown description for none field", async () => {
     const inputFields: InputFieldSchemaType[] = [
       {
         id: "readonly-info",
@@ -29,12 +29,14 @@ describe("NoneInput", () => {
       },
     ];
 
-    render(
-      <JobInputsFormBuilder
-        inputFields={inputFields}
-        onSubmit={vi.fn()}
-        renderFooter={() => <button type="submit">Submit</button>}
-      />,
+    await act(async () =>
+      render(
+        <JobInputsFormBuilder
+          inputFields={inputFields}
+          onSubmit={vi.fn()}
+          renderFooter={() => <button type="submit">Submit</button>}
+        />,
+      ),
     );
 
     expect(screen.getByText("Readonly info")).toBeInTheDocument();

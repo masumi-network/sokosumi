@@ -8,4 +8,6 @@
 
 **The owner should see:** a steady stream on the Calendar, no two posts alike, no reused pictures.
 
+If X pauses our posting (our X app's monthly spend cap, ours to raise, never the owner's), a due post moves an hour on and tries again until posting works, for a day at most. The owner sees it as "Retrying" with "X paused our posting for now; Cuso will try again."; we get the `x_posting_paused` error event. After a day it fails and says so, again without the cap.
+
 **Missing today:** replies and mentions (X search is paid).

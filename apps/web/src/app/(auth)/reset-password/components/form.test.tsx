@@ -249,11 +249,11 @@ describe("ResetPasswordForm", () => {
     vi.useFakeTimers();
     try {
       fireEvent.click(screen.getByRole("button", { name: "submit" }));
-      await act(() => vi.advanceTimersByTimeAsync(7999));
+      await act(async () => vi.advanceTimersByTimeAsync(7999));
       expect(
         screen.getByRole("button", { name: "continueToSignIn" }),
       ).toHaveAttribute("aria-busy", "true");
-      await act(() => vi.advanceTimersByTimeAsync(1));
+      await act(async () => vi.advanceTimersByTimeAsync(1));
       expect(screen.getByRole("alert")).toHaveTextContent("signOutError");
       expect(
         screen.getByRole("button", { name: "continueToSignIn" }),

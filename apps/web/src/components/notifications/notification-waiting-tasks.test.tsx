@@ -183,7 +183,7 @@ describe("NotificationWaitingTasks", () => {
     core.getTasks.mockResolvedValue({
       data: [task("t1", "INPUT_REQUIRED", "2026-11-19T11:00:00.000Z")],
     });
-    await act(() => client.invalidateQueries());
+    await act(async () => client.invalidateQueries());
 
     expect(
       await screen.findByRole("button", { name: "action.INPUT_REQUIRED" }),

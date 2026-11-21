@@ -478,11 +478,24 @@ export const busyOverview: CmoOverview = (() => {
     (day) =>
       Array.from({ length: 4 + (day % 3) }, (_, slot) => {
         const channel = networks[(day + slot) % networks.length] ?? "x";
+        const id = `busy-${day}-${slot}`;
+        // One post X refused yesterday: Today and the Calendar say so.
+        const refused = id === "busy-20-4";
         return {
           ...entry(day, channel, titles[(day + slot) % titles.length] ?? ""),
-          id: `busy-${day}-${slot}`,
+          id,
           time: `${String(8 + slot * 2).padStart(2, "0")}:00`,
-          status: day < 19 ? ("published" as const) : ("scheduled" as const),
+          status: refused
+            ? ("draft" as const)
+            : day < 19
+              ? ("published" as const)
+              : ("scheduled" as const),
+          ...(refused
+            ? {
+                notSent:
+                  "X paused our posting for a day. Ask Cuso to post it again.",
+              }
+            : {}),
         };
       }),
   );
@@ -685,6 +698,56 @@ export const chat = {
       by: "The SEO specialist",
       text: "86 of 110 checks passed. 5 things to fix are in your SEO tab.",
     },
+    {
+      ...media,
+      id: "w14",
+      kind: "seo_saved",
+      state: "ready",
+      at: new Date("2026-11-04T10:32:00Z"),
+      title: "Saved to your SEO page",
+      suggestions: [
+        {
+          id: "0198c0de-0000-7000-8000-0000000000a1",
+          kind: "page_change",
+          source: "cuso",
+          title: "Say minting platform in the homepage title",
+          keyword: "nft minting platform",
+          pageUrl: "https://nmkr.io/",
+          why: "Seen 1,300 times at position 7; the title never says it.",
+          body: "Replace the homepage title.",
+          newText: "NFT Minting Platform for Cardano | NMKR",
+          currentText: "NMKR | The Leading Web3 Platform",
+          element: "title",
+          draft: null,
+          sources: [],
+          evidence: [],
+          status: "open",
+          createdAt: new Date("2026-11-04T10:32:00Z"),
+          doneAt: null,
+          verifiedAt: null,
+        },
+        {
+          id: "0198c0de-0000-7000-8000-0000000000a2",
+          kind: "article",
+          source: "cuso",
+          title: "How to launch an NFT collection on Cardano",
+          keyword: "cardano nft marketplace",
+          pageUrl: null,
+          why: "Google showed nmkr.io 115 times at 8.1; no page answers it yet.",
+          body: "## Plan the collection\n## Mint it\n## List it",
+          newText: null,
+          currentText: null,
+          element: null,
+          draft: null,
+          sources: [],
+          evidence: [],
+          status: "open",
+          createdAt: new Date("2026-11-04T10:32:00Z"),
+          doneAt: null,
+          verifiedAt: null,
+        },
+      ],
+    },
   ] satisfies ChatWork[],
 };
 
@@ -761,6 +824,12 @@ export const seo: CmoSeo = {
     to: "2026-11-13",
     observedAt: seoAt("2026-11-17T08:00:00Z"),
     totals: { clicks: 412, impressions: 18_940, ctr: 0.0218, position: 14.6 },
+    previousTotals: {
+      clicks: 368,
+      impressions: 17_210,
+      ctr: 0.0214,
+      position: 15.9,
+    },
     nearFirstPage: [
       {
         query: "team booking software",
@@ -793,6 +862,8 @@ export const seo: CmoSeo = {
       why: "The page ranks 11 for the search that sells Teams; its title never says team booking.",
       body: "Replace the page title.",
       newText: "Team Booking Software for Sales and Support | Acme",
+      currentText: "Teams | Acme: scheduling infrastructure for everyone",
+      element: "title",
       draft: null,
       sources: [],
       evidence: [
@@ -828,6 +899,8 @@ export const seo: CmoSeo = {
       why: "The Finding RN-01 shows that 1 of the 17 script and style files the page's main frame requested during rendering failed: https://js-eu1.hs-scripts.com/27172445.js returned net::ERR_BLOCKED_BY_ORB. This is the HubSpot tracking/chat script. Since the page cannot rely on this file loading, check why the response is blocked: an ORB block usually means the file is served with a wrong Content-Type, is redirected to a non-script response (for example an HTML error page, a consent/cookie-walled response, or a bot-block), or is served from a region/CDN path that returns an unexpected body. Verify the URL returns the JavaScript directly (correct Content-Type: application/javascript, HTTP 200, no redirect to HTML), and if the HubSpot snippet is outdated, update it to the current embed code from the HubSpot account for portal ID 27172445. If the script is not intended to load for non-browser or non-EU contexts, make sure the page degrades gracefully without it. Note: the loading check for the 20 file URLs on hosts whose robots.txt the run did not read was limited to loading only, so robots.txt on those hosts was not checked.",
       body: "Once the script loads correctly, the page's render is complete and any HubSpot chat or tracking behavior works as intended for visitors and for Googlebot's render of the page. This removes the render error itself; no rank or traffic change can be forecast from it.",
       newText: null,
+      currentText: null,
+      element: null,
       draft: null,
       sources: [],
       evidence: [
@@ -858,6 +931,8 @@ export const seo: CmoSeo = {
       why: "Buyers comparing tools search this every month, and no page of yours answers it.",
       body: "## Who needs an alternative\n## Acme and Calendly side by side\n## How to switch in a day",
       newText: null,
+      currentText: null,
+      element: null,
       draft: null,
       sources: [],
       evidence: [
@@ -895,6 +970,8 @@ export const seo: CmoSeo = {
       why: "880 people a month search this while they choose, and your search ad for it has no page that answers them.",
       body: "",
       newText: null,
+      currentText: null,
+      element: null,
       draft:
         "# Calendly alternative for teams that want their own booking page\n\nLooking for a Calendly alternative? Acme gives every teammate a booking page on your own domain, free for one person.\n\n## What you get\n\n- A booking page on your domain\n- Round-robin for the whole team\n\n## Acme and Calendly side by side\n\nCalendly's Standard plan costs $12 per seat a month, billed yearly. Acme is free for one person.\n\nIf you only need one meeting type, Calendly's free plan may be all you need.",
       sources: [

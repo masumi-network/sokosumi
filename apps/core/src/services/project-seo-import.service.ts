@@ -19,6 +19,7 @@ import {
   failedSeoSpecialists,
   reportObject,
   SEO_REPORT_IMPORT_REJECTED,
+  withoutApprovedSearchConsole,
 } from "@/helpers/project-seo-public-report";
 import {
   assertSeoArtifactMatchesRequest,
@@ -28,6 +29,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
+import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
 import { notifySeoMonitorWorseSafely } from "./project-seo-monitor-notify";
 import {
   commitSeoMutation,
@@ -233,6 +235,12 @@ export async function importProjectSeoAudit(
   } catch {
     throw badRequest("The SEO report is not valid JSON");
   }
+  // Only an audit approved with Search Console may return Search Console sections.
+  if (
+    storedSeoAuditSearchConsoleSchema.safeParse(analysis?.request).data
+      ?.searchConsoleAccess
+  )
+    raw = withoutApprovedSearchConsole(raw);
   const payload = parsePublicSeoArtifact(raw);
   if (input.recoverPageSpeed && payload.kind !== "audit_full")
     throw conflict("The saved report is not a full audit");

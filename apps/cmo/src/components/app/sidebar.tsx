@@ -7,7 +7,6 @@ import {
   House,
   type LucideIcon,
   MessageSquare,
-  Search,
   Settings,
 } from "lucide-react";
 import { needsYou } from "../../lib/today";
@@ -25,7 +24,6 @@ const MAIN = [
   ["chat", "Chat", MessageSquare],
   ["calendar", "Calendar", CalendarDays],
   ["results", "Results", ChartLine],
-  ["seo", "SEO", Search],
 ] as const satisfies readonly Page[];
 
 /** Every page; Settings opens from the account menu. */

@@ -506,8 +506,12 @@ describe("Brand", () => {
     expect(html).toContain(
       "Pricing on the Pricing page: Plans for every launch",
     );
-    expect(html.match(/ob-swatches/g)).toHaveLength(1);
-    expect(html.match(/<li style="background:/g)).toHaveLength(5);
+    // The colours show once, in "Your look", not again under the site.
+    expect(html).not.toContain("ob-swatches");
+    const site = html.slice(html.indexOf(">Your site<"));
+    // The site card ends where the next card starts.
+    expect(site.slice(0, site.indexOf('class="card'))).not.toContain("#aaaaaa");
+    expect(html).toContain("#aaaaaa");
     expect(render(draft())).not.toContain("Your site");
   });
 

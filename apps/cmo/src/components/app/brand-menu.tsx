@@ -7,6 +7,7 @@ import {
   Brain,
   ChevronDown,
   type LucideIcon,
+  Search,
   Share2,
   Target,
 } from "lucide-react";
@@ -17,11 +18,12 @@ import { hostOf } from "../brand-profile";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { ViewLink } from "./view-link";
 
-/** What Cuso works from: the brand's own pages, behind the brand's name. */
+/** What Cuso works from and on: the brand's own pages, behind the brand's name. */
 export const BRAND_PAGES = [
   ["strategy", "Strategy", Target],
   ["brain", "Brand Brain", Brain],
   ["competitors", "Competitors", Binoculars],
+  ["seo", "SEO", Search],
   ["channels", "Channels", Share2],
 ] as const satisfies readonly (readonly [View, string, LucideIcon])[];
 

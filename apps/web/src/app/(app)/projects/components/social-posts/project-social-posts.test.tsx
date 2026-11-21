@@ -2592,7 +2592,7 @@ describe("ProjectSocialPosts", () => {
     expect(postNow).toHaveAttribute("aria-describedby");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 
-    trigger.focus();
+    act(() => trigger.focus());
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       "Add text or media.",
     );
@@ -2620,7 +2620,10 @@ describe("ProjectSocialPosts", () => {
     expect(postNow.querySelector("kbd")).not.toBeInTheDocument();
 
     await user.type(within(dialog).getByLabelText("Text"), "Hello");
-    const enabled = within(dialog).getByRole("button", { name: "Post now" });
+    const enabled = within(dialog).getByRole("button", {
+      name: "Post now",
+      busy: false,
+    });
     expect(enabled).toBeEnabled();
     expect(enabled.querySelector("kbd")).toHaveTextContent("⌘↵");
   });
@@ -2646,7 +2649,7 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toHaveAttribute("aria-describedby");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 
-    trigger.focus();
+    act(() => trigger.focus());
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       "Add text or media.",
     );

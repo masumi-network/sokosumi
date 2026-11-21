@@ -776,7 +776,7 @@ describe("AuthFlow signUp", () => {
       );
       expect(takeAuthEmailHint()).toBeNull();
     } finally {
-      await act(() => root.unmount());
+      await act(async () => root.unmount());
       container.remove();
     }
   });

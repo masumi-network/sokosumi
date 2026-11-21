@@ -125,7 +125,8 @@ function Lab({ lab }: { lab: Row["lab"] }) {
                   </SeoFoldSummary>
                   <div className="max-w-prose space-y-2 pb-3 text-muted-foreground">
                     <p>{insight.detail}</p>
-                    <p>{insight.action}</p>
+                    {/* The first check to make is on the device line, so it is not said twice. */}
+                    {insight !== report.insights[0] && <p>{insight.action}</p>}
                   </div>
                 </details>
               </li>
@@ -182,6 +183,13 @@ export function SeoPageSpeed({
                           : t(`pageSpeed.${lab.status}`)}
                       </>
                     )}
+                    {/* The change to investigate leads; the measurements are below the fold. */}
+                    {lab.status === "measured" &&
+                      lab.pageSpeed?.insights[0] && (
+                        <span className="block font-normal text-muted-foreground">
+                          {lab.pageSpeed.insights[0].action}
+                        </span>
+                      )}
                   </span>
                   {lab.status === "measured" && lab.median.lcp != null && (
                     <span className="text-xs font-normal text-muted-foreground">

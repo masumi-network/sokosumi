@@ -6,10 +6,10 @@ import {
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { z } from "zod";
-
 import { digestJob, plainExcerpt } from "@/helpers/job-digest";
 import prisma from "@/lib/db/prisma";
 import { publicDriveUrl } from "@/lib/drive-blob";
+import type { CmoSeoSuggestion } from "@/schemas/cmo-seo.schema";
 import {
   type CmoChatPerson,
   type CmoChatRecord,
@@ -95,6 +95,8 @@ export interface CmoChatWorkItem {
   steps: CmoChatStep[];
   /** A background run's own turn: its report in the room is this card. */
   turnId: string | null;
+  /** seo_saved: what Cuso saved to the SEO page. */
+  suggestions?: CmoSeoSuggestion[];
 }
 
 /** How many of the newest items the chat shows. */

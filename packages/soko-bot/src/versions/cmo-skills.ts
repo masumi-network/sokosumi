@@ -25,6 +25,7 @@ import {
   scenePieceWritingGuide,
   sceneProduction,
 } from "./cmo-v9-skills.js";
+import { seoReports } from "./cmo-v12-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -698,6 +699,9 @@ export const CMO_SCENE_PIECE_WRITING_GUIDE = scenePieceWritingGuide(
 
 const varied = variedProduction(batched);
 
+const seo = SKILLS.find((skill) => skill.id === "cmo-seo");
+if (!seo) throw new Error("cmo-seo is missing");
+
 export const CMO_SKILLS: readonly SokoBotSkill[] = [
   ...SKILLS,
   productionWithStyles(production),
@@ -705,4 +709,5 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   varied,
   sceneProduction(varied),
   claimsStrategy(everyNetwork),
+  seoReports(seo),
 ];

@@ -273,6 +273,7 @@ export async function findCoworkers(
     select: {
       id: true,
       name: true,
+      slug: true,
       caption: true,
       description: true,
       capabilities: true,

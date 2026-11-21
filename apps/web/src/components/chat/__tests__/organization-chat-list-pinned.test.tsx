@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -43,37 +43,47 @@ describe("OrganizationChatList Pinned section", () => {
     listRoomsMock.mockResolvedValue(emptyListResult(rooms));
   });
 
-  it("hides Pinned when nothing is pinned", () => {
-    renderOrganizationChatList({ organizationId: "org-1" });
+  it("hides Pinned when nothing is pinned", async () => {
+    listRoomsMock.mockResolvedValue(emptyListResult());
+    await act(async () =>
+      renderOrganizationChatList({ organizationId: "org-1" }),
+    );
 
     expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument();
   });
 
-  it("hides Pinned when rooms exist but none are pinned", () => {
-    renderOrganizationChatList({
-      organizationId: "org-1",
-      rooms: [rooms[2]],
-    });
+  it("hides Pinned when rooms exist but none are pinned", async () => {
+    listRoomsMock.mockResolvedValue(emptyListResult([rooms[2]]));
+    await act(async () =>
+      renderOrganizationChatList({
+        organizationId: "org-1",
+        rooms: [rooms[2]],
+      }),
+    );
 
     expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument();
     expect(rowLabels()).toEqual(["general"]);
   });
 
-  it("drops the section when the last pin goes, and keeps the room listed", () => {
-    const { rerender } = renderOrganizationChatList({
-      organizationId: "org-1",
-      rooms: [rooms[0], rooms[2]],
-    });
+  it("drops the section when the last pin goes, and keeps the room listed", async () => {
+    const { rerender } = await act(async () =>
+      renderOrganizationChatList({
+        organizationId: "org-1",
+        rooms: [rooms[0], rooms[2]],
+      }),
+    );
     expect(screen.getByText("App.Channels.pinned")).toBeInTheDocument();
 
-    rerender(
-      createOrganizationChatList({
-        organizationId: "org-1",
-        rooms: [
-          makeRoom({ id: "launch", kind: "channel", myAccess: "member" }),
-          rooms[2],
-        ],
-      }),
+    await act(async () =>
+      rerender(
+        createOrganizationChatList({
+          organizationId: "org-1",
+          rooms: [
+            makeRoom({ id: "launch", kind: "channel", myAccess: "member" }),
+            rooms[2],
+          ],
+        }),
+      ),
     );
 
     expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument();
@@ -98,8 +108,10 @@ describe("OrganizationChatList Pinned section", () => {
     await userEvent.click(screen.getByRole("button", { name: TOGGLE }));
   }
 
-  it("lists pinned rooms first, in the reader's order, and only there", () => {
-    renderOrganizationChatList({ organizationId: "org-1", rooms });
+  it("lists pinned rooms first, in the reader's order, and only there", async () => {
+    await act(async () =>
+      renderOrganizationChatList({ organizationId: "org-1", rooms }),
+    );
 
     expect(screen.getByText("App.Channels.pinned")).toBeInTheDocument();
     expect(rowLabels()).toEqual(["launch", "design", "general"]);
@@ -137,11 +149,14 @@ describe("OrganizationChatList Pinned section", () => {
     expect(screen.queryByRole("button", { name: HANDLE })).toBeNull();
   });
 
-  it("offers no reorder mode for a single pinned room", () => {
-    renderOrganizationChatList({
-      organizationId: "org-1",
-      rooms: [rooms[0], rooms[2]],
-    });
+  it("offers no reorder mode for a single pinned room", async () => {
+    listRoomsMock.mockResolvedValue(emptyListResult([rooms[0], rooms[2]]));
+    await act(async () =>
+      renderOrganizationChatList({
+        organizationId: "org-1",
+        rooms: [rooms[0], rooms[2]],
+      }),
+    );
 
     expect(screen.queryByRole("button", { name: TOGGLE })).toBeNull();
   });

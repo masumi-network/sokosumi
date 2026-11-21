@@ -198,3 +198,45 @@ describe("SEO agent brief", () => {
     expect(kinds()).toContain("competitors");
   });
 });
+
+it("puts a cited cross-page experiment ahead of routine cleanup in the agent brief", () => {
+  const workspace = connected();
+  const experiment = {
+    ...opportunity("link-journey"),
+    decision: {
+      kind: "open_strategy_opportunity" as const,
+      alternative: "Visitors may already use the menu.",
+      nextCheck: "Compare clicks to the booking page.",
+    },
+  };
+  const cleanup = { ...opportunity("cleanup"), kind: "fix" as const };
+  workspace.actions = [cleanup, experiment];
+  const steps = seoAgentBrief(workspace, synced).steps;
+  expect(steps[0]).toEqual({ kind: "action", action: experiment });
+});
+
+it("uses a measured organic outcome to choose between comparable actions only for the verified host", () => {
+  const workspace = connected();
+  const a = opportunity("first"),
+    b = { ...opportunity("second"), pageUrl: "https://example.com/book" };
+  workspace.actions = [a, b];
+  workspace.landingPages = {
+    verifiedHost: "example.com",
+    channel: "organic",
+    observationId: b.observationId,
+    observedAt: synced,
+    propertyId: "properties/1",
+    from: "2026-10-01",
+    to: "2026-10-31",
+    rows: [{ pageUrl: b.pageUrl, sessions: 10, keyEvents: 2 }],
+  };
+  expect(seoAgentBrief(workspace, synced).steps[0]).toEqual({
+    kind: "action",
+    action: b,
+  });
+  workspace.landingPages.verifiedHost = "other.example";
+  expect(seoAgentBrief(workspace, synced).steps[0]).toEqual({
+    kind: "action",
+    action: a,
+  });
+});

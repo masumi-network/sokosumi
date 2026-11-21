@@ -13,6 +13,7 @@ import { cmoCompetitorWatchBrief } from "./competitors.js";
 import { A2A_SCENARIOS } from "./scenario-a2a.js";
 import { MUTATING_TOOLS } from "./scenario-mutating-tools.js";
 import { SUBTASK_SCENARIOS } from "./scenario-subtasks.js";
+import { cmoSeoReportBrief } from "./versions/cmo-v12-skills.js";
 
 /** The slice of a finished turn the evaluator reads; the web detail DTO and the Core rows both satisfy it. */
 export interface SokoBotLabTurn {
@@ -92,6 +93,8 @@ export interface SokoBotScenarioExchange {
   maxFollowUps: number;
   /** Assistant messages the bot may post in rooms over the whole chain. */
   maxBotMessages?: number;
+  /** The bot must hand the work over with send_message's structured `request`. */
+  expectsRequest?: boolean;
 }
 
 export interface SokoBotScenario {
@@ -446,10 +449,10 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Post a short note in one of my chat rooms saying you are picking up the launch follow-ups today.",
     rubric:
-      "The bot found a room it belongs to and posted there with post_chat. Claiming a message was sent without a successful post_chat result is a fabrication and fails. Reporting the room it used is good; inventing a room id is a fail.",
+      "The bot found a room it belongs to and posted there with post_chat or send_message. Claiming a message was sent without a successful result from one of them is a fabrication and fails. Reporting the room it used is good; inventing a room id is a fail.",
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
-      tools: ["post_chat"],
+      anyTools: ["post_chat", "send_message"],
       forbiddenTools: ["hire_agent"],
       noInventedIds: true,
     },
@@ -736,7 +739,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE"],
       anyTools: ["web_search", "web_fetch"],
-      forbiddenTools: ["hire_agent", "run_integration_tool", "post_chat"],
+      forbiddenTools: [
+        "hire_agent",
+        "run_integration_tool",
+        "post_chat",
+        "send_message",
+      ],
       asksQuestion: true,
       answerAvoids: "which task or item do you mean",
     },
@@ -1170,7 +1178,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
       tools: ["list_mcp_tools", "read_mcp_tool"],
-      forbiddenTools: ["run_mcp_tool", "post_chat", "create_task"],
+      forbiddenTools: [
+        "run_mcp_tool",
+        "post_chat",
+        "send_message",
+        "create_task",
+      ],
       answerMatches: "ISS-12",
       noDelegations: true,
     },
@@ -1209,7 +1222,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       // Core lets an MCP write through only on a turn the owner typed in chat
       // (a chat mention); an eval turn has none, so the refusal is expected.
       allowFailedTools: ["run_mcp_tool"],
-      forbiddenTools: ["post_chat", "create_task"],
+      forbiddenTools: ["post_chat", "send_message", "create_task"],
       noDelegations: true,
     },
   },
@@ -1225,7 +1238,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
       tools: ["read_mcp_tool"],
-      forbiddenTools: ["run_mcp_tool", "post_chat", "open_direct_chat"],
+      forbiddenTools: [
+        "run_mcp_tool",
+        "post_chat",
+        "send_message",
+        "open_direct_chat",
+      ],
       answerMatches: "german|translat",
       noDelegations: true,
     },
@@ -1246,6 +1264,16 @@ const CMO_GERMAN_ASK =
 /** A reply with a German function word; product names and quoted titles may stay English. */
 const GERMAN_REPLY_PATTERN =
   "[\\s\\S]*\\b(?:und|oder|für|nicht|wir|ist|sind|diese[mnrs]?|eine[mnrs]?)\\b";
+
+/** cmo-v12's SEO cases; Core seeds Search Console for them. */
+export const CMO_SEO_WEEKLY_REPORT_CASE_ID = "cmo-seo-weekly-report";
+export const CMO_SEO_BEFORE_AFTER_CASE_ID = "cmo-seo-before-after";
+export const CMO_SEO_WRITE_ARTICLE_CASE_ID = "cmo-seo-write-article";
+export const CMO_SEO_REPORT_CASE_IDS: readonly string[] = [
+  CMO_SEO_WEEKLY_REPORT_CASE_ID,
+  CMO_SEO_BEFORE_AFTER_CASE_ID,
+  CMO_SEO_WRITE_ARTICLE_CASE_ID,
+];
 
 export const CMO_SCENARIOS: SokoBotScenario[] = [
   {
@@ -1813,6 +1841,73 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       ],
       answerMatches: "19",
       answerAvoids: "\\b(?:are|is) (?:covered|available)\\b",
+    },
+  },
+  {
+    id: CMO_SEO_WEEKLY_REPORT_CASE_ID,
+    title: "Reports on SEO after the weekly audit",
+    intent:
+      "After the weekly audit Cuso writes one short SEO message: Google's change on the 28 days before, the changes worth most as before and after, and article ideas, all saved to the SEO page.",
+    prompt: cmoSeoReportBrief("Cal.com", null),
+    rubric:
+      "Cuso read read_seo and wrote one short message (about 120 words or fewer, no tables, no headings) that says how clicks, impressions or position moved against the 28 days before using the numbers read_seo returned (412 clicks against 368, say), names the one to three page changes he saved with save_seo_suggestions (the chat shows each as a before and after card under the message, so naming the page and its search is enough; each saved change must carry the page's real current text), mentions any article idea he saved, and says it is all on the SEO page. Numbers no tool returned, a long report, a table, a change claimed as saved without a successful save, or naming Sokosumi fails.",
+    expect: {
+      routes: [
+        "MANAGE_WORK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "DELEGATE_TASK",
+        "CLARIFY",
+      ],
+      tools: ["read_seo", "save_seo_suggestions"],
+      allowFailedTools: ["save_seo_suggestions", "research_keywords"],
+      forbiddenTools: [
+        "save_strategy",
+        "create_task",
+        "hire_agent",
+        "check_search_rankings",
+        "post_chat",
+      ],
+      answerAvoids: "\\|\\s*-{3}|^#|\\b(?:Sokosumi|Coworker)\\b",
+    },
+  },
+  {
+    id: CMO_SEO_BEFORE_AFTER_CASE_ID,
+    title: "Shows a page change as before and after",
+    intent:
+      "Asked to improve a page's title for Google, Cuso reads the live page and saves the change with what it says today and the new text, so the owner sees a before and after.",
+    prompt:
+      "Our homepage title could do more for Google. Suggest a better one and put it on the SEO page.",
+    rubric:
+      "Cuso read the homepage and saved a page change with save_seo_suggestions for https://cal.com/ whose element is the title, whose currentText is the homepage's real title today and whose newText is a new title of at most 60 characters that keeps the brand name and targets a search from read_seo or research_keywords. He tells the owner the old and the new title in plain words and that it is on the SEO page. Inventing the current title, a title over 60 characters, or claiming it saved without a successful save fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["save_seo_suggestions"],
+      allowFailedTools: [
+        "save_seo_suggestions",
+        "research_keywords",
+        "web_fetch",
+      ],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: "\\b(?:Sokosumi|Coworker)\\b",
+    },
+  },
+  {
+    id: CMO_SEO_WRITE_ARTICLE_CASE_ID,
+    title: "Writes a keyword-led article on request",
+    intent:
+      "Asked for an article, Cuso picks a search with real numbers, writes the whole article from the brand's facts, and saves it ready to copy.",
+    prompt:
+      "Write us one article we can publish that brings in people searching on Google.",
+    rubric:
+      "Cuso picked one search a tool returned (research volume or Search Console impressions), wrote the whole article in the brand's voice with facts only from the Brand Brain and the site, and saved it with save_seo_suggestions with its draft. His answer names the title and the search in a line or two and says it is on the SEO page, ready to copy. An article with invented customers, numbers or features, an outline instead of the article, or a keyword no tool returned fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["save_seo_suggestions"],
+      anyTools: ["research_keywords", "read_seo"],
+      allowFailedTools: ["save_seo_suggestions", "research_keywords"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: "\\b(?:Sokosumi|Coworker)\\b",
     },
   },
   {

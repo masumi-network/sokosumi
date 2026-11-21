@@ -20,6 +20,7 @@ const CUSO_WRITE_PATTERNS = [
   /^\/permanent$/,
   /^\/proactive$/,
   /^\/board-following$/,
+  /^\/team-standup$/,
   /^\/schedules(\/[^/]+)?$/,
   /^\/integrations\/(?!complete-auth$)[^/]+(\/connect)?$/,
 ];

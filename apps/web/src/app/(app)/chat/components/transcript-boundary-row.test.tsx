@@ -89,9 +89,9 @@ describe("TranscriptBoundaryRow", () => {
     );
 
     expect(observers).toHaveLength(1);
-    observers[0]?.callback([{ isIntersecting: false }]);
+    act(() => observers[0]?.callback([{ isIntersecting: false }]));
     expect(onLoad).not.toHaveBeenCalled();
-    observers[0]?.callback([{ isIntersecting: true }]);
+    act(() => observers[0]?.callback([{ isIntersecting: true }]));
 
     expect(onLoad).toHaveBeenCalledExactlyOnceWith("msg-9");
     expect(observers[0]?.disconnect).toHaveBeenCalled();

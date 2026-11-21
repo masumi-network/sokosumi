@@ -68,17 +68,40 @@ const searchRowSchema = z.object({
   position: z.number().nullable(),
 });
 type SearchRow = z.infer<typeof searchRowSchema>;
+const totalsSchema = z.object({
+  clicks: z.number(),
+  impressions: z.number(),
+  ctr: z.number().nullable(),
+  position: z.number().nullable(),
+});
+type Totals = z.infer<typeof totalsSchema>;
+
+/** Clicks, impressions, click rate and impression-weighted position of daily rows. */
+export function totalsOf(
+  rows: { clicks: number; impressions: number; position?: number | null }[],
+): Totals {
+  const clicks = rows.reduce((sum, row) => sum + row.clicks, 0);
+  const impressions = rows.reduce((sum, row) => sum + row.impressions, 0);
+  const weighted = rows.reduce(
+    (sum, row) => sum + (row.position ?? 0) * row.impressions,
+    0,
+  );
+  return {
+    clicks,
+    impressions,
+    ctr: impressions ? clicks / impressions : null,
+    position: impressions ? weighted / impressions : null,
+  };
+}
+
 const searchConsolePayloadSchema = z.object({
   property: z.string(),
   from: z.string(),
   to: z.string(),
-  totals: z.object({
-    clicks: z.number(),
-    impressions: z.number(),
-    ctr: z.number().nullable(),
-    position: z.number().nullable(),
-  }),
+  totals: totalsSchema,
   rows: z.array(searchRowSchema),
+  /** The 28 days before `from`; missing on payloads stored before it was read. */
+  previousTotals: totalsSchema.nullable().optional(),
 });
 type SearchConsolePayload = z.infer<typeof searchConsolePayloadSchema>;
 
@@ -150,10 +173,13 @@ async function fetchSearchConsole(
       Date.parse(`${to}T00:00:00Z`) - (SEARCH_CONSOLE_DAYS - 1) * DAY_MS,
     ),
   );
-  const query = (dimensions: string[], rowLimit: number) =>
+  const previousFrom = isoDay(
+    new Date(Date.parse(`${from}T00:00:00Z`) - SEARCH_CONSOLE_DAYS * DAY_MS),
+  );
+  const query = (dimensions: string[], rowLimit: number, start = from) =>
     readNativeSeoTool(account, GSC_STATS_TOOL, {
       site_url: property,
-      start_date: from,
+      start_date: start,
       end_date: to,
       dimensions,
       search_type: "web",
@@ -165,27 +191,16 @@ async function fetchSearchConsole(
     );
   const [byQuery, byDate] = await Promise.all([
     query(["query", "page"], SEARCH_CONSOLE_ROWS),
-    query(["date"], SEARCH_CONSOLE_DAYS + 2),
+    query(["date"], 2 * SEARCH_CONSOLE_DAYS + 4, previousFrom),
   ]);
-  const clicks = byDate.rows.reduce((sum, row) => sum + row.clicks, 0);
-  const impressions = byDate.rows.reduce(
-    (sum, row) => sum + row.impressions,
-    0,
-  );
-  const weighted = byDate.rows.reduce(
-    (sum, row) => sum + (row.position ?? 0) * row.impressions,
-    0,
-  );
+  const current = byDate.rows.filter((row) => (row.keys[0] ?? "") >= from);
+  const previous = byDate.rows.filter((row) => (row.keys[0] ?? "") < from);
   return {
     property,
     from,
     to,
-    totals: {
-      clicks,
-      impressions,
-      ctr: impressions ? clicks / impressions : null,
-      position: impressions ? weighted / impressions : null,
-    },
+    totals: totalsOf(current),
+    previousTotals: previous.length ? totalsOf(previous) : null,
     rows: byQuery.rows.flatMap((row) =>
       row.keys.length === 2
         ? [
@@ -262,6 +277,7 @@ export async function readCmoSearchConsole(
     to: null,
     observedAt: null,
     totals: null,
+    previousTotals: null,
     nearFirstPage: [],
     lowClickRate: [],
   };
@@ -306,6 +322,7 @@ export async function readCmoSearchConsole(
     to: payload.to,
     observedAt: observedAt.toISOString(),
     totals: payload.totals,
+    previousTotals: payload.previousTotals ?? null,
     ...searchConsoleOpportunities(payload.rows),
   };
 }

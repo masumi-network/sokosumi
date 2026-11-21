@@ -96,32 +96,6 @@ export function SearchConsoleCard({
           ? `${day(gsc.from)} to ${day(gsc.to)}, the last 28 days Google has settled.`
           : null}
       </p>
-      {gsc.totals ? (
-        <div className="grid4">
-          <div className="kpi">
-            <span className="label">Clicks</span>
-            <span className="v num">{count(gsc.totals.clicks)}</span>
-          </div>
-          <div className="kpi">
-            <span className="label">Seen in search</span>
-            <span className="v num">{count(gsc.totals.impressions)}</span>
-          </div>
-          <div className="kpi">
-            <span className="label">Average position</span>
-            <span className="v num">
-              {gsc.totals.position?.toFixed(1) ?? NOT_KNOWN}
-            </span>
-          </div>
-          <div className="kpi">
-            <span className="label">Clicked</span>
-            <span className="v num">
-              {gsc.totals.ctr === null
-                ? NOT_KNOWN
-                : `${(gsc.totals.ctr * 100).toFixed(1)}%`}
-            </span>
-          </div>
-        </div>
-      ) : null}
       {rows(
         "Close to page one",
         gsc.nearFirstPage,

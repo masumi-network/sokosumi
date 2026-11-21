@@ -67,6 +67,7 @@ import {
   startCmoCase,
   styledPictureChecks,
 } from "./eval-cmo-runner";
+import { cmoSeoReportChecks, isCmoSeoReportCase } from "./eval-cmo-seo-report";
 import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
@@ -75,6 +76,7 @@ import {
 } from "./eval-lanes.service";
 import { seoEvalChecks } from "./eval-seo-checks";
 import { isSeoEvalCase, prepareSeoEvalCase } from "./eval-seo-fixtures";
+import { pollStandupCase, startStandupCase } from "./eval-standup";
 
 /** What a finished case reports; the runner stores it on its result. */
 export interface CaseOutcome {
@@ -385,6 +387,17 @@ async function pollScenario(
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
   }
+  if (isCmoSeoReportCase(scenario.id)) {
+    const extra = await cmoSeoReportChecks(
+      lane,
+      scenario.id,
+      context.startedAt,
+      turn.finalAnswer ?? "",
+    );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
   if (scenario.id === CMO_POST_WITH_PICTURE_SCENARIO_ID) {
     const extra = await styledPictureChecks(lane, context.startedAt);
     result.checks.push(...extra);
@@ -525,6 +538,8 @@ export async function startEvalCase(
       context,
       evalCase.prepare,
     );
+  if (evalCase.kind === "standup")
+    return startStandupCase(evalCase.setup, lane);
   return startCmoCase(evalCase, lane, context);
 }
 
@@ -545,5 +560,7 @@ export async function pollEvalCase(
       result.state,
     );
   }
+  if (evalCase.kind === "standup")
+    return pollStandupCase(evalCase.setup, lane, result.state);
   return pollCmoCase(evalCase, lane, result, context);
 }

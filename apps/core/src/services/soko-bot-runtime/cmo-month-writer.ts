@@ -18,6 +18,7 @@ import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
+import { modelCallTelemetryFor } from "@/lib/soko-bot/model-calls";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import { RuntimeEventLog, runtimeEvent } from "@/lib/soko-bot/turn-loop";
 import {
@@ -275,6 +276,7 @@ async function writeChunk(
     output: Output.object({ schema: writtenChunkSchema }),
     maxOutputTokens: 16_000,
     abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
+    telemetry: modelCallTelemetryFor("cmo-month-writer"),
   }).catch(rethrowAiGatewayFailure);
   // Charged to the turn like its own steps, with its tokens.
   const usage = gatewayCallUsage(result);

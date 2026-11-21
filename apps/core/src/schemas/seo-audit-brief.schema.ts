@@ -4,10 +4,10 @@ import { SEO_MAX_PAGES, seoBriefAction, seoIdSchema } from "./seo-page.schema";
 export { seoBriefAction } from "./seo-page.schema";
 
 import {
+  maxPageOutcomeEvents,
   seoBriefOutcome,
   seoGoalInvestigation,
   seoLandingEventSchema,
-  seoLandingEvents,
   seoOutcomeWindow,
 } from "./seo-landing-outcomes.schema";
 
@@ -34,6 +34,7 @@ const page = z.strictObject({
   role: seoBriefPageRole.nullable(),
   job: text(shortTextLimit),
   action: seoBriefAction.nullable(),
+  completionEvent: seoLandingEventSchema.optional(),
   indexIntent: z.enum(["index", "exclude", "unknown"]),
 });
 
@@ -69,7 +70,7 @@ const followUp = z.strictObject({
     })
     .optional(),
   goalInvestigation: seoGoalInvestigation.optional(),
-  outcomes: z.array(seoBriefOutcome).max(seoLandingEvents.length).optional(),
+  outcomes: z.array(seoBriefOutcome).max(maxPageOutcomeEvents).optional(),
   status: z.enum(["awaiting_recrawl", "recrawled", "unknown"]),
   indexReview: z.enum([
     "expected_exclusion",
