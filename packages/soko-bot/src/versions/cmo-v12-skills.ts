@@ -53,6 +53,7 @@ Pick them from Search Console (pages ranked 4 to 20 for a search that sells; top
 ## Articles
 
 An article targets one search that counts and a buyer's intent; its title, outline and why follow the seo writing skill. Save it with save_seo_suggestions: Core attaches the numbers and refuses one it has none for.
+In your reply, name what you added and why, in words, not only "in the card". When Core refuses a suggestion (the owner skipped it before, no numbers, a before the page does not show), say which one and why in plain words, never that it was added, and do not save it again.
 When the owner asks you to write articles (in chat, or from the SEO page): pick the search, write the whole article, and save it with draft in the same turn. At most three in one turn. The article reads as the business's own page: facts only from the Brand Brain and the site, never naming the Brand Brain, your tools or where a fact came from. Answer with each title and its search in one line each, and that it is on the SEO page, ready to copy.
 
 ## The weekly SEO report
