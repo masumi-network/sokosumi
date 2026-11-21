@@ -150,8 +150,9 @@ describe("TaskScheduleRow", () => {
       },
     });
 
+    // The visible "Last task" and status come first, so the name contains the label (WCAG 2.5.3).
     const link = screen.getByRole("link", {
-      name: "lastTaskLink(Weekly report, FAILED)",
+      name: "lastTaskLink(FAILED, Weekly report)",
     });
     expect(link).toHaveAttribute("href", "/tasks/REL-7-weekly-report");
     expect(link).toHaveTextContent("lastTask");

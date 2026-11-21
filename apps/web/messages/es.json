@@ -2509,7 +2509,7 @@
         "nextRun": "Próxima ejecución {datetime}",
         "noNextRun": "Sin próxima ejecución",
         "lastTask": "Última tarea",
-        "lastTaskLink": "Última tarea: {name}, {status}",
+        "lastTaskLink": "Última tarea: {status}, {name}",
         "unassigned": "Sin asignar",
         "unavailableAssignee": "Responsable no disponible",
         "workspace": "Espacio de trabajo",

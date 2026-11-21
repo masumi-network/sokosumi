@@ -194,8 +194,8 @@ export function TaskScheduleRow({
             {schedule.lastTask ? (
               <Link
                 aria-label={t("lastTaskLink", {
-                  name: schedule.lastTask.name,
                   status: tStatus(schedule.lastTask.status),
+                  name: schedule.lastTask.name,
                 })}
                 className="hover:text-foreground relative z-10 inline-flex min-h-6 items-center gap-1.5 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 href={taskHref(schedule.lastTask)}
