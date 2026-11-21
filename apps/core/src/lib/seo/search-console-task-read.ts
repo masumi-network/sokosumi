@@ -56,27 +56,32 @@ export function gscTaskToolArguments(
     end_date: query.endDate,
     row_limit: query.rowLimit,
     start_row: query.startRow,
-    ...(query.dimensions && { dimensions: query.dimensions }),
-    ...(query.type && { search_type: query.type }),
+    // The same defaults as gscReportArguments, the proven production read.
+    dimensions: query.dimensions ?? [],
+    search_type: query.type ?? "web",
+    data_state: query.dataState ?? "final",
     ...(query.dimensionFilterGroups && {
       dimension_filter_groups: query.dimensionFilterGroups,
     }),
     ...(query.aggregationType && { aggregation_type: query.aggregationType }),
-    ...(query.dataState && { data_state: query.dataState }),
   };
 }
 
-const CREDENTIAL_KEYS = new Set([
-  "accesstoken",
-  "refreshtoken",
-  "idtoken",
-  "clientsecret",
+/**
+ * Parts of a credential key name, matched after case and `_`/`-` are removed.
+ * No documented key of the three Google replies holds one of them.
+ */
+const CREDENTIAL_KEY_PARTS = [
+  "token",
+  "secret",
+  "password",
   "authorization",
   "apikey",
-  "password",
+  "bearer",
+  "cookie",
   "connectedaccountid",
   "authconfigid",
-]);
+];
 
 /** True when any object key at any depth names a credential. */
 export function holdsCredentialField(value: unknown): boolean {
@@ -89,8 +94,8 @@ export function holdsCredentialField(value: unknown): boolean {
       continue;
     }
     for (const [key, child] of Object.entries(item)) {
-      if (CREDENTIAL_KEYS.has(key.replace(/[_-]/g, "").toLowerCase()))
-        return true;
+      const name = key.replace(/[_-]/g, "").toLowerCase();
+      if (CREDENTIAL_KEY_PARTS.some((part) => name.includes(part))) return true;
       stack.push(child);
     }
   }
@@ -106,7 +111,7 @@ const sitesSchema = z.object({
     .array(
       z.object({
         siteUrl: z.string().max(500),
-        permissionLevel: z.string().max(100).optional(),
+        permissionLevel: z.string().max(100).nullish(),
       }),
     )
     .default([]),
@@ -125,6 +130,13 @@ const analyticsSchema = z.object({
     )
     .optional(),
   responseAggregationType: z.string().max(100).optional(),
+  // Google adds this for dataState "all".
+  metadata: z
+    .object({
+      firstIncompleteDate: z.string().max(100).optional(),
+      firstIncompleteHour: z.string().max(100).optional(),
+    })
+    .optional(),
 });
 const inspectionSchema = z.object({
   inspectionResult: z.record(z.string(), z.unknown()),
@@ -147,12 +159,18 @@ export function gscTaskReplyBody(
     throw badGateway("The Search Console reply is larger than Core forwards", {
       kind: CORE_API_ERROR_KINDS.SEO_GSC_RESPONSE_TOO_LARGE,
     });
-  const body = unwrapNativeStatistics(
-    data,
-    GSC_TASK_OPERATIONS[read.operation].keys,
-  );
+  const { keys } = GSC_TASK_OPERATIONS[read.operation];
+  const body = unwrapNativeStatistics(data, keys);
   if (holdsCredentialField(body))
     throw badGateway("The Search Console reply was refused");
+  const unsupported = () =>
+    badGateway("The Search Console reply has an unsupported format");
+  // A renamed envelope must not read as "no rows". An empty object still does.
+  if (
+    !keys.some((key) => Object.hasOwn(body, key)) &&
+    Object.keys(body).some((key) => key !== "kind")
+  )
+    throw unsupported();
   const parsed = (() => {
     if (read.operation === "sites.list") {
       const sites = sitesSchema.safeParse(body);
@@ -171,7 +189,6 @@ export function gscTaskReplyBody(
     const result = schema.safeParse(body);
     return result.success ? result.data : null;
   })();
-  if (!parsed)
-    throw badGateway("The Search Console reply has an unsupported format");
+  if (!parsed) throw unsupported();
   return { status: 200, body: parsed };
 }
