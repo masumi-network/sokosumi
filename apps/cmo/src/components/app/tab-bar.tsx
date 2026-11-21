@@ -7,6 +7,7 @@ import { AGENT_NAME } from "../../lib/agent";
 import type { View } from "../../lib/views";
 import { type CusoArt, cusoArt } from "../cuso";
 import { ThemeToggle } from "../theme-toggle";
+import { isBrandPage } from "./brand-menu";
 import { VIEWS } from "./sidebar";
 import { ViewLink } from "./view-link";
 
@@ -54,12 +55,13 @@ export function TabBar({
     setOpen(false);
     onSelect(next);
   };
-  const inMore = !TABS.includes(view);
+  // The brand's pages open from the top bar's brand menu, not from More.
+  const inMore = !TABS.includes(view) && !isBrandPage(view);
   return (
     <nav className="tabbar" aria-label="Main" ref={root}>
       {open ? (
         <div className="tabbar-more" id="tabbar-more">
-          {VIEWS.filter(([id]) => !TABS.includes(id)).map(
+          {VIEWS.filter(([id]) => !TABS.includes(id) && !isBrandPage(id)).map(
             ([id, label, Icon]) => (
               <ViewLink
                 key={id}
