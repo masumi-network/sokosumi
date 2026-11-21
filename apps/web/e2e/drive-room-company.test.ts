@@ -15,12 +15,52 @@ import { createMailbox } from "./mailbox.ts";
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const CSV = ["Item,Price", "Sourdough,6.50", "Rye loaf,5.80"].join("\n");
+// Long enough to scroll its preview, with a seven-line header label and a
+// blank one, so the pinned header has to stay short and name every column.
+const LONG_LABEL = "Item\nname\nas\nwritten\nby\nthe\nbakery";
+const LONG_CSV = [
+  `"${LONG_LABEL}",Price,`,
+  ...Array.from({ length: 60 }, (_, i) => `Bread ${i + 1},${i + 1}.50,x`),
+].join("\n");
 
 const PROJECTS = [
   { name: "phone", width: 375, height: 812, isMobile: true },
   { name: "tablet", width: 768, height: 1024, isMobile: true },
   { name: "desktop", width: 1440, height: 900, isMobile: false },
 ];
+
+/** Scrolls a CSV preview and checks its header stays pinned, short and named. */
+async function expectPinnedHeader(page: Page) {
+  const price = page.getByRole("columnheader", { name: "Price" });
+  await price.waitFor();
+  await page.getByRole("columnheader", { name: "Column 3" }).waitFor();
+  assert.equal(
+    await page.getByRole("columnheader").first().getAttribute("title"),
+    LONG_LABEL,
+  );
+  const pinned = await price.evaluate(async (th) => {
+    const scroller = th.closest("table")?.parentElement as HTMLElement;
+    const firstRow = scroller.querySelector("tbody tr") as HTMLElement;
+    scroller.scrollTop = 600;
+    await new Promise((done) =>
+      requestAnimationFrame(() => requestAnimationFrame(done)),
+    );
+    const head = th.getBoundingClientRect();
+    return {
+      scrolled: scroller.scrollTop > 0,
+      atTop: Math.abs(head.top - scroller.getBoundingClientRect().top) <= 1,
+      firstRowUnderHeader:
+        firstRow.getBoundingClientRect().bottom <= head.bottom,
+      short: head.height <= scroller.clientHeight / 3,
+    };
+  });
+  assert.deepEqual(pinned, {
+    scrolled: true,
+    atTop: true,
+    firstRowUnderHeader: true,
+    short: true,
+  });
+}
 
 async function shot(page: Page, size: string, step: string) {
   await page.screenshot({ path: `${RESULTS_DIR}drive-${size}-${step}.png` });
@@ -93,12 +133,13 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await folderDialog.getByRole("textbox").fill("E2E launch");
       await page.keyboard.press("Enter");
       await page.waitForURL(/folder=E2E/);
+      const folderUrl = page.url();
       await page
         .locator('input[type="file"]:not([webkitdirectory])')
         .setInputFiles({
           name: "prices.csv",
           mimeType: "text/csv",
-          buffer: Buffer.from(CSV),
+          buffer: Buffer.from(LONG_CSV),
         });
       const fileLink = page.getByRole("link", { name: "prices.csv" });
       await fileLink.waitFor();
@@ -109,23 +150,16 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       );
       await shot(page, size, "1-folder");
 
-      // The CSV preview reads its first row as column headers, pinned on top.
+      // Both CSV previews, the viewer and the file's own page, read the first
+      // row as column headers that stay pinned while the rows scroll.
       await fileLink.click();
-      const priceHead = page.getByRole("columnheader", { name: "Price" });
-      await priceHead.waitFor();
-      assert.equal(
-        await priceHead.evaluate(
-          (cell) => getComputedStyle(cell.closest("thead") as Element).position,
-        ),
-        "sticky",
-      );
-      await page.getByRole("cell", { name: "Rye loaf" }).waitFor();
-      await shot(page, size, "1b-csv-preview");
-      if (await page.getByRole("dialog").isVisible()) {
-        await page.keyboard.press("Escape");
-      } else {
-        await page.goBack();
-      }
+      await expectPinnedHeader(page);
+      await shot(page, size, "1b-csv-viewer");
+      await page.getByRole("link", { name: "Details" }).click();
+      await page.waitForURL(/\/drive\/files\//);
+      await expectPinnedHeader(page);
+      await shot(page, size, "1c-csv-file-page");
+      await page.goto(folderUrl);
 
       // The folder becomes a data room; its Company tab checks emails.
       await page
@@ -156,7 +190,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         await page.evaluate(() => navigator.clipboard.readText()),
         /\/share\/rooms\//,
       );
-      await shot(page, size, "1c-room-header");
+      await shot(page, size, "1d-room-header");
       await page.getByRole("tab", { name: "Company" }).click();
       const legalName = page.getByLabel("Legal name");
       const email = page.getByLabel("Legal contact email");
