@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
+import { ChatEmptyState } from "@/app/chat/components/chat-unread-view-header";
 import {
   CatchUpSummaryBody,
   isCatchUpSummaryEmpty,
@@ -72,7 +72,7 @@ export function RoomSummaryPopover({
       >
         {data ? (
           isCatchUpSummaryEmpty(data) ? (
-            <ChatCaughtUp
+            <ChatEmptyState
               title={t("caughtUpTitle")}
               description={t("caughtUpDescription")}
             />

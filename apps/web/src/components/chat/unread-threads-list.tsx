@@ -4,10 +4,9 @@ import type { ChatRoom } from "@sokosumi/core-client";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
+import { ChatEmptyState } from "@/app/chat/components/chat-unread-view-header";
 import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention";
 import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
-import { ThreadGroupEmpty } from "@/components/chat/thread-list-row";
 import { UnreadThreadLink } from "@/components/chat/unread-thread-link";
 import { useThreadSearchRows } from "@/components/chat/use-thread-search-rows";
 import { usePageSearchPagination } from "@/components/page-list-search";
@@ -33,11 +32,6 @@ interface UnreadThreadsListProps {
     rooms: readonly ChatRoom[];
   } | null;
   currentUserId: string;
-  /**
-   * `flyout` says a drained list with the caught-up mark; `page` with one
-   * line under its Unread heading, since the Earlier group follows it.
-   */
-  variant: "flyout" | "page";
 }
 
 /**
@@ -113,10 +107,8 @@ export function UnreadThreadsList({
   roomsLive,
   initial = null,
   currentUserId,
-  variant,
 }: UnreadThreadsListProps) {
   const t = useTranslations("App.Channels.ThreadsView");
-  const tGroups = useTranslations("App.Channels.UnreadThreads");
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
   // Live rooms at zero already answer: nothing to ask Core. An empty roster
   // that is not a live answer is a gap, not caught up, so it waits.
@@ -149,14 +141,10 @@ export function UnreadThreadsList({
   return (
     <>
       {caughtUp ? (
-        variant === "flyout" ? (
-          <ChatCaughtUp
-            title={t("empty")}
-            description={t("emptyDescription")}
-          />
-        ) : (
-          <ThreadGroupEmpty>{tGroups("groupUnreadEmpty")}</ThreadGroupEmpty>
-        )
+        <ChatEmptyState
+          title={t("empty")}
+          description={t("emptyDescription")}
+        />
       ) : query.isError && rows.length === 0 ? (
         <div className="flex flex-col items-start gap-2">
           <p className="text-muted-foreground text-sm">{t("loadError")}</p>

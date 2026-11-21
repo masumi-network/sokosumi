@@ -103,9 +103,6 @@ export function RoomDecisionsPopover({
             onJumpToMessage(message);
           }}
         />
-        <p className="text-muted-foreground px-2 pt-2 text-xs text-pretty">
-          {t("Decisions.note")}
-        </p>
       </PopoverContent>
     </Popover>
   );
@@ -193,6 +190,12 @@ function DecisionsList({
         >
           {t("Decisions.loadOlder")}
         </Button>
+      ) : null}
+      {/* How to fix a wrong one, so only under a list that has one. */}
+      {decisions.length > 0 ? (
+        <p className="text-muted-foreground px-2 pt-2 text-xs text-pretty">
+          {t("Decisions.note")}
+        </p>
       ) : null}
     </>
   );

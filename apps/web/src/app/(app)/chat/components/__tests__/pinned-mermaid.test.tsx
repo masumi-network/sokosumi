@@ -67,6 +67,7 @@ function renderPinned(content: string, quote: boolean) {
         title: "Pinned",
         close: "Close",
         empty: "Empty",
+        emptyHint: "Hint",
         loading: "Loading",
         error: "Error",
         couldNotLoad: "Unavailable",
