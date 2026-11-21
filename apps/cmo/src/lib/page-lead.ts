@@ -217,7 +217,7 @@ export function seoLead(
 export function competitorsLead(data: CmoCompetitors): PageLeadText {
   const { feed } = data;
   const kicker = feed
-    ? `Competitors · checked ${shortDate(feed.checkDay)}`
+    ? `Competitors · checked ${shortDate(feed.checkDay, "UTC")}`
     : "Competitors";
   if (data.competitors.length === 0) {
     return {
