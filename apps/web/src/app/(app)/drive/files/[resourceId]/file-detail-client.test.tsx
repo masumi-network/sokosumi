@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/back-link", () => ({
@@ -241,7 +241,7 @@ describe("FileDetailClient", () => {
       const button = await waitFor(() =>
         screen.getByTestId("file-detail-allow-again"),
       );
-      button.click();
+      await act(async () => button.click());
 
       await waitFor(() => {
         expect(updateFileMetadataMock).toHaveBeenCalled();

@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -196,13 +196,15 @@ describe("OrganizationChatList remembered Unreads filter", () => {
     listRoomsMock.mockResolvedValue(emptyListResult(rooms));
   });
 
-  it("opens on the filter when the reader left it on", () => {
+  it("opens on the filter when the reader left it on", async () => {
     document.cookie = serializeChatUnreadsFilterCookie(true);
 
-    const { container } = renderOrganizationChatList({
-      organizationId: "org-1",
-      rooms,
-    });
+    const { container } = await act(async () =>
+      renderOrganizationChatList({
+        organizationId: "org-1",
+        rooms,
+      }),
+    );
 
     expect(screen.getByRole("button", { name: "All unreads" })).toHaveAttribute(
       "aria-pressed",
@@ -213,27 +215,31 @@ describe("OrganizationChatList remembered Unreads filter", () => {
 
   // The mark hides every All list still on the page. Clearing it when this
   // list agrees would show All on the other one (sidebar and /chat).
-  it("keeps the boot mark while the remembered filter is on", () => {
+  it("keeps the boot mark while the remembered filter is on", async () => {
     document.cookie = serializeChatUnreadsFilterCookie(true);
     document.documentElement.setAttribute(
       CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
       "",
     );
 
-    renderOrganizationChatList({ organizationId: "org-1", rooms });
+    await act(async () =>
+      renderOrganizationChatList({ organizationId: "org-1", rooms }),
+    );
 
     expect(
       document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
     ).toBe(true);
   });
 
-  it("drops a boot mark when the filter is already off", () => {
+  it("drops a boot mark when the filter is already off", async () => {
     document.documentElement.setAttribute(
       CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
       "",
     );
 
-    renderOrganizationChatList({ organizationId: "org-1", rooms });
+    await act(async () =>
+      renderOrganizationChatList({ organizationId: "org-1", rooms }),
+    );
 
     expect(
       document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),

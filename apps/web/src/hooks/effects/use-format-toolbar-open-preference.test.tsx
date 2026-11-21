@@ -81,14 +81,14 @@ describe("useFormatToolbarOpenPreference", () => {
       // flushSync commits hydration and layout effects synchronously. A
       // useSyncExternalStore or passive useEffect implementation reads the
       // preference only after the preceding sibling's passive effect runs.
-      flushSync(() => {
-        root = hydrateRoot(host, <HydrationTree phases={phases} />);
+      act(() => {
+        flushSync(() => {
+          root = hydrateRoot(host, <HydrationTree phases={phases} />);
+        });
       });
       expect(
         host.querySelector('[data-testid="toolbar-open"]')?.textContent,
       ).toBe("true");
-      act(() => {});
-
       const readIndex = phases.indexOf("read-preference");
       const passiveIndex = phases.indexOf("passive");
       expect(readIndex).toBeGreaterThanOrEqual(0);

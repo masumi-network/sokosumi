@@ -1,4 +1,5 @@
 import {
+  act,
   createEvent,
   fireEvent,
   render,
@@ -126,9 +127,10 @@ describe("MarkdownEditor", () => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    document.dispatchEvent(new Event("selectionchange"));
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
 
     await waitFor(() => {
       expect(
@@ -154,8 +156,10 @@ describe("MarkdownEditor", () => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
 
     const clearButton = screen.getByTitle("Clear formatting");
     fireEvent.mouseDown(clearButton);
@@ -203,9 +207,10 @@ describe("MarkdownEditor", () => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    document.dispatchEvent(new Event("selectionchange"));
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
 
     const clearButton = await screen.findByTitle("Clear formatting");
     fireEvent.mouseDown(clearButton);
@@ -262,9 +267,10 @@ describe("MarkdownEditor", () => {
     const selection = window.getSelection();
     const highlight = document.createRange();
     highlight.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(highlight);
-    document.dispatchEvent(new Event("selectionchange"));
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(highlight);
+    });
 
     await waitFor(() => {
       expect(
@@ -275,9 +281,10 @@ describe("MarkdownEditor", () => {
     const caret = document.createRange();
     caret.selectNodeContents(editor);
     caret.collapse(false);
-    selection?.removeAllRanges();
-    selection?.addRange(caret);
-    document.dispatchEvent(new Event("selectionchange"));
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(caret);
+    });
 
     await waitFor(() => {
       expect(
@@ -355,9 +362,10 @@ describe("MarkdownEditor", () => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    document.dispatchEvent(new Event("selectionchange"));
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
 
     await waitFor(() => {
       expect(
@@ -438,9 +446,10 @@ describe("MarkdownEditor", () => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    document.dispatchEvent(new Event("selectionchange"));
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
 
     const toolbar = await screen.findByRole("toolbar", { name: "Format" });
     expect(toolbar).toHaveAttribute("data-task-form-portal");
@@ -480,9 +489,10 @@ describe("MarkdownEditor", () => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    document.dispatchEvent(new Event("selectionchange"));
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
 
     const toolbar = await screen.findByRole("toolbar", { name: "Format" });
     expect(toolbar).toHaveClass("pointer-events-auto");
@@ -553,9 +563,10 @@ describe("MarkdownEditor", () => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    document.dispatchEvent(new Event("selectionchange"));
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
 
     const boldButton = await screen.findByTitle("Bold (Cmd+B)");
     await user.click(boldButton);

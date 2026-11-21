@@ -1,8 +1,6 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { act, render, renderHook } from "@testing-library/react";
-import { useEffect, useLayoutEffect, useState } from "react";
-import { flushSync } from "react-dom";
-import { createRoot } from "react-dom/client";
+import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fetchMock, sessionState } = vi.hoisted(() => ({
@@ -33,6 +31,7 @@ import {
   registerMembershipVisibleRoomsPublisher,
 } from "./membership-visible-rooms-store";
 import { clearRoomReadOverlays, rememberRoomRead } from "./room-read-overlay";
+import * as chatRefreshScheduler from "./use-chat-refresh-scheduler";
 import { useLiveChatRooms, useLiveChatRoomsRead } from "./use-live-chat-rooms";
 
 function TabUnread() {
@@ -230,60 +229,65 @@ describe("useLiveChatRooms", () => {
     expect(result.current?.[0]?.unreadCount).toBe(0);
     expect(result.current?.[0]?.unreadMentionCount).toBe(0);
 
-    unregister();
     unmount();
+    unregister();
   });
   describe("when the workspace changes while a room read is in flight", () => {
-    // Bypasses act() and flushSync, which flush passive effects at once. On
-    // a default-lane update the old read can answer from the new workspace's
-    // layout commit, before the old scheduler's passive cleanup marks it
-    // stale.
+    // The old read can answer after the new workspace's layout commit and
+    // before the old scheduler's passive cleanup marks the read stale. Keep
+    // the old read current at the scheduler boundary so act can flush the
+    // workspace change without closing that window.
     async function switchWhileReading(answer: { rooms: unknown[] } | null) {
       vi.useRealTimers();
-      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
       vi.stubGlobal("innerWidth", 390);
-      let answerOldRead: (page: { rooms: unknown[] } | null) => void = () => {};
+      const oldRead = Promise.withResolvers<typeof answer>();
       fetchMock
-        .mockReturnValueOnce(
-          new Promise((resolve) => {
-            answerOldRead = resolve;
+        .mockReturnValueOnce(oldRead.promise)
+        .mockResolvedValueOnce(null);
+      const useScheduler = chatRefreshScheduler.useChatRefreshScheduler;
+      let firstRead = true;
+      const scheduler = vi
+        .spyOn(chatRefreshScheduler, "useChatRefreshScheduler")
+        .mockImplementation((options) =>
+          useScheduler({
+            ...options,
+            refresh: (isCurrent) => {
+              const isOldRead = firstRead;
+              firstRead = false;
+              return options.refresh(() => isOldRead || isCurrent());
+            },
           }),
-        )
-        .mockReturnValue(new Promise(() => {}));
-      const seen: { rooms: ChatRoom[] | null; failed: boolean }[] = [];
-      function Probe({ switched }: { switched: boolean }) {
-        const read = useLiveChatRoomsRead();
-        if (switched) seen.push(read);
-        useLayoutEffect(() => {
-          if (switched) answerOldRead(answer);
-        }, [switched]);
-        return null;
-      }
-      const container = document.createElement("div");
-      const root = createRoot(container);
-      flushSync(() => root.render(<Probe switched={false} />));
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+        );
+      try {
+        const { result, rerender } = await act(async () =>
+          renderHook(useLiveChatRoomsRead),
+        );
+        expect(fetchMock).toHaveBeenCalledTimes(1);
 
-      sessionState.organizationId = "org-2";
-      root.render(<Probe switched />);
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      root.unmount();
-      return seen;
+        sessionState.organizationId = "org-2";
+        await act(async () => rerender());
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(result.current).toEqual({ rooms: null, failed: true });
+
+        await act(async () => oldRead.resolve(answer));
+        return result.current;
+      } finally {
+        scheduler.mockRestore();
+      }
     }
 
     it("never shows the old workspace's rows", async () => {
-      const seen = await switchWhileReading({
+      const read = await switchWhileReading({
         rooms: [{ id: "room-a", name: "org-1-only", kind: "channel" }],
       });
-      expect(seen.length).toBeGreaterThan(0);
-      expect(seen.every((read) => read.rooms === null)).toBe(true);
+      expect(read).toEqual({ rooms: null, failed: true });
     });
 
-    it("never marks the new workspace failed for the old read", async () => {
-      const seen = await switchWhileReading(null);
-      expect(seen.length).toBeGreaterThan(0);
-      expect(seen.every((read) => !read.failed)).toBe(true);
+    it("preserves the new workspace's failure when the old read fails", async () => {
+      expect(await switchWhileReading(null)).toEqual({
+        rooms: null,
+        failed: true,
+      });
     });
   });
 });

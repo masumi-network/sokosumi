@@ -51,7 +51,7 @@ describe("RestingIntentLink", () => {
   it("loads only the shell for a hover hit while the cursor is off the page", async () => {
     const link = renderTasksLink();
 
-    await act(() => approachElement(link, "mouse", "off-page"));
+    await act(async () => approachElement(link, "mouse", "off-page"));
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks");
   });
@@ -247,7 +247,7 @@ describe("RestingIntentLink", () => {
     );
     const card = container.querySelector("article") as HTMLElement;
 
-    expect(await act(() => approachElement(card))).toBe(true);
+    expect(await act(async () => approachElement(card))).toBe(true);
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
       "/tasks/1",

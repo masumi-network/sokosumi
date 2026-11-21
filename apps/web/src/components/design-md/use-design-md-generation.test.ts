@@ -46,7 +46,7 @@ describe("useDesignMdGeneration", () => {
     } as Awaited<ReturnType<typeof startDesignMdGeneration>>);
     const { onFailed, onStarted, result } = renderGeneration();
 
-    await act(() => result.current.generate({ url: URL }));
+    await act(async () => result.current.generate({ url: URL }));
 
     const attempt = { attemptId: expect.any(String), url: URL };
     expect(onStarted).toHaveBeenCalledWith(attempt);
@@ -83,14 +83,15 @@ describe("useDesignMdGeneration", () => {
     );
     const { onJobStarted, onStarted, result, unmount } = renderGeneration();
 
-    const started = result.current.generate({ url: URL });
-    unmount();
-    answer({
-      ok: true,
-      value: { kind: "queued", jobId: "job-1", jobToken: "token-1" },
-    } as Awaited<ReturnType<typeof startDesignMdGeneration>>);
-    await started;
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await act(async () => {
+      const started = result.current.generate({ url: URL });
+      unmount();
+      answer({
+        ok: true,
+        value: { kind: "queued", jobId: "job-1", jobToken: "token-1" },
+      } as Awaited<ReturnType<typeof startDesignMdGeneration>>);
+      await started;
+    });
 
     expect(onJobStarted).toHaveBeenCalledWith({
       attemptId: onStarted.mock.calls[0]?.[0].attemptId,

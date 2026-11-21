@@ -1,8 +1,10 @@
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { makeUser } from "./chat-room-fixtures";
 import {
+  emptyListResult,
+  listRoomsMock,
   makeRoom,
   renderOrganizationChatList,
   resetOrganizationChatListMocks,
@@ -13,7 +15,7 @@ describe("OrganizationChatList Self Direct", () => {
     resetOrganizationChatListMocks();
   });
 
-  it("names the Self Direct after the reader, marked as theirs", () => {
+  it("names the Self Direct after the reader, marked as theirs", async () => {
     const selfDirect = makeRoom({
       id: "self-direct",
       kind: "direct",
@@ -22,7 +24,8 @@ describe("OrganizationChatList Self Direct", () => {
       userMembers: [{ ...makeUser("user-1"), name: "Andreas" }],
     });
 
-    renderOrganizationChatList({ rooms: [selfDirect] });
+    listRoomsMock.mockResolvedValue(emptyListResult([selfDirect]));
+    await act(async () => renderOrganizationChatList({ rooms: [selfDirect] }));
 
     expect(
       screen.getByText("App.Channels.SelfDirect.youNamed Andreas"),
