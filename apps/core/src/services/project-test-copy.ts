@@ -8,14 +8,15 @@ import prisma from "@/lib/db/prisma";
 
 /**
  * A test copy lives this long at most: Core tears down any that is older.
+ * Long enough to make a whole month (six hours was not, 2026-11-21).
  */
-export const TEST_COPY_LIFETIME_MS = 6 * 60 * 60 * 1_000;
+export const TEST_COPY_LIFETIME_MS = 10 * 60 * 60 * 1_000;
 
 /**
- * A test copy schedules no post sooner than this: twice the time it lives,
- * so its teardown cancels every post long before its time.
+ * A test copy schedules no post sooner than this, so its teardown cancels
+ * every post at least two hours before its time.
  */
-export const TEST_COPY_SCHEDULE_FLOOR_MS = 2 * TEST_COPY_LIFETIME_MS;
+export const TEST_COPY_SCHEDULE_FLOOR_MS = 12 * 60 * 60 * 1_000;
 
 export const TEST_COPY_SCHEDULE_FLOOR_MESSAGE =
   "A test copy schedules no post sooner than 12 hours ahead";
