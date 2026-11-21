@@ -57,9 +57,7 @@ it("heads the sidebar with the Business and the person, whose menu holds Setting
     ),
   );
   const head = container.querySelector(".side-head");
-  const site = head?.querySelector<HTMLAnchorElement>(".side-name a");
-  expect(site?.textContent).toBe("acme.io");
-  expect(site?.getAttribute("href")).toBe("https://acme.io");
+  expect(head?.querySelector(".brand-name span")?.textContent).toBe("acme.io");
   const avatar = head?.querySelector<HTMLButtonElement>(".who-button");
   expect(avatar?.getAttribute("aria-label")).toBe("Account: Francis");
   await act(async () => avatar?.click());
@@ -75,34 +73,79 @@ it("heads the sidebar with the Business and the person, whose menu holds Setting
   expect(head?.querySelector(".ob-who-menu")).toBeNull();
 });
 
-it("lists the daily pages, then the brand's in a quiet group of their own", async () => {
-  await act(async () =>
-    root.render(
-      <Sidebar
-        overview={cmoOverview()}
-        view="seo"
-        onSelect={() => {}}
-        name="Francis"
-        email="francis@acme.io"
-      />,
-    ),
-  );
-  const labels = (selector: string) =>
-    [...container.querySelectorAll(`${selector} a`)].map(
-      (link) => link.querySelector(".nav-label")?.textContent,
+it("lists the daily pages; the brand's pages open from its name", async () => {
+  const opened: string[] = [];
+  const render = (view: "seo" | "channels") =>
+    act(async () =>
+      root.render(
+        <Sidebar
+          overview={cmoOverview({ websiteUrl: "https://acme.io" })}
+          view={view}
+          onSelect={(next) => opened.push(next)}
+          name="Francis"
+          email="francis@acme.io"
+        />,
+      ),
     );
-  expect(labels(".nav-main")).toEqual(["Today", "Chat", "Calendar", "Results"]);
-  expect(labels(".nav-brand")).toEqual([
+  await render("seo");
+  const labels = [...container.querySelectorAll(".nav-main a")].map(
+    (link) => link.querySelector(".nav-label")?.textContent,
+  );
+  expect(labels).toEqual(["Today", "Chat", "Calendar", "Results", "SEO"]);
+  expect(container.querySelector(".nav-group")).toBeNull();
+  const brand = container.querySelector<HTMLButtonElement>(".brand-button");
+  expect(brand?.getAttribute("aria-haspopup")).toBe("menu");
+  expect(brand?.getAttribute("aria-expanded")).toBe("false");
+  expect(brand?.hasAttribute("data-active")).toBe(false);
+
+  // From the keyboard (a click with no pointer), the first page takes focus.
+  await act(async () =>
+    brand?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })),
+  );
+  const menu = container.querySelector('[role="menu"]');
+  expect(brand?.getAttribute("aria-expanded")).toBe("true");
+  expect(
+    [...(menu?.querySelectorAll('[role="menuitem"]') ?? [])].map(
+      (item) => item.textContent,
+    ),
+  ).toEqual([
     "Strategy",
     "Brand Brain",
     "Competitors",
-    "SEO",
     "Channels",
+    "Open acme.io",
   ]);
-  expect(container.querySelector(".nav-group")?.textContent).toBe("Your brand");
-  expect(container.querySelector(".nav a.active")?.getAttribute("href")).toBe(
-    "/seo",
+  // The first page takes focus; the arrows move through the menu.
+  expect(document.activeElement?.textContent).toBe("Strategy");
+  await act(async () => {
+    menu?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+    );
+  });
+  expect(document.activeElement?.textContent).toBe("Open acme.io");
+  // Escape closes it and gives focus back to the brand.
+  await act(async () => {
+    menu?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  });
+  expect(container.querySelector('[role="menu"]')).toBeNull();
+  expect(document.activeElement).toBe(brand);
+
+  await act(async () => brand?.click());
+  await act(async () =>
+    container
+      .querySelector<HTMLAnchorElement>('[role="menu"] a[href="/channels"]')
+      ?.click(),
   );
+  expect(opened).toEqual(["channels"]);
+  expect(container.querySelector('[role="menu"]')).toBeNull();
+
+  // On one of the brand's pages its name reads as the page you are on.
+  await render("channels");
+  expect(
+    container.querySelector(".brand-button")?.hasAttribute("data-active"),
+  ).toBe(true);
 });
 
 it("shows the person as a plain avatar: their picture, else their initial", async () => {

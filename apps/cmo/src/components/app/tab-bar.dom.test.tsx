@@ -44,20 +44,14 @@ it("opens every other page from More, and closes on a pick or Escape", async () 
   const links = [
     ...container.querySelectorAll<HTMLAnchorElement>(".tabbar-more a"),
   ];
-  expect(links.map((link) => link.textContent)).toEqual([
-    "Strategy",
-    "Brand Brain",
-    "Competitors",
-    "SEO",
-    "Channels",
-    "Settings",
-  ]);
+  // The brand's pages open from the top bar's brand menu.
+  expect(links.map((link) => link.textContent)).toEqual(["SEO", "Settings"]);
   expect(container.querySelector(".tabbar-more")?.textContent).toContain(
     "Sign out",
   );
 
   await act(async () =>
-    links.find((l) => l.textContent === "Channels")?.click(),
+    links.find((l) => l.textContent === "Settings")?.click(),
   );
   expect(container.querySelector(".tabbar-more")).toBeNull();
   // A page under More marks More as where you are.

@@ -181,17 +181,25 @@ describe("CMO OAuth return errors during hydration", () => {
     const todayLink = host.querySelector<HTMLAnchorElement>(
       'nav[aria-label="Main"] a[href="/"]',
     );
-    const channelsLink = host.querySelector<HTMLAnchorElement>(
-      'nav[aria-label="Main"] a[href="/channels"]',
-    );
     expect(todayLink).not.toBeNull();
-    expect(channelsLink).not.toBeNull();
 
     await act(async () => {
       todayLink?.click();
     });
     expect(window.location.pathname).toBe("/");
 
+    // Channels opens from the brand's menu at the head of the sidebar.
+    await act(async () => {
+      host
+        .querySelector<HTMLButtonElement>(
+          'nav[aria-label="Main"] .brand-button',
+        )
+        ?.click();
+    });
+    const channelsLink = host.querySelector<HTMLAnchorElement>(
+      'nav[aria-label="Main"] [role="menu"] a[href="/channels"]',
+    );
+    expect(channelsLink).not.toBeNull();
     await act(async () => {
       channelsLink?.click();
     });

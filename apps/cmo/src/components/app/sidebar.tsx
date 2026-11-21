@@ -2,8 +2,6 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import {
-  Binoculars,
-  Brain,
   CalendarDays,
   ChartLine,
   House,
@@ -11,40 +9,29 @@ import {
   MessageSquare,
   Search,
   Settings,
-  Share2,
-  Target,
 } from "lucide-react";
 import { needsYou } from "../../lib/today";
 import type { View } from "../../lib/views";
 import { AccountMenu } from "../account-menu";
-import { hostOf } from "../brand-profile";
-import { BusinessMark, businessDisplayName } from "../business-mark";
+import { BRAND_PAGES, BrandMenu } from "./brand-menu";
 import { CusoStatus } from "./cuso-status";
 import { ViewLink } from "./view-link";
 
 type Page = readonly [View, string, LucideIcon];
 
-/** Where the owner goes every day. */
+/** Where the owner goes every day; the brand's pages sit behind its name. */
 const MAIN = [
   ["today", "Today", House],
   ["chat", "Chat", MessageSquare],
   ["calendar", "Calendar", CalendarDays],
   ["results", "Results", ChartLine],
-] as const satisfies readonly Page[];
-
-/** What Cuso works from: the owner's brand, a quiet group of its own. */
-const BRAND = [
-  ["strategy", "Strategy", Target],
-  ["brain", "Brand Brain", Brain],
-  ["competitors", "Competitors", Binoculars],
   ["seo", "SEO", Search],
-  ["channels", "Channels", Share2],
 ] as const satisfies readonly Page[];
 
 /** Every page; Settings opens from the account menu. */
 export const VIEWS = [
   ...MAIN,
-  ...BRAND,
+  ...BRAND_PAGES,
   ["settings", "Settings", Settings],
 ] as const satisfies readonly Page[];
 
@@ -69,8 +56,8 @@ interface SidebarProps {
 }
 
 /**
- * The app's sidebar: the Business and the person on top, the pages, and
- * Cuso on his stage at the foot.
+ * The app's sidebar: the Business (a menu of its pages) and the person on
+ * top, the daily pages, and Cuso on his stage at the foot.
  */
 export function Sidebar({
   overview,
@@ -103,13 +90,7 @@ export function Sidebar({
   return (
     <nav className="side" aria-label="Main">
       <header className="side-head">
-        <BusinessMark overview={overview} size={38} />
-        <span className="side-name">
-          <b>{businessDisplayName(overview)}</b>
-          <a href={overview.websiteUrl} target="_blank" rel="noreferrer">
-            {hostOf(overview.websiteUrl)}
-          </a>
-        </span>
+        <BrandMenu overview={overview} view={view} onSelect={onSelect} />
         <AccountMenu
           label={`Account: ${name || email}`}
           signOut={signOut}
@@ -165,12 +146,6 @@ export function Sidebar({
       </header>
       <div className="nav">
         <div className="nav-main">{MAIN.map(link)}</div>
-        <p className="nav-group" id="nav-brand">
-          Your brand
-        </p>
-        <div className="nav-brand" role="group" aria-labelledby="nav-brand">
-          {BRAND.map(link)}
-        </div>
       </div>
       <CusoStatus overview={overview} view={view} now={now} onOpen={onSelect} />
     </nav>
