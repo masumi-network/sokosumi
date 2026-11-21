@@ -13780,6 +13780,14 @@
         "sortWorst": "{column}, peor primero"
       },
       "reportPlan": {
+        "changedShort": "El primer paso ha cambiado desde el informe anterior.",
+        "verify": "Cómo comprobar el resultado",
+        "evidence": "Datos de la auditoría",
+        "whyItem": "¿Por qué esta acción?",
+        "groups": {
+          "fixes": "Correcciones de página ({count})",
+          "content": "Contenido y palabras clave ({count})"
+        },
         "missingComparison": "El resumen indica {event}, pero faltan tasas de finalización comparables para sesiones orgánicas y directas. Comprueba el evento clave en GA4 y compara dos periodos completos.",
         "hypothesis": {
           "season": "Los informes sugieren una prueba de contenido para «{query}». Aplica el cambio propuesto y comprueba si el público estacional encuentra su respuesta.",

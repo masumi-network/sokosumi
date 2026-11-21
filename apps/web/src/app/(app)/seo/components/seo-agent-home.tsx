@@ -41,6 +41,7 @@ import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
+import { useSelectedSeoPlan } from "./use-selected-seo-plan";
 import { useSeoAnalyticsLine } from "./use-seo-analytics-line";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
@@ -134,10 +135,15 @@ function SeoAgentPanel({
   );
   // Until the first check has a result, the setup card is the one thing to do: no step shows with it. A failed
   // sync has its alert and Retry in the verdict card, so the refresh step would say it twice.
+  const selectedPlan = useSelectedSeoPlan(model);
   const steps = setup
     ? []
     : brief.steps.filter(
         (step) =>
+          !(
+            step.kind === "action" &&
+            selectedPlan.actionKeys.has(seoActionKey(step.action))
+          ) &&
           step !== statisticsStep &&
           step !== analyticsStep &&
           !(step.kind === "refresh" && statisticsSync.state === "failed"),
@@ -283,16 +289,6 @@ function SeoAgentPanel({
             ? t("setup.checkEnded")
             : ""}
       </p>
-      {/* First on the tab, in one place on every width: a move would remount the control and drop an approval in flight. */}
-      {!setup && (
-        <SeoReportPlan
-          model={model}
-          onOpen={(action, button) => {
-            dialogRow.current = button;
-            setDialogKey(seoActionKey(action));
-          }}
-        />
-      )}
       {banner}
       {analyticsStep && !setup ? (
         <SeoAgentStatistics model={model} line={analyticsLine} />
@@ -300,6 +296,16 @@ function SeoAgentPanel({
       {/* The pictures come first: the keyword searches say what the site can win before the verdict says
           what to fix. */}
       {setup ? null : <SeoAgentGraphics model={model} />}
+      {!setup && (
+        <SeoReportPlan
+          selected={selectedPlan}
+          model={model}
+          onOpen={(action, button) => {
+            dialogRow.current = button;
+            setDialogKey(seoActionKey(action));
+          }}
+        />
+      )}
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
       ) : (
@@ -430,7 +436,8 @@ function SeoAgentPanel({
             {steps.map((step, index) => stepItem(step, index))}
           </ul>
         </div>
-      ) : (analyticsStep &&
+      ) : selectedPlan.plan ||
+        (analyticsStep &&
           (!analyticsLine.hidden || analyticsLine.analytics !== "unknown")) ||
         statisticsSync.state === "failed" ? null : (
         // The Analytics line, a sync that runs or failed, each still ask for something: "nothing is waiting"

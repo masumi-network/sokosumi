@@ -3543,3 +3543,47 @@ it("connects a recorded 404 to the selected destination even when the finding ha
   input.scope.pageIds = [input.pages[0]!.id];
   expect(projected().some((item) => item.kind === "broken_link")).toBe(false);
 });
+
+it("keeps every distinct repair and describes the observed slash redirect in its direction", () => {
+  const input = fixture();
+  const payload = parsePublicSeoArtifact(legacyReport());
+  const entry = "https://example.com/de/";
+  const destination = "https://example.com/de";
+  payload.findings = [
+    {
+      ...payload.findings[0]!,
+      id: "languages",
+      rowId: "IN-07",
+      pageUrl: SEO_TEST_PAGE,
+      evidence: [
+        `${entry} redirects to the en homepage https://example.com/; its declared de destination ${destination} returns HTTP 200 in de.`,
+      ],
+    },
+  ];
+  payload.actions = [
+    "Fix locale routing",
+    "Update language links",
+    "Check fallback routing",
+  ].map((title, i) => ({
+    ...payload.actions[0]!,
+    id: `repair-${i}`,
+    pageUrl: SEO_TEST_PAGE,
+    findingIds: ["languages"],
+    title,
+  }));
+  input.observations = [observation(input, payload, "2026-10-01T12:00:00Z")];
+  const rows = projectSeoProjection(input, now).observations[0]!
+    .planCandidates!;
+  expect(rows.filter((r) => r.kind === "repair")).toHaveLength(3);
+  expect(rows).toContainEqual(
+    expect.objectContaining({
+      kind: "experiment",
+      pageUrl: SEO_TEST_PAGE,
+      queries: ["gap term"],
+      evidence: [expect.stringContaining("30 monthly searches")],
+    }),
+  );
+  expect(rows.find((r) => r.actionId === "repair-0")?.reason).toContain(
+    "Send them to /de, which already serves the correct language.",
+  );
+});

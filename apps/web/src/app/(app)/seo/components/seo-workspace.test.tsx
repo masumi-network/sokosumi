@@ -30,6 +30,7 @@ import {
   SEO_TEST_AUDIT,
   SEO_TEST_PROJECT,
   seoTestCheckedAudit,
+  seoTestKeyword,
   seoTestMetric,
   seoTestObservation,
   seoTestStrategy,
@@ -9057,7 +9058,31 @@ it("opens a report plan on the Agent tab and switches its recommendation and rea
     reason: "The current report found repair queries.",
     evidence: ["battery replacement or upgrade"],
   };
-  first.planCandidates = [candidate];
+  workspace.keywords.push(
+    seoTestKeyword({ pageUrl, observationId: first.id, volume: 720 }),
+    seoTestKeyword({
+      id: "keyword-2",
+      keyword: "battery condition",
+      pageUrl,
+      observationId: first.id,
+      volume: 590,
+    }),
+  );
+  first.planCandidates = [
+    candidate,
+    {
+      ...candidate,
+      title: "Compare battery replacement costs.",
+      reason: "Searchers ask how much a replacement costs.",
+      queries: ["battery replacement cost"],
+    },
+    {
+      ...candidate,
+      kind: "repair",
+      title: "Fix the language redirect.",
+      reason: "The German entry page redirects to the English homepage.",
+    },
+  ];
   const earlier = {
     ...first,
     id: "f1111111-1111-4111-8111-111111111111",
@@ -9098,7 +9123,18 @@ it("opens a report plan on the Agent tab and switches its recommendation and rea
   expect(
     await card.findByText("Current objective: Search traffic"),
   ).toBeVisible();
+  expect(screen.getByTestId("seo-agent-graphics").nextElementSibling).toBe(
+    screen.getByRole("region", { name: "Recommended plan" }),
+  );
   expect(card.getByText(candidate.title)).toBeVisible();
+  await user.click(card.getByText("Content and keywords (1)"));
+  expect(
+    card.getByRole("heading", { name: "Compare battery replacement costs." }),
+  ).toBeVisible();
+  await user.click(card.getByText("Page fixes (1)"));
+  expect(
+    card.getByRole("heading", { name: "Fix the language redirect." }),
+  ).toBeVisible();
   expect(card.getByText(/Since the previous report/)).toBeVisible();
   expect(card.getByText(candidate.reason)).not.toBeVisible();
   await user.click(card.getByText("Why this plan?"));

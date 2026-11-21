@@ -25,7 +25,30 @@ const accessRules = new Set([
 const completionRules = new Set(["P-06", "P-10", "P-12", "P-22", "IL-08"]);
 const severities = ["critical", "major", "minor"] as const;
 const evidenceLimit = 3;
-const perPageAndKind = 2;
+// Match the audit’s measured language-entry redirect. Both URL forms matter here.
+function languageRedirect(evidence: string[]) {
+  for (const line of evidence) {
+    const match =
+      /^(https?:\/\/\S+) redirects to the ([a-z-]+) homepage (https?:\/\/\S+); its declared ([a-z-]+) destination (https?:\/\/\S+) returns HTTP 200 in \4\.$/iu.exec(
+        line,
+      );
+    if (!match) continue;
+    const entry = URL.parse(match[1]!);
+    const destination = URL.parse(match[5]!);
+    if (
+      match[2]!.toLowerCase() === match[4]!.toLowerCase() ||
+      !entry ||
+      !destination ||
+      entry.origin !== destination.origin ||
+      entry.pathname !== destination.pathname + "/"
+    )
+      continue;
+    return {
+      reason: `Visitors who open ${entry.pathname} land on the homepage in a different language. Send them to ${destination.pathname}, which already serves the correct language.`,
+      nextCheck: `Open ${entry.pathname} and ${destination.pathname}. Both should end on ${destination.pathname} in the same language.`,
+    };
+  }
+}
 // The SEO worker investigates exact-page positions in this range (focus.ts).
 const firstStrikingPosition = 4;
 const lastStrikingPosition = 20;
@@ -91,6 +114,9 @@ export function scopedReportEvidence(
       ),
       nextCheck: `Repeat the page check for ${[...new Set(cited.map((row) => row.title))].slice(0, evidenceLimit).join(", ")}.`,
       severity,
+      ...(rules.size === 1 &&
+        rules.has("IN-07") &&
+        languageRedirect(cited.flatMap((row) => row.evidence))),
       ...(links.length && { destinations: [...new Set(links)] }),
     });
   }
@@ -249,6 +275,21 @@ export function scopedReportEvidence(
         nextCheck: `Repeat the ${row.device} ranking check for this page and query, and compare relevant clicks if available.`,
       });
     }
+    if (!angle && row.source === "gap" && row.volume && row.volume > 0) {
+      candidates.push({
+        kind: "experiment",
+        pageUrl: row.pageUrl,
+        queries: [row.keyword],
+        title: `Check whether this page answers “${row.keyword}”.`,
+        reason:
+          "The audit found this query in competitor rankings. Compare the question their pages answer with the answer on this page.",
+        evidence: [
+          `“${row.keyword}” had an estimated ${row.volume} monthly searches in ${data.countryCode}.`,
+        ],
+        nextCheck:
+          "Add the missing answer only if it fits the page. Then compare impressions and clicks for that query.",
+      });
+    }
     if (!angle || !row.volume || row.volume <= 0) continue;
     candidates.push({
       kind: "content",
@@ -281,7 +322,7 @@ export function scopedReportEvidence(
   const rank = (item: Candidate) =>
     item.severity ? severities.indexOf(item.severity) : severities.length;
   const planCandidates = [...groups.values()].flatMap((group) =>
-    group.sort((a, b) => rank(a) - rank(b)).slice(0, perPageAndKind),
+    group.sort((a, b) => rank(a) - rank(b)),
   );
   return {
     ...scopedPageMarketEvidence(data, selected),

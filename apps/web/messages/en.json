@@ -13780,6 +13780,14 @@
         "sortWorst": "{column}, worst first"
       },
       "reportPlan": {
+        "changedShort": "Since the previous report, the first step has changed.",
+        "verify": "How to check the result",
+        "evidence": "Audit evidence",
+        "whyItem": "Why this action?",
+        "groups": {
+          "fixes": "Page fixes ({count})",
+          "content": "Content and keywords ({count})"
+        },
         "missingComparison": "The brief names {event}, but this page has no comparable organic and direct completion rates. Check that GA4 records it as a key event and compare two complete periods.",
         "hypothesis": {
           "season": "The reports suggest a content test for “{query}”. Use the page change above to see whether the seasonal audience finds its answer here.",

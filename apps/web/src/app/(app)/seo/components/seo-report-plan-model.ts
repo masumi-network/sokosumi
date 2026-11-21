@@ -273,6 +273,20 @@ export function seoReportPlan(
       : undefined;
   return {
     lead,
+    more: ordered
+      .slice(1)
+      .filter(
+        ({ item }) =>
+          item !== follow &&
+          !(item.pageUrl === lead.pageUrl && item.title === lead.title),
+      )
+      .map(({ item, originId }) => ({
+        item,
+        originId,
+        section: isContent(item) ? ("content" as const) : ("fixes" as const),
+      })),
+    followOrigin:
+      follow && ordered.find((row) => row.item === follow)?.originId,
     sources: first.sources,
     corroboration: first.corroboration,
     timing: first.timing,
