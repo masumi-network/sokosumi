@@ -7,8 +7,9 @@ import { type Browser, chromium, type Page } from "playwright";
 import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
-// A new user's Files path, end to end: make a folder, upload an invented CSV,
-// turn the folder into a data room, fill its Company tab, then search a
+// A new user's Files path, end to end: make a folder, upload an invented CSV
+// and preview it, turn the folder into a data room, copy its link, fill its
+// Company tab, then search a
 // Files Table with Find and replace from the keyboard. Each size signs up its
 // own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
@@ -40,6 +41,9 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         viewport,
         isMobile,
         hasTouch: isMobile,
+      });
+      await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+        origin: BASE_URL,
       });
       const page = await context.newPage();
       page.setDefaultTimeout(30_000);
@@ -105,12 +109,54 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       );
       await shot(page, size, "1-folder");
 
+      // The CSV preview reads its first row as column headers, pinned on top.
+      await fileLink.click();
+      const priceHead = page.getByRole("columnheader", { name: "Price" });
+      await priceHead.waitFor();
+      assert.equal(
+        await priceHead.evaluate(
+          (cell) => getComputedStyle(cell.closest("thead") as Element).position,
+        ),
+        "sticky",
+      );
+      await page.getByRole("cell", { name: "Rye loaf" }).waitFor();
+      await shot(page, size, "1b-csv-preview");
+      if (await page.getByRole("dialog").isVisible()) {
+        await page.keyboard.press("Escape");
+      } else {
+        await page.goBack();
+      }
+
       // The folder becomes a data room; its Company tab checks emails.
       await page
         .getByRole("button", { name: "Data room for E2E launch" })
         .click();
       await page.getByRole("button", { name: "Make data room" }).click();
       await page.waitForURL(/\/drive\/data-rooms\//);
+      // The header keeps the room name and privacy line whole; Copy link is
+      // an icon on a phone and still copies the share link.
+      const heading = page.getByRole("heading", { level: 1 });
+      await heading.waitFor();
+      const header = await heading.evaluate((h1) => {
+        const line = h1.nextElementSibling as HTMLElement;
+        return {
+          name: h1.textContent,
+          nameWhole: h1.scrollWidth <= h1.clientWidth,
+          lineWhole: line.scrollWidth <= line.clientWidth,
+        };
+      });
+      assert.deepEqual(header, {
+        name: "E2E launch",
+        nameWhole: true,
+        lineWhole: true,
+      });
+      await page.getByRole("button", { name: "Copy link" }).click();
+      await page.getByText("Link copied").first().waitFor();
+      assert.match(
+        await page.evaluate(() => navigator.clipboard.readText()),
+        /\/share\/rooms\//,
+      );
+      await shot(page, size, "1c-room-header");
       await page.getByRole("tab", { name: "Company" }).click();
       const legalName = page.getByLabel("Legal name");
       const email = page.getByLabel("Legal contact email");
