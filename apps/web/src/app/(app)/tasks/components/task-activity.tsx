@@ -107,7 +107,7 @@ interface TaskActivityProps {
   /** Sits in the header beside Jump to latest: follow and participant controls. */
   headerAction?: ReactNode;
   /** The Task's name and project: tables in the activity offer Save as table to a reader who can comment. */
-  tableSource?: { title: string; projectId: string | null };
+  tableSource?: { taskId: string; title: string; projectId: string | null };
 }
 
 export interface MentionableUser {

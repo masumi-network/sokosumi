@@ -28,8 +28,15 @@ const RESULT = `Here are the leads:
 | Globex | 98765 | 300 |
 `;
 
+/** Saved Tables outlive the row, keyed by Task: each test gets its own Task. */
+let taskId = 0;
+beforeEach(() => {
+  taskId++;
+});
+
 function Result() {
   const components = useTaskResultTableComponents({
+    taskId: `task-${taskId}`,
     title: "Find leads",
     projectId: "00000000-0000-4000-8000-000000000001",
   });
@@ -37,7 +44,12 @@ function Result() {
 }
 
 function show() {
-  render(
+  renderResult();
+  return screen.getByRole("button", { name: "Save as table" });
+}
+
+function renderResult() {
+  return render(
     <NextIntlClientProvider
       locale="en"
       messages={messages}
@@ -47,7 +59,6 @@ function show() {
       <Result />
     </NextIntlClientProvider>,
   );
-  return screen.getByRole("button", { name: "Save as table" });
 }
 
 beforeEach(() => {
@@ -81,6 +92,24 @@ it("saves the table as the reader sees it and then links to it", async () => {
     "href",
     "/drive/tables/table-1",
   );
+});
+
+it("keeps the link when the row mounts again, so a second press cannot make a second Table", async () => {
+  const user = userEvent.setup();
+  const first = renderResult();
+  await user.click(screen.getByRole("button", { name: "Save as table" }));
+  first.unmount();
+
+  // A new activity event or a layout switch mounts the comment afresh.
+  renderResult();
+  expect(screen.getByRole("link", { name: "Open table" })).toHaveAttribute(
+    "href",
+    "/drive/tables/table-1",
+  );
+  expect(
+    screen.queryByRole("button", { name: "Save as table" }),
+  ).not.toBeInTheDocument();
+  expect(m.create).toHaveBeenCalledTimes(1);
 });
 
 it("says how far a failed save got and finishes it on the next press", async () => {
@@ -121,6 +150,7 @@ it("refuses a table too large to save whole, before creating anything", async ()
 
 function WideResult() {
   const components = useTaskResultTableComponents({
+    taskId: `task-${taskId}`,
     title: "Wide",
     projectId: null,
   });
@@ -134,6 +164,7 @@ function WideResult() {
 
 function Collapsible() {
   const components = useTaskResultTableComponents({
+    taskId: `task-${taskId}`,
     title: "Find leads",
     projectId: null,
   });
@@ -170,10 +201,13 @@ it("keeps the action out of reach while the table is clipped, and offers it once
   const user = userEvent.setup();
   renderCollapsible();
   const expand = await screen.findByRole("button", { name: "Expand" });
+  // Hidden, not faded: nothing under the clamp looks like a live control.
   expect(actionRow()).toHaveAttribute("inert");
+  expect(actionRow()).toHaveClass("invisible");
 
   await user.click(expand);
   expect(actionRow()).not.toHaveAttribute("inert");
+  expect(actionRow()).not.toHaveClass("invisible");
   await user.click(screen.getByRole("button", { name: "Save as table" }));
   expect(m.create).toHaveBeenCalledTimes(1);
 });
@@ -191,4 +225,15 @@ it("lays out the same whether clipped or not, so the action alone cannot flip th
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(screen.getByRole("button", { name: "Expand" })).toBeInTheDocument();
   expect(actionRow()).toHaveAttribute("inert");
+});
+
+it("cannot scroll the collapsed clamp, so its preview always starts at the top", async () => {
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(1000);
+  const user = userEvent.setup();
+  renderCollapsible();
+  await user.click(await screen.findByRole("button", { name: "Expand" }));
+  await user.click(screen.getByRole("button", { name: "Show less" }));
+  // overflow: clip, unlike hidden, gives focus and scrollIntoView nothing to scroll.
+  const clamp = screen.getByRole("table").closest("[style]") as HTMLElement;
+  expect(clamp.style.overflow).toBe("clip");
 });

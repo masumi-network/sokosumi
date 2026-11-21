@@ -18,11 +18,14 @@ export class TaskResultTableTooLarge extends Error {}
  * organization offers nothing. Its result would reach members who cannot open the Task.
  */
 export function taskTableSource(
-  task: Pick<Task, "name" | "projectId" | "visibility" | "organizationId">,
+  task: Pick<
+    Task,
+    "id" | "name" | "projectId" | "visibility" | "organizationId"
+  >,
 ) {
   if (task.organizationId && task.visibility === TaskVisibility.PRIVATE)
     return undefined;
-  return { title: task.name, projectId: task.projectId };
+  return { taskId: task.id, title: task.name, projectId: task.projectId };
 }
 
 /**

@@ -4,7 +4,14 @@ import { Table2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ComponentProps, use, useMemo, useRef, useState } from "react";
+import {
+  type ComponentProps,
+  use,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { Components } from "react-markdown";
 import { toast } from "sonner";
 import {
@@ -15,13 +22,30 @@ import {
 import { MarkdownTable } from "@/components/markdown";
 import { MarkdownClippedContext } from "@/components/markdown-clipped-context";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   TaskResultTableTooLarge,
   taskResultTablePlan,
 } from "./task-result-table";
 
 /** The Task a saved Table comes from: its name titles the Table, and the Table joins its project. */
-type Source = { title: string; projectId: string | null };
+type Source = { taskId: string; title: string; projectId: string | null };
+
+/**
+ * Copies by Task and table, outside the row: a new activity event or a layout switch mounts the comment
+ * afresh, and it must still link to the Table it saved, or finish that same copy, never start a second.
+ * ponytail: lives for the page session; a Table deleted meanwhile still shows Open table until reload.
+ */
+const copies = new Map<string, TableCopy & { run?: Promise<string> }>();
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+const savedTableId = (key: string) => {
+  const copy = copies.get(key);
+  return copy?.done === copy?.plan.batches.length ? copy?.tableId : undefined;
+};
 
 /** The toasts carry the way to the new Table or how to finish it: they stay until dismissed. */
 const STAY = { duration: Infinity, closeButton: true };
@@ -34,17 +58,22 @@ function SaveableTable({
   const format = useFormatter();
   const router = useRouter();
   const table = useRef<HTMLTableElement>(null);
-  const copy = useRef<TableCopy | null>(null);
   const [pending, setPending] = useState(false);
-  const [savedId, setSavedId] = useState<string | null>(null);
   const clipped = use(MarkdownClippedContext);
+  // The table's cells, without source positions: the same table in the same Task is the same key.
+  const key = `${source.taskId}:${JSON.stringify(props.node, ["type", "tagName", "value", "children"])}`;
+  const savedId = useSyncExternalStore(
+    subscribe,
+    () => savedTableId(key),
+    () => undefined,
+  );
 
   async function save() {
     if (!table.current) return;
     setPending(true);
     try {
       // The cells as the reader sees them; a failed save keeps its plan and finishes on the next press.
-      copy.current ??= {
+      const copy = copies.get(key) ?? {
         done: 0,
         plan: taskResultTablePlan(
           Array.from(table.current.querySelectorAll("tr"), (row) =>
@@ -65,10 +94,14 @@ function SaveableTable({
           crypto.randomUUID(),
         ),
       };
-      const id = await finishTableCopy(copy.current);
-      const { total } = tableCopyRows(copy.current);
-      copy.current = null;
-      setSavedId(id);
+      copies.set(key, copy);
+      // A press from a remounted row joins a save still running rather than racing it.
+      copy.run ??= finishTableCopy(copy).finally(() => {
+        copy.run = undefined;
+      });
+      const id = await copy.run;
+      for (const listener of listeners) listener();
+      const { total } = tableCopyRows(copy);
       toast.success(t("saved", { count: total }), {
         ...STAY,
         action: {
@@ -81,7 +114,8 @@ function SaveableTable({
         toast.error(t("tooLarge"), STAY);
         return;
       }
-      const rows = copy.current && tableCopyRows(copy.current);
+      const copy = copies.get(key);
+      const rows = copy && tableCopyRows(copy);
       toast.error(rows?.saved ? t("partial", rows) : t("failed"), STAY);
     } finally {
       setPending(false);
@@ -91,12 +125,16 @@ function SaveableTable({
   return (
     <>
       <MarkdownTable ref={table} {...props} />
-      {/* Below the clamp the action would take focus and clicks while nobody can see it, so it turns
-      inert there. It keeps its place: removing it would change the height the clamp is measured on. */}
+      {/* While the activity is clipped the action is hidden and inert: nobody can see or reach it, and
+      nothing faded looks live. It keeps its place: removing it would change the height the clamp is
+      measured on. */}
       <div
         data-table-action
         inert={clipped}
-        className="not-prose -mt-1.5 mb-3 flex justify-end"
+        className={cn(
+          "not-prose -mt-1.5 mb-3 flex justify-end",
+          clipped && "invisible",
+        )}
       >
         {savedId ? (
           <Button asChild variant="ghost" size="sm">
@@ -129,17 +167,18 @@ function SaveableTable({
 export function useTaskResultTableComponents(
   source: Source | null,
 ): Components | undefined {
+  const taskId = source?.taskId;
   const title = source?.title;
   const projectId = source?.projectId ?? null;
   return useMemo(
     () =>
-      title === undefined
+      taskId === undefined || title === undefined
         ? undefined
         : {
             table: (props) => (
-              <SaveableTable source={{ title, projectId }} {...props} />
+              <SaveableTable source={{ taskId, title, projectId }} {...props} />
             ),
           },
-    [title, projectId],
+    [taskId, title, projectId],
   );
 }
