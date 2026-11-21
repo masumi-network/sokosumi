@@ -3535,7 +3535,10 @@ function RoomView({
                   title: t("UnreadThreads.title"),
                   markAllRead: t("UnreadThreads.markAllRead"),
                   empty: t("UnreadThreads.empty"),
-                  emptyHint: t("UnreadThreads.emptyHint"),
+                  // A read-only Direct takes no new Thread: no hint to start one.
+                  emptyHint: selectedRoom.isReadOnly
+                    ? undefined
+                    : t("UnreadThreads.emptyHint"),
                   loading: t("UnreadThreads.loading"),
                   error: t("UnreadThreads.error"),
                   markAllReadError: t("UnreadThreads.markAllReadError"),

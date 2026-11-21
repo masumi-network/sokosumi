@@ -28,8 +28,8 @@ export interface ThreadListPanelLabels {
   title: string;
   markAllRead: string;
   empty: string;
-  /** Under the empty title: how a Thread starts. */
-  emptyHint: string;
+  /** Under the empty title: how a Thread starts. None where none can. */
+  emptyHint?: string;
   loading: string;
   error: string;
   markAllReadError: string;

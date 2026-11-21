@@ -132,7 +132,12 @@ vi.mock("../thread-panel", () => ({
 }));
 
 vi.mock("../thread-list-panel", () => ({
-  ThreadListPanel: () => <aside data-testid="thread-list-panel" />,
+  ThreadListPanel: ({ labels }: { labels: { emptyHint?: string } }) => (
+    <aside
+      data-testid="thread-list-panel"
+      data-empty-hint={labels.emptyHint ?? ""}
+    />
+  ),
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
@@ -417,6 +422,35 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(screen.getByTestId("thread-panel")).toHaveAttribute(
       "data-can-quote",
       "false",
+    );
+  });
+
+  it("gives a read-only Direct's empty Threads no hint to start one", async () => {
+    const user = userEvent.setup();
+    renderRoom({
+      ...humanDirectRoom(),
+      isReadOnly: true,
+      userMembers: [participant("user-1", "Ada")],
+      formerUserMembers: [
+        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+      ],
+    });
+
+    await user.click(screen.getByTestId("unread-threads-trigger"));
+    expect(screen.getByTestId("thread-list-panel")).toHaveAttribute(
+      "data-empty-hint",
+      "",
+    );
+  });
+
+  it("tells a writable Direct's empty Threads how one starts", async () => {
+    const user = userEvent.setup();
+    renderRoom(humanDirectRoom());
+
+    await user.click(screen.getByTestId("unread-threads-trigger"));
+    expect(screen.getByTestId("thread-list-panel")).toHaveAttribute(
+      "data-empty-hint",
+      "UnreadThreads.emptyHint",
     );
   });
 
