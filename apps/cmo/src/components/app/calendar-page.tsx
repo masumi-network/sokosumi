@@ -47,10 +47,24 @@ const STATUS: Record<Entry["status"], string> = {
 export function PieceState({
   status,
   waitsFor = null,
+  notSent,
+  why = false,
 }: {
   status: Entry["status"];
   waitsFor?: string | null;
+  /** Why it did not go out, when it failed or missed its time. */
+  notSent?: string;
+  /** Say why too, where there is room (the open post). */
+  why?: boolean;
 }) {
+  if (notSent) {
+    return (
+      <span className="state">
+        <StatusDisc status="fail" decorative />
+        {why ? `Didn't go out. ${notSent}` : "Didn't go out"}
+      </span>
+    );
+  }
   if (waitsFor) {
     return (
       <span className="state">
@@ -335,6 +349,8 @@ export function CalendarPage({
               <PieceState
                 status={open.status}
                 waitsFor={waitsForNetwork(open, connected)}
+                notSent={open.notSent}
+                why
               />
             }
             onEdit={
@@ -476,7 +492,11 @@ function PieceCard({
         ) : null}
         <span className="cal-title">{entry.title}</span>
         {visual && words ? <span className="cal-excerpt">{words}</span> : null}
-        <PieceState status={entry.status} waitsFor={waitsFor} />
+        <PieceState
+          status={entry.status}
+          waitsFor={waitsFor}
+          notSent={entry.notSent}
+        />
       </span>
     </button>
   );

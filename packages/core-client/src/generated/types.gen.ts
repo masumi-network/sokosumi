@@ -9104,6 +9104,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             draft?: string;
             why?: string;
             socialPostId?: string;
+            notSent?: string;
             visual?: string;
             visualFileIds?: Array<string>;
             styleReferenceId?: string;
@@ -9165,6 +9166,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 draft?: string;
                 why?: string;
                 socialPostId?: string;
+                notSent?: string;
                 visual?: string;
                 visualFileIds?: Array<string>;
                 styleReferenceId?: string;
@@ -9432,6 +9434,7 @@ export type MarketingStrategyRequest = {
             draft?: string;
             why?: string;
             socialPostId?: string;
+            notSent?: string;
             visual?: string;
             visualFileIds?: Array<string>;
             styleReferenceId?: string;
@@ -9493,6 +9496,7 @@ export type MarketingStrategyRequest = {
                 draft?: string;
                 why?: string;
                 socialPostId?: string;
+                notSent?: string;
                 visual?: string;
                 visualFileIds?: Array<string>;
                 styleReferenceId?: string;
@@ -14812,6 +14816,7 @@ export type CmoPlan = {
         draft?: string;
         why?: string;
         socialPostId?: string;
+        notSent?: string;
         visual?: string;
         visualFileIds?: Array<string>;
         styleReferenceId?: string;
@@ -14873,6 +14878,7 @@ export type CmoPlan = {
             draft?: string;
             why?: string;
             socialPostId?: string;
+            notSent?: string;
             visual?: string;
             visualFileIds?: Array<string>;
             styleReferenceId?: string;

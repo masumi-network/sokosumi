@@ -5156,6 +5156,9 @@ button.week-more {
 .month-planned {
   background: var(--surface);
 }
+.month-not-sent {
+  background: var(--line);
+}
 
 /* Pieces settle in one after another, from where they rest. */
 @media (prefers-reduced-motion: no-preference) {

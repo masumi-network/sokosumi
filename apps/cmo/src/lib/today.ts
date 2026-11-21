@@ -13,6 +13,8 @@ export interface NeedsYou {
   detail: string;
   action: string;
   view: View;
+  /** The post the action opens on the Calendar, when it is about one. */
+  entryId?: string;
 }
 
 /**
@@ -89,6 +91,18 @@ export function needsYou(overview: CmoOverview): NeedsYou[] {
       view: "calendar",
     });
   }
+  const notSent = monthEntries(overview).filter((entry) => entry.notSent);
+  const [first] = notSent;
+  if (first?.notSent) {
+    items.push({
+      id: "not-sent",
+      title: `${plural(notSent.length, "post", "posts")} didn't go out`,
+      detail: first.notSent,
+      action: notSent.length === 1 ? "See post" : "See the first",
+      view: "calendar",
+      entryId: first.id,
+    });
+  }
   const waiting = waitingByNetwork(overview);
   if (waiting.size > 0) {
     const names = [...waiting.keys()].map(channelLabel);
@@ -150,6 +164,8 @@ export interface MonthProgress {
   out: number;
   scheduled: number;
   written: number;
+  /** Failed or missed its time. */
+  notSent: number;
   planned: number;
   total: number;
 }
@@ -158,11 +174,12 @@ export function monthProgress(month: Entry[]): MonthProgress {
   // Ads are launched by the owner and never go out as posts.
   const entries = month.filter((entry) => !isAd(entry));
   const count = (status: Entry["status"]) =>
-    entries.filter((entry) => entry.status === status).length;
+    entries.filter((entry) => entry.status === status && !entry.notSent).length;
   return {
     out: count("published"),
     scheduled: count("scheduled"),
     written: count("draft"),
+    notSent: entries.filter((entry) => entry.notSent).length,
     planned: count("idea"),
     total: entries.length,
   };
