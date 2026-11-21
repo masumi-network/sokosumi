@@ -117,10 +117,12 @@ beforeEach(() => {
 
 describe("listCmoPictures", () => {
   it("groups by post, marks the chosen one, and keeps every alternative with its verdict", async () => {
-    const groups = await listCmoPictures({
+    const { groups, networks, months } = await listCmoPictures({
       userId: "u",
       projectId: "project-1",
     });
+    expect(networks).toEqual(["instagram", "x"]);
+    expect(months).toEqual(["2026-11", "2026-12"]);
     expect(groups.map((group) => group.postId)).toEqual([
       "post-3",
       "post-1",
@@ -160,7 +162,7 @@ describe("listCmoPictures", () => {
           projectId: "project-1",
           network: "x",
         })
-      ).map((g) => g.postId),
+      ).groups.map((g) => g.postId),
     ).toEqual(["post-3", "post-2"]);
     expect(
       (
@@ -169,7 +171,7 @@ describe("listCmoPictures", () => {
           projectId: "project-1",
           month: "2026-11",
         })
-      ).map((g) => g.postId),
+      ).groups.map((g) => g.postId),
     ).toEqual(["post-2"]);
     expect(
       (
@@ -178,7 +180,7 @@ describe("listCmoPictures", () => {
           projectId: "project-1",
           chosenOnly: true,
         })
-      ).map((g) => g.postId),
+      ).groups.map((g) => g.postId),
     ).toEqual(["post-1", "post-2"]);
   });
 });

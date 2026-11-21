@@ -62376,10 +62376,26 @@ export const CmoPicturesSchema = {
             items: {
                 $ref: '#/components/schemas/CmoPictureGroup'
             }
+        },
+        networks: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Every network with a picture, whatever the filters.'
+        },
+        months: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Every month (YYYY-MM) with a picture, whatever the filters.'
         }
     },
     required: [
-        'groups'
+        'groups',
+        'networks',
+        'months'
     ]
 } as const;
 

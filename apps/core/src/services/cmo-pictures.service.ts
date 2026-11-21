@@ -23,8 +23,8 @@ import { readAssetBytes } from "@/services/image-studio-assets.service";
  */
 
 const KEY_PREFIX = "cmo-media:";
-/** Groups on one page, newest first. */
-const MAX_GROUPS = 120;
+/** Groups on one page, newest first: a month holds up to about 160 posts. */
+const MAX_GROUPS = 600;
 /** Longest edge of an alternative's preview. */
 const PREVIEW_PX = 720;
 
@@ -87,13 +87,20 @@ function monthOf(date: Date | null): string | null {
   return date ? date.toISOString().slice(0, 7) : null;
 }
 
+export interface CmoPictures {
+  groups: CmoPictureGroup[];
+  /** Every network and month with a picture, whatever the filters: the page's choices. */
+  networks: string[];
+  months: string[];
+}
+
 export async function listCmoPictures(
   input: CusoTarget & {
     network?: string;
     month?: string;
     chosenOnly?: boolean;
   },
-): Promise<CmoPictureGroup[]> {
+): Promise<CmoPictures> {
   const cuso = await requireCuso(input);
   const jobs = await prisma.projectImageJob.findMany({
     where: {
@@ -165,6 +172,14 @@ export async function listCmoPictures(
     }),
   ]);
   const postById = new Map(posts.map((post) => [post.id, post]));
+  const shown = [...groups.values()].flatMap((group) => {
+    const post = postById.get(group.pieceId);
+    return post ? [post] : [];
+  });
+  const networks = [...new Set(shown.map((post) => post.provider))].sort();
+  const months = [
+    ...new Set(shown.flatMap((post) => monthOf(post.scheduledAt) ?? [])),
+  ].sort();
   const result: CmoPictureGroup[] = [];
   for (const group of groups.values()) {
     const post = postById.get(group.pieceId);
@@ -211,9 +226,13 @@ export async function listCmoPictures(
       })),
     });
   }
-  return result
-    .sort((a, b) => (b.scheduledAt ?? "").localeCompare(a.scheduledAt ?? ""))
-    .slice(0, MAX_GROUPS);
+  return {
+    groups: result
+      .sort((a, b) => (b.scheduledAt ?? "").localeCompare(a.scheduledAt ?? ""))
+      .slice(0, MAX_GROUPS),
+    networks,
+    months,
+  };
 }
 
 /** One of Cuso's month pictures as a small JPEG, for the owner's Pictures page. */

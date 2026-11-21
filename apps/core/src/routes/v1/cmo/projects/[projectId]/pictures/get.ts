@@ -32,13 +32,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
     const { network, month, chosen } = c.req.valid("query");
-    const groups = await listCmoPictures({
+    const pictures = await listCmoPictures({
       userId,
       projectId,
       network,
       month,
       chosenOnly: chosen === "true",
     }).catch(rethrow);
-    return ok(c, { groups });
+    return ok(c, pictures);
   });
 }

@@ -898,7 +898,15 @@ export const cmoPictureGroupSchema = z
   .openapi("CmoPictureGroup");
 
 export const cmoPicturesSchema = z
-  .object({ groups: z.array(cmoPictureGroupSchema) })
+  .object({
+    groups: z.array(cmoPictureGroupSchema),
+    networks: z
+      .array(z.string())
+      .describe("Every network with a picture, whatever the filters."),
+    months: z
+      .array(z.string())
+      .describe("Every month (YYYY-MM) with a picture, whatever the filters."),
+  })
   .openapi("CmoPictures");
 
 export const cmoPicturesQuerySchema = z.object({

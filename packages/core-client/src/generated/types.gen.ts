@@ -15347,6 +15347,14 @@ export type CmoChatTable = {
 
 export type CmoPictures = {
     groups: Array<CmoPictureGroup>;
+    /**
+     * Every network with a picture, whatever the filters.
+     */
+    networks: Array<string>;
+    /**
+     * Every month (YYYY-MM) with a picture, whatever the filters.
+     */
+    months: Array<string>;
 };
 
 export type CmoPictureGroup = {
