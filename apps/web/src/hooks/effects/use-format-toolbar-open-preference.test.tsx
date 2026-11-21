@@ -85,10 +85,10 @@ describe("useFormatToolbarOpenPreference", () => {
         flushSync(() => {
           root = hydrateRoot(host, <HydrationTree phases={phases} />);
         });
+        expect(
+          host.querySelector('[data-testid="toolbar-open"]')?.textContent,
+        ).toBe("true");
       });
-      expect(
-        host.querySelector('[data-testid="toolbar-open"]')?.textContent,
-      ).toBe("true");
       const readIndex = phases.indexOf("read-preference");
       const passiveIndex = phases.indexOf("passive");
       expect(readIndex).toBeGreaterThanOrEqual(0);

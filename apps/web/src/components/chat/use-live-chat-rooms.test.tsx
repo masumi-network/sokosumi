@@ -243,7 +243,7 @@ describe("useLiveChatRooms", () => {
       const oldRead = Promise.withResolvers<typeof answer>();
       fetchMock
         .mockReturnValueOnce(oldRead.promise)
-        .mockResolvedValueOnce(null);
+        .mockReturnValue(new Promise(() => {}));
       const useScheduler = chatRefreshScheduler.useChatRefreshScheduler;
       let firstRead = true;
       const scheduler = vi
@@ -259,35 +259,41 @@ describe("useLiveChatRooms", () => {
           }),
         );
       try {
-        const { result, rerender } = await act(async () =>
-          renderHook(useLiveChatRoomsRead),
-        );
+        const view = await act(async () => renderHook(useLiveChatRoomsRead));
+        const { result, rerender } = view;
         expect(fetchMock).toHaveBeenCalledTimes(1);
 
         sessionState.organizationId = "org-2";
         await act(async () => rerender());
         expect(fetchMock).toHaveBeenCalledTimes(2);
-        expect(result.current).toEqual({ rooms: null, failed: true });
+        expect(result.current).toEqual({ rooms: null, failed: false });
 
         await act(async () => oldRead.resolve(answer));
-        return result.current;
+        return view;
       } finally {
         scheduler.mockRestore();
       }
     }
 
     it("never shows the old workspace's rows", async () => {
-      const read = await switchWhileReading({
+      const { result, unmount } = await switchWhileReading({
         rooms: [{ id: "room-a", name: "org-1-only", kind: "channel" }],
       });
-      expect(read).toEqual({ rooms: null, failed: true });
+      expect(result.current).toEqual({ rooms: null, failed: false });
+      unmount();
     });
 
-    it("preserves the new workspace's failure when the old read fails", async () => {
-      expect(await switchWhileReading(null)).toEqual({
-        rooms: null,
-        failed: true,
-      });
+    it("never marks the new workspace failed for the old read", async () => {
+      const { result, rerender, unmount } = await switchWhileReading(null);
+      expect(result.current).toEqual({ rooms: null, failed: false });
+
+      // A late failure stored under the old scope is visible on return,
+      // while the fresh read for that scope is still pending.
+      sessionState.organizationId = "org-1";
+      await act(async () => rerender());
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(result.current).toEqual({ rooms: null, failed: false });
+      unmount();
     });
   });
 });
