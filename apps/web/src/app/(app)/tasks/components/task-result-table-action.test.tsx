@@ -202,7 +202,7 @@ it("says how far a failed save got and finishes it on the next press", async () 
   const button = show();
   await user.click(button);
   expect(m.error).toHaveBeenCalledWith(
-    "Couldn't save the table. Try again.",
+    "Failed to save table. Try again.",
     expect.anything(),
   );
 
