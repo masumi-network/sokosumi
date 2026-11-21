@@ -54,7 +54,7 @@
     "agent-db:test": "node --test scripts/agent-db/__tests__/agent-db.test.mjs scripts/agent-db/session.test.mjs scripts/agent-db/db.test.mjs",
     "local-env:test": "node --test scripts/local-env/bootstrap.test.mjs scripts/local-env/portless-dev.test.mjs",
     "ci:timing": "node scripts/ci/ci-timing-report.ts",
-    "ci:test": "node --test scripts/ci/ci-timing.test.ts scripts/ci/__tests__/apple-parity.test.mjs scripts/ci/__tests__/apple-version.test.mjs scripts/ci/__tests__/turbo-remote-cache.test.mjs scripts/ci/__tests__/js-caches.test.mjs scripts/ci/__tests__/doc-script-references.test.mjs scripts/ci/__tests__/migration-order-step.test.mjs scripts/ci/__tests__/no-sparkles.test.mjs scripts/ci/__tests__/no-direct-effects.test.mjs scripts/ci/vercel-deploy.test.mjs scripts/ci/preview-db-reset.test.mjs scripts/ci/preview-resources.test.ts",
+    "ci:test": "node --test scripts/ci/ci-timing.test.ts scripts/ci/__tests__/apple-parity.test.mjs scripts/ci/__tests__/apple-version.test.mjs scripts/ci/__tests__/turbo-remote-cache.test.mjs scripts/ci/__tests__/js-caches.test.mjs scripts/ci/__tests__/doc-script-references.test.mjs scripts/ci/__tests__/migration-order-step.test.mjs scripts/ci/__tests__/no-sparkles.test.mjs scripts/ci/__tests__/no-direct-effects.test.mjs scripts/ci/vercel-deploy.test.mjs scripts/ci/preview-db-reset.test.mjs scripts/ci/daily-review-db.test.mjs scripts/ci/preview-resources.test.ts",
     "prepare": "husky"
   },
   "devDependencies": {
