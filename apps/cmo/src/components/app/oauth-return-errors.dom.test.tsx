@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
-import { hydrateRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -248,5 +248,83 @@ describe("CMO OAuth return errors during hydration", () => {
     expect(window.location.pathname).toBe("/results");
     expect(window.location.search).toBe("");
     expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+});
+
+describe("measurement on Channels", () => {
+  const notConnected = cmoOverview().measurement.map((source) => ({
+    ...source,
+    status: "none" as const,
+  }));
+
+  function connectButton(name: string): HTMLButtonElement {
+    const row = [...host.querySelectorAll(".sc-sources li")].find((li) =>
+      li.textContent?.includes(name),
+    );
+    const button = row?.querySelector("button");
+    if (!button) throw new Error(`No Connect button for ${name}`);
+    return button;
+  }
+
+  it("offers Google Analytics next to Search Console and starts one sign-in per press", async () => {
+    const connectMeasurement = vi.fn(
+      () => new Promise<{ url: string | null; error: string | null }>(() => {}),
+    );
+    await act(async () => {
+      root = createRoot(host);
+      root.render(
+        <CmoApp
+          overview={cmoOverview({ measurement: notConnected })}
+          messages={[]}
+          name="Ada"
+          email="ada@example.com"
+          initialView="channels"
+          actions={{ ...stubActions(), connectMeasurement }}
+        />,
+      );
+    });
+
+    expect(connectButton("Google Analytics").textContent).toBe("Connect");
+    await act(async () => {
+      connectButton("Google Search Console").click();
+    });
+    await act(async () => {
+      connectButton("Google Search Console").click();
+      connectButton("Google Analytics").click();
+    });
+
+    expect(connectMeasurement).toHaveBeenCalledExactlyOnceWith(
+      "google_search_console",
+      "channels",
+    );
+  });
+
+  it("keeps the Channels measurement return error visible after hydration strips /channels?measure=failed", async () => {
+    const expectedError = "That connection didn't finish. Try again.";
+    window.history.replaceState(
+      null,
+      "",
+      "/channels?measure=failed&project=project-1",
+    );
+    const element = (
+      <CmoApp
+        overview={cmoOverview()}
+        messages={[]}
+        name="Ada"
+        email="ada@example.com"
+        initialView="channels"
+        measureError={expectedError}
+        actions={stubActions()}
+      />
+    );
+    host.innerHTML = renderToString(element);
+
+    await act(async () => {
+      root = hydrateRoot(host, element);
+    });
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+      expectedError,
+    );
   });
 });

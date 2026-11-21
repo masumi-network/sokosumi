@@ -66,6 +66,16 @@ describe("measure callback", () => {
     );
   });
 
+  it("returns to Channels when the connect started there", async () => {
+    finalizeMeasurement.mockResolvedValue(true);
+    const response = await callback(
+      "provider=google_search_console&from=channels&project=project-2",
+    );
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3110/channels?project=project-2",
+    );
+  });
+
   it("says it failed for a refusal or an unknown source", async () => {
     const refused = await callback(
       "provider=shopify&project=project-2&status=failed",

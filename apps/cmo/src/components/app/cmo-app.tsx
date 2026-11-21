@@ -116,7 +116,7 @@ export interface CmoAppActions
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app" | "seo",
+    from: "onboarding" | "app" | "seo" | "channels",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
@@ -271,7 +271,9 @@ export function CmoApp({
               current.view === "channels" ? null : current.connectError,
             adsError: current.view === "channels" ? null : current.adsError,
             measureError:
-              current.view === "results" ? null : current.measureError,
+              current.view === "results" || current.view === "channels"
+                ? null
+                : current.measureError,
           },
     );
   }, []);
@@ -655,9 +657,10 @@ export function CmoApp({
                   adsError={nav.adsError}
                   change={actions.changeChannel}
                   openSeo={() => go("seo")}
-                  connectSearchConsole={() =>
-                    actions.connectMeasurement("google_search_console", "seo")
+                  connectMeasurement={(provider) =>
+                    actions.connectMeasurement(provider, "channels")
                   }
+                  measureError={nav.measureError}
                 />
               ) : (
                 <SettingsPage
