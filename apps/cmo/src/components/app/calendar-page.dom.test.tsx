@@ -118,13 +118,13 @@ it("opens a post as it looks on its network and saves the owner's own words thro
   expect(container.querySelector(".sheet textarea")).toBeNull();
 });
 
-it("offers no edit on a post that is already out", async () => {
+it("offers no edit and no change on a post that is already out", async () => {
   await render(drafts());
   await press("Launch day countdown");
   expect(container.querySelector(".sheet .post")).not.toBeNull();
-  expect(container.querySelector(".sheet")?.textContent).not.toContain(
-    "Edit text",
-  );
+  const sheet = container.querySelector(".sheet")?.textContent;
+  expect(sheet).not.toContain("Edit text");
+  expect(sheet).not.toContain("Change this post");
 });
 
 it("marks this week and what goes out today, and tints a post's words with its network", async () => {

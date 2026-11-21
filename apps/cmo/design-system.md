@@ -121,7 +121,7 @@ A page that leads with a lockup (the hero pages) hides the header's, so one logo
 
 **Number.** A count to read (Results, SEO) is a small muted label over the value step, with no box: an outlined box reads as a field to type in.
 
-**Calendar weeks.** The month opens on this week: its head carries an Iris "This week" label (flat, a 2px line), a post going out today says "Today" on an Iris fill where its day stands, and a post without a picture shows its opening words on its network's fill (`.net-<channel>`), so a week reads by network at a glance.
+**Calendar weeks.** The month opens on this week: its head carries an Iris "This week" label (flat, a 2px line), a post going out today says "Today" on an Iris fill where its day stands, and a post without a picture shows its opening words on its network's fill (`.net-<channel>`), so a week reads by network at a glance. On a phone, one card a row, those words take their own height instead of a picture's.
 
 **Results charts.** Until the networks report reach, the numbers that exist are the month's own: "This month" is Today's bar, and "By network" draws one bar per network, as long as its share of the month's posts, outlined with the 2px line, filled in the network's colour for the posts already out ("2 of 5"). Longest first. Bars grow from the left (off under reduced motion). Charts are pictures: no shadow.
 
@@ -151,7 +151,7 @@ A page that leads with a lockup (the hero pages) hides the header's, so one logo
 
 **Strip.** A black band with white text that inverts in dark (`--strip`, `--strip-foreground`): the action bar at the bottom of an onboarding step and the banner that says Cuso is paused or out of credits.
 
-**Working and "How I got here" (chat).** While Cuso works, his row shows the step he is on (body 500, beside the three working dots) and the model's latest reasoning under it (small, muted, two lines at most). Under a reply, "How I got here" is a fold: a muted small row with a chevron, opening to the steps and the reasoning behind a hairline on the left. Both are flat with no ink line: nothing here is pressed but the fold's row.
+**Working and "How I got here" (chat).** While Cuso works, his row shows the step he is on (body 500, beside the three working dots) and the model's latest reasoning under it (small, muted, two lines at most). Under a reply, "How I got here" is a fold: a muted small row with a chevron, opening to the steps and the reasoning behind a hairline on the left. Both are flat with no ink line: nothing here is pressed but the fold's row. On a phone the suggestion chips over the composer keep to one row that scrolls sideways, so the thread keeps its room.
 
 **Status.** Done: green disc, Neutral 950 check. Needs you: yellow disc, Neutral 950 "!". Failed or blocked: Neutral 950 disc, white X. Live: green dot with a line edge.
 

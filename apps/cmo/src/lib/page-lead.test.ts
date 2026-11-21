@@ -195,6 +195,24 @@ describe("seoLead", () => {
 });
 
 describe("competitorsLead", () => {
+  it("names the check's calendar day in every time zone", () => {
+    const feed = competitors.feed;
+    if (!feed) throw new Error("fixture has no feed");
+    const zone = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+    try {
+      // A check day is stored as midnight UTC, the evening before in LA.
+      expect(
+        competitorsLead({
+          ...competitors,
+          feed: { ...feed, checkDay: "2026-11-19" },
+        }).kicker,
+      ).toBe("Competitors · checked 19 Nov");
+    } finally {
+      process.env.TZ = zone;
+    }
+  });
+
   it("leads with the big moves", () => {
     const big = competitors.feed?.items.filter((item) => item.big).length ?? 0;
     expect(competitorsLead(competitors).title).toBe(

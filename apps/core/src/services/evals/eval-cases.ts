@@ -111,6 +111,15 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "newsletter-no-scraped-subscribers": "Newsletter",
   "break-task-into-subtasks": "Delegation",
   "move-task-under-parent": "Delegation",
+  "a2a-ask-and-relay": "Agent to agent",
+  "a2a-multi-turn": "Agent to agent",
+  "a2a-asks-back": "Agent to agent",
+  "a2a-no-answer": "Agent to agent",
+  "a2a-long-reply": "Agent to agent",
+  "a2a-several-messages": "Agent to agent",
+  "a2a-bot-to-bot": "Agent to agent",
+  "a2a-coworker-declines": "Agent to agent",
+  "a2a-hop-limit": "Agent to agent",
 };
 
 /** Scenarios that read a connected mailbox or calendar; an eval lane has none. */

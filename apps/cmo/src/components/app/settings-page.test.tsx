@@ -105,7 +105,7 @@ describe("Settings: the CMO subscription", () => {
     expect(text).toContain("Growth");
     expect(text).toContain("billed monthly");
     expect(text).toContain("Renews on 13 January 2027.");
-    expect(text).toContain("8400");
+    expect(text).toContain("8,400");
     expect(text).toContain("credits available");
     expect(text).not.toContain("payment failed");
   });
@@ -136,7 +136,7 @@ describe("Settings: the CMO subscription", () => {
   it("offers the plan checkout without a subscription", () => {
     const text = settings();
 
-    expect(text).toContain("8400");
+    expect(text).toContain("8,400");
     expect(text).toContain("No CMO plan yet");
     expect(text).toContain("Subscribe");
     expect(text).not.toContain("Renews on");

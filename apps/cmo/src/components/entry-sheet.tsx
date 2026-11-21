@@ -244,7 +244,10 @@ export function EntrySheet({
             <p>{entry.why}</p>
           </div>
         ) : null}
-        {onAsk ? <ChangePiece entry={entry} onAsk={onAsk} /> : null}
+        {/* A post already out cannot change, so nothing asks for it. */}
+        {onAsk && entry.status !== "published" ? (
+          <ChangePiece entry={entry} onAsk={onAsk} />
+        ) : null}
       </motion.aside>
     </>
   );

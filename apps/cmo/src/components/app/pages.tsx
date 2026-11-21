@@ -707,7 +707,9 @@ export function SettingsPage({
         <div className="li">
           <span className="grow">
             <span className="v num">
-              {Math.floor(overview.billing.availableCredits)}
+              {Math.floor(overview.billing.availableCredits).toLocaleString(
+                "en",
+              )}
             </span>{" "}
             <span className="note">credits available</span>
           </span>

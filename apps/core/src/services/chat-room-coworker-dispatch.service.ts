@@ -16,6 +16,12 @@ import {
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import prisma from "@/lib/db/prisma";
+import { isEvalWorkspace } from "@/lib/evals/eval-guard";
+import {
+  isEvalCoworkerBaseUrl,
+  scriptedReplyModel,
+  takeEvalCoworkerReply,
+} from "@/lib/evals/fake-coworker";
 import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
@@ -435,17 +441,23 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         priorThreadMention?.providerConversationId ?? null;
     }
 
+    const evalReply =
+      isEvalCoworkerBaseUrl(baseURL) && (await isEvalWorkspace(workspaceId))
+        ? ((await takeEvalCoworkerReply(coworker.id)) ?? "")
+        : null;
     let providerConversation: { id: string };
     try {
       providerConversation = existingProviderConversationId
         ? { id: existingProviderConversationId }
-        : await createCoworkerConversation({
-            responsesApiBaseUrl: baseURL,
-            sokosumiUserId: userId,
-            sokosumiOrganizationId: mention.message.room.organizationId,
-            coworkerSlug: coworker.slug,
-            sokosumiConversationId: mention.message.id,
-          });
+        : evalReply !== null
+          ? { id: `eval:${mention.message.id}` }
+          : await createCoworkerConversation({
+              responsesApiBaseUrl: baseURL,
+              sokosumiUserId: userId,
+              sokosumiOrganizationId: mention.message.room.organizationId,
+              coworkerSlug: coworker.slug,
+              sokosumiConversationId: mention.message.id,
+            });
     } catch (error) {
       await failMentionThoughtPlaceholder({
         placeholderId,
@@ -515,7 +527,10 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     });
 
     const result = streamText({
-      model: getSokosumiProvider()(null),
+      model:
+        evalReply !== null
+          ? scriptedReplyModel(evalReply)
+          : getSokosumiProvider()(null),
       messages: [{ role: "user", content: prompt }],
       maxRetries: 0,
       timeout: ROOM_COWORKER_STREAM_TIMEOUT,
