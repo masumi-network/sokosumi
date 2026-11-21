@@ -644,18 +644,76 @@ for (const { name: size, ...viewport } of PROJECTS) {
         0,
         "a board card shows an empty tags line",
       );
-      // Keyboard order: the next Tab stop after the toolbar's last control,
-      // View options, is the card's task link, with no extra stop on the card.
-      await page
-        .getByRole("button", { name: "View options" })
-        .filter({ visible: true })
-        .focus();
-      await page.keyboard.press("Tab");
-      assert.equal(
-        await page.evaluate(() => document.activeElement?.textContent),
-        LONG_NAME,
-        "Tab after View options does not land on the card's task link",
+      // Keyboard order follows the screen: after the toolbar's last control,
+      // View options, come the shortcuts to columns past the board's edge, in
+      // order, then the card's task link, with no extra stop on the card.
+      // Each shortcut shows its focus ring inside the pill, where the row
+      // cannot clip it.
+      const shortcutButtons = page
+        .getByRole("navigation", { name: "Columns past the edge" })
+        .getByRole("button")
+        .filter({ visible: true });
+      const tabToCard = async () => {
+        await page
+          .getByRole("button", { name: "View options" })
+          .filter({ visible: true })
+          .focus();
+        const shortcuts = await shortcutButtons.evaluateAll((buttons) =>
+          buttons.map((button) => button.textContent),
+        );
+        for (const shortcut of shortcuts) {
+          await page.keyboard.press("Tab");
+          const focused = await page.evaluate(() => {
+            const el = document.activeElement;
+            const box = el?.getBoundingClientRect();
+            const row = el
+              ?.closest("nav")
+              ?.parentElement?.getBoundingClientRect();
+            return {
+              text: el?.textContent,
+              visible: !!el?.matches(":focus-visible"),
+              shadow: el ? getComputedStyle(el).boxShadow : "",
+              // The row scrolls sideways; the focused pill must sit inside it.
+              inRow:
+                !!box &&
+                !!row &&
+                box.left >= row.left - 1 &&
+                box.right <= row.right + 1,
+            };
+          });
+          assert.ok(
+            focused.inRow,
+            `the focused shortcut "${shortcut}" sits past the row's edge`,
+          );
+          assert.equal(focused.text, shortcut, "Tab skips a column shortcut");
+          assert.ok(
+            focused.visible && /inset/.test(focused.shadow),
+            `the shortcut "${shortcut}" shows no inset focus ring (${focused.shadow})`,
+          );
+        }
+        await page.keyboard.press("Tab");
+        assert.equal(
+          await page.evaluate(() => document.activeElement?.textContent),
+          LONG_NAME,
+          "Tab after the column shortcuts does not land on the card's task link",
+        );
+        return shortcuts.length;
+      };
+      await shortcutButtons.first().waitFor();
+      assert.ok(
+        (await tabToCard()) > 0,
+        "no column shortcuts on a board wider than the screen",
       );
+      // A screen wide enough for every column has no shortcuts: View options
+      // leads straight to the card.
+      if (size === "desktop") {
+        await page.setViewportSize({ width: 2560, height: viewport.height });
+        await shortcutButtons.first().waitFor({ state: "detached" });
+        assert.equal(await tabToCard(), 0, "shortcuts on a board that fits");
+        await page.setViewportSize(viewport);
+        await shortcutButtons.first().waitFor();
+        await tabToCard();
+      }
       // Enter opens the task and moves focus to its heading, visibly, so a
       // screen reader reads the name even when the streamed tab title is late.
       await page.keyboard.press("Enter");
@@ -796,24 +854,28 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
 
+      // A filtered board opened by its URL streams its loading shell first:
+      // the toolbar, the Draft chip and the placeholder columns in one frame,
+      // and the columns open where that frame drew them.
+      await assertColdBoardShell(
+        page,
+        "/tasks?status=DRAFT&sort=priority",
+        "Status: Draft",
+      );
+
       // Done sits past the board's right edge at every size. Once the only
       // Task is Completed, the edge names Done with its count, and a click
       // scrolls the board there and moves focus to the column.
-      // Archived's own way back; phones show no tab bar here.
-      await page
-        .getByRole("link", { name: "Back to tasks" })
-        .or(page.getByRole("link", { name: "Back", exact: true }))
-        .filter({ visible: true })
-        .click();
+      // It starts on the Draft-filtered board above.
       await page.getByRole("link", { name: LONG_NAME }).click();
       await page.getByRole("combobox", { name: /^Status:/ }).click();
       await page.getByRole("option", { name: /^Completed/ }).click();
       await page.getByRole("combobox", { name: "Status: Completed" }).waitFor();
-      await page
-        .getByRole("link", { name: "Back to tasks" })
-        .or(page.getByRole("link", { name: "Back", exact: true }))
-        .filter({ visible: true })
-        .click();
+      // The combobox updates at once; wait until the save lands before leaving.
+      await page.getByText("Task status updated").waitFor();
+      // Back returns to the Draft filter, which hides a Completed Task: open
+      // the whole board.
+      await page.goto(`${BASE_URL}/tasks`);
       const edge = page.getByRole("navigation", {
         name: "Columns past the edge",
       });
@@ -848,15 +910,6 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await doneColumn.getByRole("link", { name: LONG_NAME }).waitFor();
       await edge.waitFor({ state: "hidden" });
       await shot(page, size, "6-board-done");
-
-      // A filtered board opened by its URL streams its loading shell first:
-      // the toolbar, the Draft chip and the placeholder columns in one frame,
-      // and the columns open where that frame drew them.
-      await assertColdBoardShell(
-        page,
-        "/tasks?status=DRAFT&sort=priority",
-        "Status: Draft",
-      );
 
       const overflow = await page.evaluate(
         () =>
