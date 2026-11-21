@@ -1,5 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearMembershipVisibleRoomsSnapshot,
@@ -69,6 +69,7 @@ function room(
 
 describe("ChatChatsPageSkeletonHost", () => {
   afterEach(() => {
+    cleanup();
     clearMembershipVisibleRoomsSnapshot();
     clearPersonalAssistantChromeVisible();
     clearRoomReadOverlays();
@@ -80,7 +81,7 @@ describe("ChatChatsPageSkeletonHost", () => {
     expect(screen.queryByTestId("chat-chats-snapshot")).toBeNull();
   });
 
-  it("paints OrganizationChatList paintOnly with room unread overlay", () => {
+  it("paints OrganizationChatList paintOnly with room unread overlay", async () => {
     const stale = room({
       id: "room-1",
       name: "general",
@@ -96,7 +97,7 @@ describe("ChatChatsPageSkeletonHost", () => {
       markedUnread: false,
     });
 
-    render(<ChatChatsPageSkeletonHost />);
+    await act(async () => render(<ChatChatsPageSkeletonHost />));
 
     expect(screen.queryByTestId("chat-chats-loading")).toBeNull();
     const snapshot = screen.getByTestId("chat-chats-snapshot");
@@ -113,14 +114,14 @@ describe("ChatChatsPageSkeletonHost", () => {
     expect(link?.className.includes("font-semibold")).toBe(false);
   });
 
-  it("keeps bold unread chrome when overlay does not clear attention", () => {
+  it("keeps bold unread chrome when overlay does not clear attention", async () => {
     publishMembershipVisibleRooms(
       [room({ id: "room-2", name: "alerts", unreadCount: 2 })],
       "org-1",
       "user-1",
     );
 
-    render(<ChatChatsPageSkeletonHost />);
+    await act(async () => render(<ChatChatsPageSkeletonHost />));
 
     const snapshot = screen.getByTestId("chat-chats-snapshot");
     expect(snapshot.hasAttribute("inert")).toBe(true);
@@ -129,7 +130,7 @@ describe("ChatChatsPageSkeletonHost", () => {
     expect(link?.className.includes("font-semibold")).toBe(true);
   });
 
-  it("paints Personal Assistant chrome when session flag is set", () => {
+  it("paints Personal Assistant chrome when session flag is set", async () => {
     publishMembershipVisibleRooms(
       [room({ id: "room-3", name: "ops", unreadCount: 0 })],
       "org-1",
@@ -137,20 +138,20 @@ describe("ChatChatsPageSkeletonHost", () => {
     );
     publishPersonalAssistantChromeVisible(true);
 
-    render(<ChatChatsPageSkeletonHost />);
+    await act(async () => render(<ChatChatsPageSkeletonHost />));
 
     expect(screen.getByTestId("personal-assistant-nav")).toBeTruthy();
     expect(screen.getByTestId("paint-only-list")).toBeTruthy();
   });
 
-  it("omits Personal Assistant chrome when session flag is unset", () => {
+  it("omits Personal Assistant chrome when session flag is unset", async () => {
     publishMembershipVisibleRooms(
       [room({ id: "room-4", name: "random", unreadCount: 0 })],
       "org-1",
       "user-1",
     );
 
-    render(<ChatChatsPageSkeletonHost />);
+    await act(async () => render(<ChatChatsPageSkeletonHost />));
 
     expect(screen.queryByTestId("personal-assistant-nav")).toBeNull();
   });

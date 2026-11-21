@@ -451,21 +451,23 @@ async function dropOnTodo(taskId: string, fromColumn: KanbanColumnId) {
   });
 
   const rect = new DOMRect();
-  handleDragEnd({
-    activatorEvent: new Event("pointerdown"),
-    active: {
-      id: taskId,
-      data: { current: { columnId: fromColumn } },
-      rect: { current: { initial: rect, translated: rect } },
-    },
-    collisions: null,
-    delta: { x: 0, y: 0 },
-    over: {
-      id: "todo",
-      rect,
-      disabled: false,
-      data: { current: {} },
-    },
+  await act(async () => {
+    handleDragEnd({
+      activatorEvent: new Event("pointerdown"),
+      active: {
+        id: taskId,
+        data: { current: { columnId: fromColumn } },
+        rect: { current: { initial: rect, translated: rect } },
+      },
+      collisions: null,
+      delta: { x: 0, y: 0 },
+      over: {
+        id: "todo",
+        rect,
+        disabled: false,
+        data: { current: {} },
+      },
+    });
   });
 }
 

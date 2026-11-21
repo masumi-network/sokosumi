@@ -371,16 +371,22 @@ describe("ToolConnectors", () => {
   });
 
   it("waits offline instead of saying nothing matched, and searches once back", async () => {
-    const user = userEvent.setup();
-    renderConnectors([]);
-    act(() => onlineManager.setOnline(false));
+    vi.useFakeTimers();
+    try {
+      renderConnectors([]);
+      act(() => onlineManager.setOnline(false));
 
-    await user.type(screen.getByRole("searchbox"), "fig");
-    await new Promise((resolve) => setTimeout(resolve, 400));
+      fireEvent.change(screen.getByRole("searchbox"), {
+        target: { value: "fig" },
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
 
-    expect(screen.getByRole("status")).toHaveTextContent("“fig”");
-    expect(screen.queryByText("Nothing found.")).toBeNull();
-    expect(searchCatalog).not.toHaveBeenCalledWith({ query: "fig" });
+      expect(screen.getByRole("status")).toHaveTextContent("“fig”");
+      expect(screen.queryByText("Nothing found.")).toBeNull();
+      expect(searchCatalog).not.toHaveBeenCalledWith({ query: "fig" });
+    } finally {
+      vi.useRealTimers();
+    }
     act(() => onlineManager.setOnline(true));
     expect(
       await screen.findByRole("button", { name: "Connect figma" }),

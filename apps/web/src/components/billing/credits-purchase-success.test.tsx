@@ -75,7 +75,7 @@ describe("CreditsPurchaseSuccess", () => {
     );
 
     const { onOpenChange } = purchaseSuccessModalMock.mock.calls.at(-1)?.[0];
-    onOpenChange(false);
+    await act(async () => onOpenChange(false));
 
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalled();

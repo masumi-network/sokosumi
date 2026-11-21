@@ -579,7 +579,7 @@ describe("TaskSchedulesView", () => {
       }),
     );
 
-    armed.onVisible();
+    await act(async () => armed.onVisible());
 
     expect(
       await screen.findByRole("link", { name: /Older schedule/ }),

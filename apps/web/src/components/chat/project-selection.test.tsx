@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -48,7 +49,9 @@ function show() {
 async function choose() {
   fireEvent.click(screen.getByRole("combobox"));
   await screen.findByRole("option", { name: /Books/ });
-  fireEvent.click(screen.getByRole("option", { name: /Books/ }));
+  await act(async () =>
+    fireEvent.click(screen.getByRole("option", { name: /Books/ })),
+  );
 }
 describe("chat project selector", () => {
   afterEach(cleanup);

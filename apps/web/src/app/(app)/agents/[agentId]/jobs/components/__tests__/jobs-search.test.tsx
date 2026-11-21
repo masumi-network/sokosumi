@@ -47,7 +47,7 @@ it("clears a pending search before its debounced URL update can restore it", asy
   const field = screen.getByRole("textbox");
   fireEvent.change(field, { target: { value: "report" } });
   fireEvent.keyDown(field, { key: "Escape" });
-  await act(() =>
+  await act(async () =>
     vi.advanceTimersByTimeAsync(
       getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME + 50,
     ),

@@ -68,7 +68,7 @@ describe("useListToggle", () => {
     });
     expect(invalidate).not.toHaveBeenCalled();
     finish();
-    await act(() => done);
+    await act(async () => done);
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: contactKey(contact.id),
     });
@@ -139,13 +139,13 @@ describe("useListToggle", () => {
     await act(async () => {});
     expect(f.changeMembers).toHaveBeenCalledOnce();
     answers[0]();
-    await act(() => first);
+    await act(async () => first);
     // No reload between the two: it would drop the second chip.
     expect(invalidate).not.toHaveBeenCalled();
     expect(shown().map((item) => item.id)).toEqual(["list-1", "list-2"]);
     expect(f.changeMembers).toHaveBeenCalledTimes(2);
     answers[1]();
-    await act(() => second);
+    await act(async () => second);
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: contactKey(contact.id),
     });
@@ -196,7 +196,7 @@ describe("useListToggle", () => {
   it("says so and reloads the contact when the save fails", async () => {
     f.changeMembers.mockRejectedValue({ message: "No access" });
     const { toggle, invalidate } = setup();
-    await act(() => toggle(contact, list, true));
+    await act(async () => toggle(contact, list, true));
     expect(f.toastError).toHaveBeenCalledWith(
       "panel.addToListFailed Ada Investors",
       { description: "No access" },
@@ -216,7 +216,7 @@ describe("useListToggle", () => {
     await act(async () => void (done = toggle(contact, list, true)));
     expect(f.toastError).not.toHaveBeenCalled();
     reloaded();
-    await act(() => done);
+    await act(async () => done);
     expect(f.toastError).toHaveBeenCalledOnce();
   });
 
@@ -228,7 +228,7 @@ describe("useListToggle", () => {
       invalidate.mockImplementation(() => new Promise(() => {}));
       await act(async () => void toggle(contact, list, true));
       expect(f.toastError).not.toHaveBeenCalled();
-      await act(() => vi.advanceTimersByTimeAsync(FAILURE_TOAST_WAIT_MS));
+      await act(async () => vi.advanceTimersByTimeAsync(FAILURE_TOAST_WAIT_MS));
       expect(f.toastError).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
@@ -238,14 +238,14 @@ describe("useListToggle", () => {
   it("still says so when the save rejects with null", async () => {
     f.changeMembers.mockRejectedValue(null);
     const { toggle } = setup();
-    await act(() => toggle(contact, list, true));
+    await act(async () => toggle(contact, list, true));
     expect(f.toastError).toHaveBeenCalledOnce();
   });
 
   it("names the contact and list when taking it off fails", async () => {
     f.changeMembers.mockRejectedValue({});
     const { toggle } = setup();
-    await act(() => toggle(contact, list, false));
+    await act(async () => toggle(contact, list, false));
     expect(f.toastError).toHaveBeenCalledWith(
       "panel.removeFromListFailed Ada Investors",
       { description: undefined },
@@ -263,7 +263,7 @@ describe("useListToggle", () => {
     expect(result.current.isSaving("contact-1", "list-1")).toBe(true);
     expect(result.current.isSaving("contact-1", "list-2")).toBe(false);
     finish();
-    await act(() => done);
+    await act(async () => done);
     expect(result.current.isSaving("contact-1", "list-1")).toBe(false);
   });
 });

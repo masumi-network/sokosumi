@@ -61,14 +61,14 @@ describe("useIntentPrefetch", () => {
       const link = screen.getByRole("link");
 
       disturb();
-      await act(() => approachElement(link, "mouse", "keep"));
+      await act(async () => approachElement(link, "mouse", "keep"));
       expect(prefetch).not.toHaveBeenCalled();
 
       // Once things settle the element predicts again, well before its repeat time.
-      await act(() => vi.advanceTimersByTimeAsync(201));
+      await act(async () => vi.advanceTimersByTimeAsync(201));
       // It is not under the cursor, so settling alone prefetches nothing.
       expect(prefetch).not.toHaveBeenCalled();
-      await act(() => approachElement(link, "mouse", "keep"));
+      await act(async () => approachElement(link, "mouse", "keep"));
       expect(prefetch).toHaveBeenCalledTimes(1);
     },
   );
@@ -88,14 +88,14 @@ describe("useIntentPrefetch", () => {
     );
 
     document.dispatchEvent(new Event("scroll"));
-    await act(() => approachElement(link, "mouse", "keep"));
-    await act(() => vi.advanceTimersByTimeAsync(150));
+    await act(async () => approachElement(link, "mouse", "keep"));
+    await act(async () => vi.advanceTimersByTimeAsync(150));
     // Still scrolling.
     document.dispatchEvent(new Event("scroll"));
-    await act(() => vi.advanceTimersByTimeAsync(199));
+    await act(async () => vi.advanceTimersByTimeAsync(199));
     expect(prefetch).not.toHaveBeenCalled();
 
-    await act(() => vi.advanceTimersByTimeAsync(1));
+    await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(prefetch).toHaveBeenCalledTimes(1);
     expect(under).toHaveBeenLastCalledWith(40, 60);
   });
@@ -138,8 +138,8 @@ describe("useIntentPrefetch", () => {
 
       leave();
       document.dispatchEvent(new Event("scroll"));
-      await act(() => approachElement(link, "mouse", "keep"));
-      await act(() => vi.advanceTimersByTimeAsync(201));
+      await act(async () => approachElement(link, "mouse", "keep"));
+      await act(async () => vi.advanceTimersByTimeAsync(201));
 
       expect(under).toHaveBeenCalled();
       expect(prefetch).not.toHaveBeenCalled();
@@ -160,14 +160,14 @@ describe("useIntentPrefetch", () => {
     );
 
     document.dispatchEvent(new Event("scroll"));
-    await act(() => approachElement(link, "mouse", "keep"));
+    await act(async () => approachElement(link, "mouse", "keep"));
     // The scroll goes on past the element's repeat time, so it fires again.
     for (let step = 0; step < 8; step++) {
-      await act(() => vi.advanceTimersByTimeAsync(150));
+      await act(async () => vi.advanceTimersByTimeAsync(150));
       document.dispatchEvent(new Event("scroll"));
     }
-    await act(() => approachElement(link, "mouse", "keep"));
-    await act(() => vi.advanceTimersByTimeAsync(201));
+    await act(async () => approachElement(link, "mouse", "keep"));
+    await act(async () => vi.advanceTimersByTimeAsync(201));
 
     expect(prefetch).toHaveBeenCalledTimes(1);
   });
@@ -177,7 +177,7 @@ describe("useIntentPrefetch", () => {
     render(<Probe prefetch={prefetch} />);
     const link = screen.getByRole("link");
 
-    await act(() => approachElement(link, "mouse", "keep"));
+    await act(async () => approachElement(link, "mouse", "keep"));
 
     expect(prefetch).toHaveBeenCalledTimes(1);
     // The sidebar styles its open row by this attribute.
@@ -190,7 +190,9 @@ describe("useIntentPrefetch", () => {
     const view = render(<Probe prefetch={first} />);
     view.rerender(<Probe prefetch={second} />);
 
-    await act(() => approachElement(screen.getByRole("link"), "mouse", "keep"));
+    await act(async () =>
+      approachElement(screen.getByRole("link"), "mouse", "keep"),
+    );
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);
@@ -211,12 +213,12 @@ describe("useIntentPrefetch", () => {
     );
 
     document.dispatchEvent(new Event("scroll"));
-    await act(() => approachElement(link, "mouse", "keep"));
-    await act(() => vi.advanceTimersByTimeAsync(100));
+    await act(async () => approachElement(link, "mouse", "keep"));
+    await act(async () => vi.advanceTimersByTimeAsync(100));
     expect(first).not.toHaveBeenCalled();
 
     view.rerender(<Probe prefetch={second} />);
-    await act(() => vi.advanceTimersByTimeAsync(101));
+    await act(async () => vi.advanceTimersByTimeAsync(101));
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledExactlyOnceWith("pointer");

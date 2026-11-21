@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -232,7 +232,7 @@ describe("TaskContextAttachmentsField", () => {
       url: "https://blob.example/design-md/adhoc/user-1/hash.md",
       sourceUrl: "https://www.example.com",
     };
-    onGeneratedSpy(custom);
+    await act(async () => onGeneratedSpy(custom));
 
     expect(onSelectionChange).toHaveBeenCalledWith({
       ...selection,

@@ -1,6 +1,7 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import {
   act,
+  cleanup,
   render as renderInTest,
   screen,
   waitFor,
@@ -617,6 +618,7 @@ describe("useChatTabUnreadPresence", () => {
   });
 
   afterEach(() => {
+    cleanup();
     clearRoomReadOverlays();
     clearMembershipVisibleRoomsSnapshot();
     vi.restoreAllMocks();
@@ -768,6 +770,7 @@ describe("useChatTabUnreadPresence", () => {
       "user-1",
     );
 
+    listRoomsMock.mockReturnValueOnce(new Promise(() => {}));
     render(<Harness />);
 
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
@@ -784,6 +787,7 @@ describe("useChatTabUnreadPresence", () => {
       markedUnread: false,
     });
 
+    listRoomsMock.mockReturnValueOnce(new Promise(() => {}));
     render(<Harness />);
 
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");

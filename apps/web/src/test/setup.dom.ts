@@ -13,6 +13,8 @@ import { afterAll, afterEach, vi } from "vitest";
 // react-dom) costs every test file that imports this, so the node project
 // skips it.
 
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
 // happy-dom 20.12+ implements WAAPI. `Animation.cancel()` rejects `finished`
 // with AbortError (spec). motion 13 calls cancel on unmount and does not catch
 // that promise, so vitest reports unhandled rejections.

@@ -1,5 +1,11 @@
 import type { DataRoomTreeRow, DataRoomView } from "@sokosumi/core-client";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
@@ -85,8 +91,8 @@ describe("RoomViewer", () => {
     vi.unstubAllGlobals();
   });
 
-  it("opens on the Welcome page with the note and a download of everything", () => {
-    render(<RoomViewer token="tok" room={room} />);
+  it("opens on the Welcome page with the note and a download of everything", async () => {
+    await act(async () => render(<RoomViewer token="tok" room={room} />));
 
     expect(screen.getByText(/Thanks for looking/)).toBeDefined();
     expect(screen.getByText('contents {"files":2,"folders":3}')).toBeDefined();
@@ -95,13 +101,17 @@ describe("RoomViewer", () => {
     ).toBe("/share/rooms/tok/zip");
   });
 
-  it("keeps the download off the Welcome page when the room has downloads off", () => {
-    render(<RoomViewer token="tok" room={{ ...room, allowDownload: false }} />);
+  it("keeps the download off the Welcome page when the room has downloads off", async () => {
+    await act(async () =>
+      render(
+        <RoomViewer token="tok" room={{ ...room, allowDownload: false }} />,
+      ),
+    );
     expect(screen.queryByRole("link", { name: "downloadAll" })).toBeNull();
   });
 
-  it("shows folders closed and opens them one level at a time", () => {
-    render(<RoomViewer token="tok" room={room} />);
+  it("shows folders closed and opens them one level at a time", async () => {
+    await act(async () => render(<RoomViewer token="tok" room={room} />));
     expect(screen.queryByText("Formation")).toBeNull();
 
     const legal = screen.getByRole("button", { name: /Legal/ });
@@ -115,11 +125,13 @@ describe("RoomViewer", () => {
     expect(screen.getByText("Bylaws.pdf")).toBeDefined();
   });
 
-  it("opens the first document from the Welcome page, folders around it expanded", () => {
-    render(<RoomViewer token="tok" room={room} />);
+  it("opens the first document from the Welcome page, folders around it expanded", async () => {
+    await act(async () => render(<RoomViewer token="tok" room={room} />));
 
-    fireEvent.click(
-      screen.getByRole("button", { name: 'openFirst {"name":"Deck.pdf"}' }),
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: 'openFirst {"name":"Deck.pdf"}' }),
+      ),
     );
 
     expect(
@@ -132,33 +144,37 @@ describe("RoomViewer", () => {
     ).toBe("true");
   });
 
-  it("has no Company page when the owner gave no company details", () => {
-    render(<RoomViewer token="tok" room={room} />);
+  it("has no Company page when the owner gave no company details", async () => {
+    await act(async () => render(<RoomViewer token="tok" room={room} />));
     expect(screen.queryByRole("button", { name: "Company.title" })).toBeNull();
   });
 
-  it("shows the company's details, only the filled ones, and opens the formation folder", () => {
-    render(
-      <RoomViewer
-        token="tok"
-        room={{
-          ...room,
-          company: {
-            legalName: "Sumico, Inc.",
-            jurisdiction: "State of Delaware, USA",
-            contactEmail: "legal@sumico.io",
-            euRepresentative: {
-              name: "Phil Isenmann",
-              email: "phil@utxoag.com",
+  it("shows the company's details, only the filled ones, and opens the formation folder", async () => {
+    await act(async () =>
+      render(
+        <RoomViewer
+          token="tok"
+          room={{
+            ...room,
+            company: {
+              legalName: "Sumico, Inc.",
+              jurisdiction: "State of Delaware, USA",
+              contactEmail: "legal@sumico.io",
+              euRepresentative: {
+                name: "Phil Isenmann",
+                email: "phil@utxoag.com",
+              },
+              websites: ["www.cmo.xyz"],
+              formationPath: "Legal/Formation",
             },
-            websites: ["www.cmo.xyz"],
-            formationPath: "Legal/Formation",
-          },
-        }}
-      />,
+          }}
+        />,
+      ),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Company.title" }));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Company.title" })),
+    );
 
     expect(screen.getByText("Sumico, Inc.")).toBeDefined();
     expect(screen.getByText("State of Delaware, USA")).toBeDefined();
@@ -174,23 +190,29 @@ describe("RoomViewer", () => {
     expect(screen.queryByText("Company.vatId")).toBeNull();
     expect(screen.queryByText("Company.ukRepresentative")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /2\.1\s*Formation/ }));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: /2\.1\s*Formation/ })),
+    );
     expect(
       screen.getByText("pdf /share/rooms/tok/files/id-Bylaws.pdf"),
     ).toBeDefined();
   });
 
-  it("leaves out the formation link when the viewer cannot see that folder", () => {
-    render(
-      <RoomViewer
-        token="tok"
-        room={{
-          ...room,
-          company: { legalName: "Sumico, Inc.", formationPath: "Board" },
-        }}
-      />,
+  it("leaves out the formation link when the viewer cannot see that folder", async () => {
+    await act(async () =>
+      render(
+        <RoomViewer
+          token="tok"
+          room={{
+            ...room,
+            company: { legalName: "Sumico, Inc.", formationPath: "Board" },
+          }}
+        />,
+      ),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Company.title" }));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Company.title" })),
+    );
     expect(screen.queryByText("Company.formation")).toBeNull();
   });
 
@@ -199,14 +221,16 @@ describe("RoomViewer", () => {
       viewerQuestion("q_shared", "Legal/Formation/Bylaws.pdf", false, true),
       viewerQuestion("q_private", "Introduction/Deck.pdf", true, false),
     ]);
-    render(<RoomViewer token="tok" room={room} />);
+    await act(async () => render(<RoomViewer token="tok" room={room} />));
 
     expect(await screen.findByText("Question q_shared?")).toBeDefined();
     expect(screen.getByText("Answer q_shared.")).toBeDefined();
     expect(screen.queryByText("Question q_private?")).toBeNull();
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/share/rooms/tok/questions");
 
-    fireEvent.click(screen.getByRole("button", { name: /2\.1\.1/ }));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: /2\.1\.1/ })),
+    );
     expect(
       screen.getByText("pdf /share/rooms/tok/files/id-Bylaws.pdf"),
     ).toBeDefined();
@@ -214,9 +238,11 @@ describe("RoomViewer", () => {
 
   it("marks shared answers beside a document as answered for everyone", async () => {
     answers([viewerQuestion("q_shared", "Introduction/Deck.pdf", false, true)]);
-    render(<RoomViewer token="tok" room={room} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: 'openFirst {"name":"Deck.pdf"}' }),
+    await act(async () => render(<RoomViewer token="tok" room={room} />));
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: 'openFirst {"name":"Deck.pdf"}' }),
+      ),
     );
 
     expect(await screen.findByText("Question q_shared?")).toBeDefined();
@@ -232,7 +258,7 @@ describe("RoomViewer", () => {
     render(<RoomViewer token="tok" room={room} />);
 
     expect(screen.getByRole("status").textContent).toBe("sharedLoading");
-    resolve({ ok: true, json: async () => [] });
+    await act(async () => resolve({ ok: true, json: async () => [] }));
     await vi.waitFor(() =>
       expect(screen.getByRole("status").textContent).toBe(""),
     );

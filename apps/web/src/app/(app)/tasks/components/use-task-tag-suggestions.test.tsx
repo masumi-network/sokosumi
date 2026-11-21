@@ -15,7 +15,7 @@ function success() {
   return Response.json({ tags: ["research"], receipt: "receipt-1" });
 }
 async function advance(ms: number) {
-  await act(() => vi.advanceTimersByTimeAsync(ms));
+  await act(async () => vi.advanceTimersByTimeAsync(ms));
 }
 
 beforeEach(() => {
