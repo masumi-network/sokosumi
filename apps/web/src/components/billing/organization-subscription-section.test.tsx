@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { type Action, toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -454,7 +454,7 @@ describe("OrganizationSubscriptionSection", () => {
           props.plan?.name === "standard",
       );
 
-    await currentPlanProps?.onAction("standard");
+    await act(async () => currentPlanProps?.onAction("standard"));
 
     await waitFor(() => {
       expect(upgradeOrganizationSubscriptionMock).toHaveBeenCalledWith({
@@ -501,7 +501,7 @@ describe("OrganizationSubscriptionSection", () => {
           props.plan?.name === "standard",
       );
 
-    await standardPlanProps?.onAction("standard");
+    await act(async () => standardPlanProps?.onAction("standard"));
 
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith("statusSuccess");

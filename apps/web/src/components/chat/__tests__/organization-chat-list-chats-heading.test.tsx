@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -52,11 +52,13 @@ beforeEach(() => {
  * Unreads chip, which used to sit on the Catch up row.
  */
 describe("OrganizationChatList under its Chats heading", () => {
-  it("heads the block, with Catch up first and every section under it", () => {
-    renderOrganizationChatList({
-      rooms: [unreadChannel, readDirect],
-      withChatsHeading: true,
-    });
+  it("heads the block, with Catch up first and every section under it", async () => {
+    await act(async () =>
+      renderOrganizationChatList({
+        rooms: [unreadChannel, readDirect],
+        withChatsHeading: true,
+      }),
+    );
 
     const heading = chatsHeading();
     const catchUp = screen.getByTestId("chat-unread-nav-rows");
@@ -182,8 +184,10 @@ describe("OrganizationChatList under its Chats heading", () => {
 
   // The phone's Chats page is titled Chats already: no second heading, and
   // the chip stays on the Catch up row there.
-  it("leaves the heading out where the page is the Chats page", () => {
-    renderOrganizationChatList({ rooms: [unreadChannel, readDirect] });
+  it("leaves the heading out where the page is the Chats page", async () => {
+    await act(async () =>
+      renderOrganizationChatList({ rooms: [unreadChannel, readDirect] }),
+    );
 
     expect(
       screen.queryByRole("button", { name: new RegExp(`^${CHATS}`) }),

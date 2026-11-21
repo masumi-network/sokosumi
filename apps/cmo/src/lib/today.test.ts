@@ -8,6 +8,7 @@ import {
   dayIn,
   greeting,
   monthEntries,
+  monthMade,
   monthProgress,
   needsYou,
   waitingLine,
@@ -183,7 +184,39 @@ it("counts the month by where each post stands", () => {
         format: "search ad",
       },
     ]),
-  ).toEqual({ out: 2, scheduled: 1, written: 1, planned: 1, total: 5 });
+  ).toEqual({
+    out: 2,
+    scheduled: 1,
+    written: 1,
+    notSent: 0,
+    planned: 1,
+    total: 5,
+  });
+});
+
+it("counts a post that did not go out on its own and asks the owner to look", () => {
+  const overview = cmoOverview();
+  const calendar = overview.strategy?.calendar ?? [];
+  const [first, ...rest] = calendar;
+  if (!first) throw new Error("fixture has an entry");
+  const failed = {
+    ...first,
+    status: "draft" as const,
+    notSent: "LinkedIn refused it.",
+  };
+  const strategy = overview.strategy
+    ? { ...overview.strategy, calendar: [failed, ...rest] }
+    : null;
+  const withFailed = { ...overview, strategy, approvedStrategy: strategy };
+  expect(monthProgress(monthEntries(withFailed)).notSent).toBe(1);
+  expect(needsYou(withFailed)).toContainEqual({
+    id: "not-sent",
+    title: "1 post didn't go out",
+    detail: "LinkedIn refused it.",
+    action: "See post",
+    view: "calendar",
+    entryId: first.id,
+  });
 });
 
 it("leaves out the posts the plan bought does not make, as the Calendar does", () => {
@@ -196,4 +229,61 @@ it("leaves out the posts the plan bought does not make, as the Calendar does", (
     production: { ...overview.production, beyondPlan: [beyond] },
   });
   expect(month.map((entry) => entry.id).sort()).toEqual(made.sort());
+});
+
+it("counts the month once, as it goes out, whatever Core's run still makes", () => {
+  const overview = cmoOverview();
+  const calendar = overview.strategy?.calendar ?? [];
+  const [first] = calendar;
+  if (!first) throw new Error("fixture has an entry");
+  const entry = (id: string, status: "idea" | "draft" | "scheduled") => ({
+    ...first,
+    id,
+    status,
+    draft: status === "idea" ? undefined : "Words",
+  });
+  const strategy = overview.strategy
+    ? {
+        ...overview.strategy,
+        calendar: [
+          entry("out", "scheduled"),
+          entry("written", "draft"),
+          entry("coming", "idea"),
+          entry("beyond", "scheduled"),
+        ],
+      }
+    : null;
+  expect(
+    monthMade({
+      ...overview,
+      strategy,
+      approvedStrategy: strategy,
+      production: {
+        ...overview.production,
+        ready: 8,
+        total: 11,
+        beyondPlan: ["beyond"],
+      },
+    }),
+  ).toEqual({ ready: 2, total: 3 });
+});
+
+it("leaves a post X paused out of Needs you: it is still scheduled, and Core retries it", () => {
+  const overview = cmoOverview();
+  const [first, ...rest] = overview.strategy?.calendar ?? [];
+  if (!first) throw new Error("fixture has an entry");
+  const paused = {
+    ...first,
+    status: "scheduled" as const,
+    notSent: "X paused our posting for now; Cuso will try again.",
+  };
+  const strategy = overview.strategy
+    ? { ...overview.strategy, calendar: [paused, ...rest] }
+    : null;
+  const held = { ...overview, strategy, approvedStrategy: strategy };
+  expect(needsYou(held).map((item) => item.id)).not.toContain("not-sent");
+  expect(monthProgress(monthEntries(held))).toMatchObject({
+    notSent: 0,
+    scheduled: 1,
+  });
 });

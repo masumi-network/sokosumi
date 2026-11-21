@@ -12,6 +12,7 @@ import {
   seoDeviceSchema,
   seoObservationSchema,
 } from "./seo-audit-coverage.schema";
+import { seoEditorialKeywordSchema } from "./seo-editorial-keyword.schema";
 import { publicSitemapInputFields } from "./seo-sitemap-evidence.schema";
 
 export {
@@ -366,14 +367,7 @@ export const seoFindingSchema = z
   .openapi("ProjectSeoFinding");
 /** The SEO bot's estimate of how likely a searcher takes the page's action. It is not a measured rate. */
 export const seoConversionSchema = z.enum(["high", "medium", "low"]);
-/** Editorial origin of a keyword whose DataForSEO measurement was retained by the audit. */
-export const seoEditorialKeywordSchema = z.object({
-  models: z
-    .array(z.enum(["gemini", "codex"]))
-    .min(1)
-    .max(2),
-  record: z.string().regex(/^[a-f0-9]{64}$/),
-});
+export { seoEditorialKeywordSchema };
 export const SEO_AUDIT_IDEA_LIMIT = 50;
 export const seoIdeaRankSchema = z
   .number()

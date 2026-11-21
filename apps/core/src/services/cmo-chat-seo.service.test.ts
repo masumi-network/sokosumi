@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { db, seoCheck, audits } = vi.hoisted(() => ({
-  db: { sokoBotToolCall: { findMany: vi.fn(), findFirst: vi.fn() } },
+  db: {
+    sokoBotToolCall: { findMany: vi.fn(), findFirst: vi.fn() },
+    projectSeoSuggestion: { findMany: vi.fn() },
+  },
   seoCheck: vi.fn(),
   audits: vi.fn(),
 }));
@@ -11,6 +14,9 @@ vi.mock("@/services/cmo-seo-rankings.service", () => ({
 }));
 vi.mock("@/services/cmo-seo-audit.service", () => ({
   listCmoSeoAuditRuns: audits,
+}));
+vi.mock("@/services/cmo-seo.service", () => ({
+  toSuggestion: (row: object) => row,
 }));
 
 import { listCmoChatSeoWork, readCmoChatSeoText } from "./cmo-chat-seo.service";
@@ -37,6 +43,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   audits.mockResolvedValue([]);
   db.sokoBotToolCall.findMany.mockResolvedValue([]);
+  db.projectSeoSuggestion.findMany.mockResolvedValue([]);
 });
 
 describe("listCmoChatSeoWork", () => {
@@ -173,6 +180,48 @@ describe("listCmoChatSeoWork", () => {
       by: "The SEO specialist",
       readable: false,
     });
+  });
+});
+
+describe("saved suggestions", () => {
+  it("shows what one save put on the SEO page as one card, without what the owner skipped since", async () => {
+    const SAVED = "01a1f0eb-1488-76ff-835f-5d99fc1b0002";
+    db.sokoBotToolCall.findMany.mockImplementation(
+      async (query: { where: { capability: string } }) =>
+        query.where.capability === "save_seo_suggestions"
+          ? [
+              {
+                id: "save-1",
+                createdAt: now,
+                input: {},
+                result: { saved: [{ id: SAVED, title: "Homepage title" }] },
+              },
+            ]
+          : [],
+    );
+    db.projectSeoSuggestion.findMany.mockResolvedValue([
+      { id: SAVED, kind: "page_change", title: "Homepage title" },
+    ]);
+    const work = await listCmoChatSeoWork(cuso, now);
+    expect(work).toEqual([
+      expect.objectContaining({
+        id: "save-1",
+        kind: "seo_saved",
+        state: "ready",
+        suggestions: [expect.objectContaining({ id: SAVED })],
+      }),
+    ]);
+    expect(db.projectSeoSuggestion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: "project-1",
+          status: { not: "dismissed" },
+        }),
+      }),
+    );
+
+    db.projectSeoSuggestion.findMany.mockResolvedValue([]);
+    expect(await listCmoChatSeoWork(cuso, now)).toEqual([]);
   });
 });
 

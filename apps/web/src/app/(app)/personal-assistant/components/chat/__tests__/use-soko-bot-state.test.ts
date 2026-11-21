@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
@@ -68,6 +68,8 @@ function countOf(fetchMock: ReturnType<typeof mockEndpoints>, part: string) {
 }
 
 describe("useSokoBotState polling", () => {
+  const initialState = emptyState();
+
   beforeEach(() => {
     vi.useFakeTimers();
     Object.defineProperty(document, "visibilityState", {
@@ -89,9 +91,9 @@ describe("useSokoBotState polling", () => {
       // activity says idle, the state says idle too.
       state: (probe) => (probe <= 1 ? emptyState() : chatState("RUNNING")),
     });
-    const { result } = renderHook(() => useSokoBotState(emptyState()));
+    const { result } = renderHook(() => useSokoBotState(initialState));
 
-    await vi.advanceTimersByTimeAsync(5_100);
+    await act(async () => vi.advanceTimersByTimeAsync(5_100));
 
     expect(countOf(fetchMock, "/activity")).toBeGreaterThanOrEqual(2);
     expect(result.current.state.turns[0]?.status).toBe("RUNNING");
@@ -104,9 +106,9 @@ describe("useSokoBotState polling", () => {
       activity: [IDLE, SETTLED, SETTLED],
       state: (probe) => (probe <= 1 ? emptyState() : chatState("COMPLETED")),
     });
-    renderHook(() => useSokoBotState(emptyState()));
+    renderHook(() => useSokoBotState(initialState));
 
-    await vi.advanceTimersByTimeAsync(5_100);
+    await act(async () => vi.advanceTimersByTimeAsync(5_100));
 
     // Once on mount to establish the signature, once when lastTurnAt changed.
     expect(countOf(fetchMock, "/state")).toBe(2);
@@ -115,9 +117,9 @@ describe("useSokoBotState polling", () => {
   it("polls a shared bot's endpoints when given its id", async () => {
     const botId = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
     const fetchMock = mockEndpoints({ activity: [IDLE] });
-    renderHook(() => useSokoBotState(emptyState(), botId));
+    renderHook(() => useSokoBotState(initialState, botId));
 
-    await vi.advanceTimersByTimeAsync(100);
+    await act(async () => vi.advanceTimersByTimeAsync(100));
 
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
     expect(urls.length).toBeGreaterThanOrEqual(2);
@@ -126,9 +128,9 @@ describe("useSokoBotState polling", () => {
 
   it("polls the caller's own bot without an id", async () => {
     const fetchMock = mockEndpoints({ activity: [IDLE] });
-    renderHook(() => useSokoBotState(emptyState()));
+    renderHook(() => useSokoBotState(initialState));
 
-    await vi.advanceTimersByTimeAsync(100);
+    await act(async () => vi.advanceTimersByTimeAsync(100));
 
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
     expect(urls.length).toBeGreaterThanOrEqual(2);
@@ -137,9 +139,9 @@ describe("useSokoBotState polling", () => {
 
   it("leaves the heavy state alone while nothing moves", async () => {
     const fetchMock = mockEndpoints({ activity: [IDLE] });
-    renderHook(() => useSokoBotState(emptyState()));
+    renderHook(() => useSokoBotState(initialState));
 
-    await vi.advanceTimersByTimeAsync(12_600);
+    await act(async () => vi.advanceTimersByTimeAsync(12_600));
 
     expect(countOf(fetchMock, "/activity")).toBeGreaterThanOrEqual(5);
     expect(countOf(fetchMock, "/state")).toBe(1);
@@ -156,13 +158,13 @@ describe("useSokoBotState polling", () => {
       state: () => chatState("RUNNING"),
       stateDelayMs: 6_000,
     });
-    const { result } = renderHook(() => useSokoBotState(emptyState()));
+    const { result } = renderHook(() => useSokoBotState(initialState));
 
     // Stepped, so the delayed read's own timer is reached and its resolution
     // is flushed before the assertion. Kept under the abort deadline.
-    await vi.advanceTimersByTimeAsync(3_000);
-    await vi.advanceTimersByTimeAsync(3_100);
-    await vi.advanceTimersByTimeAsync(3_000);
+    await act(async () => vi.advanceTimersByTimeAsync(3_000));
+    await act(async () => vi.advanceTimersByTimeAsync(3_100));
+    await act(async () => vi.advanceTimersByTimeAsync(3_000));
 
     // Overlapping ticks are skipped, not cancelled, so reads complete.
     expect(result.current.state.turns[0]?.status).toBe("RUNNING");
@@ -179,9 +181,9 @@ describe("useSokoBotState polling", () => {
       activity: [RUNNING],
       state: () => chatState("RUNNING"),
     });
-    renderHook(() => useSokoBotState(emptyState()));
+    renderHook(() => useSokoBotState(initialState));
 
-    await vi.advanceTimersByTimeAsync(7_600);
+    await act(async () => vi.advanceTimersByTimeAsync(7_600));
 
     expect(countOf(fetchMock, "/state")).toBeGreaterThanOrEqual(3);
   });
@@ -194,11 +196,11 @@ describe("useSokoBotState polling", () => {
       state: () => chatState("RUNNING"),
       stateDelayMs: 600_000,
     });
-    renderHook(() => useSokoBotState(emptyState()));
+    renderHook(() => useSokoBotState(initialState));
 
-    await vi.advanceTimersByTimeAsync(20_000);
+    await act(async () => vi.advanceTimersByTimeAsync(20_000));
     const beforeRecovery = countOf(fetchMock, "/state");
-    await vi.advanceTimersByTimeAsync(20_000);
+    await act(async () => vi.advanceTimersByTimeAsync(20_000));
 
     expect(countOf(fetchMock, "/state")).toBeGreaterThan(beforeRecovery);
   });

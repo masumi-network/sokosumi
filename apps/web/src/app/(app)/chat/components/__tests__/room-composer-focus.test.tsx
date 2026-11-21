@@ -1,4 +1,4 @@
-import { act, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import {
   type ReactNode,
   type Ref,
@@ -183,10 +183,8 @@ describe("RoomComposerEditHandle.focus", () => {
     await waitFor(() => {
       expect(getByRole("textbox")).toBeInTheDocument();
     });
-    getByRole("button", { name: "probe" }).click();
-    await waitFor(() => {
-      expect(getByTestId("ready").textContent).toBe("yes");
-    });
+    fireEvent.click(getByRole("button", { name: "probe" }));
+    expect(getByTestId("ready")).toHaveTextContent("yes");
   });
 });
 

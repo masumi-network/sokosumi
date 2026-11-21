@@ -1,5 +1,5 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import type { ReactNode, Ref } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -118,38 +118,44 @@ function renderPanel(options: {
 }
 
 describe("ThreadPanel empty vs loading", () => {
-  it("shows loading, not empty, while replies are still fetching", () => {
+  it("shows loading, not empty, while replies are still fetching", async () => {
     // Regression: open thread used to paint "No replies yet" before the
     // fetch transition started (await mark-read first cleared messages with
     // isLoading still false). Loading must suppress empty.
-    renderPanel({ isLoading: true, replies: [] });
+    await act(async () => renderPanel({ isLoading: true, replies: [] }));
 
     expect(screen.getByText("Thread.loading")).toBeTruthy();
     expect(screen.queryByText("Thread.empty")).toBeNull();
   });
 
-  it("shows a reply sent while replies are still loading", () => {
-    renderPanel({
-      isLoading: true,
-      replies: [parentMessage({ id: "r1", parentMessageId: "parent-1" })],
-    });
+  it("shows a reply sent while replies are still loading", async () => {
+    await act(async () =>
+      renderPanel({
+        isLoading: true,
+        replies: [parentMessage({ id: "r1", parentMessageId: "parent-1" })],
+      }),
+    );
 
     expect(screen.getByText("row-r1")).toBeTruthy();
     expect(screen.getByText("Thread.loading")).toBeTruthy();
   });
 
-  it("shows empty only after load settles with zero replies", () => {
-    renderPanel({
-      isLoading: false,
-      replies: [],
-    });
+  it("shows empty only after load settles with zero replies", async () => {
+    await act(async () =>
+      renderPanel({
+        isLoading: false,
+        replies: [],
+      }),
+    );
 
     expect(screen.getByText("Thread.empty")).toBeTruthy();
     expect(screen.queryByText("Thread.loading")).toBeNull();
   });
 
-  it("shows Back instead of Close when opened from the thread list", () => {
-    renderPanel({ isLoading: false, onBack: () => undefined });
+  it("shows Back instead of Close when opened from the thread list", async () => {
+    await act(async () =>
+      renderPanel({ isLoading: false, onBack: () => undefined }),
+    );
 
     expect(screen.getByTestId("thread-panel-back")).toHaveAttribute(
       "aria-label",
@@ -158,19 +164,23 @@ describe("ThreadPanel empty vs loading", () => {
     expect(screen.queryByLabelText("Thread.close")).toBeNull();
   });
 
-  it("shows Close when opened from a message row", () => {
-    renderPanel({ isLoading: false });
+  it("shows Close when opened from a message row", async () => {
+    await act(async () => renderPanel({ isLoading: false }));
 
     expect(screen.getByLabelText("Thread.close")).toBeTruthy();
     expect(screen.queryByTestId("thread-panel-back")).toBeNull();
   });
 
-  it("marks only the rows whose change Core has not answered", () => {
-    renderPanel({
-      isLoading: false,
-      replies: [parentMessage({ id: "reply-1", parentMessageId: "parent-1" })],
-      savingMessageIds: new Set(["reply-1"]),
-    });
+  it("marks only the rows whose change Core has not answered", async () => {
+    await act(async () =>
+      renderPanel({
+        isLoading: false,
+        replies: [
+          parentMessage({ id: "reply-1", parentMessageId: "parent-1" }),
+        ],
+        savingMessageIds: new Set(["reply-1"]),
+      }),
+    );
 
     expect(screen.getByText("row-reply-1")).toHaveAttribute(
       "aria-busy",
@@ -179,11 +189,13 @@ describe("ThreadPanel empty vs loading", () => {
     expect(screen.getByText("row-parent-1")).not.toHaveAttribute("aria-busy");
   });
 
-  it("replaces the reply composer with the assigned-seat message when disabled", () => {
-    renderPanel({
-      isLoading: false,
-      composerDisabledMessage: "Composer disabled",
-    });
+  it("replaces the reply composer with the assigned-seat message when disabled", async () => {
+    await act(async () =>
+      renderPanel({
+        isLoading: false,
+        composerDisabledMessage: "Composer disabled",
+      }),
+    );
 
     expect(screen.queryByTestId("thread-composer")).toBeNull();
     expect(screen.getByText("Composer disabled")).toBeTruthy();

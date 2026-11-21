@@ -9,27 +9,15 @@ import {
   useState,
 } from "react";
 import type { NewTaskCopyPrefill } from "@/app/tasks/components/create-task-modal";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-
-// The wizard pulls in the whole task form, so it ships as its own chunk that
-// is warmed once the shell is idle rather than on the shell's critical path.
-const loadNewTaskWizard = () => import("./new-task-wizard");
+import {
+  loadNewTaskWizard,
+  usePrefetchNewTaskWizard,
+} from "@/hooks/effects/use-prefetch-new-task-wizard";
 
 const NewTaskWizard = dynamic(
   () => loadNewTaskWizard().then((module) => module.NewTaskWizard),
   { ssr: false },
 );
-
-function prefetchNewTaskWizardWhenIdle(): () => void {
-  if (typeof window.requestIdleCallback === "function") {
-    const handle = window.requestIdleCallback(() => void loadNewTaskWizard(), {
-      timeout: 2000,
-    });
-    return () => window.cancelIdleCallback(handle);
-  }
-  const timeout = window.setTimeout(() => void loadNewTaskWizard(), 2000);
-  return () => window.clearTimeout(timeout);
-}
 
 /** What a caller can prefill, and hear back, when it opens the wizard. */
 export interface NewTaskWizardOptions {
@@ -75,7 +63,7 @@ export function NewTaskWizardProvider({
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<NewTaskWizardOptions>({});
 
-  useMountEffect(prefetchNewTaskWizardWhenIdle);
+  usePrefetchNewTaskWizard();
 
   const openNewTaskWizard = useCallback((next?: NewTaskWizardOptions) => {
     setOptions(next ?? {});

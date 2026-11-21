@@ -14,7 +14,11 @@ function offset(period: string, months: number) {
     .slice(0, 7);
 }
 /** Recheck recurring demand against the query history. A distant second season also needs a measured trough. */
-export function validateEarlierCycles(idea: Idea, history: Month[]): Idea {
+export function validateEarlierCycles(
+  idea: Idea,
+  history: Month[],
+  requireMeasuredPeak = false,
+): Idea {
   const measured = new Map(history.map((m) => [m.period, m.volume]));
   const beforePeak = (period: string) =>
     [-4, -3, -2].map((m) => offset(period, m));
@@ -77,7 +81,23 @@ export function validateEarlierCycles(idea: Idea, history: Month[]): Idea {
         earlierCycle.historicalPeriod &&
       cycle(earlierCycle, target, 2);
     if (target > lastNearMonth) {
-      if (!repeats || !previous) continue;
+      if (!repeats) continue;
+      if (!previous) {
+        const quiet = [window, earlierCycle].every((peak, year) =>
+          Array.from({ length: NEAR_WINDOW_MONTHS }, (_, i) =>
+            measured.get(offset(auditMonth, i - (year + 1) * MONTHS_PER_YEAR)),
+          ).every(
+            (value) =>
+              value !== undefined &&
+              hasSeasonalDemandRise(peak.historicalVolume, value),
+          ),
+        );
+        if (quiet) {
+          previous = target;
+          windows.push({ ...window, earlierCycle });
+        }
+        continue;
+      }
       // A continuing plateau is one season. Verify a trough between the peaks in the same month of both years.
       function dipped(
         month: string,
@@ -111,8 +131,27 @@ export function validateEarlierCycles(idea: Idea, history: Month[]): Idea {
       }
       if (!separated) continue;
     }
+    if (requireMeasuredPeak && !measuredPeak) continue;
     if (measuredPeak) previous = target;
     windows.push(repeats ? { ...window, earlierCycle } : window);
+  }
+  const event = idea.comparison;
+  if (requireMeasuredPeak && event?.status === "above_baseline") {
+    const period = event.eventMonth?.period;
+    const base = period ? beforePeak(period) : [];
+    if (
+      !period ||
+      !idea.event ||
+      Number(period.slice(0, 4)) + 1 !== Number(idea.event.date.slice(0, 4)) ||
+      event.leadMonth?.period !== offset(period, -1) ||
+      event.baselineMedian === null ||
+      !baseline(base, event.baselineMedian) ||
+      ![event.leadMonth, event.eventMonth].every(
+        (m) => m?.volume != null && measured.get(m.period) === m.volume,
+      )
+    ) {
+      return { ...idea, windows, comparison: null };
+    }
   }
   if (!idea.comparison?.earlierEdition) return { ...idea, windows };
   const { earlierEdition: early, ...recent } = idea.comparison,

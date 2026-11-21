@@ -91,7 +91,7 @@ it("shows what goes out this week and when the first numbers arrive, before any 
   expect(html).not.toContain("nothing to chart");
 });
 
-it("counts posts written for a network that is not connected as waiting, not as drafts", () => {
+it("says once that written posts wait for a network, with no tile row repeating the month", () => {
   const html = results({
     channels: [],
     posts: { draft: 2, scheduled: 0, published: 0, failed: 0 },
@@ -100,9 +100,27 @@ it("counts posts written for a network that is not connected as waiting, not as 
       { channel: "linkedin", status: "draft", date: inDays(2) },
     ]),
   });
-  expect(html).toContain("Waiting 2 for LinkedIn");
   expect(html).toContain("2 posts wait for LinkedIn.");
+  expect(html).not.toContain("Waiting");
   expect(html).not.toContain("Drafts");
+});
+
+it("counts a post that did not go out apart from the written ones", () => {
+  const month = withCalendar([
+    { channel: "linkedin", status: "draft", date: inDays(-1) },
+    { channel: "linkedin", status: "draft", date: inDays(1) },
+  ]);
+  const [failed, written] = month.strategy.calendar;
+  if (!failed || !written) throw new Error("two entries");
+  const calendar = [{ ...failed, notSent: "LinkedIn refused it." }, written];
+  const strategy = { ...month.strategy, calendar };
+  const html = results({
+    channels: [linkedin],
+    strategy,
+    approvedStrategy: strategy,
+  });
+  expect(html).toContain("Written 1 ");
+  expect(html).toContain("Didn&#x27;t go out 1");
 });
 
 it("counts as drafts only the written posts the plan makes", () => {
@@ -128,7 +146,7 @@ it("counts as drafts only the written posts the plan makes", () => {
       beyondPlan: ["p2"],
     },
   });
-  expect(html).toContain("Drafts 1 ");
+  expect(html).toContain("Written 1 ");
   expect(html).not.toContain("149");
 });
 
@@ -142,7 +160,7 @@ it("lists sending the newsletter as soon, and TikTok once, only where it can be 
       addMailingList={async () => ({ overview: null, error: null })}
       onChange={() => {}}
       openSeo={() => {}}
-      connectSearchConsole={async () => ({ url: null, error: null })}
+      connectMeasurement={async () => ({ url: null, error: null })}
     />,
   );
   expect(html).not.toContain("<b>TikTok</b>");
@@ -157,7 +175,7 @@ it("lists sending the newsletter as soon, and TikTok once, only where it can be 
       addMailingList={async () => ({ overview: null, error: null })}
       onChange={() => {}}
       openSeo={() => {}}
-      connectSearchConsole={async () => ({ url: null, error: null })}
+      connectMeasurement={async () => ({ url: null, error: null })}
     />,
   );
   expect(enabled.match(/<b>TikTok<\/b>/g)).toHaveLength(1);

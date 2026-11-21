@@ -83,6 +83,7 @@ export const ACTION_CAPABILITIES = new Set([
   "post_chat",
   "open_direct_chat",
   "ask_coworker",
+  "send_message",
   "upsert_contact",
   "update_contact",
   "log_contact_interaction",

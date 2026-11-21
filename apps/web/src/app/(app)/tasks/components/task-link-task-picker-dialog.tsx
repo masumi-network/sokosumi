@@ -16,6 +16,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { coreClient } from "@/lib/clients/core.browser.client";
 
 import {
@@ -180,13 +181,13 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
     },
   );
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+  useTimeout(
+    () => {
       setDebouncedTaskPickerQuery(taskPickerQuery.trim());
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [taskPickerQuery]);
+    },
+    250,
+    taskPickerQuery,
+  );
 
   useEffect(() => {
     void loadTaskPickerTasks({

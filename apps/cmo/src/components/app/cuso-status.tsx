@@ -9,7 +9,7 @@ import { useTimeout } from "../../hooks/effects/use-timeout";
 import { AGENT_NAME } from "../../lib/agent";
 import { dayName, nextWeeklyReview } from "../../lib/page-lead";
 import { type CusoPose, cusoPose, cusoStatus } from "../../lib/thread";
-import { needsYou } from "../../lib/today";
+import { monthMade, needsYou } from "../../lib/today";
 import type { View } from "../../lib/views";
 import { type CusoArt, cusoArt } from "../cuso";
 import { ViewLink } from "./view-link";
@@ -41,6 +41,12 @@ const POSES: readonly (readonly [CusoArt, number, number])[] = [
   ["thumbs-up", 592, 661],
 ];
 
+/** "148 of 169 made": the month's posts, as Today and the Calendar count them. */
+function madeLine(overview: CmoOverview): string {
+  const { ready, total } = monthMade(overview);
+  return `${ready} of ${total} made`;
+}
+
 /** Pages where he is looking things up while nothing else is going on. */
 const LOOKING: ReadonlySet<View> = new Set(["seo", "competitors"]);
 
@@ -55,7 +61,7 @@ export function cusoMood(overview: CmoOverview, now: Date = new Date()): Mood {
       : needs > 1
         ? `${needs} things need you`
         : production.state === "running"
-          ? `${production.ready} of ${production.total} made`
+          ? madeLine(overview)
           : cusoStatus(overview);
   const busy =
     pose === "reading" || pose === "thinking" || production.state === "running";

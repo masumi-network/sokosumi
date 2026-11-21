@@ -14,18 +14,21 @@ export function SeoBriefOutcomes({ followUp }: { followUp: FollowUp }) {
     ) : null;
   }
   const hasComparison = followUp.outcomes.some((outcome) => outcome.comparison);
+  const title = followUp.outcomes.some(
+    (o) => o.event !== "purchase" && o.event !== "sign_up",
+  )
+    ? t("configuredTitle")
+    : t("title");
   return (
-    <section
-      lang="en"
-      aria-label={t("title")}
-      className="space-y-2 border-t pt-2"
-    >
-      <h4 className="font-medium">{t("title")}</h4>
+    <section lang="en" aria-label={title} className="space-y-2 border-t pt-2">
+      <h4 className="font-medium">{title}</h4>
       <p className="text-muted-foreground">{t("source")}</p>
       {followUp.outcomes.map(({ event, latest, comparison }) => (
         <div className="space-y-1.5" key={event}>
           <h5 className="font-medium">
-            {t(event)}{" "}
+            {event === "purchase" || event === "sign_up"
+              ? t(event)
+              : t("custom")}{" "}
             <span className="text-muted-foreground text-xs">
               (<code>{event}</code>)
             </span>

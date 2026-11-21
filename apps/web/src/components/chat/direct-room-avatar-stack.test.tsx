@@ -1,5 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
@@ -195,7 +195,7 @@ describe("DirectRoomAvatarStack", () => {
       expect(face).toHaveTextContent("ERROR");
       expect(face).not.toHaveTextContent("Online");
     } finally {
-      clearFailed();
+      act(() => clearFailed());
     }
   });
 

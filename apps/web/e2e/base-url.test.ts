@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { resolveBaseUrl } from "./base-url.ts";
+import { resolveBaseUrl, resolvePreviewCoreUrl } from "./base-url.ts";
 
 test("requires E2E_BASE_URL", () => {
   assert.throws(() => resolveBaseUrl({}), /E2E_BASE_URL is required/);
@@ -37,4 +37,33 @@ test("refuses production and unknown hosts", () => {
 
 test("refuses a value that is not a URL", () => {
   assert.throws(() => resolveBaseUrl({ E2E_BASE_URL: "nope" }), /not a URL/);
+});
+
+test("pairs a PR preview with its Core", () => {
+  assert.equal(
+    resolvePreviewCoreUrl(
+      "https://sokosumi-app-mainnet-git-sokd-333-feature.preview.sokosumi.com",
+    ),
+    "https://sokosumi-core-mainnet-git-sokd-333-feature.preview.sokosumi.com",
+  );
+  assert.equal(
+    resolvePreviewCoreUrl(
+      "https://sokosumi-app-preprod-git-x.preview.sokosumi.com",
+    ),
+    "https://sokosumi-core-preprod-git-x.preview.sokosumi.com",
+  );
+});
+
+test("pairs no Core outside a PR preview", () => {
+  for (const url of [
+    "https://preprod.sokosumi.com",
+    "https://web-abc.vercel.app",
+    "http://localhost:3000",
+    "https://app.sokosumi.com",
+    "https://sokosumi-core-mainnet-git-x.preview.sokosumi.com",
+    "http://sokosumi-app-mainnet-git-x.preview.sokosumi.com",
+    "https://sokosumi-app-mainnet-git-x.preview.sokosumi.com.evil.example",
+  ]) {
+    assert.throws(() => resolvePreviewCoreUrl(url), /needs a PR preview/, url);
+  }
 });

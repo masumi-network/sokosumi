@@ -91,12 +91,12 @@ it("lists the daily pages; the brand's pages open from its name", async () => {
   const labels = [...container.querySelectorAll(".nav-main a")].map(
     (link) => link.querySelector(".nav-label")?.textContent,
   );
-  expect(labels).toEqual(["Today", "Chat", "Calendar", "Results", "SEO"]);
+  expect(labels).toEqual(["Today", "Chat", "Calendar", "Results"]);
   expect(container.querySelector(".nav-group")).toBeNull();
   const brand = container.querySelector<HTMLButtonElement>(".brand-button");
   expect(brand?.getAttribute("aria-haspopup")).toBe("menu");
   expect(brand?.getAttribute("aria-expanded")).toBe("false");
-  expect(brand?.hasAttribute("data-active")).toBe(false);
+  expect(brand?.hasAttribute("data-active")).toBe(true);
 
   // From the keyboard (a click with no pointer), the first page takes focus.
   await act(async () =>
@@ -112,6 +112,7 @@ it("lists the daily pages; the brand's pages open from its name", async () => {
     "Strategy",
     "Brand Brain",
     "Competitors",
+    "SEO",
     "Channels",
     "Open acme.io",
   ]);

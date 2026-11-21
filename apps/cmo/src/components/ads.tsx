@@ -2,7 +2,8 @@
 
 import type { CmoAdCampaigns, CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useAdCampaigns } from "../hooks/effects/use-ad-campaigns";
 import { AGENT_NAME } from "../lib/agent";
 import { adsReturnErrorFromCode } from "../lib/connect-return";
 import type { View } from "../lib/views";
@@ -212,26 +213,11 @@ export function AdsPanel({
   onChange: (overview: CmoOverview) => void;
   openView: (view: View) => void;
 }) {
-  const [accounts, setAccounts] = useState<AdAccounts | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const connected = overview.adProviders.length > 0;
   const { loadAdCampaigns } = actions;
-
-  useEffect(() => {
-    if (!connected) return;
-    let current = true;
-    loadAdCampaigns("LAST_7_DAYS")
-      .then((loaded) => {
-        if (current) setAccounts(loaded);
-      })
-      .catch(() => {
-        if (current) setAccounts([]);
-      });
-    return () => {
-      current = false;
-    };
-  }, [connected, loadAdCampaigns]);
+  const [accounts, setAccounts] = useAdCampaigns(connected, loadAdCampaigns);
 
   return (
     <section className="card">

@@ -45,6 +45,9 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "open_direct_chat",
   // The question is a prompt for a Coworker; a page must not write it.
   "ask_coworker",
+  // Core refuses it to a person or a room; to a Coworker or an assistant it
+  // is a question, as ask_coworker is.
+  "send_message",
   "reply_to_task",
   "assign_task",
   "update_assigned_task",

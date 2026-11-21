@@ -21,7 +21,7 @@ describe("useChatUnreadsFilter hydration", () => {
   let root: Root | undefined;
 
   afterEach(() => {
-    root?.unmount();
+    act(() => root?.unmount());
     root = undefined;
     document.body.innerHTML = "";
     document.cookie = `${CHAT_UNREADS_FILTER_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;

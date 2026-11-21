@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { publicExplorationText } from "@/helpers/project-seo-exploration-privacy";
+
 const period = z.string().regex(/^\d{4}-(?:0[1-9]|1[0-2])$/);
 const day = z.iso.date();
 const volume = z.number().int().nonnegative();
@@ -35,6 +37,45 @@ export const seoSeasonalIdeaSchema = z.object({
   language: z.string().regex(/^[a-z]{2}$/),
   pageQuote: z.string().min(8).max(180),
   action: z.enum(["improve_existing_page", "investigate_angle"]),
+  trendComparison: z
+    .array(z.object({ historicalPeriod: period, peak: z.boolean() }))
+    .max(4)
+    .optional(),
+  keywordIdeas: z
+    .array(z.string().trim().min(2).max(80).refine(publicExplorationText))
+    .max(3)
+    .optional(),
+  contentPlan: z
+    .object({
+      disposition: z.enum(["clarify", "keep", "inspect"]),
+      readerTask: z.string().trim().min(8).max(180),
+      passage: z.string().trim().min(8).max(180),
+      experiment: z
+        .object({
+          hypothesis: z
+            .string()
+            .trim()
+            .min(8)
+            .max(180)
+            .refine(publicExplorationText),
+          targetQueries: z
+            .array(
+              z.string().trim().min(2).max(80).refine(publicExplorationText),
+            )
+            .min(1)
+            .max(3),
+          successCheck: z
+            .string()
+            .trim()
+            .min(8)
+            .max(180)
+            .refine(publicExplorationText),
+        })
+        .nullable()
+        .optional(),
+      nextStep: z.string().trim().min(8).max(180),
+    })
+    .optional(),
   limitations: z
     .array(
       z.enum([

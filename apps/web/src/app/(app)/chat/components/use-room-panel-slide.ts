@@ -1,78 +1,15 @@
-import { usePresence } from "motion/react";
-import {
-  type RefObject,
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
-
-/** The enter pairing dialogs use (`duration-200 ease-out-strong`). */
-const SLIDE_MS = 200;
-const SLIDE_EASING_TOKEN = "--ease-out-strong";
+import {
+  ROOM_PANEL_SLIDE_MS,
+  readRoomPanelPaintedOffset,
+  readRoomPanelSlideEasing,
+} from "@/hooks/effects/use-room-panel-slide-out";
 
 /** Marks the header's actions, which end at the section's right edge. */
 export const ROOM_HEADER_ACTIONS_SLOT = "room-header-actions";
-
-function readSlideEasing(): string {
-  return (
-    getComputedStyle(document.documentElement)
-      .getPropertyValue(SLIDE_EASING_TOKEN)
-      .trim() || "ease-out"
-  );
-}
-
-/** How far a running slide has moved `node` from its layout position. */
-function readPaintedOffset(node: HTMLElement): number {
-  return new DOMMatrix(getComputedStyle(node).transform).m41;
-}
-
-/**
- * Slides a closing side panel out past the pane's edge, then lets
- * `AnimatePresence` unmount it. Its slot leaves the flow as soon as it closes
- * (`isPresent` false), so `useRoomPanelSlide` sees the section widen in the
- * same frame and everything moves together.
- */
-export function useRoomPanelSlideOut(
-  panelRef: RefObject<HTMLDivElement | null>,
-) {
-  const [isPresent, safeToRemove] = usePresence();
-  const reduceMotion = usePrefersReducedMotion();
-  // `safeToRemove` is new on every render. As an effect dependency, each render
-  // during the slide would restart it, and a streaming room would never let the
-  // panel unmount.
-  const removePanel = useEffectEvent(() => safeToRemove?.());
-  const shouldReduceMotion = useEffectEvent(() => reduceMotion);
-
-  // Not a layout effect: `AnimatePresence` registers the exit in its own layout
-  // effect, after this child's, and ignores a removal that comes before it.
-  useEffect(() => {
-    if (isPresent) return;
-    const panel = panelRef.current;
-    // Below `lg` the slot is `display: contents` and has no box: the panel
-    // overlays the room, so it just goes.
-    if (!panel || panel.offsetWidth === 0 || shouldReduceMotion()) {
-      removePanel();
-      return;
-    }
-    // Start from where it is painted, so closing mid-slide does not jump.
-    const exit = panel.animate(
-      [
-        { transform: `translateX(${readPaintedOffset(panel)}px)` },
-        { transform: "translateX(100%)" },
-      ],
-      { duration: SLIDE_MS, easing: readSlideEasing(), fill: "forwards" },
-    );
-    exit.onfinish = () => removePanel();
-    return () => exit.cancel();
-  }, [isPresent, panelRef]);
-
-  return isPresent;
-}
 
 /**
  * Slides the room's content column (transcript, composer), the header's actions
@@ -126,7 +63,7 @@ export function useRoomPanelSlide() {
 
       if (entries.length === 0 || !slideStateRef.current) {
         slideStateRef.current = {
-          easing: readSlideEasing(),
+          easing: readRoomPanelSlideEasing(),
           slides: new WeakMap<HTMLElement, Animation>(),
           mainWidth: main.clientWidth,
           sectionWidth: section.clientWidth,
@@ -139,7 +76,7 @@ export function useRoomPanelSlide() {
       const state = slideStateRef.current;
       const slide = (node: HTMLElement, distance: number) => {
         // Start from where it is painted, so a toggle mid-slide does not jump.
-        const startOffset = distance + readPaintedOffset(node);
+        const startOffset = distance + readRoomPanelPaintedOffset(node);
         state.slides.get(node)?.cancel();
         state.slides.set(
           node,
@@ -148,7 +85,7 @@ export function useRoomPanelSlide() {
               { transform: `translateX(${startOffset}px)` },
               { transform: "none" },
             ],
-            { duration: SLIDE_MS, easing: state.easing },
+            { duration: ROOM_PANEL_SLIDE_MS, easing: state.easing },
           ),
         );
       };

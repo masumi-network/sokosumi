@@ -749,6 +749,20 @@ a.button {
   height: 16px;
 }
 
+/* In the open post a state can carry its reason ("Didn't go out. X paused
+   our posting…"): it wraps inside the sheet instead of pushing it wider. */
+.post-foot .state,
+.sheet-state .state {
+  flex: 1 1 12rem;
+  min-width: 0;
+  white-space: normal;
+}
+
+.post-foot .state .status-disc,
+.post-foot .state svg {
+  flex: none;
+}
+
 /* ── Landing ── */
 .landing {
   flex: 1;
@@ -819,7 +833,8 @@ textarea {
   font-size: 0.75rem;
 }
 
-.app .list > li {
+.app .list > li,
+.app .sc-sources li {
   max-width: none;
 }
 
@@ -1799,21 +1814,21 @@ video.draft-media {
   aspect-ratio: 9 / 16;
 }
 
-/* Month calendar */
-.cal {
+/* The plan's month in the chat's strategy card: a mark a piece. */
+.mini-cal {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
 }
 
-.cal .dow {
+.mini-cal-dow {
   color: var(--muted);
   font-size: 0.6875rem;
   font-weight: 500;
   text-align: center;
 }
 
-.cal .d {
+.mini-cal-day {
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
@@ -1824,57 +1839,36 @@ video.draft-media {
   background: var(--surface);
 }
 
-.cal .d.blank {
+.mini-cal-day.blank {
   background: transparent;
 }
 
-.cal.big .d {
-  flex-direction: column;
-  flex-wrap: nowrap;
-  min-height: 80px;
-  padding: 6px;
-}
-
-.cal .n {
-  color: var(--muted);
-  font-size: 0.6875rem;
-  line-height: 1;
-}
-
-.entry-chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.6875rem;
-  line-height: 1.3;
-}
-
-.k {
+.kind-mark {
   display: inline-block;
   flex: none;
   width: 7px;
   height: 7px;
 }
 
-.k.post {
+.kind-post {
   border-radius: 50%;
   background: var(--foreground);
 }
 
-.k.ad {
+.kind-ad {
   background: var(--muted);
 }
 
-.k.article {
+.kind-article {
   border: var(--line-width-small) solid var(--line);
 }
 
-.k.news {
+.kind-news {
   border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
 }
 
-.legend {
+.plan-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -1882,7 +1876,7 @@ video.draft-media {
   font-size: 0.75rem;
 }
 
-.legend span {
+.plan-legend span {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1993,6 +1987,22 @@ video.draft-media {
   display: none;
 }
 
+/* On a phone the suggestions keep to one row that scrolls sideways, so the
+   thread keeps its room above the composer. */
+@media (max-width: 860px) {
+  .suggest {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    /* Room for the chips' hard shadow inside the scroller. */
+    padding: 0 6px 6px 0;
+    scrollbar-width: none;
+  }
+
+  .suggest > * {
+    flex: none;
+  }
+}
+
 .composer {
   display: flex;
   flex-direction: column;
@@ -2087,6 +2097,53 @@ video.draft-media {
   margin: 0;
 }
 
+/* Details one click deeper: each fold is a quiet row that opens to its card. */
+.seo-folds {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.seo-fold {
+  border-bottom: 1px solid var(--border);
+}
+
+.seo-fold > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seo-fold > summary .note {
+  font-weight: 400;
+}
+
+.seo-fold[open] > summary {
+  padding-bottom: 12px;
+}
+
+.seo-fold[open] > :last-child {
+  margin-bottom: 16px;
+}
+
+/* A fold's card is a page section like any other; its summary is the title. */
+.seo-fold > .card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 24px;
+}
+
+.seo-fold > .card > h3:first-child {
+  display: none;
+}
+
 .seo-item {
   align-items: flex-start;
 }
@@ -2125,6 +2182,46 @@ video.draft-media {
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface);
+}
+
+/* A page change's before and after, side by side; stacked on a phone. */
+.seo-before-after {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.seo-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.seo-side p {
+  margin: 0;
+}
+
+.seo-side:not(.seo-side-after) {
+  color: var(--muted);
+}
+
+.seo-side-after {
+  border: var(--line-width-small) solid var(--line);
+}
+
+.seo-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.seo-result-title {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .seo-search {
@@ -3931,6 +4028,14 @@ button.cal-card:hover {
   overflow: hidden;
 }
 
+/* One card a row on a phone: a post's words take their own height, not a
+   picture's, so two lines leave no empty box under them. */
+@media (max-width: 560px) {
+  .cal-thumb.cal-words {
+    aspect-ratio: auto;
+  }
+}
+
 .cal-thumb img,
 .cal-thumb video {
   width: 100%;
@@ -5154,6 +5259,9 @@ button.week-more {
 }
 .month-planned {
   background: var(--surface);
+}
+.month-not-sent {
+  background: var(--line);
 }
 
 /* Pieces settle in one after another, from where they rest. */

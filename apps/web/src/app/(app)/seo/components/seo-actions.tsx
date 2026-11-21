@@ -80,6 +80,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
           <SeoActionWorklist
             actions={overview.actions}
             evidence={evidence}
+            isExperiment={overview.isExperiment}
             severity={overview.actionSeverity}
             model={model}
           />

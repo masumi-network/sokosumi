@@ -427,6 +427,11 @@ export const cmoCalendarEntrySchema = z.object({
   why: shortText.optional(),
   socialPostId: z.string().uuid().optional(),
   /**
+   * Why its post did not go out at its time, in the owner's words. Set by
+   * Core; Cuso never sends it.
+   */
+  notSent: z.string().trim().min(1).max(300).optional(),
+  /**
    * What the piece's picture or video shows, for a format that has one. Core
    * makes it from this, attaches it and makes each carousel slide.
    */

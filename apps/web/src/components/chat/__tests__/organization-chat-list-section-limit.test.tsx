@@ -60,7 +60,7 @@ describe("OrganizationChatList section limit", () => {
   });
 
   it("stops a long section at the limit with a toggle for the rest", () => {
-    renderOrganizationChatList({ rooms: channels() });
+    renderOrganizationChatList({ rooms: channels(), paintOnly: true });
 
     expect(screen.getByText("ch-5")).toBeInTheDocument();
     expect(screen.queryByText("ch-6")).not.toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("OrganizationChatList section limit", () => {
           ? { ...room, discoverability: "private" as const }
           : room,
       );
-      renderOrganizationChatList({ rooms });
+      renderOrganizationChatList({ rooms, paintOnly: true });
 
       expect(
         screen.getAllByTestId("room-row").map((row) => row.textContent),
@@ -119,6 +119,7 @@ describe("OrganizationChatList section limit", () => {
   it("always lists an unread room and the open room past the limit", () => {
     harnessPathname.current = "/chat/rooms/ch-8";
     renderOrganizationChatList({
+      paintOnly: true,
       rooms: channels({
         "ch-7": {
           unreadCount: 2,
@@ -197,7 +198,10 @@ describe("OrganizationChatList section limit", () => {
         updatedAt: new Date(Date.UTC(2026, 0, 20 - index)),
       }),
     );
-    renderOrganizationChatList({ rooms: [...channels(), ...directs] });
+    renderOrganizationChatList({
+      rooms: [...channels(), ...directs],
+      paintOnly: true,
+    });
 
     expect(screen.getAllByRole("button", { name: SHOW_MORE })).toHaveLength(2);
   });

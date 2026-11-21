@@ -153,6 +153,7 @@ export interface ChatBot {
   avatarCode?: string | null;
   versionId: string | null;
   followWholeBoard: boolean;
+  joinsTeamStandup: boolean;
   mailAutoRead: boolean;
   ingestTimezone: string;
   proactivePaused: boolean;
@@ -314,6 +315,7 @@ function toChatBot(bot: SokoBot): ChatBot {
     avatarCode: bot.avatarCode ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
+    joinsTeamStandup: bot.joinsTeamStandup ?? false,
     mailAutoRead: bot.mailAutoRead ?? false,
     ingestTimezone: bot.ingestTimezone ?? "Europe/Berlin",
     proactivePaused: bot.proactivePaused ?? false,
