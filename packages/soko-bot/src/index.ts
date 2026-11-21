@@ -139,6 +139,8 @@ export {
   cmoSearchAdSchema,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
+  PICTURE_KINDS,
+  type PictureKind,
   REFERENCE_KINDS,
   REFERENCE_PURPOSES,
   type SocialPostPlanning,
@@ -280,6 +282,7 @@ export {
 } from "./tool-contracts.js";
 export {
   CMO_BATCHED_PRODUCTION_SKILL,
+  CMO_PICKED_PIECE_WRITING_GUIDE,
   CMO_PIECE_WRITING_GUIDE,
   CMO_SCENE_PIECE_WRITING_GUIDE,
   CMO_VARIED_PIECE_WRITING_GUIDE,
@@ -290,6 +293,7 @@ export {
   CMO_VARIED_PRODUCTION_SKILL,
 } from "./versions/cmo-v8-skills.js";
 export { CMO_SCENE_PRODUCTION_SKILL } from "./versions/cmo-v9-skills.js";
+export { CMO_PICKED_PRODUCTION_SKILL } from "./versions/cmo-v11-skills.js";
 export {
   CMO_SEO_REPORTS_SKILL,
   cmoReportsSeo,

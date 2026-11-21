@@ -508,6 +508,7 @@ model Project {
   seoActionTasks          ProjectSeoActionTask[]
   seoSuggestions          ProjectSeoSuggestion[]
   seoResearch             ProjectSeoResearch[]
+  cmoPicturePicks         CmoPicturePick[]
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
@@ -517,6 +518,11 @@ model Project {
   studioBrandLookRevision Int       @default(0)
   designMdUrl             String?
   designMdExtractionId    String?
+  /// One sentence describing how this brand's pictures look, written once
+  /// from its DESIGN.md for pictures that borrow only a layout (cmo-v11).
+  cmoPictureStyle         String?
+  /// The DESIGN.md the sentence was written from; a new one rewrites it.
+  cmoPictureStyleSource   String?
   /// Markdown guidance for drafting this Project's social posts (tone,
   /// hashtags, CTAs, optional `##` per-platform sections). Separate from
   /// project memory (contextMd) and DESIGN.md.
@@ -5402,6 +5408,10 @@ model ProjectImageJob {
   /// Reference library images (`reference_image`) sent first, as the style to
   /// borrow: Cuso's pictures in the look of an old ad or poster.
   referenceLibraryIds String[] @default([]) @db.Uuid
+  /// Send the reference library image as a block map of its layout only
+  /// (three greys, no texture), so the picture borrows where things sit and
+  /// none of the old print's look (cmo-v11).
+  styleLayoutOnly     Boolean  @default(false)
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 

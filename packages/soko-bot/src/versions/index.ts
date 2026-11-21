@@ -24,6 +24,7 @@ import { cmoV7 } from "./cmo-v7.js";
 import { cmoV8 } from "./cmo-v8.js";
 import { cmoV9 } from "./cmo-v9.js";
 import { cmoV10 } from "./cmo-v10.js";
+import { cmoV11 } from "./cmo-v11.js";
 import { cmoV12 } from "./cmo-v12.js";
 import {
   getSokoBotSkill,
@@ -125,6 +126,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV8,
   cmoV9,
   cmoV10,
+  cmoV11,
   cmoV12,
   ...CMO_MODEL_TRIALS,
 ];

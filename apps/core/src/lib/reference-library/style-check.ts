@@ -50,6 +50,13 @@ Answer each field from what you see:
 - screenFaithful: true when no brand pictures are given, or the picture shows nothing of them. Otherwise true only when what it shows of the brand's site, screen or product matches them: no price, number, plan name, label or interface detail they do not show.
 - problems: short reasons for each failure, empty when it passes.`;
 
+/**
+ * Added for a cmo-v11 picture: it borrowed only the print's layout and is
+ * drawn in the brand's own look.
+ */
+const LAYOUT_ONLY = `
+The second image is the old print whose LAYOUT only the picture was told to follow, drawn in the brand's own look instead: following its composition is the point, and its colours, era, paper, technique and lettering are not wanted, so missing them never counts against the picture. copiedFromReference is still true for its own figures, objects, words or a drawing redrawn from it.`;
+
 /** Added when the brand's logo was sent as an image to draw in. */
 const LOGO = `
 The third image is the brand's logo, which the picture was told to draw into its design. It counts for logo; its words are not extra words.`;
@@ -97,6 +104,8 @@ export async function checkStyledPicture(input: {
   colours: readonly string[];
   /** The brand's logo, when the picture was told to draw it in. */
   logo?: Uint8Array | null;
+  /** It borrowed only the reference's layout (cmo-v11). */
+  layoutOnly?: boolean;
   /**
    * What the picture was asked to show. A token business's scenes ask for
    * tokens, which the check once turned down as stray coins (2026-11-20).
@@ -122,6 +131,7 @@ export async function checkStyledPicture(input: {
     output: Output.object({ schema: verdictSchema }),
     system:
       RUBRIC +
+      (input.layoutOnly ? LAYOUT_ONLY : "") +
       (logo ? LOGO : "") +
       (brandPictures.length > 0 ? BRAND_PICTURES : ""),
     maxRetries: 1,

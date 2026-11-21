@@ -1,5 +1,6 @@
 import {
   type BrandBrain,
+  CMO_PICKED_PIECE_WRITING_GUIDE,
   CMO_PIECE_WRITING_GUIDE,
   CMO_PRODUCTION_TURN_PREFIX,
   CMO_SCENE_PIECE_WRITING_GUIDE,
@@ -7,6 +8,8 @@ import {
   type CmoCalendarEntry,
   getSokoBotVersion,
   type MarketingStrategyPlan,
+  PICTURE_KINDS,
+  type PictureKind,
   REFERENCE_PURPOSES,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
@@ -35,10 +38,13 @@ import {
   type CmoKindedPiece,
   cmoAllowedKinds,
   cmoMakesVariedMonth,
+  cmoNeighbourlyKind,
+  cmoPicksPictures,
   cmoPieceIsTalking,
   cmoPieceNeedsMedia,
   cmoPieceTakesStyle,
   cmoWritesSceneVisuals,
+  LAYOUT_KINDS,
 } from "@/services/cmo-media-maker.service";
 import { cmoDraftProblems } from "@/services/cmo-plan-review.service";
 import {
@@ -93,6 +99,8 @@ const writtenPieceSchema = z.object({
   visualFileIds: z.array(z.string()).nullable(),
   slides: z.array(z.string()).nullable(),
   styleLook: z.string().nullable(),
+  /** The kind of picture a cmo-v11 picture is drawn as. */
+  pictureKind: z.enum(PICTURE_KINDS).nullable(),
   /** What the picture is for: only data and comparison take an infographic (cmo-v8). */
   purpose: z.enum(REFERENCE_PURPOSES).nullable(),
   headline: z.string().nullable(),
@@ -150,19 +158,25 @@ export function cmoWriterSystem(input: {
   varied?: boolean;
   /** cmo-v9: a styled picture's visual is a scene alone. */
   scenes?: boolean;
+  /** cmo-v11: pictures borrow a print's layout, in a varied picture kind. */
+  picked?: boolean;
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
   return [
     `You are Cuso, the CMO of ${input.businessName}. You write pieces of its approved month. Core checks and saves each piece you return, makes its picture or video and schedules it.`,
-    input.scenes
-      ? CMO_SCENE_PIECE_WRITING_GUIDE
-      : input.varied
-        ? CMO_VARIED_PIECE_WRITING_GUIDE
-        : CMO_PIECE_WRITING_GUIDE,
-    input.styles
-      ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
-      : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
+    input.picked
+      ? CMO_PICKED_PIECE_WRITING_GUIDE
+      : input.scenes
+        ? CMO_SCENE_PIECE_WRITING_GUIDE
+        : input.varied
+          ? CMO_VARIED_PIECE_WRITING_GUIDE
+          : CMO_PIECE_WRITING_GUIDE,
+    input.styles && input.picked
+      ? "Pictures here borrow an old print's layout and are drawn in the brand's own look: give every piece with a picture a styleLook (the composition), a pictureKind, and a headline or slideHeadlines. Leave pictureKind null for any other piece."
+      : input.styles
+        ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
+        : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
     writingSkillsBrief(live.map((entry) => entry.channel)),
     "Brand Brain:",
     JSON.stringify(compactBrandBrain(input.brain)),
@@ -347,6 +361,7 @@ export async function writeCmoMonthPieces(
 
   const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
   const varied = cmoMakesVariedMonth(authorized.turn.versionId);
+  const picksPictures = cmoPicksPictures(authorized.turn.versionId);
   const praise = varied
     ? await cmoPraiseOnly(cmoProofPoints(brain))
     : { points: cmoProofPoints(brain), costUsd: 0 };
@@ -362,6 +377,7 @@ export async function writeCmoMonthPieces(
     styles,
     varied,
     scenes: cmoWritesSceneVisuals(authorized.turn.versionId),
+    picked: picksPictures,
   });
   const modelId = getSokoBotVersion(authorized.turn.versionId).model;
   const request = sokoBotModelRequest({
@@ -404,6 +420,8 @@ export async function writeCmoMonthPieces(
         ]
       : [];
   });
+  // The picture kinds this call gave, beside those the calendar already holds.
+  const pictureKinds = new Map<string, PictureKind>();
   const planned = strategy.calendar.filter(
     (entry) => entry.status !== "skipped" && cmoPieceTakesStyle(entry),
   ).length;
@@ -457,7 +475,7 @@ export async function writeCmoMonthPieces(
                 month: kinded,
                 infographicSuits: infographicSuits(purpose),
                 planned,
-              }),
+              }).filter((kind) => !picksPictures || LAYOUT_KINDS.has(kind)),
             }
           : {}),
       });
@@ -476,10 +494,21 @@ export async function writeCmoMonthPieces(
         });
       }
     }
+    const pictureKind =
+      picksPictures && styleReferenceId
+        ? cmoNeighbourlyKind(
+            written.pictureKind,
+            piece,
+            strategy.calendar,
+            pictureKinds,
+          )
+        : undefined;
+    if (pictureKind) pictureKinds.set(piece.id, pictureKind);
     return {
       ...pieceEntry(piece),
       visual: written.visual,
       visualFileIds: (written.visualFileIds ?? []).slice(0, 3),
+      ...(pictureKind ? { pictureKind } : {}),
       ...(written.slides?.length
         ? { slides: written.slides.slice(0, 10) }
         : {}),
