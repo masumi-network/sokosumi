@@ -9,6 +9,8 @@ export const siteTrafficInput = z
     propertyId: z.string().min(1).max(500),
     scope: z.enum(["site", "selected"]),
     pageIds: z.array(seoIdSchema).min(1).max(SEO_MAX_PAGES),
+    pageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES).optional(),
+    includeDaily: z.boolean().optional(),
     from: seoDateSchema,
     to: seoDateSchema,
     searchType: seoSearchTypeSchema,
@@ -34,6 +36,10 @@ export const siteTrafficReport = z
     from: seoDateSchema,
     to: seoDateSchema,
     totals: counts.nullable(),
+    daily: z
+      .array(counts.extend({ date: seoDateSchema }))
+      .max(SEO_STATS_MAX_DAYS)
+      .optional(),
     limited: z.boolean(),
     pages: z.array(
       counts.extend({

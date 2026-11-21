@@ -26,6 +26,7 @@ export function useSeoStatisticsProperties(
   provider: SeoStatisticsProvider,
   enabled: boolean,
   selectionContext?: string,
+  additionalPageUrls: readonly string[] = [],
 ) {
   const { data: session } = useSession();
   const client = useQueryClient();
@@ -97,6 +98,10 @@ export function useSeoStatisticsProperties(
           (property) =>
             pages.length > 0 &&
             pages.length === workspace.scope.pageIds.length &&
+            additionalPageUrls.every(
+              (url) =>
+                seoMatchingProperty(provider, [property], url) === property.id,
+            ) &&
             pages.every(
               (page) =>
                 seoMatchingProperty(provider, [property], page.url) ===

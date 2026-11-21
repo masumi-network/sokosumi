@@ -17,18 +17,12 @@ export function SeoPropertyPageDiscovery({
   actionsOnly?: boolean;
 }) {
   const t = useSeoResultTranslations("App.Seo.pageDiscovery");
-  const format = useSeoResultFormatter();
   const discovery = report.pageDiscovery;
   if (!discovery) return null;
   const pages = actionsOnly
     ? discovery.pages.filter((page) => page.suggestion)
     : discovery.pages;
   if (actionsOnly && !pages.length) return null;
-  const period = (value: { from: Date | string; to: Date | string }) =>
-    t("range", {
-      from: new Date(value.from).toISOString().slice(0, 10),
-      to: new Date(value.to).toISOString().slice(0, 10),
-    });
   return (
     <section lang="en" className="min-w-0 space-y-2">
       <h4 className="font-semibold">{t(actionsOnly ? "reviews" : "title")}</h4>
@@ -56,47 +50,7 @@ export function SeoPropertyPageDiscovery({
                     </span>
                   </span>
                 </SeoFoldSummary>
-                {page.expectedEffect && (
-                  <p className="mt-2">{page.expectedEffect}</p>
-                )}
-                <dl className="mt-3 space-y-2">
-                  {(
-                    [
-                      ["audit", report, page.totals],
-                      ["recent", discovery.recent, page.recent],
-                      ["previous", discovery.previous, page.previous],
-                    ] as const
-                  ).map(([key, window, counts]) => (
-                    <div key={key}>
-                      <dt className="text-muted-foreground">
-                        {t(key)} · {period(window)}
-                      </dt>
-                      <dd>{t("counts", counts)}</dd>
-                    </div>
-                  ))}
-                  {page.query && (
-                    <div>
-                      <dt className="text-muted-foreground">{t("query")}</dt>
-                      <dd className="break-words" dir="auto">
-                        {page.query.query}
-                      </dd>
-                      <dd>
-                        {t("counts", page.query)} ·{" "}
-                        {t("position", {
-                          value: format.number(page.query.averagePosition, {
-                            maximumFractionDigits: 1,
-                          }),
-                        })}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-                <p className="my-2 text-muted-foreground">
-                  {page.suggestion
-                    ? t(page.reason)
-                    : t(page.queryUnavailable ? "queryUnavailable" : "observe")}
-                </p>
-                <SeoPageLink url={page.pageUrl} label={t("openPage")} />
+                <SeoPropertyPageFacts report={report} page={page} />
               </details>
             </li>
           ))}
@@ -106,5 +60,67 @@ export function SeoPropertyPageDiscovery({
         <p className="text-xs text-muted-foreground">{t("limited")}</p>
       )}
     </section>
+  );
+}
+
+export interface SeoPropertyPageFactsProps {
+  report: Report;
+  page: NonNullable<Report["pageDiscovery"]>["pages"][number];
+}
+export function SeoPropertyPageFacts({
+  report,
+  page,
+}: SeoPropertyPageFactsProps) {
+  const discovery = report.pageDiscovery;
+  const t = useSeoResultTranslations("App.Seo.pageDiscovery");
+  const format = useSeoResultFormatter();
+  if (!discovery) return null;
+  const period = (value: { from: Date | string; to: Date | string }) =>
+    t("range", {
+      from: new Date(value.from).toISOString().slice(0, 10),
+      to: new Date(value.to).toISOString().slice(0, 10),
+    });
+  return (
+    <>
+      {page.expectedEffect && <p className="mt-2">{page.expectedEffect}</p>}
+      <dl className="mt-3 space-y-2">
+        {(
+          [
+            ["audit", report, page.totals],
+            ["recent", discovery.recent, page.recent],
+            ["previous", discovery.previous, page.previous],
+          ] as const
+        ).map(([key, window, counts]) => (
+          <div key={key}>
+            <dt className="text-muted-foreground">
+              {t(key)} · {period(window)}
+            </dt>
+            <dd>{t("counts", counts)}</dd>
+          </div>
+        ))}
+        {page.query && (
+          <div>
+            <dt className="text-muted-foreground">{t("query")}</dt>
+            <dd className="break-words" dir="auto">
+              {page.query.query}
+            </dd>
+            <dd>
+              {t("counts", page.query)} ·{" "}
+              {t("position", {
+                value: format.number(page.query.averagePosition, {
+                  maximumFractionDigits: 1,
+                }),
+              })}
+            </dd>
+          </div>
+        )}
+      </dl>
+      <p className="my-2 text-muted-foreground">
+        {page.suggestion
+          ? t(page.reason)
+          : t(page.queryUnavailable ? "queryUnavailable" : "observe")}
+      </p>
+      <SeoPageLink url={page.pageUrl} label={t("openPage")} />
+    </>
   );
 }

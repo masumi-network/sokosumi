@@ -552,7 +552,7 @@ it("preserves each broad audit's ranking across shared keywords and keeps earlie
   expect(checked.map((group) => group.lead.keyword)).toEqual(["best idea"]);
 });
 
-it("caps the selected broad view at fifty distinct ideas across pages and audits and applies search before the cap", () => {
+it("preserves all distinct ideas across pages and audits so filtering uses a complete reference set", () => {
   const latest = {
     source: "opportunity",
     observationId: "new",
@@ -577,12 +577,12 @@ it("caps the selected broad view at fifty distinct ideas across pages and audits
   });
   const all = [old, ...rows];
   const { ideas } = keywordGroups(all);
-  expect(ideas).toHaveLength(50);
+  expect(ideas).toHaveLength(60);
   expect(
     ideas.filter((group) => group.lead.keyword === "shared query"),
   ).toHaveLength(1);
   expect(ideas[0].lead.pageUrl).toBe("https://example.com/a");
-  expect(ideas.some((group) => group.lead.keyword === "old query")).toBe(false);
+  expect(ideas.some((group) => group.lead.keyword === "old query")).toBe(true);
   expect(
     keywordGroups(all.toReversed()).ideas.map((group) => group.lead.id),
   ).toEqual(ideas.map((group) => group.lead.id));
@@ -615,7 +615,7 @@ it("caps the selected broad view at fifty distinct ideas across pages and audits
       },
     },
   ];
-  expect(workspaceKeywordGroups(workspace).ideas).toHaveLength(50);
+  expect(workspaceKeywordGroups(workspace).ideas).toHaveLength(51);
   expect(workspaceKeywordGroups(workspace, [legacy[50]]).ideas).toHaveLength(1);
 });
 

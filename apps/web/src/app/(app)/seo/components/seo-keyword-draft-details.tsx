@@ -9,14 +9,11 @@ import {
 } from "@/i18n/use-seo-result-translations";
 import { seoClickGain, seoKeywordBriefSite } from "./seo-keyword-map-model";
 import {
-  MEDIUM_DIFFICULTY_FROM,
-  recommendation,
-} from "./seo-keyword-recommendations";
-import {
   SEO_IDEA_SOURCES,
   type SeoKeywordGroup,
   seoDifficultyBand,
 } from "./seo-keyword-rows-model";
+import type { IdeaAssessment } from "./seo-keyword-shortlist";
 import { SeoPageText, seoMarketName } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -24,12 +21,14 @@ export function SeoKeywordDraftDetails({
   group,
   model,
   idea = true,
+  assessment,
   onLeave,
   track,
 }: {
   group: SeoKeywordGroup;
   model: SeoWorkspaceModel;
   idea?: boolean;
+  assessment?: IdeaAssessment;
   onLeave?: () => void;
   track?: React.ReactNode;
 }) {
@@ -42,7 +41,6 @@ export function SeoKeywordDraftDetails({
   const action = model.brief?.data?.pages.find(
     (goal) => goal.pageId === page?.id,
   )?.action;
-  const reason = idea ? recommendation(group) : null;
   const url = pageUrl ?? page?.url;
   const format = useSeoResultFormatter();
   const wizard = useOptionalNewTaskWizard();
@@ -83,25 +81,25 @@ export function SeoKeywordDraftDetails({
           </blockquote>
         </div>
       )}
-      {reason && (
+      {assessment && (
         <div lang="en" className="space-y-1">
           <p className="font-medium">
-            {result(`keywords.recommendation.${reason}`)}
+            {result(`keywords.shortlist.${assessment.reason}`, {
+              median: assessment.medianExtra,
+            })}
           </p>
-          {(reason === "both" || reason === "competition") &&
-            group.difficulty !== null && (
+          {assessment.lift !== null &&
+            assessment.extra !== null &&
+            assessment.extra > 0 && (
               <p className="text-xs">
-                {result("keywords.recommendation.easeEvidence", {
-                  value: group.difficulty,
-                  limit: MEDIUM_DIFFICULTY_FROM,
+                {result("keywords.shortlist.lift", {
+                  percent: format.number(assessment.lift, {
+                    style: "percent",
+                    maximumFractionDigits: 1,
+                  }),
                 })}
               </p>
             )}
-          {(reason === "both" || reason === "goal") && (
-            <p className="text-xs">
-              {result("keywords.recommendation.goalEvidence")}
-            </p>
-          )}
         </div>
       )}
       {gain && (

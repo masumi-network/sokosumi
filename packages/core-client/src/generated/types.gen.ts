@@ -13115,6 +13115,11 @@ export type SeoSiteTrafficReport = {
         clicks: number;
         impressions: number;
     } | null;
+    daily?: Array<{
+        clicks: number;
+        impressions: number;
+        date: string;
+    }>;
     limited: boolean;
     pages: Array<{
         clicks: number;
@@ -13133,6 +13138,8 @@ export type SeoSiteTrafficInput = {
     propertyId: string;
     scope: 'site' | 'selected';
     pageIds: Array<string>;
+    pageUrls?: Array<string>;
+    includeDaily?: boolean;
     from: string;
     to: string;
     searchType: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';

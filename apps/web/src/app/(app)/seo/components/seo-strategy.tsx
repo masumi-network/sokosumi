@@ -3,7 +3,7 @@
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
 import { Bot, Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { useClipboard } from "@/hooks/effects/use-clipboard";
@@ -13,17 +13,7 @@ import {
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoActionCardHead } from "./seo-card-head";
-import { seoPlaces } from "./seo-places-model";
-import {
-  SEO_ROW_LIST_CLASS,
-  SeoDate,
-  SeoFoldSummary,
-  SeoPageLink,
-  SeoSection,
-  SeoShowMore,
-  SeoSource,
-  seoFoldCount,
-} from "./seo-shared";
+import { SeoDate, SeoFoldSummary, SeoPageLink, SeoSource } from "./seo-shared";
 import { SeoStrategyForumQuestions } from "./seo-strategy-forum-questions";
 import {
   SEO_STRATEGY_PLACE_FORMS,
@@ -40,8 +30,6 @@ import {
 import { SeoStrategyPurpose } from "./seo-strategy-purpose";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** Under the fixes the list starts with this many actions: eight rows after five fix rows read as one long list. */
-const SEO_STRATEGY_ACTIONS_AFTER_FIXES = 3;
 function useStrategyLabels() {
   const t = useSeoResultTranslations("App.Seo");
   return {
@@ -283,7 +271,7 @@ function StrategyDraft({ text, titleId }: { text: string; titleId: string }) {
  * One action of the keyword strategy. Closed, it is one row: the title and the effort, so a list of
  * actions reads as a list. Open, it adds the reason, the places, the limit, the suggested text and the button.
  */
-function StrategyActionCard({
+export function StrategyActionCard({
   action,
   model,
   startOpen,
@@ -492,163 +480,6 @@ function StrategyActionBody({
           <Bot />
           {t("agent.askHow")}
         </Button>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * Why the audit has no action or no ready text for a promotion place: a call that failed, a community whose terms
- * ban promotion. A section of its own, so it shows also when the audit has no action.
- */
-export function SeoStrategyPlaceNotes({ model }: { model: SeoWorkspaceModel }) {
-  const t = useTranslations("App.Seo");
-  const notes = model.data.strategy?.placesNotes ?? [];
-  if (!notes.length) return null;
-  return (
-    <SeoSection
-      title={t("strategy.places.title")}
-      description={t("strategy.places.help")}
-    >
-      <div
-        className="max-w-prose px-2 pb-2 text-sm"
-        data-testid="seo-strategy-place-notes"
-      >
-        <StrategyLines lines={notes} />
-      </div>
-    </SeoSection>
-  );
-}
-
-/**
- * The actions of the audit's keyword strategy: a listing on another site, a new page, a page with a new target,
- * a place to promote the product in.
- * None is one page edit, so none has a draft Task. The button puts a question in the chat field and sends nothing.
- */
-export function SeoStrategyActions({
-  model,
-  afterFixes = false,
-}: {
-  model: SeoWorkspaceModel;
-  /** The list stands under the fixes of the tab. Alone on the tab, it is the page and shows a full list. */
-  afterFixes?: boolean;
-}) {
-  const t = useTranslations("App.Seo");
-  const result = useSeoResultTranslations("App.Seo");
-  // A row that names these actions (Agent tab, Competitors list) leads here: the reader sees the count it named.
-  const { shownStrategy, setShownStrategy } = model;
-  // The list is open on its first paint then, so the group scrolls into view at its full height.
-  const [expanded, setExpanded] = useState(shownStrategy);
-  const [placesOpen, setPlacesOpen] = useState(shownStrategy);
-  // The reader came for these actions: the first one is open, as the first fix is, so eight equal rows have a
-  // lead. The longer group also has room to scroll up to the top of a desktop screen.
-  const [led, setLed] = useState(shownStrategy);
-  const group = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!shownStrategy) return;
-    setExpanded(true);
-    setPlacesOpen(true);
-    setLed(true);
-    group.current?.scrollIntoView({ block: "start" });
-    group.current?.focus({ preventScroll: true });
-    setShownStrategy(false);
-  }, [shownStrategy, setShownStrategy]);
-  const { places, rest: actions } = seoPlaces(
-    model.data.strategy?.actions ?? [],
-  );
-  if (!actions.length && !places.length) return null;
-  const fold = afterFixes ? SEO_STRATEGY_ACTIONS_AFTER_FIXES : undefined;
-  const visible = seoFoldCount(actions.length, fold);
-  const placesVisible = seoFoldCount(places.length, fold);
-  return (
-    <div
-      ref={group}
-      // It takes the focus after such a row, so a screen reader names it.
-      role="group"
-      aria-label={t("strategy.title")}
-      tabIndex={-1}
-      // On a phone the app header lies over the top of the scroll area.
-      className="focus-visible:outline-ring scroll-mt-20 space-y-5 rounded-xl focus-visible:outline-2 md:scroll-mt-4"
-    >
-      {/* The title says where the actions come from: a sentence under it said the same. */}
-      {actions.length ? (
-        <SeoSection title={t("strategy.actions.title")}>
-          <ul role="list" className={SEO_ROW_LIST_CLASS}>
-            {(expanded ? actions : actions.slice(0, visible)).map(
-              (action, index) => (
-                <li key={`${index}:${action.title}`}>
-                  <StrategyActionCard
-                    action={action}
-                    model={model}
-                    startOpen={actions.length === 1 || (led && index === 0)}
-                  />
-                </li>
-              ),
-            )}
-          </ul>
-          {actions.length > visible ? (
-            <SeoShowMore
-              more={t("strategy.actions.more", {
-                count: actions.length - visible,
-              })}
-              expanded={expanded}
-              onToggle={() => setExpanded((open) => !open)}
-            />
-          ) : null}
-        </SeoSection>
-      ) : null}
-      {places.length ? (
-        // Communities, lists, directories and stores in one list, easiest first: each is a place to get a link. No
-        // line says the order: each row reads "Easy · Seen in 11 Google results", in that order.
-        <SeoSection title={t("strategy.links.title")}>
-          <ul
-            role="list"
-            className={SEO_ROW_LIST_CLASS}
-            data-testid="seo-strategy-places"
-          >
-            {(placesOpen ? places : places.slice(0, placesVisible)).map(
-              (place, index) => (
-                <li key={place.key}>
-                  <StrategyActionCard
-                    action={place.action}
-                    model={model}
-                    title={
-                      place.task
-                        ? result(`strategy.links.task.${place.task}`, {
-                            site: place.name,
-                          })
-                        : place.name
-                    }
-                    page={place.page}
-                    // The ease in words, with no coloured dot: the accent is a fill, orange means impact.
-                    meta={[
-                      result(`strategy.links.ease.${place.ease}`),
-                      place.reads
-                        ? result("strategy.links.reach", place.reads)
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    note={result(`strategy.links.reason.${place.reason}`)}
-                    startOpen={
-                      places.length === 1 ||
-                      (led && !actions.length && index === 0)
-                    }
-                  />
-                </li>
-              ),
-            )}
-          </ul>
-          {places.length > placesVisible ? (
-            <SeoShowMore
-              more={t("strategy.links.more", {
-                count: places.length - placesVisible,
-              })}
-              expanded={placesOpen}
-              onToggle={() => setPlacesOpen((open) => !open)}
-            />
-          ) : null}
-        </SeoSection>
       ) : null}
     </div>
   );

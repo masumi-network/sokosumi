@@ -3283,7 +3283,7 @@ describe("scoped checklist and research coverage", () => {
       expect.objectContaining({
         name: "editorial",
         status: "unknown",
-        reason: expect.stringContaining("editorial research"),
+        reason: expect.stringContaining("keyword research"),
       }),
       { name: "exploration", status: "unknown" },
     ]);
@@ -3456,14 +3456,19 @@ it("projects an unknown visitor check and each Google Trends row, excluding unkn
   // Previously imported reports can still contain the provider detail on disk.
   const retained = structuredClone(report);
   retained.researchCoverage![0]!.trends!.keywords[1]!.note = failed.note;
+  retained.researchCoverage![0]!.trends!.note =
+    "Context only. Values are relative, 0 to 100, within one request (Google Trends help).";
   current.observations.push(observation(current, retained, now.toISOString()));
   const [research] =
     projectSeoProjection(current).observations[0]!.checklistBreakdown!.research;
+  expect(research?.trends?.note).toBe(
+    "For each term, 100 marks its peak search interest in this period.",
+  );
   expect(research?.trends?.keywords).toEqual([
     row,
     {
       ...failed,
-      note: "The Google Trends request did not return usable data.",
+      note: "Google Trends returned no usable data.",
     },
   ]);
   expect(research?.firstScreen).toEqual(firstScreen);

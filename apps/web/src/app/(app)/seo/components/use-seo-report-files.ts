@@ -38,7 +38,10 @@ function needsPropertyEvidence(
   );
 }
 
-export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
+export function useSeoReportFiles(
+  { model, versions }: SeoReportFileProps,
+  loadFiles: boolean,
+) {
   const t = useTranslations("App.Seo.reportFiles");
   const report = useSeoResultTranslations("App.Seo");
   const format = useSeoResultFormatter();
@@ -176,7 +179,7 @@ export function useSeoReportFiles({ model, versions }: SeoReportFileProps) {
       marketFileId,
       speedFileId,
     ],
-    enabled: Boolean(userId),
+    enabled: loadFiles && Boolean(userId),
     gcTime: 0,
     retry: false,
     queryFn: async () => {

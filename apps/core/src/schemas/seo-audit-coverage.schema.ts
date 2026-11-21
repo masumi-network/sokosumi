@@ -29,7 +29,20 @@ export const storedSeoChecklist = z
 const researchStage = z.object({
   name: z.enum(["seasonal", "editorial", "exploration"]),
   status: z.enum(["completed", "partial", "skipped", "no_finding", "unknown"]),
-  reason: z.string().max(400).optional(),
+  reason: z
+    .string()
+    .max(400)
+    .overwrite((text) => {
+      if (text === "The remaining data budget could not cover validation.")
+        return "The remaining budget could not cover another keyword check.";
+      if (
+        text ===
+        "The exploration found no new recommendation with enough evidence."
+      )
+        return "The audit found no new recommendation.";
+      return text;
+    })
+    .optional(),
 });
 
 export const seoResearchCoverage = z.object({

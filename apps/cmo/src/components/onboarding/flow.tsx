@@ -4,13 +4,12 @@ import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { useCallback, useEffect, useState } from "react";
+import { useOnboardingReturnNotice } from "../../hooks/effects/use-onboarding-return-notice";
 import { useOnboardingStepScroll } from "../../hooks/effects/use-onboarding-step-scroll";
 import type { CusoMessage } from "../../lib/chat-messages";
-import { connectReturnError } from "../../lib/connect-return";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { AccountMenu } from "../account-menu";
-import { adsReturnError } from "../ads";
 import { subscribeOffer } from "../app/paused";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
@@ -76,23 +75,10 @@ export function OnboardingFlow({
     initialStep === "results" ? "plan" : null,
   );
   // Why a connection came back without an account, read before the query goes.
-  const [returnNotice, setReturnNotice] = useState<string | null>(null);
+  const returnNotice = useOnboardingReturnNotice(returnedFromCheckout);
   // One-shot measurement return error: consumed when leaving Results or Plan so
   // revisiting Brand and returning to Strategy never replays it.
   const [pendingMeasureError, setPendingMeasureError] = useState(measureError);
-
-  // The connection redirect's query has been read; a reload routes from Core.
-  useEffect(() => {
-    setReturnNotice(
-      connectReturnError(
-        new URLSearchParams(window.location.search).get("connect"),
-      ) ?? adsReturnError(),
-    );
-    // Polar's return address stays, so a reload keeps confirming the payment.
-    if (window.location.search && !returnedFromCheckout) {
-      window.history.replaceState(null, "", "/");
-    }
-  }, [returnedFromCheckout]);
 
   const refresh = useCallback(async () => {
     const state = await actions.loadState().catch(() => null);

@@ -241,16 +241,20 @@ export function seoQueryPeriod(
 export function seoDefaultMetric<
   Metric extends Pick<ProjectSeoMetric, "unit" | "points">,
 >(metrics: Metric[]) {
+  const measured = metrics.filter((metric) =>
+    metric.points.some((point) => point.value !== null),
+  );
+  const candidates = measured.length ? measured : metrics;
   const activeDays = (metric: Metric) =>
     metric.points.filter((point) => (point.value ?? 0) > 0).length;
   let best: Metric | undefined;
-  for (const metric of metrics)
+  for (const metric of candidates)
     if (
       metric.unit === "count" &&
       (!best || activeDays(metric) > activeDays(best))
     )
       best = metric;
-  return best ?? metrics[0];
+  return best ?? candidates[0];
 }
 
 /** Google search totals for the selected pages and the days Google reported, or null before both counts exist. */

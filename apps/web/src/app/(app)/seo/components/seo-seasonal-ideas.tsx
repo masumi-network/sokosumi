@@ -82,7 +82,8 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
           // What to confirm before acting, as one list: separate grey lines
           // read like more evidence and hid where the checks begin.
           const checks = [
-            ...(!hasComparison && !idea.windows.length
+            ...((hasComparison || idea.windows.length > 0) &&
+            idea.limitations.includes("demand_unverified")
               ? (["verifyDemand"] as const)
               : []),
             ...idea.limitations.filter(
@@ -103,7 +104,7 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                 idea.audience,
                 idea.event?.date,
               ])}
-              className="space-y-1 px-2 py-3 wrap-anywhere"
+              className="space-y-2 px-3 py-4 wrap-anywhere"
             >
               <h3 className="text-sm font-medium">
                 <bdi lang={idea.language}>{idea.keyword}</bdi>
@@ -222,15 +223,10 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                   {t(hasComparison ? status : "noWindowRise")}
                 </p>
               )}
-              {!timing.passed && checks.length > 0 && (
-                <ul
-                  lang="en"
-                  className="text-muted-foreground list-disc space-y-0.5 ps-5 text-sm"
-                >
-                  {checks.map((check) => (
-                    <li key={check}>{t(check)}</li>
-                  ))}
-                </ul>
+              {!timing.passed && !hasComparison && !idea.windows.length && (
+                <p lang="en" className="text-muted-foreground text-sm">
+                  {t("verifyDemand")}
+                </p>
               )}
               <details className="text-sm">
                 <SeoFoldSummary className="text-muted-foreground min-h-10 w-fit font-medium">
@@ -250,6 +246,19 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                         })}
                       </p>
                     </>
+                  )}
+                  {!timing.passed && checks.length > 0 && (
+                    <ul
+                      lang="en"
+                      className="text-muted-foreground list-disc space-y-0.5 ps-5 text-sm"
+                    >
+                      {checks.map((check) => (
+                        <li key={check}>{t(check)}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {timing.passed && (
+                    <SeoPageText url={idea.url} workspace={model.data} />
                   )}
                   <blockquote dir="auto" lang="" className="border-s-2 ps-3">
                     {plan?.passage ?? idea.pageQuote}

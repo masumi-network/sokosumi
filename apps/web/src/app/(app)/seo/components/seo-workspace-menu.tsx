@@ -2,6 +2,7 @@
 
 import {
   Archive,
+  ChartNoAxesCombined,
   Lightbulb,
   ListPlus,
   MoreHorizontal,
@@ -23,13 +24,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MIN_PAGES_FOR_SELECTIONS } from "./seo-pages";
+import { SeoReportFileSelection } from "./seo-report-files";
 import { useArchiveSeoAudit } from "./use-archive-seo-audit";
+import type { SeoReportFileProps } from "./use-seo-report-files";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 interface SeoArchiveAuditDialogProps {
@@ -98,11 +109,21 @@ function SeoArchiveAuditDialog({
 export function SeoWorkspaceMenu({
   model,
   unavailable,
+  versions,
 }: {
-  model: SeoWorkspaceModel;
+  versions: SeoReportFileProps["versions"];
+  model: SeoReportFileProps["model"] & Pick<SeoWorkspaceModel, "setDialog">;
   unavailable: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const [showResults, setShowResults] = useState(false);
+  const consoleVersions = versions.filter(
+    (v) =>
+      v.kind === "audit_full" ||
+      model.data.auditSearchConsole?.some((e) => e.taskId === v.taskId) ||
+      model.data.auditSearchConsoleRetryTaskIds?.includes(v.taskId),
+  );
+  if (showResults && !consoleVersions.length) setShowResults(false);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
   const manageTrigger = useRef<HTMLButtonElement>(null);
   const { auditId, auditName, projectId } = model.data;
@@ -126,9 +147,39 @@ export function SeoWorkspaceMenu({
         <DropdownMenuContent
           align="end"
           onCloseAutoFocus={(event) => {
-            if (confirmingArchive) event.preventDefault();
+            if (confirmingArchive || showResults) event.preventDefault();
           }}
         >
+          {(consoleVersions.length > 0 ||
+            model.data.availableActions.canSyncMetrics) && (
+            <>
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                {t("menu.google")}
+              </DropdownMenuLabel>
+              {consoleVersions.length > 0 && (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => setShowResults(true)}
+                >
+                  <ChartNoAxesCombined aria-hidden />
+                  {t("reportFiles.consoleResults")}
+                </DropdownMenuItem>
+              )}
+              {model.data.availableActions.canSyncMetrics ? (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => model.setDialog("statistics")}
+                >
+                  <Settings2 className="size-4" />
+                  {t("manageStatistics")}
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuSeparator />
+            </>
+          )}
+          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+            {t("menu.audit")}
+          </DropdownMenuLabel>
           {model.data.availableActions.canEdit ? (
             <DropdownMenuItem
               disabled={unavailable}
@@ -138,40 +189,6 @@ export function SeoWorkspaceMenu({
               {t("brief.title")}
             </DropdownMenuItem>
           ) : null}
-          {model.data.availableActions.canSyncMetrics ? (
-            <DropdownMenuItem
-              disabled={unavailable}
-              onSelect={() => model.setDialog("statistics")}
-            >
-              <Settings2 className="size-4" />
-              {t("manageStatistics")}
-            </DropdownMenuItem>
-          ) : null}
-          {model.data.availableActions.canEdit ? (
-            <>
-              <DropdownMenuItem
-                disabled={unavailable}
-                onSelect={() => model.setDialog("page")}
-              >
-                <Plus className="size-4" />
-                {t("addPage")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={unavailable || !model.data.pages.length}
-                onSelect={() => model.setDialog("scope")}
-              >
-                <ListPlus className="size-4" />
-                {t("createScope")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={unavailable || !model.data.scope.pageIds.length}
-                onSelect={() => model.setDialog("page_change")}
-              >
-                <PencilLine className="size-4" />
-                {t("pageChange.title")}
-              </DropdownMenuItem>
-            </>
-          ) : null}
           <DropdownMenuItem
             disabled={unavailable}
             onSelect={() => model.setDialog("improve")}
@@ -179,10 +196,46 @@ export function SeoWorkspaceMenu({
             <Lightbulb className="size-4" />
             {t("improve.catalog.title")}
           </DropdownMenuItem>
+          {model.data.availableActions.canEdit ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                {t("pages.title")}
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                disabled={unavailable}
+                onSelect={() => model.setDialog("page")}
+              >
+                <Plus className="size-4" />
+                {t("addPage")}
+              </DropdownMenuItem>
+              {model.data.pages.length >= MIN_PAGES_FOR_SELECTIONS && (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => model.setDialog("scope")}
+                >
+                  <ListPlus className="size-4" />
+                  {t("createScope")}
+                </DropdownMenuItem>
+              )}
+              {model.data.scope.pageIds.length > 0 && (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => model.setDialog("page_change")}
+                >
+                  <PencilLine className="size-4" />
+                  {t("pageChange.title")}
+                </DropdownMenuItem>
+              )}
+            </>
+          ) : null}
           {auditId ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setConfirmingArchive(true)}>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => setConfirmingArchive(true)}
+              >
                 <Archive aria-hidden />
                 {t("audits.archive")}
               </DropdownMenuItem>
@@ -190,6 +243,32 @@ export function SeoWorkspaceMenu({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+      {showResults && consoleVersions.length > 0 && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setShowResults(false);
+          }}
+        >
+          <DialogContent
+            aria-describedby={undefined}
+            className="max-h-[85dvh] grid-cols-1 overflow-y-auto"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              manageTrigger.current?.focus();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{t("reportFiles.consoleResults")}</DialogTitle>
+            </DialogHeader>
+            <SeoReportFileSelection
+              model={model}
+              versions={consoleVersions}
+              view="console"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
       {confirmingArchive && auditId ? (
         <SeoArchiveAuditDialog
           auditId={auditId}

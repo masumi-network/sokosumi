@@ -10,6 +10,12 @@ const query = z
     scope: z.enum(["site", "selected"]),
     propertyId: z.string().min(1).max(500),
     pageIds: z.array(z.uuid()).min(1).max(10),
+    pageUrls: z
+      .array(z.url({ protocol: /^https?$/ }).max(4096))
+      .min(1)
+      .max(10)
+      .optional(),
+    includeDaily: z.boolean().optional(),
     from: z.iso.date(),
     to: z.iso.date(),
     searchType: z.enum(SEO_SEARCH_TYPES),

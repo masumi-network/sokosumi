@@ -2,8 +2,8 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoConsoleExportActions } from "./seo-console-export-actions";
-import { SeoPropertyPageDiscovery } from "./seo-property-page-discovery";
-import { SEO_ROW_LIST_CLASS, SeoFoldSummary, SeoSection } from "./seo-shared";
+
+import { SeoFoldSummary } from "./seo-shared";
 
 type Evidence = NonNullable<
   NonNullable<ProjectSeoWorkspace["auditSearchConsole"]>[number]["discovery"]
@@ -12,19 +12,34 @@ type Evidence = NonNullable<
 const day = (value: Date | string) =>
   new Date(value).toISOString().slice(0, 10);
 
-export function SeoDiscoveryActions({ evidence }: { evidence: Evidence }) {
+export function SeoDiscoveryActions({
+  evidence,
+  embedded = false,
+}: {
+  evidence: Evidence;
+  embedded?: boolean;
+}) {
   const t = useSeoResultTranslations("App.Seo.discovery");
   if (!evidence.actions.length && !evidence.changes.length) return null;
   return (
-    <section lang="en" className="space-y-2">
-      <h4 className="font-medium">{t("actions")}</h4>
+    <section lang="en" className="min-w-0 space-y-4 text-sm">
+      {!embedded && <h4 className="font-medium">{t("actions")}</h4>}
       {evidence.actions.length > 0 && (
         <ul className="space-y-2">
           {evidence.actions.map((a) => (
-            <li key={a.url + a.action}>
-              <p className="break-all text-muted-foreground">{a.url}</p>
-              <p>{a.action}</p>
-              <p className="text-muted-foreground">{a.evidence}</p>
+            <li key={a.url + a.action} className="space-y-2 border-s-2 ps-4">
+              <p className="max-w-prose font-medium">{a.evidence}</p>
+              <p className="break-all text-xs text-muted-foreground">{a.url}</p>
+              {embedded ? (
+                <details>
+                  <SeoFoldSummary className="min-h-9">
+                    {t("actions")}
+                  </SeoFoldSummary>
+                  <p className="max-w-prose py-2">{a.action}</p>
+                </details>
+              ) : (
+                <p>{a.action}</p>
+              )}
             </li>
           ))}
         </ul>
@@ -32,7 +47,7 @@ export function SeoDiscoveryActions({ evidence }: { evidence: Evidence }) {
       {evidence.changes.length > 0 && (
         <ul className="space-y-2">
           {evidence.changes.map((c) => (
-            <li key={c.url + c.text}>
+            <li key={c.url + c.text} className="space-y-2 border-s-2 ps-4">
               <p className="break-all">{c.url}</p>
               <p>
                 {t("change", {
@@ -52,89 +67,95 @@ export function SeoDiscoveryActions({ evidence }: { evidence: Evidence }) {
 export function SeoAuditDiscovery({ evidence }: { evidence: Evidence }) {
   const t = useSeoResultTranslations("App.Seo.discovery");
   return (
-    <section className="space-y-2" lang="en">
-      <h4 className="font-medium">{t("heading")}</h4>
-      <p>
-        {t(evidence.status, {
-          count: evidence.sitemaps.length,
-          date: day(evidence.checkedAt),
-        })}
-      </p>
-      {evidence.sitemaps.length > 0 && (
-        <details>
-          <SeoFoldSummary>{t("files")}</SeoFoldSummary>
-          <ul className="space-y-2">
-            {evidence.sitemaps.map((s) => (
-              <li key={s.path}>
-                <p className="break-all">{s.path}</p>
-                {s.pending && <p>{t("pending")}</p>}
-                <p>
-                  {t("counts", {
-                    errors: s.errors ?? "?",
-                    warnings: s.warnings ?? "?",
-                  })}
-                </p>
-                {s.webUrls !== null && (
-                  <p>{t("webUrls", { count: s.webUrls })}</p>
-                )}
-                {s.submittedAt && (
-                  <p>{t("submitted", { date: day(s.submittedAt) })}</p>
-                )}
-                {s.downloadedAt && (
-                  <p>{t("read", { date: day(s.downloadedAt) })}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-      <details>
-        <SeoFoldSummary>
-          {t("inspections", { count: evidence.inspections.length })}
-        </SeoFoldSummary>
-        <ul className="space-y-2">
-          {evidence.inspections.map((p) => (
-            <li key={p.page}>
-              <p className="break-all">{p.page}</p>
-              <p>{p.reason ?? p.verdict}</p>
-              {p.canonical && (
-                <p className="break-all">
-                  {t("canonical", { url: p.canonical })}
-                </p>
-              )}
-              {p.reportedSitemaps?.length ? (
-                <div>
-                  {t("reportedSitemaps")}
-                  <ul>
-                    {p.reportedSitemaps.map((url) => (
-                      <li className="break-all" key={url}>
-                        {url}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {p.referringPages?.length ? (
-                <div>
-                  {t("referringPages")}
-                  <ul>
-                    {p.referringPages.map((url) => (
-                      <li className="break-all" key={url}>
-                        {url}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {p.crawledAt && (
-                <p>{t("crawl", { date: p.crawledAt.slice(0, 10) })}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </details>
-      <SeoDiscoveryActions evidence={evidence} />
-    </section>
+    <details className="rounded-md border px-3" lang="en">
+      <SeoFoldSummary className="min-h-10 font-medium">
+        {t("heading")}
+      </SeoFoldSummary>
+      <div className="space-y-3 pb-3">
+        <p>
+          {t(evidence.status, {
+            count: evidence.sitemaps.length,
+            date: day(evidence.checkedAt),
+          })}
+        </p>
+        {evidence.sitemaps.length > 0 && (
+          <details>
+            <SeoFoldSummary>{t("files")}</SeoFoldSummary>
+            <ul className="space-y-2">
+              {evidence.sitemaps.map((s) => (
+                <li key={s.path}>
+                  <p className="break-all">{s.path}</p>
+                  {s.pending && <p>{t("pending")}</p>}
+                  <p>
+                    {t("counts", {
+                      errors: s.errors ?? "?",
+                      warnings: s.warnings ?? "?",
+                    })}
+                  </p>
+                  {s.webUrls !== null && (
+                    <p>{t("webUrls", { count: s.webUrls })}</p>
+                  )}
+                  {s.submittedAt && (
+                    <p>{t("submitted", { date: day(s.submittedAt) })}</p>
+                  )}
+                  {s.downloadedAt && (
+                    <p>{t("read", { date: day(s.downloadedAt) })}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {evidence.inspections.length > 0 && (
+          <details>
+            <SeoFoldSummary>
+              {t("inspections", { count: evidence.inspections.length })}
+            </SeoFoldSummary>
+            <ul className="space-y-2">
+              {evidence.inspections.map((p) => (
+                <li key={p.page}>
+                  <p className="break-all">{p.page}</p>
+                  <p>{p.reason ?? p.verdict}</p>
+                  {p.canonical && (
+                    <p className="break-all">
+                      {t("canonical", { url: p.canonical })}
+                    </p>
+                  )}
+                  {p.reportedSitemaps?.length ? (
+                    <div>
+                      {t("reportedSitemaps")}
+                      <ul>
+                        {p.reportedSitemaps.map((url) => (
+                          <li className="break-all" key={url}>
+                            {url}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {p.referringPages?.length ? (
+                    <div>
+                      {t("referringPages")}
+                      <ul>
+                        {p.referringPages.map((url) => (
+                          <li className="break-all" key={url}>
+                            {url}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {p.crawledAt && (
+                    <p>{t("crawl", { date: p.crawledAt.slice(0, 10) })}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <SeoDiscoveryActions evidence={evidence} />
+      </div>
+    </details>
   );
 }
 
@@ -184,39 +205,8 @@ export function SeoCurrentDiscoveryActions({
   workspace: ProjectSeoWorkspace;
   result: ReturnType<typeof currentDiscoveryResult>;
 }) {
-  const t = useSeoResultTranslations("App.Seo.discovery");
-  const actions = result?.discovery?.actions ?? [];
   return (
     <>
-      {result && <SeoPropertyPageDiscovery report={result} actionsOnly />}
-      {actions.length > 0 && (
-        <SeoSection lang="en" title={t("actionsHeading")}>
-          <ul className={SEO_ROW_LIST_CLASS}>
-            {actions.map((item) => (
-              <li key={item.url + item.action} className="p-3">
-                <details>
-                  <SeoFoldSummary className="min-h-10 justify-between gap-3">
-                    <span className="min-w-0 space-y-1">
-                      <span className="block text-sm font-medium">
-                        {item.action}
-                      </span>
-                      <span
-                        className="block break-all text-xs text-muted-foreground"
-                        dir="auto"
-                      >
-                        {item.url}
-                      </span>
-                    </span>
-                  </SeoFoldSummary>
-                  <p className="pt-2 text-sm text-muted-foreground">
-                    {item.evidence}
-                  </p>
-                </details>
-              </li>
-            ))}
-          </ul>
-        </SeoSection>
-      )}
       {result && (
         <SeoConsoleExportActions
           owner={seoWorkspaceOwner(workspace)}

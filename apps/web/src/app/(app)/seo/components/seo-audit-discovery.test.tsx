@@ -1,8 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
 import { SeoAuditDiscovery } from "./seo-audit-discovery";
+import { SeoAuditResearch } from "./seo-audit-research";
+import { seoTestWorkspace } from "./seo-test-fixture";
 
 afterEach(cleanup);
 
@@ -58,4 +60,45 @@ it("shows Google processing errors, the scoped inspection sample and its source 
   ).toBeDefined();
   expect(screen.getByText("Fix entries Google could not read.")).toBeDefined();
   expect(screen.getByText("https://example.test/guide")).toBeDefined();
+});
+
+it("shows Search Console evidence in its panel and the suggested action on request", () => {
+  const url = "https://example.test/sitemap.xml";
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoAuditResearch
+        workspace={seoTestWorkspace()}
+        discovery={{
+          status: "available",
+          checkedAt: new Date("2026-11-20"),
+          sitemaps: [],
+          inspections: [],
+          changes: [],
+          publicSitemaps: [url],
+          actions: [
+            {
+              url,
+              action: "Submit the existing sitemap.",
+              evidence: "The public sitemap is absent from the submitted list.",
+            },
+          ],
+        }}
+      />
+    </NextIntlClientProvider>,
+  );
+  const summary = screen.getByText(messages.App.Seo.discovery.actionsHeading, {
+    selector: "summary span > span",
+  });
+  expect(summary).toBeVisible();
+  expect(screen.getByText("Submit the existing sitemap.")).not.toBeVisible();
+  fireEvent.click(summary);
+  expect(
+    screen.getByText("The public sitemap is absent from the submitted list."),
+  ).toBeVisible();
+  fireEvent.click(
+    screen.getByText(messages.App.Seo.discovery.actions, {
+      selector: "summary",
+    }),
+  );
+  expect(screen.getByText("Submit the existing sitemap.")).toBeVisible();
 });

@@ -3,11 +3,12 @@
 import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import {
   SEGMENTED_CONTROL_CLASS_NAME,
   SEGMENTED_CONTROL_ITEM_CLASS_NAME,
 } from "@/components/ui/segmented-control-classes";
+import { useSeoWorklistFocus } from "@/hooks/effects/use-seo-worklist-focus";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoActionDialog } from "./seo-agent-steps";
@@ -19,18 +20,29 @@ import {
   seoActionBucket,
   seoActionWorklist,
 } from "./seo-overview-model";
+import { SeoPropertyPageFacts } from "./seo-property-page-discovery";
 import {
   SEO_ROW_ARROW_CLASS,
   SEO_ROW_BUTTON_CLASS,
   SEO_ROW_LIST_CLASS,
   SEO_SEVERITY_MARK_CLASS,
+  SeoFoldSummary,
+  SeoPageLink,
   SeoSeverity,
+  SeoShowMore,
   SeoState,
   seoPageLabel,
   seoPageName,
   seoSiteUrl,
 } from "./seo-shared";
+import { StrategyActionCard } from "./seo-strategy";
+import type { SeoEvidenceAction } from "./seo-worklist-evidence";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
+
+type WorklistItem = ProjectSeoAction | SeoEvidenceAction;
+const VISIBLE_ACTIONS = 6;
+const ORDER = { high: 0, low: 2, suggestions: 3 };
+const TEST_IDEA_ORDER = 1;
 
 /** The rail of a row has the color of the impact mark; a suggestion has the grey of a quiet line. */
 const RAIL: Record<SeoActionBucket, string> = {
@@ -45,11 +57,13 @@ const RAIL: Record<SeoActionBucket, string> = {
  */
 export function SeoActionWorklist({
   actions,
+  evidence = [],
   severity,
   isExperiment = (action) => Boolean(action.decision),
   model,
 }: {
   actions: ProjectSeoAction[];
+  evidence?: SeoEvidenceAction[];
   isExperiment?: (action: ProjectSeoAction) => boolean;
   severity: (action: ProjectSeoAction) => SeoIssueSeverity | null;
   model: SeoWorkspaceModel;
@@ -66,33 +80,49 @@ export function SeoActionWorklist({
     null,
   );
   const list = useRef<HTMLUListElement>(null);
-  const bucket = (action: ProjectSeoAction) =>
-    seoActionBucket(action, severity(action));
-  const { counts, filters, rows: rowsFor } = seoActionWorklist(actions, bucket);
+  const bucket = (action: WorklistItem) =>
+    action.kind === "evidence"
+      ? action.bucket
+      : seoActionBucket(action, severity(action));
+  // An idea with evidence to test stands after the major fixes and before the minor cleanup.
+  const order = (action: WorklistItem) =>
+    action.kind !== "evidence" &&
+    action.status === "recommended" &&
+    isExperiment(action) &&
+    bucket(action) !== "high"
+      ? TEST_IDEA_ORDER
+      : ORDER[bucket(action)];
+  const ordered = [...actions, ...evidence].sort((a, b) => order(a) - order(b));
+  const { counts, filters, rows: rowsFor } = seoActionWorklist(ordered, bucket);
+  const [expanded, setExpanded] = useState(false);
+  const [led, setLed] = useState(false);
+  const { shownStrategy, setShownStrategy } = model;
+  if (shownStrategy && !led) {
+    setFilter("all");
+    setExpanded(true);
+    setLed(true);
+  }
   const filterLine = useRef<HTMLFieldSetElement>(null);
   const root = useRef<HTMLDivElement>(null);
-  // Read in each render, before its commit: a new check can take away the filter, the row or the whole filter
-  // line that has the focus.
-  const hadFocus = useRef(false);
-  hadFocus.current = Boolean(root.current?.contains(document.activeElement));
   // A filter whose rows left (a new check) goes back to all rows, and stays there when they come back.
   if (!filters.includes(filter)) setFilter("all");
   const shown = filters.includes(filter) ? filter : "all";
-  // A focus that left with its control goes to All, or to the first row when the filter line left too.
-  useEffect(() => {
-    if (!hadFocus.current || document.activeElement !== document.body) return;
-    hadFocus.current = false;
-    (
-      filterLine.current?.querySelector<HTMLButtonElement>("button") ??
-      list.current?.querySelector<HTMLButtonElement>("button")
-    )?.focus();
-  });
+  useSeoWorklistFocus(
+    root,
+    filterLine,
+    list,
+    shownStrategy && led,
+    setShownStrategy,
+  );
   const rows = rowsFor(shown);
+  const firstStrategy = evidence.find((action) => action.strategy);
   // The lead of the Agent tab sent the reader here for one action: the tab mounts the list with all rows, and
   // the action opens in its dialog. One that left the list in the meantime closes at once, below.
   const { shownAction, setShownAction } = model;
   let effectiveOpenKey = openKey;
   if (shownAction && shownAction !== consumedShownAction) {
+    setFilter("all");
+    setExpanded(true);
     setConsumedShownAction(shownAction);
     setFocusKey(shownAction);
     setOpenKey(shownAction);
@@ -135,6 +165,7 @@ export function SeoActionWorklist({
                 onClick={() => {
                   if (key === shown) return;
                   setFilter(key);
+                  setExpanded(false);
                   setPresses((count) => count + 1);
                 }}
               >
@@ -166,23 +197,43 @@ export function SeoActionWorklist({
         aria-label={t("actions.title")}
         className={cn(SEO_ROW_LIST_CLASS, "stagger [--stagger-step:30ms]")}
       >
-        {rows.map((action) => (
-          <SeoWorklistRow
-            key={seoActionKey(action)}
-            action={action}
-            recommendedTest={isExperiment(action)}
-            severity={severity(action)}
-            rail={RAIL[bucket(action)]}
-            model={model}
-            onOpen={() => {
-              const key = seoActionKey(action);
-              setFocusKey(key);
-              setOpenKey(key);
-              if (shownAction) setShownAction?.(null);
-            }}
-          />
-        ))}
+        {(expanded ? rows : rows.slice(0, VISIBLE_ACTIONS)).map((action) =>
+          action.kind === "evidence" ? (
+            <EvidenceRow
+              key={action.key}
+              action={action}
+              model={model}
+              startOpen={
+                ordered.length === 1 || (led && action === firstStrategy)
+              }
+            />
+          ) : (
+            <SeoWorklistRow
+              key={seoActionKey(action)}
+              action={action}
+              recommendedTest={isExperiment(action)}
+              severity={severity(action)}
+              rail={RAIL[bucket(action)]}
+              model={model}
+              onOpen={() => {
+                const key = seoActionKey(action);
+                setFocusKey(key);
+                setOpenKey(key);
+                if (shownAction) setShownAction?.(null);
+              }}
+            />
+          ),
+        )}
       </ul>
+      {rows.length > VISIBLE_ACTIONS && (
+        <SeoShowMore
+          expanded={expanded}
+          more={t("strategy.actions.more", {
+            count: rows.length - VISIBLE_ACTIONS,
+          })}
+          onToggle={() => setExpanded(!expanded)}
+        />
+      )}
       <SeoActionDialog
         action={opened}
         severity={opened ? severity(opened) : null}
@@ -195,7 +246,8 @@ export function SeoActionWorklist({
           // Focus goes back to the row; a row that a new check took away gives it to the first row.
           event.preventDefault();
           const buttons = Array.from(
-            list.current?.querySelectorAll<HTMLButtonElement>("button") ?? [],
+            list.current?.querySelectorAll<HTMLElement>("button, summary") ??
+              [],
           );
           (
             buttons.find((row) => row.dataset.actionKey === focusKey) ??
@@ -289,6 +341,71 @@ function SeoWorklistRow({
         </span>
         <ChevronRight className={cn(SEO_ROW_ARROW_CLASS, "self-center")} />
       </button>
+    </li>
+  );
+}
+
+function EvidenceRow({
+  action,
+  model,
+  startOpen,
+}: {
+  action: SeoEvidenceAction;
+  model: SeoWorkspaceModel;
+  startOpen: boolean;
+}) {
+  const t = useSeoResultTranslations("App.Seo");
+  const place = action.place;
+  if (action.strategy)
+    return (
+      <li data-strategy-row>
+        <StrategyActionCard
+          title={action.title}
+          action={action.strategy}
+          model={model}
+          startOpen={startOpen}
+          page={place?.page}
+          meta={
+            place &&
+            [
+              t(`strategy.links.ease.${place.ease}`),
+              place.reads && t("strategy.links.reach", place.reads),
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          }
+          note={place && t(`strategy.links.reason.${place.reason}`)}
+        />
+      </li>
+    );
+  return (
+    <li lang="en">
+      <details>
+        <SeoFoldSummary className="min-h-12 gap-3 px-3 py-3 text-sm">
+          <span
+            aria-hidden
+            className={cn(
+              "w-1 self-stretch shrink-0 rounded-full",
+              RAIL[action.bucket],
+            )}
+          />
+          <span className="min-w-0 flex-1 font-medium break-words">
+            {action.title}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {t(SEO_ACTION_FILTER_LABEL[action.bucket])}
+          </span>
+        </SeoFoldSummary>
+        <div className="space-y-2 ps-7 pe-4 pb-4 text-sm">
+          {action.property && <SeoPropertyPageFacts {...action.property} />}
+          {action.url && !action.property && <SeoPageLink url={action.url} />}
+          {action.facts.map((fact, i) => (
+            <p key={i} className="max-w-prose break-words">
+              {fact}
+            </p>
+          ))}
+        </div>
+      </details>
     </li>
   );
 }

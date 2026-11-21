@@ -1214,7 +1214,7 @@ describe("Keywords after a check", () => {
     ).toBeVisible();
   });
 
-  it("shows the conversion estimate and its feature in the lists that have one, with the note that it is an estimate", () => {
+  it("shows the evidence for an idea with high goal fit but unknown difficulty", async () => {
     const { workspace } = savedKeywordWorkspace();
     const base = {
       ...workspace.keywords[0],
@@ -1247,11 +1247,8 @@ describe("Keywords after a check", () => {
     renderWorkspace(workspace);
     // Only the Ideas list has an estimate: the Keywords list gets no empty column.
     expect(
-      screen.getAllByRole("columnheader", { name: "Chance to convert" }),
-    ).toHaveLength(1);
-    expect(
-      screen.getAllByText(/^Chance to convert is the check's/),
-    ).toHaveLength(1);
+      screen.queryByRole("columnheader", { name: "Chance to convert" }),
+    ).toBeNull();
     const ideas = screen
       .getByRole("heading", { name: "2 keyword ideas" })
       .closest("section");
@@ -1259,9 +1256,12 @@ describe("Keywords after a check", () => {
     const [, first, second] = within(ideas).getAllByRole("row");
     // The estimate leads, not the searches.
     expect(within(first).getByText("low battery alert")).toBeVisible();
-    expect(within(first).getByText("High")).toBeVisible();
+    await userEvent.click(
+      within(first).getByRole("button", { name: "low battery alert" }),
+    );
+    expect(screen.getByText("Difficulty has not been measured.")).toBeVisible();
     // The feature names itself: "High 80% charge limit" would read as one value.
-    expect(first).toHaveTextContent("Feature: Low battery alerts");
+    expect(within(ideas).getByText("Low battery alerts")).toBeVisible();
     expect(within(second).getByText("battery widget")).toBeVisible();
     // An estimate the check did not make shows nothing, on a desktop as on a phone.
     expect(within(second).queryByText("Not available")).toBeNull();
@@ -1902,7 +1902,7 @@ describe("Search Console queries", () => {
     ).toBeNull();
   });
 
-  it("shows the estimated share of voice of the newest week with its change", () => {
+  it("shows the estimated share of voice of the newest week with its change", async () => {
     const workspace = seoTestWorkspace();
     workspace.shareOfVoice = {
       ctrSource: "awr-2026-07",
@@ -1926,10 +1926,11 @@ describe("Search Console queries", () => {
       ],
     };
     renderWorkspace(workspace);
+    await userEvent.click(screen.getByRole("button", { name: "Competitors" }));
     const card = screen
-      .getByRole("heading", { name: "Share of voice" })
+      .getByRole("heading", { name: "Estimated share of search clicks" })
       .closest("section");
-    expect(card).toHaveTextContent("week of Oct 5, 2026, from 4 keyword reads");
+    expect(card).toHaveTextContent("Week of Oct 5, 2026 · 4 keyword reads");
     expect(
       within(card!).getByText("Your pages").closest("li"),
     ).toHaveTextContent("25%+15 pts");

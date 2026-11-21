@@ -27,6 +27,7 @@ import {
   SeoActionsLinkRow,
   SeoStepRow,
 } from "./seo-agent-steps";
+import { currentDiscoveryResult } from "./seo-audit-discovery";
 import { useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
@@ -36,11 +37,12 @@ import { SeoPropertyPerformance } from "./seo-property-performance";
 import { SeoReportPlan } from "./seo-report-plan";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning } from "./seo-setup-model";
+import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
 import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
+import { seoWorklistEvidence } from "./seo-worklist-evidence";
 import { useSelectedSeoPlan } from "./use-selected-seo-plan";
 import { useSeoAnalyticsLine } from "./use-seo-analytics-line";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
@@ -193,7 +195,16 @@ function SeoAgentPanel({
         ),
       )}`
     : "";
-  const { actionSeverity } = seoOverviewModel(model.data);
+  const { actionSeverity, actions } = seoOverviewModel(model.data);
+  const evidence = seoWorklistEvidence(
+    model.data,
+    currentDiscoveryResult(
+      model.data,
+      Boolean(model.filters.pageId || model.filters.scopeId),
+    ),
+    actions,
+    report,
+  ).filter((item) => !item.strategy && !item.place);
   // During setup the banner waits until the first check runs: then the statistics are the next useful thing.
   // The setup card now keeps its own Google control while a check runs; the banner waits until setup ends.
   const banner =
@@ -255,6 +266,7 @@ function SeoAgentPanel({
   const firstCheck =
     !brief.lastCheck &&
     !brief.ruleCheckOutsideSelection &&
+    !seoRunAction(model.data) &&
     !model.waitingForGoogle &&
     canRequestAnalysis &&
     !model.filters.from &&
@@ -439,12 +451,22 @@ function SeoAgentPanel({
       ) : selectedPlan.plan ||
         (analyticsStep &&
           (!analyticsLine.hidden || analyticsLine.analytics !== "unknown")) ||
-        statisticsSync.state === "failed" ? null : (
+        statisticsSync.state === "failed" ||
+        evidence.length ? null : (
         // The Analytics line, a sync that runs or failed, each still ask for something: "nothing is waiting"
         // would be wrong. Only a hidden line with no cause to name asks for nothing.
         <p lang="en" className="text-muted-foreground max-w-prose px-2 text-sm">
           {report("agent.nothingNext")}
         </p>
+      )}
+      {!setup && evidence.length > 0 && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void model.setFilters({ tab: "actions" })}
+        >
+          {t("agent.reviewEvidence", { count: evidence.length })}
+        </Button>
       )}
       <SeoAutomation model={model} />
       <SeoActionDialog

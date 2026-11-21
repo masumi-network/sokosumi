@@ -25,12 +25,7 @@ import {
 
 export function SeoReportFiles({ model, versions }: SeoReportFileProps) {
   const t = useTranslations("App.Seo.reportFiles");
-  const hasEvidence = versions.some(
-    ({ taskId }) =>
-      model.data.auditSearchConsole?.some((entry) => entry.taskId === taskId) ||
-      model.data.auditSearchConsoleRetryTaskIds?.includes(taskId),
-  );
-  const title = t(hasEvidence ? "withSearchConsole" : "title");
+  const title = t("title");
   const trigger = (
     <Button size="sm" variant="ghost" disabled={!versions.length}>
       <Files aria-hidden />
@@ -43,7 +38,7 @@ export function SeoReportFiles({ model, versions }: SeoReportFileProps) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
         aria-describedby={undefined}
-        className="max-h-[85dvh] overflow-y-auto"
+        className="max-h-[85dvh] grid-cols-1 overflow-y-auto"
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -54,7 +49,11 @@ export function SeoReportFiles({ model, versions }: SeoReportFileProps) {
   );
 }
 
-function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
+export function SeoReportFileSelection({
+  model,
+  versions,
+  view = "files",
+}: SeoReportFileProps & { view?: "files" | "console" }) {
   const t = useTranslations("App.Seo");
   const fileText = useTranslations("Components.DocumentViewer");
   const id = useId();
@@ -77,7 +76,7 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
     loadProperty,
     recovering,
     recoveryError,
-  } = useSeoReportFiles({ model, versions });
+  } = useSeoReportFiles({ model, versions }, view === "files");
   return (
     <>
       {options.length > 1 ? (
@@ -100,161 +99,174 @@ function SeoReportFileSelection({ model, versions }: SeoReportFileProps) {
           {t("reportFiles.historyLimit")}
         </p>
       )}
-      {evidence ? (
+      {view === "files" ? (
         <>
-          <SeoAuditSearchConsole evidence={evidence} />
-          {evidence.propertyDataExpired && (
-            <p className="text-sm text-muted-foreground">
-              {t("reportFiles.propertyDataExpired")}
+          {error ? (
+            <div role="alert" className="space-y-2">
+              <p className="text-muted-foreground text-sm">
+                {t(`reportFiles.${error}`)}
+              </p>
+              {retry ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void retry()}
+                >
+                  {t("retry")}
+                </Button>
+              ) : null}
+            </div>
+          ) : !files ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {t("reportFiles.loading")}
+            </p>
+          ) : files.length ? (
+            <div>
+              <span className="sr-only" id={newTabId}>
+                {fileText("openInNewTab")}
+              </span>
+              <ul className="flex flex-wrap gap-2">
+                {files.map((file, index) => (
+                  <li key={file.id}>
+                    <Button
+                      size="sm"
+                      variant={
+                        !importReport && index === 0 ? "default" : "outline"
+                      }
+                      asChild
+                    >
+                      <a
+                        href={file.url}
+                        aria-describedby={newTabId}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {t(`reportFiles.${file.format}`)}
+                        <ExternalLink aria-hidden />
+                      </a>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p role="status" className="text-muted-foreground text-sm">
+              {t("reportFiles.empty")}
             </p>
           )}
-          {loadProperty && (
+          {!error &&
+          files &&
+          files.every((file) => file.format === "json") &&
+          retry ? (
             <Button
               size="sm"
               variant="outline"
-              loading={recovering}
-              onClick={loadProperty}
+              loading={refreshing}
+              onClick={() => void retry()}
             >
-              {t("reportFiles.loadPropertyTotals")}
-            </Button>
-          )}
-          <SeoConsoleExports
-            owner={seoWorkspaceOwner(model.data)}
-            taskId={taskId}
-          />
-        </>
-      ) : fullAudit || recoverSearch ? (
-        <p className="text-muted-foreground text-sm">
-          {t("reportFiles.missingSearchConsole")}
-        </p>
-      ) : null}
-      {recoverSearch && (
-        <div className="space-y-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            loading={recovering}
-            onClick={recoverSearch}
-          >
-            {t("reportFiles.recoverSearch")}
-          </Button>
-        </div>
-      )}
-      {recoveryError && (
-        <p role="alert" className="text-destructive text-sm">
-          {t(`reportFiles.${recoveryError}`)}
-        </p>
-      )}
-      {recoverPageSpeed && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          loading={model.pending}
-          onClick={() => void recoverPageSpeed()}
-        >
-          {t("reportFiles.recoverPageSpeed")}
-        </Button>
-      )}
-      {recoverMarkets && (
-        <div className="space-y-2">
-          <p className="text-muted-foreground text-sm">
-            {t("reportFiles.recoverMarketsHelp")}
-          </p>
-          <Button
-            size="sm"
-            variant="outline"
-            loading={model.pending}
-            onClick={() => void recoverMarkets()}
-          >
-            {t("reportFiles.recoverMarkets")}
-          </Button>
-        </div>
-      )}
-      {importReport ? (
-        <div className="space-y-2">
-          <p className="text-muted-foreground text-sm">
-            {t("reportFiles.importHelp")}
-          </p>
-          <Button
-            size="sm"
-            loading={model.pending}
-            onClick={() => void importReport()}
-          >
-            {t("reportFiles.import")}
-          </Button>
-        </div>
-      ) : null}
-      {error ? (
-        <div role="alert" className="space-y-2">
-          <p className="text-muted-foreground text-sm">
-            {t(`reportFiles.${error}`)}
-          </p>
-          {retry ? (
-            <Button size="sm" variant="outline" onClick={() => void retry()}>
-              {t("retry")}
+              {t("reportFiles.refresh")}
             </Button>
           ) : null}
-        </div>
-      ) : !files ? (
-        <p role="status" className="text-muted-foreground text-sm">
-          {t("reportFiles.loading")}
-        </p>
-      ) : files.length ? (
-        <div>
-          <span className="sr-only" id={newTabId}>
-            {fileText("openInNewTab")}
-          </span>
-          <ul className="flex flex-wrap gap-2">
-            {files.map((file, index) => (
-              <li key={file.id}>
+          {siteEvidence && (
+            <details key={taskId} className="min-w-0 rounded-lg border">
+              <SeoFoldSummary className="min-h-11 justify-between px-3 py-2 text-sm font-medium">
+                {t("reportFiles.crawlDetails")}
+              </SeoFoldSummary>
+              <div className="border-t p-3">
+                <SeoSiteEvidence evidence={siteEvidence} />
+              </div>
+            </details>
+          )}
+          {recoverPageSpeed && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              loading={model.pending}
+              onClick={() => void recoverPageSpeed()}
+            >
+              {t("reportFiles.recoverPageSpeed")}
+            </Button>
+          )}
+          {recoverMarkets && (
+            <div className="space-y-2">
+              <p className="text-muted-foreground text-sm">
+                {t("reportFiles.recoverMarketsHelp")}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={model.pending}
+                onClick={() => void recoverMarkets()}
+              >
+                {t("reportFiles.recoverMarkets")}
+              </Button>
+            </div>
+          )}
+          {importReport ? (
+            <div className="space-y-2">
+              <p className="text-muted-foreground text-sm">
+                {t("reportFiles.importHelp")}
+              </p>
+              <Button
+                size="sm"
+                loading={model.pending}
+                onClick={() => void importReport()}
+              >
+                {t("reportFiles.import")}
+              </Button>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {evidence ? (
+            <>
+              <SeoAuditSearchConsole evidence={evidence} />
+              {evidence.propertyDataExpired && (
+                <p className="text-sm text-muted-foreground">
+                  {t("reportFiles.propertyDataExpired")}
+                </p>
+              )}
+              {loadProperty && (
                 <Button
                   size="sm"
-                  variant={!importReport && index === 0 ? "default" : "outline"}
-                  asChild
+                  variant="outline"
+                  loading={recovering}
+                  onClick={loadProperty}
                 >
-                  <a
-                    href={file.url}
-                    aria-describedby={newTabId}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {t(`reportFiles.${file.format}`)}
-                    <ExternalLink aria-hidden />
-                  </a>
+                  {t("reportFiles.loadPropertyTotals")}
                 </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <p role="status" className="text-muted-foreground text-sm">
-          {t("reportFiles.empty")}
-        </p>
-      )}
-      {!error &&
-      files &&
-      files.every((file) => file.format === "json") &&
-      retry ? (
-        <Button
-          size="sm"
-          variant="outline"
-          loading={refreshing}
-          onClick={() => void retry()}
-        >
-          {t("reportFiles.refresh")}
-        </Button>
-      ) : null}
-      {siteEvidence && (
-        <details key={taskId} className="min-w-0 rounded-lg border">
-          <SeoFoldSummary className="min-h-11 justify-between px-3 py-2 text-sm font-medium">
-            {t("reportFiles.crawlDetails")}
-          </SeoFoldSummary>
-          <div className="border-t p-3">
-            <SeoSiteEvidence evidence={siteEvidence} />
-          </div>
-        </details>
+              )}
+              <SeoConsoleExports
+                owner={seoWorkspaceOwner(model.data)}
+                taskId={taskId}
+              />
+            </>
+          ) : fullAudit || recoverSearch ? (
+            <p className="text-muted-foreground text-sm">
+              {t("reportFiles.missingSearchConsole")}
+            </p>
+          ) : null}
+          {recoverSearch && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                loading={recovering}
+                onClick={recoverSearch}
+              >
+                {t("reportFiles.recoverSearch")}
+              </Button>
+            </div>
+          )}
+          {recoveryError && (
+            <p role="alert" className="text-destructive text-sm">
+              {t(`reportFiles.${recoveryError}`)}
+            </p>
+          )}
+        </>
       )}
     </>
   );

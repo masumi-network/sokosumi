@@ -635,9 +635,7 @@ describe("SEO audit first run", () => {
     }
     expect(screen.queryByRole("dialog")).toBeNull();
     await user.click(screen.getByRole("button", { name: copy.monitor.create }));
-    expect(
-      await screen.findByRole("menuitem", { name: copy.monitor.create }),
-    ).toBeVisible();
+    expect(await screen.findByRole("dialog")).toBeVisible();
     await user.keyboard("{Escape}");
   });
 
@@ -707,7 +705,7 @@ describe("SEO audit first run", () => {
     );
     if (!row) throw new Error("no statistics banner");
     expect(
-      within(row).getByRole("heading", { name: copy.agent.statisticsMissing }),
+      within(row).getByRole("heading", { name: copy.agent.connectedSearch }),
     ).toBeVisible();
     // The banner is the first thing on the tab: it stands over the result.
     expect(
@@ -932,13 +930,11 @@ describe("SEO audit first run", () => {
     ).toBeVisible();
     expect(screen.queryByTestId("seo-setup")).toBeNull();
     await user.click(screen.getByRole("button", { name: copy.monitor.create }));
-    expect(
-      await screen.findByRole("menuitem", { name: copy.monitor.create }),
-    ).toBeVisible();
+    expect(await screen.findByRole("dialog")).toBeVisible();
     await user.keyboard("{Escape}");
     view.unmount();
     workspace.runs.push(run("2026-11-10T09:00:00Z", 6));
-    render(page(<SeoWorkspace workspace={workspace} />));
+    const latestView = render(page(<SeoWorkspace workspace={workspace} />));
     const runs = within(screen.getByRole("group", { name: "Checks" }));
     const newest = runs.getByRole("button", {
       name: "Nov 12 5 issues in this check",
@@ -949,6 +945,10 @@ describe("SEO audit first run", () => {
     expect(newest).toHaveAttribute("aria-pressed", "true");
     expect(older).toHaveAttribute("aria-pressed", "false");
     await user.click(older);
+    expect(older).toHaveAttribute("aria-pressed", "false");
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 10" }),
+    );
     await waitFor(() => expect(older).toHaveAttribute("aria-pressed", "true"));
     expect(newest).toHaveAttribute("aria-pressed", "false");
     // The row shows the pick: the date fields stay closed.
@@ -962,9 +962,25 @@ describe("SEO audit first run", () => {
     expect(newest).toHaveFocus();
     // A press on an entry picks it too.
     await user.click(older);
+    expect(older).toHaveAttribute("aria-pressed", "false");
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 10" }),
+    );
     await waitFor(() => expect(older).toHaveAttribute("aria-pressed", "true"));
     await user.click(newest);
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 12" }),
+    );
     await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
+    latestView.unmount();
+    await renderWorkspace(workspace, "?to=2026-11-11");
+    await user.click(
+      screen.getByRole("button", { name: /Nov 10 6 issues/, pressed: true }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Show the check from Nov 10" }),
+    );
+    expect(await screen.findByText(/Earlier check \(Nov 10\)/)).toBeVisible();
   });
 
   it("opens the added page count with the keyboard and lists only the current audit URLs in scope order", async () => {
@@ -1263,7 +1279,8 @@ describe("SEO audit first run", () => {
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       /^No check yet\. Run one to find issues\.$/,
     );
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    expect(screen.queryByRole("button", { name: copy.runAnalysis })).toBeNull();
+    await user.click(screen.getByRole("button", { name: copy.runFullAudit }));
     expect(await screen.findByRole("dialog")).toBeVisible();
   });
 });

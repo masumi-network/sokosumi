@@ -3,7 +3,7 @@
 import { track } from "@vercel/analytics";
 import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ComponentProps, useCallback, useEffect, useState } from "react";
+import { type ComponentProps, useCallback, useState } from "react";
 import {
   GoogleLoginButton,
   MicrosoftLoginButton,
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
+import { useConditionalPasskeyAutofill } from "@/hooks/effects/use-conditional-passkey-autofill";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { authClient } from "@/lib/auth/auth.client";
 import { buildSocialCallbackUrls } from "@/lib/auth/auth.utils";
@@ -146,48 +147,7 @@ export default function SocialButtons({
     }
   };
 
-  useEffect(() => {
-    if (!showPasskey) {
-      return;
-    }
-
-    if (
-      typeof window === "undefined" ||
-      typeof window.PublicKeyCredential === "undefined" ||
-      typeof PublicKeyCredential.isConditionalMediationAvailable !== "function"
-    ) {
-      return;
-    }
-
-    let isMounted = true;
-
-    const startConditionalPasskeySignIn = async () => {
-      try {
-        const isAvailable =
-          await PublicKeyCredential.isConditionalMediationAvailable();
-        if (!isMounted || !isAvailable) {
-          return;
-        }
-
-        const result = await authClient.signIn.passkey({
-          autoFill: true,
-        });
-        if (!isMounted || result.error) {
-          return;
-        }
-
-        await finishPasskeySignIn(result.data);
-      } catch {
-        return undefined;
-      }
-    };
-
-    void startConditionalPasskeySignIn();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [finishPasskeySignIn, showPasskey]);
+  useConditionalPasskeyAutofill(showPasskey, finishPasskeySignIn);
 
   const handleClick = async (key: SocialButtonProviderId) => {
     if (isWaiting) return;
