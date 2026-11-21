@@ -1373,7 +1373,7 @@ describe("a styled picture made the way the 16 Nov test made them", () => {
       logo: true,
     });
     expect(prompt).toContain(
-      "Image 1 is a 1930s poster, used ONLY as a style reference. Copy its technique (silkscreen, flat colour areas) and its lettering (bold condensed sans capitals), and keep its paper and print texture. Follow its layout (big figure in the middle, headline band at the foot) as an arrangement only: new subjects in its places, none of its own.",
+      "Image 1 is a 1930s poster, used ONLY as a style reference. Copy its technique (silkscreen, flat colour areas) and its lettering (bold condensed sans capitals), and keep its paper and print texture. Compose a new picture around the scene below: none of its figures, objects or drawings.",
     );
     expect(prompt).toContain(
       "Image 2 is nmkr.io's logo. Place it exactly as drawn, exactly once, as part of the design (in a masthead, a footer or a sign)",
@@ -1405,7 +1405,7 @@ describe("a styled picture made the way the 16 Nov test made them", () => {
     expect(illustration).toContain("Image 1 is an illustration, used ONLY");
     expect(illustration).not.toContain("its lettering (");
     expect(illustration).toContain(
-      "Signs, papers, screens, labels and objects in the scene carry no words.",
+      "Signs, papers, screens and objects carry no words; no date, issue number, price, printer's credit, caption, signature or seal.",
     );
     expect(illustration).not.toContain("second line");
     expect(

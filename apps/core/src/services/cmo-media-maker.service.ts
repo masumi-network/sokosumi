@@ -851,7 +851,7 @@ export function cmoStylePrompt(input: {
     : `No words, letters or numbers in the picture${besides ? ` besides ${besides}` : ""}.`;
   return [
     traits
-      ? `Image 1 is ${referenceName(traits)}, used ONLY as a style reference. Copy its technique (${traits.technique})${traits.lettering && traits.lettering !== "none" ? ` and its lettering (${traits.lettering})` : ""}, and keep its paper and print texture. Follow its layout (${traits.layout}) as an arrangement only: new subjects in its places, none of its own.`
+      ? `Image 1 is ${referenceName(traits)}, used ONLY as a style reference. Copy its technique (${traits.technique})${traits.lettering && traits.lettering !== "none" ? ` and its lettering (${traits.lettering})` : ""}, and keep its paper and print texture. Compose a new picture around the scene below: none of its figures, objects or drawings.`
       : "The first image is an old print, used ONLY as a style reference: borrow its illustration technique, layout, lettering and print texture.",
     "Copy none of its words, names, mastheads, characters or drawings; make an entirely new picture.",
     input.logo
@@ -865,7 +865,7 @@ export function cmoStylePrompt(input: {
       ? `Leave one plain, light, empty panel ${SCREEN_PANEL_WORDS}, with nothing drawn in it and no frame of your own: the brand's real screen is placed there afterwards. Draw no other screen, browser, phone, laptop, monitor or web page anywhere in the picture. Keep the headline in the top quarter, above the panel.`
       : "",
     words,
-    "Signs, papers, screens, labels and objects in the scene carry no words.",
+    "Signs, papers, screens and objects carry no words; no date, issue number, price, printer's credit, caption, signature or seal.",
     accent || ink || paper
       ? `Recolour it in the brand's inks instead of the reference's own colours: ${[accent && `${accent} as the accent`, ink && `${ink} as the ink`, paper && `on ${paper} paper`].filter(Boolean).join(", ")}.`
       : "",
