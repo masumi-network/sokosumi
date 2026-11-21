@@ -58,6 +58,8 @@ const SEARCH_CONSOLE_FIELDS = [
   "searchConsole",
   "searchConsoleNear",
   "searchHistory",
+  // The worker fills this from the Search Console investigation of a granted Task.
+  "privateStrategyDecisions",
 ];
 const SEARCH_CONSOLE_KEYWORD_FIELDS = [
   "searchConsole",
@@ -73,8 +75,9 @@ function omitKeys(input: Record<string, unknown>, keys: string[]) {
 }
 
 /**
- * An audit approved with Search Console may return the worker's Search Console
- * sections. Core does not store them yet, so it drops them before the public
+ * A report file of an audit approved with Search Console may hold the worker's
+ * Search Console sections. The owner decided this on 2026-11-21. Core still
+ * stores none of these sections, so it drops them before the public
  * projection. Every other private field still reaches refusePrivateReport.
  */
 export function withoutApprovedSearchConsole(raw: unknown): unknown {

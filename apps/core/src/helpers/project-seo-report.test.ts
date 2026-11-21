@@ -518,13 +518,21 @@ describe("public SEO report trust boundary", () => {
       rulebookVersion: "test",
       pages: [{ ...legacyReport(), request, ...extra }],
     });
-    const approved = withoutApprovedSearchConsole(
-      page(
+    const decisions = {
+      privateStrategyDecisions: [{ decision: "fixture-strategy-marker" }],
+    };
+    const approved = withoutApprovedSearchConsole({
+      ...page(
         { url: SEO_TEST_PAGE, connections: ["search_console"] },
-        { searchConsole: { clicks: 1 }, searchConsoleNear: [] },
+        { searchConsole: { clicks: 1 }, searchConsoleNear: [], ...decisions },
       ),
-    );
+      ...decisions,
+    });
     expect(parsePublicSeoArtifact(approved).pageUrls).toEqual([SEO_TEST_PAGE]);
+    expect(JSON.stringify(approved)).not.toContain("fixture-strategy-marker");
+    expect(() =>
+      parsePublicSeoArtifact({ ...page({ url: SEO_TEST_PAGE }), ...decisions }),
+    ).toThrow("Only public SEO evidence");
     for (const report of [
       page({ url: SEO_TEST_PAGE, connections: ["search_console", "bing"] }),
       page({ url: SEO_TEST_PAGE }, { bing: { clicks: 1 } }),
