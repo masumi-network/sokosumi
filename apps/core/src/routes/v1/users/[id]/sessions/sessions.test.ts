@@ -15,18 +15,28 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { userFindUnique, sessionFindMany, sessionFindFirst, deleteSession } =
-  vi.hoisted(() => ({
-    userFindUnique: vi.fn(),
-    sessionFindMany: vi.fn(),
-    sessionFindFirst: vi.fn(),
-    deleteSession: vi.fn(),
-  }));
+const {
+  userFindUnique,
+  sessionFindMany,
+  sessionFindFirst,
+  sessionFindUnique,
+  deleteSession,
+} = vi.hoisted(() => ({
+  userFindUnique: vi.fn(),
+  sessionFindMany: vi.fn(),
+  sessionFindFirst: vi.fn(),
+  sessionFindUnique: vi.fn(),
+  deleteSession: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: userFindUnique },
-    session: { findMany: sessionFindMany, findFirst: sessionFindFirst },
+    session: {
+      findMany: sessionFindMany,
+      findFirst: sessionFindFirst,
+      findUnique: sessionFindUnique,
+    },
   },
 }));
 
@@ -64,7 +74,11 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
 describe("/users/{id}/sessions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    userFindUnique.mockResolvedValue({ id: "user_1" });
+    userFindUnique.mockImplementation(async ({ where }) => ({ id: where.id }));
+    sessionFindUnique.mockResolvedValue({
+      userId: "user_1",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
   });
 
   it("lists the caller's live sessions without their tokens", async () => {
@@ -106,15 +120,52 @@ describe("/users/{id}/sessions", () => {
     expect(query.select).not.toHaveProperty("token");
   });
 
-  it("refuses OAuth and API key callers", async () => {
-    const response = await createApp({
-      ...SESSION_USER,
-      authenticationMethod: "oauth",
-    }).request("/me/sessions");
+  it.each(["oauth", "api_key"] as const)(
+    "refuses %s callers on both routes",
+    async (authenticationMethod) => {
+      const app = createApp({ ...SESSION_USER, authenticationMethod });
 
-    expect(response.status).toBe(403);
+      expect((await app.request("/me/sessions")).status).toBe(403);
+      expect(
+        (await app.request("/me/sessions/other", { method: "DELETE" })).status,
+      ).toBe(403);
+      expect(sessionFindMany).not.toHaveBeenCalled();
+      expect(deleteSession).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses an admin reading or revoking another user's sessions", async () => {
+    const app = createApp({ ...SESSION_USER, role: "admin" });
+
+    expect((await app.request("/user_2/sessions")).status).toBe(403);
+    expect(
+      (await app.request("/user_2/sessions/theirs", { method: "DELETE" }))
+        .status,
+    ).toBe(403);
     expect(sessionFindMany).not.toHaveBeenCalled();
+    expect(deleteSession).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["revoked", null],
+    ["expired", { userId: "user_1", expiresAt: new Date(Date.now() - 1) }],
+  ])(
+    "refuses a caller whose session is %s but still cached",
+    async (_state, row) => {
+      sessionFindUnique.mockResolvedValue(row);
+      sessionFindFirst.mockResolvedValue({ token: "other-token" });
+
+      const response = await createApp().request("/me/sessions/other", {
+        method: "DELETE",
+      });
+
+      expect(response.status).toBe(401);
+      expect(sessionFindUnique.mock.calls[0]?.[0].where).toEqual({
+        id: "current",
+      });
+      expect(deleteSession).not.toHaveBeenCalled();
+    },
+  );
 
   it("signs out another of the caller's sessions", async () => {
     sessionFindFirst.mockResolvedValue({ token: "other-token" });

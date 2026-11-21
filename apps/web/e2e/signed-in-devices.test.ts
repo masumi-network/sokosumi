@@ -79,7 +79,12 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await card.scrollIntoViewIfNeeded();
       await shot(page, size, "1-two-devices");
 
-      await card.getByRole("button", { name: /^Sign out / }).click();
+      // Only the other device's row: "Sign out all other devices" also
+      // starts with "Sign out".
+      await rows
+        .nth(1)
+        .getByRole("button", { name: /^Sign out / })
+        .click();
       await page.getByText("Device signed out.").waitFor();
       await rows.nth(1).waitFor({ state: "detached" });
       assert.equal(

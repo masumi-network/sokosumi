@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { badRequest, notFound } from "@/helpers/error";
+import { badRequest, notFound, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { auth } from "@/lib/auth";
@@ -31,7 +31,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(revokeUserSessionResponseSchema, "Signed out"),
     400: jsonErrorResponse("Bad Request - Current session"),
-    401: jsonErrorResponse("Unauthorized"),
+    401: jsonErrorResponse("Unauthorized - Caller session no longer active"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found - Session not found"),
   },
@@ -43,6 +43,22 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const caller = requireOwnSession(c.var.authContext, c.var.userRouteContext);
     if (sessionId === caller.sessionId) {
       throw badRequest("Sign out of this device with sign out");
+    }
+    // The auth middleware may answer from the cookie cache (ADR 0069), so a
+    // device that was itself signed out could still revoke others. Read the
+    // caller's row, as Better Auth's own revoke routes do.
+    const live = caller.sessionId
+      ? await prisma.session.findUnique({
+          where: { id: caller.sessionId },
+          select: { userId: true, expiresAt: true },
+        })
+      : null;
+    if (
+      !live ||
+      live.userId !== caller.userId ||
+      live.expiresAt.getTime() <= Date.now()
+    ) {
+      throw unauthorized("Session is no longer active");
     }
 
     const session = await prisma.session.findFirst({
