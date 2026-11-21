@@ -24,6 +24,7 @@ import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import MembersTable from "@/components/members-table/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations/role-badge";
+import { TeamStandupSettings } from "@/components/team-standup/team-standup-settings";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { coreClient } from "@/lib/clients/core.client";
 import { organizationService } from "@/lib/services/organization.service";
@@ -168,6 +169,10 @@ export async function OrganizationSettingsContent({
           deletionPreflightLoadError={deletionPreflightLoadError}
         />
         <AdDataConsentSettings organizationId={organization.id} />
+        <TeamStandupSettings
+          organizationId={organization.id}
+          canEdit={isOwnerOrAdmin}
+        />
         {isOwnerOrAdmin ? (
           <OrganizationBillingDetails
             billingDetails={billingDetails}

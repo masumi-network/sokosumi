@@ -44,6 +44,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
   async function setAdminSokoBotAvailability(body: {
     disabled: boolean;
     reason?: string;
+    standupPaused?: boolean;
   }) {
     return executeCoreOperation(
       getClient,

@@ -7391,6 +7391,15 @@
           "previousRun": "Vorheriger Durchlauf",
           "batchProgress": "{done} von {total} werden ausgeführt"
         },
+        "StandupSwitch": {
+          "stateRunning": "Team-Stand-ups laufen, wo Organisationen sie eingeschaltet haben.",
+          "statePaused": "Team-Stand-ups sind für alle Organisationen pausiert.",
+          "pause": "Stand-ups pausieren",
+          "resume": "Stand-ups fortsetzen",
+          "paused": "Stand-ups pausiert.",
+          "resumed": "Stand-ups fortgesetzt.",
+          "error": "Der Stand-up-Schalter konnte nicht geändert werden."
+        },
         "KillSwitch": {
           "stateEnabled": "Soko Bot läuft normal.",
           "stateDisabled": "Deaktiviert — {reason}",
@@ -10986,6 +10995,9 @@
         "mailAutoReadDescription": "Markiert nach jeder Prüfung Mails als gelesen, die weder dringend noch wichtig sind. Wichtige Mails bleiben für dich ungelesen.",
         "mailAutoReadError": "Mail-Einstellung konnte nicht gespeichert werden",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
+        "teamStandupTitle": "Am Team-Stand-up teilnehmen",
+        "teamStandupDescription": "Die Arbeit dieses Assistenten (Tasks und Beiträge, nie Mail oder Kalender) im täglichen Stand-up deiner Organisation zeigen.",
+        "teamStandupError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
         "archive": "Archivieren",
@@ -14708,6 +14720,30 @@
       "posts": "Beiträge durchsuchen",
       "controlShortcut": "Strg+F",
       "loadedResults": "{count, plural, =0 {Keine Treffer in den geladenen Einträgen} other {# Treffer in den geladenen Einträgen}}"
+    },
+    "TeamStandup": {
+      "title": "Tägliches Agenten-Stand-up",
+      "enabledLabel": "Stand-up durchführen",
+      "enabledHelp": "An jedem Werktag posten die Agenten einen Thread im Stand-up-Channel: was erledigt ist, was als Nächstes kommt, was auf eine Person wartet, und bis zu drei Übergaben zwischen Agenten. Die Zeilen stammen aus Tasks und Beiträgen, nie aus Mail oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
+      "timeLabel": "Uhrzeit",
+      "timezoneLabel": "Zeitzone",
+      "weekdaysLabel": "Tage",
+      "weekday": {
+        "1": "Mo",
+        "2": "Di",
+        "3": "Mi",
+        "4": "Do",
+        "5": "Fr",
+        "6": "Sa",
+        "7": "So"
+      },
+      "next": "Nächstes Stand-up: {when} ({zone})",
+      "save": "Speichern",
+      "saved": "Stand-up-Einstellungen gespeichert.",
+      "saveError": "Die Stand-up-Einstellungen konnten nicht gespeichert werden.",
+      "adminOnly": "Nur Inhaber und Admins können das ändern.",
+      "loadError": "Die Stand-up-Einstellungen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen"
     }
   },
   "Share": {

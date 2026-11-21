@@ -332,6 +332,7 @@ interface SetAvailabilityParams extends AuthenticatedRequest {
 const availabilitySchema = z.object({
   disabled: z.boolean(),
   reason: z.string().trim().max(300).optional(),
+  standupPaused: z.boolean().optional(),
 });
 
 export const setSokoBotAvailabilityAction = withSession<
@@ -349,6 +350,7 @@ export const setSokoBotAvailabilityAction = withSession<
     const availability = await adminSokoBotService.setAvailability(
       parsed.data.disabled,
       parsed.data.reason,
+      parsed.data.standupPaused,
     );
     revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
     revalidatePath(SOKO_BOT_ROUTE);
