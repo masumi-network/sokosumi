@@ -61384,9 +61384,10 @@ export const CmoChatWorkItemSchema = {
                 'run',
                 'question',
                 'seo',
-                'audit'
+                'audit',
+                'seo_saved'
             ],
-            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist\'s weekly audit of the site (audit).'
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), the SEO specialist\'s weekly audit of the site (audit), or the page changes and articles he saved to the SEO page (seo_saved).'
         },
         state: {
             type: 'string',
@@ -61547,6 +61548,13 @@ export const CmoChatWorkItemSchema = {
                 }
             ],
             description: 'A background run\'s own turn: its report in the room is this card.'
+        },
+        suggestions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            },
+            description: 'seo_saved: what Cuso saved to the SEO page, as the page shows it.'
         }
     },
     required: [
@@ -61595,6 +61603,212 @@ export const CmoChatTableSchema = {
         'columns',
         'rows',
         'total'
+    ]
+} as const;
+
+export const CmoSeoSuggestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'article',
+                'page_change',
+                'landing_page'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'audit',
+                'cuso'
+            ]
+        },
+        title: {
+            type: 'string'
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        why: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        newText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        currentText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        element: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'title',
+                'description',
+                'heading',
+                'text',
+                null
+            ]
+        },
+        draft: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    sourceUrl: {
+                        type: 'string'
+                    },
+                    quote: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'text',
+                    'sourceUrl',
+                    'quote'
+                ]
+            }
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoEvidence'
+            }
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'open',
+                'done',
+                'verified',
+                'dismissed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        doneAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        verifiedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'source',
+        'title',
+        'keyword',
+        'pageUrl',
+        'why',
+        'body',
+        'newText',
+        'currentText',
+        'element',
+        'draft',
+        'sources',
+        'evidence',
+        'status',
+        'createdAt',
+        'doneAt',
+        'verifiedAt'
+    ]
+} as const;
+
+export const CmoSeoEvidenceSchema = {
+    type: 'object',
+    properties: {
+        metric: {
+            type: 'string',
+            enum: [
+                'searchVolume',
+                'difficulty',
+                'intent',
+                'position',
+                'clicks',
+                'impressions',
+                'ctr',
+                'auditIssue'
+            ]
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        value: {
+            type: 'string'
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'keyword_research',
+                'search_console',
+                'weekly_audit'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'metric',
+        'keyword',
+        'pageUrl',
+        'value',
+        'source',
+        'observedAt'
     ]
 } as const;
 
@@ -62379,191 +62593,6 @@ export const CmoSearchConsoleSchema = {
         'previousTotals',
         'nearFirstPage',
         'lowClickRate'
-    ]
-} as const;
-
-export const CmoSeoSuggestionSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'article',
-                'page_change',
-                'landing_page'
-            ]
-        },
-        source: {
-            type: 'string',
-            enum: [
-                'audit',
-                'cuso'
-            ]
-        },
-        title: {
-            type: 'string'
-        },
-        keyword: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        pageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        why: {
-            type: 'string'
-        },
-        body: {
-            type: 'string'
-        },
-        newText: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        draft: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        sources: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string'
-                    },
-                    sourceUrl: {
-                        type: 'string'
-                    },
-                    quote: {
-                        type: 'string'
-                    }
-                },
-                required: [
-                    'text',
-                    'sourceUrl',
-                    'quote'
-                ]
-            }
-        },
-        evidence: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/CmoSeoEvidence'
-            }
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'open',
-                'done',
-                'verified',
-                'dismissed'
-            ]
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time'
-        },
-        doneAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time'
-        },
-        verifiedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time'
-        }
-    },
-    required: [
-        'id',
-        'kind',
-        'source',
-        'title',
-        'keyword',
-        'pageUrl',
-        'why',
-        'body',
-        'newText',
-        'draft',
-        'sources',
-        'evidence',
-        'status',
-        'createdAt',
-        'doneAt',
-        'verifiedAt'
-    ]
-} as const;
-
-export const CmoSeoEvidenceSchema = {
-    type: 'object',
-    properties: {
-        metric: {
-            type: 'string',
-            enum: [
-                'searchVolume',
-                'difficulty',
-                'intent',
-                'position',
-                'clicks',
-                'impressions',
-                'ctr',
-                'auditIssue'
-            ]
-        },
-        keyword: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        pageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        value: {
-            type: 'string'
-        },
-        source: {
-            type: 'string',
-            enum: [
-                'keyword_research',
-                'search_console',
-                'weekly_audit'
-            ]
-        },
-        observedAt: {
-            type: 'string',
-            format: 'date-time'
-        }
-    },
-    required: [
-        'metric',
-        'keyword',
-        'pageUrl',
-        'value',
-        'source',
-        'observedAt'
     ]
 } as const;
 

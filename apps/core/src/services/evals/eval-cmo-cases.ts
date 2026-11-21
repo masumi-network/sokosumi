@@ -554,6 +554,8 @@ export type CmoChatSetup =
   | "cmo-comments"
   /** An article idea on "calendly alternative" the owner skipped earlier. */
   | "cmo-seo-skipped"
+  /** cal.com's Search Console connected, with this and the last 28 days (cmo-v12's SEO cases). */
+  | "cmo-seo-report"
   /** cal.com's month waiting for approval, for the change request. */
   | "cmo-plan"
   /** The same month, after the owner said yes to ads and set a budget. */

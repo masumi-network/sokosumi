@@ -172,6 +172,10 @@ export {
   CMO_PLACEHOLDER_PATTERN,
   CMO_POST_WITH_PICTURE_SCENARIO_ID,
   CMO_SCENARIOS,
+  CMO_SEO_BEFORE_AFTER_CASE_ID,
+  CMO_SEO_REPORT_CASE_IDS,
+  CMO_SEO_WEEKLY_REPORT_CASE_ID,
+  CMO_SEO_WRITE_ARTICLE_CASE_ID,
   evaluateScenario,
   type ScenarioCheck,
   type ScenarioResult,
@@ -279,6 +283,11 @@ export {
   CMO_VARIED_PRODUCTION_SKILL,
 } from "./versions/cmo-v8-skills.js";
 export { CMO_SCENE_PRODUCTION_SKILL } from "./versions/cmo-v9-skills.js";
+export {
+  CMO_SEO_REPORTS_SKILL,
+  cmoReportsSeo,
+  cmoSeoReportBrief,
+} from "./versions/cmo-v12-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

@@ -7,10 +7,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { ssrfSafeFetch } from "@sokosumi/net";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { getEnv } from "@/config/env";
 import { fetchKeywordIdeas, fetchKeywordOverview } from "@/lib/ads/dataforseo";
 import { askCmoEditor, EDITORS } from "./cmo-keyword-editorial";
@@ -42,6 +42,12 @@ import {
   checkCmoSearchRankings,
   seoCheckOutcome,
 } from "./cmo-seo-rankings.service";
+
+// A page change's before is read on the live page.
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: vi.fn(),
+}));
 
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ads/dataforseo")>()),
@@ -649,6 +655,84 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     } finally {
       await prisma.projectSeoSuggestion.deleteMany({
         where: { projectId, keyword: "macbook battery cycle count" },
+      });
+      await prisma.projectSeoResearch.delete({ where: { id: gsc.id } });
+    }
+  });
+
+  it("keeps a page change's before only when the live page says it, and refuses a before it does not", async () => {
+    const gsc = await prisma.projectSeoResearch.create({
+      data: {
+        projectId,
+        kind: "search_console",
+        key: "latest",
+        observedAt: new Date(),
+        payload: {
+          property: "sc-domain:battery-sensei.app",
+          from: "2026-10-20",
+          to: "2026-11-16",
+          totals: { clicks: 9, impressions: 900, ctr: 0.01, position: 11 },
+          rows: [
+            {
+              query: "macbook battery health app",
+              pageUrl: "https://battery-sensei.app/",
+              clicks: 9,
+              impressions: 900,
+              ctr: 0.01,
+              position: 11,
+            },
+          ],
+        },
+      },
+    });
+    const page = () =>
+      new Response(
+        "<html><head><title>Battery Sensei &amp; your Mac</title></head><body><h1>Keep your battery young</h1></body></html>",
+      );
+    const change = (title: string, currentText: string) => ({
+      pageUrl: "https://battery-sensei.app/",
+      title,
+      change: "Replace the homepage title.",
+      element: "title" as const,
+      currentText,
+      newText: "MacBook Battery Health App | Battery Sensei",
+      why: "Seen 900 times at 11 for the search; the title never says it.",
+      keyword: "macbook battery health app",
+    });
+    try {
+      vi.mocked(ssrfSafeFetch).mockImplementation(async () => page());
+      const saved = await saveCmoSeoSuggestions(cuso, {
+        pageChanges: [
+          change(
+            "Say battery health in the title",
+            "Battery Sensei & your Mac",
+          ),
+          change("A title the page never had", "Best Mac app of 2026"),
+        ],
+      });
+      expect(saved.saved).toHaveLength(1);
+      expect(saved.refused.join(" ")).toMatch(/does not say "Best Mac app/);
+      const kept = (await readCmoSeo(cuso)).pageChanges.find(
+        (c) => c.title === "Say battery health in the title",
+      );
+      expect(kept).toMatchObject({
+        element: "title",
+        currentText: "Battery Sensei & your Mac",
+      });
+
+      // A page Core cannot read keeps the change, without a before.
+      vi.mocked(ssrfSafeFetch).mockRejectedValueOnce(new Error("timeout"));
+      const unread = await saveCmoSeoSuggestions(cuso, {
+        pageChanges: [change("Name the search on the homepage", "Anything")],
+      });
+      expect(unread.saved).toHaveLength(1);
+      const plain = (await readCmoSeo(cuso)).pageChanges.find(
+        (c) => c.title === "Name the search on the homepage",
+      );
+      expect(plain).toMatchObject({ currentText: null, element: null });
+    } finally {
+      await prisma.projectSeoSuggestion.deleteMany({
+        where: { projectId, source: "cuso", kind: "page_change" },
       });
       await prisma.projectSeoResearch.delete({ where: { id: gsc.id } });
     }

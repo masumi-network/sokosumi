@@ -69,6 +69,7 @@ import {
   isCompetitorSetup,
   prepareCompetitorCase,
 } from "./eval-cmo-competitors";
+import { prepareCmoSeoReport } from "./eval-cmo-seo-report";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -493,6 +494,10 @@ export async function prepareCmoChatCase(
         : "cmo-competitors",
     );
     await prepareCompetitorAdsCase(lane);
+    return {};
+  }
+  if (setup === "cmo-seo-report") {
+    await prepareCmoSeoReport(lane);
     return {};
   }
   if (setup === "cmo-seo-skipped") {

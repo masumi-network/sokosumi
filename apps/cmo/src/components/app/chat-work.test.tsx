@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-
+import { chat } from "../../app/design-system/app/fixtures";
 import type { ChatWork } from "../../lib/chat-work";
 import { buildThread } from "../../lib/thread";
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
@@ -38,6 +38,27 @@ const card = (item: ChatWork) =>
   );
 
 describe("MadeInChat", () => {
+  it("shows what Cuso saved to the SEO page: a change as before and after, an article by its search", () => {
+    const saved = chat.work.find((item) => item.kind === "seo_saved");
+    if (!saved) throw new Error("The fixture has a saved SEO card");
+    const html = renderToStaticMarkup(
+      <MadeInChat
+        work={saved}
+        compose={() => {}}
+        loadText={async () => null}
+        loadTable={async () => null}
+        openSeo={() => {}}
+      />,
+    );
+    expect(html).toContain("Saved to your SEO page");
+    expect(html).toContain("NMKR | The Leading Web3 Platform");
+    expect(html).toContain("NFT Minting Platform for Cardano | NMKR");
+    expect(html).toContain(
+      "For the search &quot;cardano nft marketplace&quot;",
+    );
+    expect(html).toContain("Open SEO");
+  });
+
   it("says a picture is being made, and where it will show", () => {
     const html = card(work());
     expect(html).toContain('role="status"');
