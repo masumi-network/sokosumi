@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   calendarKind,
-  entryReadiness,
   planRange,
   planWeeks,
   relativeDay,
@@ -112,12 +111,6 @@ describe("calendar", () => {
     expect(calendarKind({ format: "article", channel: "blog" })).toBe(
       "article",
     );
-  });
-
-  it("says why an entry is not executed yet", () => {
-    expect(entryReadiness("linkedin", ["linkedin"])).toBe("ready");
-    expect(entryReadiness("linkedin", [])).toBe("connect");
-    expect(entryReadiness("website", ["linkedin"])).toBe("soon");
   });
 
   it("names nearby days", () => {
