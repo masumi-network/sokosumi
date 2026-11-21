@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { getWebAppBaseUrl } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { expectCoreLog } from "@/test/core-log";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 import {
   day,
   searchConsoleReadsEnabled as enabled,
@@ -389,6 +390,130 @@ describe.skipIf(!enabled)("Task-scoped Search Console reads", () => {
       pageIds: [],
       sourceTaskId: null,
       payload: { "sites.list": 10, "searchAnalytics.query": 1 },
+    });
+  });
+
+  it("leaves one audit entry for each read attempt, without page or query text", async () => {
+    expectCoreLog("warn", "A Task-scoped Search Console read failed", 2);
+    // The 503 and the 502 below, on the wide event that inRequest gives the read.
+    expectCoreLog("error", "A request failed with a server error", 2);
+    /** The audit entry of one read, taken from its request's wide event. */
+    const auditOf = async (body: unknown, status: number) => {
+      const before = coreLogEvents().length;
+      await inRequest(async () =>
+        expect((await read(body)).status).toBe(status),
+      );
+      const events = coreLogEvents()
+        .slice(before)
+        .filter((event) => event.audit);
+      expect(events).toHaveLength(1);
+      expect(JSON.stringify(events[0])).not.toMatch(/(example|private)\.test/);
+      return events[0]!.audit;
+    };
+    const sha256 = expect.stringMatching(/^[0-9a-f]{64}$/);
+    const replaceConnection = () =>
+      prisma.seoConnection.update({
+        where: { id: fx.connectionId },
+        data: { revision: { increment: 1 } },
+      });
+    const restoreConnection = () =>
+      prisma.seoConnection.update({
+        where: { id: fx.connectionId },
+        data: { revision: { decrement: 1 } },
+      });
+    const pageQuery = query({
+      dimensions: ["query"],
+      dimensionFilterGroups: [
+        {
+          filters: [
+            { dimension: "page", operator: "equals", expression: PAGE_URLS[0] },
+          ],
+        },
+      ],
+    });
+    expect(await auditOf(pageQuery, 200)).toMatchObject({
+      action: "seo-task.search-console.read",
+      actor: { type: "agent", id: coworkerId },
+      outcome: "success",
+      target: {
+        type: "task",
+        id: fx.taskId,
+        expectedOwnerId: ownerId,
+        expectedOrganizationId: organizationId,
+        operation: "searchAnalytics.query",
+        query: {
+          startDate: day(-30),
+          endDate: day(-3),
+          dimensions: ["query"],
+          rowLimit: 25_000,
+          startRow: 0,
+          filters: [
+            { dimension: "page", operator: "equals", expressionSha256: sha256 },
+          ],
+        },
+        providerStep: "answered",
+        rows: ROWS.rows.length,
+      },
+    });
+    // Refused at the gate: the provider step did not start.
+    expect(
+      await auditOf({ ...query(), siteUrl: "sc-domain:private.test" }, 409),
+    ).toMatchObject({
+      outcome: "denied",
+      reason: "seo_gsc_property",
+      target: { id: fx.taskId, providerStep: "not_started" },
+    });
+    // Google answered, and Core held the reply back.
+    fx.providerHook = async () => {
+      await replaceConnection();
+      return null;
+    };
+    expect(await auditOf(inspect(), 409)).toMatchObject({
+      outcome: "denied",
+      reason: "seo_gsc_reconnect",
+      target: {
+        operation: "urlInspection.inspect",
+        inspectionUrlSha256: sha256,
+        providerStep: "answered",
+      },
+    });
+    await restoreConnection();
+    // Google answered, and Core refused the body.
+    fx.providerHook = () =>
+      Response.json({
+        successful: true,
+        data: {
+          rows: [{ ...ROWS.rows[0], keys: ["x".repeat(2 * 1024 * 1024)] }],
+        },
+      });
+    expect(await auditOf(query(), 502)).toMatchObject({
+      outcome: "failure",
+      reason: "seo_gsc_response_too_large",
+      target: { providerStep: "answered" },
+    });
+    fx.providerHook = () => new Response("upstream failed", { status: 500 });
+    expect(await auditOf(sitesList, 503)).toMatchObject({
+      outcome: "failure",
+      reason: "http_503",
+      target: { operation: "sites.list", providerStep: "no_answer" },
+    });
+    // No answer, and the connection changed too: still no answer.
+    fx.providerHook = async () => {
+      await replaceConnection();
+      return new Response("upstream failed", { status: 500 });
+    };
+    expect(await auditOf(sitesList, 409)).toMatchObject({
+      outcome: "denied",
+      reason: "seo_gsc_reconnect",
+      target: { providerStep: "no_answer" },
+    });
+    await restoreConnection();
+    fx.actor = { actor: "user", userId: ownerId, organizationId, role: "user" };
+    expect(await auditOf(sitesList, 403)).toMatchObject({
+      actor: { type: "user", id: ownerId },
+      outcome: "denied",
+      reason: "http_403",
+      target: { providerStep: "not_started" },
     });
   });
 });
