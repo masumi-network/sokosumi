@@ -53,6 +53,7 @@ import {
 import {
   CMO_MAX_VIDEOS_PER_MONTH,
   cmoCalendarWeeks,
+  cmoFollowCadenceChange,
   cmoMonthShortfall,
   cmoPlanRulesBrokenSince,
   cmoPromiseGaps,
@@ -1377,6 +1378,9 @@ export async function saveCmoStrategy(
       before,
       await cmoOwnerRequest(options.turnId),
     );
+  // A changed cadence reaches the funnel and the calendar, not the label alone.
+  if (options.turnId && !options.executing)
+    stored = cmoFollowCadenceChange(stored, before);
   // A talking video shows a generated presenter: its script speaks for the
   // brand, never as a customer of it.
   const testimonial = options.turnId

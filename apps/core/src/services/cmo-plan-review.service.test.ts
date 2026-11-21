@@ -22,6 +22,8 @@ import {
   cmoCalendarRepeats,
   cmoDistinctClaims,
   cmoDraftProblems,
+  cmoFollowCadenceChange,
+  cmoFunnelPlanProblems,
   cmoMonthShortfall,
   cmoNewNetworkProblems,
   cmoPlanDrift,
@@ -2104,5 +2106,84 @@ describe("an owner's correction", () => {
     await expect(
       cmoRejectedTerms("turn-down", "No caps.", null, ask as never),
     ).resolves.toEqual({ terms: [], costUsd: 0 });
+  });
+});
+
+describe("cmoFollowCadenceChange", () => {
+  type Channel = MarketingStrategyPlan["channels"][number];
+  const channel = (key: string, cadence: string) =>
+    ({ channel: key, cadence, role: "main" }) as Channel;
+  const day = (index: number) =>
+    `2026-11-${String(index + 2).padStart(2, "0")}`;
+  const month = (perDay: number) =>
+    Array.from({ length: 28 }, (_, index) =>
+      Array.from({ length: perDay }, (_, slot) => ({
+        ...entry(`x-${index}-${slot}`, "x", "post"),
+        date: day(index),
+        time: `${String(9 + slot * 4).padStart(2, "0")}:00`,
+      })),
+    ).flat();
+  const before = plan({
+    channels: [channel("x", "3 a day"), channel("linkedin", "1 a day")],
+    calendar: [
+      ...month(3),
+      ...Array.from({ length: 28 }, (_, index) => ({
+        ...entry(`li-${index}`, "linkedin", "post"),
+        date: day(index),
+      })),
+    ],
+    funnel: [
+      {
+        stage: "awareness",
+        name: "Hear",
+        goal: "g",
+        channels: ["x"],
+        metric: "Visits",
+        plays: [{ channel: "x", what: "Posts", cadence: "3 a day" }],
+      },
+    ] as MarketingStrategyPlan["funnel"],
+  });
+  const lowered = plan({
+    ...before,
+    channels: [channel("x", "2 a day"), channel("linkedin", "1 a day")],
+  });
+
+  it("takes a lowered cadence into the calendar, one piece off each day", () => {
+    const saved = cmoFollowCadenceChange(lowered, before);
+    const x = saved.calendar.filter((item) => item.channel === "x");
+    expect(x).toHaveLength(56);
+    const perDay = new Map<string, number>();
+    for (const item of x)
+      perDay.set(item.date, (perDay.get(item.date) ?? 0) + 1);
+    expect(new Set(perDay.values())).toEqual(new Set([2]));
+    // The latest slot goes; the others stay as they were.
+    expect(x.some((item) => item.time === "17:00")).toBe(false);
+    expect(
+      saved.calendar.filter((item) => item.channel === "linkedin"),
+    ).toHaveLength(28);
+    expect(saved.funnel[0]?.plays[0]?.cadence).toBe("2 a day");
+    expect(
+      cmoFunnelPlanProblems(saved).filter((problem) =>
+        problem.includes("say the same in both"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps a piece that already has its words", () => {
+    const written = plan({
+      ...lowered,
+      calendar: lowered.calendar.map((item) =>
+        item.channel === "x" ? { ...item, draft: "Words" } : item,
+      ),
+    });
+    expect(
+      cmoFollowCadenceChange(written, before).calendar.filter(
+        (item) => item.channel === "x",
+      ),
+    ).toHaveLength(84);
+  });
+
+  it("leaves a calendar alone when no cadence changed", () => {
+    expect(cmoFollowCadenceChange(before, before)).toBe(before);
   });
 });
