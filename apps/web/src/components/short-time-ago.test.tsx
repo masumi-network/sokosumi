@@ -77,6 +77,31 @@ describe("ShortTimeAgo", () => {
     expect(document.body.textContent).toBe("1m ago|2m ago");
   });
 
+  // The sidebar stays mounted, so the clock it holds can be most of a minute
+  // old when Home opens. Home's rows must not count back from their own
+  // server render ("1m ago" to "just now"), and the sidebar moves with them.
+  it("starts a newly shown label from now, not from an older tick", () => {
+    const sidebarAt = ago(2 * 60_000);
+    const { rerender } = render(
+      intl(<ShortTimeAgo at={sidebarAt} now={NOW} />),
+    );
+    expect(document.body.textContent).toBe("2m ago");
+
+    const later = new Date(NOW.getTime() + 50_000);
+    vi.setSystemTime(later);
+    const rowAt = new Date(later.getTime() - 65_000);
+    rerender(
+      intl(
+        <>
+          <ShortTimeAgo at={sidebarAt} now={NOW} />|
+          <ShortTimeAgo at={rowAt} now={later} />
+        </>,
+      ),
+    );
+
+    expect(document.body.textContent).toBe("3m ago|1m ago");
+  });
+
   it("speaks the reader's language", () => {
     render(intl(<ShortTimeAgo at={ago(3 * 3_600_000)} now={NOW} />, "de"));
 

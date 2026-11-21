@@ -14,12 +14,17 @@ let clock = Date.now();
 let timer: ReturnType<typeof setInterval> | undefined;
 const listeners = new Set<() => void>();
 
+function tick() {
+  clock = Date.now();
+  for (const notify of listeners) notify();
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
-  timer ??= setInterval(() => {
-    clock = Date.now();
-    for (const notify of listeners) notify();
-  }, TICK_MS);
+  // A label shown between ticks (Home opening beside the sidebar) moves
+  // every label to now rather than counting from an older tick.
+  if (Date.now() - clock > 1_000) tick();
+  timer ??= setInterval(tick, TICK_MS);
   return () => {
     listeners.delete(listener);
     if (listeners.size === 0) {
@@ -68,14 +73,17 @@ export function ShortTimeAgo({ at, now }: { at: Date; now: Date }) {
 
   return (
     <Suspense fallback={formatShortTimeAgo(at, now)}>
-      <LiveShortTimeAgo at={at} />
+      <LiveShortTimeAgo at={at} now={now} />
     </Suspense>
   );
 }
 
-function LiveShortTimeAgo({ at }: { at: Date }) {
+function LiveShortTimeAgo({ at, now }: { at: Date; now: Date }) {
   use(browser());
   const formatShortTimeAgo = useFormatShortTimeAgo();
+  // Never behind the server's label: the first render still holds the clock
+  // as it was before this label subscribed.
+  const clock = Math.max(useSharedNow(), now.getTime());
 
-  return formatShortTimeAgo(at, useSharedNow());
+  return formatShortTimeAgo(at, clock);
 }
