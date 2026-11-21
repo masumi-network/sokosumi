@@ -74,4 +74,17 @@ describe("useRefreshWhenShown", () => {
     });
     expect(refresh).not.toHaveBeenCalled();
   });
+
+  it("cancels a pending debounced refresh on unmount", () => {
+    const refresh = vi.fn();
+    const { result, unmount } = renderHook(() => useRefreshWhenShown(refresh));
+    act(() => {
+      result.current();
+    });
+    unmount();
+    act(() => {
+      vi.advanceTimersByTime(TASKS_BOARD_REFRESH_MAX_WAIT_MS);
+    });
+    expect(refresh).not.toHaveBeenCalled();
+  });
 });
