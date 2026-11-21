@@ -43,6 +43,11 @@ import {
 import { CMO_SCENE_PRODUCTION_SKILL } from "../versions/cmo-v9-skills.js";
 import { CMO_PICKED_PRODUCTION_SKILL } from "../versions/cmo-v11-skills.js";
 import {
+  CMO_SEO_REPORTS_SKILL,
+  cmoReportsSeo,
+} from "../versions/cmo-v12-skills.js";
+import { CMO_PART_PATCH_STRATEGY_SKILL } from "../versions/cmo-v13-skills.js";
+import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
@@ -174,10 +179,10 @@ describe("CMO version", () => {
     );
   });
 
-  // Owner, 2026-11-20: varied pictures, no repeated messages, corrections
-  // that reach the whole plan, stronger LinkedIn openings.
-  it("makes cmo-v10 the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v10");
+  // Owner, 2026-11-21: one Cuso with the stronger model, picked pictures,
+  // weekly SEO reports and part patches.
+  it("makes cmo-v13 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v13");
   });
 
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
@@ -262,8 +267,6 @@ describe("CMO version", () => {
       "- purpose, with styleLook",
     );
     expect(CMO_VARIED_PIECE_WRITING_GUIDE).not.toContain("one concrete scene");
-    // New hires start on cmo-v10, cmo-v9 with the stronger model.
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v10");
   });
 
   it("has cmo-v10 run cmo-v9 word for word with a stronger model for hard work", () => {
@@ -320,6 +323,30 @@ describe("CMO version", () => {
     ).toBe("bold graphic");
     // Not the hire default until the owner has seen the month sheet.
     expect(CMO_SOKO_BOT_VERSION_ID).not.toBe("cmo-v11");
+  });
+
+  // Owner, 2026-11-21: one Cuso with routing, picked pictures, SEO reports
+  // and part patches.
+  it("has cmo-v13 carry cmo-v11's pictures and model, cmo-v12's SEO and part patches", () => {
+    const v11 = getSokoBotVersion("cmo-v11");
+    const v13 = getSokoBotVersion("cmo-v13");
+    expect(v13.systemPrompt).toBe(v11.systemPrompt);
+    expect(v13.strongModel).toBe("openai/gpt-6.2-sol");
+    expect(v13.skills).toEqual(
+      v11.skills.map((skill) =>
+        skill === "cmo-seo"
+          ? CMO_SEO_REPORTS_SKILL
+          : skill === CMO_CLAIMS_STRATEGY_SKILL
+            ? CMO_PART_PATCH_STRATEGY_SKILL
+            : skill,
+      ),
+    );
+    expect(v13.skills).toContain(CMO_PICKED_PRODUCTION_SKILL);
+    expect(cmoReportsSeo(v13.skills)).toBe(true);
+    expect(cmoWritesMonthAtOnce(v13.skills)).toBe(true);
+    const strategy = getSokoBotSkill(CMO_PART_PATCH_STRATEGY_SKILL).content;
+    expect(strategy).toContain("never the whole calendar");
+    expect(strategy).toContain("claim:");
   });
 
   it("keeps a piece's claim on its plan entry and its Social post", () => {

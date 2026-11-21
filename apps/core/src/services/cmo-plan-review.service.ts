@@ -2,6 +2,7 @@ import {
   type BrandBrain,
   CMO_AIDA_STAGES,
   CMO_CLAIMS_STRATEGY_SKILL,
+  CMO_PART_PATCH_STRATEGY_SKILL,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
@@ -304,6 +305,8 @@ export interface PlanReviewOptions {
   aida?: boolean;
   /** The Cuso plans every live social network CMO offers (cmo-v5's strategy skill). */
   everyNetwork?: boolean;
+  /** An owner's change to part of the plan is saved as a part patch (cmo-v13's strategy skill). */
+  partPatch?: boolean;
 }
 
 /**
@@ -314,14 +317,17 @@ export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
 
 /** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
 export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
+  // cmo-v13's strategy skill is cmo-v8's with every part change a patch.
+  const partPatch = skills.includes(CMO_PART_PATCH_STRATEGY_SKILL);
   // cmo-v8's strategy skill is cmo-v5's with claims and corrections.
-  const claims = skills.includes(CMO_CLAIMS_STRATEGY_SKILL);
+  const claims = partPatch || skills.includes(CMO_CLAIMS_STRATEGY_SKILL);
   const everyNetwork = claims || skills.includes(EVERY_NETWORK_STRATEGY_SKILL);
   return {
     weekly: everyNetwork || skills.includes(WEEKLY_STRATEGY_SKILL),
     aida: everyNetwork,
     everyNetwork,
     claims,
+    partPatch,
   };
 }
 
