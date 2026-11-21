@@ -9,6 +9,7 @@ import type {
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
+import { APP_MAIN_MOBILE_SCROLL_MT_CLASS } from "@/app/components/app-shell-safe-area";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
@@ -202,6 +203,8 @@ export function DataRoomCompanyPanel({
                   id={id}
                   rows={multiline ? 3 : undefined}
                   type={EMAIL_FIELDS.has(field) ? "email" : undefined}
+                  // An invalid email scrolls into view on save; keep it below the phone header.
+                  className={APP_MAIN_MOBILE_SCROLL_MT_CLASS}
                   value={draft[field]}
                   onChange={(event) =>
                     setDraft((previous) => ({
