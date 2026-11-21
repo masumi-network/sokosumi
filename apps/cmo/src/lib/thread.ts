@@ -134,6 +134,7 @@ export type CusoState =
   | "waiting-approval"
   | "waiting-channel"
   | "blocked"
+  | "stuck"
   | "running";
 
 /** How Cuso looks: the pose of his avatar for that state. */
@@ -155,6 +156,7 @@ const CUSO_STATE_LABEL: Record<CusoState, string> = {
   "waiting-approval": "Waiting for approval",
   "waiting-channel": "Waiting for a channel",
   blocked: "Couldn't start",
+  stuck: "Behind",
   running: "On schedule",
 };
 
@@ -172,6 +174,7 @@ const STATE_POSE: Record<Exclude<CusoState, "running">, CusoPose> = {
   "waiting-approval": "needs-you",
   "waiting-channel": "needs-you",
   blocked: "thinking",
+  stuck: "thinking",
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -188,6 +191,7 @@ export function cusoState(overview: CmoOverview): CusoState {
   if (!strategyApproved(overview)) return "waiting-approval";
   if (overview.channels.length === 0) return "waiting-channel";
   if (overview.production.state === "blocked") return "blocked";
+  if (overview.production.state === "stuck") return "stuck";
   return "running";
 }
 
