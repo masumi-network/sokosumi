@@ -15,6 +15,8 @@ import { createMailbox } from "./mailbox.ts";
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const SCHEDULE_NAME = "Weekly newsletter draft";
+// From the You tab the list opens as /schedules?from=you.
+const SCHEDULES_URL = /\/schedules(\?.*)?$/;
 
 const PROJECTS = [
   { name: "phone", width: 375, height: 812, isMobile: true },
@@ -51,7 +53,7 @@ async function openSchedules(page: Page, size: string) {
     if (await showSidebar.isVisible()) await showSidebar.click();
     await page.getByRole("link", { name: "Schedules", exact: true }).click();
   }
-  await page.waitForURL(`${BASE_URL}/schedules`);
+  await page.waitForURL(SCHEDULES_URL);
 }
 
 let browser: Browser;
@@ -107,7 +109,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         .getByRole("link", { name: "Schedules" })
         .first()
         .click();
-      await page.waitForURL(`${BASE_URL}/schedules`);
+      await page.waitForURL(SCHEDULES_URL);
 
       const row = page.getByTestId("schedule-row").filter({
         hasText: SCHEDULE_NAME,
