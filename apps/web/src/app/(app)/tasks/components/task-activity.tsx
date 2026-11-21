@@ -45,6 +45,7 @@ import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useTaskActivityRowEnter } from "@/hooks/effects/use-task-activity-row-enter";
 import {
   createTaskComment,
   loadOlderTaskActivityEvents,
@@ -62,6 +63,7 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
+import { TaskResultDownload } from "./task-result-download";
 import { useTaskResultTableComponents } from "./task-result-table-action";
 import {
   getTaskStatusDotColorClass,
@@ -114,6 +116,8 @@ interface TaskActivityProps {
     title: string;
     projectId: string | null;
   };
+  /** Names the files a finished result downloads as. */
+  taskName?: string;
 }
 
 export interface MentionableUser {
@@ -122,21 +126,14 @@ export interface MentionableUser {
 }
 
 const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
+const NO_AGENT_LINKS = new Map<string, string>();
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
 }
 
 function AnimatedNewRow({ children }: { children: ReactNode }) {
-  const [isEntered, setIsEntered] = useState(false);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setIsEntered(true);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+  const isEntered = useTaskActivityRowEnter();
 
   return (
     <div
@@ -226,6 +223,7 @@ function TaskActivityContent({
   mentionableUsers = NO_MENTIONABLE_USERS,
   headerAction,
   tableSource,
+  taskName = "result",
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const markdownComponents = useTaskResultTableComponents(
@@ -266,6 +264,11 @@ function TaskActivityContent({
     }
     return names;
   }, [userById, mentionableUsers, viewerId]);
+  // A downloaded file has no Sokosumi origin, so its mentions are plain names, not app links.
+  const exportNameById = useMemo(
+    () => new Map([...resolvedAgentNameById, ...mentionUserNameById]),
+    [resolvedAgentNameById, mentionUserNameById],
+  );
 
   const [syncedEvents, setSyncedEvents] = useState(events);
   if (syncedEvents !== events) {
@@ -723,6 +726,16 @@ function TaskActivityContent({
                           components={markdownComponents}
                         />
                       </TaskTableEvent>
+                    ) : null}
+                    {shouldHighlightDoneBorder && formattedComment ? (
+                      <TaskResultDownload
+                        markdown={formatMentionsAsMarkdownLinks(
+                          event.comment ?? "",
+                          NO_AGENT_LINKS,
+                          exportNameById,
+                        )}
+                        fileName={taskName}
+                      />
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
                       <p className="text-foreground text-sm">

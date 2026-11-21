@@ -276,7 +276,7 @@ describe("SocialAccountsProjectPrompt", () => {
       SOCIAL_PROVIDERS.length * 2,
     );
     expect(
-      [...scroller.querySelectorAll(".from-background")].length,
+      [...scroller.querySelectorAll(".from-card-background")].length,
     ).toBeGreaterThanOrEqual(2);
 
     const globals = readFileSync(

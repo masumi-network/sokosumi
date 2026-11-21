@@ -8,6 +8,7 @@ import {
   dayIn,
   greeting,
   monthEntries,
+  monthMade,
   monthProgress,
   type NeedsYou,
   needsYou,
@@ -91,7 +92,7 @@ export function TodayPage({
       </section>
 
       {/* Last, under Cuso's pointing hand at the sidebar's foot. */}
-      <NeedsYouList items={needs} open={open} />
+      <NeedsYouList items={needs} open={open} openEntry={openEntry} />
     </div>
   );
 }
@@ -104,7 +105,8 @@ function saying(overview: CmoOverview, needs: number): string {
     return `I'm on it: ${overview.activity?.step ?? "working"}.`;
   }
   if (overview.production.state === "running") {
-    return `I'm making your month: ${overview.production.ready} of ${overview.production.total} ready.`;
+    const { ready, total } = monthMade(overview);
+    return `I'm making your month: ${ready} of ${total} ready.`;
   }
   if (overview.production.state === "blocked") {
     return "I couldn't start your month yet. I keep trying every ten minutes.";
@@ -115,9 +117,11 @@ function saying(overview: CmoOverview, needs: number): string {
 function NeedsYouList({
   items,
   open,
+  openEntry,
 }: {
   items: NeedsYou[];
   open: (view: View) => void;
+  openEntry: (entryId: string) => void;
 }) {
   if (items.length === 0) return null;
   return (
@@ -145,7 +149,9 @@ function NeedsYouList({
               className={
                 index === 0 ? "button" : "button button-secondary button-small"
               }
-              onClick={() => open(item.view)}
+              onClick={() =>
+                item.entryId ? openEntry(item.entryId) : open(item.view)
+              }
             >
               {item.action}
             </button>
@@ -288,6 +294,10 @@ export function MonthBar({ entries }: { entries: Entry[] }) {
     ["scheduled", "Scheduled", progress.scheduled],
     ["written", "Written", progress.written],
     ["planned", "To make", progress.planned],
+    // Only when one did: the bar's usual four stay put.
+    ...(progress.notSent > 0
+      ? ([["not-sent", "Didn't go out", progress.notSent]] as const)
+      : []),
   ] as const;
   return (
     <div className="month">

@@ -1,6 +1,12 @@
 import type { Contact, ContactList } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -359,12 +365,12 @@ describe("ContactsWorkspace Archived view", () => {
 
   it("moves keyboard focus to the archive heading on entry and to All contacts on the way back", async () => {
     renderAt("");
-    screen.getByRole("button", { name: "toolbar.more" }).focus();
+    act(() => screen.getByRole("button", { name: "toolbar.more" }).focus());
     await userEvent.keyboard("{Enter}");
     const item = await screen.findByRole("menuitem", {
       name: "presets.archived",
     });
-    item.focus();
+    act(() => item.focus());
     await userEvent.keyboard("{Enter}");
     await waitFor(() =>
       expect(
@@ -372,7 +378,9 @@ describe("ContactsWorkspace Archived view", () => {
       ).toHaveFocus(),
     );
 
-    screen.getByRole("button", { name: "views.backToContacts" }).focus();
+    act(() =>
+      screen.getByRole("button", { name: "views.backToContacts" }).focus(),
+    );
     await userEvent.keyboard("{Enter}");
     await waitFor(() =>
       expect(screen.getByRole("radio", { name: "presets.all" })).toHaveFocus(),

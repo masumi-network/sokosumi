@@ -208,6 +208,10 @@ model ProjectSeoSuggestion {
   body          String
   /// A page change's exact new text, ready to copy.
   newText       String?
+  /// A page change: the text on the live page today, read back by Core before it saved it.
+  currentText   String?
+  /// A page change: what it replaces, title | description | heading | text.
+  element       String?
   /// An article written in full.
   draft         String?
   /// The numbers behind it, each with its source and date, attached by Core.

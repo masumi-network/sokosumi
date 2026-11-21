@@ -143,11 +143,11 @@ function SocialPlatformCarousel() {
       >
         <div
           aria-hidden
-          className="from-background pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-linear-to-r to-transparent"
+          className="from-card-background pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-linear-to-r to-transparent"
         />
         <div
           aria-hidden
-          className="from-background pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-linear-to-l to-transparent"
+          className="from-card-background pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-linear-to-l to-transparent"
         />
         <div className="-ml-3 flex w-max motion-safe:animate-social-platform-marquee motion-safe:group-active:[animation-play-state:paused] motion-safe:group-focus-within:[animation-play-state:paused] motion-safe:[@media(hover:hover)]:group-hover:[animation-play-state:paused]">
           {[0, 1].map((copy) => (

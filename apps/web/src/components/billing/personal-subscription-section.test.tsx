@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -155,7 +155,7 @@ describe("PersonalSubscriptionSection", () => {
           props.plan?.name === "standard",
       );
 
-    await currentPlanProps?.onAction("standard");
+    await act(async () => currentPlanProps?.onAction("standard"));
 
     await waitFor(() => {
       expect(upgradePersonalSubscriptionMock).toHaveBeenCalledWith({
@@ -191,7 +191,7 @@ describe("PersonalSubscriptionSection", () => {
           props.plan?.name === "standard",
       );
 
-    await standardPlanProps?.onAction("standard");
+    await act(async () => standardPlanProps?.onAction("standard"));
 
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith("statusSuccess");

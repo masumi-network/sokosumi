@@ -101,7 +101,7 @@ async function sendAndFail(hook: ReturnType<typeof renderStream>) {
       new Error(JSON.stringify({ error: "Forbidden", message: BILLING })),
     );
   });
-  await act(() => chat.options?.onFinish({ isError: true }));
+  await act(async () => chat.options?.onFinish({ isError: true }));
 }
 
 beforeEach(() => {

@@ -385,7 +385,6 @@ describe("newsletter issue editor", () => {
   });
 
   it("validates HTTPS links with translated inline errors and drops a cleared optional link", async () => {
-    const user = userEvent.setup();
     renderEditor({
       ...NEWSLETTER_ISSUE,
       content: [
@@ -398,14 +397,17 @@ describe("newsletter issue editor", () => {
         { type: "button", label: "Read", url: "https://example.com" },
       ],
     });
-    await user.clear(screen.getByLabelText("Image URL"));
-    await user.type(
-      screen.getByLabelText("Image URL"),
-      "http://example.com/a.png",
+    fireEvent.change(screen.getByLabelText("Image URL"), {
+      target: { value: "http://example.com/a.png" },
+    });
+    fireEvent.change(screen.getByLabelText("Button URL"), {
+      target: { value: "javascript:alert(1)" },
+    });
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save issue", busy: false }),
+      ),
     );
-    await user.clear(screen.getByLabelText("Button URL"));
-    await user.type(screen.getByLabelText("Button URL"), "javascript:alert(1)");
-    await user.click(screen.getByRole("button", { name: "Save issue" }));
     expect(
       await screen.findAllByText(
         en.App.Projects.Newsletter.Issues.Validation.content,
@@ -422,9 +424,15 @@ describe("newsletter issue editor", () => {
     fireEvent.change(screen.getByLabelText("Button URL"), {
       target: { value: "https://example.com/read" },
     });
-    await user.clear(screen.getByLabelText("Link URL (optional)"));
-    await user.click(screen.getByRole("button", { name: "Save issue" }));
-    await waitFor(() => expect(mocks.save).toHaveBeenCalled());
+    fireEvent.change(screen.getByLabelText("Link URL (optional)"), {
+      target: { value: "" },
+    });
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save issue", busy: false }),
+      ),
+    );
+    expect(mocks.save).toHaveBeenCalledOnce();
     const saved = mocks.save.mock.calls[0][0].values.content[0];
     expect(saved.href).toBeUndefined();
   });

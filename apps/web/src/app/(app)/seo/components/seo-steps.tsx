@@ -35,6 +35,7 @@ export function SeoStep({
   last = false,
   heading: Heading = "h3",
   stagger = false,
+  wide = false,
   children,
 }: {
   index: number;
@@ -51,9 +52,13 @@ export function SeoStep({
   heading?: "h3" | "h4";
   /** Only for a view that shows once. A tab that remounts must not replay it. */
   stagger?: boolean;
+  /** Below `sm` the help and controls start at the mark's edge, not the rail's. Only for a last step: no rail runs under them. */
+  wide?: boolean;
   children?: ReactNode;
 }) {
   const quiet = mark === "todo";
+  // The mark (size-8) plus the gap (gap-4).
+  const edge = wide && "max-sm:-ms-12";
   const item = (
     <li
       className={cn("content-rise relative flex gap-4", !last && "pb-6")}
@@ -106,11 +111,16 @@ export function SeoStep({
           ) : null}
         </Heading>
         {body ? (
-          <div className="text-muted-foreground max-w-prose text-sm text-pretty">
+          <div
+            className={cn(
+              "text-muted-foreground max-w-prose text-sm text-pretty",
+              edge,
+            )}
+          >
             {body}
           </div>
         ) : null}
-        {children ? <div className="pt-3">{children}</div> : null}
+        {children ? <div className={cn("pt-3", edge)}>{children}</div> : null}
       </div>
     </li>
   );

@@ -253,4 +253,40 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(taskLinkSchema?.properties).not.toHaveProperty("toTaskId");
     expect(taskLinkSchema?.properties).not.toHaveProperty("peerTaskId");
   });
+
+  it("documents the Task-scoped Search Console routes for the SEO worker", () => {
+    const doc = tasksRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "Tasks API", version: "1.0.0" },
+    });
+    const status = getJsonResponseSchema(
+      doc,
+      "/{id}/integrations/search-console",
+      "get",
+      "200",
+    ) as { properties?: Record<string, unknown> } | null;
+    expect(Object.keys(status?.properties ?? {}).sort()).toEqual([
+      "authenticationUrl",
+      "expiresAt",
+      "provider",
+      "reason",
+      "status",
+    ]);
+    const reads = "/{id}/integrations/search-console/reads";
+    expect(Object.keys(doc.paths?.[reads]?.post?.responses ?? {})).toEqual(
+      expect.arrayContaining([
+        "200",
+        "403",
+        "404",
+        "409",
+        "422",
+        "429",
+        "502",
+        "503",
+      ]),
+    );
+    expect(JSON.stringify(getJsonRequestSchema(doc, reads, "post"))).toContain(
+      "urlInspection.inspect",
+    );
+  });
 });

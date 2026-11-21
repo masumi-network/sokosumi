@@ -183,9 +183,9 @@ describe("useAuthCaptcha", () => {
     await act(async () => {
       screen.getByText("Submit").click();
     });
-    await act(() => vi.advanceTimersByTimeAsync(7_000));
+    await act(async () => vi.advanceTimersByTimeAsync(7_000));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    await act(() => vi.advanceTimersByTimeAsync(1_500));
+    await act(async () => vi.advanceTimersByTimeAsync(1_500));
     expect(screen.getByRole("alert")).toHaveTextContent("error");
     expect(result).toHaveBeenCalledWith(null);
     expect(submitAction).not.toHaveBeenCalled();
@@ -199,7 +199,7 @@ describe("useAuthCaptcha", () => {
     await act(async () => {
       screen.getByText("Submit").click();
     });
-    await act(() => vi.advanceTimersByTimeAsync(8_500));
+    await act(async () => vi.advanceTimersByTimeAsync(8_500));
     expect(screen.getByRole("alert")).toHaveTextContent("missingResponse");
     expect(result).toHaveBeenCalledWith(null);
     expect(submitAction).not.toHaveBeenCalled();

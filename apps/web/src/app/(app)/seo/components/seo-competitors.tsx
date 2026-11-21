@@ -19,9 +19,11 @@ import {
   competitorSites,
   type SeoCompetitorSite,
 } from "./seo-competitors-model";
+import { SeoContentPlanning } from "./seo-content-planning";
 import { seoDaySpan } from "./seo-day-span";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoCompetitorsExport } from "./seo-export-model";
+import { workspaceKeywordGroups } from "./seo-keyword-rows-model";
 import { seoStrategyRows } from "./seo-places-model";
 import { SeoRankPill } from "./seo-rank-pill";
 import { SeoRowMenu } from "./seo-row-menu";
@@ -222,6 +224,15 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           ))}
         </dl>
       ) : null}
+      {!model.competitorSearch &&
+        rows.length > 0 &&
+        model.data.keywords?.length > 0 && (
+          <SeoContentPlanning
+            groups={workspaceKeywordGroups(model.data).ideas}
+            model={model}
+            gapsOnly
+          />
+        )}
       {/* A list of sites alone had no next step. The row opens the strategy actions, as the Agent row does. */}
       {rows.length && strategyActions.count ? (
         <SeoNextStepRow onClick={model.showStrategy}>

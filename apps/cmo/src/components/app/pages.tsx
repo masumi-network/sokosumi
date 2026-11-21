@@ -9,9 +9,7 @@ import {
   channelLabel,
   connectedNetworks,
   formatDay,
-  isSocialProvider,
   SOCIAL_PROVIDERS,
-  waitsForNetwork,
 } from "../../lib/calendar";
 import { channelInfo, SOON_CHANNELS } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -72,47 +70,13 @@ export function ResultsPage({
   onChange: (overview: CmoOverview) => void;
 }) {
   const weekly = overview.updates.filter((update) => update.kind === "weekly");
-  const { posts } = overview;
   const networks = connectedNetworks(overview.channels);
   const connected = networks.length > 0;
   const month = monthEntries(overview);
-  // Drafts are the month's written posts, counted from the plan Cuso makes:
-  // Core's Social post rows also hold placeholders and posts beyond the plan.
-  // A written post on a network that is not connected waits for the owner.
-  const written = month.filter(
-    (entry) =>
-      isSocialProvider(entry.channel.toLowerCase()) &&
-      (entry.status === "draft" ||
-        (Boolean(entry.draft) &&
-          !entry.socialPostId &&
-          entry.status !== "published")),
-  );
-  const waits = written.flatMap(
-    (entry) => waitsForNetwork(entry, networks) ?? [],
-  );
-  const drafts = written.length - waits.length;
   const waitsLine = waitingLine(overview);
   const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
-      <div className="grid4">
-        <Kpi label="Published" value={posts.published} />
-        <Kpi label="Scheduled" value={posts.scheduled} />
-        {waits.length > 0 ? (
-          <Kpi
-            label="Waiting"
-            value={waits.length}
-            note={`for ${[...new Set(waits)].map(channelLabel).join(", ")}`}
-          />
-        ) : null}
-        {drafts > 0 || waits.length === 0 ? (
-          <Kpi label="Drafts" value={drafts} />
-        ) : null}
-        {/* Four tiles a row: Failed gives way unless something failed. */}
-        {posts.failed > 0 || waits.length === 0 || drafts === 0 ? (
-          <Kpi label="Failed" value={posts.failed} />
-        ) : null}
-      </div>
       {waitsLine ? (
         <p className="cal-waits">
           <StatusDisc status="warn" decorative />
@@ -293,24 +257,6 @@ export function ResultsLead({ overview }: { overview: CmoOverview }) {
         </>
       ) : null}
     </>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  note = "posts",
-}: {
-  label: string;
-  value: number;
-  note?: string;
-}) {
-  return (
-    <div className="kpi">
-      <span className="label">{label}</span>
-      <span className="v num">{value}</span>
-      <span className="note">{note}</span>
-    </div>
   );
 }
 
@@ -707,7 +653,9 @@ export function SettingsPage({
         <div className="li">
           <span className="grow">
             <span className="v num">
-              {Math.floor(overview.billing.availableCredits)}
+              {Math.floor(overview.billing.availableCredits).toLocaleString(
+                "en",
+              )}
             </span>{" "}
             <span className="note">credits available</span>
           </span>
@@ -737,29 +685,34 @@ export function SettingsPage({
           setTimeZone={setTimeZone}
         />
         <ul className="list">
-          {overview.routines.map((routine) => (
-            <li key={routine.key} className="li routine">
-              <span className="grow">
-                <b>{routine.name}</b>
-                <br />
-                <span className="note">{routine.description}</span>
-              </span>
-              <span className="note num">
-                {routine.when}
-                {routine.nextRunAt &&
+          {overview.routines
+            // The reminder is for a strategy waiting; once approved it never runs.
+            .filter(
+              (routine) =>
                 !(
                   routine.key === "cmo-strategy-nudge" &&
                   strategyApproved(overview)
-                ) ? (
-                  <>
-                    <br />
-                    Next:{" "}
-                    {formatRoutineRun(routine.nextRunAt, routine.timezone)}
-                  </>
-                ) : null}
-              </span>
-            </li>
-          ))}
+                ),
+            )
+            .map((routine) => (
+              <li key={routine.key} className="li routine">
+                <span className="grow">
+                  <b>{routine.name}</b>
+                  <br />
+                  <span className="note">{routine.description}</span>
+                </span>
+                <span className="note num">
+                  {routine.when}
+                  {routine.nextRunAt ? (
+                    <>
+                      <br />
+                      Next:{" "}
+                      {formatRoutineRun(routine.nextRunAt, routine.timezone)}
+                    </>
+                  ) : null}
+                </span>
+              </li>
+            ))}
         </ul>
       </section>
       {mayHire ? (

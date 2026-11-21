@@ -6,7 +6,8 @@ import type {
   TikTokPostSettings,
 } from "@sokosumi/core-client";
 import { Clock } from "lucide-react";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
+import { useTikTokCreator } from "../../hooks/effects/use-tiktok-creator";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { ChannelIcon } from "../channel-icon";
@@ -125,8 +126,6 @@ function TikTokConfirm({
   pending: boolean;
   post: (settings: TikTokSettings) => void;
 }) {
-  const [creator, setCreator] = useState<CmoTikTokCreator | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [allow, setAllow] = useState({
     comment: false,
     duet: false,
@@ -134,21 +133,7 @@ function TikTokConfirm({
   });
   const [confirmed, setConfirmed] = useState(false);
   const readCreator = actions.tikTokCreator;
-  useEffect(() => {
-    let current = true;
-    readCreator(draft.id)
-      .then((read) => {
-        if (!current) return;
-        setCreator(read.creator);
-        setError(read.error);
-      })
-      .catch(() => {
-        if (current) setError("TikTok could not be read. Try again.");
-      });
-    return () => {
-      current = false;
-    };
-  }, [readCreator, draft.id]);
+  const { creator, error } = useTikTokCreator(draft.id, readCreator);
 
   if (error) {
     return (

@@ -23,6 +23,8 @@ const prisma = vi.hoisted(() => {
       create: vi.fn().mockResolvedValue({ id: "comment-1" }),
     },
     socialPost: { create: vi.fn().mockResolvedValue({ id: "post-1" }) },
+    sokoBotIntegration: { deleteMany: ok() },
+    projectSeoResearch: { deleteMany: ok() },
   };
 });
 // PostgreSQL's clock is the test clock here.
@@ -286,6 +288,14 @@ describe("a Cuso chat case's lane", () => {
     expect(prisma.chatRoomMessage.deleteMany).toHaveBeenCalledWith({
       where: expect.objectContaining({ senderSokoBotId: "cuso-bot-1" }),
     });
+    // A weekly SEO report case's stand-in Search Console is gone again.
+    expect(prisma.sokoBotIntegration.deleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        provider: "google_search_console",
+        composioAccountId: { startsWith: "eval:gsc-" },
+      }),
+    });
+    expect(prisma.projectSeoResearch.deleteMany).toHaveBeenCalledOnce();
   });
 
   it("holds nothing for a client Cuso has not learned", async () => {

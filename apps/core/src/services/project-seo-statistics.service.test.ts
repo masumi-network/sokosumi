@@ -28,6 +28,7 @@ const state = vi.hoisted(() => {
     } | null,
     auditPageUrls: [] as string[],
     briefGoal: null as string | null,
+    completionEvent: undefined as string | undefined,
     locks: new Map<
       string,
       {
@@ -170,6 +171,7 @@ vi.mock("@/lib/db/prisma", () => {
                   role: "product",
                   job: null,
                   action: state.briefGoal,
+                  completionEvent: state.completionEvent,
                   indexIntent: "index",
                 },
               ],
@@ -484,6 +486,7 @@ beforeEach(() => {
   state.auditAccess = null;
   state.auditPageUrls = [];
   state.briefGoal = null;
+  state.completionEvent = undefined;
   state.locks.clear();
   state.extraPages.length = 0;
   state.observations.length = 0;
@@ -2688,6 +2691,7 @@ it("uses two channel-control reads for an owner purchase goal, keeps them privat
   state.briefGoal = "buy";
   const period = { ...input, from: "2025-10-10", to: "2026-01-07" }; // The Traffic screen requests 90 days.
   let sampled = false;
+  let recordedEvent = "purchase";
   let allowPropertyB = false;
   let namedZone: string | null = null;
   state.answer = (slug, args) => {
@@ -2721,24 +2725,33 @@ it("uses two channel-control reads for an owner purchase goal, keeps them privat
               metadata: { timeZone: namedZone },
               rows: [
                 {
-                  dimensionValues: [{ value: "/a" }, { value: "purchase" }],
+                  dimensionValues: [{ value: "/a" }, { value: recordedEvent }],
                   metricValues: [{ value: 3 }],
                 },
               ],
             },
           }
         : { successful: false };
+    const custom =
+      state.completionEvent === "qualified_lead" ||
+      recordedEvent === "appointment_booked";
+    const organicSessions = custom && !prior ? 200 : 100;
     const rows = control
       ? ["Direct", "Organic Search"].map((channel) => ({
           dimensionValues: [{ value: "/a" }, { value: channel }],
-          metricValues: [{ value: 100 }, { value: prior ? 0.2 : 0.1 }],
+          metricValues: [
+            { value: channel === "Direct" ? 100 : organicSessions },
+            { value: prior || (custom && channel === "Direct") ? 0.2 : 0.1 },
+          ],
         }))
       : [
           {
             dimensionValues: [{ value: "/a" }],
-            metricValues: [100, prior ? 30 : 12, 500, 160].map((value) => ({
-              value,
-            })),
+            metricValues: [organicSessions, prior ? 30 : 12, 500, 160].map(
+              (value) => ({
+                value,
+              }),
+            ),
           },
         ];
     return {
@@ -2763,9 +2776,7 @@ it("uses two channel-control reads for an owner purchase goal, keeps them privat
   });
   const controls = () =>
     state.reads.filter((r) =>
-      JSON.stringify(r.args.metrics ?? []).includes(
-        "sessionKeyEventRate:purchase",
-      ),
+      JSON.stringify(r.args.metrics ?? []).includes("sessionKeyEventRate:"),
     );
   expect(controls()).toHaveLength(2);
   const args = controls().map((c) => c.args);
@@ -2872,6 +2883,32 @@ it("uses two channel-control reads for an owner purchase goal, keeps them privat
   expect(controls()).toHaveLength(2);
   state.briefGoal = "contact sales";
   await syncProjectSeoStatistics(user, period);
+  expect(controls()).toHaveLength(2);
+  namedZone = null;
+  state.completionEvent = "qualified_lead";
+  state.observations.length = 0;
+  state.reads.length = 0;
+  await syncProjectSeoStatistics(user, period);
+  expect(controls()).toHaveLength(2);
+  expect(JSON.stringify(controls())).toContain(
+    "sessionKeyEventRate:qualified_lead",
+  );
+  expect(
+    (await getSeoBrief(user)).followUps[0]?.goalInvestigation,
+  ).toMatchObject({ event: "qualified_lead", assessment: "handoff" });
+  expect(
+    JSON.stringify(state.observations.filter((row) => row.kind === "metrics")),
+  ).not.toContain("qualified_lead");
+  state.completionEvent = undefined;
+  state.briefGoal = "book";
+  recordedEvent = "appointment_booked";
+  namedZone = "Europe/Oslo";
+  state.observations.length = 0;
+  state.reads.length = 0;
+  await syncProjectSeoStatistics(user, period);
+  expect(
+    (await getSeoBrief(user)).followUps[0]?.goalInvestigation,
+  ).toMatchObject({ event: "appointment_booked", assessment: "handoff" });
   expect(controls()).toHaveLength(2);
   state.briefGoal = "buy";
   namedZone = "Europe/Oslo";

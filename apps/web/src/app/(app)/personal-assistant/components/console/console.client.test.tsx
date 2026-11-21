@@ -173,6 +173,7 @@ function chatState(viewerCanManage: boolean): SokoBotChatState {
       avatarImageUrl: null,
       versionId: null,
       followWholeBoard: false,
+      joinsTeamStandup: false,
       mailAutoRead: false,
       ingestTimezone: "Europe/Berlin",
       proactivePaused: false,

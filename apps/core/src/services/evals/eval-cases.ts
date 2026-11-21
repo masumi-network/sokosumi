@@ -20,8 +20,10 @@ import {
   isCompetitorEvalCase,
 } from "./eval-cmo-competitors";
 import { CMO_ADS_CASE_ID, CMO_FUNNEL_CASE_ID } from "./eval-cmo-funnel";
+import { isCmoSeoReportCase } from "./eval-cmo-seo-report";
 import { CMO_CORRECTION_CASE_ID } from "./eval-cmo-variety";
 import { MEETING_PREP_SCENARIO } from "./eval-meeting-prep";
+import type { StandupEvalSetup } from "./eval-standup";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
 export type EvalSuite = (typeof EVAL_SUITES)[number];
@@ -47,7 +49,12 @@ export type EvalCase =
       /** What a Cuso case finds in its lane before the turn. */
       prepare?: CmoChatSetup;
     })
-  | (EvalCaseCommon & CmoEvalCase);
+  | (EvalCaseCommon & CmoEvalCase)
+  | (EvalCaseCommon & {
+      /** The organization's daily agent stand-up, run by Core in the lane. */
+      kind: "standup";
+      setup: StandupEvalSetup;
+    });
 
 /** Soko Bot scenarios by area, in the order they run: later ones use what earlier ones made. */
 const SOKO_BOT_AREAS: Record<string, string> = {
@@ -110,6 +117,18 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "newsletter-no-scraped-subscribers": "Newsletter",
   "break-task-into-subtasks": "Delegation",
   "move-task-under-parent": "Delegation",
+  "a2a-ask-and-relay": "Agent to agent",
+  "a2a-remembers-answer": "Agent to agent",
+  "a2a-structured-handoff": "Agent to agent",
+  "a2a-multi-turn": "Agent to agent",
+  "a2a-asks-back": "Agent to agent",
+  "a2a-no-answer": "Agent to agent",
+  "a2a-long-reply": "Agent to agent",
+  "a2a-several-messages": "Agent to agent",
+  "a2a-bot-to-bot": "Agent to agent",
+  "a2a-coworker-declines": "Agent to agent",
+  "a2a-who-to-ask": "Agent to agent",
+  "a2a-hop-limit": "Agent to agent",
 };
 
 /** Scenarios that read a connected mailbox or calendar; an eval lane has none. */
@@ -150,6 +169,35 @@ export const EVAL_CASES: readonly EvalCase[] = [
   scenarioCase(MEETING_PREP_SCENARIO, "soko-bot", "Mail and calendar"),
   scenarioCase(CHAT_IDENTITY_SCENARIO, "soko-bot", "Chat"),
   ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
+  {
+    id: "standup-quiet",
+    suite: "soko-bot",
+    area: "Stand-up",
+    title: "A quiet day posts nothing",
+    intent: "With nothing done, due or blocked, the stand-up posts nothing.",
+    kind: "standup",
+    setup: "quiet",
+  },
+  {
+    id: "standup-match",
+    suite: "soko-bot",
+    area: "Stand-up",
+    title: "Lines from records, a blocker for Robin, one hand-off",
+    intent:
+      "Lines come from Task states, a waiting Task mentions its owner, a private Task stays out, and the DACH need opens a hand-off to Mira, who answers in the thread.",
+    kind: "standup",
+    setup: "match",
+  },
+  {
+    id: "standup-no-match",
+    suite: "soko-bot",
+    area: "Stand-up",
+    title: "No hand-off when nobody's work fits",
+    intent:
+      "A need no agent's work touches (booking the offsite venue) is listed, but the host opens no hand-off.",
+    kind: "standup",
+    setup: "no-match",
+  },
   ...CMO_EVAL_CASES,
   ...CMO_SCENARIOS.map((scenario) =>
     isCompetitorEvalCase(scenario.id)
@@ -185,7 +233,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
                     ? "cmo-plan-ads"
                     : scenario.id === "cmo-seo-skipped-idea"
                       ? "cmo-seo-skipped"
-                      : "cmo-brand",
+                      : isCmoSeoReportCase(scenario.id)
+                        ? "cmo-seo-report"
+                        : "cmo-brand",
             ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),

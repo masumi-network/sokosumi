@@ -1,12 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { claimSignUpConversion } from "@/lib/actions/auth/action";
-import { sanitizeAuthRedirectPath } from "@/lib/auth/auth.utils";
-import { waitForClientSession } from "@/lib/auth/finish-auth.client";
-import { fireGTMEvent } from "@/lib/gtm-events";
-import { authMethodIdSchema } from "@/lib/schemas/auth";
+import { useSocialAuthCallback } from "@/hooks/effects/use-social-auth-callback";
 
 interface SocialAuthCallbackProps {
   eventType: "signUp" | "signIn";
@@ -15,48 +9,7 @@ interface SocialAuthCallbackProps {
 export default function SocialAuthCallback({
   eventType,
 }: SocialAuthCallbackProps) {
-  const router = useRouter();
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const provider = params.get("provider");
-    const returnUrl = params.get("returnUrl") ?? null;
-    const validationResult = authMethodIdSchema.safeParse(provider);
-    const redirectUrl = sanitizeAuthRedirectPath(returnUrl ?? undefined);
-
-    // Social sign-ins land here via a full page load (Better Auth
-    // hard-redirects to `callbackURL` on success). Credential, passkey and
-    // email code never reach this page: they fire in place before their own
-    // full-document leave. The GTM event on this page survives the hard nav
-    // — see apps/web/TRACKING.md. `router.replace` below is safe because
-    // this *is* a new document, so it carries no pre-login router cache.
-    // The query string alone proves nothing: only count it when a session
-    // actually exists, so a direct hit on this URL is not a fake login.
-    // The first getSession() can be null (cookie still settling); reuse the
-    // same retry/timeout helper as the other auth surfaces.
-    void (async () => {
-      if (validationResult.success) {
-        const session = await waitForClientSession(eventType).catch(() => null);
-        if (session) {
-          switch (eventType) {
-            case "signUp": {
-              // Core recorded the new account; claiming it counts it once,
-              // here or on the OAuth hand-back (apps/web/TRACKING.md).
-              const provider = await claimSignUpConversion().catch(() => null);
-              if (provider) {
-                fireGTMEvent.signUp(provider);
-              }
-              break;
-            }
-            case "signIn":
-              fireGTMEvent.signIn(validationResult.data);
-              break;
-          }
-        }
-      }
-      router.replace(redirectUrl);
-    })();
-  }, [router, eventType]);
+  useSocialAuthCallback(eventType);
 
   return (
     <div className="flex min-h-dvh items-center justify-center">

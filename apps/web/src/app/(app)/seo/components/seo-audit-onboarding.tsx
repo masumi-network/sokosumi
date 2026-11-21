@@ -34,7 +34,7 @@ export function SeoAuditOnboarding({
           "grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]",
         )}
       >
-        <div className="space-y-8 p-5 sm:p-8">
+        <div className="space-y-8 p-4 sm:p-8">
           <header className="space-y-3">
             <p className="text-muted-foreground text-sm font-medium">
               {t("onboarding.eyebrow")}
@@ -54,6 +54,7 @@ export function SeoAuditOnboarding({
               stagger
               index={1}
               last
+              wide
               mark="active"
               title={t("onboarding.addTitle")}
               body={t("onboarding.addBody")}

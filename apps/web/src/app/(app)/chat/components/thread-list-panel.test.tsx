@@ -310,11 +310,10 @@ describe("ThreadListPanel", () => {
     renderPanel();
 
     const loadOlder = async () => {
-      fireEvent.click(
-        within(await screen.findByTestId("thread-list-load-more")).getByRole(
-          "button",
-        ),
-      );
+      const button = within(
+        await screen.findByTestId("thread-list-load-more"),
+      ).getByRole("button");
+      await act(async () => fireEvent.click(button));
     };
     await loadOlder();
     expect(await screen.findByRole("alert")).toHaveTextContent(labels.error);

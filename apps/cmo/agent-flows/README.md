@@ -2,24 +2,24 @@
 
 What Cuso does without being asked, per channel, and what the owner should see come out of it. Rough steps, not a script. With [user flows](../user-flows/README.md) they are the spec for CMO's daily flow tests.
 
-| Flow                                            | Channel                           | State (2026-11-18)                                              |
-| ----------------------------------------------- | --------------------------------- | --------------------------------------------------------------- |
-| [Making the month](making-the-month.md)         | All networks                      | Works; every network on cmo-v5, connected or not                |
-| [LinkedIn](linkedin.md)                         | LinkedIn                          | Works; Page or profile; no comment reading                      |
-| [X](x.md)                                       | X                                 | Works; no replies or mentions                                   |
-| [Instagram](instagram.md)                       | Instagram                         | Works                                                           |
-| [Facebook](facebook.md)                         | Facebook                          | Works                                                           |
-| [YouTube](youtube.md)                           | YouTube                           | Shorts only                                                     |
-| [TikTok](tiktok.md)                             | TikTok                            | Works; the owner confirms each video                            |
-| [Google Ads](google-ads.md)                     | Google Ads                        | Proposals work; no weekly tuning                                |
-| [Meta Ads](meta-ads.md)                         | Meta Ads                          | Not built                                                       |
-| [Website and SEO](website-seo.md)               | The owner's site                  | Audit and measured keyword picks work. follow-up not automatic  |
-| [Newsletter](newsletter.md)                     | Email                             | Writing only; no sending from CMO                               |
-| [Competitors](competitors.md)                   | All                               | Works; ads need the Ad Library token                            |
-| [Measurement](measurement.md)                   | Analytics, Search Console         | Works once connected                                            |
-| [Reviews and learning](reviews-and-learning.md) | All                               | Weekly works. Nightly window fixed. Partial month handoff.      |
-| [Handing work on](handing-work-on.md)           | Coworkers, Agents, SEO specialist | Works                                                           |
-| [Asking the owner](asking-the-owner.md)         | Chat                              | Partly: safe failure notices. No single "waiting for you" list. |
+| Flow                                            | Channel                           | State (2026-11-18)                                                           |
+| ----------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------- |
+| [Making the month](making-the-month.md)         | All networks                      | Works; every network on cmo-v5, connected or not                             |
+| [LinkedIn](linkedin.md)                         | LinkedIn                          | Works; Page or profile; no comment reading                                   |
+| [X](x.md)                                       | X                                 | Works; no replies or mentions                                                |
+| [Instagram](instagram.md)                       | Instagram                         | Works                                                                        |
+| [Facebook](facebook.md)                         | Facebook                          | Works                                                                        |
+| [YouTube](youtube.md)                           | YouTube                           | Shorts only                                                                  |
+| [TikTok](tiktok.md)                             | TikTok                            | Works; the owner confirms each video                                         |
+| [Google Ads](google-ads.md)                     | Google Ads                        | Proposals work; no weekly tuning                                             |
+| [Meta Ads](meta-ads.md)                         | Meta Ads                          | Not built                                                                    |
+| [Website and SEO](website-seo.md)               | The owner's site                  | Weekly report after the audit (cmo-v12); no scheduled rank checks            |
+| [Newsletter](newsletter.md)                     | Email                             | Writing only; no sending from CMO                                            |
+| [Competitors](competitors.md)                   | All                               | Works; ads need the Ad Library token                                         |
+| [Measurement](measurement.md)                   | Analytics, Search Console         | Works once connected                                                         |
+| [Reviews and learning](reviews-and-learning.md) | All                               | Weekly works. Nightly window fixed. Partial month handoff.                   |
+| [Handing work on](handing-work-on.md)           | Coworkers, Agents, SEO specialist | Works                                                                        |
+| [Asking the owner](asking-the-owner.md)         | Chat, Today                       | Partly: Needs you lists posts that didn't go out; chat-only asks have no row |
 
 ## How to judge what Cuso makes
 

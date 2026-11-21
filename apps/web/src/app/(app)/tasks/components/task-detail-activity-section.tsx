@@ -148,6 +148,7 @@ export async function TaskActivitySectionContent({
       }))}
       canComment={canComment}
       tableSource={taskTableSource(task)}
+      taskName={task.name}
       headerAction={
         <TaskFollowControl
           taskId={taskId}

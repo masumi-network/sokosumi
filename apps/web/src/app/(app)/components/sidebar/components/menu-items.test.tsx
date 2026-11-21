@@ -741,7 +741,7 @@ describe("MenuItems prefetch", () => {
   it("loads the Tasks page content when the reader heads for it", async () => {
     renderMenu(true, false);
 
-    await act(() =>
+    await act(async () =>
       approachElement(screen.getByRole("link", { name: /taskManager/ })),
     );
 

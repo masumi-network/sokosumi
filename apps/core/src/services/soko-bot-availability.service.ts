@@ -4,6 +4,8 @@ export interface SokoBotAvailability {
   disabled: boolean;
   disabledAt: Date | null;
   disabledReason: string | null;
+  /** Every organization's daily agent stand-up is paused. */
+  standupPaused: boolean;
 }
 
 /**
@@ -17,12 +19,13 @@ export interface SokoBotAvailability {
 export async function getSokoBotAvailability(): Promise<SokoBotAvailability> {
   const setting = await prisma.sokoBotSetting.findUnique({
     where: { id: "singleton" },
-    select: { disabledAt: true, disabledReason: true },
+    select: { disabledAt: true, disabledReason: true, standupPausedAt: true },
   });
   return {
     disabled: setting?.disabledAt != null,
     disabledAt: setting?.disabledAt ?? null,
     disabledReason: setting?.disabledReason ?? null,
+    standupPaused: setting?.standupPausedAt != null,
   };
 }
 
@@ -30,26 +33,28 @@ export async function setSokoBotDisabled(input: {
   disabled: boolean;
   adminUserId: string;
   reason?: string | null;
+  /** Omitted: the stand-up switch stays as it is. */
+  standupPaused?: boolean;
 }): Promise<SokoBotAvailability> {
   const disabledAt = input.disabled ? new Date() : null;
+  const data = {
+    disabledAt,
+    disabledByUserId: input.disabled ? input.adminUserId : null,
+    disabledReason: input.disabled ? (input.reason ?? null) : null,
+    ...(input.standupPaused === undefined
+      ? {}
+      : { standupPausedAt: input.standupPaused ? new Date() : null }),
+  };
   const setting = await prisma.sokoBotSetting.upsert({
     where: { id: "singleton" },
-    create: {
-      id: "singleton",
-      disabledAt,
-      disabledByUserId: input.disabled ? input.adminUserId : null,
-      disabledReason: input.disabled ? (input.reason ?? null) : null,
-    },
-    update: {
-      disabledAt,
-      disabledByUserId: input.disabled ? input.adminUserId : null,
-      disabledReason: input.disabled ? (input.reason ?? null) : null,
-    },
-    select: { disabledAt: true, disabledReason: true },
+    create: { id: "singleton", ...data },
+    update: data,
+    select: { disabledAt: true, disabledReason: true, standupPausedAt: true },
   });
   return {
     disabled: setting.disabledAt != null,
     disabledAt: setting.disabledAt,
     disabledReason: setting.disabledReason,
+    standupPaused: setting.standupPausedAt != null,
   };
 }

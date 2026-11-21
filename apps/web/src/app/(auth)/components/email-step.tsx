@@ -13,8 +13,9 @@ import { SubmitButton } from "@/auth/components/form/submit-button";
 import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
+import { useEmailStepHintAndFocus } from "@/hooks/effects/use-email-step-hint-and-focus";
+import { useEmailStepPendingRequest } from "@/hooks/effects/use-email-step-pending-request";
 import { useFocusWhen } from "@/hooks/effects/use-focus-when";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   isSameTabClick,
@@ -152,8 +153,6 @@ export function EmailStep({
   const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
   const notice = "handOver" in detour ? null : detour;
-  const mounted = useRef(false);
-  const pending = useRef<AbortController | null>(null);
   const form = useForm<EmailFormSchemaType>({
     resolver: zodResolver(
       emailFormSchema(useTranslations("Library.Auth.Schema")),
@@ -170,24 +169,13 @@ export function EmailStep({
     },
   ];
 
-  useMountEffect(() => {
-    mounted.current = true;
-    // The other page hands over the address the person typed there. It is a
-    // starting value, not a locked one like an invitation's address.
-    const emailHint = takeAuthEmailHint();
-    const useHint =
-      emailHint !== null && !emailLocked && !form.getValues("email").trim();
-    if (useHint) {
-      form.setValue("email", emailHint);
-      onEmailChange?.(emailHint);
-    }
-    if (autoFocus || useHint) {
-      form.setFocus("email");
-    }
-    return () => {
-      mounted.current = false;
-      pending.current?.abort();
-    };
+  const { mountedRef: mounted, pendingRef: pending } =
+    useEmailStepPendingRequest();
+  useEmailStepHintAndFocus({
+    form,
+    emailLocked,
+    autoFocus,
+    onEmailChange,
   });
 
   const { isSubmitting } = form.formState;

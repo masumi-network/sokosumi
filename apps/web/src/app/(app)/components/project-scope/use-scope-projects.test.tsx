@@ -399,12 +399,10 @@ describe("useSelectedScopeProject", () => {
 
   it("asks Core nothing until a session names the workspace", async () => {
     mocks.signedOut.current = true;
-    const { result } = renderHook(() => useSelectedScopeProject("p-1"), {
-      wrapper: wrapper(),
-    });
-
-    // Long enough for an enabled read to reach fetch.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    // Let an enabled mount read reach fetch before asserting no request.
+    const { result } = await act(async () =>
+      renderHook(() => useSelectedScopeProject("p-1"), { wrapper: wrapper() }),
+    );
     expect(fetch).not.toHaveBeenCalled();
     expect(mocks.loadOne).not.toHaveBeenCalled();
     expect(result.current).toBeNull();

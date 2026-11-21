@@ -42,18 +42,6 @@ export function isSocialProvider(channel: string): channel is SocialProvider {
 }
 
 /**
- * Whether Cuso can execute an entry now: it must be on a connected social
- * account. Otherwise it says why it stays in the plan.
- */
-export function entryReadiness(
-  channel: string,
-  connected: readonly string[],
-): "ready" | "connect" | "soon" {
-  if (connected.includes(channel)) return "ready";
-  return isSocialProvider(channel) ? "connect" : "soon";
-}
-
-/**
  * A written social post that cannot go out yet because its network is not
  * connected: it waits for the owner, not for Cuso. Null for every other piece.
  */

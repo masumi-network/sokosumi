@@ -59,6 +59,7 @@ describe("cusoLockedBotId on the Soko Bots router", () => {
         "DELETE /:sokoBotId/permanent",
         "PUT /:sokoBotId/proactive",
         "PUT /:sokoBotId/board-following",
+        "PUT /:sokoBotId/team-standup",
         "POST /:sokoBotId/schedules",
         "PATCH /:sokoBotId/schedules/:scheduleId",
         "DELETE /:sokoBotId/schedules/:scheduleId",

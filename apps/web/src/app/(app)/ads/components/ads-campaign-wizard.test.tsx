@@ -1,4 +1,5 @@
 import {
+  fireEvent,
   render as rtlRender,
   screen,
   waitFor,
@@ -314,13 +315,19 @@ async function fillKeywords(user: User) {
   await pasteKeywords(user, 'running shoes\n"trail shoes"\n[buy shoes]');
 }
 
-async function fillSearchAd(user: User) {
-  await user.type(screen.getByLabelText("Final URL"), "https://example.com/x");
-  for (const [index, text] of ["One", "Two", "Three"].entries()) {
-    await user.type(screen.getByLabelText(`Headline ${index + 1}`), text);
+function fillSearchAd() {
+  fireEvent.change(screen.getByLabelText("Final URL"), {
+    target: { value: "https://example.com/x" },
+  });
+  for (const [index, value] of ["One", "Two", "Three"].entries()) {
+    fireEvent.change(screen.getByLabelText(`Headline ${index + 1}`), {
+      target: { value },
+    });
   }
-  for (const [index, text] of ["First text", "Second text"].entries()) {
-    await user.type(screen.getByLabelText(`Description ${index + 1}`), text);
+  for (const [index, value] of ["First text", "Second text"].entries()) {
+    fireEvent.change(screen.getByLabelText(`Description ${index + 1}`), {
+      target: { value },
+    });
   }
 }
 
@@ -342,7 +349,7 @@ async function fillDisplayAd(user: User) {
 
 const FILL: Record<
   CampaignType,
-  Partial<Record<Step, (user: User) => Promise<void>>>
+  Partial<Record<Step, (user: User) => void | Promise<void>>>
 > = {
   SEARCH: { Basics: fillBasics, Keywords: fillKeywords, Ad: fillSearchAd },
   DISPLAY: { Basics: fillBasics, Ad: fillDisplayAd },
@@ -651,7 +658,7 @@ describe("NewCampaignWizard", () => {
       it("pictures the Search ad with its headlines joined and its display URL", async () => {
         const user = await renderWizard();
         await goTo(user, "Ad");
-        await fillSearchAd(user);
+        fillSearchAd();
         await user.type(screen.getByLabelText("Path 1"), "shoes");
         await next(user);
 
@@ -666,7 +673,7 @@ describe("NewCampaignWizard", () => {
       it("shows the sitelinks and callouts that are filled", async () => {
         const user = await renderWizard();
         await goTo(user, "Ad");
-        await fillSearchAd(user);
+        fillSearchAd();
         await user.click(screen.getByRole("button", { name: /^Callouts/ }));
         await user.click(screen.getByRole("button", { name: "Add callout" }));
         await user.type(screen.getByLabelText("Callout 1"), "Free shipping");
@@ -878,7 +885,9 @@ describe("NewCampaignWizard", () => {
           );
           const row = sitelink(number);
           for (const [label, text] of Object.entries(values)) {
-            await user.type(row.getByLabelText(label), text ?? "");
+            fireEvent.change(row.getByLabelText(label), {
+              target: { value: text ?? "" },
+            });
           }
         }
 
@@ -987,7 +996,7 @@ describe("NewCampaignWizard", () => {
         it("sends the filled sitelinks and callouts, trimmed, and skips empty rows", async () => {
           createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
           const user = await renderSearchAd();
-          await fillSearchAd(user);
+          fillSearchAd();
           await user.click(sitelinksToggle());
           await addSitelink(user, 1, {
             "Link text": " Shoes ",
@@ -1031,7 +1040,7 @@ describe("NewCampaignWizard", () => {
         it("sends neither when none were added or all rows are empty", async () => {
           createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
           const user = await renderSearchAd();
-          await fillSearchAd(user);
+          fillSearchAd();
           await user.click(sitelinksToggle());
           await user.click(
             screen.getByRole("button", { name: "Add sitelink" }),
@@ -1048,7 +1057,7 @@ describe("NewCampaignWizard", () => {
 
         it("refuses a sitelink without text or URL, staying on the step", async () => {
           const user = await renderSearchAd();
-          await fillSearchAd(user);
+          fillSearchAd();
           await user.click(sitelinksToggle());
           await addSitelink(user, 1, { "Description line 1": "x" });
 
@@ -1073,7 +1082,7 @@ describe("NewCampaignWizard", () => {
 
         it("refuses a duplicate sitelink text and a long description", async () => {
           const user = await renderSearchAd();
-          await fillSearchAd(user);
+          fillSearchAd();
           await user.click(sitelinksToggle());
           const url = { URL: "https://example.com/a" };
           await addSitelink(user, 1, { "Link text": "Shoes", ...url });
@@ -1098,7 +1107,7 @@ describe("NewCampaignWizard", () => {
 
         it("refuses a duplicate and a long callout", async () => {
           const user = await renderSearchAd();
-          await fillSearchAd(user);
+          fillSearchAd();
           await user.click(calloutsToggle());
           for (const text of [
             "Free shipping",
@@ -1108,9 +1117,11 @@ describe("NewCampaignWizard", () => {
             await user.click(
               screen.getByRole("button", { name: "Add callout" }),
             );
-            await user.type(
+            fireEvent.change(
               screen.getAllByLabelText(/^Callout \d+$/).at(-1)!,
-              text,
+              {
+                target: { value: text },
+              },
             );
           }
 
@@ -1125,7 +1136,7 @@ describe("NewCampaignWizard", () => {
 
         it("opens a closed section that holds a refusal on Next", async () => {
           const user = await renderSearchAd();
-          await fillSearchAd(user);
+          fillSearchAd();
           await user.click(sitelinksToggle());
           await addSitelink(user, 1, { "Link text": "Shoes" });
           await user.click(sitelinksToggle());
@@ -1561,11 +1572,13 @@ describe("NewCampaignWizard", () => {
       it("refuses a duplicate headline and one over 30 characters", async () => {
         const user = await renderWizard();
         await goTo(user, "Ad");
-        await fillSearchAd(user);
-        await user.clear(screen.getByLabelText("Headline 2"));
-        await user.type(screen.getByLabelText("Headline 2"), "ONE");
-        await user.clear(screen.getByLabelText("Headline 3"));
-        await user.type(screen.getByLabelText("Headline 3"), "x".repeat(31));
+        fillSearchAd();
+        fireEvent.change(screen.getByLabelText("Headline 2"), {
+          target: { value: "ONE" },
+        });
+        fireEvent.change(screen.getByLabelText("Headline 3"), {
+          target: { value: "x".repeat(31) },
+        });
 
         await next(user);
 
@@ -1597,7 +1610,7 @@ describe("NewCampaignWizard", () => {
       it("asks for path 1 before path 2", async () => {
         const user = await renderWizard();
         await goTo(user, "Ad");
-        await fillSearchAd(user);
+        fillSearchAd();
         await user.type(screen.getByLabelText("Path 2"), "sale");
 
         await next(user);
@@ -1643,7 +1656,7 @@ describe("NewCampaignWizard", () => {
         await user.type(screen.getByLabelText("Start date"), "2026-11-01");
         await next(user);
         await walk(user, "Targeting", "Ad");
-        await fillSearchAd(user);
+        fillSearchAd();
         await user.type(screen.getByLabelText("Path 1"), "shoes");
         await next(user);
 

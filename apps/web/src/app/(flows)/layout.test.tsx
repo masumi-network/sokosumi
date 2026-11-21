@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTH_SHELL_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
-import FlowsLayout from "./layout";
+import en from "../../../messages/en.json";
+import FlowsLayout, { generateMetadata } from "./layout";
 
 vi.mock("next/headers", () => ({
   headers: async () => ({
@@ -22,11 +23,12 @@ vi.mock("next-intl", () => ({
 
 vi.mock("next-intl/server", () => ({
   getTranslations:
-    async () => (key: string, values?: Record<string, string>) => {
+    async (namespace?: string) =>
+    (key: string, values?: Record<string, string>) => {
       if (key === "banner" && values) {
         return `banner:${values.name}:${values.email}`;
       }
-      return key;
+      return namespace === "App.Metadata" ? `${namespace}.${key}` : key;
     },
 }));
 
@@ -184,5 +186,19 @@ describe("FlowsLayout impersonation banner", () => {
       screen.queryByTestId("impersonation-banner"),
     ).not.toBeInTheDocument();
     expect(screen.getByText("gate content")).toBeInTheDocument();
+  });
+});
+
+describe("FlowsLayout tab title", () => {
+  // Setup's own titles ("Set up your workspace") read "Sokosumi - …" like
+  // every app page, so a half-done setup is findable among other tabs.
+  it("puts Sokosumi in front of every setup page's title", async () => {
+    expect(await generateMetadata()).toMatchObject({
+      title: {
+        default: "App.Metadata.Title.default",
+        template: "App.Metadata.Title.template",
+      },
+    });
+    expect(en.App.Metadata.Title.template).toBe("Sokosumi - %s");
   });
 });

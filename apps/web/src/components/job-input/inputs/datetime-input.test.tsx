@@ -1,6 +1,6 @@
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { JobInputsFormBuilder } from "@/components/job-input/job-inputs-form-builder";
@@ -20,7 +20,7 @@ vi.mock("@/components/markdown", () => ({
 }));
 
 describe("DatetimeInput", () => {
-  it("shows the translated placeholder when no datetime is selected", () => {
+  it("shows the translated placeholder when no datetime is selected", async () => {
     const inputFields: InputFieldSchemaType[] = [
       {
         id: "start-at",
@@ -31,12 +31,14 @@ describe("DatetimeInput", () => {
       },
     ];
 
-    render(
-      <JobInputsFormBuilder
-        inputFields={inputFields}
-        onSubmit={vi.fn()}
-        renderFooter={() => <button type="submit">Submit</button>}
-      />,
+    await act(async () =>
+      render(
+        <JobInputsFormBuilder
+          inputFields={inputFields}
+          onSubmit={vi.fn()}
+          renderFooter={() => <button type="submit">Submit</button>}
+        />,
+      ),
     );
 
     expect(
@@ -44,7 +46,7 @@ describe("DatetimeInput", () => {
     ).toBeInTheDocument();
   });
 
-  it("formats the date half with next-intl instead of the runtime locale", () => {
+  it("formats the date half with next-intl instead of the runtime locale", async () => {
     const inputFields: InputFieldSchemaType[] = [
       {
         id: "start-at",
@@ -57,12 +59,14 @@ describe("DatetimeInput", () => {
       },
     ];
 
-    render(
-      <JobInputsFormBuilder
-        inputFields={inputFields}
-        onSubmit={vi.fn()}
-        renderFooter={() => <button type="submit">Submit</button>}
-      />,
+    await act(async () =>
+      render(
+        <JobInputsFormBuilder
+          inputFields={inputFields}
+          onSubmit={vi.fn()}
+          renderFooter={() => <button type="submit">Submit</button>}
+        />,
+      ),
     );
 
     expect(

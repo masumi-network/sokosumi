@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -44,8 +44,8 @@ describe("OrganizationChatList section visibility", () => {
     }
   });
 
-  it("hides Channels in a personal workspace", () => {
-    renderOrganizationChatList({ organizationId: null });
+  it("hides Channels in a personal workspace", async () => {
+    await act(async () => renderOrganizationChatList({ organizationId: null }));
 
     expect(screen.queryByText("App.Channels.title")).not.toBeInTheDocument();
     expect(
@@ -54,8 +54,10 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
   });
 
-  it("keeps Channels in an organization workspace when empty", () => {
-    renderOrganizationChatList({ organizationId: "org-1" });
+  it("keeps Channels in an organization workspace when empty", async () => {
+    await act(async () =>
+      renderOrganizationChatList({ organizationId: "org-1" }),
+    );
 
     expect(screen.getByText("App.Channels.title")).toBeInTheDocument();
     expect(
@@ -64,8 +66,10 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
   });
 
-  it("hides External when there are no joined rooms and no pending invitations", () => {
-    renderOrganizationChatList({ organizationId: "org-1" });
+  it("hides External when there are no joined rooms and no pending invitations", async () => {
+    await act(async () =>
+      renderOrganizationChatList({ organizationId: "org-1" }),
+    );
 
     expect(
       screen.queryByText("App.Channels.External.title"),
@@ -75,7 +79,7 @@ describe("OrganizationChatList section visibility", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("lists a personal human Direct under Direct Messages, not External", () => {
+  it("lists a personal human Direct under Direct Messages, not External", async () => {
     const personal = makeRoom({
       id: "personal-dm",
       kind: "direct",
@@ -87,10 +91,13 @@ describe("OrganizationChatList section visibility", () => {
       name: "Guest User",
     });
 
-    renderOrganizationChatList({
-      organizationId: "org-1",
-      rooms: [personal],
-    });
+    listRoomsMock.mockResolvedValue(emptyListResult([personal]));
+    await act(async () =>
+      renderOrganizationChatList({
+        organizationId: "org-1",
+        rooms: [personal],
+      }),
+    );
 
     expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
     expect(screen.getByText("room")).toBeInTheDocument();

@@ -141,8 +141,10 @@ describe("ThreadPanel transcript viewport", () => {
     transcriptViewportSpies.pinToBottomAfterOwnSend.mockClear();
   });
 
-  it("opens the thread on the viewport contract (stub mounts every row)", () => {
-    renderThreadPanel([replyMessage("r1"), replyMessage("r2")]);
+  it("opens the thread on the viewport contract (stub mounts every row)", async () => {
+    await act(async () =>
+      renderThreadPanel([replyMessage("r1"), replyMessage("r2")]),
+    );
 
     expect(screen.getByText("Parent")).toBeTruthy();
     expect(screen.getByText("Reply r1")).toBeTruthy();
