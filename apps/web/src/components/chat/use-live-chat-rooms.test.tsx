@@ -1,6 +1,8 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { act, render, renderHook } from "@testing-library/react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fetchMock, sessionState } = vi.hoisted(() => ({
@@ -31,7 +33,7 @@ import {
   registerMembershipVisibleRoomsPublisher,
 } from "./membership-visible-rooms-store";
 import { clearRoomReadOverlays, rememberRoomRead } from "./room-read-overlay";
-import { useLiveChatRooms } from "./use-live-chat-rooms";
+import { useLiveChatRooms, useLiveChatRoomsRead } from "./use-live-chat-rooms";
 
 function TabUnread() {
   useLiveChatRooms();
@@ -230,5 +232,58 @@ describe("useLiveChatRooms", () => {
 
     unregister();
     unmount();
+  });
+  describe("when the workspace changes while a room read is in flight", () => {
+    // Bypasses act() and flushSync, which flush passive effects at once. On
+    // a default-lane update the old read can answer from the new workspace's
+    // layout commit, before the old scheduler's passive cleanup marks it
+    // stale.
+    async function switchWhileReading(answer: { rooms: unknown[] } | null) {
+      vi.useRealTimers();
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+      vi.stubGlobal("innerWidth", 390);
+      let answerOldRead: (page: { rooms: unknown[] } | null) => void = () => {};
+      fetchMock
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            answerOldRead = resolve;
+          }),
+        )
+        .mockReturnValue(new Promise(() => {}));
+      const seen: { rooms: ChatRoom[] | null; failed: boolean }[] = [];
+      function Probe({ switched }: { switched: boolean }) {
+        const read = useLiveChatRoomsRead();
+        if (switched) seen.push(read);
+        useLayoutEffect(() => {
+          if (switched) answerOldRead(answer);
+        }, [switched]);
+        return null;
+      }
+      const container = document.createElement("div");
+      const root = createRoot(container);
+      flushSync(() => root.render(<Probe switched={false} />));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      sessionState.organizationId = "org-2";
+      root.render(<Probe switched />);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      root.unmount();
+      return seen;
+    }
+
+    it("never shows the old workspace's rows", async () => {
+      const seen = await switchWhileReading({
+        rooms: [{ id: "room-a", name: "org-1-only", kind: "channel" }],
+      });
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((read) => read.rooms === null)).toBe(true);
+    });
+
+    it("never marks the new workspace failed for the old read", async () => {
+      const seen = await switchWhileReading(null);
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((read) => !read.failed)).toBe(true);
+    });
   });
 });

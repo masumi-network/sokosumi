@@ -184,17 +184,20 @@ export function useLiveChatRoomsRead(): {
   const refreshRooms = useCallback(
     async (isCurrent: () => boolean) => {
       const requestRevision = beginRoomAttentionRefresh();
+      // The ref moves in the layout phase, before the scheduler's passive
+      // cleanup makes `isCurrent` false, so an answer can land between them.
+      const requestScope = scopeRef.current;
       const page = await fetchSidebarRoomCollection("active");
-      if (!isCurrent()) return;
+      if (!isCurrent() || scopeRef.current !== requestScope) return;
       if (!page) {
-        setFailedScope(scopeRef.current);
+        setFailedScope(requestScope);
         return;
       }
       if (requestRevision < latestAppliedRefreshRef.current) return;
       setFailedScope(null);
       latestAppliedRefreshRef.current = requestRevision;
       setHeld({
-        scope: scopeRef.current,
+        scope: requestScope,
         rooms: reconcileRoomAttention(page.rooms, requestRevision),
       });
     },
