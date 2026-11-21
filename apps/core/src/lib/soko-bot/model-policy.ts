@@ -22,6 +22,10 @@ const EU_MODELS: Readonly<Record<string, { providers: readonly string[] }>> = {
   "anthropic/claude-opus-5.5": {
     providers: ["vertex", "bedrock"],
   },
+  // Candidates for the stronger lane (`turn-model.ts`), checked 2026-11-21:
+  // Vertex serves both in an EU zone with zero retention and no training.
+  "google/gemini-4-hydrogen": { providers: ["vertex"] },
+  "google/gemini-4-carbon": { providers: ["vertex"] },
 };
 
 /**

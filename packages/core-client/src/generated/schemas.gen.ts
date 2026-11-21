@@ -4186,6 +4186,18 @@ export const AdminSokoBotTurnSchema = {
         {
             type: 'object',
             properties: {
+                modelReason: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                modelCalls: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SokoBotModelCall'
+                    }
+                },
                 eveSessionId: {
                     type: [
                         'string',
@@ -4211,6 +4223,8 @@ export const AdminSokoBotTurnSchema = {
             },
             required: [
                 'toolCalls',
+                'modelReason',
+                'modelCalls',
                 'eveSessionId',
                 'eveTurnId',
                 'contextSnapshot'
@@ -4593,6 +4607,97 @@ export const SokoBotContextSummarySchema = {
         'recentTurns',
         'memoryVersion',
         'bytes'
+    ]
+} as const;
+
+export const SokoBotModelCallSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        role: {
+            type: 'string'
+        },
+        label: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        requestedModel: {
+            type: 'string'
+        },
+        answeredModel: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        provider: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        region: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        zeroDataRetention: {
+            type: [
+                'boolean',
+                'null'
+            ]
+        },
+        inputTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        cacheReadTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        cacheWriteTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        outputTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        costUsd: {
+            type: 'number',
+            minimum: 0
+        },
+        failed: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'role',
+        'label',
+        'requestedModel',
+        'answeredModel',
+        'provider',
+        'region',
+        'zeroDataRetention',
+        'inputTokens',
+        'cacheReadTokens',
+        'cacheWriteTokens',
+        'outputTokens',
+        'costUsd',
+        'failed'
     ]
 } as const;
 

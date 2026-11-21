@@ -1,5 +1,6 @@
 import { type createGateway, type LanguageModel, stepCountIs } from "ai";
 
+import { modelCallTelemetryFor } from "@/lib/soko-bot/model-calls";
 import { streamModelCall } from "./stream-model-call";
 
 type Gateway = Pick<ReturnType<typeof createGateway>, "tools">;
@@ -30,6 +31,7 @@ export async function searchWeb(
     toolChoice: { type: "tool", toolName: "perplexity_search" },
     stopWhen: stepCountIs(1),
     prompt: `Search the web for: ${query}`,
+    telemetry: modelCallTelemetryFor("soko-bot-search"),
   });
   const step = result.steps.at(-1);
   await onUsage?.({

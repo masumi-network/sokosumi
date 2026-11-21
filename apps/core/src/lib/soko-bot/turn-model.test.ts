@@ -34,25 +34,19 @@ describe("chooseTurnModel", () => {
       chooseTurnModel(
         input({
           version: { model: "openai/gpt-6-luna" },
-          clientTurnId: "cmo:strategy:bot:1",
+          classification: { route: "HIRE_AGENT" },
         }),
       ),
     ).toEqual({ model: "openai/gpt-6-luna", reason: "default" });
   });
 
-  it.each([
-    ["cmo:strategy:bot:1795224917566", "strategy"],
-    ["cmo:strategy:bot:fix:1:1795224917566", "strategy"],
-    ["cmo:strategy:bot:finish:1795224917566:2", "strategy"],
-  ])(
-    "puts every strategy turn (%s) up, preset or not",
-    (clientTurnId, reason) => {
-      expect(chooseTurnModel(input({ clientTurnId, preset: true }))).toEqual({
-        model: "openai/strong",
-        reason,
-      });
-    },
-  );
+  it("leaves a strategy turn Core wrote on the version's model", () => {
+    expect(
+      chooseTurnModel(
+        input({ clientTurnId: "cmo:strategy:bot:1795224917566", preset: true }),
+      ).reason,
+    ).toBe("default");
+  });
 
   it("puts a start_background_run run up but not CMO production", () => {
     expect(

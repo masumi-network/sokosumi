@@ -19,6 +19,11 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
+  modelCallTelemetryFor,
+  recordModelCall,
+  withModelCallTurn,
+} from "@/lib/soko-bot/model-calls";
+import {
   assertSokoBotInferenceRegion,
   SokoBotModelPolicyError,
   sokoBotInferenceEvidence,
@@ -209,6 +214,7 @@ export async function generateSokoBotJudgeText(options: {
     abortSignal: options.abortSignal,
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
+    telemetry: modelCallTelemetryFor("soko-bot-judge"),
   }).catch((error: unknown) => rethrowAiGatewayFailure(error, "evals"));
   assertSokoBotInferenceRegion(result.providerMetadata, {
     model: options.model,
@@ -246,6 +252,12 @@ async function askJudge(
           instructions: SOKO_BOT_JUDGE_RUBRIC,
           prompt: JSON.stringify(payload),
           timeoutMs: JUDGE_TIMEOUT_MS,
+        });
+        await recordModelCall({
+          role: "judge",
+          label: "claude-code",
+          requestedModel: sokoBotJudgeModel(),
+          costUsd: 0,
         });
         return { verdict: sokoBotJudgeVerdictSchema.parse(output), usage };
       }
@@ -409,7 +421,9 @@ export async function judgeEvalScenarioTurn(
   scenario: SokoBotScenario,
 ): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
   const { transcript } = await loadTranscript(turnId);
-  const call = await askJudge(labJudgePayload(scenario, transcript));
+  const call = await withModelCallTurn(turnId, () =>
+    askJudge(labJudgePayload(scenario, transcript)),
+  );
   await storeTurnVerdict(turnId, call);
   return { verdict: call.verdict, model: sokoBotJudgeModel() };
 }
@@ -449,7 +463,9 @@ export async function judgeSokoBotLabTurn(input: {
     });
   };
   await record(null);
-  const call = await askJudge(labJudgePayload(scenario, transcript));
+  const call = await withModelCallTurn(input.turnId, () =>
+    askJudge(labJudgePayload(scenario, transcript)),
+  );
   await Promise.all([
     record(call.verdict),
     storeTurnVerdict(input.turnId, call),

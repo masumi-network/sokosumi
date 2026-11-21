@@ -4,9 +4,11 @@
  * training (owner-approved 2026-11-08 for contact search, 2026-11-11 for a
  * month's posts and titles). Only the texts being compared are sent.
  */
+
 import { embedMany, gateway } from "ai";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
+import { recordModelCall } from "@/lib/soko-bot/model-calls";
 
 export const EMBEDDING_MODEL = "google/text-multilingual-embedding-002";
 
@@ -27,8 +29,13 @@ export const embedTexts: EmbedTexts = async (values) => {
       gateway: { zeroDataRetention: true, disallowPromptTraining: true },
     },
   }).catch(rethrowAiGatewayFailure);
-  return {
-    embeddings: result.embeddings,
-    costUsd: gatewayCostUsd(result.providerMetadata),
-  };
+  const costUsd = gatewayCostUsd(result.providerMetadata);
+  await recordModelCall({
+    role: "embedding",
+    requestedModel: EMBEDDING_MODEL,
+    providerMetadata: result.providerMetadata,
+    usage: { inputTokens: result.usage.tokens },
+    costUsd,
+  });
+  return { embeddings: result.embeddings, costUsd };
 };

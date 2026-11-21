@@ -7171,7 +7171,17 @@
               "judgment": "Judgment",
               "honesty": "Honesty"
             }
-          }
+          },
+          "modelReason": "Why this model",
+          "modelCalls": "Model calls",
+          "modelCallsEmpty": "No model calls recorded for this turn.",
+          "spendByModel": "Spend by model",
+          "callRole": "Role",
+          "callRequested": "Asked for",
+          "callAnswered": "Answered",
+          "callProvider": "Provider",
+          "callTokens": "Tokens in / cached / out",
+          "callCost": "Cost"
         },
         "Decisions": {
           "title": "Decisions",

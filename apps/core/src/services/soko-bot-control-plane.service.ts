@@ -121,6 +121,7 @@ import {
 } from "@/lib/soko-bot/evaluation-dispatch";
 import { safeEventText, safeReasoningSummary } from "@/lib/soko-bot/event-text";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import { recordModelCall, withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   capturePreference,
   MIN_PREFERENCE_CONFIDENCE,
@@ -3093,6 +3094,17 @@ export class SokoBotControlPlane {
         return { turn: created, memoryRevision };
       }, "Soko Bot turn collided with another request");
       turn = reservation.turn;
+      if (classification.model)
+        await recordModelCall({
+          turnId: turn.id,
+          role: "classifier",
+          label: classification.version,
+          requestedModel: classification.model,
+          providerMetadata: classification.usage?.providerMetadata,
+          usage: classification.usage ?? undefined,
+          costUsd: classification.usage?.costUsd ?? 0,
+          failed: classification.failed,
+        });
     } catch (error) {
       // Another request with this idempotency key may have committed between
       // the optimistic read and serializable acquisition. Return its durable
@@ -3441,7 +3453,18 @@ export class SokoBotControlPlane {
     await this.reconcileTurn(turnId, undefined, leaseToken);
   }
 
+  /** Checks run while draining (claim check, receipts) record on the turn. */
   async reconcileTurn(
+    turnId: string,
+    signal: AbortSignal | undefined,
+    leaseToken: string,
+  ): Promise<void> {
+    return withModelCallTurn(turnId, () =>
+      this.drainTurn(turnId, signal, leaseToken),
+    );
+  }
+
+  private async drainTurn(
     turnId: string,
     signal: AbortSignal | undefined,
     leaseToken: string,
@@ -4316,6 +4339,10 @@ export class SokoBotControlPlane {
           include: {
             events: { orderBy: { sequence: "asc" } },
             toolCalls: { orderBy: { createdAt: "asc" } },
+            modelCalls: {
+              orderBy: { createdAt: "asc" },
+              omit: { turnId: true, generationId: true },
+            },
             delegations: true,
             pendingDecisions: true,
             // The packet is the whole model input, often hundreds of KB per

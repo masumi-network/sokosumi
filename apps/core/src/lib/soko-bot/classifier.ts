@@ -197,6 +197,8 @@ export interface ClassifierUsage {
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
+  /** The Gateway's report of the call: what answered, where. */
+  providerMetadata?: unknown;
 }
 
 export interface ClassificationResult {
@@ -663,6 +665,7 @@ export class JevTurnClassifier implements TurnClassifier {
         inputTokens: result.usage.inputTokens ?? 0,
         outputTokens: result.usage.outputTokens ?? 0,
         costUsd: gatewayCostUsd(result.providerMetadata),
+        providerMetadata: result.providerMetadata,
       };
       return {
         classification: classificationFromAnswers(

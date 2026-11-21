@@ -487,8 +487,33 @@ export const sokoBotContextSnapshotSchema = z
   })
   .openapi("SokoBotContextSnapshot");
 
+/** One AI Gateway call of a turn, as `soko_bot_model_call` records it. */
+export const sokoBotModelCallSchema = z
+  .object({
+    id: z.string().uuid(),
+    createdAt: dateTimeSchema,
+    role: z.string(),
+    label: z.string().nullable(),
+    requestedModel: z.string(),
+    answeredModel: z.string().nullable(),
+    provider: z.string().nullable(),
+    region: z.string().nullable(),
+    zeroDataRetention: z.boolean().nullable(),
+    inputTokens: z.number().int().nonnegative(),
+    cacheReadTokens: z.number().int().nonnegative(),
+    cacheWriteTokens: z.number().int().nonnegative(),
+    outputTokens: z.number().int().nonnegative(),
+    costUsd: z.number().nonnegative(),
+    failed: z.boolean(),
+  })
+  .openapi("SokoBotModelCall");
+
 export const adminSokoBotTurnSchema = sokoBotTurnSchema
   .extend({
+    /** Why the turn ran on `modelId` (`lib/soko-bot/turn-model.ts`). */
+    modelReason: z.string().nullable(),
+    /** Every model call of the turn, oldest first. */
+    modelCalls: z.array(sokoBotModelCallSchema),
     eveSessionId: z.string().nullable(),
     eveTurnId: z.string().nullable(),
     // Union-with-null, not `.nullable()`: same codegen poison as runtimeHealth

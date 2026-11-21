@@ -27,6 +27,7 @@ import {
   actionInputHash,
 } from "@/lib/soko-bot/action-receipts";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
+import { recordModelCall } from "@/lib/soko-bot/model-calls";
 import {
   assertSokoBotInferenceRegion,
   sokoBotInferenceEvidence,
@@ -688,6 +689,13 @@ export async function proxySandboxModelCall(
       usage: gatewayCallUsage(finish),
     }),
   );
+  await recordModelCall({
+    turnId: claims.turnId,
+    role: ranSearch ? "search" : "agent",
+    requestedModel: model,
+    providerMetadata: finish.providerMetadata,
+    usage: gatewayCallUsage(finish),
+  });
   try {
     assertSokoBotInferenceRegion(finish.providerMetadata, {
       model,

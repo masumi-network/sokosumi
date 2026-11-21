@@ -4,6 +4,7 @@ import {
   isEvalWorkspace,
   simulatedEvalTool,
 } from "@/lib/evals/eval-guard";
+import { withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
@@ -28,7 +29,17 @@ export async function executeAuthorizedTool(
   raw: ExecuteSokoBotToolInput,
 ): Promise<unknown> {
   const authorized = await runtime.authorize(raw);
+  // Check models and Jev calls a tool makes are recorded on this turn.
+  return withModelCallTurn(authorized.turn.id, () =>
+    executeTool(runtime, raw, authorized),
+  );
+}
 
+async function executeTool(
+  runtime: RuntimeOperations,
+  raw: ExecuteSokoBotToolInput,
+  authorized: Awaited<ReturnType<RuntimeOperations["authorize"]>>,
+): Promise<unknown> {
   const input = {
     ...raw,
     input: await runtime.resolveTaskIds(authorized, raw.input),

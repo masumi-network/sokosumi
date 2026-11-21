@@ -2878,6 +2878,7 @@ model SokoBotTurn {
   events              SokoBotEvent[]
   runtimeEvents       SokoBotRuntimeEvent[]
   toolCalls           SokoBotToolCall[]
+  modelCalls          SokoBotModelCall[]
   delegations         SokoBotDelegation[]
   watches             SokoBotWatch[]
   pendingDecisions    SokoBotPendingDecision[]
@@ -3102,6 +3103,40 @@ model SokoBotSetting {
 
   @@map("soko_bot_setting")
 }
+
+/// One AI Gateway call made for a turn: the agent's steps, Jev's routing and
+/// checks, the judge, check models and embeddings. What was asked for, what
+/// answered, and what it cost on that model. A record, not the bill: billing
+/// stays on `SokoBotTurn.costUsdMicros`.
+model SokoBotModelCall {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  /// agent, classifier, judge, check, search, embedding
+  role              String
+  /// Which code made the call, e.g. `claim-check`; null for agent steps.
+  label             String?
+  requestedModel    String
+  /// The model the Gateway says answered; null when it reported none.
+  answeredModel     String?
+  provider          String?
+  region            String?
+  zeroDataRetention Boolean?
+  inputTokens       Int      @default(0)
+  cacheReadTokens   Int      @default(0)
+  cacheWriteTokens  Int      @default(0)
+  outputTokens      Int      @default(0)
+  costUsdMicros     BigInt   @default(0)
+  generationId      String?
+  failed            Boolean  @default(false)
+
+  @@index([turnId, createdAt])
+  @@map("soko_bot_model_call")
+}
+
 
 model SokoBotRuntimeEvent {
   id        String   @id @default(uuid(7)) @db.Uuid
