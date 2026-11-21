@@ -1391,3 +1391,24 @@ it("celebrates on Launch without a failure in between, then opens the app on Go 
   await press("Go to Today");
   expect(goToday).toHaveBeenCalledTimes(1);
 });
+
+it("shows a connected handle that already starts with @ once", async () => {
+  await act(async () =>
+    root.render(
+      <LaunchStep
+        overview={draft({
+          ...cmoStrategyVersion(new Date()),
+          channels: [{ ...active, handle: "@test_channel" }],
+        })}
+        onConnect={async () => ({ url: null, error: null })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
+        onGoToday={() => {}}
+      />,
+    ),
+  );
+  expect(container.querySelector(".ob-connected")?.textContent).toBe(
+    "@test_channel",
+  );
+});
