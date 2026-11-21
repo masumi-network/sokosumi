@@ -118,24 +118,46 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       const saved = page.getByText("Company details saved");
       await legalName.fill("E2E Bakery GmbH");
       await email.fill("legal-at-e2e");
+      // The browser checks the form before it dispatches `submit`, so an
+      // invalid email never fires it: no submit event means nothing was sent.
+      await email.evaluate((field) => {
+        const form = field.closest("form") as HTMLFormElement;
+        form.dataset.submitted = "no";
+        form.addEventListener("submit", () => {
+          form.dataset.submitted = "yes";
+        });
+      });
       await save.click();
-      assert.equal(
-        await email.evaluate((field) => field.matches(":invalid")),
-        true,
-        "a malformed email is invalid",
-      );
-      await page.waitForTimeout(1_000);
-      assert.equal(await saved.count(), 0, "a malformed email is not saved");
-      assert.equal(
-        await email.evaluate((field) => {
-          const { left, top, width, height } = field.getBoundingClientRect();
-          return (
-            document.elementFromPoint(left + width / 2, top + height / 2) ===
-            field
+      const after = await email.evaluate((field) => {
+        const label = document.querySelector(`label[for="${field.id}"]`);
+        const visible = (element: Element | null) => {
+          if (!element) return false;
+          const { left, top, width, height } = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            left + width / 2,
+            top + height / 2,
           );
-        }),
-        true,
-        "the invalid email field is not hidden under the header",
+          return top >= 0 && (hit === element || element.contains(hit));
+        };
+        return {
+          invalid: field.matches(":invalid"),
+          focused: document.activeElement === field,
+          submitted: (field.closest("form") as HTMLFormElement).dataset
+            .submitted,
+          fieldVisible: visible(field),
+          labelVisible: visible(label),
+        };
+      });
+      assert.deepEqual(
+        after,
+        {
+          invalid: true,
+          focused: true,
+          submitted: "no",
+          fieldVisible: true,
+          labelVisible: true,
+        },
+        "a malformed email is refused before submit, shown with its label",
       );
       await shot(page, size, "2-invalid-email");
       await email.fill("legal@e2e.example");
