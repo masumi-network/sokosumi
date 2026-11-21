@@ -732,8 +732,13 @@ for (const { name: size, ...viewport } of PROJECTS) {
       const search = page.getByRole("searchbox", {
         name: "Search archived tasks",
       });
+      // Archived's own line: the task page visited earlier stays mounted,
+      // hidden, with its "Checking tags" status line.
       const status = await page
-        .locator('main p[role="status"]')
+        .getByRole("heading", { level: 1, name: "Archived tasks" })
+        .locator(
+          'xpath=ancestor::*[.//p[@role="status"]][1]//p[@role="status"]',
+        )
         .elementHandle();
       assert.ok(status, "no status line before the first search");
       assert.equal(await status.textContent(), "");
@@ -794,7 +799,12 @@ for (const { name: size, ...viewport } of PROJECTS) {
       // Done sits past the board's right edge at every size. Once the only
       // Task is Completed, the edge names Done with its count, and a click
       // scrolls the board there and moves focus to the column.
-      await (await showTasksLink(page)).click();
+      // Archived's own way back; phones show no tab bar here.
+      await page
+        .getByRole("link", { name: "Back to tasks" })
+        .or(page.getByRole("link", { name: "Back", exact: true }))
+        .filter({ visible: true })
+        .click();
       await page.getByRole("link", { name: LONG_NAME }).click();
       await page.getByRole("combobox", { name: /^Status:/ }).click();
       await page.getByRole("option", { name: /^Completed/ }).click();
@@ -810,6 +820,18 @@ for (const { name: size, ...viewport } of PROJECTS) {
       // Named with its count for screen readers: "Done, 1 task".
       const donePill = edge.getByRole("button", { name: /^Done\W*1 task$/ });
       await donePill.waitFor();
+      // The shortcuts own a row above the columns: they never cover a card or
+      // take its taps, at any size.
+      const navBox = await edge.boundingBox();
+      const boardBox = await page
+        .locator("main [data-board-scroller]")
+        .filter({ visible: true })
+        .boundingBox();
+      assert.ok(navBox && boardBox, "no board or shortcut row");
+      assert.ok(
+        navBox.y + navBox.height <= boardBox.y,
+        `the shortcuts overlap the board (${navBox.y + navBox.height} > ${boardBox.y})`,
+      );
       await shot(page, size, "5-board-edge");
       await donePill.click();
       const doneColumn = page.getByRole("region", { name: "Done" });
