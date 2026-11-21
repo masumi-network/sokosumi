@@ -1153,6 +1153,7 @@
       "loading": "Tabelle wird geladen",
       "failed": "Diese Tabelle konnte nicht geöffnet werden.",
       "sheet": "Blatt {number}",
+      "column": "Spalte {number}",
       "empty": "Dieses Blatt ist leer.",
       "truncated": "Es werden die ersten {rows} Zeilen und 50 Spalten angezeigt. Lade die Datei herunter, um den Rest zu sehen."
     },

@@ -88,6 +88,8 @@ export function SpreadsheetView({
   if (!sheet) return null;
   const [head, ...rest] = sheet.rows;
   const body = headerRow ? rest : sheet.rows;
+  // Rows can be ragged: every column any row reaches gets a header.
+  const width = Math.max(0, ...sheet.rows.map((row) => row.length));
 
   return (
     <div className="grid min-w-0 gap-3">
@@ -130,19 +132,30 @@ export function SpreadsheetView({
               // draws its bottom edge instead.
               <thead className="bg-card-background sticky top-0 z-10 shadow-[inset_0_-1px_0_var(--color-border)]">
                 <tr>
-                  {head.map((cell, cellIndex) => (
-                    <th
-                      key={cellIndex}
-                      scope="col"
-                      className={cn(
-                        "max-w-80 border-e px-3 py-1.5 text-start align-top font-semibold whitespace-pre-wrap last:border-e-0",
-                        // Over a column of numbers, align with them.
-                        rest[0]?.[cellIndex]?.numeric && "text-end",
-                      )}
-                    >
-                      {cell.text}
-                    </th>
-                  ))}
+                  {Array.from({ length: width }, (_, cellIndex) => {
+                    const text = head[cellIndex]?.text;
+                    const label = text?.trim()
+                      ? text
+                      : t("column", { number: cellIndex + 1 });
+                    return (
+                      <th
+                        key={cellIndex}
+                        scope="col"
+                        // The clamp hides lines from sight only; the title
+                        // and the accessible name keep the whole label.
+                        title={label}
+                        className={cn(
+                          "max-w-80 border-e px-3 py-1.5 text-start align-top font-semibold whitespace-pre-wrap last:border-e-0",
+                          // Over a column of numbers, align with them.
+                          rest[0]?.[cellIndex]?.numeric && "text-end",
+                          !text?.trim() && "text-muted-foreground",
+                        )}
+                      >
+                        {/* A pinned header taller than three lines would cover the rows. */}
+                        <span className="line-clamp-3">{label}</span>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
             ) : null}
