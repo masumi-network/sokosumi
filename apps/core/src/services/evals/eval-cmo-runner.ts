@@ -69,7 +69,7 @@ import {
   isCompetitorSetup,
   prepareCompetitorCase,
 } from "./eval-cmo-competitors";
-import { prepareCmoSeoReport } from "./eval-cmo-seo-report";
+import { clearCmoSeoReport, prepareCmoSeoReport } from "./eval-cmo-seo-report";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -473,6 +473,7 @@ export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
 ): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
+  await clearCmoSeoReport(lane);
   if (setup === "cmo-plan" || setup === "cmo-plan-ads") {
     await prepareCmoPlan(lane, setup === "cmo-plan-ads");
     return {};

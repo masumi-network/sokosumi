@@ -100,6 +100,20 @@ export async function prepareCmoSeoReport(lane: EvalLaneRecord): Promise<void> {
   });
 }
 
+/** Takes the stand-in Search Console off the lane, so no other case sees it. */
+export async function clearCmoSeoReport(lane: EvalLaneRecord): Promise<void> {
+  await prisma.sokoBotIntegration.deleteMany({
+    where: {
+      sokoBotId: lane.cusoBotId,
+      provider: "google_search_console",
+      composioAccountId: { startsWith: "eval:gsc-" },
+    },
+  });
+  await prisma.projectSeoResearch.deleteMany({
+    where: { projectId: lane.cusoProjectId, kind: "search_console" },
+  });
+}
+
 const WORDS_MAX = 160;
 const ARTICLE_WORDS_MIN = 500;
 const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
