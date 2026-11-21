@@ -1,5 +1,5 @@
-import { cmoV10 } from "./cmo-v10.js";
 import { CMO_SCENE_PRODUCTION_SKILL } from "./cmo-v9-skills.js";
+import { cmoV10 } from "./cmo-v10.js";
 import { CMO_PICKED_PRODUCTION_SKILL } from "./cmo-v11-skills.js";
 import type { SokoBotVersion } from "./types.js";
 
