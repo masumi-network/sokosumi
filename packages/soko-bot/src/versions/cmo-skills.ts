@@ -25,6 +25,11 @@ import {
   scenePieceWritingGuide,
   sceneProduction,
 } from "./cmo-v9-skills.js";
+import {
+  CMO_PICKED_PRODUCTION_SKILL,
+  pickedPieceWritingGuide,
+  pickedProduction,
+} from "./cmo-v11-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -682,7 +687,8 @@ export function cmoWritesMonthAtOnce(skills: readonly string[]): boolean {
   return (
     skills.includes(CMO_BATCHED_PRODUCTION_SKILL) ||
     skills.includes(CMO_VARIED_PRODUCTION_SKILL) ||
-    skills.includes(CMO_SCENE_PRODUCTION_SKILL)
+    skills.includes(CMO_SCENE_PRODUCTION_SKILL) ||
+    skills.includes(CMO_PICKED_PRODUCTION_SKILL)
   );
 }
 
@@ -696,13 +702,20 @@ export const CMO_SCENE_PIECE_WRITING_GUIDE = scenePieceWritingGuide(
   CMO_VARIED_PIECE_WRITING_GUIDE,
 );
 
+/** The brief Core's month writer works from for a cmo-v11 Cuso. */
+export const CMO_PICKED_PIECE_WRITING_GUIDE = pickedPieceWritingGuide(
+  CMO_SCENE_PIECE_WRITING_GUIDE,
+);
+
 const varied = variedProduction(batched);
+const scenes = sceneProduction(varied);
 
 export const CMO_SKILLS: readonly SokoBotSkill[] = [
   ...SKILLS,
   productionWithStyles(production),
   batched,
   varied,
-  sceneProduction(varied),
+  scenes,
+  pickedProduction(scenes),
   claimsStrategy(everyNetwork),
 ];

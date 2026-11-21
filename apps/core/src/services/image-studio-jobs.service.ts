@@ -128,6 +128,7 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { layoutBlockMap } from "@/lib/reference-library/layout";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { speakVoiceover } from "@/lib/soko-bot/voiceover";
 import {
@@ -235,6 +236,16 @@ export interface CreateImageJobInput {
    * Cuso's media maker sets them, no route does.
    */
   referenceLibraryIds?: string[];
+  /**
+   * Send the reference library image as a block map of its layout only
+   * (cmo-v11): the picture borrows where things sit, not the print's look.
+   */
+  styleLayoutOnly?: boolean;
+  /**
+   * How many of the Project's month jobs may run at once; Core's media maker
+   * raises it for a version that makes several alternatives per picture.
+   */
+  monthConcurrency?: number;
   /** Keep the source ad's product photo when an assistant edit can use it. */
   reuseParentPhotoIfAvailable?: boolean;
   /** Keep a source ad's currently approved headline on a visual refinement. */
@@ -529,7 +540,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       where: { projectId: input.projectId, status: { in: ACTIVE_STATUSES } },
     });
     const atOnce = input.forCmoMonth
-      ? LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT
+      ? (input.monthConcurrency ?? LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT)
       : LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT;
     if (inFlight >= atOnce) {
       throw tooManyRequests(
@@ -624,6 +635,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
         referenceLibraryIds: input.referenceLibraryIds ?? [],
+        styleLayoutOnly: input.styleLayoutOnly ?? false,
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
@@ -760,6 +772,7 @@ async function buildReferenceUrls(
     referenceAssetIds: string[];
     referenceFileIds: string[];
     referenceLibraryIds?: string[];
+    styleLayoutOnly?: boolean;
     useProductCutout?: boolean;
   },
   organizationId: string | null,
@@ -802,11 +815,19 @@ async function buildReferenceUrls(
     const reference = await readReferenceImage(id);
     if (!reference) throw notFound("A style reference was not found.");
     urls.push(
-      await uploadReference({
-        bytes: reference.bytes,
-        contentType: reference.contentType,
-        fileName: `style-${id}.${reference.contentType.split("/")[1] ?? "jpg"}`,
-      }),
+      await uploadReference(
+        job.styleLayoutOnly
+          ? {
+              bytes: await layoutBlockMap(reference.bytes),
+              contentType: "image/png",
+              fileName: `layout-${id}.png`,
+            }
+          : {
+              bytes: reference.bytes,
+              contentType: reference.contentType,
+              fileName: `style-${id}.${reference.contentType.split("/")[1] ?? "jpg"}`,
+            },
+      ),
     );
   }
   // Order matters to the model, so follow the caller's order rather than the

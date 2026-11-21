@@ -2,10 +2,13 @@ import { createHash } from "node:crypto";
 
 import { ProjectImageJobStatus } from "@sokosumi/database";
 import {
+  CMO_PICKED_PRODUCTION_SKILL,
   CMO_SCENE_PRODUCTION_SKILL,
   CMO_VARIED_PRODUCTION_SKILL,
   type CmoCalendarEntry,
   getSokoBotVersion,
+  PICTURE_KINDS,
+  type PictureKind,
   REFERENCE_KINDS,
   SOKO_BOT_VOICEOVER_VOICES,
 } from "@sokosumi/soko-bot";
@@ -35,6 +38,10 @@ import {
   TALKING_VIDEO_PRESENTERS,
 } from "@/lib/image-studio/talking-video";
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
+import {
+  layoutBlockMap,
+  pickBestPicture,
+} from "@/lib/reference-library/layout";
 import { checkStyledPicture } from "@/lib/reference-library/style-check";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { StudioLogoPosition } from "@/schemas/project-image-studio.schema";
@@ -44,6 +51,10 @@ import {
 } from "@/services/cmo-brand-media.service";
 import { cmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
+import {
+  cmoPictureStyle,
+  referenceComposition,
+} from "@/services/cmo-picture-style.service";
 import { talkingVideoPresenter } from "@/services/cmo-presenter.service";
 import {
   type CusoDrive,
@@ -103,6 +114,45 @@ export const REFERENCE_STYLE_MODELS = [
   "gpt-image-2-6",
   "nano-banana-2-1",
 ] as const;
+
+/**
+ * The alternatives a cmo-v11 picture starts at once, one per entry: three on
+ * Muse Image, two on MAI-Image 2.7 (2026-11-21 model test on the layout
+ * prompt: Muse 19 of 24 passed at $0.026 a passed picture, MAI 10 of 16 with
+ * the richest scenes). MAI needs both sides at 768 px or more, so a wide or
+ * tall frame takes Muse in its place. The check model picks the best that
+ * passed; GPT Image 2.6 remakes only when none did.
+ */
+export const PICK_MODELS = [
+  "muse-image",
+  "muse-image",
+  "muse-image",
+  "mai-image-2-7",
+  "mai-image-2-7",
+] as const;
+export const PICK_REMAKE_MODELS = ["gpt-image-2-6"] as const;
+/** Frames MAI-Image 2.7 can make at 1K. */
+const MAI_FRAMES = new Set(["1:1", "4:5", "3:4", "4:3", "5:4"]);
+
+/** The model of a picker alternative or remake, by its attempt label. */
+export function cmoPickModel(attempt: string, aspectRatio: string): string {
+  const index = Number(attempt.slice(1)) - 1;
+  if (attempt.startsWith("r"))
+    return PICK_REMAKE_MODELS[index] ?? PICK_REMAKE_MODELS[0];
+  const model = PICK_MODELS[index] ?? "muse-image";
+  return model === "mai-image-2-7" && !MAI_FRAMES.has(aspectRatio)
+    ? "muse-image"
+    : model;
+}
+
+/** Whether a Cuso version picks each picture from several alternatives (cmo-v11). */
+export function cmoPicksPictures(
+  versionId: string | null | undefined,
+): boolean {
+  return getSokoBotVersion(versionId).skills.includes(
+    CMO_PICKED_PRODUCTION_SKILL,
+  );
+}
 
 /**
  * A styled picture the style check turned down keeps its finished job (it
@@ -242,7 +292,8 @@ export function cmoMakesVariedMonth(
   const { skills } = getSokoBotVersion(versionId);
   return (
     skills.includes(CMO_VARIED_PRODUCTION_SKILL) ||
-    skills.includes(CMO_SCENE_PRODUCTION_SKILL)
+    skills.includes(CMO_SCENE_PRODUCTION_SKILL) ||
+    skills.includes(CMO_PICKED_PRODUCTION_SKILL)
   );
 }
 
@@ -250,8 +301,10 @@ export function cmoMakesVariedMonth(
 export function cmoWritesSceneVisuals(
   versionId: string | null | undefined,
 ): boolean {
-  return getSokoBotVersion(versionId).skills.includes(
-    CMO_SCENE_PRODUCTION_SKILL,
+  const { skills } = getSokoBotVersion(versionId);
+  return (
+    skills.includes(CMO_SCENE_PRODUCTION_SKILL) ||
+    skills.includes(CMO_PICKED_PRODUCTION_SKILL)
   );
 }
 
@@ -467,6 +520,7 @@ export interface CmoMediaPiece
     | "visual"
     | "visualFileIds"
     | "styleReferenceId"
+    | "pictureKind"
     | "headline"
     | "slides"
     | "slideHeadlines"
@@ -492,6 +546,12 @@ export interface CmoMediaJob {
   prompt: string;
   /** The style check turned the finished picture down: the next try starts. */
   rejected: boolean;
+  /**
+   * The try, from its key: "1", "2" … for one picture at a time; "p1" to "p5"
+   * for a cmo-v11 picture's alternatives and "r1" for its remake.
+   */
+  attempt: string;
+  createdAt: Date;
 }
 
 /** Where a piece's media stands. */
@@ -513,9 +573,16 @@ export type CmoSlotAction =
   | {
       kind: "start";
       step: CmoMediaJob["step"];
-      attempt: number;
+      attempt: number | string;
       sourceAssetId: string | null;
-    };
+    }
+  /** Every alternative of a cmo-v11 picture is in: check them and pick one. */
+  | { kind: "pick"; jobs: CmoMediaJob[] };
+
+/** A cmo-v11 picture's pick, as the slot action reads it. */
+export interface CmoSlotPick {
+  chosenJobId: string | null;
+}
 
 /** The visual and its pictures, as one short key: a new visual starts over. */
 export function cmoVisualKey(
@@ -574,7 +641,19 @@ function slotsOf(piece: CmoMediaPiece): number {
 export function cmoSlotAction(
   piece: CmoMediaPiece,
   jobs: readonly CmoMediaJob[],
+  options: {
+    /** Start a new picture as five alternatives (a cmo-v11 Cuso). */
+    picker?: boolean;
+    /** The slot's pick, once made. */
+    pick?: CmoSlotPick | null;
+  } = {},
 ): CmoSlotAction {
+  const picker =
+    piece.styleReferenceId &&
+    !cmoPieceIsVideo(piece) &&
+    !cmoPieceIsTalking(piece) &&
+    (options.picker || jobs.some((job) => /^[pr]\d/.test(job.attempt)));
+  if (picker) return pickerAction(jobs, options.pick ?? null);
   const next = (
     name: CmoMediaJob["step"],
     sourceAssetId: string | null,
@@ -605,6 +684,54 @@ export function cmoSlotAction(
   return next("video", still.job.assetId);
 }
 
+/**
+ * A cmo-v11 picture: five alternatives at once, a pick once all are in, a
+ * remake only when none passed. A pick that chose a job attaches it.
+ */
+function pickerAction(
+  all: readonly CmoMediaJob[],
+  pick: CmoSlotPick | null,
+): CmoSlotAction {
+  const jobs = all.filter((job) => job.step === "image");
+  const chosen = pick?.chosenJobId
+    ? jobs.find((job) => job.id === pick.chosenJobId)
+    : undefined;
+  if (chosen?.assetId && chosen.status === ProjectImageJobStatus.SUCCEEDED)
+    return { kind: "attach", job: chosen };
+  const alternatives = jobs.filter((job) => job.attempt.startsWith("p"));
+  if (alternatives.length < PICK_MODELS.length)
+    return {
+      kind: "start",
+      step: "image",
+      attempt: `p${alternatives.length + 1}`,
+      sourceAssetId: null,
+    };
+  if (alternatives.some((job) => LIVE.has(job.status))) return { kind: "wait" };
+  const remakes = jobs.filter((job) => job.attempt.startsWith("r"));
+  // A remake starts only after a pick, so one stands for it where the pick
+  // itself is not read (cmoMediaState).
+  if (!pick && remakes.length === 0)
+    return { kind: "pick", jobs: alternatives };
+  const last = remakes.at(-1);
+  if (!last)
+    return { kind: "start", step: "image", attempt: "r1", sourceAssetId: null };
+  if (LIVE.has(last.status)) return { kind: "wait" };
+  if (
+    last.status === ProjectImageJobStatus.SUCCEEDED &&
+    last.assetId &&
+    !last.rejected
+  )
+    return { kind: "attach", job: last };
+  if (remakes.length < PICK_REMAKE_MODELS.length)
+    return {
+      kind: "start",
+      step: "image",
+      attempt: `r${remakes.length + 1}`,
+      sourceAssetId: null,
+    };
+  return { kind: "failed" };
+}
+
 /** Where a piece's media stands, without changing anything. */
 export function cmoMediaState(
   piece: CmoMediaPiece,
@@ -628,7 +755,7 @@ function jobKey(
   piece: CmoMediaPiece,
   slot: number,
   step: CmoMediaJob["step"],
-  attempt: number,
+  attempt: number | string,
 ): string {
   return [
     KEY_PREFIX,
@@ -676,11 +803,13 @@ export async function listCmoMediaJobs(
       status: true,
       prompt: true,
       error: true,
+      createdAt: true,
       asset: { select: { id: true } },
     },
   });
   return rows.flatMap((row) => {
-    const [, , pieceId, slot, step, visualKey] = row.idempotencyKey.split(":");
+    const [, , pieceId, slot, step, visualKey, attempt] =
+      row.idempotencyKey.split(":");
     if (
       !pieceId ||
       !visualKey ||
@@ -701,6 +830,8 @@ export async function listCmoMediaJobs(
         assetId: row.asset?.id ?? null,
         prompt: row.prompt,
         rejected: row.error?.startsWith(CMO_STYLE_REJECTED) ?? false,
+        attempt: attempt ?? "1",
+        createdAt: row.createdAt,
       },
     ];
   });
@@ -933,6 +1064,136 @@ export function cmoStylePrompt(input: {
     .join(" ");
 }
 
+/**
+ * Kinds of print whose layout a cmo-v11 picture borrows: they carry a clear
+ * headline, subject and space. A trade card, label or plain illustration
+ * gave the layout experiment little to follow.
+ */
+export const LAYOUT_KINDS: ReadonlySet<string> = new Set([
+  "poster",
+  "magazine-cover",
+  "ad",
+  "book-cover",
+  "record-cover",
+  "playbill",
+  "infographic",
+]);
+
+/**
+ * The picture kind a piece takes: the one asked for unless a neighbouring
+ * piece on its network already has it; then the next kind that keeps the two
+ * apart. With one look for the whole brand, the kind is what keeps a month
+ * from being one flat illustration after another.
+ */
+export function cmoNeighbourlyKind(
+  wanted: PictureKind | null | undefined,
+  piece: Pick<CmoCalendarEntry, "id" | "channel" | "date" | "time">,
+  calendar: readonly Pick<
+    CmoCalendarEntry,
+    "id" | "channel" | "date" | "time" | "pictureKind" | "status"
+  >[],
+  given: ReadonlyMap<string, PictureKind> = new Map(),
+): PictureKind {
+  const when = (entry: Pick<CmoCalendarEntry, "date" | "time">) =>
+    `${entry.date} ${entry.time ?? ""}`;
+  const neighbours = calendar
+    .filter(
+      (entry) =>
+        entry.channel === piece.channel &&
+        entry.id !== piece.id &&
+        entry.status !== "skipped",
+    )
+    .map((entry) => ({
+      at: when(entry),
+      kind: given.get(entry.id) ?? entry.pictureKind,
+    }))
+    .filter((entry) => entry.kind)
+    .sort((a, b) => a.at.localeCompare(b.at));
+  const at = when(piece);
+  const taken = new Set(
+    [
+      neighbours.filter((entry) => entry.at < at).at(-1)?.kind,
+      neighbours.find((entry) => entry.at > at)?.kind,
+    ].filter(Boolean),
+  );
+  const first = wanted ?? cmoPictureKind({ id: piece.id });
+  const order = [first, ...PICTURE_KINDS.filter((kind) => kind !== first)];
+  return order.find((kind) => !taken.has(kind)) ?? first;
+}
+
+/** A piece's picture kind: its own, else one chosen from its id so a month varies. */
+export function cmoPictureKind(
+  piece: Pick<CmoMediaPiece, "id" | "pictureKind">,
+): PictureKind {
+  if (piece.pictureKind) return piece.pictureKind;
+  const sum = [...piece.id].reduce(
+    (total, char) => total + char.charCodeAt(0),
+    0,
+  );
+  return PICTURE_KINDS[sum % PICTURE_KINDS.length] ?? PICTURE_KINDS[0];
+}
+
+/**
+ * A cmo-v11 picture: the reference lends only its layout, sent as a block map
+ * (image 1), and the picture is drawn in the brand's own look and the piece's
+ * picture kind (owner, 2026-11-21: "take the layout and adapt the style").
+ * Naming the text slots stopped the model inventing taglines in the layout's
+ * smaller lines (7 → 12 of 16 passed in the layout experiment).
+ */
+export function cmoLayoutPrompt(input: {
+  piece: Pick<
+    CmoMediaPiece,
+    | "id"
+    | "visual"
+    | "title"
+    | "headline"
+    | "slides"
+    | "slideHeadlines"
+    | "pictureKind"
+  >;
+  slot: number;
+  businessName: string;
+  /** The reference's composition in words. */
+  composition: string | null;
+  /** How the brand's pictures look, from its DESIGN.md. */
+  pictureStyle: string;
+  logo?: boolean;
+  /** The brand's own pictures sent after the block map (and the logo). */
+  brandPictures?: number;
+  screen?: boolean;
+}): string {
+  const { piece } = input;
+  const slides = piece.slides?.length ?? 0;
+  const slide = piece.slides?.[input.slot]?.trim();
+  const headline = cmoStyleHeadline(piece, input.slot);
+  const second = slides === 0 ? cmoStyleSecondLine(piece) : null;
+  const own = input.brandPictures ?? 0;
+  const firstOwn = input.logo ? 3 : 2;
+  const slots = headline
+    ? `Its text slots take only these words: "${headline}" in the largest slot, spelled exactly${second ? `, "${second}" in a smaller slot` : ""} and "${input.businessName}" in one small slot; leave every other text slot, label, tagline, number or caption out.`
+    : `No words, letters or numbers in the picture${input.logo ? " besides the logo" : ""}.`;
+  return [
+    `Image 1 is a block map of a layout: grey shapes mark where the headline, the subject and the empty space sit. Follow its arrangement only; it has no style.${input.composition ? ` Composition: ${input.composition}` : ""}`,
+    `Draw it as a ${cmoPictureKind(piece)}. ${input.pictureStyle}`,
+    input.logo
+      ? `Image 2 is ${input.businessName}'s logo. Place it exactly as drawn, exactly once, as part of the design (a masthead, a header or a footer); never redraw, restyle or recolour it, and never repeat it on signs or objects in the scene.`
+      : "",
+    own > 0
+      ? `${own > 1 ? `Images ${firstOwn} and on are` : `Image ${firstOwn} is`} ${input.businessName}'s own picture${own > 1 ? "s" : ""} of its site or product. Set what the scene shows of it into the composition as it is: its layout, words and colours unchanged and readable. Invent no price, number, plan, label or interface detail it does not show.`
+      : "",
+    `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slides > 1 ? " One picture of a series: the others share this same look. Draw no slide number, page number or counter." : ""}${slide ? ` This slide: ${slide}.` : ""}`,
+    input.screen
+      ? `Leave one plain, light, empty panel ${SCREEN_PANEL_WORDS}, with nothing drawn in it and no frame of your own: the brand's real screen is placed there afterwards. Draw no other screen, browser, phone, laptop, monitor or web page anywhere in the picture.`
+      : "",
+    slots,
+    "Signs, papers, screens and objects in the scene carry no words.",
+    `Draw no ${input.logo ? "other " : ""}logo, brand mark, emblem, coin symbol, signature or watermark.${input.logo ? "" : " Keep one corner plain: the brand's logo is placed there afterwards."}`,
+    "Never a real, named person.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 /** Brand pictures a styled picture may show inside its style. */
 export const MAX_STYLE_BRAND_PICTURES = 2;
 
@@ -987,6 +1248,11 @@ interface MediaContext {
    * no longer schedules in a production run.
    */
   schedulesEveryPost?: boolean;
+  /**
+   * The Cuso's version picks each styled picture from five alternatives
+   * (cmo-v11). `versionId` above is the approved strategy's, not the bot's.
+   */
+  picksPictures?: boolean;
 }
 
 /** The brand a styled picture is made and finished with. */
@@ -1100,14 +1366,43 @@ export async function advanceCmoMedia(
   if (wanted.length === 0) return;
   const { projectId } = context.cuso;
   const jobs = await listCmoMediaJobs(projectId, context.versionId);
+  const picker = context.picksPictures === true;
   let capacity =
-    LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT -
+    (picker
+      ? LIMITS.CMO_PICKED_MONTH_CONCURRENT_JOBS_PER_PROJECT
+      : LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT) -
     (await prisma.projectImageJob.count({
       where: { projectId, status: { in: [...LIVE] } },
     }));
   let brandPictures: { fileId: string; alt: string }[] | null = null;
   let styleBrand: StyleBrand | null = null;
   const brandFor = async () => (styleBrand ??= await loadStyleBrand(projectId));
+  const picks = picker
+    ? await prisma.cmoPicturePick.findMany({
+        where: { marketingStrategyId: context.versionId },
+        select: {
+          pieceId: true,
+          slot: true,
+          visualKey: true,
+          chosenJobId: true,
+        },
+      })
+    : [];
+  const pickOf = (piece: CmoMediaPiece, slot: number) =>
+    picks.find(
+      (row) =>
+        row.pieceId === piece.id &&
+        row.slot === slot &&
+        row.visualKey === cmoVisualKey(piece),
+    ) ?? null;
+  let look: string | null = null;
+  const lookFor = async () => {
+    if (look !== null) return look;
+    const style = await cmoPictureStyle(projectId, (await brandFor()).colours);
+    await chargeCheck(context, `cmo-picture-style:${projectId}`, style.costUsd);
+    look = style.text;
+    return look;
+  };
   // Talking videos started in this pass, so its other posts wait for it.
   const started = new Set<string>();
   for (const piece of wanted) {
@@ -1116,9 +1411,32 @@ export async function advanceCmoMedia(
     // failed, and the cover was never tried again or handed back to Cuso.
     let inOrder = true;
     for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
-      const action = cmoSlotAction(piece, slotJobs(piece, slot, jobs));
+      const pick = pickOf(piece, slot);
+      let action = cmoSlotAction(piece, slotJobs(piece, slot, jobs), {
+        picker: picker && styled(piece),
+        pick,
+      });
+      if (action.kind === "pick") {
+        const chosen = await pickPicture(
+          context,
+          drive,
+          piece,
+          slot,
+          action.jobs,
+          await brandFor(),
+          await lookFor(),
+        );
+        action = chosen
+          ? { kind: "attach", job: chosen }
+          : {
+              kind: "start",
+              step: "image",
+              attempt: "r1",
+              sourceAssetId: null,
+            };
+      }
       if (action.kind === "attach") {
-        if (inOrder)
+        if (inOrder) {
           inOrder = await attach(
             context,
             drive,
@@ -1130,6 +1448,22 @@ export async function advanceCmoMedia(
               ? await brandFor()
               : null,
           );
+          // A remake that passed is the pick's choice once it is on the post.
+          if (inOrder && action.job.attempt.startsWith("r"))
+            await prisma.cmoPicturePick.updateMany({
+              where: {
+                marketingStrategyId: context.versionId,
+                pieceId: piece.id,
+                slot,
+                visualKey: cmoVisualKey(piece),
+                chosenJobId: null,
+              },
+              data: {
+                chosenJobId: action.job.id,
+                reason: `None of the alternatives passed the check; the remake on ${imageModel(cmoPickModel(action.job.attempt, aspectRatio(piece))).label} passed.`,
+              },
+            });
+        }
         continue;
       }
       inOrder = false;
@@ -1144,33 +1478,200 @@ export async function advanceCmoMedia(
       if (started.has(startKey)) continue;
       started.add(startKey);
       brandPictures ??= await listCmoBrandPictures(projectId);
-      const accepted = await start(context, drive, {
-        piece,
-        slot,
-        action,
-        // A styled picture's screen is placed by Core, never redrawn.
-        references:
-          action.step === "video" || action.step === "talking" || styled(piece)
-            ? []
-            : references(piece, brandPictures),
-        screen:
-          styled(piece) &&
-          action.step === "image" &&
-          styleBrandPictures(piece, brandPictures).length > 0,
-        colours:
-          styled(piece) && action.step !== "video" && action.step !== "talking"
-            ? (await brandFor()).colours
-            : [],
-        logoFileId:
-          styled(piece) && action.step !== "video" && action.step !== "talking"
-            ? (await brandFor()).logoFileId
-            : null,
-      });
-      // A refusal (credits, the hourly limit) stops starting, never
-      // attaching: finished pictures further down still go on their posts.
-      capacity = accepted ? capacity - 1 : 0;
+      // A cmo-v11 picture starts its alternatives together.
+      const attempts =
+        typeof action.attempt === "string" && action.attempt.startsWith("p")
+          ? Array.from(
+              {
+                length:
+                  PICK_MODELS.length - Number(action.attempt.slice(1)) + 1,
+              },
+              (_, index) =>
+                `p${Number(action.attempt.toString().slice(1)) + index}`,
+            )
+          : [action.attempt];
+      const layout =
+        picker && styled(piece) && typeof action.attempt === "string"
+          ? {
+              composition: await composition(context, piece.styleReferenceId),
+              pictureStyle: await lookFor(),
+            }
+          : null;
+      for (const attempt of attempts) {
+        if (capacity <= 0) break;
+        const accepted = await start(context, drive, {
+          piece,
+          slot,
+          layout,
+          action: { ...action, attempt },
+          // A styled picture's screen is placed by Core, never redrawn.
+          references:
+            action.step === "video" ||
+            action.step === "talking" ||
+            styled(piece)
+              ? []
+              : references(piece, brandPictures),
+          screen:
+            styled(piece) &&
+            action.step === "image" &&
+            styleBrandPictures(piece, brandPictures).length > 0,
+          colours:
+            styled(piece) &&
+            action.step !== "video" &&
+            action.step !== "talking"
+              ? (await brandFor()).colours
+              : [],
+          logoFileId:
+            styled(piece) &&
+            action.step !== "video" &&
+            action.step !== "talking"
+              ? (await brandFor()).logoFileId
+              : null,
+        });
+        // A refusal (credits, the hourly limit) stops starting, never
+        // attaching: finished pictures further down still go on their posts.
+        capacity = accepted ? capacity - 1 : 0;
+      }
     }
   }
+}
+
+/** A reference's composition for a cmo-v11 picture, charged once when first written. */
+async function composition(
+  context: MediaContext,
+  referenceId: string,
+): Promise<string | null> {
+  const { text, costUsd } = await referenceComposition(referenceId);
+  await chargeCheck(
+    context,
+    `cmo-reference-composition:${referenceId}`,
+    costUsd,
+  );
+  return text;
+}
+
+/** A model call made for a Cuso's pictures, on his bot's usage. */
+async function chargeCheck(
+  context: { cuso: Pick<Cuso, "sokoBotId"> },
+  key: string,
+  costUsd: number,
+): Promise<void> {
+  if (costUsd <= 0) return;
+  await recordSokoBotCheckUsage({
+    sokoBotId: context.cuso.sokoBotId,
+    key,
+    costUsd,
+  });
+}
+
+/**
+ * Checks every alternative of a cmo-v11 picture, has the check model pick
+ * the best that passed side by side (the brief, the layout and the brand's
+ * look), and records the pick with each alternative's verdict on its own
+ * job. Returns the chosen job, or null when none passed and a remake is due.
+ */
+async function pickPicture(
+  context: MediaContext,
+  drive: CusoDrive,
+  piece: CmoMediaPiece,
+  slot: number,
+  alternatives: readonly CmoMediaJob[],
+  style: StyleBrand,
+  look: string,
+): Promise<CmoMediaJob | null> {
+  const visualKey = cmoVisualKey(piece);
+  const screen = await pieceScreen(context, drive, piece);
+  const judged = await Promise.all(
+    alternatives.map(async (job) => {
+      if (job.status !== ProjectImageJobStatus.SUCCEEDED || !job.assetId)
+        return null;
+      const finished = await checkAndBrand(
+        context,
+        {
+          styleReferenceId: piece.styleReferenceId,
+          headline: cmoStyleHeadline(piece, slot) ?? undefined,
+          visual: piece.slides?.[slot]?.trim() || piece.visual,
+          lines: cmoStyleLines(piece, context.cuso.businessName),
+          layoutOnly: true,
+        },
+        job,
+        style,
+        screen,
+      );
+      return finished === "rejected" ? null : { job, bytes: finished.bytes };
+    }),
+  );
+  const passing = judged.filter((entry) => entry !== null);
+  let chosen: CmoMediaJob | null = null;
+  let reason = `None of the ${alternatives.length} alternatives passed the check.`;
+  let costUsd = 0;
+  if (passing.length === 1 && passing[0]) {
+    chosen = passing[0].job;
+    reason = `The only one of the ${alternatives.length} alternatives that passed the check.`;
+  } else if (passing.length > 1 && piece.styleReferenceId) {
+    const reference = await readReferenceImage(piece.styleReferenceId);
+    try {
+      const best = await pickBestPicture({
+        candidates: passing.map((entry) => entry.bytes),
+        layout: reference
+          ? await layoutBlockMap(reference.bytes)
+          : passing[0]!.bytes,
+        brief: {
+          scene: piece.visual ?? null,
+          headline: cmoStyleHeadline(piece, slot),
+          kind: cmoPictureKind(piece),
+        },
+        look,
+      });
+      chosen = passing[best.index]?.job ?? passing[0]!.job;
+      reason = best.reason;
+      costUsd = best.costUsd;
+    } catch {
+      // The picker failing never holds the picture back: the first that
+      // passed goes on.
+      chosen = passing[0]!.job;
+      reason =
+        "Picked the first alternative that passed; the picker did not answer.";
+    }
+  }
+  const startedAt = alternatives.reduce(
+    (first, job) => (job.createdAt < first ? job.createdAt : first),
+    alternatives[0]?.createdAt ?? new Date(),
+  );
+  await prisma.cmoPicturePick.createMany({
+    data: [
+      {
+        projectId: context.cuso.projectId,
+        marketingStrategyId: context.versionId,
+        pieceId: piece.id,
+        slot,
+        visualKey,
+        candidateJobIds: alternatives.map((job) => job.id),
+        chosenJobId: chosen?.id ?? null,
+        reason,
+        startedAt,
+        costUsd,
+      },
+    ],
+    skipDuplicates: true,
+  });
+  // Two passes racing: the first pick stored wins, and this one follows it.
+  const stored = await prisma.cmoPicturePick.findUnique({
+    where: {
+      marketingStrategyId_pieceId_slot_visualKey: {
+        marketingStrategyId: context.versionId,
+        pieceId: piece.id,
+        slot,
+        visualKey,
+      },
+    },
+    select: { id: true, chosenJobId: true },
+  });
+  if (stored && costUsd > 0)
+    await chargeCheck(context, `cmo-picture-pick:${stored.id}`, costUsd);
+  return stored?.chosenJobId
+    ? (alternatives.find((job) => job.id === stored.chosenJobId) ?? null)
+    : null;
 }
 
 /**
@@ -1292,6 +1793,8 @@ async function start(
     colours: string[];
     /** The brand's logo file, a styled picture's second image. */
     logoFileId?: string | null;
+    /** A cmo-v11 picture: the reference's composition and the brand's look. */
+    layout?: { composition: string | null; pictureStyle: string } | null;
     /** A styled picture leaves a panel for the brand's real screen. */
     screen?: boolean;
   },
@@ -1341,34 +1844,55 @@ async function start(
       return true;
     }
     await ensureImageCatalogFresh();
-    // A styled picture's try picks its model: the next one after a refusal.
+    // A styled picture's try picks its model: the next one after a refusal,
+    // or a cmo-v11 alternative's own model.
     const style = styled(piece) ? piece.styleReferenceId : null;
+    const picked = style && typeof action.attempt === "string" && input.layout;
     const model = imageModel(
       style
-        ? REFERENCE_STYLE_MODELS[
-            (action.attempt - 1) % REFERENCE_STYLE_MODELS.length
-          ]
+        ? typeof action.attempt === "string"
+          ? cmoPickModel(action.attempt, aspectRatio(piece))
+          : REFERENCE_STYLE_MODELS[
+              (action.attempt - 1) % REFERENCE_STYLE_MODELS.length
+            ]
         : undefined,
     );
     const logoFileId = style ? (input.logoFileId ?? null) : null;
     await createImageJob({
       ...scope,
-      prompt: style
-        ? cmoStylePrompt({
+      ...(picked
+        ? {
+            styleLayoutOnly: true,
+            monthConcurrency:
+              LIMITS.CMO_PICKED_MONTH_CONCURRENT_JOBS_PER_PROJECT,
+          }
+        : {}),
+      prompt: picked
+        ? cmoLayoutPrompt({
             piece,
             slot,
             businessName: context.cuso.businessName,
-            colours: input.colours,
             screen: input.screen ?? false,
-            traits: await readStyleTraits(style),
+            composition: input.layout?.composition ?? null,
+            pictureStyle: input.layout?.pictureStyle ?? "",
             logo: Boolean(logoFileId),
           })
-        : cmoImagePrompt({
-            piece,
-            slot,
-            businessName: context.cuso.businessName,
-            references: input.references.length,
-          }),
+        : style
+          ? cmoStylePrompt({
+              piece,
+              slot,
+              businessName: context.cuso.businessName,
+              colours: input.colours,
+              screen: input.screen ?? false,
+              traits: await readStyleTraits(style),
+              logo: Boolean(logoFileId),
+            })
+          : cmoImagePrompt({
+              piece,
+              slot,
+              businessName: context.cuso.businessName,
+              references: input.references.length,
+            }),
       modelId: model.id,
       settings: {
         ...DEFAULT_SETTINGS,
@@ -1524,6 +2048,8 @@ async function checkAndBrand(
   piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline" | "visual"> & {
     /** Words it may letter besides the headline. */
     lines?: readonly string[];
+    /** It borrowed only the reference's layout (cmo-v11). */
+    layoutOnly?: boolean;
   },
   job: Pick<CmoMediaJob, "id" | "assetId">,
   style: StyleBrand,
@@ -1559,6 +2085,7 @@ async function checkAndBrand(
       reference: reference.bytes,
       headline: piece.headline ?? null,
       lines: piece.lines ?? [],
+      layoutOnly: piece.layoutOnly ?? false,
       logo: logoSent,
       scene: screen
         ? `${piece.visual ?? ""} ${PLACED_SCREEN_NOTE}`.trim()

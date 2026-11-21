@@ -108,6 +108,7 @@ function written(id: string, extra: Record<string, unknown> = {}) {
     visualFileIds: null,
     slides: null,
     styleLook: null,
+    pictureKind: null,
     purpose: null,
     headline: null,
     slideHeadlines: null,
