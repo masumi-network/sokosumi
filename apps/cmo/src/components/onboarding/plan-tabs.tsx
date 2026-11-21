@@ -114,12 +114,12 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
           </div>
         </Section>
       ) : null}
-      {mix.length > 0 ? (
-        <Section title="What the posts do">
-          <Mix
-            mix={mix}
+      {strategy.pillars.length > 0 ? (
+        <Section title="Content pillars">
+          <Pillars
+            pillars={strategy.pillars}
             calendar={strategy.calendar}
-            business={businessDisplayName(overview)}
+            made={overview.production.pillars}
           />
         </Section>
       ) : null}
@@ -142,15 +142,6 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
           ) : null}
         </div>
       ) : null}
-      {strategy.pillars.length > 0 ? (
-        <Section title="What the posts are about">
-          <Pillars
-            pillars={strategy.pillars}
-            calendar={strategy.calendar}
-            made={overview.production.pillars}
-          />
-        </Section>
-      ) : null}
       <Section title={`Where ${AGENT_NAME} works`} wide>
         <ChannelPlan strategy={strategy} />
       </Section>
@@ -166,6 +157,7 @@ function Everything({ overview, strategy }: PlanPanelProps) {
   if (
     !strategy.ladder &&
     !strategy.why &&
+    (strategy.mix ?? []).length === 0 &&
     improvements.length === 0 &&
     beforeAfter.length === 0
   ) {
@@ -174,6 +166,15 @@ function Everything({ overview, strategy }: PlanPanelProps) {
   return (
     <details className="ob-more">
       <summary>Everything in the strategy</summary>
+      {(strategy.mix ?? []).length > 0 ? (
+        <Section title="What the posts do">
+          <Mix
+            mix={strategy.mix ?? []}
+            calendar={strategy.calendar}
+            business={businessDisplayName(overview)}
+          />
+        </Section>
+      ) : null}
       {strategy.why ? (
         <Section title="Why this strategy">
           <p>{strategy.why}</p>

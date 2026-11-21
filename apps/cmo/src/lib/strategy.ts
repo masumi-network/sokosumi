@@ -71,3 +71,11 @@ export function monthLabel(calendar: readonly CalendarEntry[]): string {
   const label = `${posts} ${posts === 1 ? "post" : "posts"}`;
   return ads > 0 ? `${label} and ${ads} ${ads === 1 ? "ad" : "ads"}` : label;
 }
+
+/**
+ * Whether the owner has a plan yet (a CMO plan, or Tester credits). Until
+ * then a strategy's month is the most the biggest plan makes, never a promise.
+ */
+export function planChosen(overview: Pick<CmoOverview, "billing">): boolean {
+  return overview.billing.tier !== null || overview.billing.hasTesterCredits;
+}

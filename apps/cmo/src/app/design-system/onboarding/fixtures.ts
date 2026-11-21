@@ -40,7 +40,7 @@ const fixtureDay = (index: number) =>
 /**
  * A month as cmo-v5 writes it, at the top volume: three X posts a day (every
  * third with a picture), LinkedIn and Instagram three times a week, and a
- * talking video a week shown on YouTube too. Each plan makes its share.
+ * talking video a week shown on YouTube and TikTok too. Each plan makes its share.
  */
 const fullMonth: Strategy = {
   ...richPlan,
@@ -64,6 +64,12 @@ const fullMonth: Strategy = {
       role: "side",
       buyer: "Founders",
     },
+    {
+      channel: "tiktok",
+      cadence: "1 a week",
+      role: "side",
+      buyer: "Founders",
+    },
   ],
   calendar: [
     ...Array.from({ length: 28 }, (_, day) =>
@@ -74,6 +80,7 @@ const fullMonth: Strategy = {
         format: place === 2 ? "image" : "post",
         title: `Launch lesson ${day + 1}${slot}`,
         status: "idea" as const,
+        pillar: place === 0 ? "How we build" : "Launch stories",
       })),
     ).flat(),
     ...[0, 1, 2, 3].flatMap((week) =>
@@ -103,7 +110,7 @@ const fullMonth: Strategy = {
       format: "talking_video",
       title: `Why launches slip, part ${week + 1}`,
       status: "idea" as const,
-      alsoOn: ["youtube"],
+      alsoOn: ["youtube", "tiktok"],
     })),
   ],
 };
@@ -258,6 +265,9 @@ export function screenOverview(screen: Screen): CmoOverview {
         strategy: richPlan,
         strategyShort: { planned: 64, promised: 172 },
       });
+    // The whole month at the top volume, before a plan is picked.
+    case "plan":
+      return draft({ brandBrain: richBrain, strategy: fullMonth });
     default:
       return draft({ brandBrain: richBrain, strategy: richPlan });
   }
