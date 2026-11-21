@@ -14,7 +14,6 @@ import {
   use,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -25,6 +24,7 @@ import { NeedsYouTasksRealtimeRefresh } from "@/components/notifications/notific
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useNotificationFrontPresence } from "@/hooks/effects/use-notification-front-presence";
 import { useNotificationRealtime } from "@/hooks/effects/use-notification-realtime";
+import { useNotificationViewPreference } from "@/hooks/effects/use-notification-view-preference";
 import { usePushRecovery } from "@/hooks/effects/use-push-recovery";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
@@ -40,10 +40,6 @@ import {
   type NotificationState,
   notificationReducer,
 } from "./notification-state";
-import {
-  getNotificationViewPreference,
-  setNotificationViewPreference,
-} from "./notification-view-storage";
 
 /**
  * Where the next page of older rows stands.
@@ -258,26 +254,7 @@ export function NotificationProvider({
   });
   const confirmedState = useRef(state);
   const readQueue = useRef(createNotificationReadQueue());
-  const [view, setViewState] = useState<NotificationCenterView>("all");
-  // The view the next request asks for. A ref so the fetch callbacks keep
-  // their identity across switches: the switch itself starts the refetch.
-  const viewRef = useRef<NotificationCenterView>(view);
-  // The view the reader last chose, restored before the first fetch below.
-  // A seed, not a switch: there is no loaded list to tear down yet, and the
-  // ref is what the first request reads, so that request already asks for
-  // the remembered view instead of fetching All and replacing it.
-  //
-  // Before paint, not after, or the strip underlines All for one frame and
-  // then jumps. The server's markup and the first client render still agree
-  // on "all", so hydration is unaffected; only the commit that follows it
-  // carries the remembered view. Same seam, and the same reason, as the
-  // chat composer's own restore in RoomOpenLoadingView.
-  useLayoutEffect(() => {
-    const remembered = getNotificationViewPreference();
-    if (remembered === null || remembered === viewRef.current) return;
-    viewRef.current = remembered;
-    setViewState(remembered);
-  }, []);
+  const { view, viewRef, commitView } = useNotificationViewPreference();
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -402,9 +379,7 @@ export function NotificationProvider({
   const setView = useCallback(
     (next: NotificationCenterView) => {
       if (viewRef.current === next) return;
-      viewRef.current = next;
-      setViewState(next);
-      setNotificationViewPreference(next);
+      commitView(next);
       // A page in flight answers for the old view. Bumping both generations
       // drops its result when it lands, like a refresh that started over.
       fetchGenerationRef.current += 1;
@@ -418,7 +393,7 @@ export function NotificationProvider({
       setIsLoading(true);
       void fetchNotifications();
     },
-    [dispatch, fetchNotifications],
+    [commitView, dispatch, fetchNotifications, viewRef],
   );
 
   const loadOlder = useCallback(() => {

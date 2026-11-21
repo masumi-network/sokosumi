@@ -3,13 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { AuthHeader } from "@/auth/components/auth-header";
 import { AuthPage } from "@/auth/components/auth-page";
@@ -23,6 +17,7 @@ import SignUpForm from "@/auth/signup/components/form";
 import SignInRow, {
   useSignInHref,
 } from "@/auth/signup/components/sign-in-link";
+import { useAuthFlowHandover } from "@/hooks/effects/use-auth-flow-handover";
 import { useTrackView } from "@/hooks/effects/use-track-view";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import {
@@ -36,8 +31,6 @@ import {
   rememberAuthEmailHint,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
-  takeSignInHandover,
-  takeSignUpHandover,
 } from "@/lib/auth/auth-email-hint";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -133,38 +126,27 @@ export default function AuthFlow({
 
   // The other page handed an address over, so step 2 opens at once. A layout
   // effect: after a client navigation the email step never paints.
-  useLayoutEffect(() => {
-    if (isSignIn) {
-      // Register found an account and chose the method as Continue here
-      // would. An invitation fixes the address, so only a hand-over for that
-      // address counts; any other is discarded.
-      const handover = takeSignInHandover();
-      if (!handover) return;
-      if (
-        prefilledEmail &&
-        handover.email.toLowerCase() !== prefilledEmail.toLowerCase()
-      ) {
-        return;
-      }
-      const handedOverEmail = prefilledEmail ?? handover.email;
-      setEmail(handedOverEmail);
+  useAuthFlowHandover({
+    isSignIn,
+    prefilledEmail,
+    emailLocked,
+    onSignInHandover: (handover) => {
+      setEmail(handover.email);
       setInitialMethod(handover.method);
       if (handover.method === "code" && handover.codeSentAt !== null) {
-        emailCode.adoptSentCode(handedOverEmail, handover.codeSentAt);
+        emailCode.adoptSentCode(handover.email, handover.codeSentAt);
       }
       setHandedOver(true);
-    } else {
-      // Log in found no account and emailed the code.
-      if (emailLocked) return;
-      const handover = takeSignUpHandover();
-      if (!handover) return;
+      setStep("finish");
+    },
+    onSignUpHandover: (handover) => {
       setEmail(handover.email);
       if (handover.codeSentAt !== null) {
         emailCode.adoptSentCode(handover.email, handover.codeSentAt);
       }
-    }
-    setStep("finish");
-  }, []);
+      setStep("finish");
+    },
+  });
 
   // when user first sees the login or register area
   useTrackView(isSignIn ? "view_login_area" : "view_register_area");
