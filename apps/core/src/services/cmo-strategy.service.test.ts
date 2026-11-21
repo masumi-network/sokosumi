@@ -270,7 +270,7 @@ describe("requestCmoStrategy", () => {
     expect(v13).toContain(
       "Save with save_strategy part patch: only the calendar entries you change",
     );
-    expect(v13).not.toContain("send the whole calendar");
+    expect(v13).not.toContain("(send the whole calendar)");
 
     sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v10" });
     await requestCmoStrategy({
@@ -279,7 +279,7 @@ describe("requestCmoStrategy", () => {
       note: "2 a day on X",
     });
     expect(JSON.stringify(startTurn.mock.lastCall)).toContain(
-      "send the whole calendar",
+      "(send the whole calendar)",
     );
   });
 

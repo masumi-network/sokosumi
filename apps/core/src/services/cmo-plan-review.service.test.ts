@@ -1861,6 +1861,7 @@ describe("claims", () => {
       aida: true,
       everyNetwork: true,
       claims: true,
+      partPatch: false,
     });
     const strategy = plan({
       calendar: [
