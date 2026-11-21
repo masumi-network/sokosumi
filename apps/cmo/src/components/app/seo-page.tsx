@@ -57,8 +57,8 @@ export interface SeoActions {
   }>;
 }
 
-/** What writing one article costs, measured on real article turns (see the cmo-v12 eval run). */
-const ARTICLE_COST = "Each article uses a few credits of your plan.";
+/** What writing one article costs: about $0.015 of model time in the cmo-v12 eval run (1,085 words), at 100 credits a dollar. */
+const ARTICLE_COST = "Each article uses about 2 credits of your plan.";
 
 /** While the tab is open it reads again this often, so Cuso's new ideas show up. */
 const REFRESH_MS = 20_000;

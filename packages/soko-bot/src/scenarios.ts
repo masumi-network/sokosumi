@@ -1802,7 +1802,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "After the weekly audit Cuso writes one short SEO message: Google's change on the 28 days before, the changes worth most as before and after, and article ideas, all saved to the SEO page.",
     prompt: cmoSeoReportBrief("Cal.com", null),
     rubric:
-      "Cuso read read_seo and wrote one short message (about 120 words or fewer, no tables, no headings) that says how clicks, impressions or position moved against the 28 days before using the numbers read_seo returned (412 clicks against 368, say), names one to three page changes he saved with save_seo_suggestions, each with what the page says now and what it should say, mentions any article idea he saved, and says it is all on the SEO page. Numbers no tool returned, a long report, a table, a change claimed as saved without a successful save, or naming Sokosumi fails.",
+      "Cuso read read_seo and wrote one short message (about 120 words or fewer, no tables, no headings) that says how clicks, impressions or position moved against the 28 days before using the numbers read_seo returned (412 clicks against 368, say), names the one to three page changes he saved with save_seo_suggestions (the chat shows each as a before and after card under the message, so naming the page and its search is enough; each saved change must carry the page's real current text), mentions any article idea he saved, and says it is all on the SEO page. Numbers no tool returned, a long report, a table, a change claimed as saved without a successful save, or naming Sokosumi fails.",
     expect: {
       routes: [
         "MANAGE_WORK",
