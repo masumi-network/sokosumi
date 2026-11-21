@@ -75,6 +75,7 @@ import {
 } from "./eval-lanes.service";
 import { seoEvalChecks } from "./eval-seo-checks";
 import { isSeoEvalCase, prepareSeoEvalCase } from "./eval-seo-fixtures";
+import { pollStandupCase, startStandupCase } from "./eval-standup";
 
 /** What a finished case reports; the runner stores it on its result. */
 export interface CaseOutcome {
@@ -525,6 +526,8 @@ export async function startEvalCase(
       context,
       evalCase.prepare,
     );
+  if (evalCase.kind === "standup")
+    return startStandupCase(evalCase.setup, lane);
   return startCmoCase(evalCase, lane, context);
 }
 
@@ -545,5 +548,7 @@ export async function pollEvalCase(
       result.state,
     );
   }
+  if (evalCase.kind === "standup")
+    return pollStandupCase(evalCase.setup, lane, result.state);
   return pollCmoCase(evalCase, lane, result, context);
 }

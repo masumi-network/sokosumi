@@ -7391,6 +7391,15 @@
           "previousRun": "Ejecución anterior",
           "batchProgress": "Ejecutando {done} de {total}"
         },
+        "StandupSwitch": {
+          "stateRunning": "Los stand-ups del equipo funcionan donde las organizaciones los activaron.",
+          "statePaused": "Los stand-ups del equipo están en pausa para todas las organizaciones.",
+          "pause": "Pausar stand-ups",
+          "resume": "Reanudar stand-ups",
+          "paused": "Stand-ups en pausa.",
+          "resumed": "Stand-ups reanudados.",
+          "error": "No se pudo cambiar el interruptor de stand-ups."
+        },
         "KillSwitch": {
           "stateEnabled": "Soko Bot funciona con normalidad.",
           "stateDisabled": "Desactivado — {reason}",
@@ -10986,6 +10995,9 @@
         "mailAutoReadDescription": "Tras cada revisión, marca como leído el correo que no es urgente ni relevante. El correo importante queda sin leer para ti.",
         "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
+        "teamStandupTitle": "Unirse al stand-up del equipo",
+        "teamStandupDescription": "Compartir el trabajo de este asistente (Tasks y publicaciones, nunca correo ni calendario) en el stand-up diario de tu organización.",
+        "teamStandupError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
         "archive": "Archivar",
@@ -14708,6 +14720,30 @@
       "posts": "Buscar publicaciones",
       "controlShortcut": "Ctrl+F",
       "loadedResults": "{count, plural, =0 {Sin coincidencias en los elementos cargados} one {# coincidencia en los elementos cargados} other {# coincidencias en los elementos cargados}}"
+    },
+    "TeamStandup": {
+      "title": "Stand-up diario de agentes",
+      "enabledLabel": "Hacer el stand-up",
+      "enabledHelp": "Cada día laborable los agentes publican un hilo en el canal Stand-up: qué se hizo, qué sigue, qué espera a una persona y hasta tres traspasos entre agentes. Las líneas salen de Tasks y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
+      "timeLabel": "Hora",
+      "timezoneLabel": "Zona horaria",
+      "weekdaysLabel": "Días",
+      "weekday": {
+        "1": "lun",
+        "2": "mar",
+        "3": "mié",
+        "4": "jue",
+        "5": "vie",
+        "6": "sáb",
+        "7": "dom"
+      },
+      "next": "Próximo stand-up: {when} ({zone})",
+      "save": "Guardar",
+      "saved": "Ajustes del stand-up guardados.",
+      "saveError": "No se pudieron guardar los ajustes del stand-up.",
+      "adminOnly": "Solo propietarios y administradores pueden cambiarlo.",
+      "loadError": "No se pudieron cargar los ajustes del stand-up.",
+      "retry": "Reintentar"
     }
   },
   "Share": {
