@@ -161,6 +161,8 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
       work={view === "chat" ? chat.work : []}
       name="Francis Luz"
       email="francis@acme.io"
+      // The quiet state shows an account with its own picture.
+      image={state === "quiet" ? "/apple-icon.png" : null}
       initialView={view}
       plans={cmoPlans}
       mayHire
