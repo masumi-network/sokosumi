@@ -98,9 +98,14 @@ async function spendReadBudget(
   const sourceKey = `task-gsc-reads:${context.taskId}`;
   const where = seoOwnerUnique(context.actor, "sourceKey", { sourceKey });
   const row = await tx.projectSeoObservation.findUnique({ where });
-  if (row && (row.kind !== BUDGET_KIND || row.ownerId !== context.actor.userId))
+  const parsed = budgetSchema.safeParse(row ? row.payload : {});
+  // A corrupt row must not reset the spent count to zero.
+  if (
+    !parsed.success ||
+    (row && (row.kind !== BUDGET_KIND || row.ownerId !== context.actor.userId))
+  )
     throw conflict("The Search Console read budget is unavailable");
-  const used = budgetSchema.safeParse(row?.payload).data ?? {};
+  const used = parsed.data;
   const spent = used[operation] ?? 0;
   if (spent >= GSC_TASK_READ_BUDGET[operation])
     throw tooManyRequests(

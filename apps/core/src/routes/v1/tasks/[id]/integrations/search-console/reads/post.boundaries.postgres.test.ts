@@ -49,11 +49,26 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+const BUDGET_KIND = "task_gsc_read_budget";
+
 describe.skipIf(!searchConsoleReadsEnabled)(
   "Task-scoped Search Console read boundaries",
   () => {
     const fx = searchConsoleReadFixture(network, ids.executor);
-    const { query, read, setAccess } = fx;
+    const { sitesList, query, read, setAccess } = fx;
+    const budgetRow = () =>
+      prisma.projectSeoObservation.findFirstOrThrow({
+        where: { auditId: fx.auditId, kind: BUDGET_KIND },
+      });
+    async function seedBudget(payload: Record<string, unknown>) {
+      // One real read creates the row the way the service writes it.
+      expect((await read(sitesList)).status).toBe(200);
+      await prisma.projectSeoObservation.update({
+        where: { id: (await budgetRow()).id },
+        data: { payload: payload as never },
+      });
+    }
+
     it("accepts a start date 489 days back and refuses one 501 days back", async () => {
       const sixteenMonths = await read(query({ startDate: day(-489) }));
       expect(sixteenMonths.status, await sixteenMonths.clone().text()).toBe(
@@ -61,6 +76,15 @@ describe.skipIf(!searchConsoleReadsEnabled)(
       );
       expect((await read(query({ startDate: day(-501) }))).status).toBe(422);
       expect(fx.reads).toHaveLength(1);
+    });
+
+    it("refuses a corrupt budget row instead of resetting the spent count", async () => {
+      await seedBudget({ "sites.list": "9" });
+      const response = await read(sitesList);
+      expect(response.status).toBe(409);
+      expect(await response.text()).not.toContain("siteEntry");
+      expect(fx.reads).toHaveLength(1);
+      expect((await budgetRow()).payload).toEqual({ "sites.list": "9" });
     });
 
     it("imports a report with Search Console sections only for an audit approved with Search Console", async () => {
