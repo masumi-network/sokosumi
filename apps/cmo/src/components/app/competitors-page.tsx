@@ -8,15 +8,9 @@ import type {
   ProjectCompetitorMeasure,
   ProjectCompetitorSignal,
 } from "@sokosumi/core-client";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useId, useRef, useState } from "react";
 import type { CompetitorResult } from "../../app/cmo-actions";
+import { useCompetitorsData } from "../../hooks/effects/use-competitors-data";
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { competitorsLead } from "../../lib/page-lead";
@@ -86,27 +80,13 @@ export function CompetitorsPage({
   actions,
   compose,
 }: CompetitorsPageProps) {
-  const [data, setData] = useState<CmoCompetitors | null>(null);
-  const [failed, setFailed] = useState(false);
   const { loadCompetitors } = actions;
-
-  const load = useCallback(() => {
-    let current = true;
-    setFailed(false);
-    loadCompetitors()
-      .then((loaded) => {
-        if (!current) return;
-        if (loaded) setData(loaded);
-        else setFailed(true);
-      })
-      .catch(() => {
-        if (current) setFailed(true);
-      });
-    return () => {
-      current = false;
-    };
-  }, [loadCompetitors]);
-  useEffect(load, [load]);
+  const {
+    data,
+    setData,
+    failed,
+    reload: load,
+  } = useCompetitorsData(loadCompetitors);
 
   /** Runs a change and shows its result; why it did not go through comes back. */
   const change: Change = useCallback(async (run) => {
