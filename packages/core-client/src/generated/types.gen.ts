@@ -9193,6 +9193,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             visual?: string;
             visualFileIds?: Array<string>;
             styleReferenceId?: string;
+            pictureKind?: 'flat illustration' | 'bold graphic' | 'photographic scene' | 'isometric illustration';
             headline?: string;
             slides?: Array<string>;
             slideHeadlines?: Array<string>;
@@ -9255,6 +9256,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 visual?: string;
                 visualFileIds?: Array<string>;
                 styleReferenceId?: string;
+                pictureKind?: 'flat illustration' | 'bold graphic' | 'photographic scene' | 'isometric illustration';
                 headline?: string;
                 slides?: Array<string>;
                 slideHeadlines?: Array<string>;
@@ -9523,6 +9525,7 @@ export type MarketingStrategyRequest = {
             visual?: string;
             visualFileIds?: Array<string>;
             styleReferenceId?: string;
+            pictureKind?: 'flat illustration' | 'bold graphic' | 'photographic scene' | 'isometric illustration';
             headline?: string;
             slides?: Array<string>;
             slideHeadlines?: Array<string>;
@@ -9585,6 +9588,7 @@ export type MarketingStrategyRequest = {
                 visual?: string;
                 visualFileIds?: Array<string>;
                 styleReferenceId?: string;
+                pictureKind?: 'flat illustration' | 'bold graphic' | 'photographic scene' | 'isometric illustration';
                 headline?: string;
                 slides?: Array<string>;
                 slideHeadlines?: Array<string>;
@@ -11320,6 +11324,7 @@ export type SocialPost = {
         visual?: string;
         visualFileIds?: Array<string>;
         styleReferenceId?: string;
+        pictureKind?: 'flat illustration' | 'bold graphic' | 'photographic scene' | 'isometric illustration';
         headline?: string;
         slides?: Array<string>;
         slideHeadlines?: Array<string>;
@@ -14956,6 +14961,7 @@ export type CmoPlan = {
         visual?: string;
         visualFileIds?: Array<string>;
         styleReferenceId?: string;
+        pictureKind?: 'flat illustration' | 'bold graphic' | 'photographic scene' | 'isometric illustration';
         headline?: string;
         slides?: Array<string>;
         slideHeadlines?: Array<string>;
@@ -15018,6 +15024,7 @@ export type CmoPlan = {
             visual?: string;
             visualFileIds?: Array<string>;
             styleReferenceId?: string;
+            pictureKind?: 'flat illustration' | 'bold graphic' | 'photographic scene' | 'isometric illustration';
             headline?: string;
             slides?: Array<string>;
             slideHeadlines?: Array<string>;
@@ -15336,6 +15343,54 @@ export type CmoChatTable = {
      * Every row the table holds.
      */
     total: number;
+};
+
+export type CmoPictures = {
+    groups: Array<CmoPictureGroup>;
+};
+
+export type CmoPictureGroup = {
+    postId: string;
+    network: string;
+    scheduledAt: string | null;
+    headline: string | null;
+    title: string | null;
+    pictureKind: string | null;
+    /**
+     * The slide, 0 for a single picture.
+     */
+    slot: number;
+    /**
+     * The picture on the post, with its logo.
+     */
+    postedUrl: string | null;
+    /**
+     * Why the chosen one won the pick (cmo-v11).
+     */
+    reason: string | null;
+    alternatives: Array<CmoPictureAlternative>;
+};
+
+export type CmoPictureAlternative = {
+    jobId: string;
+    /**
+     * The image model that made it.
+     */
+    model: string;
+    /**
+     * The check's verdict: passed, rejected (why says what failed), failed (the model made nothing) or waiting.
+     */
+    verdict: 'passed' | 'rejected' | 'failed' | 'waiting';
+    why: string | null;
+    /**
+     * The picture that went on the post.
+     */
+    chosen: boolean;
+    /**
+     * A preview is at …/pictures/{jobId}/image.
+     */
+    hasImage: boolean;
+    createdAt: string;
 };
 
 export type CmoChatWorkTable = {
@@ -90793,6 +90848,160 @@ export type GetCmoChatWorkForProjectResponses = {
 };
 
 export type GetCmoChatWorkForProjectResponse = GetCmoChatWorkForProjectResponses[keyof GetCmoChatWorkForProjectResponses];
+
+export type GetCmoPicturesForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: {
+        network?: string;
+        /**
+         * YYYY-MM: only posts that go out that month.
+         */
+        month?: string;
+        /**
+         * true: only pictures that went on a post.
+         */
+        chosen?: 'true' | 'false';
+    };
+    url: '/cmo/projects/{projectId}/pictures';
+};
+
+export type GetCmoPicturesForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoPicturesForProjectError = GetCmoPicturesForProjectErrors[keyof GetCmoPicturesForProjectErrors];
+
+export type GetCmoPicturesForProjectResponses = {
+    /**
+     * Cuso's pictures
+     */
+    200: {
+        data: CmoPictures;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoPicturesForProjectResponse = GetCmoPicturesForProjectResponses[keyof GetCmoPicturesForProjectResponses];
+
+export type GetCmoPictureImageForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        jobId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/pictures/{jobId}/image';
+};
+
+export type GetCmoPictureImageForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such picture
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoPictureImageForProjectError = GetCmoPictureImageForProjectErrors[keyof GetCmoPictureImageForProjectErrors];
+
+export type GetCmoPictureImageForProjectResponses = {
+    /**
+     * The picture
+     */
+    200: Blob | File;
+};
+
+export type GetCmoPictureImageForProjectResponse = GetCmoPictureImageForProjectResponses[keyof GetCmoPictureImageForProjectResponses];
 
 export type GetCmoChatWorkTextForProjectData = {
     body?: never;

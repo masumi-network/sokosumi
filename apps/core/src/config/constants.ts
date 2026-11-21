@@ -88,6 +88,11 @@ export const LIMITS = {
    * account's own limit instead of refusing it.
    */
   CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT: 6,
+  /**
+   * cmo-v11 makes five alternatives of every picture at once; 15 keeps three
+   * pictures in flight, the throughput of the 6 above, fal queueing the rest.
+   */
+  CMO_PICKED_MONTH_CONCURRENT_JOBS_PER_PROJECT: 15,
 
   /**
    * Image-studio generations one user may start per hour, across all projects.

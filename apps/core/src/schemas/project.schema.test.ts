@@ -49,6 +49,8 @@ function createDatabaseProject(
     studioBrandLookRevision: 0,
     designMdUrl: null,
     designMdExtractionId: null,
+    cmoPictureStyle: null,
+    cmoPictureStyleSource: null,
     postingInstructionsMd: null,
     projectRevision: 0,
     calendarRevision: 0,

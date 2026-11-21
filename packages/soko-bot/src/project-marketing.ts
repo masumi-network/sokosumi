@@ -6,6 +6,19 @@ import { z } from "zod";
  * write with them; CMO's Cuso is one writer among the Project's bots.
  */
 
+/**
+ * The kinds of picture a cmo-v11 styled picture is drawn as. The reference
+ * lends only its layout, the brand's look sets the rest, and the kind keeps a
+ * month from being one flat illustration after another.
+ */
+export const PICTURE_KINDS = [
+  "flat illustration",
+  "bold graphic",
+  "photographic scene",
+  "isometric illustration",
+] as const;
+export type PictureKind = (typeof PICTURE_KINDS)[number];
+
 export const shortText = z.string().trim().min(1).max(400);
 export const longText = z.string().trim().min(1).max(2_000);
 /** A finished post, article excerpt or email, ready to publish. */
@@ -449,6 +462,12 @@ export const cmoCalendarEntrySchema = z.object({
    */
   styleReferenceId: z.string().uuid().optional(),
   /**
+   * The kind of picture a styled picture is drawn as (cmo-v11): it borrows
+   * only its reference's layout and draws it in the brand's look, so the kind
+   * is what keeps a month's pictures varied.
+   */
+  pictureKind: z.enum(PICTURE_KINDS).optional(),
+  /**
    * The few words lettered into a styled picture, spelled exactly; left out,
    * the picture carries no words.
    */
@@ -541,6 +560,7 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   visual: true,
   visualFileIds: true,
   styleReferenceId: true,
+  pictureKind: true,
   headline: true,
   slides: true,
   slideHeadlines: true,

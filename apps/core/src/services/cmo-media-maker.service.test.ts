@@ -19,6 +19,8 @@ const {
   checkStyledPicture,
   brandLogo,
   styleTraits,
+  picks,
+  pickBest,
 } = vi.hoisted(() => ({
   jobFindMany: vi.fn(),
   jobCount: vi.fn(),
@@ -46,6 +48,13 @@ const {
     }> => ({ logo: null, dark: null, fileId: null }),
   ),
   styleTraits: vi.fn(async (): Promise<Record<string, string> | null> => null),
+  picks: {
+    findMany: vi.fn(async (): Promise<unknown[]> => []),
+    createMany: vi.fn(),
+    findUnique: vi.fn(),
+    updateMany: vi.fn(),
+  },
+  pickBest: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -60,7 +69,19 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     socialPost: { findUnique: postFindUnique, updateMany: postUpdateMany },
     marketingStrategyFile: { updateMany: fileUpdateMany },
+    cmoPicturePick: picks,
   },
+}));
+vi.mock("@/services/cmo-picture-style.service", () => ({
+  cmoPictureStyle: async () => ({ text: "Flat brand look.", costUsd: 0 }),
+  referenceComposition: async () => ({
+    text: "Headline band on top.",
+    costUsd: 0,
+  }),
+}));
+vi.mock("@/lib/reference-library/layout", () => ({
+  layoutBlockMap: async (bytes: Uint8Array) => Buffer.from(bytes),
+  pickBestPicture: pickBest,
 }));
 vi.mock("@/lib/image-studio/catalog", () => ({
   imageModel: (id?: string) => ({
@@ -157,9 +178,12 @@ import {
   cmoAllowedKinds,
   cmoImagePrompt,
   cmoInfographicCap,
+  cmoLayoutPrompt,
   cmoMakesVariedMonth,
   cmoMediaState,
+  cmoNeighbourlyKind,
   cmoPassedLogo,
+  cmoPickModel,
   cmoPictureOutdated,
   cmoPictureStyleProblem,
   cmoPieceSlides,
@@ -199,6 +223,8 @@ function job(patch: Partial<CmoMediaJob>): CmoMediaJob {
     assetId: "asset-1",
     prompt: "prompt",
     rejected: false,
+    attempt: "1",
+    createdAt: new Date(0),
     ...patch,
   };
 }
@@ -1539,5 +1565,239 @@ describe("cmo-v9's scene visuals", () => {
     expect(cmoWritesSceneVisuals("cmo-v9")).toBe(true);
     expect(cmoMakesVariedMonth("cmo-v9")).toBe(true);
     expect(cmoWritesSceneVisuals("cmo-v8")).toBe(false);
+  });
+});
+
+// cmo-v11 (owner, 2026-11-21): the reference lends only its layout, Core
+// makes five alternatives of every picture and the check model picks one.
+describe("a cmo-v11 picture", () => {
+  const styledPiece = (patch: Partial<CmoMediaPiece> = {}) =>
+    piece({
+      channel: "instagram",
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      headline: "Mint now",
+      title: "Tokens for everyone",
+      ...patch,
+    });
+  const alt = (n: number, patch: Partial<CmoMediaJob> = {}) =>
+    job({
+      id: `alt-${n}`,
+      attempt: `p${n}`,
+      visualKey: cmoVisualKey(styledPiece()),
+      createdAt: new Date(1000 + n),
+      ...patch,
+    });
+
+  it("starts five alternatives, waits for all, then asks for a pick", () => {
+    const one = styledPiece();
+    expect(cmoSlotAction(one, [], { picker: true })).toMatchObject({
+      kind: "start",
+      attempt: "p1",
+    });
+    expect(
+      cmoSlotAction(one, [alt(1), alt(2)], { picker: true }),
+    ).toMatchObject({ kind: "start", attempt: "p3" });
+    const five = [1, 2, 3, 4, 5].map((n) => alt(n));
+    expect(
+      cmoSlotAction(one, [...five.slice(0, 4), alt(5, { status: "RUNNING" })]),
+    ).toEqual({ kind: "wait" });
+    // Picker mode is read from the jobs themselves, so every caller agrees.
+    expect(cmoSlotAction(one, five)).toEqual({ kind: "pick", jobs: five });
+    expect(
+      cmoSlotAction(one, five, { pick: { chosenJobId: "alt-4" } }),
+    ).toEqual({ kind: "attach", job: five[3] });
+    // None passed: one remake, then the piece goes back to Cuso.
+    expect(
+      cmoSlotAction(one, five, { pick: { chosenJobId: null } }),
+    ).toMatchObject({ kind: "start", attempt: "r1" });
+    const remake = job({ id: "r", attempt: "r1", rejected: true });
+    expect(
+      cmoSlotAction(one, [...five, remake], { pick: { chosenJobId: null } }),
+    ).toEqual({ kind: "failed" });
+    expect(cmoMediaState(one, five)).toBe("making");
+  });
+
+  it("makes three on Muse and two on MAI where MAI can, and remakes on GPT Image", () => {
+    expect(
+      ["p1", "p2", "p3", "p4", "p5"].map((a) => cmoPickModel(a, "4:5")),
+    ).toEqual([
+      "muse-image",
+      "muse-image",
+      "muse-image",
+      "mai-image-2-7",
+      "mai-image-2-7",
+    ]);
+    // MAI needs both sides at 768 px: a wide X picture stays on Muse.
+    expect(cmoPickModel("p4", "16:9")).toBe("muse-image");
+    expect(cmoPickModel("r1", "16:9")).toBe("gpt-image-2-6");
+  });
+
+  it("borrows the layout as a block map, in the brand's look, with named text slots", () => {
+    const prompt = cmoLayoutPrompt({
+      piece: styledPiece({ pictureKind: "bold graphic" }),
+      slot: 0,
+      businessName: "nmkr.io",
+      composition: "Headline band on top.",
+      pictureStyle: "Flat brand look.",
+      logo: true,
+    });
+    expect(prompt).toContain("Image 1 is a block map of a layout");
+    expect(prompt).toContain("Composition: Headline band on top.");
+    expect(prompt).toContain("Draw it as a bold graphic. Flat brand look.");
+    expect(prompt).toContain("Image 2 is nmkr.io's logo.");
+    expect(prompt).toContain(
+      'Its text slots take only these words: "Mint now" in the largest slot, spelled exactly, "Tokens for everyone" in a smaller slot and "nmkr.io" in one small slot',
+    );
+    expect(prompt).not.toMatch(/technique|paper texture|era/);
+  });
+
+  it("keeps neighbouring pieces on a network in different picture kinds", () => {
+    const calendar = [
+      {
+        id: "a",
+        channel: "x",
+        date: "2026-12-01",
+        time: "09:00",
+        pictureKind: "flat illustration" as const,
+      },
+      {
+        id: "c",
+        channel: "x",
+        date: "2026-12-03",
+        time: "09:00",
+        pictureKind: "bold graphic" as const,
+      },
+      {
+        id: "z",
+        channel: "linkedin",
+        date: "2026-12-02",
+        time: "09:00",
+        pictureKind: "photographic scene" as const,
+      },
+    ];
+    const b = { id: "b", channel: "x", date: "2026-12-02", time: "09:00" };
+    expect(cmoNeighbourlyKind("flat illustration", b, calendar as never)).toBe(
+      "photographic scene",
+    );
+    expect(
+      cmoNeighbourlyKind("isometric illustration", b, calendar as never),
+    ).toBe("isometric illustration");
+  });
+
+  describe("in a month", () => {
+    const context = {
+      cuso: {
+        projectId: "project-1",
+        workspaceId: "ws-1",
+        sokoBotId: "bot-1",
+        businessName: "nmkr.io",
+      },
+      versionId: "version-1",
+      connected: new Set(["instagram"]),
+      picksPictures: true,
+    };
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      jobCount.mockResolvedValue(0);
+      brandPictures.mockResolvedValue([]);
+      createImageJob.mockResolvedValue({ id: "new" });
+      picks.findMany.mockResolvedValue([]);
+      brandLogo.mockResolvedValue({ logo: null, dark: null, fileId: null });
+    });
+
+    it("starts all five alternatives at once, layout only", async () => {
+      jobFindMany.mockResolvedValue([]);
+      await advanceCmoMedia(context, [styledPiece()]);
+      expect(createImageJob).toHaveBeenCalledTimes(5);
+      const calls = createImageJob.mock.calls.map(([input]) => input);
+      expect(calls.map((input) => input.modelId)).toEqual([
+        "muse-image",
+        "muse-image",
+        "muse-image",
+        "mai-image-2-7",
+        "mai-image-2-7",
+      ]);
+      expect(calls.every((input) => input.styleLayoutOnly)).toBe(true);
+      expect(calls[0].idempotencyKey).toMatch(/:image:[0-9a-f]{10}:p1$/);
+      expect(calls[0].prompt).toContain("Image 1 is a block map of a layout");
+      expect(calls[0].monthConcurrency).toBe(15);
+    });
+
+    it("checks each alternative, picks among those that passed, records why, and posts the winner", async () => {
+      const made = styledPiece();
+      jobFindMany.mockResolvedValue(
+        [1, 2, 3, 4, 5].map((n) => ({
+          id: `alt-${n}`,
+          idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(made)}:p${n}`,
+          status: "SUCCEEDED",
+          prompt: "prompt",
+          error: null,
+          createdAt: new Date(1000 + n),
+          asset: { id: `asset-${n}` },
+        })),
+      );
+      const verdicts = new Map<string, string>();
+      jobs.findUnique.mockImplementation(async ({ where }) => ({
+        error: verdicts.get(where.id) ?? null,
+        workspaceId: "ws-1",
+        requestedByUserId: "runner-1",
+        referenceFileIds: [],
+        workspace: { organizationId: "org-1" },
+      }));
+      jobs.updateMany.mockImplementation(async ({ where, data }) => {
+        verdicts.set(where.id, data.error);
+        return { count: 1 };
+      });
+      const passing = new Set(["alt-2", "alt-4"]);
+      checkStyledPicture.mockImplementation(async () => ({
+        passes: true,
+        costUsd: 0.01,
+        verdict: { problems: [], logo: "absent", plainCorner: "bottom-right" },
+      }));
+      // Each job's own verdict: two of the five pass.
+      jobs.updateMany.mockImplementation(async ({ where, data }) => {
+        verdicts.set(
+          where.id,
+          passing.has(where.id) ? data.error : "Style check: Extra words",
+        );
+        return { count: 1 };
+      });
+      pickBest.mockResolvedValue({
+        index: 1,
+        reason: "Clearest headline",
+        costUsd: 0.02,
+      });
+      let stored: { chosenJobId: string | null } | null = null;
+      picks.createMany.mockImplementation(async ({ data }) => {
+        stored ??= data[0];
+        return { count: 1 };
+      });
+      picks.findUnique.mockImplementation(async () => ({
+        id: "pick-1",
+        ...stored,
+      }));
+      ensureDriveFile.mockResolvedValue(null);
+
+      await advanceCmoMedia(context, [made]);
+
+      expect(checkStyledPicture).toHaveBeenCalledTimes(5);
+      expect(checkStyledPicture.mock.calls[0]?.[0].layoutOnly).toBe(true);
+      expect(pickBest).toHaveBeenCalledTimes(1);
+      expect(pickBest.mock.calls[0]?.[0].candidates).toHaveLength(2);
+      const row = picks.createMany.mock.calls[0]?.[0].data[0];
+      expect(row).toMatchObject({
+        pieceId: "post-1",
+        slot: 0,
+        candidateJobIds: ["alt-1", "alt-2", "alt-3", "alt-4", "alt-5"],
+        chosenJobId: "alt-4",
+        reason: "Clearest headline",
+        costUsd: 0.02,
+      });
+      // The winner goes to its post.
+      expect(ensureDriveFile).toHaveBeenCalledWith(
+        expect.objectContaining({ jobId: "alt-4" }),
+      );
+    });
   });
 });

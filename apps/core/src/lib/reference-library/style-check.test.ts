@@ -115,4 +115,27 @@ describe("checkStyledPicture", () => {
     // Picture, reference, logo.
     expect(call.messages[0].content).toHaveLength(4);
   });
+
+  // cmo-v11 borrows only the print's layout; missing its look is no failure.
+  it("judges a layout-only picture by the layout, not the print's look", async () => {
+    const png = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: "#fff" },
+    })
+      .png()
+      .toBuffer();
+    await checkStyledPicture({
+      picture: new Uint8Array(png),
+      reference: new Uint8Array(png),
+      headline: "Mint now",
+      colours: ["#11f250"],
+      layoutOnly: true,
+    });
+    const call = generateText.mock.calls[0]?.[0];
+    expect(call.system).toContain(
+      "whose LAYOUT only the picture was told to follow",
+    );
+    expect(call.system).toContain(
+      "missing them never counts against the picture",
+    );
+  });
 });

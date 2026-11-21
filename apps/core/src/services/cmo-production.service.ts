@@ -40,6 +40,7 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   cmoMediaState,
+  cmoPicksPictures,
   cmoPieceIsTalking,
   cmoPieceNeedsMedia,
   cmoPieceSlides,
@@ -497,6 +498,15 @@ async function cmoCoreWritesMonth(sokoBotId: string): Promise<boolean> {
   return cmoWritesMonthAtOnce(getSokoBotVersion(bot?.versionId).skills);
 }
 
+/** Whether a Cuso's version picks each picture from five alternatives (cmo-v11). */
+async function cmoBotPicksPictures(sokoBotId: string): Promise<boolean> {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { versionId: true },
+  });
+  return cmoPicksPictures(bot?.versionId);
+}
+
 /** The turn a run hangs under: the newest top-level turn of Cuso's bot. */
 async function parentTurnId(sokoBotId: string): Promise<string | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
@@ -873,6 +883,7 @@ export async function advanceCmoProduction(
         versionId: version.id,
         connected,
         schedulesEveryPost: await cmoCoreWritesMonth(cuso.sokoBotId),
+        picksPictures: await cmoBotPicksPictures(cuso.sokoBotId),
       },
       pieces,
     ).catch((error: unknown) => {

@@ -861,3 +861,59 @@ export const cmoOverviewSchema = z
 export const cmoTurnStartedSchema = z
   .object({ turnId: z.string() })
   .openapi("CmoTurnStarted");
+
+const cmoPictureAlternativeSchema = z
+  .object({
+    jobId: z.string(),
+    model: z.string().describe("The image model that made it."),
+    verdict: z
+      .enum(["passed", "rejected", "failed", "waiting"])
+      .describe(
+        "The check's verdict: passed, rejected (why says what failed), failed (the model made nothing) or waiting.",
+      ),
+    why: z.union([z.string(), z.null()]),
+    chosen: z.boolean().describe("The picture that went on the post."),
+    hasImage: z.boolean().describe("A preview is at …/pictures/{jobId}/image."),
+    createdAt: z.string(),
+  })
+  .openapi("CmoPictureAlternative");
+
+export const cmoPictureGroupSchema = z
+  .object({
+    postId: z.string(),
+    network: z.string(),
+    scheduledAt: z.union([z.string(), z.null()]),
+    headline: z.union([z.string(), z.null()]),
+    title: z.union([z.string(), z.null()]),
+    pictureKind: z.union([z.string(), z.null()]),
+    slot: z.number().int().describe("The slide, 0 for a single picture."),
+    postedUrl: z
+      .union([z.string(), z.null()])
+      .describe("The picture on the post, with its logo."),
+    reason: z
+      .union([z.string(), z.null()])
+      .describe("Why the chosen one won the pick (cmo-v11)."),
+    alternatives: z.array(cmoPictureAlternativeSchema),
+  })
+  .openapi("CmoPictureGroup");
+
+export const cmoPicturesSchema = z
+  .object({ groups: z.array(cmoPictureGroupSchema) })
+  .openapi("CmoPictures");
+
+export const cmoPicturesQuerySchema = z.object({
+  network: z.string().max(40).optional(),
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .optional()
+    .describe("YYYY-MM: only posts that go out that month."),
+  chosen: z
+    .enum(["true", "false"])
+    .optional()
+    .describe("true: only pictures that went on a post."),
+});
+
+export const cmoPictureParamsSchema = cmoProjectParamsSchema.extend({
+  jobId: z.string().uuid(),
+});
