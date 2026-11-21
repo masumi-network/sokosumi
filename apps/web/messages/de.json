@@ -1197,6 +1197,9 @@
       "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
       "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln.",
       "empty": "Es gibt noch keine Dateien zum Herunterladen."
+    },
+    "TimeAgo": {
+      "justNow": "gerade eben"
     }
   },
   "Join": {

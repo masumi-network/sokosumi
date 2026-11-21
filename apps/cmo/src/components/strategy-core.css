@@ -397,6 +397,13 @@
   gap: 2px;
 }
 
+.sc-source-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
 .sc-source-error {
   margin: 8px 0 0;
   color: var(--foreground);

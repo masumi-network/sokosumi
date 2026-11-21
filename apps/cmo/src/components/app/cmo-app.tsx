@@ -26,6 +26,7 @@ import { HowIGotHere, Working } from "../cuso-trace";
 import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
+import { BrandMenu } from "./brand-menu";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
@@ -116,7 +117,7 @@ export interface CmoAppActions
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app" | "seo",
+    from: "onboarding" | "app" | "seo" | "channels",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
@@ -271,7 +272,9 @@ export function CmoApp({
               current.view === "channels" ? null : current.connectError,
             adsError: current.view === "channels" ? null : current.adsError,
             measureError:
-              current.view === "results" ? null : current.measureError,
+              current.view === "results" || current.view === "channels"
+                ? null
+                : current.measureError,
           },
     );
   }, []);
@@ -438,7 +441,11 @@ export function CmoApp({
         signOut={actions.signOut}
       />
 
-      <main className="main">
+      <main className={view === "chat" ? "main main-chat" : "main"}>
+        {/* A phone has no sidebar: the brand's menu sits in a top bar. */}
+        <header className="phonebar">
+          <BrandMenu overview={overview} view={view} onSelect={go} />
+        </header>
         {pause ? (
           <PausedBanner
             pause={pause}
@@ -655,9 +662,10 @@ export function CmoApp({
                   adsError={nav.adsError}
                   change={actions.changeChannel}
                   openSeo={() => go("seo")}
-                  connectSearchConsole={() =>
-                    actions.connectMeasurement("google_search_console", "seo")
+                  connectMeasurement={(provider) =>
+                    actions.connectMeasurement(provider, "channels")
                   }
+                  measureError={nav.measureError}
                 />
               ) : (
                 <SettingsPage

@@ -1197,6 +1197,9 @@
       "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
       "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno.",
       "empty": "Aún no hay archivos para descargar."
+    },
+    "TimeAgo": {
+      "justNow": "ahora mismo"
     }
   },
   "Join": {

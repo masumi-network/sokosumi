@@ -39,6 +39,7 @@ import {
 } from "./subscription-card";
 import { type SetTimeZone, TimeZoneSetting } from "./time-zone";
 import { MonthBar, NetworkBars } from "./today-page";
+import { ViewLink } from "./view-link";
 
 interface PageProps {
   overview: CmoOverview;
@@ -368,7 +369,8 @@ export function ChannelsPage({
   adsError = null,
   change,
   openSeo,
-  connectSearchConsole,
+  connectMeasurement,
+  measureError = null,
 }: PageProps & {
   connect: ConnectChannel;
   addMailingList: AddMailingList;
@@ -382,10 +384,9 @@ export function ChannelsPage({
   change?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   /** Opens the SEO tab, where search work and Search Console live. */
   openSeo: () => void;
-  connectSearchConsole: () => Promise<{
-    url: string | null;
-    error: string | null;
-  }>;
+  connectMeasurement: ConnectMeasurement;
+  /** Why the measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(adsError ?? connectError);
@@ -530,48 +531,23 @@ export function ChannelsPage({
         />
       </section>
       <section className="card">
-        <h3>Google search</h3>
+        <h3>Your numbers</h3>
         <p className="muted">
-          No account to connect for SEO: {AGENT_NAME} audits your site every
-          week and writes page changes and articles for you to paste. Connect
-          Search Console and he also sees the searches that find you.
+          Connect these and {AGENT_NAME} reads real searches, visits and orders
+          instead of estimating them.
         </p>
-        <ul className="list">
-          <li className="crow">
-            <ChannelIcon channel="seo" size={20} />
-            <span className="grow">
-              <b>Google Search Console</b>
-            </span>
-            {overview.measurement.some(
-              (source) =>
-                source.provider === "google_search_console" &&
-                source.status === "connected",
-            ) ? (
-              <StatusText>Connected</StatusText>
-            ) : (
-              <button
-                type="button"
-                className="button button-secondary button-small"
-                onClick={async () => {
-                  const result = await connectSearchConsole();
-                  if (result.url) window.location.assign(result.url);
-                  else setError(result.error ?? "Could not start connecting.");
-                }}
-              >
-                Connect
-              </button>
-            )}
-          </li>
-        </ul>
-        <div>
-          <button
-            type="button"
-            className="button button-secondary button-small"
-            onClick={openSeo}
-          >
-            Open SEO
-          </button>
-        </div>
+        <MeasureFunnel
+          sources={overview.measurement}
+          onConnect={connectMeasurement}
+          measureError={measureError}
+          connectedLinks={{
+            google_search_console: (
+              <ViewLink view="seo" open={openSeo} className="ob-link">
+                Open SEO
+              </ViewLink>
+            ),
+          }}
+        />
       </section>
       <p className="note">
         {AGENT_NAME} plans for every channel he can reach, and never posts

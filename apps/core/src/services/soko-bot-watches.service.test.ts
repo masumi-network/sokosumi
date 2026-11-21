@@ -154,6 +154,32 @@ describe("watchOutcome", () => {
     );
   });
 
+  it("hands over a Coworker's whole reply, and says when a long one was cut", async () => {
+    // Prod 01a1fcf2…: Hannah's 560-character list reached Joseph as "(Bit…".
+    const chat = { ...studio, kind: "chat_reply", targetId: "room-1" };
+    const hannah = (content: string) => [
+      {
+        content,
+        senderUser: null,
+        senderCoworker: { name: "Hannah" },
+        senderSokoBot: null,
+      },
+    ];
+    const list = `This week:\n${"- **x402 payment standards** and agent-to-agent payments\n".repeat(8)}- **German market analysis** (Bitkom, adoption trends)`;
+    expect(list.length).toBeGreaterThan(400);
+    db.chatRoomMessage.findMany.mockResolvedValueOnce(hannah(list));
+    const outcome = await watchOutcome(chat);
+    expect(outcome).toContain("(Bitkom, adoption trends)");
+    expect(outcome).not.toContain("[cut");
+
+    db.chatRoomMessage.findMany.mockResolvedValueOnce(
+      hannah("a".repeat(5_000)),
+    );
+    expect(await watchOutcome(chat)).toContain(
+      "… [cut: the first 4,000 of 5,000 characters]",
+    );
+  });
+
   it("waits while a Coworker's reply is still being written", async () => {
     const chat = { ...studio, kind: "chat_reply", targetId: "room-1" };
     const reply = {

@@ -105,7 +105,7 @@ it.each(cases)("Cuso's status: $name", ({ patch, pose, art, line }) => {
       onOpen={() => {}}
     />,
   );
-  expect(html).toContain(encodeURIComponent(`/cuso/${art}.png`));
+  expect(html).toContain(`data-art="${art}"`);
   expect(html).toContain(`data-pose="${pose}"`);
   // His bubble always says the state in words; the drawing is decoration.
   expect(html).toContain('class="cuso-says"');
@@ -180,6 +180,25 @@ it("stands in a light porthole, not on a half disc", () => {
     <CusoStatus overview={calm} view="chat" now={NOW} onOpen={() => {}} />,
   );
   expect(html).toMatch(
-    /<span class="cuso-figure" aria-hidden="true"><span class="cuso-ground"><\/span><img/,
+    /<span class="cuso-figure" aria-hidden="true"><span class="cuso-ground"><\/span><span class="cuso-poses"/,
   );
+  // Every pose is on the stage from the first paint, so a change loads nothing.
+  for (const pose of [
+    "pointing",
+    "thinking",
+    "searching",
+    "walking",
+    "thumbs-up",
+  ]) {
+    expect(html).toContain(`cuso-pose-${pose}`);
+  }
+  expect(html.match(/data-on=""/g)).toHaveLength(1);
+});
+
+it("looks things up on SEO and Competitors while nothing else goes on", () => {
+  expect(cusoBubble(calm, "seo", NOW).art).toBe("searching");
+  expect(cusoBubble(calm, "competitors", NOW).art).toBe("searching");
+  expect(cusoBubble(calm, "chat", NOW).art).not.toBe("searching");
+  // What needs the owner still comes first.
+  expect(cusoBubble(cmoOverview(), "seo", NOW).art).toBe("pointing");
 });

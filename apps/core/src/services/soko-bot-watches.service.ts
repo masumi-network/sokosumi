@@ -34,6 +34,12 @@ const PROVIDER_SLUG = /^[a-z0-9_-]{1,64}$/;
 const MAX_WAITING_PER_BOT = 25;
 const BATCH = 50;
 const OUTCOME_CHARS = 1_500;
+/**
+ * A Coworker's reply is the follow-up's whole point: at 400 characters
+ * Hannah's 560-character list ended on "(Bit…". Nine in ten replies fit.
+ */
+const REPLY_CHARS = 4_000;
+const REPLIES_CHARS = 12_000;
 const PENDING_STUDIO = new Set([
   "PENDING",
   "SUBMITTING",
@@ -72,6 +78,14 @@ function isBeingWritten(message: { metadata: unknown }): boolean {
 function clip(text: string, max = OUTCOME_CHARS): string {
   const flat = text.trim();
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+/** Clipped text that says it was cut, so the bot does not relay half as all. */
+function clipSaid(text: string, max: number): string {
+  const flat = text.trim();
+  return flat.length > max
+    ? `${flat.slice(0, max)}… [cut: the first ${max.toLocaleString("en-US")} of ${flat.length.toLocaleString("en-US")} characters]`
+    : flat;
 }
 
 /**
@@ -154,13 +168,14 @@ export async function watchOutcome(watch: {
   });
   // A reply still being written is no answer yet: the next check reads it.
   if (replies.length === 0 || replies.some(isBeingWritten)) return null;
-  return clip(
+  return clipSaid(
     `New in the chat (room ${watch.targetId}):\n${replies
       .map(
         (reply) =>
-          `- ${reply.senderUser?.name ?? reply.senderCoworker?.name ?? reply.senderSokoBot?.name ?? "Someone"}: ${clip(reply.content, 400)}`,
+          `- ${reply.senderUser?.name ?? reply.senderCoworker?.name ?? reply.senderSokoBot?.name ?? "Someone"}: ${clipSaid(reply.content, REPLY_CHARS)}`,
       )
       .join("\n")}`,
+    REPLIES_CHARS,
   );
 }
 

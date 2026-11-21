@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
-import { hydrateRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -181,17 +181,25 @@ describe("CMO OAuth return errors during hydration", () => {
     const todayLink = host.querySelector<HTMLAnchorElement>(
       'nav[aria-label="Main"] a[href="/"]',
     );
-    const channelsLink = host.querySelector<HTMLAnchorElement>(
-      'nav[aria-label="Main"] a[href="/channels"]',
-    );
     expect(todayLink).not.toBeNull();
-    expect(channelsLink).not.toBeNull();
 
     await act(async () => {
       todayLink?.click();
     });
     expect(window.location.pathname).toBe("/");
 
+    // Channels opens from the brand's menu at the head of the sidebar.
+    await act(async () => {
+      host
+        .querySelector<HTMLButtonElement>(
+          'nav[aria-label="Main"] .brand-button',
+        )
+        ?.click();
+    });
+    const channelsLink = host.querySelector<HTMLAnchorElement>(
+      'nav[aria-label="Main"] [role="menu"] a[href="/channels"]',
+    );
+    expect(channelsLink).not.toBeNull();
     await act(async () => {
       channelsLink?.click();
     });
@@ -248,5 +256,124 @@ describe("CMO OAuth return errors during hydration", () => {
     expect(window.location.pathname).toBe("/results");
     expect(window.location.search).toBe("");
     expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+});
+
+describe("measurement on Channels", () => {
+  const notConnected = cmoOverview().measurement.map((source) => ({
+    ...source,
+    status: "none" as const,
+  }));
+
+  function connectButton(name: string): HTMLButtonElement {
+    const row = [...host.querySelectorAll(".sc-sources li")].find((li) =>
+      li.textContent?.includes(name),
+    );
+    const button = row?.querySelector("button");
+    if (!button) throw new Error(`No Connect button for ${name}`);
+    return button;
+  }
+
+  it("offers Google Analytics next to Search Console and starts one sign-in per press", async () => {
+    const connectMeasurement = vi.fn(
+      () => new Promise<{ url: string | null; error: string | null }>(() => {}),
+    );
+    await act(async () => {
+      root = createRoot(host);
+      root.render(
+        <CmoApp
+          overview={cmoOverview({ measurement: notConnected })}
+          messages={[]}
+          name="Ada"
+          email="ada@example.com"
+          initialView="channels"
+          actions={{ ...stubActions(), connectMeasurement }}
+        />,
+      );
+    });
+
+    expect(connectButton("Google Analytics").textContent).toBe("Connect");
+    await act(async () => {
+      connectButton("Google Search Console").click();
+    });
+    await act(async () => {
+      connectButton("Google Search Console").click();
+      connectButton("Google Analytics").click();
+    });
+
+    expect(connectMeasurement).toHaveBeenCalledExactlyOnceWith(
+      "google_search_console",
+      "channels",
+    );
+  });
+
+  it("offers Search Console in one place and opens SEO from it once connected", async () => {
+    const render = async (status: "none" | "connected") => {
+      const measurement = cmoOverview().measurement.map((source) =>
+        source.provider === "google_search_console"
+          ? { ...source, status }
+          : source,
+      );
+      await act(async () => {
+        root ??= createRoot(host);
+        root.render(
+          <CmoApp
+            key={status}
+            overview={cmoOverview({ measurement })}
+            messages={[]}
+            name="Ada"
+            email="ada@example.com"
+            initialView="channels"
+            actions={stubActions()}
+          />,
+        );
+      });
+    };
+    const openSeo = () =>
+      [...host.querySelectorAll(".page-body a")].filter(
+        (link) => link.textContent === "Open SEO",
+      );
+
+    await render("none");
+    expect(host.textContent).not.toContain("No account to connect for SEO");
+    expect(host.textContent?.match(/Google Search Console/g)).toHaveLength(1);
+    expect(openSeo()).toHaveLength(0);
+
+    await render("connected");
+    const [link] = openSeo();
+    expect(link?.getAttribute("href")).toBe("/seo");
+    await act(async () => {
+      (link as HTMLAnchorElement).click();
+    });
+    expect(window.location.pathname).toBe("/seo");
+  });
+
+  it("keeps the Channels measurement return error visible after hydration strips /channels?measure=failed", async () => {
+    const expectedError = "That connection didn't finish. Try again.";
+    window.history.replaceState(
+      null,
+      "",
+      "/channels?measure=failed&project=project-1",
+    );
+    const element = (
+      <CmoApp
+        overview={cmoOverview()}
+        messages={[]}
+        name="Ada"
+        email="ada@example.com"
+        initialView="channels"
+        measureError={expectedError}
+        actions={stubActions()}
+      />
+    );
+    host.innerHTML = renderToString(element);
+
+    await act(async () => {
+      root = hydrateRoot(host, element);
+    });
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+      expectedError,
+    );
   });
 });

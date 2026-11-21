@@ -142,7 +142,7 @@ it("lists sending the newsletter as soon, and TikTok once, only where it can be 
       addMailingList={async () => ({ overview: null, error: null })}
       onChange={() => {}}
       openSeo={() => {}}
-      connectSearchConsole={async () => ({ url: null, error: null })}
+      connectMeasurement={async () => ({ url: null, error: null })}
     />,
   );
   expect(html).not.toContain("<b>TikTok</b>");
@@ -157,7 +157,7 @@ it("lists sending the newsletter as soon, and TikTok once, only where it can be 
       addMailingList={async () => ({ overview: null, error: null })}
       onChange={() => {}}
       openSeo={() => {}}
-      connectSearchConsole={async () => ({ url: null, error: null })}
+      connectMeasurement={async () => ({ url: null, error: null })}
     />,
   );
   expect(enabled.match(/<b>TikTok<\/b>/g)).toHaveLength(1);
