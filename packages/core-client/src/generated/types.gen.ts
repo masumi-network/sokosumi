@@ -15446,6 +15446,8 @@ export type CmoKeywordIdea = {
     intent: 'informational' | 'navigational' | 'commercial' | 'transactional' | null;
     position: number | null;
     positionSource: 'search_console' | 'weekly_audit' | null;
+    impressions: number | null;
+    clicks: number | null;
 };
 
 export type CmoKeywordSearchRequest = {

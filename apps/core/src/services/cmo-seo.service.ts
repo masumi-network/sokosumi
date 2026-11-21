@@ -44,11 +44,11 @@ import { cmoSeoMarket } from "./cmo-seo-market";
 import {
   keywordSearchesLeft,
   normalizeKeyword,
-  positionsFor,
   readCmoSearchConsole,
   recentKeywordSearches,
+  siteSearchesFor,
   storedSearchConsole,
-  withPositions,
+  withSiteSearches,
 } from "./cmo-seo-research.service";
 
 export {
@@ -682,7 +682,7 @@ export async function readCmoSeo(
       recentKeywordSearches(cuso.projectId, KEYWORD_SEARCHES_SHOWN),
       keywordSearchesLeft(cuso.projectId, now),
     ]);
-  const positions = await positionsFor(cuso.projectId);
+  const site = await siteSearchesFor(cuso.projectId);
   const all = suggestions.map(toSuggestion);
   return {
     websiteUrl: cuso.websiteUrl,
@@ -698,7 +698,7 @@ export async function readCmoSeo(
       countryCode: search.countryCode,
       languageCode: search.languageCode,
       observedAt: search.observedAt.toISOString(),
-      ideas: withPositions(search.ideas, positions),
+      ideas: withSiteSearches(search.topic, search.ideas, site),
     })),
     keywordSearchesLeft: left,
   };
@@ -714,7 +714,8 @@ export async function requestCmoArticleIdeas(
     message: [
       `The owner asked for more article ideas for ${cuso.businessName}'s website (SEO tab).`,
       "Call read_seo, then research_keywords on two or three topics the Brand Brain says buyers search for and the site does not cover yet. Pick three keywords with real searches, a difficulty the site can win and the intent of a future customer, and that no open article already targets.",
-      "Save them with save_seo_suggestions as articles: title, keyword exactly as research_keywords returned it, why (the numbers and the business reason) and an outline. Do not write the full text now.",
+      "A keyword has real searches when research gives it a monthly volume, or when Search Console shows Google already lists the site for it (impressions, a position below the top three). In a small market most searches have no measured volume: then pick from the Search Console ones.",
+      "Save them with save_seo_suggestions as articles: title, keyword exactly as research_keywords or read_seo returned it, why (the numbers and the business reason) and an outline. Do not write the full text now.",
       "Then answer in two short sentences: what you added and why.",
     ].join("\n"),
     route: CMO_SEO_ROUTE,

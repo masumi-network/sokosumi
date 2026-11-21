@@ -8,6 +8,7 @@ import {
   cmoAuditSummary,
   pageText,
 } from "./cmo-seo-audit.service";
+import { searchWords, withSiteSearches } from "./cmo-seo-research.service";
 
 const report = publicSeoPayloadSchema.parse(
   JSON.parse(
@@ -131,5 +132,74 @@ describe("pageText", () => {
     expect(text).toContain("for sales <teams>.");
     expect(text).not.toContain("secret");
     expect(text).not.toContain("color:red");
+  });
+});
+
+describe("withSiteSearches", () => {
+  const gsc = (impressions: number, position: number, clicks = 0) => ({
+    position,
+    positionSource: "search_console" as const,
+    impressions,
+    clicks,
+  });
+  const site = new Map([
+    ["cardano nft marketplace", gsc(120, 8.1, 2)],
+    ["cardano mint nft", gsc(28, 2.9)],
+    ["burn address", gsc(26, 9.1)],
+    ["nmkr", gsc(172, 6.7, 14)],
+  ]);
+
+  it("offers the brand's own Search Console searches when research measured nothing", () => {
+    const ideas = withSiteSearches(
+      "cardano nft minting fees",
+      [
+        {
+          keyword: "nft minting on cardano",
+          searchVolume: null,
+          difficulty: null,
+          intent: null,
+          cpc: null,
+        },
+      ],
+      site,
+    );
+    expect(ideas.map((i) => i.keyword)).toEqual([
+      "cardano mint nft",
+      "cardano nft marketplace",
+      "nft minting on cardano",
+    ]);
+    expect(ideas[0]).toMatchObject({
+      searchVolume: null,
+      impressions: 28,
+      position: 2.9,
+      positionSource: "search_console",
+    });
+    expect(ideas[2]).toMatchObject({ impressions: null, position: null });
+  });
+
+  it("keeps measured ideas first and adds a one-word topic's matches", () => {
+    const ideas = withSiteSearches(
+      "burn",
+      [
+        {
+          keyword: "burn address",
+          searchVolume: 50,
+          difficulty: 0,
+          intent: "informational",
+          cpc: null,
+        },
+      ],
+      site,
+    );
+    expect(ideas).toHaveLength(1);
+    expect(ideas[0]).toMatchObject({ searchVolume: 50, impressions: 26 });
+  });
+});
+
+describe("searchWords", () => {
+  it("drops filler words and folds simple endings", () => {
+    expect(
+      searchWords("How to set up a Cardano NFT marketplace with minting fees"),
+    ).toEqual(["set", "up", "cardano", "nft", "marketplace", "mint", "fee"]);
   });
 });
