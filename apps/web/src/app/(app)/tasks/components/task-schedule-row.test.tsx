@@ -155,7 +155,8 @@ describe("TaskScheduleRow", () => {
       name: "lastTaskLink(FAILED, Weekly report)",
     });
     expect(link).toHaveAttribute("href", "/tasks/REL-7-weekly-report");
-    expect(link).toHaveTextContent("lastTask");
+    // A space between the words, so the visible text reads as the name does.
+    expect(link).toHaveTextContent("lastTask FAILED");
   });
 
   it("says nothing about a last Task before the first one", () => {

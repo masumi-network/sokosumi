@@ -200,7 +200,7 @@ export function TaskScheduleRow({
                 className="hover:text-foreground relative z-10 inline-flex min-h-6 items-center gap-1.5 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 href={taskHref(schedule.lastTask)}
               >
-                {t("lastTask")}
+                {t("lastTask")}{" "}
                 <TaskStatusBadge
                   className="rounded-sm"
                   label={tStatus(schedule.lastTask.status)}
