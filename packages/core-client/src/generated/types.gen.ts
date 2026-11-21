@@ -17081,6 +17081,61 @@ export type SeoTaskRelatedPagesRequest = {
     relatedPageUrls: Array<string>;
 };
 
+export type SeoTaskSearchConsoleStatus = {
+    provider: 'search-console';
+    status: 'NOT_CONNECTED' | 'PENDING' | 'CONNECTED' | 'UNAVAILABLE';
+    reason?: 'not_connected' | 'reconnect' | 'property' | 'unavailable' | 'limited_audit';
+    authenticationUrl: string;
+    expiresAt: string | null;
+};
+
+export type SeoTaskSearchConsoleReply = {
+    status: number;
+    /**
+     * Google's native JSON body for the operation
+     */
+    body: {
+        [key: string]: unknown;
+    };
+};
+
+export type SeoTaskSearchConsoleRead = {
+    operation: 'sites.list';
+    expectedOwnerId: string;
+    expectedOrganizationId: string | null;
+} | {
+    operation: 'searchAnalytics.query';
+    siteUrl: string;
+    query: SeoTaskSearchAnalyticsQuery;
+    expectedOwnerId: string;
+    expectedOrganizationId: string | null;
+} | {
+    operation: 'urlInspection.inspect';
+    siteUrl: string;
+    inspectionUrl: string;
+    expectedOwnerId: string;
+    expectedOrganizationId: string | null;
+};
+
+export type SeoTaskSearchAnalyticsQuery = {
+    startDate: string;
+    endDate: string;
+    dimensions?: Array<'query' | 'page' | 'country' | 'device' | 'date' | 'searchAppearance'>;
+    type?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
+    dimensionFilterGroups?: Array<{
+        groupType?: 'and';
+        filters: Array<{
+            dimension: 'query' | 'page' | 'country' | 'device' | 'searchAppearance';
+            operator?: 'contains' | 'equals' | 'notContains' | 'notEquals' | 'includingRegex' | 'excludingRegex';
+            expression: string;
+        }>;
+    }>;
+    aggregationType?: 'auto' | 'byPage' | 'byProperty' | 'byNewsShowcasePanel';
+    dataState?: 'final' | 'all';
+    rowLimit: number;
+    startRow: number;
+};
+
 export type SendTaskToChatRequest = {
     roomId: string;
     note?: string;
@@ -107433,6 +107488,276 @@ export type PostTasksByIdSeoIndexingRelatedPagesContextV1Responses = {
 };
 
 export type PostTasksByIdSeoIndexingRelatedPagesContextV1Response = PostTasksByIdSeoIndexingRelatedPagesContextV1Responses[keyof PostTasksByIdSeoIndexingRelatedPagesContextV1Responses];
+
+export type GetTasksByIdIntegrationsSearchConsoleData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/integrations/search-console';
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleError = GetTasksByIdIntegrationsSearchConsoleErrors[keyof GetTasksByIdIntegrationsSearchConsoleErrors];
+
+export type GetTasksByIdIntegrationsSearchConsoleResponses = {
+    /**
+     * Search Console status for the audit Task
+     */
+    200: {
+        data: SeoTaskSearchConsoleStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdIntegrationsSearchConsoleResponse = GetTasksByIdIntegrationsSearchConsoleResponses[keyof GetTasksByIdIntegrationsSearchConsoleResponses];
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsData = {
+    body: SeoTaskSearchConsoleRead;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/integrations/search-console/reads';
+};
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict. Branch on `kind`: task_context_changed, seo_gsc_not_connected, seo_gsc_reconnect, seo_gsc_property or seo_gsc_unavailable.
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Task used its read budget for this operation
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway. `kind` seo_gsc_response_too_large means Google answered with more than Core forwards.
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Search Console could not be read. Retry.
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsError = PostTasksByIdIntegrationsSearchConsoleReadsErrors[keyof PostTasksByIdIntegrationsSearchConsoleReadsErrors];
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsResponses = {
+    /**
+     * Google's HTTP status and native JSON body
+     */
+    200: {
+        data: SeoTaskSearchConsoleReply;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdIntegrationsSearchConsoleReadsResponse = PostTasksByIdIntegrationsSearchConsoleReadsResponses[keyof PostTasksByIdIntegrationsSearchConsoleReadsResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;
