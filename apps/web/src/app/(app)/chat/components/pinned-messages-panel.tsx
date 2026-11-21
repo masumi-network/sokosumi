@@ -10,6 +10,7 @@ import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { Loader2, Pin, PinOff, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { listPinnedMessagesAction } from "@/app/chat/actions";
+import { ChatEmptyState } from "@/app/chat/components/chat-unread-view-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -23,6 +24,8 @@ export interface PinnedMessagesPanelLabels {
   title: string;
   close: string;
   empty: string;
+  /** Under the empty title: how a message gets pinned. */
+  emptyHint: string;
   loading: string;
   error: string;
   couldNotLoad: string;
@@ -192,9 +195,12 @@ export function PinnedMessagesPanel({
           </p>
         ) : null}
         {!isLoading && !error && items.length === 0 ? (
-          <p className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {labels.empty}
-          </p>
+          <ChatEmptyState
+            icon={Pin}
+            title={labels.empty}
+            description={labels.emptyHint}
+            testId="pinned-messages-empty"
+          />
         ) : null}
         {items.map((item) => {
           const message = item.message;

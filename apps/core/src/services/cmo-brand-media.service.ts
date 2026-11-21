@@ -778,7 +778,7 @@ export function scheduleCmoBrandMedia(sokoBotId: string): void {
  * decides what is read, and nothing behind a sign-in is. Best effort: a page
  * that does not load is left out, and none is started once the time budget
  * is spent. Nothing runs when the last capture is minutes old; the homepage
- * shots hiring took do not count.
+ * shots and the logo hiring took do not count.
  */
 export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
@@ -794,9 +794,12 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
       updatedAt: { gte: new Date(Date.now() - RECAPTURE_AFTER_MS) },
       resource: {
         sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` },
-        NOT: HOMEPAGE_FILES.map((name) => ({
-          sourceId: { endsWith: `/${CMO_BRAND_MEDIA_FOLDER}/${name}` },
-        })),
+        NOT: [
+          ...HOMEPAGE_FILES.map((name) => ({
+            sourceId: { endsWith: `/${CMO_BRAND_MEDIA_FOLDER}/${name}` },
+          })),
+          { sourceId: { contains: `/${CMO_BRAND_LOGO_FOLDER}/` } },
+        ],
       },
     },
     select: { id: true },

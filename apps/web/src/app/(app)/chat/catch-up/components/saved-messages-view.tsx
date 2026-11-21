@@ -10,7 +10,10 @@ import {
   listSavedMessagesAction,
   unsaveRoomMessageAction,
 } from "@/app/chat/actions";
-import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
+import {
+  ChatEmptyState,
+  ChatUnreadViewHeader,
+} from "@/app/chat/components/chat-unread-view-header";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
@@ -155,18 +158,12 @@ export function SavedMessagesView({
               {t("error")}
             </p>
           ) : visibleItems.length === 0 ? (
-            <div
-              className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
-              data-testid="saved-messages-empty"
-            >
-              <span className="bg-quinary text-foreground grid size-8 place-items-center rounded-full">
-                <Bookmark className="size-4" aria-hidden />
-              </span>
-              <p className="text-sm font-medium">{t("empty")}</p>
-              <p className="text-muted-foreground max-w-xs text-sm text-pretty">
-                {t("emptyHint")}
-              </p>
-            </div>
+            <ChatEmptyState
+              icon={Bookmark}
+              title={t("empty")}
+              description={t("emptyHint")}
+              testId="saved-messages-empty"
+            />
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="saved-messages">
               {matching.map(({ messageId, savedAt, message }) => {

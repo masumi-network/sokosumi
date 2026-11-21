@@ -1108,6 +1108,80 @@ function cadenceRange(cadence: string): [number, number] | null {
 }
 
 /**
+ * A changed cadence carried into the plan: the funnel's plays that said the
+ * old cadence say the new one, and a calendar now over it loses its latest
+ * unwritten pieces from its busiest days. A change once lowered X to two
+ * posts a day on the label while the month kept 84 X pieces: Cuso could not
+ * resend a calendar his packet showed only part of.
+ */
+export function cmoFollowCadenceChange(
+  plan: MarketingStrategyPlan,
+  before: MarketingStrategyPlan | null,
+): MarketingStrategyPlan {
+  const was = new Map(
+    (before?.channels ?? []).map((channel) => [
+      channel.channel.toLowerCase(),
+      channel.cadence.trim().toLowerCase(),
+    ]),
+  );
+  const changed = plan.channels.flatMap((channel) => {
+    const key = channel.channel.toLowerCase();
+    const old = was.get(key);
+    const range = cadenceRange(channel.cadence);
+    return old && range && old !== channel.cadence.trim().toLowerCase()
+      ? [{ key, old, cadence: channel.cadence, high: range[1] }]
+      : [];
+  });
+  if (changed.length === 0) return plan;
+  const funnel = plan.funnel.map((stage) => ({
+    ...stage,
+    plays: stage.plays.map((play) => {
+      const change = changed.find(
+        (item) => item.key === play.channel.toLowerCase(),
+      );
+      return change && play.cadence?.trim().toLowerCase() === change.old
+        ? { ...play, cadence: change.cadence }
+        : play;
+    }),
+  }));
+  const dropped = new Set<string>();
+  for (const { key, high } of changed) {
+    const count = plan.calendar.filter((entry) => goesOutOn(entry, key)).length;
+    const removable = plan.calendar.filter(
+      (entry) =>
+        entry.channel.toLowerCase() === key &&
+        !entry.alsoOn?.length &&
+        !entry.videoOf &&
+        !entry.draft?.trim() &&
+        !entry.fileId &&
+        entry.status !== "published",
+    );
+    for (let left = count - high; left > 0; left--) {
+      const perDay = new Map<string, number>();
+      for (const entry of removable)
+        if (!dropped.has(entry.id))
+          perDay.set(entry.date, (perDay.get(entry.date) ?? 0) + 1);
+      const busiest = Math.max(0, ...perDay.values());
+      const last = removable
+        .filter(
+          (entry) =>
+            !dropped.has(entry.id) && perDay.get(entry.date) === busiest,
+        )
+        .sort((a, b) =>
+          `${b.date}${b.time ?? ""}`.localeCompare(`${a.date}${a.time ?? ""}`),
+        )[0];
+      if (!last) break;
+      dropped.add(last.id);
+    }
+  }
+  return {
+    ...plan,
+    funnel,
+    calendar: plan.calendar.filter((entry) => !dropped.has(entry.id)),
+  };
+}
+
+/**
  * A channel's calendar against its own cadence. A change that only rewrote
  * the cadence ("8 posts a week") once left 49 posts in the calendar.
  */

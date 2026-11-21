@@ -133,7 +133,12 @@ vi.mock("../thread-panel", () => ({
 }));
 
 vi.mock("../thread-list-panel", () => ({
-  ThreadListPanel: () => <aside data-testid="thread-list-panel" />,
+  ThreadListPanel: ({ labels }: { labels: { emptyHint?: string } }) => (
+    <aside
+      data-testid="thread-list-panel"
+      data-empty-hint={labels.emptyHint ?? ""}
+    />
+  ),
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
@@ -438,6 +443,37 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(screen.getByTestId("thread-panel")).toHaveAttribute(
       "data-can-quote",
       "false",
+    );
+  });
+
+  it("gives a read-only Direct's empty Threads no hint to start one", async () => {
+    const user = userEvent.setup();
+    await act(async () =>
+      renderRoom({
+        ...humanDirectRoom(),
+        isReadOnly: true,
+        userMembers: [participant("user-1", "Ada")],
+        formerUserMembers: [
+          { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+        ],
+      }),
+    );
+
+    await user.click(screen.getByTestId("unread-threads-trigger"));
+    expect(screen.getByTestId("thread-list-panel")).toHaveAttribute(
+      "data-empty-hint",
+      "",
+    );
+  });
+
+  it("tells a writable Direct's empty Threads how one starts", async () => {
+    const user = userEvent.setup();
+    await act(async () => renderRoom(humanDirectRoom()));
+
+    await user.click(screen.getByTestId("unread-threads-trigger"));
+    expect(screen.getByTestId("thread-list-panel")).toHaveAttribute(
+      "data-empty-hint",
+      "UnreadThreads.emptyHint",
     );
   });
 
@@ -801,6 +837,35 @@ describe("RoomsClient room header chrome", () => {
       expect(screen.queryByTestId("room-decisions-panel")).toBeNull(),
     );
     expect(menu).toHaveFocus();
+  });
+
+  it("opens the decisions log only once the mobile menu has closed", async () => {
+    const user = userEvent.setup();
+    renderRoom(channelRoom());
+
+    await user.click(screen.getByTestId("room-header-menu-trigger"));
+    // The menu animates out, as in the browser, so it lingers after the pick.
+    screen.getByRole("menu").style.animationName = "menu-exit";
+    await user.click(
+      screen.getByRole("menuitem", { name: "Signals.Decisions.open" }),
+    );
+    // A mouse leaving the picked item hands focus back to the closing menu.
+    // A log already open then takes that as focus outside and closes.
+    const menu = screen.getByRole("menu", { hidden: true });
+    expect(screen.queryByTestId("room-decisions-panel")).toBeNull();
+
+    fireEvent.animationEnd(menu, { animationName: "menu-exit" });
+    expect(await screen.findByTestId("room-decisions-panel")).toBeTruthy();
+  });
+
+  it("keeps the fix-a-tag note out of an empty decisions log", async () => {
+    const user = userEvent.setup();
+    renderRoom(channelRoom());
+
+    await user.click(await screen.findByTestId("room-decisions-trigger"));
+    const panel = await screen.findByTestId("room-decisions-panel");
+    expect(await within(panel).findByText(/Decisions\.empty$/)).toBeTruthy();
+    expect(within(panel).queryByText(/Decisions\.note$/)).toBeNull();
   });
 
   it("offers only threads in a 1:1 Direct's mobile menu", async () => {
