@@ -25,6 +25,20 @@ describe("stored task tags", () => {
       }).automatic,
     ).toEqual([]);
   });
+  it.each([
+    ["pending", ["research"], true],
+    ["running", ["research"], true],
+    ["complete", ["research"], false],
+    ["failed", ["research"], false],
+    ["pending", [], false],
+  ])(
+    "marks kept automatic tags as checking while state is %s (tags %j)",
+    (tagClassificationState, automaticTags, checking) => {
+      expect(
+        mapTaskTags({ automaticTags, tagClassificationState }).checking,
+      ).toBe(checking || undefined);
+    },
+  );
 });
 describe("Jev answer validation", () => {
   const answers = () =>

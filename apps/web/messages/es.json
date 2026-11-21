@@ -2688,6 +2688,7 @@
         "empty": "Sin etiquetas todavía",
         "showAll": "Mostrar las {count} etiquetas",
         "noProject": "Sin proyecto",
+        "checking": "Revisando las etiquetas tras los últimos cambios…",
         "openProject": "Abrir proyecto: {name}",
         "vocabulary": {
           "research": "Investigación",

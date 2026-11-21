@@ -2,6 +2,7 @@
 
 import type { TaskTagId, TaskTags as TaskTagsDto } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -46,10 +47,29 @@ function useTopicTags(
     ...(showManual ? (tags?.manual ?? []) : []),
     ...(tags?.automatic ?? []),
   ];
+  // Automatic tags kept from before the last edit until the new ones arrive.
+  const checking = new Set(tags?.checking ? tags.automatic : []);
   return useVisibleTaskTopicIds(ids, workspaceTags).map((id) => ({
     id,
     displayName: t(`vocabulary.${id}`),
+    checking: checking.has(id),
   }));
+}
+
+function TagsChecking({ className }: { className?: string }) {
+  const t = useTranslations("App.Tasks.Tags");
+  return (
+    <p
+      role="status"
+      className={cn(
+        "text-muted-foreground flex items-center gap-1 text-xs",
+        className,
+      )}
+    >
+      <Clock aria-hidden className="size-3.5 shrink-0" />
+      {t("checking")}
+    </p>
+  );
 }
 
 function renderTagBadge(
@@ -164,7 +184,11 @@ function TopicBadges({
 }) {
   return useTopicTags(tags, workspaceTags).map((topic) => (
     <TaskTagBadge key={topic.id} id={topic.id}>
-      <span className="truncate">{topic.displayName}</span>
+      <span
+        className={cn("truncate", topic.checking && "text-muted-foreground")}
+      >
+        {topic.displayName}
+      </span>
       {onRemove && (
         <TaskTagRemoveButton
           name={topic.displayName}
@@ -213,6 +237,7 @@ export function TaskTagSection({
       ) : (
         <p className="text-muted-foreground text-xs">{t("empty")}</p>
       )}
+      {tags?.checking && <TagsChecking />}
     </section>
   );
 }
@@ -249,6 +274,7 @@ function EditableWorkspaceTags({
       setOptimistic({
         ...next,
         tags: {
+          ...next.tags,
           manual: next.tags.manual.filter((id) => !dismissed.has(id)),
           automatic: next.tags.automatic.filter((id) => !dismissed.has(id)),
           rejected: [...new Set([...next.tags.rejected, ...dismissed])],
@@ -337,6 +363,8 @@ function EditableWorkspaceTags({
         onRemove={(id) => save(current, { dismissedTopicIds: [id] })}
         disabled={saving || conflict}
       />
+      {/* The picker's row wraps; this takes its own last line. */}
+      {current.tags.checking && <TagsChecking className="order-last w-full" />}
     </TaskWorkspaceTagPicker>
   );
 }

@@ -27,6 +27,7 @@ model Task {
   manualTags                   String[] @default([])
   rejectedTags                 String[] @default([])
   /// Maintained by task_tag_revision trigger for all writers, including schedules.
+  /// Content edits bump it and requeue; automaticTags stay until the new revision is stored.
   tagContentRevision           Int      @default(1)
   tagClassificationState       String   @default("unclassified")
   tagClassificationAttempts    Int      @default(0)

@@ -8949,6 +8949,10 @@ export const TaskTagsSchema = {
             items: {
                 $ref: '#/components/schemas/TaskTagId'
             }
+        },
+        checking: {
+            type: 'boolean',
+            description: 'True while the automatic tags are from before the last name or description edit and new ones are being chosen.'
         }
     },
     required: [

@@ -2688,6 +2688,7 @@
         "empty": "Noch keine Tags",
         "showAll": "Alle {count} Tags anzeigen",
         "noProject": "Kein Projekt",
+        "checking": "Tags werden für die letzten Änderungen geprüft…",
         "openProject": "Projekt öffnen: {name}",
         "vocabulary": {
           "research": "Recherche",

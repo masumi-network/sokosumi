@@ -2224,6 +2224,10 @@ export type TaskTags = {
     automatic: Array<TaskTagId>;
     manual: Array<TaskTagId>;
     rejected: Array<TaskTagId>;
+    /**
+     * True while the automatic tags are from before the last name or description edit and new ones are being chosen.
+     */
+    checking?: boolean;
 };
 
 export const TaskTagId = {

@@ -108,7 +108,9 @@ it.skipIf(!enabled)(
         where: { id: taskId },
         data: { name: "SYNTHETIC edited Task" },
       });
+      // The last automatic tags stay until the new revision succeeds.
       expect(await snapshot()).toMatchObject({
+        automaticTags: ["writing"],
         tagClassificationState: "pending",
         tagClassificationAttempts: 0,
         tagClassificationLease: null,
@@ -122,6 +124,7 @@ it.skipIf(!enabled)(
       await run();
       expect(classify).toHaveBeenCalledTimes(2);
       expect(await snapshot()).toMatchObject({
+        automaticTags: ["writing"],
         tagClassificationState: "pending",
         tagClassificationAttempts: 1,
         tagClassificationLease: "queued:retry",
