@@ -66,10 +66,14 @@ export type PaymentInformation = {
     lastUptimeCheck: Date;
     uptimeCount: number;
     uptimeCheckCount: number;
-    type: 'Standard' | 'OpenApi' | 'X402';
+    type: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
     apiBaseUrl: string | null;
     openApiSpecUrl: string | null;
     x402ResourcesUrl: string | null;
+    A2A: {
+        agentCardUrl: string;
+        protocolVersions: Array<string>;
+    } | null;
     authorName: string | null;
     authorOrganization: string | null;
     authorContactEmail: string | null;
@@ -98,7 +102,7 @@ export type RegistryEntry = {
     lastUptimeCheck: Date;
     uptimeCount: number;
     uptimeCheckCount: number;
-    type: 'Standard' | 'OpenApi' | 'X402';
+    type: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
     apiBaseUrl: string | null;
     openApiSpecUrl: string | null;
     x402ResourcesUrl: string | null;
@@ -129,6 +133,13 @@ export type RegistryEntry = {
     Capability: {
         name: string | null;
         version: string | null;
+    } | null;
+    /**
+     * MIP-002 A2A descriptor. Non-null only for A2A-type entries. The Agent Card document itself is served by the registry-entry-spec endpoint.
+     */
+    A2A: {
+        agentCardUrl: string;
+        protocolVersions: Array<string>;
     } | null;
     AgentPricing: {
         pricingType: 'Fixed';
@@ -190,6 +201,134 @@ export type RegistryEntry = {
     }>;
     metadataVersion: number;
     updatedAt: Date;
+    ranking?: RegistryEntryRanking;
+};
+
+/**
+ * Present when sortBy is set: why the entry ranks where it does.
+ */
+export type RegistryEntryRanking = {
+    /**
+     * Weighted sum of the components divided by the weight sum.
+     */
+    score: number;
+    /**
+     * Each component is 0-1: distinctBuyers (buyers that funded a seller-withdrawn escrow on chain, counted once across all versions of a V2 agent, relative to the top agent), uptime (time-weighted rolling, not relative), lineageAge (V2 version root age, capped at 90 days).
+     */
+    components: {
+        distinctBuyers: number;
+        uptime: number;
+        lineageAge: number;
+    };
+    weights: {
+        distinctBuyers: number;
+        uptime: number;
+        lineageAge: number;
+    };
+};
+
+export type RegistryEntryFilter = {
+    paymentTypes?: Array<'Web3CardanoV1' | 'Web3CardanoV2' | 'None'>;
+    status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
+    /**
+     * Statuses to exclude. Without `status`, all other statuses are included.
+     */
+    excludeStatus?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
+    pricing?: RegistryEntryPricingFilter;
+    health?: RegistryEntryHealthFilter;
+    /**
+     * Only entries first seen by the registry at or after this date.
+     */
+    registeredAfter?: Date | Date;
+    /**
+     * Only entries first seen by the registry at or before this date.
+     */
+    registeredBefore?: Date | Date;
+    policyId?: string;
+    assetIdentifier?: string;
+    tags?: Array<string>;
+    capability?: {
+        name: string;
+        version?: string;
+    };
+    /**
+     * When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match.
+     */
+    resolveToLatestVersion?: boolean;
+};
+
+export type RegistryEntryPricingFilter = {
+    /**
+     * Pricing model of the agent or of any of its payment sources.
+     */
+    pricingType?: 'Fixed' | 'Free' | 'Dynamic';
+    /**
+     * Only agents with a fixed price in this unit.
+     */
+    unit?: string;
+    /**
+     * Minimum fixed price in `unit`, in base units. Needs `unit`.
+     */
+    minAmount?: string;
+    /**
+     * Maximum fixed price in `unit`, in base units. Needs `unit`.
+     */
+    maxAmount?: string;
+};
+
+export type RegistryEntryHealthFilter = {
+    /**
+     * Minimum uptimeCount / uptimeCheckCount in percent. Entries that were never checked are excluded.
+     */
+    minUptimePercent?: number;
+    /**
+     * Entries last health-checked before this date are re-checked live before being returned. An entry checked within the last minute is never re-checked by a request. Replaces minHealthCheckDate.
+     */
+    lastCheckedAfter?: Date | Date;
+    /**
+     * Only return entries whose status is Online.
+     */
+    onlyOnline?: boolean;
+};
+
+export type RegistryEntrySpec = {
+    agentIdentifier: string;
+    type: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
+    status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
+    specValidatedAt: Date | null;
+    spec?: unknown;
+};
+
+export type Capability = {
+    capabilities: Array<{
+        id: string;
+        name: string;
+        version: string;
+    }>;
+};
+
+export type RegistryEntryPurchases = {
+    network: 'Preprod' | 'Mainnet';
+    agentIdentifier: string;
+    interval: 'Day' | 'Week' | 'Month';
+    from: Date;
+    to: Date;
+    totals: {
+        purchases: number;
+        distinctBuyers: number;
+        amounts: Array<{
+            unit: string;
+            quantity: string;
+        }>;
+    };
+    series: Array<{
+        bucketStart: Date;
+        purchases: number;
+        amounts: Array<{
+            unit: string;
+            quantity: string;
+        }>;
+    }>;
 };
 
 export type InboxAgentRegistration = {
@@ -225,14 +364,6 @@ export type RegistrySource = {
     latestIdentifier: string | null;
     rpcProviderApiKey: string | null;
     network: 'Preprod' | 'Mainnet' | null;
-};
-
-export type Capability = {
-    capabilities: Array<{
-        id: string;
-        name: string;
-        version: string;
-    }>;
 };
 
 export type ApiKey = {
@@ -317,22 +448,17 @@ export type PostRegistryEntryData = {
         network: 'Preprod' | 'Mainnet';
         limit?: number;
         cursorId?: string;
-        filter?: {
-            paymentTypes?: Array<'Web3CardanoV1' | 'Web3CardanoV2' | 'None'>;
-            status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
-            policyId?: string;
-            assetIdentifier?: string;
-            tags?: Array<string>;
-            capability?: {
-                name: string;
-                version?: string;
-            };
-            /**
-             * When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match.
-             */
-            resolveToLatestVersion?: boolean;
-        };
+        filter?: RegistryEntryFilter;
+        /**
+         * Deprecated: use filter.health.lastCheckedAfter.
+         *
+         * @deprecated
+         */
         minHealthCheckDate?: Date | Date;
+        /**
+         * Explicit result order; omit it to keep the default order (newest id first). uptime = rolling uptime, price = lowest fixed price in filter.pricing.unit (required), recency = first seen, score = weighted rank (see ranking on each entry). Ranked results carry their score components in `ranking`. Ranked pages are re-sorted on every request: an entry whose sort key rises past the cursor between pages (e.g. after a health check) can be missed, and one whose key falls can repeat.
+         */
+        sortBy?: 'uptime' | 'price' | 'recency' | 'score';
     };
     path?: never;
     query?: never;
@@ -377,22 +503,17 @@ export type PostRegistryEntrySearchData = {
          * Case-insensitive fuzzy match against registry entry core metadata, capability, asset identifier, api base URL, and tags.
          */
         query: string;
-        filter?: {
-            paymentTypes?: Array<'Web3CardanoV1' | 'Web3CardanoV2' | 'None'>;
-            status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
-            policyId?: string;
-            assetIdentifier?: string;
-            tags?: Array<string>;
-            capability?: {
-                name: string;
-                version?: string;
-            };
-            /**
-             * When true and an assetIdentifier filter is provided, the assetIdentifier is first resolved to the latest version of the same V2 agent (same root, highest version) before matching — so passing any older version returns the current one. No effect on V1 assets or when no assetIdentifier is given. The plain assetIdentifier filter always stays an exact match.
-             */
-            resolveToLatestVersion?: boolean;
-        };
+        filter?: RegistryEntryFilter;
+        /**
+         * Deprecated: use filter.health.lastCheckedAfter.
+         *
+         * @deprecated
+         */
         minHealthCheckDate?: Date | Date;
+        /**
+         * Explicit result order; omit it to keep the default order (newest id first). uptime = rolling uptime, price = lowest fixed price in filter.pricing.unit (required), recency = first seen, score = weighted rank (see ranking on each entry). Ranked results carry their score components in `ranking`. Ranked pages are re-sorted on every request: an entry whose sort key rises past the cursor between pages (e.g. after a health check) can be missed, and one whose key falls can repeat. relevance = text match strength.
+         */
+        sortBy?: 'relevance' | 'uptime' | 'price' | 'recency' | 'score';
     };
     path?: never;
     query?: never;
@@ -470,6 +591,177 @@ export type PostRegistryEntryRefreshResponses = {
 };
 
 export type PostRegistryEntryRefreshResponse = PostRegistryEntryRefreshResponses[keyof PostRegistryEntryRefreshResponses];
+
+export type GetRegistryEntrySpecData = {
+    body?: never;
+    path?: never;
+    query: {
+        network: 'Preprod' | 'Mainnet';
+        agentIdentifier: string;
+    };
+    url: '/registry-entry-spec/';
+};
+
+export type GetRegistryEntrySpecErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Registry entry not found, or it is a Standard entry, which does not expose a spec
+     */
+    404: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type GetRegistryEntrySpecResponses = {
+    /**
+     * The cached spec of the registry entry
+     */
+    200: {
+        data: RegistryEntrySpec;
+        status: string;
+    };
+};
+
+export type GetRegistryEntrySpecResponse = GetRegistryEntrySpecResponses[keyof GetRegistryEntrySpecResponses];
+
+export type PostRegistryDiffData = {
+    body?: {
+        network: 'Preprod' | 'Mainnet';
+        statusUpdatedAfter: Date | Date;
+        limit?: number;
+        /**
+         * The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward)
+         */
+        cursorId?: string;
+        /**
+         * The policy ID of the registry source to filter by. If not specified, queries all registry sources.
+         */
+        policyId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/registry-diff/';
+};
+
+export type PostRegistryDiffErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostRegistryDiffResponses = {
+    /**
+     * Registry entries with updated status
+     */
+    200: {
+        data: {
+            entries: Array<RegistryEntry>;
+        };
+        status: string;
+    };
+};
+
+export type PostRegistryDiffResponse = PostRegistryDiffResponses[keyof PostRegistryDiffResponses];
+
+export type GetCapabilityData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+        cursorId?: string;
+    };
+    url: '/capability/';
+};
+
+export type GetCapabilityErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type GetCapabilityResponses = {
+    /**
+     * Registry entries
+     */
+    200: {
+        data: Capability;
+        status: string;
+    };
+};
+
+export type GetCapabilityResponse = GetCapabilityResponses[keyof GetCapabilityResponses];
+
+export type GetRegistryEntryPurchasesData = {
+    body?: never;
+    path?: never;
+    query: {
+        network: 'Preprod' | 'Mainnet';
+        agentIdentifier: string;
+        /**
+         * UTC bucket size of the series. Weeks start on Monday.
+         */
+        interval?: 'Day' | 'Week' | 'Month';
+        /**
+         * Series start (inclusive), moved back to the start of its bucket. Defaults to 90 days before `to`.
+         */
+        from?: Date;
+        /**
+         * Series end (exclusive); the last bucket can be partial. Defaults to now. Max range 366 days from the requested `from`; moving `from` back to its bucket start can add up to one bucket.
+         */
+        to?: Date;
+    };
+    url: '/registry-entry-purchases/';
+};
+
+export type GetRegistryEntryPurchasesErrors = {
+    /**
+     * Invalid input or range
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+};
+
+export type GetRegistryEntryPurchasesResponses = {
+    /**
+     * Purchase totals and time series of the agent
+     */
+    200: {
+        data: RegistryEntryPurchases;
+        status: string;
+    };
+};
+
+export type GetRegistryEntryPurchasesResponse = GetRegistryEntryPurchasesResponses[keyof GetRegistryEntryPurchasesResponses];
 
 export type PostInboxAgentRegistrationData = {
     body?: {
@@ -745,91 +1037,6 @@ export type PostRegistrySourceResponses = {
 };
 
 export type PostRegistrySourceResponse = PostRegistrySourceResponses[keyof PostRegistrySourceResponses];
-
-export type PostRegistryDiffData = {
-    body?: {
-        network: 'Preprod' | 'Mainnet';
-        statusUpdatedAfter: Date | Date;
-        limit?: number;
-        /**
-         * The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward)
-         */
-        cursorId?: string;
-        /**
-         * The policy ID of the registry source to filter by. If not specified, queries all registry sources.
-         */
-        policyId?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/registry-diff/';
-};
-
-export type PostRegistryDiffErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type PostRegistryDiffResponses = {
-    /**
-     * Registry entries with updated status
-     */
-    200: {
-        data: {
-            entries: Array<RegistryEntry>;
-        };
-        status: string;
-    };
-};
-
-export type PostRegistryDiffResponse = PostRegistryDiffResponses[keyof PostRegistryDiffResponses];
-
-export type GetCapabilityData = {
-    body?: never;
-    path?: never;
-    query?: {
-        limit?: number;
-        cursorId?: string;
-    };
-    url: '/capability/';
-};
-
-export type GetCapabilityErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetCapabilityResponses = {
-    /**
-     * Registry entries
-     */
-    200: {
-        data: Capability;
-        status: string;
-    };
-};
-
-export type GetCapabilityResponse = GetCapabilityResponses[keyof GetCapabilityResponses];
 
 export type GetApiKeyStatusData = {
     body?: never;

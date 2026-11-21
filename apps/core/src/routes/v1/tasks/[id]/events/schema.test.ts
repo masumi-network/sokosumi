@@ -129,6 +129,21 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it.each([
+    ["the 19 digits the node allows", "9".repeat(19), true],
+    ["20 digits, which the node rejects", "1".repeat(20), false],
+  ])("handles an amount of %s before charging", (_name, amount, success) => {
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        Amounts: [{ amount, unit: "" }],
+      },
+    });
+
+    expect(result.success).toBe(success);
+  });
+
   it("rejects a malformed identifier under the V2 registry policy", () => {
     const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
     const result = schema.safeParse({
