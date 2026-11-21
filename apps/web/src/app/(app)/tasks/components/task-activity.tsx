@@ -67,6 +67,7 @@ import {
   getTaskStatusDotColorClass,
   TaskStatusInline,
 } from "./task-status-badge";
+import { TaskTableEvent } from "./task-table-event";
 
 interface TaskActivityProps {
   taskId: string;
@@ -107,7 +108,12 @@ interface TaskActivityProps {
   /** Sits in the header beside Jump to latest: follow and participant controls. */
   headerAction?: ReactNode;
   /** The Task's name and project: tables in the activity offer Save as table to a reader who can comment. */
-  tableSource?: { taskId: string; title: string; projectId: string | null };
+  tableSource?: {
+    taskId: string;
+    workspaceId: string | null;
+    title: string;
+    projectId: string | null;
+  };
 }
 
 export interface MentionableUser {
@@ -708,15 +714,19 @@ export function TaskActivitySection({
                       />
                     </div>
                     {formattedComment ? (
-                      <ExpandableMarkdown
-                        content={formattedComment}
-                        className="prose-sm text-foreground text-sm"
-                        expandLabel={expandLabel}
-                        collapseLabel={collapseLabel}
-                        fadeClassName="to-transparent"
-                        defaultOpen={shouldHighlightDoneBorder}
-                        components={markdownComponents}
-                      />
+                      <TaskTableEvent
+                        value={isNewOptimisticEvent ? null : event.id}
+                      >
+                        <ExpandableMarkdown
+                          content={formattedComment}
+                          className="prose-sm text-foreground text-sm"
+                          expandLabel={expandLabel}
+                          collapseLabel={collapseLabel}
+                          fadeClassName="to-transparent"
+                          defaultOpen={shouldHighlightDoneBorder}
+                          components={markdownComponents}
+                        />
+                      </TaskTableEvent>
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
                       <p className="text-foreground text-sm">

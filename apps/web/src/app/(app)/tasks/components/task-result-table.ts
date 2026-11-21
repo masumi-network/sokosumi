@@ -25,7 +25,12 @@ export function taskTableSource(
 ) {
   if (task.organizationId && task.visibility === TaskVisibility.PRIVATE)
     return undefined;
-  return { taskId: task.id, title: task.name, projectId: task.projectId };
+  return {
+    taskId: task.id,
+    workspaceId: task.organizationId ?? null,
+    title: task.name,
+    projectId: task.projectId,
+  };
 }
 
 /**

@@ -12,7 +12,8 @@ import { createMailbox } from "./mailbox.ts";
 // Markdown table, Save as table, then Open table. ZIP codes with leading zeros
 // and amounts with a currency sign stay as written. While the comment is
 // collapsed the action is hidden and the preview starts at the header; after
-// a new comment remounts the row it still links to the same Table. Free only.
+// a new comment remounts the row it still links to the same Table, and
+// keyboard focus on a link below the clamp stays visible. Free only.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const TABLE = [
@@ -103,15 +104,27 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         await page.keyboard.type(line);
       }
       await page.getByRole("button", { name: "Submit" }).click();
-      await page.getByText("Company", { exact: true }).waitFor();
+
+      // The saved comment (not its optimistic stand-in) carries the action.
+      const saved = '[data-message-id]:not([data-message-id^="optimistic:"])';
+      const tableRow = page
+        .locator(saved)
+        .filter({ hasText: "Northwind Labs" });
+      await tableRow.waitFor();
 
       // Collapsed: the preview starts at the header and the action is out of
       // sight and reach (hidden, not faded), so only Expand shows.
-      const expand = page.getByRole("button", { name: "Expand" });
+      const expand = tableRow.getByRole("button", { name: "Expand" });
       await expand.waitFor();
-      const save = page.getByRole("button", { name: "Save as table" });
-      assert.equal(await save.isVisible(), false, "action shows while clipped");
-      const clampTop = await page
+      const action = tableRow.locator("[data-table-action]");
+      await action.waitFor({ state: "attached" });
+      assert.equal(
+        await action.isVisible(),
+        false,
+        "action shows while clipped",
+      );
+      assert.equal(await action.getAttribute("inert"), "");
+      const clampTop = await tableRow
         .getByText("Company", { exact: true })
         .evaluate((cell) => {
           const clamp = cell.closest<HTMLElement>("[style]");
@@ -120,22 +133,76 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       assert.equal(clampTop, 0, "collapsed preview is scrolled");
       await shot(page, size, "0-collapsed");
 
+      const save = tableRow.getByRole("button", { name: "Save as table" });
       await expand.click();
       await save.scrollIntoViewIfNeeded();
       await shot(page, size, "1-table");
       await save.click();
       await page.getByText("Saved 6 rows to a new table.").waitFor();
-      const link = page.getByRole("link", { name: "Open table" });
+      const link = tableRow.getByRole("link", { name: "Open table" });
       const href = await link.getAttribute("href");
       assert.match(href ?? "", /^\/drive\/tables\//);
       await shot(page, size, "2-saved");
 
-      // A new activity event remounts the comment: it still links to the same
-      // Table, and offers no second save.
+      // A new activity event remounts the comment. Its link sits below the
+      // clamp: keyboard focus reaches it and shows it, and never lands on the
+      // hidden table action.
       await comment.click();
-      await page.keyboard.type("Saved, thanks");
+      for (const [i, line] of [
+        "Next steps for the expo list:",
+        "Call Northwind on Monday",
+        "Send Quarry the brochure",
+        "Book a demo with Blue Fern",
+        "Ask Harbor about catering",
+        "Quote Lumen for print",
+        "Visit Oak & Ash in March",
+        "[Outreach guide](https://example.com/outreach-guide)",
+      ].entries()) {
+        if (i) await page.keyboard.press("Shift+Enter");
+        await page.keyboard.type(line);
+      }
       await page.getByRole("button", { name: "Submit" }).click();
-      await page.getByText("Saved, thanks", { exact: true }).waitFor();
+      const linkRow = page.locator(saved).filter({ hasText: "Outreach guide" });
+      await linkRow.getByRole("button", { name: "Expand" }).waitFor();
+      const guide = linkRow.getByRole("link", { name: "Outreach guide" });
+
+      await comment.focus();
+      const visited: string[] = [];
+      for (let i = 0; i < 12; i++) {
+        await page.keyboard.press("Shift+Tab");
+        visited.push(
+          await page.evaluate(
+            () => document.activeElement?.textContent?.trim() ?? "",
+          ),
+        );
+        if (await guide.evaluate((a) => a === document.activeElement)) break;
+      }
+      assert.equal(
+        await guide.evaluate((a) => a === document.activeElement),
+        true,
+        `focus never reached the link: ${visited.join(" | ")}`,
+      );
+      assert.ok(!visited.includes("Save as table"), visited.join(" | "));
+      const shown = await guide.evaluate((a) => {
+        const box = a.getBoundingClientRect();
+        const clamp = a.closest<HTMLElement>("[style]");
+        const frame = clamp?.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          box.x + box.width / 2,
+          box.y + box.height / 2,
+        );
+        return (
+          !!frame &&
+          box.top >= frame.top &&
+          box.bottom <= frame.bottom &&
+          !!hit &&
+          a.contains(hit)
+        );
+      });
+      assert.equal(shown, true, "focused link is hidden by the clamp");
+      await shot(page, size, "4-keyboard-link");
+
+      // The table comment mounted again: same Table, no second save.
       if (await expand.isVisible()) await expand.click();
       await link.waitFor();
       assert.equal(await link.getAttribute("href"), href);

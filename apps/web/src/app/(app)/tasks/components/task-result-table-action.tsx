@@ -27,13 +27,23 @@ import {
   TaskResultTableTooLarge,
   taskResultTablePlan,
 } from "./task-result-table";
-
-/** The Task a saved Table comes from: its name titles the Table, and the Table joins its project. */
-type Source = { taskId: string; title: string; projectId: string | null };
+import { TaskTableEvent } from "./task-table-event";
 
 /**
- * Copies by Task and table, outside the row: a new activity event or a layout switch mounts the comment
- * afresh, and it must still link to the Table it saved, or finish that same copy, never start a second.
+ * The Task a saved Table comes from: its name titles the Table, and the Table joins its workspace (null:
+ * personal) and project.
+ */
+type Source = {
+  taskId: string;
+  workspaceId: string | null;
+  title: string;
+  projectId: string | null;
+};
+
+/**
+ * Copies by workspace, project, Task, activity event and table, outside the row: a new activity event or a
+ * layout switch mounts the comment afresh, and it must still link to the Table it saved, or finish that same
+ * copy, never start a second. A Task moved to another workspace or project starts a fresh copy there.
  * ponytail: lives for the page session; a Table deleted meanwhile still shows Open table until reload.
  */
 const copies = new Map<string, TableCopy & { run?: Promise<string> }>();
@@ -60,8 +70,16 @@ function SaveableTable({
   const table = useRef<HTMLTableElement>(null);
   const [pending, setPending] = useState(false);
   const clipped = use(MarkdownClippedContext);
-  // The table's cells, without source positions: the same table in the same Task is the same key.
-  const key = `${source.taskId}:${JSON.stringify(props.node, ["type", "tagName", "value", "children"])}`;
+  const event = use(TaskTableEvent);
+  // Where the table sits in its comment, and its cells: two tables in one comment stay two copies.
+  const key = [
+    source.workspaceId,
+    source.projectId,
+    source.taskId,
+    event,
+    props.node?.position?.start.offset,
+    JSON.stringify(props.node, ["type", "tagName", "value", "children"]),
+  ].join(":");
   const savedId = useSyncExternalStore(
     subscribe,
     () => savedTableId(key),
@@ -122,6 +140,7 @@ function SaveableTable({
     }
   }
 
+  if (event === null) return <MarkdownTable {...props} />;
   return (
     <>
       <MarkdownTable ref={table} {...props} />
@@ -168,6 +187,7 @@ export function useTaskResultTableComponents(
   source: Source | null,
 ): Components | undefined {
   const taskId = source?.taskId;
+  const workspaceId = source?.workspaceId ?? null;
   const title = source?.title;
   const projectId = source?.projectId ?? null;
   return useMemo(
@@ -176,9 +196,12 @@ export function useTaskResultTableComponents(
         ? undefined
         : {
             table: (props) => (
-              <SaveableTable source={{ taskId, title, projectId }} {...props} />
+              <SaveableTable
+                source={{ taskId, workspaceId, title, projectId }}
+                {...props}
+              />
             ),
           },
-    [taskId, title, projectId],
+    [taskId, workspaceId, title, projectId],
   );
 }

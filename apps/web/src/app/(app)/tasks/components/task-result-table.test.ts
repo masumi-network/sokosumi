@@ -96,12 +96,18 @@ describe("taskTableSource", () => {
   it("offers Save as table where the Table's readers can already read the Task", () => {
     expect(taskTableSource(task)).toEqual({
       taskId: "task-1",
+      workspaceId: "org-1",
       title: "Find leads",
       projectId: null,
     });
     expect(
       taskTableSource({ ...task, visibility: "PRIVATE", organizationId: null }),
-    ).toEqual({ taskId: "task-1", title: "Find leads", projectId: null });
+    ).toEqual({
+      taskId: "task-1",
+      workspaceId: null,
+      title: "Find leads",
+      projectId: null,
+    });
   });
   it("offers nothing for a private Task in an organization, whose Tables every member reads", () => {
     expect(taskTableSource({ ...task, visibility: "PRIVATE" })).toBeUndefined();

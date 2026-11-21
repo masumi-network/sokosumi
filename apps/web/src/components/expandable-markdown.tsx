@@ -95,12 +95,7 @@ export function ExpandableMarkdown({
         <CollapsibleContent forceMount>
           <div
             ref={contentRef}
-            // clip, not hidden: focus or scrollIntoView inside the clamp cannot scroll it, so the preview starts at the top.
-            style={
-              !open
-                ? { maxHeight: `${effectiveLineClamp}lh`, overflow: "clip" }
-                : undefined
-            }
+            style={!open ? { maxHeight: `${effectiveLineClamp}lh` } : undefined}
             className={cn(
               !open && "overflow-hidden",
               !open && lineClampClass,

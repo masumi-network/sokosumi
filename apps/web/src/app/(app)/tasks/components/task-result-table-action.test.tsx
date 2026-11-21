@@ -7,6 +7,7 @@ import Markdown from "@/components/markdown";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 import { useTaskResultTableComponents } from "./task-result-table-action";
+import { TaskTableEvent } from "./task-table-event";
 
 const m = vi.hoisted(() => ({
   create: vi.fn(),
@@ -34,13 +35,29 @@ beforeEach(() => {
   taskId++;
 });
 
-function Result() {
+type Where = {
+  /** The activity events, one comment each; null is a comment not saved yet. */
+  events?: (string | null)[];
+  workspaceId?: string | null;
+  projectId?: string | null;
+};
+
+function Result({
+  events = ["event-1"],
+  workspaceId = null,
+  projectId = "00000000-0000-4000-8000-000000000001",
+}: Where) {
   const components = useTaskResultTableComponents({
     taskId: `task-${taskId}`,
+    workspaceId,
     title: "Find leads",
-    projectId: "00000000-0000-4000-8000-000000000001",
+    projectId,
   });
-  return <Markdown components={components}>{RESULT}</Markdown>;
+  return events.map((event) => (
+    <TaskTableEvent key={event} value={event}>
+      <Markdown components={components}>{RESULT}</Markdown>
+    </TaskTableEvent>
+  ));
 }
 
 function show() {
@@ -48,7 +65,7 @@ function show() {
   return screen.getByRole("button", { name: "Save as table" });
 }
 
-function renderResult() {
+function renderResult(where: Where = {}) {
   return render(
     <NextIntlClientProvider
       locale="en"
@@ -56,7 +73,7 @@ function renderResult() {
       timeZone="UTC"
       formats={createFormats()}
     >
-      <Result />
+      <Result {...where} />
     </NextIntlClientProvider>,
   );
 }
@@ -112,6 +129,41 @@ it("keeps the link when the row mounts again, so a second press cannot make a se
   expect(m.create).toHaveBeenCalledTimes(1);
 });
 
+it("keeps the same table in another activity event its own copy", async () => {
+  const user = userEvent.setup();
+  renderResult({ events: ["event-1", "event-2"] });
+  const [first] = screen.getAllByRole("button", { name: "Save as table" });
+  await user.click(first);
+  expect(screen.getAllByRole("link", { name: "Open table" })).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: "Save as table" })).toHaveLength(
+    1,
+  );
+});
+
+it("starts a fresh copy once the Task moves to another workspace", async () => {
+  const user = userEvent.setup();
+  const before = renderResult();
+  await user.click(screen.getByRole("button", { name: "Save as table" }));
+  before.unmount();
+
+  // A move keeps the Task id and clears its project; the old Table stays behind.
+  renderResult({ workspaceId: "org-2", projectId: null });
+  expect(
+    screen.queryByRole("link", { name: "Open table" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Save as table" }),
+  ).toBeInTheDocument();
+});
+
+it("offers nothing on a comment not saved yet, whose row is replaced once it is", () => {
+  renderResult({ events: [null] });
+  expect(screen.getByRole("table")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Save as table" }),
+  ).not.toBeInTheDocument();
+});
+
 it("says how far a failed save got and finishes it on the next press", async () => {
   m.batch.mockRejectedValueOnce(new Error("offline"));
   const user = userEvent.setup();
@@ -151,30 +203,36 @@ it("refuses a table too large to save whole, before creating anything", async ()
 function WideResult() {
   const components = useTaskResultTableComponents({
     taskId: `task-${taskId}`,
+    workspaceId: null,
     title: "Wide",
     projectId: null,
   });
   const columns = Array.from({ length: 101 }, (_, i) => `c${i}`);
   return (
-    <Markdown components={components}>
-      {`| ${columns.join(" | ")} |\n|${columns.map(() => " --- ").join("|")}|\n| ${columns.join(" | ")} |\n`}
-    </Markdown>
+    <TaskTableEvent value="event-1">
+      <Markdown components={components}>
+        {`| ${columns.join(" | ")} |\n|${columns.map(() => " --- ").join("|")}|\n| ${columns.join(" | ")} |\n`}
+      </Markdown>
+    </TaskTableEvent>
   );
 }
 
 function Collapsible() {
   const components = useTaskResultTableComponents({
     taskId: `task-${taskId}`,
+    workspaceId: null,
     title: "Find leads",
     projectId: null,
   });
   return (
-    <ExpandableMarkdown
-      content={RESULT}
-      expandLabel="Expand"
-      collapseLabel="Show less"
-      components={components}
-    />
+    <TaskTableEvent value="event-1">
+      <ExpandableMarkdown
+        content={RESULT}
+        expandLabel="Expand"
+        collapseLabel="Show less"
+        components={components}
+      />
+    </TaskTableEvent>
   );
 }
 
@@ -225,15 +283,4 @@ it("lays out the same whether clipped or not, so the action alone cannot flip th
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(screen.getByRole("button", { name: "Expand" })).toBeInTheDocument();
   expect(actionRow()).toHaveAttribute("inert");
-});
-
-it("cannot scroll the collapsed clamp, so its preview always starts at the top", async () => {
-  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(1000);
-  const user = userEvent.setup();
-  renderCollapsible();
-  await user.click(await screen.findByRole("button", { name: "Expand" }));
-  await user.click(screen.getByRole("button", { name: "Show less" }));
-  // overflow: clip, unlike hidden, gives focus and scrollIntoView nothing to scroll.
-  const clamp = screen.getByRole("table").closest("[style]") as HTMLElement;
-  expect(clamp.style.overflow).toBe("clip");
 });
