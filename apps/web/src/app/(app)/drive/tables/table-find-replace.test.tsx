@@ -88,6 +88,23 @@ describe("TableFindReplace", () => {
     vi.clearAllMocks();
   });
 
+  it("keeps the Find field focused and enabled while it searches", async () => {
+    let resolve: (value: ReturnType<typeof page>) => void = () => {};
+    f.query.mockReturnValue(new Promise((done) => (resolve = done)));
+    open();
+    fill("acme", "Acme");
+    const find = screen.getByLabelText("findReplace.find");
+    find.focus();
+    fireEvent.submit(find.closest("form") as HTMLFormElement);
+    await waitFor(() => expect(f.query).toHaveBeenCalled());
+    expect(find).not.toBeDisabled();
+    expect(find).toHaveAttribute("readonly");
+    resolve(page([]));
+    await screen.findByText("findReplace.none");
+    expect(document.activeElement).toBe(find);
+    expect(find).not.toHaveAttribute("readonly");
+  });
+
   it("offers only text columns", () => {
     open();
     const options = screen.getAllByRole("option").map((o) => o.textContent);

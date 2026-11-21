@@ -164,7 +164,7 @@ export function DriveFileRow({
            */}
           <Link
             href={`/drive/files/${item.id}`}
-            className="focus-visible:ring-ring min-w-0 truncate text-sm font-medium focus-visible:outline-none focus-visible:ring-2"
+            className="focus-visible:ring-ring min-w-0 truncate text-sm leading-6 font-medium focus-visible:outline-none focus-visible:ring-2"
             onClick={(event) => {
               if (!onOpen) return;
               // Anything the reader did to ask for a new tab or window is
