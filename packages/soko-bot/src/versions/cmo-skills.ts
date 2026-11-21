@@ -31,6 +31,7 @@ import {
   pickedProduction,
 } from "./cmo-v11-skills.js";
 import { seoReports } from "./cmo-v12-skills.js";
+import { partPatchStrategy } from "./cmo-v13-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -710,6 +711,7 @@ export const CMO_PICKED_PIECE_WRITING_GUIDE = pickedPieceWritingGuide(
 
 const varied = variedProduction(batched);
 const scenes = sceneProduction(varied);
+const claims = claimsStrategy(everyNetwork);
 
 const seo = SKILLS.find((skill) => skill.id === "cmo-seo");
 if (!seo) throw new Error("cmo-seo is missing");
@@ -721,6 +723,7 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   varied,
   scenes,
   pickedProduction(scenes),
-  claimsStrategy(everyNetwork),
+  claims,
   seoReports(seo),
+  partPatchStrategy(claims),
 ];

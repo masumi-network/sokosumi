@@ -299,6 +299,7 @@ export {
   cmoReportsSeo,
   cmoSeoReportBrief,
 } from "./versions/cmo-v12-skills.js";
+export { CMO_PART_PATCH_STRATEGY_SKILL } from "./versions/cmo-v13-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

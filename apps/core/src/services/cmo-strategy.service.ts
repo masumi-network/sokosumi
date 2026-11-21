@@ -674,6 +674,13 @@ const CORRECTION_PATCH_LINES = [
   "Do not write a new strategy, research again or touch the Brand Brain.",
 ];
 
+/**
+ * cmo-v13: a long month does not fit in Cuso's context, so "send the whole
+ * calendar" once had him ask the owner for "the full strategy calendar".
+ */
+const PART_CHANGE_SAVE =
+  "Save with save_strategy part patch: only the calendar entries you change, each whole under its id (a new id adds one, status skipped drops one), and only the strategy fields you change, each whole; at most 8 entries a call. Leave out every entry and field you keep, and they stay exactly as they are. Never send the whole calendar, and never ask the owner for it.";
+
 /** cmo-v8's fix also rewrites the essentials that say what the fixed section says. */
 const ESSENTIALS_SAVE =
   "In the same call, send brandBrain with the essentials that say the same thing rewritten to match (the customers or buyers in audience, the offer in products and offers, the positioning in summary; everything else as your packet holds it) and reveal with buyers and positioning rewritten the same way.";
@@ -781,7 +788,9 @@ async function startStrategyTurn(
               `Change ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
               "",
               "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
-              "Save with save_strategy: part plan for changes to the strategy (send the whole strategy with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
+              rules.partPatch
+                ? PART_CHANGE_SAVE
+                : "Save with save_strategy: part plan for changes to the strategy (send the whole strategy with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
             ]
           : [
               `Write ${cuso.businessName}'s marketing strategy for the four weeks from ${span.start} to ${span.end}. No calendar entry after ${span.end}.`,

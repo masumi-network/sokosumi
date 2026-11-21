@@ -254,6 +254,35 @@ describe("requestCmoStrategy", () => {
     );
   });
 
+  // NMKR, 21 Nov 2026: "send the whole calendar" did not fit a 160-entry month.
+  it("has cmo-v13 save an owner's change as a part patch, never the whole calendar", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v13" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "2 a day on X",
+    });
+    const v13 = JSON.stringify(startTurn.mock.lastCall);
+    expect(v13).toContain(
+      "Save with save_strategy part patch: only the calendar entries you change",
+    );
+    expect(v13).not.toContain("send the whole calendar");
+
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v10" });
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "2 a day on X",
+    });
+    expect(JSON.stringify(startTurn.mock.lastCall)).toContain(
+      "send the whole calendar",
+    );
+  });
+
   it("uses the frozen site language without reading the live German site", async () => {
     cusoFind.mockResolvedValue(cuso);
     startTurn.mockResolvedValue({ turnId: "turn-9" });

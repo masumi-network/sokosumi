@@ -1169,18 +1169,28 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       aida: true,
       everyNetwork: true,
       claims: false,
+      partPatch: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
       aida: false,
       everyNetwork: false,
       claims: false,
+      partPatch: false,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+      claims: true,
+      partPatch: true,
     });
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
       aida: false,
       everyNetwork: false,
       claims: false,
+      partPatch: false,
     });
   });
 
