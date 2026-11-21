@@ -8268,6 +8268,27 @@
         "save": "Speichern",
         "title": "Passkeys"
       },
+      "SignedInDevices": {
+        "title": "Angemeldete Geräte",
+        "description": "Browser, in denen dein Konto gerade angemeldet ist. Ein abgemeldetes Gerät kann noch einige Minuten offen bleiben und bekommt weiter Benachrichtigungen, bis du es unter <link>Benachrichtigungen</link> entfernst.",
+        "loading": "Geräte werden geladen…",
+        "loadError": "Wir konnten deine Geräte gerade nicht laden.",
+        "retry": "Erneut versuchen",
+        "deviceLabel": "{browser} auf {os}",
+        "unknownDevice": "Unbekannter Browser",
+        "thisDevice": "Dieses Gerät",
+        "signedInAt": "Angemeldet am {date}",
+        "signOut": "Abmelden",
+        "signOutDevice": "{device} abmelden",
+        "signedOut": "Gerät abgemeldet. Es kann noch einige Minuten offen bleiben.",
+        "signOutError": "Abmelden hat nicht geklappt. Versuch es noch einmal.",
+        "signOutOthers": "Alle anderen Geräte abmelden",
+        "confirmTitle": "Alle anderen Geräte abmelden?",
+        "confirmDescription": "Alle Browser außer diesem werden innerhalb weniger Minuten abgemeldet. Sokosumi-Apps und die CLI müssen sich ebenfalls neu anmelden.",
+        "confirmSignOut": "Andere abmelden",
+        "cancel": "Abbrechen",
+        "signedOutOthers": "Andere Geräte abgemeldet. Sie können noch einige Minuten offen bleiben."
+      },
       "Theme": {
         "title": "Theme",
         "description": "Wähle, wie die Oberfläche aussehen soll.",

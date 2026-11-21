@@ -8268,6 +8268,27 @@
         "save": "Guardar",
         "title": "Passkeys"
       },
+      "SignedInDevices": {
+        "title": "Dispositivos con sesión iniciada",
+        "description": "Navegadores donde tu cuenta tiene la sesión iniciada ahora. Un dispositivo cerrado puede seguir abierto unos minutos y sigue recibiendo notificaciones hasta que lo quites en <link>Notificaciones</link>.",
+        "loading": "Cargando dispositivos…",
+        "loadError": "No pudimos cargar tus dispositivos ahora.",
+        "retry": "Reintentar",
+        "deviceLabel": "{browser} en {os}",
+        "unknownDevice": "Navegador desconocido",
+        "thisDevice": "Este dispositivo",
+        "signedInAt": "Sesión iniciada el {date}",
+        "signOut": "Cerrar sesión",
+        "signOutDevice": "Cerrar sesión en {device}",
+        "signedOut": "Sesión cerrada en el dispositivo. Puede seguir abierto unos minutos más.",
+        "signOutError": "No se pudo cerrar la sesión. Inténtalo de nuevo.",
+        "signOutOthers": "Cerrar sesión en los demás dispositivos",
+        "confirmTitle": "¿Cerrar sesión en los demás dispositivos?",
+        "confirmDescription": "Todos los navegadores excepto este cierran sesión en unos minutos. Las apps de Sokosumi y la CLI también tendrán que iniciar sesión de nuevo.",
+        "confirmSignOut": "Cerrar las demás",
+        "cancel": "Cancelar",
+        "signedOutOthers": "Sesión cerrada en los demás dispositivos. Pueden seguir abiertos unos minutos más."
+      },
       "Theme": {
         "title": "Tema",
         "description": "Elige cómo quieres que se vea la interfaz.",

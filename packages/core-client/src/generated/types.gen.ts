@@ -6853,6 +6853,17 @@ export type NotificationPreference = {
     enabled: boolean;
 };
 
+export type UserSessions = {
+    sessions: Array<UserSession>;
+};
+
+export type UserSession = {
+    id: string;
+    userAgent: string | null;
+    createdAt: Date;
+    current: boolean;
+};
+
 export type UserWorkspaces = {
     /**
      * Workspaces the person can act in: their personal workspace first, then their organizations. Exactly one is `preferred` whenever the list is non-empty. Empty means the person still needs identity onboarding
@@ -53797,6 +53808,183 @@ export type DeleteUsersByIdOauthConsentsByConsentIdResponses = {
 };
 
 export type DeleteUsersByIdOauthConsentsByConsentIdResponse = DeleteUsersByIdOauthConsentsByConsentIdResponses[keyof DeleteUsersByIdOauthConsentsByConsentIdResponses];
+
+export type GetUsersByIdSessionsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/sessions';
+};
+
+export type GetUsersByIdSessionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdSessionsError = GetUsersByIdSessionsErrors[keyof GetUsersByIdSessionsErrors];
+
+export type GetUsersByIdSessionsResponses = {
+    /**
+     * Signed-in sessions
+     */
+    200: {
+        data: UserSessions;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdSessionsResponse = GetUsersByIdSessionsResponses[keyof GetUsersByIdSessionsResponses];
+
+export type DeleteUsersByIdSessionsBySessionIdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
+         */
+        id: string;
+        /**
+         * Session ID from the sessions list
+         */
+        sessionId: string;
+    };
+    query?: never;
+    url: '/users/{id}/sessions/{sessionId}';
+};
+
+export type DeleteUsersByIdSessionsBySessionIdErrors = {
+    /**
+     * Bad Request - Current session
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized - Caller session no longer active
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Session not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteUsersByIdSessionsBySessionIdError = DeleteUsersByIdSessionsBySessionIdErrors[keyof DeleteUsersByIdSessionsBySessionIdErrors];
+
+export type DeleteUsersByIdSessionsBySessionIdResponses = {
+    /**
+     * Signed out
+     */
+    200: {
+        data: {
+            [key: string]: unknown;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteUsersByIdSessionsBySessionIdResponse = DeleteUsersByIdSessionsBySessionIdResponses[keyof DeleteUsersByIdSessionsBySessionIdResponses];
 
 export type GetUsersByIdWorkspacesData = {
     body?: never;
