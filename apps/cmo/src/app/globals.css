@@ -5680,3 +5680,126 @@ button.week-more {
 .site-disclosures .foot-ai img {
   background: var(--primary-foreground);
 }
+
+/* Settings, Pictures: every picture Cuso made, grouped by post. The chosen
+   one leads its card; the ones he left out sit beside it with the check's
+   verdict, smaller, so the eye goes to what went out. */
+.pictures-page,
+.pictures-page > .card {
+  min-width: 0;
+}
+
+.pictures-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pictures-month select {
+  min-width: 10rem;
+  max-width: 100%;
+  padding: 4px 14px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.picture-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.picture-open {
+  margin-left: auto;
+}
+
+.picture-title {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.picture-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+
+.picture-chosen {
+  flex: 0 1 18rem;
+  min-width: 12rem;
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.picture-chosen img,
+.picture-alt img,
+.picture-empty {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.picture-chosen img {
+  border: var(--line-width) solid var(--line);
+}
+
+.picture-alt img {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.picture-chosen figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.picture-empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 5;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.picture-reason,
+.picture-why {
+  margin: 0;
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.picture-alternatives {
+  flex: 1 1 20rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--space-3);
+}
+
+.picture-alt {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  min-width: 0;
+}
