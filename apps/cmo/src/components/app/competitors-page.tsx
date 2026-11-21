@@ -449,21 +449,25 @@ interface ScoreboardProps {
   data: CmoCompetitors;
 }
 
+/**
+ * The Instagram scoreboard, once a competitor has a real number: the owner's
+ * own row alone, or a table of dashes, compares nothing.
+ */
 function Scoreboard({ data }: ScoreboardProps) {
   const { social } = data.check.sources;
   const hasNumbers = data.scoreboard.some(
-    (row) => row.postsPerWeek || row.followers || row.engagementPerPost,
+    (row) =>
+      row.competitorId !== null &&
+      (row.postsPerWeek ||
+        row.followers ||
+        row.engagementPerPost ||
+        row.followerGrowth),
   );
+  if (!hasNumbers && !social.needs) return null;
   return (
     <section className="card">
       <h3>Scoreboard</h3>
       {social.needs ? <p className="muted">{social.needs}</p> : null}
-      {!social.needs && !hasNumbers ? (
-        <p className="muted">
-          No Instagram numbers yet. They come with the next check, for
-          competitors with a business account.
-        </p>
-      ) : null}
       {hasNumbers ? (
         <>
           <div className="comp-table">
