@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
   failedPageRuns,
+  failedSeoSources,
   failedSeoSpecialists,
 } from "./project-seo-public-report";
 import { skippedPages } from "./project-seo-report";
@@ -104,4 +105,25 @@ it("keeps distinct editorial stage failures from eligible site pages and standal
       pages: [page, page, { specialistFailures: ["editorialCodex"] }],
     }),
   ).toEqual(["editorialGemini", "editorialCodex", "editorialValidation"]);
+});
+
+it("keeps only known source failure codes from a page or any page of a site report", () => {
+  expect(
+    failedSeoSources({
+      sourceFailures: [
+        "lighthouseFailed",
+        "Web Risk HTTP 403",
+        "webRiskFailed",
+      ],
+    }),
+  ).toEqual(["webRiskFailed", "lighthouseFailed"]);
+  expect(
+    failedSeoSources({
+      kind: "site",
+      sourceFailures: ["lighthouseFailed"],
+      pages: [{}, { sourceFailures: ["webRiskNotRun"] }],
+    }),
+  ).toEqual(["webRiskNotRun"]);
+  expect(failedSeoSources({ sourceFailures: "webRiskNotRun" })).toEqual([]);
+  expect(failedSeoSources(null)).toEqual([]);
 });
