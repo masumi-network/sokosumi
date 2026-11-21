@@ -139,7 +139,7 @@ describe("a post that did not go out", () => {
         lastError,
       });
       expect(said).toBe(
-        "X paused our posting for a day, so it didn't go out. Ask Cuso to post it again.",
+        "X paused our posting for a day. Ask Cuso to post it again.",
       );
       expect(said).not.toMatch(/cap/i);
     }
@@ -170,7 +170,7 @@ describe("a post that did not go out", () => {
     );
     expect(post?.entry.status).toBe("draft");
     expect(post?.entry.notSent).toBe(
-      "X paused our posting for a day, so it didn't go out. Ask Cuso to post it again.",
+      "X paused our posting for a day. Ask Cuso to post it again.",
     );
   });
 });
