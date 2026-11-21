@@ -39,6 +39,7 @@ import {
 } from "./subscription-card";
 import { type SetTimeZone, TimeZoneSetting } from "./time-zone";
 import { MonthBar, NetworkBars } from "./today-page";
+import { ViewLink } from "./view-link";
 
 interface PageProps {
   overview: CmoOverview;
@@ -530,22 +531,6 @@ export function ChannelsPage({
         />
       </section>
       <section className="card">
-        <h3>Google search</h3>
-        <p className="muted">
-          No account to connect for SEO: {AGENT_NAME} audits your site every
-          week and writes page changes and articles for you to paste.
-        </p>
-        <div>
-          <button
-            type="button"
-            className="button button-secondary button-small"
-            onClick={openSeo}
-          >
-            Open SEO
-          </button>
-        </div>
-      </section>
-      <section className="card">
         <h3>Your numbers</h3>
         <p className="muted">
           Connect these and {AGENT_NAME} reads real searches, visits and orders
@@ -555,6 +540,13 @@ export function ChannelsPage({
           sources={overview.measurement}
           onConnect={connectMeasurement}
           measureError={measureError}
+          connectedLinks={{
+            google_search_console: (
+              <ViewLink view="seo" open={openSeo} className="ob-link">
+                Open SEO
+              </ViewLink>
+            ),
+          }}
         />
       </section>
       <p className="note">

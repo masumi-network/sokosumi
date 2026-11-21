@@ -3,7 +3,7 @@
 **Steps (any of these, any time)**
 
 - Adds or removes a channel in Channels.
-- Connects Google Analytics, Search Console or, for a shop, Shopify under "Your numbers" in Channels (also on Results); back from Google, the row says Connected.
+- Connects Google Analytics, Search Console or, for a shop, Shopify under "Your numbers" in Channels (also on Results); back from Google, they are on the page they started from and the row says Connected. Search Console is the one place for Google search on Channels; once connected it links to SEO.
 - Opens Settings from their avatar at the top of the sidebar (More on a phone).
 - Reads the CMO Terms, Privacy Policy, DPA and Imprint beside the subscription in Settings.
 - Changes the plan, tops up credits, opens billing.

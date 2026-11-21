@@ -307,6 +307,47 @@ describe("measurement on Channels", () => {
     );
   });
 
+  it("offers Search Console in one place and opens SEO from it once connected", async () => {
+    const render = async (status: "none" | "connected") => {
+      const measurement = cmoOverview().measurement.map((source) =>
+        source.provider === "google_search_console"
+          ? { ...source, status }
+          : source,
+      );
+      await act(async () => {
+        root ??= createRoot(host);
+        root.render(
+          <CmoApp
+            key={status}
+            overview={cmoOverview({ measurement })}
+            messages={[]}
+            name="Ada"
+            email="ada@example.com"
+            initialView="channels"
+            actions={stubActions()}
+          />,
+        );
+      });
+    };
+    const openSeo = () =>
+      [...host.querySelectorAll(".page-body a")].filter(
+        (link) => link.textContent === "Open SEO",
+      );
+
+    await render("none");
+    expect(host.textContent).not.toContain("No account to connect for SEO");
+    expect(host.textContent?.match(/Google Search Console/g)).toHaveLength(1);
+    expect(openSeo()).toHaveLength(0);
+
+    await render("connected");
+    const [link] = openSeo();
+    expect(link?.getAttribute("href")).toBe("/seo");
+    await act(async () => {
+      (link as HTMLAnchorElement).click();
+    });
+    expect(window.location.pathname).toBe("/seo");
+  });
+
   it("keeps the Channels measurement return error visible after hydration strips /channels?measure=failed", async () => {
     const expectedError = "That connection didn't finish. Try again.";
     window.history.replaceState(
