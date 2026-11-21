@@ -90,6 +90,7 @@ const BOOLEAN_OPTION_NAMES = [
   "wait",
   "tick",
   "markdown",
+  "summary-md",
 ] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -149,6 +150,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "repeats",
   "soko-bot-version",
   "cuso-version",
+  "out",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
