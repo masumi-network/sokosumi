@@ -1,4 +1,3 @@
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { db, latest, start } = vi.hoisted(() => ({
@@ -76,9 +75,7 @@ describe("startCmoSeoReport", () => {
   });
 
   it("leaves Cusos before cmo-v12 and old audits alone", async () => {
-    db.sokoBot.findUnique.mockResolvedValue({
-      versionId: CMO_SOKO_BOT_VERSION_ID,
-    });
+    db.sokoBot.findUnique.mockResolvedValue({ versionId: "cmo-v10" });
     await startCmoSeoReport(cuso, now);
     db.sokoBot.findUnique.mockResolvedValue({ versionId: "cmo-v12" });
     latest.mockResolvedValue({

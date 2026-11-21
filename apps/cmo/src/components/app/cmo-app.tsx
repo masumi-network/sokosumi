@@ -53,6 +53,7 @@ import {
   SettingsPage,
 } from "./pages";
 import { cmoPause, PausedBanner } from "./paused";
+import { type PictureActions, PicturesPage } from "./pictures-page";
 import { initial, Sidebar } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
@@ -111,6 +112,7 @@ export interface CmoAppActions
     text: string,
   ) => Promise<DraftResult>;
   competitors: CompetitorActions;
+  pictures: PictureActions;
   connectChannel: ConnectChannel;
   /** Signs in again to put another account in a connection's place. */
   changeChannel?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
@@ -532,7 +534,10 @@ export function CmoApp({
           // A new element per page, so each page opens at its top.
           <div className="scroll" key={view}>
             <div className={`page page-${view}`}>
-              {lead && view !== "seo" && view !== "competitors" ? (
+              {lead &&
+              view !== "seo" &&
+              view !== "competitors" &&
+              view !== "pictures" ? (
                 <PageLead
                   {...lead}
                   line={
@@ -633,6 +638,15 @@ export function CmoApp({
                   onChange={setOverview}
                   openView={go}
                 />
+              ) : view === "pictures" ? (
+                <PicturesPage
+                  projectId={overview.projectId}
+                  actions={actions.pictures}
+                  openPost={(id) => {
+                    setFocusEntry(id);
+                    go("calendar");
+                  }}
+                />
               ) : view === "competitors" ? (
                 <CompetitorsPage
                   overview={overview}
@@ -683,6 +697,7 @@ export function CmoApp({
                   changePlan={changePlan}
                   openPortal={actions.openPortal}
                   subscribe={actions.subscribe}
+                  openPictures={() => go("pictures")}
                 />
               )}
             </div>
@@ -923,7 +938,7 @@ function ProductionCard({
           {ready
             ? "Your month is ready"
             : production.state === "stuck"
-              ? "Most of your month is ready"
+              ? "Making your month stopped"
               : production.state === "blocked"
                 ? `${AGENT_NAME} couldn't start your month`
                 : notStarted
@@ -948,7 +963,7 @@ function ProductionCard({
         {ready
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
-            ? `A few posts didn't finish. ${AGENT_NAME} tries them again on his next round.`
+            ? `${productionSteps(production, month.total)}. ${AGENT_NAME} tries the rest again on his next round.`
             : production.state === "blocked"
               ? "Something on our side keeps him from starting. He tries again every ten minutes."
               : notStarted

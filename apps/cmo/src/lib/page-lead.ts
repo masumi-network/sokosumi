@@ -1,6 +1,7 @@
 import type {
   CmoCompetitors,
   CmoOverview,
+  CmoPictureGroup,
   CmoSeo,
 } from "@sokosumi/core-client";
 import { AGENT_NAME } from "./agent";
@@ -177,6 +178,24 @@ export function pageLead(
     default:
       return null;
   }
+}
+
+/** Pictures' lead: how many went on posts, from how many made. */
+export function picturesLead(groups: readonly CmoPictureGroup[]): PageLeadText {
+  const made = groups.reduce(
+    (sum, group) => sum + group.alternatives.length,
+    0,
+  );
+  const posted = groups.filter((group) =>
+    group.alternatives.some((alternative) => alternative.chosen),
+  ).length;
+  if (groups.length === 0)
+    return { kicker: "Settings · Pictures", title: "No pictures yet." };
+  return {
+    kicker: "Settings · Pictures",
+    title: `${count(posted, "picture", "pictures")} on your posts.`,
+    line: `I made ${count(made, "picture", "pictures")} to choose them: the one on each post, and beside it the ones I left out and why.`,
+  };
 }
 
 /** SEO's lead: clicks from Google and their trend; without Search Console, what the audit says to change. */

@@ -273,6 +273,10 @@ function RoomHeaderMenu({
           if (!opensDecisionsRef.current) return;
           opensDecisionsRef.current = false;
           event.preventDefault();
+          // Open only now the menu is gone: while it closes, a mouse leaving
+          // the picked item puts focus back on the menu, and a log already
+          // open takes that as focus outside and closes at once.
+          setDecisionsOpen(true);
         }}
       >
         {isDirectRoom ? null : (
@@ -284,7 +288,6 @@ function RoomHeaderMenu({
             <DropdownMenuItem
               onSelect={() => {
                 opensDecisionsRef.current = true;
-                setDecisionsOpen(true);
               }}
             >
               <Gavel aria-hidden />

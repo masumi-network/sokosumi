@@ -57,6 +57,7 @@ import {
   funnelChecks,
 } from "./eval-cmo-funnel";
 import {
+  partPatchChecks,
   REPORT_HEADLINE_CASE_ID,
   reportHeadlineChecks,
 } from "./eval-cmo-report-headline";
@@ -382,7 +383,10 @@ async function pollScenario(
     result.passed += extra.filter((check) => check.pass).length;
   }
   if (scenario.id === REPORT_HEADLINE_CASE_ID) {
-    const extra = await reportHeadlineChecks(lane, context.startedAt);
+    const extra = [
+      ...(await reportHeadlineChecks(lane, context.startedAt)),
+      ...partPatchChecks(turn.toolCalls, turn.finalAnswer ?? ""),
+    ];
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

@@ -108,9 +108,10 @@ describe("Cuso's replies stay inside CMO.xyz", () => {
   it("carries no Sokosumi link or name, whatever Cuso did", async () => {
     const reply = await replyOn("cmo-v1", message);
     expect(sokosumiIn(reply)).toEqual([]);
-    expect(reply).toContain("Started image.");
-    expect(reply).toContain("Created task Launch → Elena");
-    expect(reply).toContain(
+    // Receipt lines are bookkeeping; the owner reads his words only.
+    expect(reply).not.toContain("Started image.");
+    expect(reply).not.toContain("Created task Launch → Elena");
+    expect(reply).toBe(
       "The picture is ready and the post is scheduled. The file is hero.png. It goes live on [x.com](https://x.com/acme).",
     );
   });

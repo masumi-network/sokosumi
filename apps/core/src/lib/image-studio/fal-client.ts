@@ -571,6 +571,24 @@ export async function uploadReference(options: {
   contentType: string;
   fileName: string;
 }): Promise<string> {
+  // One more try after a pause: a cmo-v11 month starts fifteen pictures at
+  // once, and 9 of 70 failed here on a local month (2026-11-21) while the
+  // same references went through a moment later.
+  try {
+    return await uploadReferenceOnce(options);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, UPLOAD_RETRY_MS));
+    return uploadReferenceOnce(options);
+  }
+}
+
+const UPLOAD_RETRY_MS = 1_500;
+
+async function uploadReferenceOnce(options: {
+  bytes: Uint8Array;
+  contentType: string;
+  fileName: string;
+}): Promise<string> {
   const initiate = await fetch(STORAGE_INITIATE_URL, {
     method: "POST",
     headers: authHeaders(),

@@ -1097,6 +1097,49 @@ describe("image studio job submission", () => {
     );
   });
 
+  // cmo-v11: the picture borrows only the reference's layout.
+  it("sends a layout-only style reference as a block map, not the print", async () => {
+    const print = await (await import("sharp"))
+      .default({
+        create: { width: 80, height: 100, channels: 3, background: "#c33" },
+      })
+      .jpeg()
+      .toBuffer();
+    readReferenceImageMock.mockResolvedValue({
+      bytes: print,
+      contentType: "image/jpeg",
+      description: "a poster",
+    } as never);
+    uploadReferenceMock.mockResolvedValue("https://v3b.fal.media/files/m.png");
+    const stored = jobRow({
+      model: "google/nano-banana-2.1/edit",
+      kind: "EDIT",
+      prompt: "Image 1 is a block map.",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+      styleLayoutOnly: true,
+    });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "m-1" });
+    await createImageJob({
+      ...BASE_INPUT,
+      prompt: "Image 1 is a block map.",
+      modelId: "nano-banana-2-1",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+      styleLayoutOnly: true,
+    });
+    const sent = uploadReferenceMock.mock.calls[0]![0];
+    expect(sent.contentType).toBe("image/png");
+    expect(sent.fileName).toBe(
+      "layout-0199c1f0-0000-7000-8000-000000000001.png",
+    );
+    const { channels } = await (await import("sharp"))
+      .default(sent.bytes)
+      .stats();
+    // Grey only: the print's red never reaches the model.
+    expect(channels[0]!.mean).toBeCloseTo(channels[1]!.mean, 0);
+  });
+
   it("sends Design and Memory to fal and keeps the stored prompt as the brief", async () => {
     // Own URL: readDesignMdContent caches by URL across the test process.
     const designMdUrl =

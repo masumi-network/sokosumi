@@ -16,6 +16,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { jsonInput } from "@/helpers/prisma-json";
 import {
   failedPageRuns,
+  failedSeoSources,
   failedSeoSpecialists,
   reportObject,
   SEO_REPORT_IMPORT_REJECTED,
@@ -336,6 +337,7 @@ export async function importProjectSeoAudit(
               pageRunFailures: failedPageRuns(skippedPages(raw)),
             }),
             specialistFailures: failedSeoSpecialists(raw),
+            sourceFailures: failedSeoSources(raw),
           }
         : payload;
     const observation = await tx.projectSeoObservation.create({

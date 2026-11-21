@@ -249,6 +249,7 @@ describe.skipIf(!searchConsoleReadsEnabled)(
           ...legacyReport(),
           request: { url, connections: ["search_console"] },
           searchConsole: { totals: { clicks: 3 } },
+          sourceFailures: ["webRiskNotRun", "provider message"],
           ...decisions,
           header: {
             ...legacyReport().header,
@@ -308,6 +309,10 @@ describe.skipIf(!searchConsoleReadsEnabled)(
       expect(JSON.stringify(imported.payload)).not.toMatch(
         /searchConsole|search_console|impressions|fixture-strategy-marker/,
       );
+      // The admin alerts read the worker's source codes from the stored report.
+      expect(imported.payload).toMatchObject({
+        sourceFailures: ["webRiskNotRun"],
+      });
     });
   },
 );

@@ -56,6 +56,7 @@ import {
   loadCusos,
   loadMessages,
   loadOverview,
+  loadPictures,
   loadPieceText,
   loadPlans,
   loadSeo,
@@ -415,6 +416,9 @@ export async function Home({ searchParams, view }: HomeProps) {
         readTikTokCreator: readTikTokCreator.bind(null, projectId),
         declineDraft: declineDraft.bind(null, projectId),
         editDraft: editDraft.bind(null, projectId),
+        pictures: {
+          loadPictures: loadPictures.bind(null, projectId),
+        },
         competitors: {
           loadCompetitors: loadCompetitors.bind(null, projectId),
           addCompetitor: addCompetitor.bind(null, projectId),

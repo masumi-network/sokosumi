@@ -625,7 +625,13 @@ export function PlanReview({
             className="card ob-change"
             onSubmit={(event) => {
               event.preventDefault();
-              requestChange(note);
+              // The field's own value: autofill or a pasted fill can leave
+              // it there without an input event reaching the state.
+              const typed = String(
+                new FormData(event.currentTarget).get("change") ?? "",
+              );
+              setNote(typed);
+              requestChange(typed);
             }}
           >
             <label htmlFor="ob-change-input">
@@ -634,6 +640,7 @@ export function PlanReview({
             <div className="ob-change-row">
               <input
                 id="ob-change-input"
+                name="change"
                 ref={input}
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
@@ -698,7 +705,8 @@ export function PlanReview({
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
             <p className="muted">
-              {replanning}. About two minutes; your new strategy opens here.
+              {/[.?!]$/.test(replanning) ? replanning : `${replanning}.`} About
+              two minutes; your new strategy opens here.
             </p>
           </div>
         </div>

@@ -121,9 +121,30 @@ describe("DecisionsView", () => {
     expect(reply).toHaveTextContent("#marketing · In a thread");
   });
 
+  it("tells how to fix a wrong decision only when one is listed", () => {
+    const note = /If one is wrong/;
+    const { rerender } = render(view({ messages: [], nextCursor: null }));
+    expect(screen.queryByText(note)).toBeNull();
+
+    rerender(view(null));
+    expect(screen.queryByText(note)).toBeNull();
+
+    rerender(
+      view({
+        messages: [decision("m-1", "We launch Monday")],
+        nextCursor: null,
+      }),
+    );
+    expect(screen.getByText(note)).toBeInTheDocument();
+  });
+
   it("explains an empty list and a failed read", () => {
     const { rerender } = render(view({ messages: [], nextCursor: null }));
-    expect(screen.getByTestId("decisions-empty")).toBeInTheDocument();
+    const empty = screen.getByTestId("decisions-empty");
+    expect(empty).toHaveTextContent("No decisions yet");
+    expect(empty).toHaveTextContent(
+      "We find them in channels and in chats with other people who allow it.",
+    );
 
     rerender(view(null));
     expect(screen.getByText("Could not load decisions.")).toBeInTheDocument();

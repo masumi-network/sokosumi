@@ -53,3 +53,13 @@ it("says it couldn't start when the month is blocked, not on schedule", () => {
     }),
   ).toBe("Couldn't start");
 });
+
+it("says he is behind when the month stopped half made, not on schedule", () => {
+  const hired = cmoOverview({ ...approved, channels: [channel] });
+  expect(
+    cusoStatus({
+      ...hired,
+      production: { ...hired.production, state: "stuck" },
+    }),
+  ).toBe("Behind");
+});

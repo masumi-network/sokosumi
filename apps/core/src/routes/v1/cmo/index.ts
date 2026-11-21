@@ -37,6 +37,8 @@ import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/m
 import mountConnectCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/connect/post.js";
 import mountFinalizeCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/finalize/post.js";
 import mountRetryCmoOnboardingForProject from "./projects/[projectId]/onboarding/retry/post.js";
+import mountGetCmoPictureImageForProject from "./projects/[projectId]/pictures/[jobId]/image/get.js";
+import mountGetCmoPicturesForProject from "./projects/[projectId]/pictures/get.js";
 import mountChangeCmoPlanForProject from "./projects/[projectId]/plan/post.js";
 import mountOpenCmoCustomerPortalForProject from "./projects/[projectId]/portal/post.js";
 import mountClearCmoPresenterForProject from "./projects/[projectId]/presenter/delete.js";
@@ -85,6 +87,8 @@ mountPauseCmoCalendarEntryForProject(app);
 mountGetCmoCalendarEntryTextForProject(app);
 mountGetCmoOverviewForProject(app);
 mountGetCmoChatWorkForProject(app);
+mountGetCmoPicturesForProject(app);
+mountGetCmoPictureImageForProject(app);
 mountGetCmoChatWorkTextForProject(app);
 mountGetCmoChatWorkTableForProject(app);
 mountGetCmoCompetitorsForProject(app);

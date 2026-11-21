@@ -40,6 +40,7 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   cmoMediaState,
+  cmoPicksPictures,
   cmoPieceIsTalking,
   cmoPieceNeedsMedia,
   cmoPieceSlides,
@@ -78,7 +79,12 @@ import { referenceLibraryAvailable } from "@/services/reference-library.service"
  * month is read from the posts, and the runs are Cuso's background turns.
  */
 
-/** Runs a day before Core stops retrying; the next day it tries again. */
+/**
+ * Runs a day that made nothing ready before Core stops retrying; the next
+ * day it tries again. A run that made pieces does not count: NMKR's test
+ * copy, 2026-11-21, used four runs in 11 minutes, each making pieces, and
+ * then waited a day with 104 of 171 missing.
+ */
 export const CMO_PRODUCTION_RUNS_PER_DAY = 4;
 const DAY_MS = 24 * 60 * 60 * 1_000;
 /** Pieces one run is given; a longer month continues in the next run. */
@@ -497,6 +503,15 @@ async function cmoCoreWritesMonth(sokoBotId: string): Promise<boolean> {
   return cmoWritesMonthAtOnce(getSokoBotVersion(bot?.versionId).skills);
 }
 
+/** Whether a Cuso's version picks each picture from five alternatives (cmo-v11). */
+async function cmoBotPicksPictures(sokoBotId: string): Promise<boolean> {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { versionId: true },
+  });
+  return cmoPicksPictures(bot?.versionId);
+}
+
 /** The turn a run hangs under: the newest top-level turn of Cuso's bot. */
 async function parentTurnId(sokoBotId: string): Promise<string | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
@@ -653,6 +668,12 @@ function productionRuns(
 function readyAtStart(run: ProductionRun): number | null {
   const ready = Number(run.clientTurnId.split(":").at(-1));
   return Number.isInteger(ready) ? ready : null;
+}
+
+/** Whether more pieces were ready when the run ended than when it started. */
+function madeProgress(run: ProductionRun, readyAfter: number | null): boolean {
+  const before = readyAtStart(run);
+  return before !== null && readyAfter !== null && readyAfter > before;
 }
 
 interface ProductionRead {
@@ -818,7 +839,12 @@ export async function readCmoProduction(
   // Only this approval's runs count: a version approved the same day as an
   // earlier one once found the cap used up and waited until morning.
   const today = runs.filter(
-    (run) => runsNow.getTime() - run.createdAt.getTime() < DAY_MS,
+    (run, index) =>
+      runsNow.getTime() - run.createdAt.getTime() < DAY_MS &&
+      !madeProgress(
+        run,
+        index === 0 ? ready.size : readyAtStart(runs[index - 1]!),
+      ),
   );
   // The last run finished without making a single piece ready (images
   // refused, a tool down): another run today would only fail the same way.
@@ -873,6 +899,7 @@ export async function advanceCmoProduction(
         versionId: version.id,
         connected,
         schedulesEveryPost: await cmoCoreWritesMonth(cuso.sokoBotId),
+        picksPictures: await cmoBotPicksPictures(cuso.sokoBotId),
       },
       pieces,
     ).catch((error: unknown) => {
@@ -916,25 +943,53 @@ export async function advanceCmoProduction(
   if (current.state !== "starting" && current.state !== "blocked")
     return current;
   const attempt = runs.length + 1;
-  await startProductionRun(
-    cuso,
-    cmoProductionMessage({
-      businessName: cuso.businessName,
-      strategy,
-      pending,
-      connected,
-      attempt,
-      topUp: runs.some((run) => run.status === "COMPLETED"),
-      proof: cmoProofPoints(
-        parseBrandBrain((await getBrandBrain(cuso.projectId))?.body),
-      ),
-      failedMedia,
-      styles: referenceLibraryAvailable(),
-      coreWrites: await cmoCoreWritesMonth(cuso.sokoBotId),
-    }),
-    `${approvalRunPrefix(cuso.sokoBotId, approvedAt)}${attempt}:${current.ready}`,
+  const runId = `${approvalRunPrefix(cuso.sokoBotId, approvedAt)}${attempt}:`;
+  // A run's end and the sync both move production on. NMKR's test copy,
+  // 2026-11-21: both read "starting" and each started attempt 3.
+  const message = cmoProductionMessage({
+    businessName: cuso.businessName,
+    strategy,
+    pending,
+    connected,
+    attempt,
+    topUp: runs.some((run) => run.status === "COMPLETED"),
+    proof: cmoProofPoints(
+      parseBrandBrain((await getBrandBrain(cuso.projectId))?.body),
+    ),
+    failedMedia,
+    styles: referenceLibraryAvailable(),
+    coreWrites: await cmoCoreWritesMonth(cuso.sokoBotId),
+  });
+  const started = await onlyOnce(cuso.sokoBotId, runId, () =>
+    startProductionRun(cuso, message, `${runId}${current.ready}`),
   );
-  return { ...current, state: "running" };
+  return started ? { ...current, state: "running" } : current;
+}
+
+/**
+ * Starts the run unless this attempt already has one, holding a lock per
+ * Cuso so two callers cannot both start it.
+ */
+async function onlyOnce(
+  sokoBotId: string,
+  attemptPrefix: string,
+  start: () => Promise<string>,
+): Promise<boolean> {
+  return prisma.$transaction(
+    async (tx) => {
+      const [lock] = await tx.$queryRaw<{ locked: boolean }[]>`
+        SELECT pg_try_advisory_xact_lock(hashtextextended(${`cmo-production:${sokoBotId}`}::TEXT, 0)) AS locked
+      `;
+      if (!lock?.locked) return false;
+      const existing = await tx.sokoBotTurn.count({
+        where: { sokoBotId, clientTurnId: { startsWith: attemptPrefix } },
+      });
+      if (existing > 0) return false;
+      await start();
+      return true;
+    },
+    { timeout: 60_000 },
+  );
 }
 
 /** Starts production in the background; the caller's request does not wait. */

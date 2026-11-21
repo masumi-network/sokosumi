@@ -135,6 +135,40 @@ function imageModelOverrides(): ImageModelOverride[] {
       sourceUrls: ["https://fal.ai/models/openai/gpt-image-2.6/flare/edit/api"],
       verifiedAt: "2026-11-17",
     },
+    // Two of the five alternatives of a cmo-v11 picture (2026-11-21 model
+    // test: 10 of 16 passed the style check, the richest scenes of the new
+    // models). fal bills it in units; a 896x1120 picture billed 0.0432 units
+    // at $1 a unit (x-fal-billable-units), priced here at 5 credits. Both
+    // sides must be at least 768 px, so it takes 1K only at portrait, square
+    // and 4:3 frames.
+    {
+      endpoint: "microsoft/mai-image-2.7/text-to-image",
+      id: "mai-image-2-7",
+      label: "MAI-Image 2.7",
+      description:
+        "Microsoft's image model, rich illustrated scenes and clean lettering (MAI-Image 2.7).",
+      editEndpoint: "microsoft/mai-image-2.7/edit",
+      aspectRatios: ["1:1", "4:5", "3:4", "4:3", "5:4"],
+      resolutions: ["1K"],
+      outputFormats: IMAGE_OUTPUT_FORMATS,
+      supportsSeed: false,
+      maxReferences: 5,
+      dimensionMode: "image-size",
+      providerFields: ["image_size", "output_format", "image_urls"],
+      curatedRank: null,
+      notes: "Billed by fal in units by size; priced from a measured bill.",
+      price: {
+        unit: "images",
+        unitPriceUsd: 0.05,
+        perImageUsd: { "1K": 0.05 },
+        basis:
+          "Measured 0.0432 units at $1 a unit for a 896x1120 picture (x-fal-billable-units, 2026-11-21), rounded up to $0.05.",
+        sourceUrl: "https://fal.ai/models/microsoft/mai-image-2.7/edit",
+        verifiedAt: "2026-11-21",
+      },
+      sourceUrls: ["https://fal.ai/models/microsoft/mai-image-2.7/edit/api"],
+      verifiedAt: "2026-11-21",
+    },
     {
       endpoint: "google/nano-banana-2.1",
       id: "nano-banana-2-1",

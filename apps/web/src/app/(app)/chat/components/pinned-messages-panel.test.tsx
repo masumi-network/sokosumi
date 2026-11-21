@@ -80,6 +80,7 @@ const labels = {
   title: "Pinned Messages",
   close: "Close pinned messages",
   empty: "No pinned messages yet",
+  emptyHint: "Open a message's actions and choose Pin message.",
   loading: "Loading pinned messages…",
   error: "Could not load pinned messages",
   couldNotLoad: "Message could not be loaded",
@@ -300,6 +301,7 @@ describe("PinnedMessagesPanel", () => {
 
     expect(screen.queryByRole("button", { name: /Ada/ })).toBeNull();
     expect(screen.getByText(labels.empty)).toBeInTheDocument();
+    expect(screen.getByText(labels.emptyHint)).toBeInTheDocument();
     expect(onUnpin).toHaveBeenCalledExactlyOnceWith(MESSAGE_ID);
 
     await act(async () => {

@@ -27,6 +27,7 @@ import type { FileStore } from "@/lib/utils/file-search.client";
 import { rowLabel } from "./data-room-activity";
 
 const NO_FOLDER = "none";
+const EMAIL_FIELDS = new Set<string>(["contactEmail", "eu.email", "uk.email"]);
 
 type TextField = Exclude<
   keyof DataRoomCompany,
@@ -159,6 +160,8 @@ export function DataRoomCompanyPanel({
 
   return (
     <form
+      // Without a legal name the save removes the page, so an old malformed email must not block it.
+      noValidate={!draft.legalName.trim()}
       className={cn(HOLDER_ITEM_CLASS, "grid gap-6 p-4")}
       onSubmit={async (event) => {
         event.preventDefault();
@@ -198,6 +201,10 @@ export function DataRoomCompanyPanel({
                 <Control
                   id={id}
                   rows={multiline ? 3 : undefined}
+                  type={EMAIL_FIELDS.has(field) ? "email" : undefined}
+                  // An invalid email scrolls into view on save: keep it and its label (2rem)
+                  // in view, below the fixed phone header (5rem + top inset, as in app-shell-safe-area).
+                  className="scroll-mt-8 max-md:scroll-mt-[calc(7rem+env(safe-area-inset-top))]"
                   value={draft[field]}
                   onChange={(event) =>
                     setDraft((previous) => ({

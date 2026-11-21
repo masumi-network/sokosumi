@@ -55,6 +55,9 @@ const actions: CmoAppActions = {
   }),
   declineDraft: async () => ({ overview, error: null }),
   editDraft: async () => ({ overview, error: null }),
+  pictures: {
+    loadPictures: async () => ({ groups: [], networks: [], months: [] }),
+  },
   competitors: {
     loadCompetitors: async () => competitors,
     addCompetitor: async () => ({ competitors, error: null }),
@@ -118,10 +121,11 @@ interface FixtureAppProps {
   /**
    * Competitors: the page with nobody watched yet, or still loading.
    * blocked: the month could not start, and a message does not send.
+   * stuck: the day's runs ended with the month half made.
    * busy: a full month, five or six posts a day.
    * quiet: no posts yet, nothing that needs the owner, a long business name.
    */
-  state?: "empty" | "loading" | "blocked" | "busy" | "quiet";
+  state?: "empty" | "loading" | "blocked" | "stuck" | "busy" | "quiet";
 }
 
 export function FixtureApp({ view, state }: FixtureAppProps) {
@@ -149,7 +153,28 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
             },
           },
         }
-      : shown;
+      : state === "stuck"
+        ? {
+            ...shown,
+            overview: {
+              ...shown.overview,
+              // Nothing else needs the owner, so the stopped month leads.
+              drafts: [],
+              channels: [
+                ...shown.overview.channels,
+                ...shown.overview.channels.slice(0, 1).map((channel) => ({
+                  ...channel,
+                  id: "facebook",
+                  provider: "facebook" as const,
+                })),
+              ],
+              production: {
+                ...shown.overview.production,
+                state: "stuck" as const,
+              },
+            },
+          }
+        : shown;
   const loadCompetitors =
     state === "loading"
       ? () => new Promise<null>(() => {})

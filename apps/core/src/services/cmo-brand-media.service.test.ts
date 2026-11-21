@@ -523,7 +523,7 @@ describe("captureCmoBrandMedia", () => {
     expect(files.put).not.toHaveBeenCalled();
   });
 
-  it("does not count the homepage shots hiring took as a recent capture", async () => {
+  it("does not count the homepage shots or the logo hiring took as a recent capture", async () => {
     await captureCmoBrandMedia("bot-1");
     expect(db.fileProjectLink.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -532,6 +532,9 @@ describe("captureCmoBrandMedia", () => {
             NOT: [
               { sourceId: { endsWith: "/Brand research/home.jpg" } },
               { sourceId: { endsWith: "/Brand research/home-mobile.jpg" } },
+              // The logo is read at hire too: a test copy's research saved
+              // its essentials 26 seconds later and read only the homepage.
+              { sourceId: { contains: "/Brand research/Logo/" } },
             ],
           }),
         }),

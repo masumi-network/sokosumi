@@ -57,6 +57,23 @@ export function sokoBotMaxSteps(durationMs: number): number {
 /** A single Sokosumi tool call may not run longer than this. */
 const TOOL_CALL_TIMEOUT_MS = 90_000;
 
+/**
+ * Tools that do more in one call get longer, still inside the sandbox
+ * runner's two minutes for a call to Core. The month writer took 96 to 119
+ * seconds on NMKR's test copy (2026-11-21): at 90 Cuso read "timed out",
+ * called it again while the first still wrote, and ended the run.
+ */
+const LONG_TOOL_CALL_TIMEOUT_MS: Partial<Record<SokoBotCapability, number>> = {
+  write_month_pieces: 115_000,
+};
+
+/** How long one call of this tool may run before the model hears it timed out. */
+export function sokoBotToolCallTimeoutMs(
+  capability: SokoBotCapability,
+): number {
+  return LONG_TOOL_CALL_TIMEOUT_MS[capability] ?? TOOL_CALL_TIMEOUT_MS;
+}
+
 /** Runtime event type Core writes when a turn reads the open web or a shell. */
 export const WEB_TAINT_EVENT = "sandbox.untrusted_input";
 
@@ -472,7 +489,7 @@ export async function runTurnTool(input: {
       toolCallId: callId,
       input: input.toolInput,
     }),
-    TOOL_CALL_TIMEOUT_MS,
+    sokoBotToolCallTimeoutMs(capability),
     capability,
   );
   await log.append(runtimeEvent("action.result", { name: capability, callId }));

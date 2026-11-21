@@ -1,5 +1,6 @@
 import {
   type BrandBrain,
+  CMO_PICKED_PIECE_WRITING_GUIDE,
   CMO_PIECE_WRITING_GUIDE,
   CMO_PRODUCTION_TURN_PREFIX,
   CMO_SCENE_PIECE_WRITING_GUIDE,
@@ -7,6 +8,8 @@ import {
   type CmoCalendarEntry,
   getSokoBotVersion,
   type MarketingStrategyPlan,
+  PICTURE_KINDS,
+  type PictureKind,
   REFERENCE_PURPOSES,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
@@ -20,7 +23,11 @@ import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-calls";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
-import { RuntimeEventLog, runtimeEvent } from "@/lib/soko-bot/turn-loop";
+import {
+  RuntimeEventLog,
+  runtimeEvent,
+  sokoBotToolCallTimeoutMs,
+} from "@/lib/soko-bot/turn-loop";
 import {
   compactBrandBrain,
   getBrandBrain,
@@ -35,10 +42,13 @@ import {
   type CmoKindedPiece,
   cmoAllowedKinds,
   cmoMakesVariedMonth,
+  cmoNeighbourlyKind,
+  cmoPicksPictures,
   cmoPieceIsTalking,
   cmoPieceNeedsMedia,
   cmoPieceTakesStyle,
   cmoWritesSceneVisuals,
+  LAYOUT_KINDS,
 } from "@/services/cmo-media-maker.service";
 import { cmoDraftProblems } from "@/services/cmo-plan-review.service";
 import {
@@ -69,16 +79,33 @@ import { type RuntimeOperations } from "./operations";
  * Core's month writer (cmo-v6): one structured call per chunk of pieces,
  * the chunks at once, every result saved through the same tools Cuso's own
  * saves go through, so each piece passes the same checks and leaves the same
- * receipts. A call must answer within the runner's two minutes, so it takes
- * at most PIECES_PER_CALL pieces and stops saving at SAVE_DEADLINE_MS; what
- * it did not save stays pending for the next call.
+ * receipts. A call must answer within its tool timeout, so it takes at most
+ * PIECES_PER_CALL pieces and works to one deadline, cmoMonthWriterBudgetMs():
+ * a model call, the saves, the month's checks and the repair each stop in
+ * time to answer; what it did not save stays pending for the next call.
  */
 const PIECES_PER_CALL = 40;
 const PIECES_PER_CHUNK = 10;
 const MODEL_TIMEOUT_MS = 75_000;
-const SAVE_DEADLINE_MS = 100_000;
+/** What the writer leaves of its tool timeout to answer and log. */
+const ANSWER_MARGIN_MS = 15_000;
+export function cmoMonthWriterBudgetMs(): number {
+  return sokoBotToolCallTimeoutMs("write_month_pieces") - ANSWER_MARGIN_MS;
+}
+/** A model call ends this long before the deadline, so its pieces still save. */
+const SAVE_RESERVE_MS = 15_000;
+/** The month's checks read every draft; they start only with this much left. */
+const CHECKS_RESERVE_MS = 15_000;
 /** A repair round starts only while a chunk call and its saves still fit. */
 const REPAIR_START_MS = 60_000;
+
+/** How long a model call may take: its own cap, or what the deadline leaves. */
+export function cmoWriterModelTimeoutMs(deadline: number, now: number): number {
+  return Math.max(
+    0,
+    Math.min(MODEL_TIMEOUT_MS, deadline - SAVE_RESERVE_MS - now),
+  );
+}
 
 const writtenPieceSchema = z.object({
   id: z.string(),
@@ -93,6 +120,8 @@ const writtenPieceSchema = z.object({
   visualFileIds: z.array(z.string()).nullable(),
   slides: z.array(z.string()).nullable(),
   styleLook: z.string().nullable(),
+  /** The kind of picture a cmo-v11 picture is drawn as. */
+  pictureKind: z.enum(PICTURE_KINDS).nullable(),
   /** What the picture is for: only data and comparison take an infographic (cmo-v8). */
   purpose: z.enum(REFERENCE_PURPOSES).nullable(),
   headline: z.string().nullable(),
@@ -150,19 +179,25 @@ export function cmoWriterSystem(input: {
   varied?: boolean;
   /** cmo-v9: a styled picture's visual is a scene alone. */
   scenes?: boolean;
+  /** cmo-v11: pictures borrow a print's layout, in a varied picture kind. */
+  picked?: boolean;
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
   return [
     `You are Cuso, the CMO of ${input.businessName}. You write pieces of its approved month. Core checks and saves each piece you return, makes its picture or video and schedules it.`,
-    input.scenes
-      ? CMO_SCENE_PIECE_WRITING_GUIDE
-      : input.varied
-        ? CMO_VARIED_PIECE_WRITING_GUIDE
-        : CMO_PIECE_WRITING_GUIDE,
-    input.styles
-      ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
-      : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
+    input.picked
+      ? CMO_PICKED_PIECE_WRITING_GUIDE
+      : input.scenes
+        ? CMO_SCENE_PIECE_WRITING_GUIDE
+        : input.varied
+          ? CMO_VARIED_PIECE_WRITING_GUIDE
+          : CMO_PIECE_WRITING_GUIDE,
+    input.styles && input.picked
+      ? "Pictures here borrow an old print's layout and are drawn in the brand's own look: give every piece with a picture a styleLook (the composition), a pictureKind, and a headline or slideHeadlines. Leave pictureKind null for any other piece."
+      : input.styles
+        ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
+        : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
     writingSkillsBrief(live.map((entry) => entry.channel)),
     "Brand Brain:",
     JSON.stringify(compactBrandBrain(input.brain)),
@@ -268,14 +303,17 @@ async function writeChunk(
   modelId: string,
   system: string,
   prompt: string,
+  deadline: number,
 ): Promise<WrittenPiece[]> {
+  const timeoutMs = cmoWriterModelTimeoutMs(deadline, Date.now());
+  if (timeoutMs <= 0) return [];
   const result = await generateText({
     ...request,
     system,
     prompt,
     output: Output.object({ schema: writtenChunkSchema }),
     maxOutputTokens: 16_000,
-    abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
+    abortSignal: AbortSignal.timeout(timeoutMs),
     telemetry: modelCallTelemetryFor("cmo-month-writer"),
   }).catch(rethrowAiGatewayFailure);
   // Charged to the turn like its own steps, with its tokens.
@@ -318,6 +356,7 @@ export async function writeCmoMonthPieces(
   next: string;
 }> {
   const startedAt = Date.now();
+  const deadline = startedAt + cmoMonthWriterBudgetMs();
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: authorized.turn.id },
     select: { clientTurnId: true },
@@ -347,6 +386,7 @@ export async function writeCmoMonthPieces(
 
   const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
   const varied = cmoMakesVariedMonth(authorized.turn.versionId);
+  const picksPictures = cmoPicksPictures(authorized.turn.versionId);
   const praise = varied
     ? await cmoPraiseOnly(cmoProofPoints(brain))
     : { points: cmoProofPoints(brain), costUsd: 0 };
@@ -362,6 +402,7 @@ export async function writeCmoMonthPieces(
     styles,
     varied,
     scenes: cmoWritesSceneVisuals(authorized.turn.versionId),
+    picked: picksPictures,
   });
   const modelId = getSokoBotVersion(authorized.turn.versionId).model;
   const request = sokoBotModelRequest({
@@ -404,6 +445,8 @@ export async function writeCmoMonthPieces(
         ]
       : [];
   });
+  // The picture kinds this call gave, beside those the calendar already holds.
+  const pictureKinds = new Map<string, PictureKind>();
   const planned = strategy.calendar.filter(
     (entry) => entry.status !== "skipped" && cmoPieceTakesStyle(entry),
   ).length;
@@ -457,7 +500,7 @@ export async function writeCmoMonthPieces(
                 month: kinded,
                 infographicSuits: infographicSuits(purpose),
                 planned,
-              }),
+              }).filter((kind) => !picksPictures || LAYOUT_KINDS.has(kind)),
             }
           : {}),
       });
@@ -476,10 +519,21 @@ export async function writeCmoMonthPieces(
         });
       }
     }
+    const pictureKind =
+      picksPictures && styleReferenceId
+        ? cmoNeighbourlyKind(
+            written.pictureKind,
+            piece,
+            strategy.calendar,
+            pictureKinds,
+          )
+        : undefined;
+    if (pictureKind) pictureKinds.set(piece.id, pictureKind);
     return {
       ...pieceEntry(piece),
       visual: written.visual,
       visualFileIds: (written.visualFileIds ?? []).slice(0, 3),
+      ...(pictureKind ? { pictureKind } : {}),
       ...(written.slides?.length
         ? { slides: written.slides.slice(0, 10) }
         : {}),
@@ -509,7 +563,7 @@ export async function writeCmoMonthPieces(
       const entry = await entryOf(byId.get(written.id)!, written);
       if (entry) entries.push(entry);
     }
-    if (entries.length > 0) {
+    if (entries.length > 0 && Date.now() < deadline) {
       // One save for the chunk; a refusal there is retried piece by piece,
       // so one piece's problem never holds back the rest.
       try {
@@ -531,7 +585,7 @@ export async function writeCmoMonthPieces(
       }
     }
     for (const written of mine) {
-      if (Date.now() - startedAt > SAVE_DEADLINE_MS) break;
+      if (Date.now() > deadline) break;
       const piece = byId.get(written.id)!;
       if (!written.draft?.trim() || piece.draft?.trim()) continue;
       try {
@@ -584,6 +638,7 @@ export async function writeCmoMonthPieces(
           cmoChunkProof(proof, index, chunks.length),
           said,
         ),
+        deadline,
       )
         .catch(() => [] as WrittenPiece[])
         .then(saveInTurn),
@@ -593,8 +648,12 @@ export async function writeCmoMonthPieces(
   // The month's own checks over every draft, as save_strategy answers them
   // to Cuso: a repeated opening or phrase, a banned line, the same message
   // in other words. What they find in this batch is rewritten below too.
+  // Left for the next call when the deadline is near: it checks the month again.
   const month = await read();
-  const drafts = await cmoDraftProblems(month.strategy?.calendar ?? []);
+  const drafts =
+    deadline - Date.now() > CHECKS_RESERVE_MS
+      ? await cmoDraftProblems(month.strategy?.calendar ?? [])
+      : { problems: [], costUsd: 0 };
   await chargeCheck(input, EMBEDDING_MODEL, drafts.costUsd);
   const ids = new Set(batch.map((piece) => piece.id));
   for (const problem of drafts.problems) {
@@ -616,6 +675,7 @@ export async function writeCmoMonthPieces(
           modelId,
           system,
           chunkPrompt(chunk, failedMedia, refused, [], []),
+          deadline,
         ).catch(() => [] as WrittenPiece[]),
       ),
     );

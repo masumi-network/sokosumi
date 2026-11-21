@@ -80,6 +80,15 @@ function typeInto(input: HTMLInputElement | null, value: string) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+/** Text a browser fill or autofill left in the field without React seeing an input event. */
+function fillSilently(input: HTMLInputElement | null, value: string) {
+  if (!input) throw new Error("No input");
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value",
+  )?.set?.call(input, value);
+}
+
 const noop = async () => {};
 
 it("opens the Cuso picker from the hire form account menu", async () => {
@@ -477,6 +486,66 @@ it("opens a tile into the side panel with a way to say what is off", async () =>
     container.querySelector<HTMLButtonElement>('[aria-label="Close"]')?.click(),
   );
   expect(container.querySelector("aside")).toBeNull();
+});
+
+it("sends a Brand Brain correction that is in the field but not in React's state", async () => {
+  const sent = vi.fn(async () => {});
+  await act(async () =>
+    root.render(
+      <BrandStep
+        overview={draft({ brandBrainConfirmedAt: null, strategy: null })}
+        messages={[]}
+        onCorrect={sent}
+        onSave={noop}
+        onAnswer={noop}
+        onApprove={async () => null}
+      />,
+    ),
+  );
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-tile")]
+      .find((tile) => tile.textContent?.startsWith("What you sell"))
+      ?.click(),
+  );
+  fillSilently(
+    container.querySelector<HTMLInputElement>("aside #ob-tell"),
+    "Rocket Pro costs $149",
+  );
+  await act(async () => button("Send").click());
+
+  expect(sent).toHaveBeenCalledWith("Rocket Pro costs $149");
+});
+
+it("keeps a Brand Brain correction in the field when it does not send", async () => {
+  await act(async () =>
+    root.render(
+      <BrandStep
+        overview={draft({ brandBrainConfirmedAt: null, strategy: null })}
+        messages={[]}
+        onCorrect={async () => {
+          throw new Error("offline");
+        }}
+        onSave={noop}
+        onAnswer={noop}
+        onApprove={async () => null}
+      />,
+    ),
+  );
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-tile")]
+      .find((tile) => tile.textContent?.startsWith("What you sell"))
+      ?.click(),
+  );
+  typeInto(
+    container.querySelector<HTMLInputElement>("aside #ob-tell"),
+    "Rocket Pro costs $149",
+  );
+  await act(async () => button("Send").click());
+
+  expect(text()).toContain("That didn't send. Try again.");
+  expect(
+    container.querySelector<HTMLInputElement>("aside #ob-tell")?.value,
+  ).toBe("Rocket Pro costs $149");
 });
 
 it("clears the updating banner after the stale timeout when a correction goes unanswered", async () => {
@@ -888,6 +957,39 @@ it("shows the re-planning screen for a written change before Core answers", asyn
 
   await act(async () => core.answer(null));
   expect(replanning()).toBe(false);
+});
+
+it.each([
+  ["Add more videos.", "Add more videos. About two minutes"],
+  ["Can we post less?", "Can we post less? About two minutes"],
+  ["Post more often!", "Post more often! About two minutes"],
+  ["More videos", "More videos. About two minutes"],
+])("echoes the change %j with one full stop at most", async (asked, shown) => {
+  const core = pending();
+  await renderPlan(core.call, async () => null);
+  await press("Ask for a change");
+  typeInto(
+    container.querySelector<HTMLInputElement>("#ob-change-input"),
+    asked,
+  );
+  await press("Change it");
+
+  expect(text()).toContain(shown);
+  await act(async () => core.answer(null));
+});
+
+it("sends a written change that is in the field but not in React's state", async () => {
+  const core = pending();
+  await renderPlan(core.call, async () => null);
+  await press("Ask for a change");
+  fillSilently(
+    container.querySelector<HTMLInputElement>("#ob-change-input"),
+    "More videos",
+  );
+  await press("Change it");
+
+  expect(core.call).toHaveBeenCalledWith("More videos");
+  await act(async () => core.answer(null));
 });
 
 it("opens the tab the founder picks, and keeps Results one tap away", async () => {
@@ -1371,4 +1473,25 @@ it("celebrates on Launch without a failure in between, then opens the app on Go 
   await press("Launch Cuso");
   await press("Go to Today");
   expect(goToday).toHaveBeenCalledTimes(1);
+});
+
+it("shows a connected handle that already starts with @ once", async () => {
+  await act(async () =>
+    root.render(
+      <LaunchStep
+        overview={draft({
+          ...cmoStrategyVersion(new Date()),
+          channels: [{ ...active, handle: "@test_channel" }],
+        })}
+        onConnect={async () => ({ url: null, error: null })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
+        onGoToday={() => {}}
+      />,
+    ),
+  );
+  expect(container.querySelector(".ob-connected")?.textContent).toBe(
+    "@test_channel",
+  );
 });

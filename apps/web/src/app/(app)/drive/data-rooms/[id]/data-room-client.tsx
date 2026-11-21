@@ -107,7 +107,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold">{name}</h1>
-          <p className="text-muted-foreground truncate text-sm">
+          <p className="text-muted-foreground text-sm text-pretty">
             {t(`storage.${room.storage}`)}
           </p>
         </div>
@@ -115,6 +115,8 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           type="button"
           variant="outline"
           size="sm"
+          // An icon on a phone, so the name and privacy line keep the row.
+          className="max-md:size-10"
           disabled={!link}
           onClick={() => void copy(link)}
         >
@@ -123,7 +125,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           ) : (
             <Copy aria-hidden className="size-4" />
           )}
-          {t("copyLink")}
+          <span className="max-md:sr-only">{t("copyLink")}</span>
         </Button>
       </header>
 

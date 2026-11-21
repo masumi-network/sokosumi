@@ -1,0 +1,65 @@
+name: Daily review database
+
+# Refreshes `review/daily`, a copy of mainnet production for the daily
+# production review on the CodePat host, and hands that host a read-only login.
+# The login is encrypted to the host's age key (vars.DAILY_REVIEW_AGE_RECIPIENT)
+# before it leaves the job, so the artifact is useless to anyone else.
+on:
+  schedule:
+    # After the UTC day ends; the review covers the day before.
+    - cron: "15 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-review-db
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh the review copy
+    # NEON_API_KEY and the project ids live in this environment, which only
+    # the default branch may use.
+    environment: preview-database
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          # Privileged (NEON_API_KEY). Default branch only, never a PR tree.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install age and psql
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age postgresql-client
+
+      - name: Restore the copy and rotate the reader's password
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
+          OUT_FILE: ${{ runner.temp }}/review-db-url
+        run: node scripts/ci/daily-review-db.mjs
+
+      - name: Encrypt the login for the review host
+        env:
+          RECIPIENT: ${{ vars.DAILY_REVIEW_AGE_RECIPIENT }}
+        run: |
+          test -n "$RECIPIENT" || { echo "Set vars.DAILY_REVIEW_AGE_RECIPIENT"; exit 1; }
+          age -r "$RECIPIENT" -o "$RUNNER_TEMP/review-db-url.age" "$RUNNER_TEMP/review-db-url"
+          rm -f "$RUNNER_TEMP/review-db-url"
+
+      - name: Upload the encrypted login
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: daily-review-db
+          path: ${{ runner.temp }}/review-db-url.age
+          retention-days: 2
+          if-no-files-found: error

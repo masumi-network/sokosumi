@@ -414,6 +414,9 @@ export const AdminSeoAlertsSchema = {
                                 'editorialGemini',
                                 'editorialCodex',
                                 'editorialValidation',
+                                'webRiskNotRun',
+                                'webRiskFailed',
+                                'lighthouseFailed',
                                 'reportMissing',
                                 'gscDisconnected',
                                 'gscProperty',
@@ -24423,6 +24426,49 @@ export const NotificationPreferenceSchema = {
     ]
 } as const;
 
+export const UserSessionsSchema = {
+    type: 'object',
+    properties: {
+        sessions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/UserSession'
+            }
+        }
+    },
+    required: [
+        'sessions'
+    ]
+} as const;
+
+export const UserSessionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        userAgent: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        current: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'userAgent',
+        'createdAt',
+        'current'
+    ]
+} as const;
+
 export const UserWorkspacesSchema = {
     type: 'object',
     properties: {
@@ -34037,6 +34083,15 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         format: 'uuid'
                                     },
+                                    pictureKind: {
+                                        type: 'string',
+                                        enum: [
+                                            'flat illustration',
+                                            'bold graphic',
+                                            'photographic scene',
+                                            'isometric illustration'
+                                        ]
+                                    },
                                     headline: {
                                         type: 'string',
                                         minLength: 1,
@@ -34414,6 +34469,15 @@ export const MarketingStrategySchema = {
                                             styleReferenceId: {
                                                 type: 'string',
                                                 format: 'uuid'
+                                            },
+                                            pictureKind: {
+                                                type: 'string',
+                                                enum: [
+                                                    'flat illustration',
+                                                    'bold graphic',
+                                                    'photographic scene',
+                                                    'isometric illustration'
+                                                ]
                                             },
                                             headline: {
                                                 type: 'string',
@@ -35951,6 +36015,15 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 format: 'uuid'
                             },
+                            pictureKind: {
+                                type: 'string',
+                                enum: [
+                                    'flat illustration',
+                                    'bold graphic',
+                                    'photographic scene',
+                                    'isometric illustration'
+                                ]
+                            },
                             headline: {
                                 type: 'string',
                                 minLength: 1,
@@ -36328,6 +36401,15 @@ export const MarketingStrategyRequestSchema = {
                                     styleReferenceId: {
                                         type: 'string',
                                         format: 'uuid'
+                                    },
+                                    pictureKind: {
+                                        type: 'string',
+                                        enum: [
+                                            'flat illustration',
+                                            'bold graphic',
+                                            'photographic scene',
+                                            'isometric illustration'
+                                        ]
                                     },
                                     headline: {
                                         type: 'string',
@@ -42722,6 +42804,15 @@ export const SocialPostSchema = {
                 styleReferenceId: {
                     type: 'string',
                     format: 'uuid'
+                },
+                pictureKind: {
+                    type: 'string',
+                    enum: [
+                        'flat illustration',
+                        'bold graphic',
+                        'photographic scene',
+                        'isometric illustration'
+                    ]
                 },
                 headline: {
                     type: 'string',
@@ -60786,6 +60877,15 @@ export const CmoPlanSchema = {
                         type: 'string',
                         format: 'uuid'
                     },
+                    pictureKind: {
+                        type: 'string',
+                        enum: [
+                            'flat illustration',
+                            'bold graphic',
+                            'photographic scene',
+                            'isometric illustration'
+                        ]
+                    },
                     headline: {
                         type: 'string',
                         minLength: 1,
@@ -61163,6 +61263,15 @@ export const CmoPlanSchema = {
                             styleReferenceId: {
                                 type: 'string',
                                 format: 'uuid'
+                            },
+                            pictureKind: {
+                                type: 'string',
+                                enum: [
+                                    'flat illustration',
+                                    'bold graphic',
+                                    'photographic scene',
+                                    'isometric illustration'
+                                ]
                             },
                             headline: {
                                 type: 'string',
@@ -62554,6 +62663,186 @@ export const CmoSeoEvidenceSchema = {
         'value',
         'source',
         'observedAt'
+    ]
+} as const;
+
+export const CmoPicturesSchema = {
+    type: 'object',
+    properties: {
+        groups: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoPictureGroup'
+            }
+        },
+        networks: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Every network with a picture, whatever the filters.'
+        },
+        months: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Every month (YYYY-MM) with a picture, whatever the filters.'
+        }
+    },
+    required: [
+        'groups',
+        'networks',
+        'months'
+    ]
+} as const;
+
+export const CmoPictureGroupSchema = {
+    type: 'object',
+    properties: {
+        postId: {
+            type: 'string'
+        },
+        network: {
+            type: 'string'
+        },
+        scheduledAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        headline: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        title: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        pictureKind: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        slot: {
+            type: 'integer',
+            description: 'The slide, 0 for a single picture.'
+        },
+        postedUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The picture on the post, with its logo.'
+        },
+        reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Why the chosen one won the pick (cmo-v11).'
+        },
+        alternatives: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoPictureAlternative'
+            }
+        }
+    },
+    required: [
+        'postId',
+        'network',
+        'scheduledAt',
+        'headline',
+        'title',
+        'pictureKind',
+        'slot',
+        'postedUrl',
+        'reason',
+        'alternatives'
+    ]
+} as const;
+
+export const CmoPictureAlternativeSchema = {
+    type: 'object',
+    properties: {
+        jobId: {
+            type: 'string'
+        },
+        model: {
+            type: 'string',
+            description: 'The image model that made it.'
+        },
+        verdict: {
+            type: 'string',
+            enum: [
+                'passed',
+                'rejected',
+                'failed',
+                'waiting'
+            ],
+            description: 'The check\'s verdict: passed, rejected (why says what failed), failed (the model made nothing) or waiting.'
+        },
+        why: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        chosen: {
+            type: 'boolean',
+            description: 'The picture that went on the post.'
+        },
+        hasImage: {
+            type: 'boolean',
+            description: 'A preview is at …/pictures/{jobId}/image.'
+        },
+        createdAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'jobId',
+        'model',
+        'verdict',
+        'why',
+        'chosen',
+        'hasImage',
+        'createdAt'
     ]
 } as const;
 
