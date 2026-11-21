@@ -20,6 +20,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
+import { turnRunModel } from "@/lib/soko-bot/turn-model";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
   ACTION_LABELS,
@@ -343,7 +344,7 @@ export async function prepareTurn(
     turnId,
     sessionId,
     system,
-    model: version.model,
+    model: turnRunModel(version, authorized.turn.modelId),
     inferenceRegion: version.inferenceRegion,
     capabilities,
     toolDescriptions: version.texts

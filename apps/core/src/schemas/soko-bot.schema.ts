@@ -320,6 +320,7 @@ export const sokoBotSchema = z
     avatarCode: z.string().nullable().optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),
+    joinsTeamStandup: z.boolean().optional(),
     mailAutoRead: z.boolean().optional(),
     ingestTimezone: z.string().optional(),
     proactivePaused: z.boolean().optional(),
@@ -487,8 +488,33 @@ export const sokoBotContextSnapshotSchema = z
   })
   .openapi("SokoBotContextSnapshot");
 
+/** One AI Gateway call of a turn, as `soko_bot_model_call` records it. */
+export const sokoBotModelCallSchema = z
+  .object({
+    id: z.string().uuid(),
+    createdAt: dateTimeSchema,
+    role: z.string(),
+    label: z.string().nullable(),
+    requestedModel: z.string(),
+    answeredModel: z.string().nullable(),
+    provider: z.string().nullable(),
+    region: z.string().nullable(),
+    zeroDataRetention: z.boolean().nullable(),
+    inputTokens: z.number().int().nonnegative(),
+    cacheReadTokens: z.number().int().nonnegative(),
+    cacheWriteTokens: z.number().int().nonnegative(),
+    outputTokens: z.number().int().nonnegative(),
+    costUsd: z.number().nonnegative(),
+    failed: z.boolean(),
+  })
+  .openapi("SokoBotModelCall");
+
 export const adminSokoBotTurnSchema = sokoBotTurnSchema
   .extend({
+    /** Why the turn ran on `modelId` (`lib/soko-bot/turn-model.ts`). */
+    modelReason: z.string().nullable(),
+    /** Every model call of the turn, oldest first. */
+    modelCalls: z.array(sokoBotModelCallSchema),
     eveSessionId: z.string().nullable(),
     eveTurnId: z.string().nullable(),
     // Union-with-null, not `.nullable()`: same codegen poison as runtimeHealth
@@ -805,6 +831,11 @@ export const updateSokoBotBoardFollowingRequestSchema = z
   .object({ enabled: z.boolean() })
   .strict()
   .openapi("UpdateSokoBotBoardFollowingRequest");
+
+export const updateSokoBotTeamStandupRequestSchema = z
+  .object({ enabled: z.boolean() })
+  .strict()
+  .openapi("UpdateSokoBotTeamStandupRequest");
 
 export const updateSokoBotVersionRequestSchema = z
   .object({ versionId: z.string().min(1).max(64) })
@@ -1214,6 +1245,7 @@ export const sokoBotAvailabilitySchema = z
     disabled: z.boolean(),
     disabledAt: z.string().nullable(),
     disabledReason: z.string().nullable(),
+    standupPaused: z.boolean(),
   })
   .openapi("SokoBotAvailability");
 
@@ -1221,6 +1253,8 @@ export const setSokoBotAvailabilityRequestSchema = z
   .object({
     disabled: z.boolean(),
     reason: z.string().trim().max(300).optional(),
+    /** Pauses or resumes every organization's daily agent stand-up. */
+    standupPaused: z.boolean().optional(),
   })
   .openapi("SetSokoBotAvailabilityRequest");
 
@@ -1262,3 +1296,49 @@ export const adminSokoBotModelEvaluationsSchema = z
     router: z.array(adminSokoBotRouterEvaluationSchema),
   })
   .openapi("AdminSokoBotModelEvaluations");
+
+const conversationPriced = {
+  model: z.string().nullable(),
+  costUsd: z.number().nullable(),
+  durationMs: z.number().int().nullable(),
+};
+
+export const sokoBotConversationSchema = z
+  .object({
+    turnId: z.string(),
+    steps: z.array(
+      z.discriminatedUnion("kind", [
+        z.object({
+          kind: z.literal("turn"),
+          at: z.string(),
+          turnId: z.string(),
+          title: z.string(),
+          status: z.string(),
+          ...conversationPriced,
+        }),
+        z.object({
+          kind: z.literal("asked"),
+          at: z.string(),
+          by: z.string(),
+          to: z.string(),
+          room: z.string(),
+          text: z.string(),
+        }),
+        z.object({
+          kind: z.literal("answered"),
+          at: z.string(),
+          by: z.string(),
+          byKind: z.enum(["person", "coworker", "assistant"]),
+          room: z.string(),
+          text: z.string(),
+          ...conversationPriced,
+        }),
+      ]),
+    ),
+    totals: z.object({
+      costUsd: z.number(),
+      durationMs: z.number().int(),
+      models: z.array(z.string()),
+    }),
+  })
+  .openapi("SokoBotConversation");

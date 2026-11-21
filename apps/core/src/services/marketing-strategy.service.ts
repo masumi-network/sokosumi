@@ -711,21 +711,34 @@ const CALENDAR_STATUS: Record<SocialPostStatus, CmoCalendarEntry["status"]> = {
 };
 
 const RECONNECT_ERROR = /reconnect|revoked|authoriz/i;
+/**
+ * A network pausing our app's posting: our words from Core's publisher, or the
+ * network's own cap error on posts from before. Never the owner's to fix.
+ */
+const PAUSED_ERROR =
+  /paused our posting|spend.?cap|usage.?cap|UsageCapExceeded/i;
 
 /**
  * Why a post did not go out, as the owner reads it on the Calendar and
- * Today; null for a post that has not failed or missed its time.
+ * Today; null for a post that has not failed or missed its time. A post the
+ * network's pause moved on stays scheduled and says it waits.
  */
 export function socialPostNotSent(post: {
   status: SocialPostStatus;
   provider: string;
   lastError: string | null;
 }): string | null {
-  if (post.status === "MISSED") return "It missed its time.";
-  if (post.status !== "FAILED") return null;
   const provider = post.provider.toLowerCase() as SocialPostProvider;
   const network = socialPostProviderLabel(provider) ?? post.provider;
   const error = post.lastError ?? "";
+  if (post.status === "SCHEDULED" && PAUSED_ERROR.test(error)) {
+    return `${network} paused our posting for now; Cuso will try again.`;
+  }
+  if (post.status === "MISSED") return "It missed its time.";
+  if (post.status !== "FAILED") return null;
+  if (PAUSED_ERROR.test(error)) {
+    return `${network} paused our posting for a day. Ask Cuso to post it again.`;
+  }
   if (RECONNECT_ERROR.test(error)) {
     return `${network} needs reconnecting in Channels.`;
   }

@@ -1,26 +1,21 @@
 "use client";
 
-import { isUrlString } from "@sokosumi/utils";
-import { track } from "@vercel/analytics";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { useEventListener } from "@/hooks/effects/use-event-listener";
-import { authClient } from "@/lib/auth/auth.client";
 import {
-  buildSocialCallbackUrls,
-  readAuthReturnUrl,
-} from "@/lib/auth/auth.utils";
+  type SocialSignupMessageKey,
+  useSocialSignupAutoInitiator,
+} from "@/hooks/effects/use-social-signup-auto-initiator";
+import { readAuthReturnUrl } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas/auth";
 
 /** Each provider's messages under `Auth.Pages.SignUp`. */
 const MESSAGE_KEYS = {
   google: "Google",
   microsoft: "Microsoft",
-} as const satisfies Record<SocialProviderId, string>;
+} as const satisfies Record<SocialProviderId, SocialSignupMessageKey>;
 
 interface SocialSignupAutoInitiatorProps {
   provider: SocialProviderId;
@@ -33,57 +28,12 @@ export default function SocialSignupAutoInitiator({
   const messageKey = MESSAGE_KEYS[provider];
   const searchParams = useSearchParams();
   const effectiveReturnUrl = readAuthReturnUrl(searchParams);
-  const [error, setError] = useState<string | null>(null);
-  const [isInitiating, setIsInitiating] = useState(true);
-
-  useEffect(() => {
-    const initiateOAuth = async () => {
-      try {
-        track("Sign Up", { provider, direct_signup_link: true });
-
-        const result = await authClient.signIn.social({
-          provider,
-          // An error back on this page would start the sign-in again; /signup
-          // explains it and offers every method.
-          ...buildSocialCallbackUrls(provider, effectiveReturnUrl, "/signup"),
-          // Leave with `replace`, so Back from the provider skips this page
-          // instead of starting the sign-in again.
-          disableRedirect: true,
-        });
-
-        // The client checks the scheme before its own redirect; keep that.
-        const providerUrl = result.data?.url;
-        if (isUrlString(providerUrl)) {
-          window.location.replace(providerUrl);
-        } else {
-          const errorMessage =
-            result.error?.message ?? t(`${messageKey}.error`);
-          setError(errorMessage);
-          toast.error(errorMessage);
-          setIsInitiating(false);
-        }
-      } catch {
-        const errorMessage = t(`${messageKey}.error`);
-        setError(errorMessage);
-        toast.error(errorMessage);
-        setIsInitiating(false);
-      }
-    };
-
-    initiateOAuth();
-  }, [provider, messageKey, effectiveReturnUrl, t]);
-
-  // A page restored from the back/forward cache does not run the effect
-  // again; offer the retry instead of a spinner with nothing behind it.
-  useEventListener("window", "pageshow", (event) => {
-    if (event.persisted) setIsInitiating(false);
+  const { error, isInitiating, handleRetry } = useSocialSignupAutoInitiator({
+    provider,
+    messageKey,
+    effectiveReturnUrl,
+    t,
   });
-
-  const handleRetry = () => {
-    setError(null);
-    setIsInitiating(true);
-    window.location.reload();
-  };
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center p-4">

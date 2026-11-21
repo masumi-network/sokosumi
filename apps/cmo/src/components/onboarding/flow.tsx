@@ -3,7 +3,8 @@
 import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useOnboardingPoll } from "../../hooks/effects/use-onboarding-poll";
 import { useOnboardingReturnNotice } from "../../hooks/effects/use-onboarding-return-notice";
 import { useOnboardingStepScroll } from "../../hooks/effects/use-onboarding-step-scroll";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -100,21 +101,10 @@ export function OnboardingFlow({
     setMessages(state.messages);
   }, [actions, confirming]);
 
-  useEffect(() => {
-    let last = Date.now();
-    const poll = () => {
-      const visible = document.visibilityState === "visible";
-      if (!visible && Date.now() - last < HIDDEN_POLL_MS) return;
-      last = Date.now();
-      void refresh();
-    };
-    const timer = window.setInterval(poll, POLL_MS);
-    document.addEventListener("visibilitychange", poll);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", poll);
-    };
-  }, [refresh]);
+  useOnboardingPoll(refresh, {
+    pollMs: POLL_MS,
+    hiddenPollMs: HIDDEN_POLL_MS,
+  });
 
   const position = onboardingStep(overview, skipped, {
     returnedFromCheckout: confirming,

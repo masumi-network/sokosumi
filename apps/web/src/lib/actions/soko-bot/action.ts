@@ -4,6 +4,7 @@ import type { SokoBotIntegrationCatalogEntry } from "@sokosumi/core-client";
 import {
   type InstallSokoBotSkillResponse,
   type SokoBot,
+  type SokoBotConversation,
   type SokoBotDeletionResult,
   type SokoBotLabRun,
   type SokoBotLabTaskEvent,
@@ -424,6 +425,21 @@ export const sendSokoBotTurnFeedbackAction = withSession<
   }
 });
 
+export const getSokoBotTurnConversationAction = withSession<
+  AuthenticatedRequest & { turnId: unknown },
+  ActionResultDto<SokoBotConversation, ActionError>
+>(async ({ turnId }) => {
+  const parsed = z.string().uuid().safeParse(turnId);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(
+      ok(await sokoBotService.getTurnConversation(parsed.data)),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 export const setSokoBotFollowBoardAction = withSession<
   BotScopedParams & { enabled: unknown },
   ActionResultDto<SokoBot, ActionError>
@@ -434,6 +450,26 @@ export const setSokoBotFollowBoardAction = withSession<
     return toActionResult(err(invalidInput()));
   try {
     const bot = await sokoBotService.setFollowBoard(
+      parsed.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
+    return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const setSokoBotTeamStandupAction = withSession<
+  BotScopedParams & { enabled: unknown },
+  ActionResultDto<SokoBot, ActionError>
+>(async ({ enabled, botId }) => {
+  const parsed = z.boolean().safeParse(enabled);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const bot = await sokoBotService.setJoinsTeamStandup(
       parsed.data,
       parsedBot.data,
     );

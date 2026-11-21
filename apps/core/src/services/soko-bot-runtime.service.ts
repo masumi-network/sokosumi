@@ -105,6 +105,8 @@ export interface SokoBotActionContext {
     // return once, which made every turn resolve the default version and
     // disabled the DRAFT-only rule for self-started work.
     versionId: string | null;
+    /** The model chosen for this turn at its start (`turn-model.ts`). */
+    modelId?: string | null;
     source: string | null;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth: number;

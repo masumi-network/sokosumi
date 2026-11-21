@@ -273,7 +273,9 @@ describe("native SEO audit entry", () => {
       .setup()
       .click(screen.getByText(german.App.Seo.keywords.seasonal.evidence));
     expect(
-      screen.getByText("Check this search for repair shops."),
+      screen.getByText(
+        /Outline the reader’s question behind “Pièces détachées”/,
+      ),
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: german.App.Seo.keywords.ideas.short }),

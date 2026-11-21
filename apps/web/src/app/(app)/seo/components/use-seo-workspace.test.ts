@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seoSameSelection } from "./use-seo-workspace";
+import { seoSameSelection } from "./seo-workspace-selection";
 
 const key = (query: string) => [
   "seo-workspace",

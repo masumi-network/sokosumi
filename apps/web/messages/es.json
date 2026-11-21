@@ -1817,6 +1817,15 @@
           "scheduled": "Programado: {name}",
           "background": "Trabajo en segundo plano: {name}",
           "taskUpdate": "Actualización de tarea"
+        },
+        "Conversation": {
+          "open": "Cómo llegué a esto",
+          "title": "Cómo llegué a esto",
+          "asked": "{by} preguntó a {to}",
+          "answered": "{by} respondió",
+          "totals": "{cost} · {time} · {models}",
+          "loading": "Cargando…",
+          "error": "No se pudo cargar la conversación."
         }
       }
     },
@@ -7101,7 +7110,7 @@
           "counts": "Recuentos",
           "omissions": "Omisiones",
           "noSnapshot": "No hay instantánea de contexto guardada para este turno.",
-          "conversation": "Conversación",
+          "conversation": "A quién preguntó, qué respondieron, y el modelo, coste y tiempo de cada paso",
           "user": "Usuario",
           "answer": "Respuesta",
           "activity": "Actividad",
@@ -7138,7 +7147,17 @@
               "judgment": "Criterio",
               "honesty": "Honestidad"
             }
-          }
+          },
+          "modelReason": "Por qué este modelo",
+          "modelCalls": "Llamadas al modelo",
+          "modelCallsEmpty": "No hay llamadas al modelo registradas para este turno.",
+          "spendByModel": "Gasto por modelo",
+          "callRole": "Rol",
+          "callRequested": "Solicitado",
+          "callAnswered": "Respondió",
+          "callProvider": "Proveedor",
+          "callTokens": "Tokens entrada / caché leída / caché escrita / salida",
+          "callCost": "Coste"
         },
         "Decisions": {
           "title": "Decisiones",
@@ -7390,6 +7409,15 @@
           "stepFailed": "falló",
           "previousRun": "Ejecución anterior",
           "batchProgress": "Ejecutando {done} de {total}"
+        },
+        "StandupSwitch": {
+          "stateRunning": "Los stand-ups del equipo funcionan donde las organizaciones los activaron.",
+          "statePaused": "Los stand-ups del equipo están en pausa para todas las organizaciones.",
+          "pause": "Pausar stand-ups",
+          "resume": "Reanudar stand-ups",
+          "paused": "Stand-ups en pausa.",
+          "resumed": "Stand-ups reanudados.",
+          "error": "No se pudo cambiar el interruptor de stand-ups."
         },
         "KillSwitch": {
           "stateEnabled": "Soko Bot funciona con normalidad.",
@@ -10986,6 +11014,9 @@
         "mailAutoReadDescription": "Tras cada revisión, marca como leído el correo que no es urgente ni relevante. El correo importante queda sin leer para ti.",
         "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
+        "teamStandupTitle": "Unirse al stand-up del equipo",
+        "teamStandupDescription": "Compartir el trabajo de este asistente (Tasks y publicaciones, nunca correo ni calendario) en el stand-up diario de tu organización.",
+        "teamStandupError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
         "archive": "Archivar",
@@ -12510,6 +12541,7 @@
       "runFullAudit": "Iniciar auditoría completa",
       "runPageCheck": "Iniciar comprobación de página",
       "brief": {
+        "completionEvent": "Evento de GA4 que registra la finalización (opcional)",
         "title": "Objetivos de la auditoría",
         "private": "Solo tú puedes leer este documento. La auditoría completa solo comparte los objetivos de las páginas que selecciones.",
         "confirmed": "Lo confirmaste el {date}.",
@@ -12572,6 +12604,8 @@
           "unknown": "Sin decidir"
         },
         "events": {
+          "configuredTitle": "Finalizaciones de objetivos desde la búsqueda orgánica",
+          "custom": "Finalización configurada",
           "title": "Compras y registros desde la búsqueda orgánica",
           "source": "Solo tú puedes ver estas cifras de GA4. Corresponden a visitas desde la búsqueda orgánica que comenzaron en esta página.",
           "purchase": "Compras",
@@ -12596,6 +12630,7 @@
           "matches_intent": "El estado de indexación en Google coincide con el ajuste de visibilidad."
         },
         "goalControl": {
+          "handoff": "Más sesiones orgánicas llegaron a esta página. Las sesiones con finalización no aumentaron. Revisa dónde abandonan los visitantes.",
           "title": "Sesiones con {event}",
           "afterTask": "Tarea completada el {date}",
           "rates": "Búsqueda orgánica: {organic} de {organicSessions, number} sesiones. Directo: {direct} de {directSessions, number} sesiones.",
@@ -12884,20 +12919,39 @@
           "action": "Objetivo de la página: {action}",
           "studio": "Redactar en Content Studio (próximamente)"
         },
+        "planning": {
+          "gap": "La competencia aparece para «{keyword}». Comprueba si tu explicación de {feature} responde a esa búsqueda.",
+          "idea": "Revisa la sección sobre {feature} para quienes buscan «{keyword}».",
+          "basis": "La demanda estimada en {market} es de {volume, number} búsquedas mensuales. Añade la respuesta que falte si encaja con la página.",
+          "related": "Revisa estas búsquedas relacionadas en la misma edición: {queries}.",
+          "rising": "El interés relativo por «{keyword}» aumentó durante el período. Revisa la respuesta actual y confirma la demanda antes de fijar una fecha.",
+          "falling": "El interés relativo por «{keyword}» bajó durante el período. Compara la demanda y las impresiones antes de atribuir una caída al contenido."
+        },
         "seasonal": {
-          "timing": "DataForSEO Labs estima las búsquedas mensuales en este mercado. Comprueba la demanda de este año cuando se acerque el periodo.",
-          "planFor": "Planifica para {months}",
+          "draft": "Prepara una respuesta a «{keyword}» y a la siguiente decisión del lector. Contrasta el borrador con consultas relacionadas antes de ampliar la página.",
+          "keep": "Conserva la respuesta actual para esta tarea: {task}",
+          "clarify": "Aclara esta tarea en la página: {task}",
+          "inspect": "Revisa cómo responde la página a esta pregunta: {task}",
+          "inspectIntent": "Define la pregunta detrás de «{keyword}». Compárala con la respuesta actual para elegir entre mejorar una sección o crear una guía.",
+          "singleSignal": "En un ciclo observado, las búsquedas estimadas en {month} superaron la mediana de comparación en un {rise, number}%.",
+          "repeatSignal": "En {month}, las búsquedas estimadas superaron la mediana de comparación en un {rise, number} %. También hubo un aumento en el ciclo anual anterior.",
+          "zeroSignal": "En {month}, la estimación alcanzó {count, number} búsquedas frente a una mediana de comparación de cero.",
+          "trendsAgree": "Google Trends también mostró un interés relativo alto en {month}.",
+          "trendsDiffer": "Google Trends no señaló un pico en {month}. Mantén flexible la fecha de publicación.",
+          "prepareNow": "Empieza ahora el borrador para {months}",
+          "prepareFor": "Prepara el contenido en {start} para {months}",
+          "keywordTest": "Consultas que puedes probar: {queries}",
+          "hypothesis": "Hipótesis de trabajo: {reason}",
+          "whyTest": "¿Por qué probar esta idea de contenido?",
+          "checkOutcome": "Cómo comprobarla: {check}",
           "datedEvent": "{event} · {date}",
           "evidence": "Fuente de la página y datos de demanda",
           "above_baseline": "El año pasado, las búsquedas locales superaron la mediana anterior.",
           "no_observed_rise": "El año pasado, las búsquedas locales no superaron la mediana anterior.",
-          "windowRise": "Las búsquedas locales aumentaron en estos meses el año pasado.",
           "windowOther": "Para {target}, en {prior} hubo unas {volume, number} búsquedas locales. La mediana de los demás meses observados ({months}) fue de {baseline, number}.",
           "incompleteComparison": "Estimaciones disponibles de búsquedas locales del año pasado: {counts}. Faltan datos para comparar la demanda.",
-          "historicalIdea": "Investiga esta búsqueda con el historial local de DataForSEO.",
-          "title": "Ideas de palabras clave de temporada",
+          "title": "Planificación de contenido estacional",
           "audit": "{market} · Auditoría del {date}",
-          "investigate_angle": "Investiga esta búsqueda para el público {audience}.",
           "improve_existing_page": "Actualiza la página existente para el público {audience}.",
           "window": "Para {target}, consulta {prior}: hubo unas {volume, number} búsquedas locales. La mediana de los tres meses anteriores fue de {baseline, number}.",
           "comparison": "El año pasado: {counts}. La mediana antes del periodo previo fue de unas {baseline, number} búsquedas locales.",
@@ -13097,7 +13151,10 @@
         "checksIncompleteBody": "No se pudieron completar algunas comprobaciones solicitadas. Revisa los detalles de las comprobaciones antes de decidir el siguiente paso.",
         "unplannedIssues": "Todavía no hay acciones recomendadas",
         "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o pregunta al agente SEO cuál es el siguiente paso.",
-        "opportunitiesHelp": "Los datos de Search Console apuntan a esto. No son errores y no prometen tráfico.",
+        "priorityReason": "Por qué se prioriza esta página",
+        "measuredGoal": "Las sesiones orgánicas que empezaron aquí registraron eventos clave entre {from} y {to}. Esto da prioridad a la página frente a trabajos comparables.",
+        "testRecommendation": "Recomendación del agente",
+        "opportunitiesHelp": "Usa las pruebas de la página y el resultado previsto para decidir si vale la pena probar esta oportunidad.",
         "noOpportunitiesBody": "La última comprobación no encontró nada que corregir. El resumen muestra lo que el agente SEO sugiere a continuación.",
         "kind": {
           "fix": "Problema confirmado",
@@ -13814,6 +13871,65 @@
         "sortBest": "{column}, mejor primero",
         "sortWorst": "{column}, peor primero"
       },
+      "reportPlan": {
+        "changedShort": "El primer paso ha cambiado desde el informe anterior.",
+        "verify": "Cómo comprobar el resultado",
+        "evidence": "Datos de la auditoría",
+        "groups": {
+          "fixes": "Correcciones de página ({count})",
+          "content": "Contenido y palabras clave ({count})"
+        },
+        "missingComparison": "El resumen indica {event}, pero faltan tasas de finalización comparables para sesiones orgánicas y directas. Comprueba el evento clave en GA4 y compara dos periodos completos.",
+        "hypothesis": {
+          "season": "Los informes sugieren una prueba de contenido para «{query}». Aplica el cambio propuesto y comprueba si el público estacional encuentra su respuesta.",
+          "gap": "Los datos de competencia y de la página indican que podría captar más búsquedas de «{query}». Prueba el cambio y compara los clics relevantes."
+        },
+        "missingOutcome": "La auditoría busca {event} para medir «{action}». Faltan tasas de finalización comparables. Si tu propiedad de GA4 usa otro nombre, puedes indicarlo en el resumen privado.",
+        "was": "Recomendación anterior: {step}",
+        "queries": "Búsquedas que conviene cubrir: {queries}.",
+        "peaks": "Las estimaciones locales superaron su referencia en {periods}.",
+        "prepare": "Programa la preparación para {prepare}, antes del posible aumento en {month} para «{query}».",
+        "publish": "Prepara la página ahora para la demanda de «{query}» en {month}.",
+        "windowReason": "Ya es momento de preparar el contenido para {month}. La demanda subió en varios años y el informe identifica una carencia.",
+        "changed": "La recomendación cambió desde el informe anterior. {reason}",
+        "exposure": "Search Console registró {impressions} impresiones para esta página del {from} al {to}. Esta visibilidad medida da prioridad a la prueba frente a cambios comparables.",
+        "destination": "El plan indica que el visitante debe realizar la acción «{action}» en {url}.",
+        "orderReason": "El segundo paso lleva a los lectores a esta ruta. Pruébala primero para que puedan continuar.",
+        "title": "Plan recomendado",
+        "goal": "Objetivo actual: {goal}",
+        "why": "¿Por qué este plan?",
+        "then": "Después: {step}",
+        "alternative": "Otra opción considerada",
+        "reassess": "¿Qué haría cambiar el plan?",
+        "tie": "Las dos opciones tienen la misma prioridad. El informe mencionó antes la primera.",
+        "open": "Ver detalles de la acción",
+        "empty": "Este informe no respalda una acción siguiente para las páginas seleccionadas.",
+        "linksEmpty": "Revisa la página de origen y su texto de enlace para elegir una oportunidad. El total de enlaces por sí solo no la identifica.",
+        "first": {
+          "handoff": "Revisa el recorrido desde esta página hasta la finalización {event}.",
+          "checkTracking": "Comprueba el paso de {event} y su medición antes de editar la página.",
+          "checkIntent": "Compara qué visitantes orgánicos llegan a esta página antes de editar su contenido."
+        },
+        "basis": {
+          "handoff": "Las visitas orgánicas aumentaron y las sesiones con finalización no crecieron. Revisa el paso hacia la acción indicada.",
+          "access": "El informe encontró un obstáculo crítico para el acceso desde buscadores. Resuélvelo antes de invertir en visibilidad.",
+          "goalPath": "El problema afecta a una acción de venta o a la disponibilidad de una oferta. Repara ese paso antes de atraer más visitas.",
+          "support": "La acción afecta a una guía o página de soporte del plan y puede ayudar al lector a completar su tarea.",
+          "traffic": "La recomendación trata de cómo se descubre la página y responde al objetivo de tráfico de búsqueda.",
+          "majorFix": "El informe encontró un problema de acceso o de alto impacto. Resuélvelo antes de probar cambios menores.",
+          "salesPage": "El plan asigna una función comercial o una acción de venta a esta página. Por ello tiene prioridad.",
+          "experiment": "El informe vincula la oportunidad con datos de la página o de búsqueda. Haz una prueba pequeña antes de ampliarla.",
+          "fix": "Un hallazgo respalda el cambio. Comprueba la parte afectada después de la reparación.",
+          "checkTracking": "La tasa de objetivos cayó en las sesiones orgánicas y directas. Una dificultad común o un problema de medición podría explicar ambas caídas.",
+          "checkIntent": "La caída fue mayor entre los visitantes orgánicos. Comprueba si cambió el público de búsqueda antes de editar."
+        },
+        "measure": {
+          "sales": "Compara visitas orgánicas y acciones completadas en periodos equivalentes. Si solo aumentan las visitas, prueba el paso hacia la acción.",
+          "traffic": "Compara impresiones y clics de las consultas previstas. Si solo crecen consultas ajenas, revisa el objetivo. Si crecen los clics pertinentes, prueba la siguiente página relacionada.",
+          "support": "Comprueba si los lectores completan la tarea. Si aumentan las visitas y soporte sigue recibiendo la misma pregunta, cambia la respuesta o su ubicación.",
+          "general": "Repite la comprobación en la página. Si el cambio resuelve el problema, pasa a la siguiente oportunidad. Si persiste, revisa la explicación."
+        }
+      },
       "agent": {
         "ask": "Preguntar al agente SEO",
         "title": "Agente SEO",
@@ -14237,6 +14353,10 @@
           "metric": "Métrica",
           "within": "Cambio dentro de las páginas",
           "mix": "Cambio por la distribución de visitas",
+          "testMix": "Compara qué páginas de entrada ganaron visitas y si sus sesiones orgánicas generaron eventos clave. Usa ese resultado para decidir qué páginas promocionar.",
+          "testJourney": "En las mismas páginas de entrada bajaron en promedio el tiempo y las páginas vistas. Comprueba si se encuentra el siguiente paso y compara los objetivos completados.",
+          "testCompletion": "Compara los objetivos completados en las páginas donde cambió la interacción antes de editar el contenido. Una visita breve puede indicar que el lector encontró la respuesta antes.",
+          "comparisonEvidence": "Motivo de la recomendación",
           "mixOnly": "La distribución de visitas entre las páginas de destino explica el cambio en el tiempo medio de interacción.",
           "sessions": "Las sesiones orgánicas de entrada pasaron de {before} a {after}. Las dos últimas columnas muestran cada contribución en las unidades de la métrica."
         },
@@ -14708,6 +14828,30 @@
       "posts": "Buscar publicaciones",
       "controlShortcut": "Ctrl+F",
       "loadedResults": "{count, plural, =0 {Sin coincidencias en los elementos cargados} one {# coincidencia en los elementos cargados} other {# coincidencias en los elementos cargados}}"
+    },
+    "TeamStandup": {
+      "title": "Stand-up diario de agentes",
+      "enabledLabel": "Hacer el stand-up",
+      "enabledHelp": "Cada día laborable los agentes publican un hilo en el canal Stand-up: qué se hizo, qué sigue, qué espera a una persona y hasta tres traspasos entre agentes. Las líneas salen de Tasks y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
+      "timeLabel": "Hora",
+      "timezoneLabel": "Zona horaria",
+      "weekdaysLabel": "Días",
+      "weekday": {
+        "1": "lun",
+        "2": "mar",
+        "3": "mié",
+        "4": "jue",
+        "5": "vie",
+        "6": "sáb",
+        "7": "dom"
+      },
+      "next": "Próximo stand-up: {when} ({zone})",
+      "save": "Guardar",
+      "saved": "Ajustes del stand-up guardados.",
+      "saveError": "No se pudieron guardar los ajustes del stand-up.",
+      "adminOnly": "Solo propietarios y administradores pueden cambiarlo.",
+      "loadError": "No se pudieron cargar los ajustes del stand-up.",
+      "retry": "Reintentar"
     }
   },
   "Share": {

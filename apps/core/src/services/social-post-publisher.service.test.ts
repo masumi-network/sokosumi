@@ -1820,6 +1820,58 @@ describe("social post publisher service", () => {
     });
   });
 
+  const spendCap = () =>
+    new ComposioToolError({
+      message: "X publish failed",
+      providerMessage:
+        'Request failed error: `{"detail":"Your monthly spend cap has been reached.","status":403}`',
+      providerStatus: 403,
+    });
+
+  it("holds a post X paused an hour on, in our words, and raises the alert", async () => {
+    expectCoreLog("warn", "A Social post publish attempt failed");
+    const alerts = expectCoreLog("error", "X paused our posting");
+    publishXPostMock.mockRejectedValue(spendCap());
+    attemptFindFirstMock.mockResolvedValue({
+      startedAt: new Date(NOW.getTime() - 5 * 60_000),
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      retried: 1,
+      failed: 0,
+    });
+    expect(settleCall().data).toMatchObject({
+      status: "SCHEDULED",
+      scheduledAt: new Date(NOW.getTime() + 60 * 60_000),
+      attemptCount: 0,
+      nextAttemptAt: null,
+      lastError: "X paused our posting for now. We try again every hour.",
+    });
+    expect(alerts[0]?.event).toMatchObject({
+      alert: "x_posting_paused",
+      holding: true,
+    });
+  });
+
+  it("fails a post X kept paused for a day, still without the cap", async () => {
+    expectCoreLog("warn", "A Social post publish attempt failed");
+    expectCoreLog("error", "X paused our posting");
+    publishXPostMock.mockRejectedValue(spendCap());
+    attemptFindFirstMock.mockResolvedValue({
+      startedAt: new Date(NOW.getTime() - 25 * 60 * 60_000),
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+    });
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      lastError: "X paused our posting for a day, so this post didn't go out.",
+    });
+  });
+
   it("records a failed publish when reading the provider's error throws", async () => {
     const warnings = expectCoreLog(
       "warn",

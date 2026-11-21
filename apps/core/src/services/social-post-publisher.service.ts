@@ -43,6 +43,8 @@ import {
 } from "@/helpers/social-post-media";
 import {
   classifyPublishError,
+  PLATFORM_PAUSED,
+  type PublishErrorClassification,
   SocialPostTextLimitError,
   shouldRequestReauthorization,
 } from "@/helpers/social-post-publish-errors";
@@ -56,7 +58,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
-import { recordCoreWarning } from "@/lib/evlog";
+import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
@@ -82,6 +84,10 @@ export const RETRY_WINDOW_MS = 15 * 60_000;
 /** A post first seen this long after its planned time is missed, not published. */
 export const MISSED_AFTER_MS = 60 * 60_000;
 export const RETRY_BACKOFF_MS = [60_000, 180_000] as const;
+/** While a network pauses our posting, a post tries again this much later. */
+export const PAUSED_RETRY_MS = 60 * 60_000;
+/** How long after its first try a paused post keeps waiting before it fails. */
+export const PAUSED_HOLD_MS = 24 * 60 * 60_000;
 
 /** Leave time for session cleanup and durable settlement before runtime/lease expiry. */
 const PUBLISH_BUDGET_MS = 240_000;
@@ -1004,6 +1010,10 @@ async function attemptPublish(
       retryAt.getTime() <= retryWindowStart.getTime() + RETRY_WINDOW_MS;
     const providerError =
       error instanceof ThreadPartPublishError ? error.cause : error;
+    // A thread that stopped partway keeps the usual path: moving it could
+    // post its first part again.
+    const paused =
+      classified.kind === PLATFORM_PAUSED && post.threadParts.length === 0;
     // The provider's error can quote the post, so content-free metadata only.
     recordCoreWarning(
       {
@@ -1028,7 +1038,7 @@ async function attemptPublish(
       where: { id: attempt.id },
       data: {
         finishedAt,
-        outcome: retrying ? "failed_transient" : "failed_permanent",
+        outcome: retrying || paused ? "failed_transient" : "failed_permanent",
         errorKind: classified.kind,
         providerOutcome: classified.summary,
         externalId: null,
@@ -1056,6 +1066,7 @@ async function attemptPublish(
         );
       }
     }
+    if (paused) return holdPausedPost(post, provider, finishedAt, classified);
     if (retrying) {
       return settleRetry(post, {
         status: "SCHEDULED",
@@ -1134,6 +1145,54 @@ async function attemptPublish(
     }
   }
   return settled ? "published" : "skipped";
+}
+
+/**
+ * A network paused our app's posting (X's monthly spend cap): our limit, not
+ * the owner's. The post moves an hour on and starts its tries afresh, so it
+ * goes out once posting works again; a day after its first try it fails in
+ * our words. Each pause raises the `x_posting_paused` alert for us.
+ */
+async function holdPausedPost(
+  post: ClaimedPost,
+  provider: SocialPostProvider,
+  finishedAt: Date,
+  classified: PublishErrorClassification,
+): Promise<AttemptOutcome> {
+  const first = await prisma.socialPostPublishAttempt.findFirst({
+    where: { socialPostId: post.id },
+    orderBy: { attempt: "asc" },
+    select: { startedAt: true },
+  });
+  const since = first?.startedAt ?? finishedAt;
+  const holding = finishedAt.getTime() - since.getTime() < PAUSED_HOLD_MS;
+  recordCoreError(
+    {
+      operation: SOCIAL_POST_PUBLISH_OPERATION,
+      socialPost: { id: post.id, provider },
+    },
+    {
+      message: `${socialPostProviderLabel(provider)} paused our posting`,
+      why: "The network answered that our app's monthly spend cap is reached",
+      fix: holding
+        ? "Raise or reset the cap in the network's developer portal; held posts go out within the hour after."
+        : "Raise or reset the cap; this post waited a day and failed, so the owner's Cuso writes it again or the owner reschedules it.",
+    },
+    { alert: `${provider}_posting_paused`, holding },
+  );
+  if (!holding) {
+    const settled = await settle(post, {
+      status: "FAILED",
+      lastError: `${socialPostProviderLabel(provider)} paused our posting for a day, so this post didn't go out.`,
+    });
+    return settled ? "failed" : "skipped";
+  }
+  return settleRetry(post, {
+    status: "SCHEDULED",
+    scheduledAt: new Date(finishedAt.getTime() + PAUSED_RETRY_MS),
+    attemptCount: 0,
+    lastError: classified.summary,
+  });
 }
 
 type ClaimResult = { post: ClaimedPost } | "none" | "lost";
