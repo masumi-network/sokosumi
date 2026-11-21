@@ -890,6 +890,25 @@ it("shows the re-planning screen for a written change before Core answers", asyn
   expect(replanning()).toBe(false);
 });
 
+it.each([
+  ["Add more videos.", "Add more videos. About two minutes"],
+  ["Can we post less?", "Can we post less? About two minutes"],
+  ["Post more often!", "Post more often! About two minutes"],
+  ["More videos", "More videos. About two minutes"],
+])("echoes the change %j with one full stop at most", async (asked, shown) => {
+  const core = pending();
+  await renderPlan(core.call, async () => null);
+  await press("Ask for a change");
+  typeInto(
+    container.querySelector<HTMLInputElement>("#ob-change-input"),
+    asked,
+  );
+  await press("Change it");
+
+  expect(text()).toContain(shown);
+  await act(async () => core.answer(null));
+});
+
 it("opens the tab the founder picks, and keeps Results one tap away", async () => {
   await renderPlan(
     async () => null,
