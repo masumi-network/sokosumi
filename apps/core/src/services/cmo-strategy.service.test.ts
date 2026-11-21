@@ -871,6 +871,39 @@ describe("saving versions", () => {
       ).rejects.toThrow("p2 and p1 use the same style reference");
     });
 
+    // cmo-v9 (2026-11-21): NMKR's visuals named "cream paper, dark ink, one
+    // green accent" and "no extra text", and the look overrode the print's.
+    it("refuses a cmo-v9 styled visual that names its own look, and keeps a scene", async () => {
+      const save = (visual: string, sceneVisuals: boolean) =>
+        saveCmoStrategy(
+          { sokoBotId: "bot-1" },
+          {
+            calendar: [
+              picture({ id: "p1", styleReferenceId: STYLE_A, visual }),
+            ],
+          } as never,
+          { turnId: "turn-2", part: "pieces", sceneVisuals },
+        );
+      const styledVisual =
+        "A three-step pictogram of a mint, cream paper, dark ink and one green accent; no extra text.";
+      await expect(save(styledVisual, true)).rejects.toThrow(
+        "p1 (pictogram, accent, cream paper, dark ink, no extra text)",
+      );
+      await expect(save(styledVisual, true)).rejects.toThrow(
+        "Describe the scene only",
+      );
+      expect(postCreateMany).not.toHaveBeenCalled();
+      expect(postUpdate).not.toHaveBeenCalled();
+      // cmo-v8 saves it as before.
+      await expect(save(styledVisual, false)).resolves.toBeDefined();
+      await expect(
+        save(
+          "A crane hook lifting a glowing green token above a factory city.",
+          true,
+        ),
+      ).resolves.toBeDefined();
+    });
+
     it("refuses a styled carousel without its words per slide, and an id the library lacks", async () => {
       const carousel = picture({
         id: "c1",

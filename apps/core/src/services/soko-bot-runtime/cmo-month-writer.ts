@@ -2,6 +2,7 @@ import {
   type BrandBrain,
   CMO_PIECE_WRITING_GUIDE,
   CMO_PRODUCTION_TURN_PREFIX,
+  CMO_SCENE_PIECE_WRITING_GUIDE,
   CMO_VARIED_PIECE_WRITING_GUIDE,
   type CmoCalendarEntry,
   getSokoBotVersion,
@@ -36,6 +37,7 @@ import {
   cmoPieceIsTalking,
   cmoPieceNeedsMedia,
   cmoPieceTakesStyle,
+  cmoWritesSceneVisuals,
 } from "@/services/cmo-media-maker.service";
 import { cmoDraftProblems } from "@/services/cmo-plan-review.service";
 import {
@@ -145,12 +147,18 @@ export function cmoWriterSystem(input: {
   styles: boolean;
   /** cmo-v8: varied picture kinds, a claim per piece, LinkedIn openings. */
   varied?: boolean;
+  /** cmo-v9: a styled picture's visual is a scene alone. */
+  scenes?: boolean;
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
   return [
     `You are Cuso, the CMO of ${input.businessName}. You write pieces of its approved month. Core checks and saves each piece you return, makes its picture or video and schedules it.`,
-    input.varied ? CMO_VARIED_PIECE_WRITING_GUIDE : CMO_PIECE_WRITING_GUIDE,
+    input.scenes
+      ? CMO_SCENE_PIECE_WRITING_GUIDE
+      : input.varied
+        ? CMO_VARIED_PIECE_WRITING_GUIDE
+        : CMO_PIECE_WRITING_GUIDE,
     input.styles
       ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
       : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
@@ -351,6 +359,7 @@ export async function writeCmoMonthPieces(
     brandPictures: await listCmoBrandPictures(cuso.projectId),
     styles,
     varied,
+    scenes: cmoWritesSceneVisuals(authorized.turn.versionId),
   });
   const modelId = getSokoBotVersion(authorized.turn.versionId).model;
   const request = sokoBotModelRequest({

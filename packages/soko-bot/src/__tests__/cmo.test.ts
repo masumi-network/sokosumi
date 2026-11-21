@@ -28,8 +28,10 @@ import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import {
   CMO_BATCHED_PRODUCTION_SKILL,
   CMO_PIECE_WRITING_GUIDE,
+  CMO_SCENE_PIECE_WRITING_GUIDE,
   CMO_SKILLS,
   CMO_VARIED_PIECE_WRITING_GUIDE,
+  cmoWritesMonthAtOnce,
 } from "../versions/cmo-skills.js";
 import { cmoV6 } from "../versions/cmo-v6.js";
 import { cmoV7 } from "../versions/cmo-v7.js";
@@ -37,6 +39,7 @@ import {
   CMO_CLAIMS_STRATEGY_SKILL,
   CMO_VARIED_PRODUCTION_SKILL,
 } from "../versions/cmo-v8-skills.js";
+import { CMO_SCENE_PRODUCTION_SKILL } from "../versions/cmo-v9-skills.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
@@ -219,6 +222,46 @@ describe("CMO version", () => {
       "argues its entry's claim",
     );
     expect(CMO_PIECE_WRITING_GUIDE).not.toContain("purpose, with styleLook");
+  });
+
+  // Owner, 2026-11-21: styled pictures that look like the print, as the
+  // 16 Nov reference test made them.
+  it("has cmo-v9 build on cmo-v8 with scene-only visuals for styled pictures", () => {
+    const v8 = getSokoBotVersion("cmo-v8");
+    const v9 = getSokoBotVersion("cmo-v9");
+    expect(v9.systemPrompt).toBe(v8.systemPrompt);
+    expect(v9.skills).toEqual(
+      v8.skills.map((skill) =>
+        skill === CMO_VARIED_PRODUCTION_SKILL
+          ? CMO_SCENE_PRODUCTION_SKILL
+          : skill,
+      ),
+    );
+    expect(cmoWritesMonthAtOnce(v9.skills)).toBe(true);
+
+    const production = getSokoBotSkill(CMO_SCENE_PRODUCTION_SKILL).content;
+    expect(production).toContain(
+      "A styled picture's visual is one concrete scene",
+    );
+    expect(production).toContain('no "no …" or "avoid …" list');
+    expect(production).not.toContain(
+      "the style (a photo, a flat graphic, a screen close-up), the framing",
+    );
+    // cmo-v8's rules stay.
+    expect(production).toContain(
+      "An infographic only for a picture that shows numbers",
+    );
+    expect(production).toContain("A LinkedIn post opens with a result");
+
+    expect(CMO_SCENE_PIECE_WRITING_GUIDE).toContain(
+      "A styled picture's visual is one concrete scene",
+    );
+    expect(CMO_SCENE_PIECE_WRITING_GUIDE).toContain(
+      "- purpose, with styleLook",
+    );
+    expect(CMO_VARIED_PIECE_WRITING_GUIDE).not.toContain("one concrete scene");
+    // A new hire stays on cmo-v8 until cmo-v9 is rolled out.
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v8");
   });
 
   it("keeps a piece's claim on its plan entry and its Social post", () => {

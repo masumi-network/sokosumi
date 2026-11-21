@@ -168,6 +168,7 @@ import {
   cmoStyleInks,
   cmoStylePrompt,
   cmoVisualKey,
+  cmoWritesSceneVisuals,
   logoForPicture,
   PLACED_SCREEN_NOTE,
   REFERENCE_STYLE_MODELS,
@@ -1530,5 +1531,13 @@ describe("a styled picture made the way the 16 Nov test made them", () => {
       expect(cmoPassedLogo("Style passed")).toBe("bottom-right");
       expect(cmoPassedLogo("Style passed: logo drawn")).toBe("drawn");
     });
+  });
+});
+
+describe("cmo-v9's scene visuals", () => {
+  it("are cmo-v9's alone, which keeps cmo-v8's varied month", () => {
+    expect(cmoWritesSceneVisuals("cmo-v9")).toBe(true);
+    expect(cmoMakesVariedMonth("cmo-v9")).toBe(true);
+    expect(cmoWritesSceneVisuals("cmo-v8")).toBe(false);
   });
 });
