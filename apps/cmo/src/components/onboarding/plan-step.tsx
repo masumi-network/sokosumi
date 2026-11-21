@@ -698,7 +698,8 @@ export function PlanReview({
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
             <p className="muted">
-              {replanning}. About two minutes; your new strategy opens here.
+              {/[.?!]$/.test(replanning) ? replanning : `${replanning}.`} About
+              two minutes; your new strategy opens here.
             </p>
           </div>
         </div>
