@@ -75,7 +75,13 @@ describe("PicturesPage", () => {
       root.render(
         <PicturesPage
           projectId="project-1"
-          actions={{ loadPictures: async () => groups }}
+          actions={{
+            loadPictures: async () => ({
+              groups,
+              networks: ["instagram", "x"],
+              months: ["2026-11", "2026-12"],
+            }),
+          }}
           openPost={openPost}
         />,
       ),
@@ -104,7 +110,11 @@ describe("PicturesPage", () => {
   });
 
   it("filters by network and by pictures on posts", async () => {
-    const loadPictures = vi.fn(async () => groups);
+    const loadPictures = vi.fn(async () => ({
+      groups,
+      networks: ["instagram", "x"],
+      months: ["2026-11", "2026-12"],
+    }));
     await act(async () =>
       root.render(
         <PicturesPage

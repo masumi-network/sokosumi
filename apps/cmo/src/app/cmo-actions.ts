@@ -16,7 +16,7 @@ import {
   type CmoKeywordSearch,
   type CmoMeasurement,
   type CmoOverview,
-  type CmoPictureGroup,
+  type CmoPictures,
   type CmoSeo,
   type CmoSubscriptionPlan,
   type CmoTikTokCreator,
@@ -1475,7 +1475,7 @@ export async function askCusoForArticles(
 export async function loadPictures(
   projectId: string,
   filters: { network?: string; month?: string; chosen?: boolean },
-): Promise<CmoPictureGroup[] | null> {
+): Promise<CmoPictures | null> {
   const core = await requireCore();
   const { data } = await getCmoPicturesForProject({
     ...core,
@@ -1486,7 +1486,7 @@ export async function loadPictures(
       chosen: filters.chosen ? "true" : undefined,
     },
   });
-  return data?.data.groups ?? null;
+  return data?.data ?? null;
 }
 
 export async function loadCompetitors(

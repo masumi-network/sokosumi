@@ -3,6 +3,7 @@
 import type {
   CmoPictureAlternative,
   CmoPictureGroup,
+  CmoPictures,
 } from "@sokosumi/core-client";
 import { useCallback, useMemo, useState } from "react";
 import { useLoaded } from "../../hooks/effects/use-loaded";
@@ -19,7 +20,7 @@ export interface PictureFilters {
 }
 
 export interface PictureActions {
-  loadPictures: (filters: PictureFilters) => Promise<CmoPictureGroup[] | null>;
+  loadPictures: (filters: PictureFilters) => Promise<CmoPictures | null>;
 }
 
 interface PicturesPageProps {
@@ -76,22 +77,12 @@ export function PicturesPage({
     () => loadPictures(filters),
     [loadPictures, filters],
   );
-  const { value: groups, failed, reload } = useLoaded(load);
-  // Every network and month on the unfiltered list, so a filter never hides the others.
-  const all = useLoaded(useCallback(() => loadPictures({}), [loadPictures]));
-  const seen = useMemo(() => {
-    const list = all.value ?? [];
-    return {
-      networks: [...new Set(list.map((group) => group.network))].sort(),
-      months: [
-        ...new Set(
-          list.flatMap((group) =>
-            group.scheduledAt ? [group.scheduledAt.slice(0, 7)] : [],
-          ),
-        ),
-      ].sort(),
-    };
-  }, [all.value]);
+  const { value: pictures, failed, reload } = useLoaded(load);
+  const groups = pictures?.groups ?? null;
+  const seen = {
+    networks: pictures?.networks ?? [],
+    months: pictures?.months ?? [],
+  };
 
   const lead = useMemo(() => picturesLead(groups ?? []), [groups]);
 

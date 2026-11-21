@@ -55,7 +55,9 @@ const actions: CmoAppActions = {
   }),
   declineDraft: async () => ({ overview, error: null }),
   editDraft: async () => ({ overview, error: null }),
-  pictures: { loadPictures: async () => [] },
+  pictures: {
+    loadPictures: async () => ({ groups: [], networks: [], months: [] }),
+  },
   competitors: {
     loadCompetitors: async () => competitors,
     addCompetitor: async () => ({ competitors, error: null }),
