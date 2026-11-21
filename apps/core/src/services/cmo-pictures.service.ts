@@ -55,10 +55,13 @@ export interface CmoPictureGroup {
   alternatives: CmoPictureAlternative[];
 }
 
-function verdictOf(job: {
-  status: ProjectImageJobStatus;
-  error: string | null;
-}): Pick<CmoPictureAlternative, "verdict" | "why"> {
+/** A cmo-v11 alternative (p1–p5) or remake (r1), judged only by its check. */
+const PICKER_ATTEMPT = /^[pr]\d/;
+
+function verdictOf(
+  job: { status: ProjectImageJobStatus; error: string | null },
+  picker: boolean,
+): Pick<CmoPictureAlternative, "verdict" | "why"> {
   if (job.status === ProjectImageJobStatus.FAILED)
     return { verdict: "failed", why: job.error };
   if (job.status !== ProjectImageJobStatus.SUCCEEDED)
@@ -70,7 +73,10 @@ function verdictOf(job: {
       verdict: "rejected",
       why: job.error.slice(CMO_STYLE_REJECTED.length) || null,
     };
-  return { verdict: "waiting", why: null };
+  // A single try that finished and was not turned down went on the post.
+  return picker
+    ? { verdict: "waiting", why: null }
+    : { verdict: "passed", why: null };
 }
 
 /** A model's name, from the endpoint the job ran on. */
@@ -195,11 +201,18 @@ export async function listCmoPictures(
         row.slot === group.slot &&
         row.visualKey === group.visualKey,
     );
-    // Before cmo-v11 a slot made one picture at a time: the one that passed.
+    const picker = group.jobs.some((job) =>
+      PICKER_ATTEMPT.test(job.idempotencyKey.split(":")[6] ?? ""),
+    );
+    // Before cmo-v11 a slot made one picture at a time: the last that finished
+    // and was not turned down is on the post.
     const chosenJobId =
       pick?.chosenJobId ??
-      group.jobs.findLast((job) => job.error?.startsWith(CMO_STYLE_PASSED))
-        ?.id ??
+      (picker
+        ? null
+        : group.jobs.findLast(
+            (job) => job.asset && verdictOf(job, false).verdict === "passed",
+          )?.id) ??
       null;
     if (input.chosenOnly && !chosenJobId) continue;
     const planning = socialPostPlanningSchema.safeParse(post.planning);
@@ -219,7 +232,7 @@ export async function listCmoPictures(
       alternatives: group.jobs.map((job) => ({
         jobId: job.id,
         model: modelLabel(job.model),
-        ...verdictOf(job),
+        ...verdictOf(job, picker),
         chosen: job.id === chosenJobId,
         hasImage: Boolean(job.asset),
         createdAt: job.createdAt.toISOString(),

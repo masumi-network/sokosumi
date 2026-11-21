@@ -154,6 +154,36 @@ describe("listCmoPictures", () => {
     expect(groups[2]?.alternatives[0]?.chosen).toBe(true);
   });
 
+  it("counts an older try that left no verdict as on the post, but not an unchecked alternative", async () => {
+    m.jobs.findMany.mockResolvedValue([
+      job("b0", "post-2", "1", { error: "Style check: Extra words" }),
+      job("b1", "post-2", "2"),
+      job("c1", "post-3", "p1"),
+    ]);
+    m.picks.findMany.mockResolvedValue([]);
+    const { groups } = await listCmoPictures({
+      userId: "u",
+      projectId: "project-1",
+    });
+    const older = groups.find((group) => group.postId === "post-2")!;
+    expect(older.postedUrl).toBe("https://blob/b.jpg");
+    expect(
+      older.alternatives.map(({ jobId, verdict, chosen }) => ({
+        jobId,
+        verdict,
+        chosen,
+      })),
+    ).toEqual([
+      { jobId: "b0", verdict: "rejected", chosen: false },
+      { jobId: "b1", verdict: "passed", chosen: true },
+    ]);
+    const unchecked = groups.find((group) => group.postId === "post-3")!;
+    expect(unchecked.alternatives[0]).toMatchObject({
+      verdict: "waiting",
+      chosen: false,
+    });
+  });
+
   it("filters by network, month and chosen", async () => {
     expect(
       (
