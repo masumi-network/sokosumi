@@ -123,7 +123,11 @@ describe("ProjectScopeRequired", () => {
       const wrapper = screen.getByTestId("compact-project-action");
       expect(wrapper.tagName).toBe("DIV");
       expect(wrapper).toHaveClass("flex", "justify-center");
-      expect(wrapper).not.toHaveClass("py-10", "sm:py-16");
+      expect(wrapper).not.toHaveClass(
+        "py-10",
+        "sm:py-16",
+        "bg-card-background",
+      );
       expect(wrapper).not.toHaveAttribute("aria-labelledby");
       expect(mocks.openProjectScope).not.toHaveBeenCalled();
       expect(mocks.openScopeCreate).not.toHaveBeenCalled();
