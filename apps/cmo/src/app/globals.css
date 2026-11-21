@@ -819,7 +819,8 @@ textarea {
   font-size: 0.75rem;
 }
 
-.app .list > li {
+.app .list > li,
+.app .sc-sources li {
   max-width: none;
 }
 

@@ -1365,15 +1365,13 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         },
         select: { id: true },
       });
-    // An audit's Task, free again now that its audit row is gone.
-    const taken = await prisma.projectSeoAnalysis.findMany({
-      where: { projectId, taskId: { not: null } },
-      select: { taskId: true },
-    });
-    const task = await prisma.task.findFirstOrThrow({
-      where: {
+    const task = await prisma.task.create({
+      data: {
+        name: "SEO audit",
         workspaceId,
-        id: { notIn: taken.flatMap((row) => row.taskId ?? []) },
+        projectId,
+        status: "COMPLETED",
+        ownerId: userId,
       },
       select: { id: true },
     });

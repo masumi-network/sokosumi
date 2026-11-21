@@ -709,7 +709,7 @@ describe("pages", () => {
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
         openSeo={() => {}}
-        connectSearchConsole={async () => ({ url: null, error: null })}
+        connectMeasurement={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -740,7 +740,7 @@ describe("pages", () => {
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
           openSeo={() => {}}
-          connectSearchConsole={async () => ({ url: null, error: null })}
+          connectMeasurement={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );
@@ -759,7 +759,7 @@ describe("pages", () => {
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
           openSeo={() => {}}
-          connectSearchConsole={async () => ({ url: null, error: null })}
+          connectMeasurement={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );
@@ -781,7 +781,7 @@ describe("pages", () => {
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
         openSeo={() => {}}
-        connectSearchConsole={async () => ({ url: null, error: null })}
+        connectMeasurement={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -800,7 +800,7 @@ describe("pages", () => {
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
           openSeo={() => {}}
-          connectSearchConsole={async () => ({ url: null, error: null })}
+          connectMeasurement={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );
