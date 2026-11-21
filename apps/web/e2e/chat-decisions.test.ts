@@ -9,9 +9,9 @@ import { signUpWithOrganization } from "./sign-up.ts";
 
 /**
  * A new user opens a new channel's Decisions log (on the phone from the
- * header's More chat options menu, by tap) and then Catch up's Decisions tab.
- * The log stays open and, with no decisions, carries no note on fixing one.
- * Catch up's tabs stay on screen while the Decisions tab loads.
+ * header's More chat options menu, by touch and by mouse) and then Catch up's
+ * Decisions tab. The log stays open and, with no decisions, carries no note on
+ * fixing one. Catch up's tabs stay on screen while the Decisions tab loads.
  */
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -32,7 +32,7 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
     });
     after(() => browser.close());
 
-    test("decisions log opens by tap without a fix note; Catch up tabs stay while a tab loads", async () => {
+    test("decisions log opens and stays without a fix note; Catch up tabs stay while a tab loads", async () => {
       const context = await browser.newContext({
         viewport,
         isMobile,
@@ -62,17 +62,34 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await page.waitForURL(/\/chat\/rooms\//);
       await page.getByText("No messages yet").waitFor();
 
+      const log = page.getByTestId("room-decisions-panel");
+      // A log that closes on its own does so a moment after opening.
+      async function logStaysOpen() {
+        // A log that closed already never shows its text: report, not hang.
+        await log
+          .getByText("No decisions here yet.", { exact: false })
+          .waitFor({ timeout: 5000 })
+          .catch(() => undefined);
+        await page.waitForTimeout(800);
+        return log.isVisible();
+      }
+      const menu = page.getByRole("button", { name: "More chat options" });
+      const menuItem = page.getByRole("menuitem", { name: "Decisions" });
+      let logOpenByTouch = true;
       if (name === "phone") {
-        await page.getByRole("button", { name: "More chat options" }).tap();
-        await page.getByRole("menuitem", { name: "Decisions" }).tap();
+        await menu.tap();
+        await menuItem.tap();
+        logOpenByTouch = await logStaysOpen();
+        await page.keyboard.press("Escape");
+        await log.waitFor({ state: "detached" });
+        // A mouse leaving the picked item used to hand focus back to the
+        // closing menu, which closed the log (a narrow window, a trackpad).
+        await menu.click();
+        await menuItem.click();
       } else {
         await page.getByRole("button", { name: "Decisions" }).click();
       }
-      const log = page.getByTestId("room-decisions-panel");
-      await log.getByText("No decisions here yet.", { exact: false }).waitFor();
-      // A log that closes on its own does so a moment after opening.
-      await page.waitForTimeout(800);
-      const logOpen = await log.isVisible();
+      const logOpenByMouse = await logStaysOpen();
       const logNote = await log.getByText(FIX_NOTE).count();
       await page.screenshot({
         path: `${RESULTS_DIR}${name}-room-decisions.png`,
@@ -93,22 +110,22 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await page.waitForURL(/\/chat\/catch-up\/saved$/);
       await page.getByText("Nothing saved yet").waitFor();
 
-      // Watch the tabs while the Decisions tab loads: they never leave.
-      await page.evaluate(() => {
-        const w = window as unknown as { tabsGone: boolean };
-        w.tabsGone = false;
-        const nav = () =>
-          document.querySelector('nav[aria-label="Catch up sections"]');
-        new MutationObserver(() => {
-          if (!nav()) w.tabsGone = true;
-        }).observe(document.body, { childList: true, subtree: true });
+      // Hold the Decisions page's navigation read (not its prefetch) so the
+      // tab's loading shell stays up long enough to look at.
+      const { promise: held, resolve: release } = Promise.withResolvers<void>();
+      await page.route(/\/chat\/catch-up\/decisions\?_rsc=/, async (route) => {
+        const headers = route.request().headers();
+        if (!headers["next-router-prefetch"]) await held;
+        await route.continue();
       });
       await tabs.getByRole("link", { name: "Decisions" }).click();
+      const loading = page.getByTestId("chat-unread-view-loading");
+      await loading.waitFor();
+      const tabsWhileLoading = await tabs.isVisible();
+      release();
       await page.waitForURL(/\/chat\/catch-up\/decisions$/);
       await page.getByTestId("decisions-empty").waitFor();
-      const tabsGone = await page.evaluate(
-        () => (window as unknown as { tabsGone: boolean }).tabsGone,
-      );
+      await loading.waitFor({ state: "detached" });
       const pageNote = await page.getByText(FIX_NOTE).count();
       const current = await tabs
         .getByRole("link", { name: "Decisions" })
@@ -118,11 +135,24 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       });
       await context.close();
 
-      assert.equal(logOpen, true, "decisions log stays open");
-      assert.equal(logNote, 0, "empty log has no fix note");
-      assert.equal(tabsGone, false, "Catch up tabs stay while a tab loads");
-      assert.equal(current, "page", "Decisions tab is current");
-      assert.equal(pageNote, 0, "empty Decisions tab has no fix note");
+      assert.deepEqual(
+        {
+          logOpenByTouch,
+          logOpenByMouse,
+          logNote,
+          tabsWhileLoading,
+          current,
+          pageNote,
+        },
+        {
+          logOpenByTouch: true,
+          logOpenByMouse: true,
+          logNote: 0,
+          tabsWhileLoading: true,
+          current: "page",
+          pageNote: 0,
+        },
+      );
       assert.deepEqual(errors, []);
     });
   });
