@@ -18,6 +18,7 @@ import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
 import { SidebarNewTaskButton } from "./components/sidebar-new-task-button.client";
+import { SidebarScrollFrame } from "./components/sidebar-scroll-frame.client";
 import { SidebarSearchButton } from "./components/sidebar-search-button.client";
 
 export type SidebarCreditsSubscription =
@@ -101,60 +102,65 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <ShadcnSidebar>
-      {/*
+      <SidebarScrollFrame>
+        {/*
         h-16 border-b must match HeaderChrome's desktop control row so the
         hairline is one continuous rule across the sidebar/content seam. The
         sidebar is shown and hidden from the top bar's toggle, so its own
         header carries no collapse control: Search and New task are its
         actions.
       */}
-      <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
-        <div className="flex size-full items-center justify-between gap-2 px-2">
-          {/* As in Linear: the switcher at the start, as wide as its content,
+        <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
+          <div className="flex size-full items-center justify-between gap-2 px-2">
+            {/* As in Linear: the switcher at the start, as wide as its content,
               and the actions at the end. It hides with the sidebar: nothing
               stands in for it in the top bar. The phone keeps its switcher
               and Search in the top bar instead, so its sheet keeps the
               wordmark. */}
-          <div className="flex min-w-0 flex-1 max-md:hidden">
-            {workspaceSwitcher}
+            <div className="flex min-w-0 flex-1 max-md:hidden">
+              {workspaceSwitcher}
+            </div>
+            <SidebarLogo className="md:hidden" />
+            <div className="flex shrink-0 items-center gap-1">
+              <SidebarSearchButton />
+              <SidebarNewTaskButton />
+            </div>
           </div>
-          <SidebarLogo className="md:hidden" />
-          <div className="flex shrink-0 items-center gap-1">
-            <SidebarSearchButton />
-            <SidebarNewTaskButton />
-          </div>
-        </div>
-      </SidebarHeader>
-      <SidebarContent className="min-h-0 w-full flex-1">
-        {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
-        <div className="flex w-full flex-col gap-0">
-          <PersonalAssistantNav />
-          {/* The project scope titles the nav groups it scopes; the chat
+        </SidebarHeader>
+        <div className="shrink-0">
+          {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
+          {/* Navigation now stays outside SidebarContent; only chats scroll. */}
+          <div className="flex w-full flex-col gap-0">
+            <PersonalAssistantNav />
+            {/* The project scope titles the nav groups it scopes; the chat
               area after them, under its own Chats heading, is outside it. */}
-          <Suspense fallback={null}>
-            <SidebarProjectScope />
-          </Suspense>
-          <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
-            <MenuItems newsletterEnabled={newsletterEnabled} />
+            <Suspense fallback={null}>
+              <SidebarProjectScope />
+            </Suspense>
+            <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
+              <MenuItems newsletterEnabled={newsletterEnabled} />
+            </div>
           </div>
-          {chatList}
         </div>
-      </SidebarContent>
-      {/*
+        <SidebarContent className="min-h-0 w-full flex-1 *:data-[slot=scroll-area-viewport]:overscroll-contain">
+          {chatList}
+        </SidebarContent>
+        {/*
         The hairline is the twin of SidebarHeader's `border-b`: without it the
         scroll region runs straight into the account chip, and at the scroll
         position where a DM row lands flush against it the chip reads as one
         more room. It marks the footer as chrome.
       */}
-      <SidebarFooter className="border-sidebar-border relative mt-auto shrink-0 border-t px-0">
-        <AnnouncementCards />
-        {/* No bottom padding of its own: `SidebarFooter` already contributes
+        <SidebarFooter className="border-sidebar-border relative mt-auto shrink-0 border-t px-0">
+          <AnnouncementCards />
+          {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only
             grows on phones, where the home indicator sits in that 8px. */}
-        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)]">
-          {accountFooter}
-        </div>
-      </SidebarFooter>
+          <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)]">
+            {accountFooter}
+          </div>
+        </SidebarFooter>
+      </SidebarScrollFrame>
     </ShadcnSidebar>
   );
 }

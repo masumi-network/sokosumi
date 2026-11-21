@@ -284,7 +284,14 @@ describe("AppSidebarFallback", () => {
         '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
       ),
     ).toBeNull();
-    expect(scoped?.nextElementSibling).toBe(roomList);
+    expect(
+      roomList
+        ?.closest('[data-slot="scroll-area-viewport"]')
+        ?.contains(scoped ?? null),
+    ).toBe(false);
+    expect(
+      roomList?.closest('[data-slot="scroll-area-viewport"]'),
+    ).not.toBeNull();
     const heading = roomList?.firstElementChild;
     expect(heading?.getAttribute("data-slot")).not.toBe(
       "sidebar-group-content",
