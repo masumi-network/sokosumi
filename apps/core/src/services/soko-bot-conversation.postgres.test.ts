@@ -70,7 +70,7 @@ describe.skipIf(!enabled)("Soko Bot conversation", () => {
       select: { id: true },
     });
     const at = (seconds: number) =>
-      new Date(Date.UTC(2026, 10, 21, 9, 0, seconds));
+      new Date(Date.UTC(2020, 0, 6, 9, 0, seconds));
     const turn = (data: {
       parentTurnId?: string;
       userMessage: string;
@@ -85,7 +85,7 @@ describe.skipIf(!enabled)("Soko Bot conversation", () => {
           requestedByUserId: robin.id,
           source: "CHAT",
           capabilityNames: [],
-          clientTurnId: randomUUID(),
+          clientTurnId: `lab:conversation:${randomUUID()}`,
           userMessage: data.userMessage,
           deadlineAt: new Date(Date.now() + 3_600_000),
           status: "COMPLETED",
@@ -153,7 +153,7 @@ describe.skipIf(!enabled)("Soko Bot conversation", () => {
         requestedByUserId: hannah.id,
         source: "CHAT",
         capabilityNames: [],
-        clientTurnId: randomUUID(),
+        clientTurnId: `lab:conversation:${randomUUID()}`,
         userMessage: "@Juno What does Langdock cost?",
         deadlineAt: new Date(Date.now() + 3_600_000),
         status: "COMPLETED",
@@ -162,6 +162,7 @@ describe.skipIf(!enabled)("Soko Bot conversation", () => {
         costUsdMicros: 4_000n,
         durationMs: 9_000,
         chatResponseMessageId: junoReply.id,
+        createdAt: at(20),
       },
     });
     const followUp = await turn({
