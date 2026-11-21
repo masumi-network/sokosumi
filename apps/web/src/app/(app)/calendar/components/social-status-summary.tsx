@@ -34,6 +34,9 @@ export function SocialStatusSummary({
     (status) => counts.has(status) || status === postStatus,
   );
 
+  // An empty period already says so in the panel below: no second line.
+  if (postCount === 0 && shown.length === 0) return null;
+
   return (
     <div
       className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2"
@@ -73,12 +76,14 @@ export function SocialStatusSummary({
           })}
         </fieldset>
       ) : null}
-      <p
-        className="text-muted-foreground text-xs"
-        data-testid="calendar-post-count"
-      >
-        {t("postCount", { count: postCount })}
-      </p>
+      {postCount > 0 ? (
+        <p
+          className="text-muted-foreground text-xs"
+          data-testid="calendar-post-count"
+        >
+          {t("postCount", { count: postCount })}
+        </p>
+      ) : null}
     </div>
   );
 }
