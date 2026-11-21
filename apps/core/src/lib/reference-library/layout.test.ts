@@ -12,7 +12,7 @@ vi.mock("@/lib/soko-bot/gateway-cost", () => ({
   gatewayCostUsd: () => 0.02,
 }));
 
-import { layoutBlockMap, pickBestPicture } from "./layout";
+import { describeComposition, layoutBlockMap, pickBestPicture } from "./layout";
 
 const picture = (background: string) =>
   sharp({ create: { width: 64, height: 80, channels: 3, background } })
@@ -31,6 +31,19 @@ describe("layoutBlockMap", () => {
       .raw()
       .toBuffer({ resolveWithObject: true });
     expect(new Set(data)).toEqual(new Set([150]));
+  });
+});
+
+describe("describeComposition", () => {
+  it("ends on a whole sentence when the description runs long", async () => {
+    // Cut mid-sentence, "A short caption sits at t" reached the image model
+    // (local eval, 2026-11-21).
+    const first = `A wide band spans the top ${"and more ".repeat(40)}.`;
+    generateText.mockResolvedValue({
+      text: `${first} A short caption sits at the bottom ${"right ".repeat(80)}`,
+    });
+    const { text } = await describeComposition(await picture("#ffffff"));
+    expect(text).toBe(first);
   });
 });
 

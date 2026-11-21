@@ -707,8 +707,11 @@ function pickerAction(
       sourceAssetId: null,
     };
   if (alternatives.some((job) => LIVE.has(job.status))) return { kind: "wait" };
-  if (!pick) return { kind: "pick", jobs: alternatives };
   const remakes = jobs.filter((job) => job.attempt.startsWith("r"));
+  // A remake starts only after a pick, so one stands for it where the pick
+  // itself is not read (cmoMediaState).
+  if (!pick && remakes.length === 0)
+    return { kind: "pick", jobs: alternatives };
   const last = remakes.at(-1);
   if (!last)
     return { kind: "start", step: "image", attempt: "r1", sourceAssetId: null };

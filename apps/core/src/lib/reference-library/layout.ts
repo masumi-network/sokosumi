@@ -65,7 +65,17 @@ export async function layoutBlockMap(bytes: Uint8Array): Promise<Buffer> {
 }
 
 const COMPOSITION_ASK =
-  "Describe ONLY this image's composition as an abstract layout a designer could reuse, in two sentences: where the headline or masthead band sits and how large, where the main subject sits and how much of the frame it fills, any grid, panels or bands, the type hierarchy (big title, smaller lines), and where the empty space is. Never name what is depicted (no people, objects, places), and never mention era, colours, materials, paper, texture or drawing technique.";
+  "Describe ONLY this image's composition as an abstract layout a designer could reuse, in two sentences: where the headline or masthead band sits and how large, where the main subject sits and how much of the frame it fills, any grid, panels or bands, the type hierarchy (big title, smaller lines), and where the empty space is. Name text only by its size and place (for example: a small line at top left), never what it says or holds: no dates, months, prices, issue numbers or slogans. Never name what is depicted (no people, objects, places), and never mention era, colours, materials, paper, texture or drawing technique.";
+
+const MAX_COMPOSITION = 600;
+
+/** At most the cap, ending on a whole sentence where one fits. */
+function wholeSentences(text: string): string {
+  if (text.length <= MAX_COMPOSITION) return text;
+  const cut = text.slice(0, MAX_COMPOSITION);
+  const end = cut.lastIndexOf(". ");
+  return end > 0 ? cut.slice(0, end + 1) : cut;
+}
 
 /** A reference's composition in words, without what it shows or how it looks. */
 export async function describeComposition(
@@ -85,7 +95,7 @@ export async function describeComposition(
       },
     ],
   }).catch(rethrowAiGatewayFailure);
-  return { text: result.text.trim().slice(0, 600), costUsd: costOf(result) };
+  return { text: wholeSentences(result.text.trim()), costUsd: costOf(result) };
 }
 
 const STYLE_ASK =

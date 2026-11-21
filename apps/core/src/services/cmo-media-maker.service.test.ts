@@ -1610,11 +1610,19 @@ describe("a cmo-v11 picture", () => {
     expect(
       cmoSlotAction(one, five, { pick: { chosenJobId: null } }),
     ).toMatchObject({ kind: "start", attempt: "r1" });
-    const remake = job({ id: "r", attempt: "r1", rejected: true });
+    const remake = job({
+      id: "r",
+      attempt: "r1",
+      rejected: true,
+      visualKey: cmoVisualKey(one),
+    });
     expect(
       cmoSlotAction(one, [...five, remake], { pick: { chosenJobId: null } }),
     ).toEqual({ kind: "failed" });
     expect(cmoMediaState(one, five)).toBe("making");
+    // The state reads no pick: a remake only starts after one, so a rejected
+    // remake still fails the piece and the month moves on to its review.
+    expect(cmoMediaState(one, [...five, remake])).toBe("failed");
   });
 
   it("makes three on Muse and two on MAI where MAI can, and remakes on GPT Image", () => {
