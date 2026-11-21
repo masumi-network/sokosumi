@@ -85,6 +85,14 @@ export function seoPlanReports(data: Workspace) {
     );
 }
 
+/**
+ * The report the plan starts on, from seoPlanReports: the newest one with a supported action. A later rankings or
+ * links check with none does not hide the plan of the audit before it; a later full audit with none replaces it.
+ */
+export const defaultPlanReport = (reports: Report[]) =>
+  reports.find((r) => r.planCandidates?.length || r.kind === "audit_full") ??
+  reports[0];
+
 export function seoReportPlan(
   data: Workspace,
   report: Report,

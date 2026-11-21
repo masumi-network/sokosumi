@@ -633,7 +633,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       filters.tab === "actions" ||
       (filters.tab === "agent" &&
         (data.actions.length > 0 ||
-          data.observations.some((row) => row.planCandidates != null))),
+          data.observations.some((row) => row.planCandidates?.length))),
   );
   const setupGoalSuggestion = useSeoGoalSuggestion(
     owner,

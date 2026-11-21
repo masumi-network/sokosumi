@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { seoPlanReports, seoReportPlan } from "./seo-report-plan-model";
+import {
+  defaultPlanReport,
+  seoPlanReports,
+  seoReportPlan,
+} from "./seo-report-plan-model";
 import { useSeasonalClock } from "./seo-seasonal-ideas-model";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
@@ -11,10 +15,11 @@ export function useSelectedSeoPlan(model: SeoWorkspaceModel) {
   const now = useSeasonalClock(
     reports.some((report) => report.planCandidates?.some((row) => row.season)),
   );
-  const report = reports.find((row) => row.id === picked) ?? reports[0];
+  const current = defaultPlanReport(reports);
+  const report = reports.find((row) => row.id === picked) ?? current;
 
   const historical =
-    report?.id !== reports[0]?.id ||
+    report?.id !== current?.id ||
     Boolean(
       model.filters.to && model.filters.to < now.toISOString().slice(0, 10),
     );

@@ -1,6 +1,6 @@
 import type { ProjectSeoWorkspace, SeoAuditBrief } from "@sokosumi/core-client";
 import { expect, it } from "vitest";
-import { seoReportPlan } from "./seo-report-plan-model";
+import { defaultPlanReport, seoReportPlan } from "./seo-report-plan-model";
 import { seoTestObservation, seoTestWorkspace } from "./seo-test-fixture";
 
 type Candidate = NonNullable<
@@ -364,4 +364,20 @@ it("uses a booking event chosen for this page and calls out missing booking evid
     );
   expect(choose([follow])?.basis).toBe("checkTracking");
   expect(choose([])?.missingOutcome).toBe("book");
+});
+
+it("starts on the newest report that can hold a plan", () => {
+  const audit = { ...report, id: "audit", kind: "audit_full" };
+  const rankings = {
+    ...report,
+    id: "rankings",
+    kind: "rankings",
+    planCandidates: [],
+  };
+  const clean = { ...rankings, id: "clean", kind: "audit_full" };
+  // Newest first, as seoPlanReports gives them.
+  expect(defaultPlanReport([rankings, audit])).toBe(audit);
+  // A full audit with nothing to do replaces the earlier plan.
+  expect(defaultPlanReport([clean, rankings, audit])).toBe(clean);
+  expect(defaultPlanReport([rankings])).toBe(rankings);
 });
