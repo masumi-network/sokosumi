@@ -512,7 +512,10 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await newTask.getByRole("button", { name: /Start from scratch/ }).click();
       await newTask
         .getByRole("textbox", { name: "Details" })
-        .fill("Three sections, one recipe teaser and a short chef note.");
+        // Asks for writing, so the free tag step reliably picks a topic.
+        .fill(
+          "Write three newsletter subject lines, one recipe teaser and a short chef note.",
+        );
       await newTask.getByRole("button", { name: "Create task" }).click();
       const goToTask = newTask.getByRole("button", {
         name: "Bring me to the task",
@@ -550,6 +553,16 @@ for (const { name: size, ...viewport } of PROJECTS) {
       }
       await shot(page, size, "1-task");
 
+      // The task's own Tags region (the Edit dialog has one too).
+      const tagsRegion = page
+        .getByRole("complementary")
+        .getByRole("region", { name: "Tags" })
+        .filter({ visible: true });
+      const tagNames = () =>
+        tagsRegion.locator("[data-slot=badge]").allInnerTexts();
+      await tagsRegion.locator("[data-slot=badge]").first().waitFor();
+      const tagsBefore = await tagNames();
+
       await page.getByRole("button", { name: "Actions" }).click();
       await page.getByRole("menuitem", { name: "Edit" }).click();
       const nameField = page.getByRole("textbox", { name: "Task name" });
@@ -564,6 +577,18 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Save" })
         .click();
       await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
+      // A rename keeps the automatic tags, marked as being checked. Previews
+      // never run the tag job, so the mark stays.
+      await tagsRegion
+        .getByRole("status")
+        .getByText("Checking tags for the latest changes…")
+        .waitFor();
+      assert.deepEqual(
+        await tagNames(),
+        tagsBefore,
+        "a rename drops the task's tags",
+      );
+      await shot(page, size, "2a-tags-checking");
       // Saving refreshes Properties; each row shows once, not once per refresh.
       const assigneeRows = page
         .getByRole("combobox", { name: /^Assignee:/ })
@@ -765,6 +790,42 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .click();
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
+
+      // Done sits past the board's right edge at every size. Once the only
+      // Task is Completed, the edge names Done with its count, and a click
+      // scrolls the board there and moves focus to the column.
+      await (await showTasksLink(page)).click();
+      await page.getByRole("link", { name: LONG_NAME }).click();
+      await page.getByRole("combobox", { name: /^Status:/ }).click();
+      await page.getByRole("option", { name: /^Completed/ }).click();
+      await page.getByRole("combobox", { name: "Status: Completed" }).waitFor();
+      await page
+        .getByRole("link", { name: "Back to tasks" })
+        .or(page.getByRole("link", { name: "Back", exact: true }))
+        .filter({ visible: true })
+        .click();
+      const edge = page.getByRole("navigation", {
+        name: "Columns past the edge",
+      });
+      // Named with its count for screen readers: "Done, 1 task".
+      const donePill = edge.getByRole("button", { name: /^Done\W*1 task$/ });
+      await donePill.waitFor();
+      await shot(page, size, "5-board-edge");
+      await donePill.click();
+      const doneColumn = page.getByRole("region", { name: "Done" });
+      await page.waitForFunction(() => {
+        const done = document.querySelector('main [data-column-id="done"]');
+        const box = done?.getBoundingClientRect();
+        return !!box && box.left >= 0 && box.right <= window.innerWidth + 1;
+      });
+      assert.equal(
+        await doneColumn.evaluate((el) => el === document.activeElement),
+        true,
+        "focus does not move to Done",
+      );
+      await doneColumn.getByRole("link", { name: LONG_NAME }).waitFor();
+      await edge.waitFor({ state: "hidden" });
+      await shot(page, size, "6-board-done");
 
       // A filtered board opened by its URL streams its loading shell first:
       // the toolbar, the Draft chip and the placeholder columns in one frame,

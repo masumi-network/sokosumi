@@ -70,7 +70,8 @@ export function BoardEdgeShortcuts({ columns }: { columns: EdgeColumn[] }) {
     column.focus({ preventScroll: true });
   }
 
-  const hidden = columns.filter((column) => hiddenIds.includes(column.id));
+  const hiddenSet = new Set(hiddenIds);
+  const hidden = columns.filter((column) => hiddenSet.has(column.id));
   return (
     <div
       ref={setAnchor}
