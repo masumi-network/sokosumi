@@ -761,6 +761,12 @@ export const seo: CmoSeo = {
     to: "2026-11-13",
     observedAt: seoAt("2026-11-17T08:00:00Z"),
     totals: { clicks: 412, impressions: 18_940, ctr: 0.0218, position: 14.6 },
+    previousTotals: {
+      clicks: 368,
+      impressions: 17_210,
+      ctr: 0.0214,
+      position: 15.9,
+    },
     nearFirstPage: [
       {
         query: "team booking software",

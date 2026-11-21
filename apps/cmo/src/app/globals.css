@@ -2088,6 +2088,53 @@ video.draft-media {
   margin: 0;
 }
 
+/* Details one click deeper: each fold is a quiet row that opens to its card. */
+.seo-folds {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.seo-fold {
+  border-bottom: 1px solid var(--border);
+}
+
+.seo-fold > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seo-fold > summary .note {
+  font-weight: 400;
+}
+
+.seo-fold[open] > summary {
+  padding-bottom: 12px;
+}
+
+.seo-fold[open] > :last-child {
+  margin-bottom: 16px;
+}
+
+/* A fold's card is a page section like any other; its summary is the title. */
+.seo-fold > .card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 24px;
+}
+
+.seo-fold > .card > h3:first-child {
+  display: none;
+}
+
 .seo-item {
   align-items: flex-start;
 }

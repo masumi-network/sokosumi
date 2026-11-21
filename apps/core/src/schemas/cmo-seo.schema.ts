@@ -109,6 +109,15 @@ export const cmoSearchConsoleSchema = z
         position: z.number().nullable(),
       })
       .nullable(),
+    /** The same numbers for the 28 days before `from`, for the trend. */
+    previousTotals: z
+      .object({
+        clicks: z.number(),
+        impressions: z.number(),
+        ctr: z.number().nullable(),
+        position: z.number().nullable(),
+      })
+      .nullable(),
     /** Searches ranked 8 to 20: a better page can reach the first page. */
     nearFirstPage: z.array(searchRowSchema),
     /** Searches seen often near the top but rarely clicked. */

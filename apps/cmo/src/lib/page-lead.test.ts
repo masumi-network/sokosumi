@@ -150,8 +150,22 @@ describe("pageLead", () => {
   });
 });
 
+const withoutConsole = {
+  ...seo,
+  searchConsole: { ...seo.searchConsole, totals: null, previousTotals: null },
+};
+
 describe("seoLead", () => {
-  it("counts the page changes to make", () => {
+  it("leads with clicks from Google and their trend once Search Console is in", () => {
+    expect(seoLead(seo, BERLIN, NOW)).toEqual({
+      kicker: "SEO · acme.io on Google",
+      title: "412 clicks from Google.",
+      line: "In the last 28 days, +12% on the 28 days before.",
+    });
+  });
+
+  it("counts the page changes to make without Search Console", () => {
+    const seo = { ...withoutConsole };
     const open = seo.pageChanges.filter((c) => c.status === "open").length;
     expect(seoLead(seo, BERLIN, NOW).title).toBe(
       `${open} ${open === 1 ? "change" : "changes"} to make.`,
@@ -166,6 +180,7 @@ describe("seoLead", () => {
   });
 
   it("says nothing is to change, and when the first audit runs", () => {
+    const seo = withoutConsole;
     const done = { ...seo, pageChanges: [] };
     expect(seoLead(done, BERLIN, NOW).title).toBe("Nothing to change.");
     const fresh = {
