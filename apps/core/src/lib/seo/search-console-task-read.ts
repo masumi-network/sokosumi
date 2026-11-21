@@ -93,6 +93,8 @@ function auditPageKey(url: string): string | null {
  * it read the page at, which a redirect can turn into the www or https form.
  */
 export function isAuditPageUrl(url: string, pageUrls: readonly string[]) {
+  // Google keeps a URL with a fragment as its own page row, so it is no audit page.
+  if (url.includes("#")) return false;
   const key = auditPageKey(url);
   return key !== null && pageUrls.some((page) => auditPageKey(page) === key);
 }
@@ -205,12 +207,13 @@ export function gscTaskReplyBody(
     throw badGateway("The Search Console reply was refused");
   const unsupported = () =>
     badGateway("The Search Console reply has an unsupported format");
-  // An analytics reply with no rows may hold only `metadata`.
+  // An analytics reply with no rows may hold only `metadata`. Any other key beside it is a renamed envelope.
   const onlyMetadata =
     read.operation === "searchAnalytics.query" &&
     typeof body.metadata === "object" &&
     body.metadata !== null &&
-    !Array.isArray(body.metadata);
+    !Array.isArray(body.metadata) &&
+    Object.keys(body).every((key) => key === "metadata" || key === "kind");
   // A renamed envelope must not read as "no rows". An empty object still does.
   if (
     !onlyMetadata &&

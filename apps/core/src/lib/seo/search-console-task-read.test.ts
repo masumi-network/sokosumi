@@ -147,6 +147,8 @@ describe("isAuditPageUrl", () => {
     ["https://example.test:8443/a", false],
     ["not a url", false],
     ["ftp://example.test/a", false],
+    ["https://example.test/a#!/private", false],
+    ["https://example.test/a#top", false],
   ])("%s is an audit page: %s", (url, same) => {
     expect(isAuditPageUrl(url, pages)).toBe(same);
   });
@@ -217,7 +219,13 @@ describe("gscTaskReplyBody", () => {
         data: { metadata },
       }),
     ).toEqual({ status: 200, body: { metadata } });
-    for (const data of [{ metadata: 1 }, { metadata: [metadata] }])
+    // Rows under an unknown name must not read as "no rows".
+    for (const data of [
+      { metadata: 1 },
+      { metadata: [metadata] },
+      { metadata, results: [{ keys: ["q"], clicks: 1 }] },
+      { successful: true, data: { metadata: { total: 1 }, items: [1] } },
+    ])
       expect(
         replyStatus(() => gscTaskReplyBody(analytics(), PROPERTY, data)),
         JSON.stringify(data),
