@@ -9856,6 +9856,15 @@
         "statePinned": "Die Nachricht ist angeheftet.",
         "stateUnpinned": "Die Nachricht ist nicht angeheftet."
       },
+      "Links": {
+        "open": "Links",
+        "title": "Links in diesem Chat",
+        "empty": "Hier wurden noch keine Links geteilt.",
+        "error": "Links konnten nicht geladen werden. Versuche es noch einmal.",
+        "loadOlder": "Ältere laden",
+        "showInChat": "Nachricht mit {host} anzeigen",
+        "note": "Neueste zuerst, aus Nachrichten und Antworten in Threads. Dateien werden nicht aufgeführt."
+      },
       "SavedMessages": {
         "save": "Für später speichern",
         "saved": "Für später gespeichert",

@@ -9856,6 +9856,15 @@
         "statePinned": "The message is pinned.",
         "stateUnpinned": "The message is not pinned."
       },
+      "Links": {
+        "open": "Links",
+        "title": "Links in this chat",
+        "empty": "No links shared here yet.",
+        "error": "Couldn't load links. Try again.",
+        "loadOlder": "Load older",
+        "showInChat": "Show the message with {host}",
+        "note": "Newest first, from messages and thread replies. Files are not listed."
+      },
       "SavedMessages": {
         "save": "Save for later",
         "saved": "Saved for later",

@@ -4,6 +4,7 @@ import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import {
   Ellipsis,
   Gavel,
+  Link2,
   MessageCircle,
   MessagesSquare,
   Pin,
@@ -44,6 +45,7 @@ import { NameGroupDialog } from "./name-group-dialog";
 import { orderRosterByReadRecency } from "./order-roster-by-read-recency";
 import { PinnedMessagesHeaderButton } from "./pinned-messages-panel";
 import { getRoomParticipantPreviews } from "./room-helpers";
+import { RoomLinksPopover } from "./room-links-popover";
 import { ROOM_ROSTER_PANEL_ID } from "./room-roster-panel";
 import { RoomSearchPanel } from "./room-search-panel";
 import { UnreadThreadsPanel } from "./unread-threads-panel";
@@ -219,7 +221,7 @@ interface RoomHeaderMenuProps {
 }
 
 /**
- * Below md, one button in place of pinned, decisions, threads and members, so
+ * Below md, one button in place of pinned, decisions, links, threads and members, so
  * the room's name and subtitle keep the width. It wears the threads badge,
  * since the threads button it replaces did.
  */
@@ -234,9 +236,11 @@ function RoomHeaderMenu({
 }: RoomHeaderMenuProps) {
   const t = useTranslations("App.Channels");
   const [decisionsOpen, setDecisionsOpen] = useState(false);
+  const [linksOpen, setLinksOpen] = useState(false);
   // The menu's close would put focus on its button, under the decisions
   // log opening in the same click, and the log closes on that focus.
-  const opensDecisionsRef = useRef(false);
+  // Links opens the same way.
+  const opensPopoverRef = useRef(false);
   const hasUnread = unreadThreadCount > 0;
   const spokenUnread =
     unreadThreadCount > ROOM_COUNT_CAP
@@ -270,8 +274,8 @@ function RoomHeaderMenu({
         align="end"
         className="w-52"
         onCloseAutoFocus={(event) => {
-          if (!opensDecisionsRef.current) return;
-          opensDecisionsRef.current = false;
+          if (!opensPopoverRef.current) return;
+          opensPopoverRef.current = false;
           event.preventDefault();
         }}
       >
@@ -283,7 +287,7 @@ function RoomHeaderMenu({
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
-                opensDecisionsRef.current = true;
+                opensPopoverRef.current = true;
                 setDecisionsOpen(true);
               }}
             >
@@ -292,6 +296,15 @@ function RoomHeaderMenu({
             </DropdownMenuItem>
           </>
         )}
+        <DropdownMenuItem
+          onSelect={() => {
+            opensPopoverRef.current = true;
+            setLinksOpen(true);
+          }}
+        >
+          <Link2 aria-hidden />
+          {t("Links.open")}
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={onToggleThreadList}>
           <MessagesSquare aria-hidden />
           {t("UnreadThreads.open")}
@@ -317,14 +330,22 @@ function RoomHeaderMenu({
     </DropdownMenu>
   );
 
+  const withLinks = (
+    <RoomLinksPopover
+      roomId={room.id}
+      onJumpToMessage={onJumpToMessage}
+      anchor={{ node: menu, open: linksOpen, onOpenChange: setLinksOpen }}
+    />
+  );
+
   return isDirectRoom ? (
-    menu
+    withLinks
   ) : (
     <RoomDecisionsPopover
       room={room}
       onJumpToMessage={onJumpToMessage}
       anchor={{
-        node: menu,
+        node: withLinks,
         open: decisionsOpen,
         onOpenChange: setDecisionsOpen,
       }}
@@ -514,7 +535,7 @@ export function RoomHeaderChrome({
               replyBadge: t("RoomSearch.replyBadge"),
             }}
           />
-          {/* Below md these four live in RoomHeaderMenu. */}
+          {/* Below md these live in RoomHeaderMenu. */}
           <div className="hidden md:contents">
             {isDirectRoom ? null : (
               <PinnedMessagesHeaderButton
@@ -530,6 +551,11 @@ export function RoomHeaderChrome({
                 onJumpToMessage={onJumpToMessage}
               />
             )}
+            <RoomLinksPopover
+              key={`links-${room.id}`}
+              roomId={room.id}
+              onJumpToMessage={onJumpToMessage}
+            />
             <UnreadThreadsPanel
               key={`unread-threads-${room.id}`}
               isOpen={threadListOpen}

@@ -36,6 +36,19 @@ vi.mock("@/app/chat/signal-actions", async (importOriginal) => ({
   }),
 }));
 
+// The links entry searches the room through Core; this room has no links.
+vi.mock("@/lib/clients/core.browser.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/clients/core.browser.client")>();
+  return {
+    ...actual,
+    coreClient: {
+      ...actual.coreClient,
+      getChatRoomMessages: async () => ({ data: [], meta: {} }),
+    },
+  };
+});
+
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => (
     <button type="button" data-testid="room-search-trigger" />
@@ -734,7 +747,7 @@ describe("RoomsClient room header chrome", () => {
     });
   });
 
-  it("gathers pinned, decisions, threads and members into one mobile menu", async () => {
+  it("gathers pinned, decisions, links, threads and members into one mobile menu", async () => {
     const user = userEvent.setup();
     renderRoom(channelRoom());
 
@@ -752,6 +765,7 @@ describe("RoomsClient room header chrome", () => {
     ).toEqual([
       "PinnedMessages.open",
       "Signals.Decisions.open",
+      "Links.open",
       "UnreadThreads.open",
       "RoomRoster.open",
     ]);
@@ -776,16 +790,25 @@ describe("RoomsClient room header chrome", () => {
       expect(screen.queryByTestId("room-decisions-panel")).toBeNull(),
     );
     expect(menu).toHaveFocus();
+
+    await user.click(menu);
+    await user.click(screen.getByRole("menuitem", { name: "Links.open" }));
+    expect(await screen.findByTestId("room-links-panel")).toBeTruthy();
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByTestId("room-links-panel")).toBeNull(),
+    );
+    expect(menu).toHaveFocus();
   });
 
-  it("offers only threads in a 1:1 Direct's mobile menu", async () => {
+  it("offers links and threads in a 1:1 Direct's mobile menu", async () => {
     const user = userEvent.setup();
     renderRoom(humanDirectRoom());
 
     await user.click(screen.getByTestId("room-header-menu-trigger"));
     expect(
       screen.getAllByRole("menuitem").map((item) => item.textContent),
-    ).toEqual(["UnreadThreads.open"]);
+    ).toEqual(["Links.open", "UnreadThreads.open"]);
   });
 
   it("shows the roster control on group directs without channel settings", async () => {

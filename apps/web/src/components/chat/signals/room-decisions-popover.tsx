@@ -5,16 +5,14 @@ import { buildChatMessagePreview } from "@sokosumi/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Gavel } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { listChatRoomDecisionsAction } from "@/app/chat/signal-actions";
+import {
+  RoomHeaderPopover,
+  type RoomHeaderPopoverAnchor,
+} from "@/components/chat/room-header-popover";
 import { chatMessageSenderName } from "@/components/chat/signals/signal-chips";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -22,16 +20,7 @@ import { cn } from "@/lib/utils";
 interface RoomDecisionsPopoverProps {
   room: ChatRoom;
   onJumpToMessage: (message: ChatRoomMessage) => void;
-  /**
-   * Opened from elsewhere (the mobile header's menu): the log anchors on this
-   * instead of its own button, and the caller owns `open`. Closing returns
-   * focus to the anchor's button.
-   */
-  anchor?: {
-    node: ReactNode;
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-  };
+  anchor?: RoomHeaderPopoverAnchor;
 }
 
 /**
@@ -45,69 +34,26 @@ export function RoomDecisionsPopover({
   anchor,
 }: RoomDecisionsPopoverProps) {
   const t = useTranslations("App.Channels.Signals");
-  const [ownOpen, setOwnOpen] = useState(false);
-  const open = anchor?.open ?? ownOpen;
-  const setOpen = anchor?.onOpenChange ?? setOwnOpen;
-  const anchorRef = useRef<HTMLDivElement>(null);
-  // A trigger's restore skips a close by outside click; match it.
-  const interactedOutsideRef = useRef(false);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      {anchor ? (
-        <PopoverAnchor ref={anchorRef} className="flex">
-          {anchor.node}
-        </PopoverAnchor>
-      ) : (
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("Decisions.open")}
-            title={t("Decisions.open")}
-            data-testid="room-decisions-trigger"
-            className="size-10 md:size-8"
-          >
-            <Gavel className="size-4" />
-          </Button>
-        </PopoverTrigger>
-      )}
-      <PopoverContent
-        align="end"
-        onInteractOutside={() => {
-          interactedOutsideRef.current = true;
-        }}
-        onCloseAutoFocus={
-          anchor
-            ? (event) => {
-                event.preventDefault();
-                if (interactedOutsideRef.current) {
-                  interactedOutsideRef.current = false;
-                  return;
-                }
-                anchorRef.current?.querySelector("button")?.focus();
-              }
-            : undefined
-        }
-        className="max-h-[min(32rem,70dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto p-2"
-        data-testid="room-decisions-panel"
-      >
-        <h2 className="px-2 pt-1 pb-2 text-sm font-semibold">
-          {t("Decisions.title")}
-        </h2>
+    <RoomHeaderPopover
+      label={t("Decisions.open")}
+      title={t("Decisions.title")}
+      icon={<Gavel className="size-4" />}
+      testId="room-decisions"
+      anchor={anchor}
+      footer={t("Decisions.note")}
+    >
+      {(close) => (
         <DecisionsList
           room={room}
           onJump={(message) => {
-            setOpen(false);
+            close();
             onJumpToMessage(message);
           }}
         />
-        <p className="text-muted-foreground px-2 pt-2 text-xs text-pretty">
-          {t("Decisions.note")}
-        </p>
-      </PopoverContent>
-    </Popover>
+      )}
+    </RoomHeaderPopover>
   );
 }
 

@@ -9856,6 +9856,15 @@
         "statePinned": "El mensaje está fijado.",
         "stateUnpinned": "El mensaje no está fijado."
       },
+      "Links": {
+        "open": "Enlaces",
+        "title": "Enlaces en este chat",
+        "empty": "Aún no se ha compartido ningún enlace aquí.",
+        "error": "No se pudieron cargar los enlaces. Inténtalo de nuevo.",
+        "loadOlder": "Cargar anteriores",
+        "showInChat": "Mostrar el mensaje con {host}",
+        "note": "Los más recientes primero, de mensajes y respuestas en hilos. No incluye archivos."
+      },
       "SavedMessages": {
         "save": "Guardar para después",
         "saved": "Guardado para después",
