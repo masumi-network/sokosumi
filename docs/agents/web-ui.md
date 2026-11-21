@@ -150,7 +150,7 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-auth-flow-handover` (`useAuthFlowHandover`) — before-paint sign-in/sign-up `sessionStorage` handover consumption in `AuthFlow`
 - `use-seo-connection-handoff` (`useSeoConnectionHandoff`) — StrictMode-safe `window.name` read-and-clear for the SEO OAuth callback return page
 - `use-cookie-consent-banner` (`useCookieConsentBanner`, `openCookieConsentPreferences`) — consent cookie hydration, OAuth brand lookup, reopen event subscription, and consent choice persistence
-- `use-conditional-passkey-autofill` (`useConditionalPasskeyAutofill`) — WebAuthn conditional passkey autofill lifecycle on sign-in (CMO also has `useCmoAppInitialUrl` under `apps/cmo/src/hooks/effects/use-cmo-app-initial-url.ts` and `useOnboardingReturnNotice` under `apps/cmo/src/hooks/effects/use-onboarding-return-notice.ts`)
+- `use-conditional-passkey-autofill` (`useConditionalPasskeyAutofill`) — WebAuthn conditional passkey autofill lifecycle on sign-in (CMO also has `useCmoAppInitialUrl`, `useOnboardingReturnNotice`, `useOnboardingPoll`, `useAdCampaigns`, `useCompetitorsData`, `useTikTokCreator`, and `useEntryFiledText` under `apps/cmo/src/hooks/effects/`)
 
 ### React Query in migrations
 
