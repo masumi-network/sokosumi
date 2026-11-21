@@ -96,32 +96,6 @@ export function SearchConsoleCard({
           ? `${day(gsc.from)} to ${day(gsc.to)}, the last 28 days Google has settled.`
           : null}
       </p>
-      {gsc.totals ? (
-        <div className="grid4">
-          <div className="kpi">
-            <span className="label">Clicks</span>
-            <span className="v num">{count(gsc.totals.clicks)}</span>
-          </div>
-          <div className="kpi">
-            <span className="label">Seen in search</span>
-            <span className="v num">{count(gsc.totals.impressions)}</span>
-          </div>
-          <div className="kpi">
-            <span className="label">Average position</span>
-            <span className="v num">
-              {gsc.totals.position?.toFixed(1) ?? NOT_KNOWN}
-            </span>
-          </div>
-          <div className="kpi">
-            <span className="label">Clicked</span>
-            <span className="v num">
-              {gsc.totals.ctr === null
-                ? NOT_KNOWN
-                : `${(gsc.totals.ctr * 100).toFixed(1)}%`}
-            </span>
-          </div>
-        </div>
-      ) : null}
       {rows(
         "Close to page one",
         gsc.nearFirstPage,
@@ -144,7 +118,10 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
         {search.languageCode.toUpperCase()}, {day(search.observedAt)}
       </p>
       {search.ideas.length === 0 ? (
-        <p className="note">No searches found for this topic.</p>
+        <p className="note">
+          No searches found for this topic, and Google has not shown your site
+          for one like it yet.
+        </p>
       ) : (
         <div className="seo-table-wrap">
           <table className="seo-table">
@@ -184,6 +161,14 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
                   <td>{idea.intent ?? NOT_KNOWN}</td>
                   <td className="num">
                     {idea.position === null ? "Not yet" : idea.position}
+                    {idea.impressions ? (
+                      <>
+                        <br />
+                        <span className="note">
+                          seen {count(idea.impressions)}
+                        </span>
+                      </>
+                    ) : null}
                   </td>
                 </tr>
               ))}

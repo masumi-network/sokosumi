@@ -7,10 +7,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { ssrfSafeFetch } from "@sokosumi/net";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { getEnv } from "@/config/env";
 import { fetchKeywordIdeas, fetchKeywordOverview } from "@/lib/ads/dataforseo";
 import { askCmoEditor, EDITORS } from "./cmo-keyword-editorial";
@@ -27,6 +27,7 @@ import { type Cuso, findCusoForBot } from "./cmo-cuso.service";
 import {
   markCmoLandingPageLive,
   readCmoSeo,
+  requestCmoArticleIdeas,
   saveCmoSeoSuggestions,
   searchCmoKeywords,
   setCmoSeoSuggestionStatus,
@@ -42,6 +43,12 @@ import {
   checkCmoSearchRankings,
   seoCheckOutcome,
 } from "./cmo-seo-rankings.service";
+
+// A page change's before is read on the live page.
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: vi.fn(),
+}));
 
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ads/dataforseo")>()),
@@ -580,6 +587,180 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         expect.objectContaining({ metric: "difficulty", value: "1" }),
       ]),
     );
+  });
+
+  it("offers the site's own Search Console searches when research measures nothing, and saves an article on one", async () => {
+    const row = (query: string, impressions: number, position: number) => ({
+      query,
+      pageUrl: "https://battery-sensei.app/guide",
+      clicks: 1,
+      impressions,
+      ctr: 1 / impressions,
+      position,
+    });
+    const gsc = await prisma.projectSeoResearch.create({
+      data: {
+        projectId,
+        kind: "search_console",
+        key: "latest",
+        observedAt: new Date(),
+        payload: {
+          property: "sc-domain:battery-sensei.app",
+          from: "2026-10-20",
+          to: "2026-11-16",
+          totals: { clicks: 2, impressions: 320, ctr: 0.006, position: 14 },
+          rows: [
+            row("macbook battery cycle count", 200, 12.4),
+            row("battery cycle count mac", 120, 18),
+            row("swiss watch straps", 90, 30),
+          ],
+        },
+      },
+    });
+    try {
+      vi.mocked(fetchKeywordIdeas).mockImplementationOnce(async () => []);
+      const search = await searchCmoKeywords(cuso, "macbook battery cycles");
+      expect(search.ideas.map((i) => i.keyword)).toEqual([
+        "macbook battery cycle count",
+        "battery cycle count mac",
+      ]);
+      expect(search.ideas[0]).toMatchObject({
+        searchVolume: null,
+        impressions: 200,
+        position: 12.4,
+        positionSource: "search_console",
+      });
+      const saved = await saveCmoSeoSuggestions(cuso, {
+        articles: [
+          {
+            title: "How to read your MacBook battery cycle count",
+            keyword: "macbook battery cycle count",
+            why: "Google already shows the site for it, at 12.4.",
+            outline: "## Where to find it\n## What the number means",
+          },
+        ],
+      });
+      expect(saved.refused).toEqual([]);
+      const article = (await readCmoSeo(cuso)).articles.find(
+        (a) => a.keyword === "macbook battery cycle count",
+      );
+      expect(article?.evidence).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            metric: "impressions",
+            value: "200",
+            source: "search_console",
+          }),
+        ]),
+      );
+    } finally {
+      await prisma.projectSeoSuggestion.deleteMany({
+        where: { projectId, keyword: "macbook battery cycle count" },
+      });
+      await prisma.projectSeoResearch.delete({ where: { id: gsc.id } });
+    }
+  });
+
+  it("keeps a page change's before only when the live page says it, and refuses a before it does not", async () => {
+    const gsc = await prisma.projectSeoResearch.create({
+      data: {
+        projectId,
+        kind: "search_console",
+        key: "latest",
+        observedAt: new Date(),
+        payload: {
+          property: "sc-domain:battery-sensei.app",
+          from: "2026-10-20",
+          to: "2026-11-16",
+          totals: { clicks: 9, impressions: 900, ctr: 0.01, position: 11 },
+          rows: [
+            {
+              query: "macbook battery health app",
+              pageUrl: "https://battery-sensei.app/",
+              clicks: 9,
+              impressions: 900,
+              ctr: 0.01,
+              position: 11,
+            },
+          ],
+        },
+      },
+    });
+    const page = () =>
+      new Response(
+        "<html><head><title>Battery Sensei &amp; your Mac</title></head><body><h1>Keep your battery young</h1></body></html>",
+      );
+    const change = (title: string, currentText: string) => ({
+      pageUrl: "https://battery-sensei.app/",
+      title,
+      change: "Replace the homepage title.",
+      element: "title" as const,
+      currentText,
+      newText: "MacBook Battery Health App | Battery Sensei",
+      why: "Seen 900 times at 11 for the search; the title never says it.",
+      keyword: "macbook battery health app",
+    });
+    try {
+      vi.mocked(ssrfSafeFetch).mockImplementation(async () => page());
+      const saved = await saveCmoSeoSuggestions(cuso, {
+        pageChanges: [
+          change(
+            "Say battery health in the title",
+            "Battery Sensei & your Mac",
+          ),
+          change("A title the page never had", "Best Mac app of 2026"),
+        ],
+      });
+      expect(saved.saved).toHaveLength(1);
+      expect(saved.refused.join(" ")).toMatch(/does not say "Best Mac app/);
+      const kept = (await readCmoSeo(cuso)).pageChanges.find(
+        (c) => c.title === "Say battery health in the title",
+      );
+      expect(kept).toMatchObject({
+        element: "title",
+        currentText: "Battery Sensei & your Mac",
+      });
+
+      // A page Core cannot read keeps the change, without a before.
+      vi.mocked(ssrfSafeFetch).mockRejectedValueOnce(new Error("timeout"));
+      const unread = await saveCmoSeoSuggestions(cuso, {
+        pageChanges: [change("Name the search on the homepage", "Anything")],
+      });
+      expect(unread.saved).toHaveLength(1);
+      const plain = (await readCmoSeo(cuso)).pageChanges.find(
+        (c) => c.title === "Name the search on the homepage",
+      );
+      expect(plain).toMatchObject({ currentText: null, element: null });
+    } finally {
+      await prisma.projectSeoSuggestion.deleteMany({
+        where: { projectId, source: "cuso", kind: "page_change" },
+      });
+      await prisma.projectSeoResearch.delete({ where: { id: gsc.id } });
+    }
+  });
+
+  it("joins an article request that is still under way instead of starting a second one", async () => {
+    const running = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: cuso.sokoBotId,
+        workspaceId,
+        requestedByUserId: userId,
+        source: "EVENT",
+        status: "RUNNING",
+        clientTurnId: `cmo:seo-ideas:${cuso.sokoBotId}:1`,
+        userMessage: "The owner asked for more article ideas",
+        capabilityNames: [],
+        deadlineAt: new Date(Date.now() + 600_000),
+      },
+      select: { id: true },
+    });
+    try {
+      expect(await requestCmoArticleIdeas({ userId, projectId })).toEqual({
+        turnId: running.id,
+      });
+    } finally {
+      await prisma.sokoBotTurn.delete({ where: { id: running.id } });
+    }
   });
 
   it("keeps CMO search receipts separate, reuses its weekly result and saves a billed vendor refusal", async () => {
@@ -1365,15 +1546,13 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         },
         select: { id: true },
       });
-    // An audit's Task, free again now that its audit row is gone.
-    const taken = await prisma.projectSeoAnalysis.findMany({
-      where: { projectId, taskId: { not: null } },
-      select: { taskId: true },
-    });
-    const task = await prisma.task.findFirstOrThrow({
-      where: {
+    const task = await prisma.task.create({
+      data: {
+        name: "SEO audit",
         workspaceId,
-        id: { notIn: taken.flatMap((row) => row.taskId ?? []) },
+        projectId,
+        status: "COMPLETED",
+        ownerId: userId,
       },
       select: { id: true },
     });

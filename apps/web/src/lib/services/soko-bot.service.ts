@@ -12,6 +12,7 @@ import type {
   SharedSokoBotSummary,
   SimulateSokoBotTaskEventRequest,
   SokoBot,
+  SokoBotConversation,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
   SokoBotIntegrationCatalogEntry,
@@ -147,12 +148,28 @@ export const sokoBotService = {
     return response.data;
   },
 
+  async getTurnConversation(turnId: string): Promise<SokoBotConversation> {
+    const response = await coreClient.getMySokoBotTurnConversation(turnId);
+    return response.data;
+  },
+
   async sendTurnFeedback(turnId: string, useful: boolean): Promise<void> {
     await coreClient.sendMySokoBotTurnFeedback(turnId, { useful });
   },
 
   async setFollowBoard(enabled: boolean, botId?: string): Promise<SokoBot> {
     const response = await coreClient.updateMySokoBotBoardFollowing(
+      { enabled },
+      botId,
+    );
+    return response.data;
+  },
+
+  async setJoinsTeamStandup(
+    enabled: boolean,
+    botId?: string,
+  ): Promise<SokoBot> {
+    const response = await coreClient.updateMySokoBotTeamStandup(
       { enabled },
       botId,
     );

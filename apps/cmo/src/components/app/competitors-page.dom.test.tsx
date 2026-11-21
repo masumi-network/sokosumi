@@ -239,6 +239,29 @@ describe("CompetitorsPage", () => {
     );
   });
 
+  it("shows no scoreboard until a competitor has a number", async () => {
+    const [you, ...rivals] = competitors.scoreboard;
+    if (!you) throw new Error("fixture has the owner's row");
+    const empty = {
+      postsPerWeek: null,
+      engagementPerPost: null,
+      followers: null,
+      followerGrowth: null,
+    };
+    await render(
+      actions({
+        loadCompetitors: async () => ({
+          ...competitors,
+          // The owner's own numbers, every competitor a dash: nothing to compare.
+          scoreboard: [you, ...rivals.map((row) => ({ ...row, ...empty }))],
+        }),
+      }),
+    );
+    expect(text()).toContain("This week");
+    expect(text()).not.toContain("Scoreboard");
+    expect(container.querySelector(".comp-table")).toBeNull();
+  });
+
   it("asks for ideas from a competitor's top posts in chat", async () => {
     const compose = vi.fn();
     await render(actions(), compose);

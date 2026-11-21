@@ -148,7 +148,7 @@ it("shows the upgraded plan at once and its credits once Polar's order lands", a
   core = subscribed({ tier: "growth", availableCredits: 17_500 });
   await act(async () => vi.advanceTimersByTimeAsync(5_000));
 
-  expect(text()).toContain("17500");
+  expect(text()).toContain("17,500");
 });
 
 it("shows a scheduled downgrade as soon as the change returns", async () => {

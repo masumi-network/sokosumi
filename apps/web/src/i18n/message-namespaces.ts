@@ -122,6 +122,8 @@ export const SOKO_BOT_MESSAGE_PATHS = [
 export const ADMIN_MESSAGE_PATHS = [
   ...APP_SHELL_MESSAGE_PATHS,
   "App.Admin",
+  // A turn's "How I got this" dialog is the chat's.
+  "App.Chat.SokoBot.Conversation",
 ] as const;
 
 export const SHARE_MESSAGE_PATHS = [

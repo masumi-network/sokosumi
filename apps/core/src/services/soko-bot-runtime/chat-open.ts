@@ -42,8 +42,15 @@ import { type RuntimeOperations } from "./operations";
 export async function openDirectChat(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
-  input: { person: string; message: string; toolCallId: string },
+  input: {
+    person: string;
+    message: string;
+    toolCallId: string;
+    /** The tool the bot called, when send_message routed here. */
+    capability?: "send_message";
+  },
 ) {
+  const capability = input.capability ?? "open_direct_chat";
   // Approaching somebody is the owner's call. A turn nobody asked for can
   // still say "I would ask Nina about this" in the owner's own chat and let
   // them decide, which costs nothing and embarrasses no one.
@@ -137,12 +144,7 @@ export async function openDirectChat(
     "@/routes/v1/chats/rooms/helpers"
   );
   return serializableTransaction(async (tx) => {
-    await runtime.requireMutationAuthority(
-      tx,
-      authorized,
-      false,
-      "open_direct_chat",
-    );
+    await runtime.requireMutationAuthority(tx, authorized, false, capability);
     const stillMember = await tx.member.findFirst({
       where: { organizationId, userId: member.user.id },
       select: { id: true },
@@ -168,7 +170,7 @@ export async function openDirectChat(
         content: input.message,
         toolCallId: input.toolCallId,
         via: {
-          capability: "open_direct_chat",
+          capability,
           result: {
             name: room.name,
             created,
@@ -195,8 +197,15 @@ export async function openDirectChat(
 export async function askCoworker(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
-  input: { coworkerIds: string[]; question: string; toolCallId: string },
+  input: {
+    coworkerIds: string[];
+    question: string;
+    toolCallId: string;
+    /** The tool the bot called, when send_message routed here. */
+    capability?: "send_message";
+  },
 ) {
+  const capability = input.capability ?? "ask_coworker";
   const memberUserId = authorized.turn.actingUserId;
   const shared = Boolean(authorized.reader.sharedScope);
   // The person is in the room and reads the answer. On a personal bot a
@@ -237,12 +246,7 @@ export async function askCoworker(
     );
   }
   return serializableTransaction(async (tx) => {
-    await runtime.requireMutationAuthority(
-      tx,
-      authorized,
-      false,
-      "ask_coworker",
-    );
+    await runtime.requireMutationAuthority(tx, authorized, false, capability);
     let coworkerIds: string[];
     try {
       coworkerIds = await validateChatCoworkerIds(
@@ -285,7 +289,7 @@ export async function askCoworker(
         ),
         toolCallId: input.toolCallId,
         via: {
-          capability: "ask_coworker",
+          capability,
           result: { name: room.name, created: room.created, coworkers },
         },
       },

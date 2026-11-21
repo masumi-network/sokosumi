@@ -190,7 +190,7 @@ describe("Social tool contracts", () => {
         "# Social performance",
       );
     }
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v34");
   });
 
   it("tells the bot to read posting instructions before drafting", () => {
@@ -531,7 +531,12 @@ describe("Social capability ceilings", () => {
   it("exposes social tools through the current version without widening ceilings", () => {
     const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
     const social = capabilitiesForClassification(classification("SOCIAL"));
-    expect(applyVersionCapabilities(version, social)).toEqual(social);
+    expect(applyVersionCapabilities(version, social)).toEqual(
+      social.filter(
+        (capability) =>
+          capability !== "send_message" && capability !== "list_recipients",
+      ),
+    );
     expect(
       applyVersionCapabilities(
         { ...version, capabilities: [...reads, ...writes] },

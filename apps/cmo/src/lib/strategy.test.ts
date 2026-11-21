@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { monthLabel, monthPostCount } from "./strategy";
+import { monthLabel, monthPostCount, planCount } from "./strategy";
 
 const entry = (id: string, extra: Record<string, unknown> = {}) =>
   ({
@@ -40,4 +40,10 @@ it("counts search ads as ads, not posts", () => {
   expect(monthPostCount(month)).toBe(2);
   expect(monthLabel(month)).toBe("2 posts and 2 ads");
   expect(monthLabel(month.slice(0, 1))).toBe("1 post");
+});
+
+it("says planned and in your plan when the plan bought makes fewer", () => {
+  const month = [entry("a"), entry("b"), entry("c")];
+  expect(planCount(month, ["c"]).label).toBe("3 planned, 2 in your plan");
+  expect(planCount(month, []).label).toBe("3 posts");
 });

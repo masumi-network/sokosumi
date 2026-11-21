@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef, type Ref, useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -300,7 +300,7 @@ describe("EmailCodeField", () => {
     const ref = createRef<HTMLInputElement>();
     render(<Field inputRef={ref} />);
 
-    ref.current?.focus();
+    act(() => ref.current?.focus());
 
     expect(codeField()).toHaveFocus();
   });

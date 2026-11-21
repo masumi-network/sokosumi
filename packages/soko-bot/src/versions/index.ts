@@ -23,6 +23,8 @@ import { cmoV6 } from "./cmo-v6.js";
 import { cmoV7 } from "./cmo-v7.js";
 import { cmoV8 } from "./cmo-v8.js";
 import { cmoV9 } from "./cmo-v9.js";
+import { cmoV10 } from "./cmo-v10.js";
+import { cmoV12 } from "./cmo-v12.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -62,6 +64,9 @@ import { v30 } from "./v30.js";
 import { v31 } from "./v31.js";
 import { v32 } from "./v32.js";
 import { v33 } from "./v33.js";
+import { v34 } from "./v34.js";
+import { v35 } from "./v35.js";
+import { v36 } from "./v36.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -98,8 +103,11 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v31,
   v32,
   v33,
+  v34,
+  v35,
+  v36,
 ];
-export const DEFAULT_SOKO_BOT_VERSION_ID = "v33";
+export const DEFAULT_SOKO_BOT_VERSION_ID = "v34";
 
 /**
  * Versions of other products built on Soko Bots (CMO's Cuso). Kept out of
@@ -116,10 +124,12 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV7,
   cmoV8,
   cmoV9,
+  cmoV10,
+  cmoV12,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
-export const CMO_SOKO_BOT_VERSION_ID = cmoV8.id;
+export const CMO_SOKO_BOT_VERSION_ID = cmoV10.id;
 /**
  * Every Cuso version. A Cuso stays on the version he was hired on until he is
  * moved, so finding one means any of these, never only the newest.
@@ -213,10 +223,15 @@ export function applyVersionCapabilities(
   capabilities: readonly SokoBotCapability[],
 ): SokoBotCapability[] {
   const cmo = version.profile === "cmo";
+  const messagingTools: readonly SokoBotCapability[] =
+    version.messaging === "send_message"
+      ? ["post_chat", "open_direct_chat", "ask_coworker"]
+      : ["send_message", "list_recipients"];
   const routed = capabilities.filter(
     (capability) =>
       !isSokoBotCmoCapability(capability) &&
-      !(cmo && isSokoBotCompetitorCapability(capability)),
+      !(cmo && isSokoBotCompetitorCapability(capability)) &&
+      !messagingTools.includes(capability),
   );
   const allowed = version.capabilities
     ? routed.filter((capability) =>

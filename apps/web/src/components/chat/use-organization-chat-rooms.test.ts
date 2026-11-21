@@ -162,13 +162,13 @@ describe("useOrganizationChatRooms", () => {
       listRoomsMock
         .mockResolvedValueOnce(emptyListResult([refreshed]))
         .mockReturnValue(new Promise(() => {}));
-      const first = mount({ rooms: seed });
+      const first = await act(async () => mount({ rooms: seed }));
       await waitFor(() =>
         expect(first.result.current.roomRows[0]?.isReadOnly).toBe(isReadOnly),
       );
       first.unmount();
 
-      const remounted = mount({ rooms: seed });
+      const remounted = await act(async () => mount({ rooms: seed }));
       expect(remounted.result.current.roomRows[0]?.isReadOnly).toBe(isReadOnly);
       expect(
         getLatestMembershipVisibleRoomsSnapshot()?.rooms[0]?.isReadOnly,
@@ -190,13 +190,15 @@ describe("useOrganizationChatRooms", () => {
         emptyListResult([{ ...seed[0], isReadOnly: true }]),
       )
       .mockReturnValue(new Promise(() => {}));
-    const first = mount({ rooms: seed });
+    const first = await act(async () => mount({ rooms: seed }));
     await waitFor(() =>
       expect(first.result.current.roomRows[0]?.isReadOnly).toBe(true),
     );
     first.unmount();
 
-    const fresh = mount({ rooms: [{ ...seed[0], isReadOnly: false }] });
+    const fresh = await act(async () =>
+      mount({ rooms: [{ ...seed[0], isReadOnly: false }] }),
+    );
     expect(fresh.result.current.roomRows[0]?.isReadOnly).toBe(false);
   });
 
@@ -210,12 +212,12 @@ describe("useOrganizationChatRooms", () => {
       listRoomsMock
         .mockResolvedValueOnce(emptyListResult([channel("private-snapshot")]))
         .mockReturnValue(new Promise(() => {}));
-      const first = mount({ rooms: seed });
+      const first = await act(async () => mount({ rooms: seed }));
       await waitFor(() =>
         expect(first.result.current.roomRows[0]?.id).toBe("private-snapshot"),
       );
       first.unmount();
-      const other = mount({ rooms: seed, ...scope });
+      const other = await act(async () => mount({ rooms: seed, ...scope }));
       expect(other.result.current.roomRows[0]?.id).toBe("seed");
     },
   );

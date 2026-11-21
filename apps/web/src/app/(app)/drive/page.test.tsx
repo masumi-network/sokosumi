@@ -542,7 +542,7 @@ describe("DrivePage workspace remount", () => {
   it("does not remount as personal when the session briefly goes pending", async () => {
     useSessionMock.mockReturnValue(sessionFor("org_a"));
 
-    const { rerender } = renderDrive();
+    const { rerender } = await act(async () => renderDrive());
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -550,9 +550,9 @@ describe("DrivePage workspace remount", () => {
     const callsAfterFirstLoad = listDriveItemsMock.mock.calls.length;
 
     useSessionMock.mockReturnValue(pendingSession());
-    rerender(driveTree());
+    await act(async () => rerender(driveTree()));
     useSessionMock.mockReturnValue(sessionFor("org_a"));
-    rerender(driveTree());
+    await act(async () => rerender(driveTree()));
 
     expect(listDriveItemsMock).toHaveBeenCalledTimes(callsAfterFirstLoad);
     expect(

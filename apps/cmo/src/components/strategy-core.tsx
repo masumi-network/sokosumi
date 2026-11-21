@@ -540,8 +540,11 @@ export function MeasureFunnel({
   sources,
   onConnect,
   measureError = null,
+  connectedLinks = {},
 }: {
   sources: Source[];
+  /** What a connected source leads to, beside its "Connected". */
+  connectedLinks?: Partial<Record<Source["provider"], React.ReactNode>>;
   onConnect: (
     provider: Source["provider"],
   ) => Promise<{ url: string | null; error: string | null }>;
@@ -584,7 +587,10 @@ export function MeasureFunnel({
                 <span className="note">{source.measures}</span>
               </span>
               {source.status === "connected" ? (
-                <StatusText>Connected</StatusText>
+                <span className="sc-source-status">
+                  <StatusText>Connected</StatusText>
+                  {connectedLinks[source.provider]}
+                </span>
               ) : (
                 <button
                   type="button"

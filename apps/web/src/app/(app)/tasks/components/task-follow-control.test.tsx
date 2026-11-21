@@ -1,5 +1,5 @@
 import type { TaskFollower } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode, StrictMode } from "react";
@@ -201,7 +201,7 @@ describe("TaskFollowControl", () => {
     expect(
       screen.getByRole("button", { name: "followActive. unfollow" }),
     ).toBeInTheDocument();
-    resolve({ ok: true });
+    await act(async () => resolve({ ok: true }));
   });
 
   it("sends a viewer without a Soko Bot to setup, returning to this Task", () => {

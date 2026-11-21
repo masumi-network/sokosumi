@@ -15,6 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 
 /** Open first, then the viewer's Hidden ones: both take new schedules. */
 const DESTINATION_STATES = ["open", "hidden"] as const;
@@ -112,13 +113,7 @@ export function TaskScheduleCopyProjectPicker({
     }
   });
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(
-      () => setQuery(search.trim()),
-      search ? 250 : 0,
-    );
-    return () => window.clearTimeout(timeoutId);
-  }, [search]);
+  useTimeout(() => setQuery(search.trim()), search ? 250 : 0, search);
 
   useEffect(() => {
     void load(false);

@@ -35,6 +35,7 @@ import {
   getMySokoBotActivity as coreGetMySokoBotActivity,
   getMySokoBotStats as coreGetMySokoBotStats,
   getMySokoBotTurn as coreGetMySokoBotTurn,
+  getMySokoBotTurnConversation as coreGetMySokoBotTurnConversation,
   getMySokoBotTurnResults as coreGetMySokoBotTurnResults,
   getMySokoBotUsage as coreGetMySokoBotUsage,
   getSokoBot as coreGetSokoBot,
@@ -80,11 +81,13 @@ import {
   updateMySokoBotBoardFollowing as coreUpdateMySokoBotBoardFollowing,
   updateMySokoBotProactive as coreUpdateMySokoBotProactive,
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
+  updateMySokoBotTeamStandup as coreUpdateMySokoBotTeamStandup,
   updateMySokoBotVersion as coreUpdateMySokoBotVersion,
   updateSokoBotBoardFollowing as coreUpdateSokoBotBoardFollowing,
   updateSokoBotMcpTool as coreUpdateSokoBotMcpTool,
   updateSokoBotProactive as coreUpdateSokoBotProactive,
   updateSokoBotSchedule as coreUpdateSokoBotSchedule,
+  updateSokoBotTeamStandup as coreUpdateSokoBotTeamStandup,
 } from "@sokosumi/core-client";
 import { createEvalsAdminClient } from "./core.evals-admin";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
@@ -211,6 +214,19 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getMySokoBotTurnConversation(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetMySokoBotTurnConversation({
+          client,
+          path: { id: turnId },
+          cache: "no-store",
+        }),
+      "Failed to load the conversation",
+    );
+  }
+
   async function updateMySokoBotBoardFollowing(
     body: { enabled: boolean },
     sokoBotId?: string,
@@ -226,6 +242,24 @@ export function createSokoBotClient(getClient: GetCoreClient) {
             })
           : coreUpdateMySokoBotBoardFollowing({ client, body }),
       "Failed to update board following",
+    );
+  }
+
+  async function updateMySokoBotTeamStandup(
+    body: { enabled: boolean },
+    sokoBotId?: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        sokoBotId
+          ? coreUpdateSokoBotTeamStandup({
+              client,
+              path: { sokoBotId },
+              body,
+            })
+          : coreUpdateMySokoBotTeamStandup({ client, body }),
+      "Failed to update the team stand-up setting",
     );
   }
 
@@ -754,7 +788,9 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     listSokoBotVersions,
     updateMySokoBotProactive,
     sendMySokoBotTurnFeedback,
+    getMySokoBotTurnConversation,
     updateMySokoBotBoardFollowing,
+    updateMySokoBotTeamStandup,
     renameMySokoBot,
     updateMySokoBotVersion,
     getSokoBotTeam,

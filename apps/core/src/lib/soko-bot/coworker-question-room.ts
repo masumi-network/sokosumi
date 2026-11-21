@@ -34,10 +34,14 @@ export async function createOrGetCoworkerQuestionRoom(
     memberUserId: string;
     sokoBotId: string;
     coworkers: readonly QuestionRoomCoworker[];
+    /** Other assistants asked with them (send_message). */
+    assistants?: readonly { id: string; name: string }[];
     discoverability: "private" | "public";
   },
 ): Promise<{ id: string; name: string; created: boolean }> {
   const coworkerIds = params.coworkers.map(({ id }) => id);
+  const assistants = params.assistants ?? [];
+  const botIds = [params.sokoBotId, ...assistants.map(({ id }) => id)];
   const candidates = await tx.chatRoom.findMany({
     where: {
       organizationId: params.organizationId,
@@ -46,7 +50,9 @@ export async function createOrGetCoworkerQuestionRoom(
       archivedAt: null,
       userMembers: { some: { userId: params.memberUserId } },
       sokoBotMembers: { some: { sokoBotId: params.sokoBotId } },
-      coworkerMembers: { some: { coworkerId: { in: coworkerIds } } },
+      ...(coworkerIds.length
+        ? { coworkerMembers: { some: { coworkerId: { in: coworkerIds } } } }
+        : {}),
     },
     orderBy: { updatedAt: "desc" },
     take: 20,
@@ -66,7 +72,7 @@ export async function createOrGetCoworkerQuestionRoom(
       ) &&
       sameIds(
         room.sokoBotMembers.map(({ sokoBotId }) => sokoBotId),
-        [params.sokoBotId],
+        botIds,
       ) &&
       sameIds(
         room.coworkerMembers.map(({ coworkerId }) => coworkerId),
@@ -75,7 +81,7 @@ export async function createOrGetCoworkerQuestionRoom(
   );
   if (existing) return { id: existing.id, name: existing.name, created: false };
 
-  const name = `Ask ${params.coworkers.map((coworker) => coworker.name).join(", ")}`;
+  const name = `Ask ${[...params.coworkers, ...assistants].map((member) => member.name).join(", ")}`;
   const room = await tx.chatRoom.create({
     data: {
       organizationId: params.organizationId,
@@ -90,7 +96,7 @@ export async function createOrGetCoworkerQuestionRoom(
       coworkerMembers: {
         create: coworkerIds.map((coworkerId) => ({ coworkerId })),
       },
-      sokoBotMembers: { create: [{ sokoBotId: params.sokoBotId }] },
+      sokoBotMembers: { create: botIds.map((sokoBotId) => ({ sokoBotId })) },
     },
     select: { id: true, name: true },
   });

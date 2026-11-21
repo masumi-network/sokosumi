@@ -1175,7 +1175,7 @@ export async function setAdCampaignStatus(
 export async function connectMeasurement(
   projectId: string,
   provider: CmoMeasurement["provider"],
-  from: "onboarding" | "launch" | "app" | "seo",
+  from: "onboarding" | "launch" | "app" | "seo" | "channels",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoMeasurementForProject({
@@ -1457,6 +1457,7 @@ export async function markLandingPageLive(
 export async function askCusoForArticles(
   projectId: string,
   articleId?: string,
+  write = false,
 ): Promise<string | null> {
   const core = await requireCore();
   const { error } = articleId
@@ -1464,7 +1465,11 @@ export async function askCusoForArticles(
         ...core,
         path: { projectId, id: articleId },
       })
-    : await requestCmoArticleIdeasForProject({ ...core, path: { projectId } });
+    : await requestCmoArticleIdeasForProject({
+        ...core,
+        path: { projectId },
+        body: { write },
+      });
   return error ? errorText(error, `${AGENT_NAME} could not start`) : null;
 }
 

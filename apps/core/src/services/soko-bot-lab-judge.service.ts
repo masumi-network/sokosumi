@@ -19,6 +19,11 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
+  modelCallTelemetryFor,
+  recordModelCall,
+  withModelCallTurn,
+} from "@/lib/soko-bot/model-calls";
+import {
   assertSokoBotInferenceRegion,
   SokoBotModelPolicyError,
   sokoBotInferenceEvidence,
@@ -209,6 +214,7 @@ export async function generateSokoBotJudgeText(options: {
     abortSignal: options.abortSignal,
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
+    telemetry: modelCallTelemetryFor("soko-bot-judge"),
   }).catch((error: unknown) => rethrowAiGatewayFailure(error, "evals"));
   assertSokoBotInferenceRegion(result.providerMetadata, {
     model: options.model,
@@ -246,6 +252,14 @@ async function askJudge(
           instructions: SOKO_BOT_JUDGE_RUBRIC,
           prompt: JSON.stringify(payload),
           timeoutMs: JUDGE_TIMEOUT_MS,
+        });
+        await recordModelCall({
+          role: "judge",
+          // Paid by the Claude Code subscription, so nothing is metered.
+          label: "not metered",
+          provider: "claude-code",
+          requestedModel: sokoBotJudgeModel(),
+          costUsd: 0,
         });
         return { verdict: sokoBotJudgeVerdictSchema.parse(output), usage };
       }
@@ -409,8 +423,38 @@ export async function judgeEvalScenarioTurn(
   scenario: SokoBotScenario,
 ): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
   const { transcript } = await loadTranscript(turnId);
-  const call = await askJudge(labJudgePayload(scenario, transcript));
+  const call = await withModelCallTurn(turnId, () =>
+    askJudge(labJudgePayload(scenario, transcript)),
+  );
   await storeTurnVerdict(turnId, call);
+  return { verdict: call.verdict, model: sokoBotJudgeModel() };
+}
+
+/**
+ * Grades an agent-to-agent case: the owner's turn and every follow-up, plus
+ * what the rooms said meanwhile. The verdict is stored on the last turn.
+ */
+export async function judgeEvalChain(
+  turnIds: string[],
+  scenario: SokoBotScenario,
+  roomLog: { room: string; from: string; content: string }[],
+): Promise<{ verdict: SokoBotJudgeVerdict; model: string }> {
+  const transcripts = await Promise.all(
+    turnIds.map(async (id) => (await loadTranscript(id)).transcript),
+  );
+  const last = transcripts.at(-1);
+  if (!last) throw new SokoBotLabJudgeError("Turn not found");
+  const call = await askJudge({
+    ...labJudgePayload(scenario, last),
+    note: "This case is a chain: `earlierTurns` are the owner's turn and the follow-ups before `turn`, in order, and `chatLog` is what the chat rooms said meanwhile (the other side's real answers). Grade the whole chain; `turn.finalAnswer` is what the owner read last.",
+    earlierTurns: transcripts
+      .slice(0, -1)
+      .map((transcript, index) =>
+        index === 0 ? transcript : { ...transcript, contextPacket: null },
+      ),
+    chatLog: roomLog,
+  });
+  await storeTurnVerdict(turnIds.at(-1)!, call);
   return { verdict: call.verdict, model: sokoBotJudgeModel() };
 }
 
@@ -449,7 +493,9 @@ export async function judgeSokoBotLabTurn(input: {
     });
   };
   await record(null);
-  const call = await askJudge(labJudgePayload(scenario, transcript));
+  const call = await withModelCallTurn(input.turnId, () =>
+    askJudge(labJudgePayload(scenario, transcript)),
+  );
   await Promise.all([
     record(call.verdict),
     storeTurnVerdict(input.turnId, call),

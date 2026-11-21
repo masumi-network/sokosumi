@@ -18,17 +18,22 @@ function translate(key: string, values?: Record<string, unknown>): string {
   return values ? `${key}:${JSON.stringify(values)}` : key;
 }
 
-vi.mock("next-intl", () => ({ useTranslations: () => translate }));
+const formatter = {
+  // Without `now` the real formatter reads the clock itself.
+  relativeTime: (_at: Date, options?: { now?: Date | number }) => {
+    if (!options?.now) throw new Error("relativeTime without now");
+    return "2h";
+  },
+  dateTime: () => "Oct 23, 2026",
+};
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => translate,
+  useFormatter: () => formatter,
+}));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => translate,
-  getFormatter: async () => ({
-    // Without `now` the real formatter reads the clock itself.
-    relativeTime: (_at: Date, options?: { now?: Date }) => {
-      if (!options?.now) throw new Error("relativeTime without now");
-      return "2h";
-    },
-    dateTime: () => "Oct 23, 2026",
-  }),
+  getFormatter: async () => formatter,
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));

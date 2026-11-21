@@ -9,6 +9,7 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
+import { ShortTimeAgo } from "@/components/short-time-ago";
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
@@ -132,7 +133,9 @@ export async function SokoBotHome({
       title={format.dateTime(at, "dateTimeMedium")}
       className="text-muted-foreground shrink-0 text-end text-sm whitespace-nowrap tabular-nums"
     >
-      {format.relativeTime(at, { now })}
+      {/* The sidebar's short form, on its clock: "Active 2m ago" beside
+          "2m ago", both moving. */}
+      <ShortTimeAgo at={at} now={now} />
     </time>
   );
 

@@ -20,6 +20,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
+import { turnRunModel } from "@/lib/soko-bot/turn-model";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
   ACTION_LABELS,
@@ -343,7 +344,7 @@ export async function prepareTurn(
     turnId,
     sessionId,
     system,
-    model: version.model,
+    model: turnRunModel(version, authorized.turn.modelId),
     inferenceRegion: version.inferenceRegion,
     capabilities,
     toolDescriptions: version.texts
@@ -481,19 +482,34 @@ export async function runTurnTool(input: {
 }
 
 /** The changes this turn's receipts confirm, as the answer names them. */
+/** Saves that carry no action receipt but are Core-checked writes the owner may hear about. */
+const RECORDED_SAVES: Record<string, string> = {
+  save_seo_suggestions: "Saved page changes or articles to the SEO page",
+};
+
 async function confirmedChanges(turnId: string): Promise<string[]> {
   const calls = await prisma.sokoBotToolCall.findMany({
     where: {
       turnId,
-      capability: { in: [...ACTION_CAPABILITIES] },
       status: "COMPLETED",
-      disposition: { in: ["APPLIED", "ALREADY_SATISFIED"] },
+      OR: [
+        {
+          capability: { in: [...ACTION_CAPABILITIES] },
+          disposition: { in: ["APPLIED", "ALREADY_SATISFIED"] },
+        },
+        { capability: { in: Object.keys(RECORDED_SAVES) } },
+      ],
     },
     select: { capability: true },
   });
   return [
     ...new Set(
-      calls.map((call) => ACTION_LABELS[call.capability] ?? call.capability),
+      calls.map(
+        (call) =>
+          RECORDED_SAVES[call.capability] ??
+          ACTION_LABELS[call.capability] ??
+          call.capability,
+      ),
     ),
   ];
 }

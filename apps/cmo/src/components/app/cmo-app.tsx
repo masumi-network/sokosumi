@@ -18,7 +18,7 @@ import { pageLead } from "../../lib/page-lead";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, type ThreadItem } from "../../lib/thread";
-import { needsYou } from "../../lib/today";
+import { monthMade, needsYou } from "../../lib/today";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
@@ -117,7 +117,7 @@ export interface CmoAppActions
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app" | "seo",
+    from: "onboarding" | "app" | "seo" | "channels",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
@@ -272,7 +272,9 @@ export function CmoApp({
               current.view === "channels" ? null : current.connectError,
             adsError: current.view === "channels" ? null : current.adsError,
             measureError:
-              current.view === "results" ? null : current.measureError,
+              current.view === "results" || current.view === "channels"
+                ? null
+                : current.measureError,
           },
     );
   }, []);
@@ -469,6 +471,7 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
+                    openSeo={() => go("seo")}
                     loadText={actions.loadChatWorkText}
                     loadTable={actions.loadChatWorkTable}
                   />
@@ -660,9 +663,10 @@ export function CmoApp({
                   adsError={nav.adsError}
                   change={actions.changeChannel}
                   openSeo={() => go("seo")}
-                  connectSearchConsole={() =>
-                    actions.connectMeasurement("google_search_console", "seo")
+                  connectMeasurement={(provider) =>
+                    actions.connectMeasurement(provider, "channels")
                   }
+                  measureError={nav.measureError}
                 />
               ) : (
                 <SettingsPage
@@ -742,6 +746,7 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
+  openSeo,
   loadText,
   loadTable,
 }: {
@@ -750,6 +755,7 @@ function ThreadEntry({
   actions: CardActions;
   name: string;
   openCalendar: () => void;
+  openSeo: () => void;
   loadText: (id: string) => Promise<string | null>;
   loadTable: (id: string) => Promise<ChatTable | null>;
 }) {
@@ -792,6 +798,7 @@ function ThreadEntry({
           compose={actions.compose}
           loadText={loadText}
           loadTable={loadTable}
+          openSeo={openSeo}
         />
       </CusoSays>
     );
@@ -829,6 +836,7 @@ function ThreadEntry({
         return (
           <ProductionCard
             production={overview.production}
+            month={monthMade(overview)}
             openCalendar={openCalendar}
           />
         );
@@ -891,9 +899,12 @@ function ApproveDraft({ approve }: { approve: () => Promise<void> }) {
  */
 function ProductionCard({
   production,
+  month,
   openCalendar,
 }: {
   production: CmoOverview["production"];
+  /** The month's posts and how many are made, as Today and the Calendar say. */
+  month: { ready: number; total: number };
   openCalendar: () => void;
 }) {
   const ready = production.state === "ready";
@@ -920,7 +931,7 @@ function ProductionCard({
                   : `${AGENT_NAME} is making your month`}
         </b>
         <span className="note num">
-          {production.ready} of {production.total} ready
+          {month.ready} of {month.total} ready
         </span>
       </p>
       <span
@@ -943,8 +954,8 @@ function ProductionCard({
               : notStarted
                 ? "He starts shortly: first every post's words, then the pictures."
                 : production.state === "starting"
-                  ? `${productionSteps(production)}. He makes the rest shortly.`
-                  : `${productionSteps(production)}. First the words, then the pictures.`}
+                  ? `${productionSteps(production, month.total)}. He makes the rest shortly.`
+                  : `${productionSteps(production, month.total)}. First the words, then the pictures.`}
       </p>
       <button
         type="button"

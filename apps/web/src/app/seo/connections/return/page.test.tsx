@@ -64,18 +64,20 @@ async function show(params: Record<string, string> = parameters()) {
   window.name =
     SEO_CONNECTION_HANDOFF_PREFIX +
     JSON.stringify(readSeoConnectionCallback(new URLSearchParams(params)));
-  render(
-    <StrictMode>
-      <NextIntlClientProvider
-        locale="en"
-        messages={pickMessages(messages, GLOBAL_MESSAGE_PATHS)}
-        onError={() => {}}
-      >
-        <ReturnLayout>
-          <SeoConnectionReturnPage />
-        </ReturnLayout>
-      </NextIntlClientProvider>
-    </StrictMode>,
+  await act(async () =>
+    render(
+      <StrictMode>
+        <NextIntlClientProvider
+          locale="en"
+          messages={pickMessages(messages, GLOBAL_MESSAGE_PATHS)}
+          onError={() => {}}
+        >
+          <ReturnLayout>
+            <SeoConnectionReturnPage />
+          </ReturnLayout>
+        </NextIntlClientProvider>
+      </StrictMode>,
+    ),
   );
 }
 beforeEach(() => {

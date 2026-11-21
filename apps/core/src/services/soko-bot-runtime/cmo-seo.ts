@@ -105,7 +105,7 @@ export async function executeCmoSeoTool(
         return {
           ...search,
           ideas: search.ideas.slice(0, IDEAS_SHOWN),
-          note: "Volume is Google searches per month in this market. Difficulty runs from 0 to 100. Cite each idea’s measuredAt date when present, otherwise use the search date.",
+          note: "searchVolume is Google searches per month in this market; null means too few searches to measure. Difficulty runs from 0 to 100. impressions, clicks and position are the site's own Search Console numbers for the last 28 days: a search with impressions but no volume is one Google already shows the site for, a real target in a small market. Cite each idea’s measuredAt date when present, otherwise use the search date.",
         };
       }
       case "research_competitor_keywords": {

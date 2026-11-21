@@ -86,10 +86,12 @@ export {
   SOKO_BOT_ROUTES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
+  SOKO_BOT_TURN_COMPLEXITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRoute,
+  type SokoBotTurnComplexity,
   type SokoBotTurnSignals,
   type TurnClassification,
   unattendedHireOverCeilingRefusal,
@@ -167,16 +169,22 @@ export type {
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
 export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
+export { A2A_SCENARIOS } from "./scenario-a2a.js";
 export { SEO_EVAL_CAPABILITIES, SEO_SCENARIOS } from "./scenario-seo.js";
 export {
   CMO_PLACEHOLDER_PATTERN,
   CMO_POST_WITH_PICTURE_SCENARIO_ID,
   CMO_SCENARIOS,
+  CMO_SEO_BEFORE_AFTER_CASE_ID,
+  CMO_SEO_REPORT_CASE_IDS,
+  CMO_SEO_WEEKLY_REPORT_CASE_ID,
+  CMO_SEO_WRITE_ARTICLE_CASE_ID,
   evaluateScenario,
   type ScenarioCheck,
   type ScenarioResult,
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
+  type SokoBotScenarioExchange,
 } from "./scenarios.js";
 export {
   isSokoBotSeoCapability,
@@ -206,6 +214,7 @@ export {
   SOKO_BOT_CONTACT_EXTRA_FIELDS,
   SOKO_BOT_EXA_CATEGORIES,
   SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
+  SOKO_BOT_SEND_MESSAGE_MAX_WAIT_SECONDS,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   SOKO_BOT_VOICEOVER_VOICES,
@@ -237,6 +246,7 @@ export {
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
   sokoBotListMcpToolsInputSchema,
+  sokoBotListRecipientsInputSchema,
   sokoBotListSkillsInputSchema,
   sokoBotManageContactListsInputSchema,
   sokoBotManageReminderInputSchema,
@@ -259,6 +269,7 @@ export {
   sokoBotSearchInboxInputSchema,
   sokoBotSearchInputSchema,
   sokoBotSendEmailDraftInputSchema,
+  sokoBotSendMessageInputSchema,
   sokoBotStartBackgroundRunInputSchema,
   sokoBotUpdateCompanyInputSchema,
   sokoBotUpdateContactInputSchema,
@@ -279,6 +290,11 @@ export {
   CMO_VARIED_PRODUCTION_SKILL,
 } from "./versions/cmo-v8-skills.js";
 export { CMO_SCENE_PRODUCTION_SKILL } from "./versions/cmo-v9-skills.js";
+export {
+  CMO_SEO_REPORTS_SKILL,
+  cmoReportsSeo,
+  cmoSeoReportBrief,
+} from "./versions/cmo-v12-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

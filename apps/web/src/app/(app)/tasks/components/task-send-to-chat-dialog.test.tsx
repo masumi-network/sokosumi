@@ -1,5 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -161,7 +161,7 @@ describe("TaskSendToChatDialog", () => {
     );
     expect(screen.getByLabelText("noteLabel")).toBeDisabled();
     expect(screen.getByRole("button", { name: "cancel" })).toBeDisabled();
-    finish({ ok: true, value: {} });
+    await act(async () => finish({ ok: true, value: {} }));
   });
 
   it("retries a lost response as the same attempt, so it lands once", async () => {

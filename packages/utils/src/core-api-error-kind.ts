@@ -63,6 +63,8 @@ export const CORE_API_ERROR_KINDS = {
   SEO_GSC_RECONNECT: "seo_gsc_reconnect",
   SEO_GSC_PROPERTY: "seo_gsc_property",
   SEO_GSC_UNAVAILABLE: "seo_gsc_unavailable",
+  /** Google answered a Task read with more than Core forwards to the SEO worker. */
+  SEO_GSC_RESPONSE_TOO_LARGE: "seo_gsc_response_too_large",
   SCHEDULE_RUN_STATE_CONFLICT: "schedule_run_state_conflict",
   SCHEDULE_RUN_TARGET_INVALID: "schedule_run_target_invalid",
   QUEUED_REQUIRES_RUN_AT: "queued_requires_run_at",

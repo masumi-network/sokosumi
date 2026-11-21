@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { createAppColumnHelper, useAppTable } from "./create-data-table-hook";
@@ -60,27 +60,33 @@ function useSortTable() {
 }
 
 describe("dataTableFeatures sort registry", () => {
-  it("sorts strings with default auto sortFn", () => {
+  it("sorts strings with default auto sortFn", async () => {
     const { result } = renderHook(() => useSortTable());
-    result.current.setSorting([{ id: "name", desc: false }]);
+    await act(async () =>
+      result.current.setSorting([{ id: "name", desc: false }]),
+    );
 
     expect(
       result.current.getRowModel().rows.map((row) => row.original.name),
     ).toEqual(["alice", "bob", "charlie"]);
   });
 
-  it("sorts numbers with default auto sortFn", () => {
+  it("sorts numbers with default auto sortFn", async () => {
     const { result } = renderHook(() => useSortTable());
-    result.current.setSorting([{ id: "score", desc: false }]);
+    await act(async () =>
+      result.current.setSorting([{ id: "score", desc: false }]),
+    );
 
     expect(
       result.current.getRowModel().rows.map((row) => row.original.score),
     ).toEqual([5, 10, 20]);
   });
 
-  it("sorts ISO date strings with default auto sortFn", () => {
+  it("sorts ISO date strings with default auto sortFn", async () => {
     const { result } = renderHook(() => useSortTable());
-    result.current.setSorting([{ id: "createdAt", desc: false }]);
+    await act(async () =>
+      result.current.setSorting([{ id: "createdAt", desc: false }]),
+    );
 
     expect(
       result.current.getRowModel().rows.map((row) => row.original.createdAt),
@@ -91,9 +97,11 @@ describe("dataTableFeatures sort registry", () => {
     ]);
   });
 
-  it("sorts Date values with named datetime sortFn", () => {
+  it("sorts Date values with named datetime sortFn", async () => {
     const { result } = renderHook(() => useSortTable());
-    result.current.setSorting([{ id: "startedAt", desc: false }]);
+    await act(async () =>
+      result.current.setSorting([{ id: "startedAt", desc: false }]),
+    );
 
     expect(
       result.current
@@ -106,9 +114,11 @@ describe("dataTableFeatures sort registry", () => {
     ]);
   });
 
-  it("supports descending multi-toggle style sort", () => {
+  it("supports descending multi-toggle style sort", async () => {
     const { result } = renderHook(() => useSortTable());
-    result.current.setSorting([{ id: "name", desc: true }]);
+    await act(async () =>
+      result.current.setSorting([{ id: "name", desc: true }]),
+    );
 
     expect(
       result.current.getRowModel().rows.map((row) => row.original.name),
