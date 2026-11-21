@@ -3,8 +3,8 @@
 import { useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/common/error-state";
+import { useUnAuthenticatedErrorHandler } from "@/hooks/effects/use-unauthenticated-error-handler";
 import { useErrorCardCopy } from "@/hooks/use-error-card-copy";
-import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
 
 /**
  * `(flows)` had no boundary, so anything a flow page threw reached

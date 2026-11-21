@@ -65,6 +65,14 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob,
   createVideoJob,
   createTalkingVideoJob,
+  downloadStudioFileReference: async () => ({
+    bytes: await (await import("sharp"))
+      .default({
+        create: { width: 390, height: 844, channels: 3, background: "#0f0" },
+      })
+      .png()
+      .toBuffer(),
+  }),
   DEFAULT_SETTINGS: {
     aspectRatio: "1:1",
     resolution: "1K",
@@ -107,7 +115,13 @@ vi.mock("@/lib/reference-library/style-check", () => ({
   checkStyledPicture,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
-  readAssetBytes: async () => new Uint8Array([1, 2, 3]),
+  readAssetBytes: async () =>
+    (await import("sharp"))
+      .default({
+        create: { width: 100, height: 125, channels: 3, background: "#fff" },
+      })
+      .png()
+      .toBuffer(),
 }));
 vi.mock("@/services/soko-bot-billing.service", () => ({
   recordSokoBotCheckUsage: vi.fn(),
@@ -129,7 +143,10 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   type CmoMediaPiece,
+  cmoAllowedKinds,
   cmoImagePrompt,
+  cmoInfographicCap,
+  cmoMakesVariedMonth,
   cmoMediaState,
   cmoPictureOutdated,
   cmoPictureStyleProblem,
@@ -139,6 +156,7 @@ import {
   cmoStylePrompt,
   cmoVisualKey,
   logoForPicture,
+  PLACED_SCREEN_NOTE,
   REFERENCE_STYLE_MODELS,
 } from "./cmo-media-maker.service";
 
@@ -553,6 +571,38 @@ describe("advanceCmoMedia", () => {
     });
   });
 
+  it("tells the check that Core placed the brand's page itself", async () => {
+    const shows = piece({
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      headline: "Fresh minted",
+      visual: "Hands holding a phone that shows the homepage",
+      visualFileIds: ["f-home"],
+    });
+    jobFindMany.mockResolvedValue([
+      {
+        id: "job-1",
+        idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(shows)}:1`,
+        status: "SUCCEEDED",
+        prompt: "prompt",
+        error: null,
+        asset: { id: "asset-1" },
+      },
+    ]);
+    jobs.findUnique.mockResolvedValue({ error: null });
+    jobs.updateMany.mockResolvedValue({ count: 1 });
+    checkStyledPicture.mockResolvedValue({
+      passes: false,
+      costUsd: 0.01,
+      verdict: { problems: ["anything"] },
+    });
+    await advanceCmoMedia(context, [shows]);
+    const input = checkStyledPicture.mock.calls[0]?.[0];
+    // Scenes name a phone or laptop: the check is told Core's frame is it.
+    expect(input.scene).toContain("Hands holding a phone");
+    expect(input.scene).toContain(PLACED_SCREEN_NOTE);
+    expect(input.brandPictures).toHaveLength(1);
+  });
+
   it("keeps one verdict per picture when two passes check it at once", async () => {
     const styledPiece = piece({
       styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
@@ -743,6 +793,11 @@ describe("advanceCmoMedia", () => {
     );
     expect(createImageJob.mock.calls[1]?.[0].prompt).not.toContain(
       "own picture",
+    );
+    // Told only to leave the panel, the models drew their own pages with
+    // invented words around it, and ran the headline behind the phone.
+    expect(createImageJob.mock.calls[1]?.[0].prompt).toContain(
+      "Draw no other screen, browser, phone, laptop, monitor or web page",
     );
     expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain("panel");
   });
@@ -1174,5 +1229,103 @@ describe("logoForPicture", () => {
     expect(
       await logoForPicture(await plain("#0c0c0c"), { logo, darkLogo: null }),
     ).toBe(logo);
+  });
+});
+
+// NMKR's how-to month (2026-11-20): 56 of 69 pictures took an infographic.
+describe("a cmo-v8 month's kinds of print", () => {
+  const kindOf = new Map([
+    ["ref-info-1", "infographic"],
+    ["ref-info-2", "infographic"],
+    ["ref-poster", "poster"],
+    ["ref-poster-2", "poster"],
+    ["ref-poster-3", "poster"],
+    ["ref-ad", "ad"],
+    ["ref-label", "label"],
+  ]);
+  const at = (
+    id: string,
+    date: string,
+    styleReferenceId: string,
+    channel = "x",
+  ) => ({
+    ...piece({ id, channel, styleReferenceId }),
+    date,
+    time: "09:00",
+  });
+
+  it("are kept only by a cmo-v8 Cuso", () => {
+    expect(cmoMakesVariedMonth("cmo-v8")).toBe(true);
+    expect(cmoMakesVariedMonth("cmo-v7")).toBe(false);
+    expect(cmoMakesVariedMonth(null)).toBe(false);
+  });
+
+  it("hold at most one infographic in four pictures", () => {
+    expect(cmoInfographicCap(8)).toBe(2);
+    expect(cmoInfographicCap(3)).toBe(1);
+    const others = [at("a", "2026-11-02", "ref-info-1", "linkedin")];
+    const second = at("b", "2026-11-03", "ref-info-2");
+    expect(
+      cmoPictureStyleProblem([second], others, { kindOf, planned: 4 }),
+    ).toContain("b would make 2 infographics in a month of 4 pictures");
+    // Eight pictures make room for two; without kinds nothing is counted.
+    expect(
+      cmoPictureStyleProblem([second], others, { kindOf, planned: 8 }),
+    ).toBeNull();
+    expect(cmoPictureStyleProblem([second], others)).toBeNull();
+  });
+
+  it("give neighbouring pieces on one network different kinds", () => {
+    const others = [
+      at("a", "2026-11-02", "ref-ad"),
+      at("c", "2026-11-04", "ref-poster"),
+    ];
+    expect(
+      cmoPictureStyleProblem([at("b", "2026-11-03", "ref-poster-2")], others, {
+        kindOf,
+        planned: 12,
+      }),
+    ).toContain("b and c follow each other on x in one kind of print (poster)");
+    // Another network is no neighbour, and a month that already broke the
+    // rule keeps it: only what the save brings is refused.
+    expect(
+      cmoPictureStyleProblem(
+        [at("b", "2026-11-03", "ref-poster-2", "linkedin")],
+        [...others, at("e", "2026-11-05", "ref-poster-3")],
+        { kindOf, planned: 12 },
+      ),
+    ).toBeNull();
+  });
+
+  it("leave a pick the kinds that keep the rules", () => {
+    const month = [
+      { id: "a", channel: "x", date: "2026-11-02", time: "09:00", kind: "ad" },
+      {
+        id: "c",
+        channel: "x",
+        date: "2026-11-04",
+        time: "09:00",
+        kind: "poster",
+      },
+      { id: "i", channel: "linkedin", date: "2026-11-02", kind: "infographic" },
+    ];
+    const piece = { id: "b", channel: "x", date: "2026-11-03", time: "09:00" };
+    const howTo = cmoAllowedKinds({
+      piece,
+      month,
+      infographicSuits: false,
+      planned: 12,
+    });
+    expect(howTo).not.toContain("ad");
+    expect(howTo).not.toContain("poster");
+    expect(howTo).not.toContain("infographic");
+    expect(howTo).toContain("label");
+    // Numbers may take one while the month is under its cap.
+    expect(
+      cmoAllowedKinds({ piece, month, infographicSuits: true, planned: 12 }),
+    ).toContain("infographic");
+    expect(
+      cmoAllowedKinds({ piece, month, infographicSuits: true, planned: 4 }),
+    ).not.toContain("infographic");
   });
 });

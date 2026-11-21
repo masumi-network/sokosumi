@@ -634,23 +634,47 @@ describe("Cuso on every page", () => {
     expect(rule(".cuso-figure")).toContain("pointer-events: none");
   });
 
-  it("stands on his light ground in both themes, so his black line reads", () => {
+  it("stands in his light porthole in both themes, so his black line reads", () => {
     expect(rule(".cuso-ground")).toContain("background: var(--stage)");
+    expect(rule(".cuso-ground")).toContain("border-radius: 50%");
   });
 
   it("leans no further into the page than its gutter", () => {
     const px = (name: string) =>
       Number(css.match(new RegExp(`${name}: (\\d+)px;`))?.[1]);
-    const tallest = Number(
-      rule(".cuso-figure").match(/--cuso-height: min\((\d+)px/)?.[1],
+    const factor = (selector: string, property: string) =>
+      Number(
+        rule(selector).match(
+          new RegExp(
+            `\\n\\s*${property}: calc\\(var\\(--cuso-size\\) \\* ([\\d.]+)\\)`,
+          ),
+        )?.[1],
+      );
+    // The circle is centred on the sidebar; the drawing's hand is its right edge.
+    expect(rule(".cuso-figure")).toContain(
+      "left: calc(50% - var(--cuso-size) / 2);",
     );
-    const lean = Number(
-      rule(".cuso-figure").match(
-        /right: calc\(var\(--cuso-height\) \* -([\d.]+)\)/,
-      )?.[1],
+    const largest = Number(
+      rule(".cuso-figure").match(/--cuso-size: min\((\d+)px/)?.[1],
     );
-    expect(tallest * lean).toBeGreaterThan(0);
-    expect(tallest * lean).toBeLessThanOrEqual(px("--gutter") + px("--page-x"));
+    const drawing = 624 / 652;
+    const hand =
+      largest *
+      (factor(".cuso-figure img", "left") +
+        factor(".cuso-figure img", "height") * drawing);
+    const past = hand - largest / 2 - px("--side-width") / 2;
+    expect(Number.isFinite(past)).toBe(true);
+    expect(past).toBeLessThanOrEqual(px("--gutter") + px("--page-x"));
+  });
+
+  it("draws the person's avatar flat: a menu button with hover and focus, no shadow", () => {
+    expect(rule(".who-button .avatar")).not.toContain("box-shadow");
+    expect(css).toMatch(/\.who-button:hover \.avatar-ring/);
+    expect(css).toMatch(/\.who-button:focus-visible \{[^}]*outline: 2px solid/);
+  });
+
+  it("opens Today from a pill that shows where focus is", () => {
+    expect(css).toMatch(/a\.cuso-says:focus-visible \{[^}]*outline: 2px solid/);
   });
 
   it("moves only when motion is allowed", () => {

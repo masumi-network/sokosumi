@@ -3,7 +3,8 @@ import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageSearchHint } from "@/components/page-search-field";
-import { usePageSearchShortcut } from "@/hooks/use-page-search-shortcut";
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
+import { usePageSearchShortcut } from "@/hooks/effects/use-page-search-shortcut";
 
 export function CoworkerGallerySearch({
   query,
@@ -29,15 +30,15 @@ export function CoworkerGallerySearch({
   }, [suggestions, t]);
   const [hintIdx, setHintIdx] = useState(0);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const reduceMotion = usePrefersReducedMotion();
   useEffect(() => {
-    if (rotatingHints.length <= 1) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (rotatingHints.length <= 1 || reduceMotion) return;
     const id = window.setInterval(
       () => setHintIdx((index) => (index + 1) % rotatingHints.length),
       3000,
     );
     return () => window.clearInterval(id);
-  }, [rotatingHints.length]);
+  }, [reduceMotion, rotatingHints.length]);
 
   return (
     <>
@@ -57,13 +58,13 @@ export function CoworkerGallerySearch({
             onBlur={() => setIsSearchFocused(false)}
             placeholder=""
             aria-label={t("searchHint")}
-            className="bg-foreground text-background h-14 w-full rounded-full pr-5 pl-13 @min-[14rem]/page-search:pr-16 text-base outline-none md:text-lg"
+            className="bg-foreground text-background h-14 w-full rounded-full pr-5 pl-13 pointer-fine:@min-[14rem]/page-search:pr-16 text-base outline-none md:text-lg"
           />
           {/* Animated rotating placeholder (hidden while typing/focused) */}
           {query === "" && !isSearchFocused ? (
             <div
               aria-hidden
-              className="pointer-events-none absolute top-1/2 right-5 left-13 @min-[14rem]/page-search:right-16 -translate-y-1/2 overflow-hidden text-left"
+              className="pointer-events-none absolute top-1/2 right-5 left-13 pointer-fine:@min-[14rem]/page-search:right-16 -translate-y-1/2 overflow-hidden text-left"
             >
               <span
                 key={hintIdx}

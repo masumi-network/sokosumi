@@ -460,24 +460,26 @@ export function SeoTrendChart({
         </ul>
       ) : null}
       {/* Every day in words for a screen reader, which cannot steer the readout in browse mode. */}
-      <table className="sr-only">
-        <thead>
-          <tr>
-            <th scope="col">{t("day")}</th>
-            <th scope="col">{label}</th>
-            <th scope="col">{t("markerEvents")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {model.points.map((point) => (
-            <tr key={point.date}>
-              <td>{day(point.date)}</td>
-              <td>{value(point)}</td>
-              <td>{format.list(changeOn(point.date) ?? [])}</td>
+      <div className="sr-only">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{t("day")}</th>
+              <th scope="col">{label}</th>
+              <th scope="col">{t("markerEvents")}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {model.points.map((point) => (
+              <tr key={point.date}>
+                <td>{day(point.date)}</td>
+                <td>{value(point)}</td>
+                <td>{format.list(changeOn(point.date) ?? [])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {model.inverted ? (
         <figcaption className="text-muted-foreground text-xs">
           {positionNote ?? t("positionAxis")}

@@ -423,16 +423,13 @@ function ensure_agent_browser_tls_args() {
     url="${web_url:-}"
   fi
   if [[ "$url" == https://* ]] || [[ -z "$url" ]]; then
-    case " ${AGENT_BROWSER_ARGS:-} " in
-      *" --ignore-certificate-errors "*) ;;
-      *)
-        if [[ -n "${AGENT_BROWSER_ARGS:-}" ]]; then
-          export AGENT_BROWSER_ARGS="${AGENT_BROWSER_ARGS} --ignore-certificate-errors"
-        else
-          export AGENT_BROWSER_ARGS="--ignore-certificate-errors"
-        fi
-        ;;
+    # agent-browser splits AGENT_BROWSER_ARGS on commas or newlines, not spaces.
+    case ",${AGENT_BROWSER_ARGS:-}," in
+      *",--ignore-certificate-errors,"*) ;;
+      *) export AGENT_BROWSER_ARGS="${AGENT_BROWSER_ARGS:+${AGENT_BROWSER_ARGS},}--ignore-certificate-errors" ;;
     esac
+    # These are Chrome flags; Lightpanda (a possible config default) rejects --args.
+    export AGENT_BROWSER_ENGINE="${AGENT_BROWSER_ENGINE:-chrome}"
   fi
 }
 

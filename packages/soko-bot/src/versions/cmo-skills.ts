@@ -9,8 +9,17 @@ import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import { productionWithStyles } from "./cmo-production-styles.js";
-import { everyNetworkStrategy } from "./cmo-strategy-every-network.js";
+import {
+  EVERY_NETWORK_STRATEGY_SKILL,
+  everyNetworkStrategy,
+} from "./cmo-strategy-every-network.js";
 import { weeklyStrategy } from "./cmo-strategy-weekly.js";
+import {
+  CMO_VARIED_PRODUCTION_SKILL,
+  claimsStrategy,
+  variedPieceWritingGuide,
+  variedProduction,
+} from "./cmo-v8-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -645,19 +654,41 @@ if (!production) throw new Error("cmo-production is missing");
 /** The id of cmo-v6's production skill: Core's month writer, then Cuso. */
 export const CMO_BATCHED_PRODUCTION_SKILL = "cmo-production-batched";
 
+const batched: SokoBotSkill = {
+  ...production,
+  id: CMO_BATCHED_PRODUCTION_SKILL,
+  description:
+    "After the owner approves and pays: Core writes the month's pieces many at once, and Cuso fixes the pieces it hands back and writes the ads, articles and newsletters.",
+  content: production.content
+    .replace(
+      `${PRODUCTION_INTRO}\n`,
+      `${PRODUCTION_INTRO}\n\n${CORE_WRITES_FIRST}\n`,
+    )
+    .replace(PRODUCTION_FINISH, BATCHED_PRODUCTION_FINISH),
+};
+
+const everyNetwork = SKILLS.find(
+  (skill) => skill.id === EVERY_NETWORK_STRATEGY_SKILL,
+);
+if (!everyNetwork) throw new Error("cmo-strategy-every-network is missing");
+
+/** Whether a Cuso version has Core write its month at once (cmo-v6 on). */
+export function cmoWritesMonthAtOnce(skills: readonly string[]): boolean {
+  return (
+    skills.includes(CMO_BATCHED_PRODUCTION_SKILL) ||
+    skills.includes(CMO_VARIED_PRODUCTION_SKILL)
+  );
+}
+
+/** The brief Core's month writer works from for a cmo-v8 Cuso. */
+export const CMO_VARIED_PIECE_WRITING_GUIDE = variedPieceWritingGuide(
+  CMO_PIECE_WRITING_GUIDE,
+);
+
 export const CMO_SKILLS: readonly SokoBotSkill[] = [
   ...SKILLS,
   productionWithStyles(production),
-  {
-    ...production,
-    id: CMO_BATCHED_PRODUCTION_SKILL,
-    description:
-      "After the owner approves and pays: Core writes the month's pieces many at once, and Cuso fixes the pieces it hands back and writes the ads, articles and newsletters.",
-    content: production.content
-      .replace(
-        `${PRODUCTION_INTRO}\n`,
-        `${PRODUCTION_INTRO}\n\n${CORE_WRITES_FIRST}\n`,
-      )
-      .replace(PRODUCTION_FINISH, BATCHED_PRODUCTION_FINISH),
-  },
+  batched,
+  variedProduction(batched),
+  claimsStrategy(everyNetwork),
 ];

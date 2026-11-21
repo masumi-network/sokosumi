@@ -42,11 +42,42 @@ export function isIdleRound(toolNames: readonly string[]): boolean {
   return toolNames.every((name) => READ_TOOL.test(name));
 }
 
+/**
+ * A turn that could act answers in a JSON narrative, so its DONE is at the
+ * start of `message`. Missing it nudged a finished follow-up into a second
+ * round whose "Shared Hannah's reply." replaced the reply itself.
+ */
+function narrativeOf(text: string): { message: string } | null {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    const value: unknown = JSON.parse(text.slice(start, end + 1));
+    return typeof value === "object" &&
+      value !== null &&
+      "message" in value &&
+      typeof value.message === "string"
+      ? { ...value, message: value.message }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function isFinalReport(text: string): boolean {
-  return DONE_PREFIX.test(text);
+  return (
+    DONE_PREFIX.test(text) || DONE_PREFIX.test(narrativeOf(text)?.message ?? "")
+  );
 }
 
 /** The report as the owner should read it, without the marker. */
 export function reportText(text: string): string {
-  return text.replace(DONE_PREFIX, "").trim();
+  const report = text.replace(DONE_PREFIX, "").trim();
+  const narrative = narrativeOf(report);
+  return narrative && DONE_PREFIX.test(narrative.message)
+    ? JSON.stringify({
+        ...narrative,
+        message: narrative.message.replace(DONE_PREFIX, "").trim(),
+      })
+    : report;
 }

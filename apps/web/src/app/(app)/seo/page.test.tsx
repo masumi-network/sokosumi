@@ -269,6 +269,9 @@ describe("native SEO audit entry", () => {
     expect(
       screen.getByRole("heading", { name: "Pièces détachées" }),
     ).toBeVisible();
+    await userEvent
+      .setup()
+      .click(screen.getByText(german.App.Seo.keywords.seasonal.evidence));
     expect(
       screen.getByText("Check this search for repair shops."),
     ).toBeVisible();

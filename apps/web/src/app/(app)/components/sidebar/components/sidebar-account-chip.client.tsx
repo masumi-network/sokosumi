@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
-import { useSelfPresence } from "@/hooks/use-self-presence";
+import { useSelfPresence } from "@/hooks/effects/use-self-presence";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import {

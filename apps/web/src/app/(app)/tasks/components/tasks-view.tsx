@@ -6,6 +6,7 @@ import { makeUserTasksChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useMemo, useRef } from "react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { TASKS_TOOLBAR_ROW_CLASS } from "@/app/tasks/constants";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
@@ -289,7 +290,7 @@ export function TasksView(props: TasksViewProps) {
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div ref={toolbarRef} className="flex items-start gap-2">
+      <div ref={toolbarRef} className={TASKS_TOOLBAR_ROW_CLASS}>
         <TasksViewToolbarActions
           filters={{
             activeOrganizationId,
@@ -314,9 +315,10 @@ export function TasksView(props: TasksViewProps) {
         />
       </div>
 
+      {/* Only the board fades in: the loading shell already drew the toolbar. */}
       <div
         className={cn(
-          "flex min-h-0 flex-1 flex-col gap-4",
+          "content-in flex min-h-0 flex-1 flex-col gap-4",
           viewMode === "board" ? "max-h-[calc(100dvh-150px)]" : "max-h-full",
         )}
       >

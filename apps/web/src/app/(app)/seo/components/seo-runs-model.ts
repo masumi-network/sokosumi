@@ -1,7 +1,11 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 
 /** The checks that test the rules of a page: their issue count is the result of the run. */
-const RULE_KINDS = new Set(["page_check", "audit_lite", "audit_full"]);
+export function isSeoRuleCheck(kind: string) {
+  return (
+    kind === "page_check" || kind === "audit_lite" || kind === "audit_full"
+  );
+}
 /** The newest days in the row. An older day shows only while it is the one in view. */
 const SEO_RUN_DAYS = 5;
 
@@ -38,7 +42,7 @@ export function seoRunDays(
     .sort((a, b) => b.at.getTime() - a.at.getTime());
   for (const run of runs) {
     const day = run.at.toISOString().slice(0, 10);
-    const rule = RULE_KINDS.has(run.kind);
+    const rule = isSeoRuleCheck(run.kind);
     if (!days.has(day))
       days.set(day, {
         day,

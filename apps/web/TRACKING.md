@@ -38,7 +38,7 @@ in one place. GA4 cross-domain measurement links `sokosumi.com` ↔
 ## Consent (Google Consent Mode v2, Advanced)
 
 Google tags (`GoogleTagManager`, `GoogleAnalytics`) load whenever their public
-IDs are set. Consent Mode defaults every ad/analytics **storage** signal to
+IDs are set, except on the telemetry-blocked routes (see [The GTM container](#the-gtm-container)). Consent Mode defaults every ad/analytics **storage** signal to
 `denied`, so GA4/Ads cookies are not written until the visitor grants
 analytics or marketing. Denied tags can still send cookieless pings — that is
 Advanced Consent Mode, not a hard block. Hard-blocking (render tags only after
@@ -72,7 +72,8 @@ outside it; see above.
 
 ## Events
 
-GA4 records `page_view` on every route by itself — no code. On top of that we
+GA4 records `page_view` automatically, with no code (see [The GTM container](#the-gtm-container)
+for the telemetry-blocked routes). On top of that we
 push a small set of business events to the dataLayer. In this app they all go
 through **`lib/gtm-events`** (`fireGTMEvent.*`, which wraps `sendGTMEvent`).
 Consent Mode gates whether GTM forwards them to GA4/Ads.
@@ -333,6 +334,17 @@ It contains, at minimum:
 - **GA4 Event** tags, one per event above, on Custom Event triggers.
 - **Google Ads** conversion linker (AW-16455471438), consent-gated
   (`ad_storage`).
+- **History Change triggers exclude the telemetry-blocked routes.** A fresh
+  document load of `/reset-password` or `/n/<slug>/embed` loads no Google tags
+  (`TelemetryBoundary`). GTM loaded earlier in the same document stays, though,
+  so a same-document navigation there (including Back) still reaches its
+  History Change triggers. Every History Change trigger (including the one on
+  `GA4 - config`) must fire on **Some History Changes** with both rows:
+  `Page Path` does not match RegEx `^/reset-password(/|$)` and `Page Path`
+  does not match RegEx `^/n/[^/]+/embed/?$`. In Tag Assistant Preview, navigate within
+  one document (then Back): neither blocked path fires the trigger, and a
+  normal route still does. **Not yet applied in GTM
+  (2026-11-20).**
 
 Test changes with **Tag Assistant** (Preview) before publishing, and confirm
 storage-gated tags do not write analytics/ads cookies until consent is granted.

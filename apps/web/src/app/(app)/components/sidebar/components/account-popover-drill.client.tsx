@@ -12,7 +12,7 @@ import {
 import { useTranslations } from "next-intl";
 import { type ReactElement, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { cn } from "@/lib/utils";
 
 import {
@@ -83,14 +83,7 @@ export function AccountPopoverDrill({
 
   // Settings → drill unmounts the focused trigger; keep keyboard focus inside
   // the non-modal popover (rAF + tabIndex=-1).
-  useMountEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      panelRef.current?.focus();
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-    };
-  });
+  useFocusWhen(panelRef, true, { deferToFrame: true });
 
   function getAccountItemLabel(translationKey: string): string {
     return tUserAvatar(

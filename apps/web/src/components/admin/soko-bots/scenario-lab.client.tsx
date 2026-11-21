@@ -11,13 +11,15 @@ import {
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Play, X } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   judgeSokoBotLabTurnAction,
@@ -239,7 +241,6 @@ export function ScenarioLab({
   onTurnFinished?: () => void;
 }) {
   const t = useTranslations("App.Admin.SokoBots.Lab");
-  const [history, setHistory] = useState<History>({});
   const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
   const activeVersionRef = useRef<string | null>(versionId);
   const [requestedVersionId, setRequestedVersionId] = useQueryState(
@@ -330,14 +331,22 @@ export function ScenarioLab({
     startedAt: number;
   } | null>(null);
 
-  const loadHistory = useCallback(async () => {
-    const result = await listSokoBotLabRunsAction({});
-    if (result.ok) setHistory(toHistory(result.value));
-  }, []);
-
-  useEffect(() => {
-    void loadHistory();
-  }, [loadHistory]);
+  const historyQuery = useQuery({
+    queryKey: ["admin", "soko-bot-lab-runs"],
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<History> => {
+      const result = await listSokoBotLabRunsAction({});
+      if (!result.ok) {
+        throw new Error(result.error.message ?? "Failed to load lab runs");
+      }
+      return toHistory(result.value);
+    },
+  });
+  const history = historyQuery.data ?? {};
 
   async function run(scenario: SokoBotScenario) {
     // A closed lab starts nothing: each start is a real server action.
@@ -453,7 +462,7 @@ export function ScenarioLab({
           },
         },
       });
-      await loadHistory();
+      await historyQuery.refetch();
       onTurnFinished?.();
     } finally {
       setRunning((current) => {
@@ -699,10 +708,10 @@ function ScenarioRow({
   // A Run all works through twenty-two scenarios; without this the one being
   // run is usually somewhere off-screen.
   const isLive = live !== null;
-  useEffect(() => {
-    if (!isLive) return;
-    rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [isLive]);
+  useScrollIntoViewWhen(rowRef, isLive, {
+    block: "nearest",
+    behavior: "smooth",
+  });
 
   return (
     <li ref={rowRef} className="px-4 py-3">

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 let isMobile = false;
 const presence = vi.fn(() => ({ showUnreadDot: false, unreadRoomCount: 0 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: () => isMobile,
 }));
 

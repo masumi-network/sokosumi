@@ -23,6 +23,9 @@ const DATA: AdminAdEvalsDashboard = {
   leaderboard: [
     {
       model: "ideogram-v3",
+      route: "text_heavy",
+      routeInferred: true,
+      experimentArm: "router:opus-5.5",
       template: "social-post",
       aspect: "4:5",
       workspaceCount: 8,
@@ -74,6 +77,18 @@ describe("AdEvalsDashboard", () => {
   it("shows model metrics, confidence intervals, sample size and low agreement", async () => {
     render(await AdEvalsDashboard({ data: DATA }));
     const row = screen.getByRole("row", { name: /ideogram-v3/ });
+    expect(
+      screen.getByRole("columnheader", { name: "Route" }),
+    ).toBeInTheDocument();
+    expect(
+      within(row).getByRole("cell", { name: "text_heavy inferred" }),
+    ).toBeInTheDocument();
+    expect(within(row).getByText("router:opus-5.5")).toBeInTheDocument();
+    const csv = screen.getByRole("link", { name: "Download CSV" });
+    expect(csv).toHaveAttribute("download", "ad-evals-leaderboard.csv");
+    expect(decodeURIComponent(csv.getAttribute("href") ?? "")).toContain(
+      '"ideogram-v3","text_heavy","true","router:opus-5.5"',
+    );
     expect(within(row).getByText("80%")).toBeInTheDocument();
     expect(within(row).getByText("63%–90%")).toBeInTheDocument();
     expect(within(row).getByText("42")).toBeInTheDocument();

@@ -105,6 +105,14 @@ export function ChannelIcon({
 }
 
 /**
+ * Initials fill that stays visible in dark mode, where `--quinary` equals the
+ * panel behind it. Scoped to the Contacts table and phone list; other
+ * `ContactAvatar` callers keep the default fill.
+ */
+export const CONTACT_AVATAR_FILL_CLASS =
+  "[&_[data-slot=avatar-fallback]]:bg-quaternary [&_[data-slot=avatar-fallback]]:text-foreground";
+
+/**
  * A contact's initials in a neutral circle; an organization or shared inbox
  * gets a building in a rounded square instead, so it never passes for a person.
  */

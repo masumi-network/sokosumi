@@ -6,11 +6,11 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useRef,
   useState,
 } from "react";
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
@@ -85,26 +85,18 @@ export function HistorySearchDialogProvider({
     }
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target)) {
-        return;
-      }
+  useEventListener("window", "keydown", (event) => {
+    if (isEditableKeyboardTarget(event.target)) {
+      return;
+    }
 
-      if (
-        event.key?.toLowerCase() !== "k" ||
-        !(event.metaKey || event.ctrlKey)
-      ) {
-        return;
-      }
+    if (event.key?.toLowerCase() !== "k" || !(event.metaKey || event.ctrlKey)) {
+      return;
+    }
 
-      event.preventDefault();
-      openHistorySearch();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [openHistorySearch]);
+    event.preventDefault();
+    openHistorySearch();
+  });
 
   return (
     <HistorySearchContext.Provider

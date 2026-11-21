@@ -5,8 +5,6 @@ import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -32,11 +30,11 @@ import { SeoKeywordHistory } from "./seo-keyword-history";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import { SeoKeywordReach } from "./seo-keyword-reach";
 import {
-  keywordGroups,
   keywordPage,
   keywordPositions,
   keywordReadFailed,
   keywordSummary,
+  workspaceKeywordGroups,
 } from "./seo-keyword-rows-model";
 import { SeoKeywordSuggestions } from "./seo-keyword-suggestions";
 import { SeoKeywordTrendToggle } from "./seo-keyword-trend";
@@ -56,7 +54,6 @@ import { seoSerpMarkers } from "./seo-serp-features-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
-  SEO_SEARCH_MIN_ROWS,
   SeoAddButton,
   SeoBarNumber,
   SeoDate,
@@ -78,36 +75,6 @@ import { SeoKeywordDemand, SeoStrategyFold } from "./seo-strategy";
 import { seoStrategyGroupOf } from "./seo-strategy-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** One filter for search queries and tracked keywords; it shows once a list is long enough to need it. */
-export function SeoQueryFilter({
-  model,
-  rows,
-}: {
-  model: SeoWorkspaceModel;
-  rows: number;
-}) {
-  const t = useTranslations("App.Seo");
-  if (rows < SEO_SEARCH_MIN_ROWS && !model.keywordSearch) return null;
-  return (
-    <div>
-      <Label className="sr-only" htmlFor="seo-keyword-search">
-        {t("search")}
-      </Label>
-      <Input
-        id="seo-keyword-search"
-        type="search"
-        value={model.keywordSearch}
-        onChange={(event) => model.setKeywordSearch(event.target.value)}
-        placeholder={t(
-          model.data.searchQueries?.rows.length
-            ? "keywords.searchPlaceholder"
-            : "keywords.searchKeywords",
-        )}
-      />
-    </div>
-  );
-}
-
 export function SeoKeywords({
   model,
   section = "keywords",
@@ -122,9 +89,12 @@ export function SeoKeywords({
   const dayOf = (value: string | Date | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
   // One row per keyword: a check reports it once per device, and again as a gap or an idea.
-  const { checked, ideas } = keywordGroups(model.filteredKeywords);
+  const { checked, ideas } = workspaceKeywordGroups(
+    model.data,
+    model.filteredKeywords,
+  );
   // The result line speaks for every keyword; a search narrows the rows only.
-  const all = keywordGroups(model.data.keywords);
+  const all = workspaceKeywordGroups(model.data);
   const summary = keywordSummary(all.checked);
   const [expanded, setExpanded] = useState(false);
   const page = keywordPage(checked, SEO_LIST_PAGE_SIZE);
@@ -341,6 +311,9 @@ export function SeoKeywords({
                     {shown.market ? (
                       <TableHead>{t("keywords.market")}</TableHead>
                     ) : null}
+                    {shown.position ? (
+                      <TableHead>{t("keywords.position")}</TableHead>
+                    ) : null}
                     {shown.volume ? (
                       <TableHead className="text-right">
                         {t("keywords.volume")}
@@ -353,9 +326,6 @@ export function SeoKeywords({
                     ) : null}
                     {shown.conversion ? (
                       <TableHead>{t("keywords.conversion.title")}</TableHead>
-                    ) : null}
-                    {shown.position ? (
-                      <TableHead>{t("keywords.position")}</TableHead>
                     ) : null}
                     {shown.priority ? (
                       <TableHead>{t("keywords.priority")}</TableHead>
@@ -486,43 +456,6 @@ export function SeoKeywords({
                               )}
                             </TableCell>
                           ) : null}
-                          {shown.volume ? (
-                            <TableCell
-                              className="text-right tabular-nums"
-                              // No number, no unit: the label names the empty value.
-                              data-label={
-                                volume === null
-                                  ? t("keywords.volume")
-                                  : undefined
-                              }
-                            >
-                              {volume === null ? (
-                                <span
-                                  lang="en"
-                                  className="text-muted-foreground"
-                                >
-                                  {result("none")}
-                                </span>
-                              ) : (
-                                <SeoBarNumber
-                                  value={volume}
-                                  max={mostSearched}
-                                  unit={result("keywords.volumeUnit", {
-                                    count: volume,
-                                  })}
-                                />
-                              )}
-                            </TableCell>
-                          ) : null}
-                          {shown.difficulty ? (
-                            <SeoDifficultyCell difficulty={group.difficulty} />
-                          ) : null}
-                          {shown.conversion ? (
-                            <SeoConversionCell
-                              conversion={group.conversion}
-                              feature={group.feature}
-                            />
-                          ) : null}
                           {shown.position ? (
                             <TableCell
                               className="whitespace-normal tabular-nums"
@@ -613,6 +546,43 @@ export function SeoKeywords({
                                 )
                               )}
                             </TableCell>
+                          ) : null}
+                          {shown.volume ? (
+                            <TableCell
+                              className="text-right tabular-nums"
+                              // No number, no unit: the label names the empty value.
+                              data-label={
+                                volume === null
+                                  ? t("keywords.volume")
+                                  : undefined
+                              }
+                            >
+                              {volume === null ? (
+                                <span
+                                  lang="en"
+                                  className="text-muted-foreground"
+                                >
+                                  {result("none")}
+                                </span>
+                              ) : (
+                                <SeoBarNumber
+                                  value={volume}
+                                  max={mostSearched}
+                                  unit={result("keywords.volumeUnit", {
+                                    count: volume,
+                                  })}
+                                />
+                              )}
+                            </TableCell>
+                          ) : null}
+                          {shown.difficulty ? (
+                            <SeoDifficultyCell difficulty={group.difficulty} />
+                          ) : null}
+                          {shown.conversion ? (
+                            <SeoConversionCell
+                              conversion={group.conversion}
+                              feature={group.feature}
+                            />
                           ) : null}
                           {shown.priority ? (
                             <TableCell data-label={t("keywords.priority")}>
@@ -737,9 +707,15 @@ export function SeoKeywords({
           </SeoStrategyFold>
         </SeoSection>
       </div>
-      <div className={seoSectionClass(bothLists || section === "ideas")}>
+      <div
+        className={`space-y-6 ${seoSectionClass(bothLists || section === "ideas") ?? ""}`}
+      >
+        <SeoKeywordIdeas
+          model={model}
+          ideas={ideas}
+          comparisonIdeas={all.ideas}
+        />
         <SeoSeasonalIdeas model={model} />
-        <SeoKeywordIdeas model={model} ideas={ideas} />
       </div>
     </div>
   );

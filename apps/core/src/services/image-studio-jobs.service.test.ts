@@ -1026,6 +1026,34 @@ describe("image studio job submission", () => {
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
+  it("uses the project's Studio palette for a vector generation", async () => {
+    const model = "fal-ai/recraft/v4.1/text-to-vector";
+    const stored = jobRow({ model, prompt: "A fox icon" });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    projectFindUniqueMock.mockResolvedValue({
+      studioBrandLook: { colors: ["#123"], fonts: [] },
+    });
+    submitToQueueMock.mockResolvedValue({
+      kind: "queued",
+      requestId: "vector-1",
+    });
+    await createImageJob({
+      ...BASE_INPUT,
+      prompt: "A fox icon",
+      modelId: "recraft-v4-1-text-to-vector",
+    });
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model,
+        input: expect.objectContaining({
+          colors: [{ r: 17, g: 34, b: 51 }],
+          prompt: expect.stringMatching(/^A fox icon\n\nFollow this project/),
+        }),
+      }),
+    );
+  });
+
   it("sends Design and Memory to fal and keeps the stored prompt as the brief", async () => {
     // Own URL: readDesignMdContent caches by URL across the test process.
     const designMdUrl =
@@ -1073,6 +1101,8 @@ describe("image studio job submission", () => {
           )
           .digest("hex"),
         brandLook: Prisma.DbNull,
+        route: null,
+        experimentArm: null,
         assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
         templateId: null,
         creativeDirection: null,
@@ -1088,16 +1118,30 @@ describe("image studio job submission", () => {
       variationIndex: 0,
     };
     const look = { colors: ["#123456"], fonts: ["Inter"] };
-    const stored = jobRow({ ...context, exportHeadline: "Approved headline" });
+    const settings = {
+      ...BASE_INPUT.settings,
+      route: "photo_ad" as const,
+      experimentArm: "router:opus-5.5" as const,
+    };
+    const stored = jobRow({
+      ...context,
+      settings,
+      exportHeadline: "Approved headline",
+    });
     projectFindUniqueMock.mockResolvedValue({ studioBrandLook: look });
     jobCreateMock.mockResolvedValue(stored);
     jobFindUniqueOrThrowMock.mockResolvedValue(stored);
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
-    await createImageJob({ ...BASE_INPUT, ...context });
+    await createImageJob({
+      ...BASE_INPUT,
+      ...context,
+      experimentArm: settings.experimentArm,
+      route: settings.route,
+    });
 
     expect(jobCreateMock).toHaveBeenCalledWith({
-      data: expect.objectContaining(context),
+      data: expect.objectContaining({ ...context, settings }),
     });
     const finalPrompt = submitToQueueMock.mock.calls[0]![0].input.prompt;
     expect(finalPrompt).toContain(
@@ -1109,6 +1153,8 @@ describe("image studio job submission", () => {
         ...context,
         finalPrompt,
         brandLook: look,
+        experimentArm: settings.experimentArm,
+        route: settings.route,
         brandContextHash: createHash("sha256")
           .update(
             [
@@ -1124,6 +1170,8 @@ describe("image studio job submission", () => {
         ...context,
         finalPrompt,
         brandLook: look,
+        experimentArm: settings.experimentArm,
+        route: settings.route,
       }),
     });
   });

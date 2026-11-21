@@ -52,7 +52,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import {
   type ActionError,
   toActionRejectionError,

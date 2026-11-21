@@ -12,7 +12,7 @@ import { flushSync } from "react-dom";
 import { assetContentUrl } from "@/app/projects/components/image-studio/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useInterval } from "@/hooks/effects/use-interval";
 
 export const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
   "PENDING",
@@ -76,11 +76,7 @@ export function StagePreview({
 /** Seconds since a moment, ticking each second once mounted on the client. */
 function useElapsedSeconds(since: Date): number | null {
   const [now, setNow] = useState<number | null>(null);
-  useMountEffect(() => {
-    setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  });
+  useInterval(() => setNow(Date.now()), 1000, { immediate: true });
   return now === null
     ? null
     : Math.max(0, Math.floor((now - since.getTime()) / 1000));

@@ -4,7 +4,9 @@ import {
   imageModelForEndpoint,
   resolveImageSettings,
 } from "./catalog";
+import { RECRAFT_VECTOR_ENDPOINT } from "./catalog-overrides";
 import { imageDimensions } from "./image-model";
+import { studioRgbColors } from "./palette";
 
 /**
  * The fal queue protocol, and nothing else.
@@ -65,6 +67,7 @@ export interface FalMedia {
 
 export interface FalGenerationInput {
   prompt: string;
+  brandColors?: string[];
   aspectRatio: string;
   resolution: string;
   outputFormat: string;
@@ -214,8 +217,14 @@ export function buildFalInput(
     prompt:
       endpoint === "fal-ai/recraft/v3/text-to-image"
         ? fitRecraftV3Prompt(input.prompt)
-        : input.prompt,
+        : endpoint === RECRAFT_VECTOR_ENDPOINT
+          ? Array.from(input.prompt).slice(0, 10_000).join("")
+          : input.prompt,
   };
+  if (endpoint === RECRAFT_VECTOR_ENDPOINT && input.brandColors) {
+    const colors = studioRgbColors(input.brandColors);
+    if (colors.length) body.colors = colors;
+  }
   if (accepts("output_format")) body.output_format = input.outputFormat;
   // fal-ai/ideogram/v3/edit has no image_size: the output is the input size.
   // Sending one is a 422. Remix and the generate endpoint do take it.

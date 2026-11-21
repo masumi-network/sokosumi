@@ -41,3 +41,126 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Data Fetching**: Follow Next.js docs for Data Fetching, Rendering, and Routing
 - **Accessible names in shared components**: an ancestor with `aria-label` replaces its descendants' text, and one with `aria-hidden` removes it. An `sr-only` label inside a shared component therefore reaches only the call sites without either, so check every call site. happy-dom computes a name from `aria-label` on a roleless `<span>`, which browsers ignore, so assert the markup as well as `toHaveAccessibleName`.
 - **`PopoverAnchor` instead of `PopoverTrigger`**: Radix treats the anchor as outside the content and has no trigger to return focus to. Guard `onFocusOutside` and `onPointerDownOutside` against events from the anchor, and pass an `onCloseAutoFocus` that calls `preventDefault()` and focuses the anchor, or a hotkey-opened popover closes at once and focus drops to `<body>` (`apps/web/src/app/(app)/chat/components/room-search-panel.tsx`).
+
+## Effects
+
+Product code in Web and CMO never calls `useEffect`, `useLayoutEffect`, or `useMountEffect` directly (named import or `React.*` form). `biome-plugins/no-direct-effects.grit` warns across product files and `biome-plugins/no-effect-aliases.grit` errors on aliases and indirections ([ADR-0075](../adr/0075-effects-live-only-in-named-hooks.md)); locally `pnpm effects:check` (run in Husky pre-commit) enforces each app's `effect-baseline.json` (sorted, one entry per line — the only file a migration PR updates), and CI's `Biome` job runs the full `scripts/ci/__tests__/no-direct-effects.test.mjs` suite against the base SHA (`EFFECT_BASELINE_BASE_REF`) to reject any baseline growth or `biome-ignore` suppression for the effect rules.
+
+Before reaching for an effect, read React's [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect) and [Separating Events from Effects](https://react.dev/learn/separating-events-from-effects), and prefer:
+
+- **Derived values**: compute during render (or `useMemo` only when expensive) instead of syncing state.
+- **User actions**: run side effects in event handlers rather than watching a state flag.
+- **Resetting state on prop change**: pass a `key` to remount the subtree cleanly.
+- **Data loading**: use `@tanstack/react-query` (or Server Components / loaders) instead of `fetch` + `setState` in an effect.
+- **External store subscriptions**: use `useSyncExternalStore` for browser state (`matchMedia`, `visualViewport`, `localStorage`, hydration checks).
+- **Latest callback or prop inside an effect**: use `useEffectEvent`, and call it only from that effect or from callbacks the effect registers (its timers, listeners, subscriptions). A callback registered outside an effect (a JSX event handler, a library callback, a timer started in a handler) that needs the latest committed value uses `useLatestRef` from `src/hooks/effects/`. Render logic reads current props and state directly, never a ref.
+
+When you genuinely need to synchronize with an external system, call an existing named hook from `src/hooks/effects/` (or add one there — one job per hook, covered by a Vitest behaviour test, and never taking a general effect-callback parameter). Tests, test fixtures, and Web's vendored `src/components/ui/**` are exempt.
+
+Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/src/hooks/effects/`):
+
+- `use-mobile` (`useIsMobile`, `useIsMobileMedia`, `MOBILE_BREAKPOINT`) — mobile viewport media query
+- `use-media-query` (`useMediaQuery`, `usePrefersReducedMotion`, `matchesMediaQuery`, `subscribeMediaQuery`) — generic CSS media query and live `prefers-reduced-motion` subscriptions (CMO has `useMediaQuery` under `apps/cmo/src/hooks/effects/use-media-query.ts`)
+- `use-animation-frame` (`useAnimationFrame`) — `requestAnimationFrame` loop with elapsed seconds per frame
+- `use-animation-frame-batch` (`useAnimationFrameBatch`) — batches handler-pushed items into a single `requestAnimationFrame` callback with unmount cancel
+- `use-event-listener` (`useEventListener`) — typed window, document, or element DOM event listener using the latest handler (CMO has `useEventListener` under `apps/cmo/src/hooks/effects/use-event-listener.ts`)
+- `use-interval` (`useInterval`) — repeating timer paused on `null` delay (CMO has `useInterval` under `apps/cmo/src/hooks/effects/use-interval.ts`)
+- `use-timeout` (`useTimeout`) — one-shot timer paused on `null` delay with optional `resetKey` (CMO has `useTimeout` under `apps/cmo/src/hooks/effects/use-timeout.ts`)
+- `use-scheduled-timeout` (`useScheduledTimeout`, `useScheduledTimeoutMap`) — imperative handler-started timeout(s) with synchronous cancel and unmount cleanup
+- `use-abort-controller` (`useAbortController`, `useAbortControllers`) — imperative handler-started `AbortController`(s) aborted on unmount or `resetKey` change
+- `use-replace-route-on-media` (`useReplaceRouteOnMedia`) — one-shot `router.replace` when a CSS media query matches
+- `use-keyboard-open` (`useKeyboardOpen`) — soft keyboard open state via `visualViewport`
+- `use-clipboard` (`useClipboard`, `copyTextWithToast`) — clipboard write with toast feedback and timed reset
+- `use-load-when-visible` (`useLoadWhenVisible`) — `IntersectionObserver` pagination boundary trigger
+- `use-intersection-observer` (`useIntersectionObserver`) — live-element `IntersectionObserver` subscription with unmount disconnect
+- `use-resize-observer` (`useResizeObserver`, `useLayoutResizeObserver`) — live-element `ResizeObserver` subscriptions with unmount disconnect
+- `use-mutation-observer` (`useMutationObserver`, `useLayoutMutationObserver`) — live-node / `"body"` / `"documentElement"` `MutationObserver` subscriptions with unmount disconnect
+- `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
+- `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus a ref or getter target when a condition turns true (reads the target at effect time; optional `preventScroll`, `deferToFrame`, and `resetKey`)
+- `use-focus-form-field-on-mount` (`useFocusFormFieldOnMount`) — focus a `react-hook-form` field once on mount (or Activity reveal)
+- `use-message-edit-composer-focus` (`useMessageEditComposerFocus`) — focus `MessageEditComposer` at the end of its content once on mount (or Activity reveal)
+- `use-scroll-into-view-when` (`useScrollIntoViewWhen`) — scroll a ref or getter target into view when a condition turns true (reads the target at effect time; optional reduced-motion downgrade and `resetKey`; CMO has `useScrollIntoViewWhen` under `apps/cmo/src/hooks/effects/use-scroll-into-view-when.ts`)
+- `use-scroll-child-into-view-x` (`useScrollChildIntoViewX`) — horizontally scroll a container's `scrollLeft` just enough to reveal a matched child without moving vertical page scroll
+- `use-scroll-to-end` (`useScrollToEnd`) — scroll `targetRef.current` to its vertical or horizontal end when a trigger changes (CMO also has `useFocusFirstInvalid` under `apps/cmo/src/hooks/effects/use-focus-first-invalid.ts`, `useOnboardingStepScroll` under `apps/cmo/src/hooks/effects/use-onboarding-step-scroll.ts`, and `useSidePanelFocus` under `apps/cmo/src/hooks/effects/use-side-panel-focus.ts`)
+- `use-page-search-shortcut` (`usePageSearchShortcut`) — Cmd/Ctrl+F search input focus shortcut
+- `use-prevent-enter-submit` (`usePreventEnterSubmit`) — form Enter submission guard
+- `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching
+- `use-chat-unread-document-title` (`useChatUnreadDocumentTitle`) — browser tab unread count prefix
+- `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
+- `use-org-presence-map` (`useOrgPresenceMap`, `useOrgPresenceMapSync`, `createOrgPresenceStore`) — Ably organization presence subscription backed by an external store
+- `use-org-presence-publisher` (`useOrgPresencePublisher`) — Ably organization presence publishing and channel lifecycle for the active organization
+- `use-room-typing` (`useRoomTyping`, `useRoomTypingSync`, `createRoomTypingStore`) — Ably room typing subscription and publisher backed by an external store
+- `use-calendar-realtime` (`useCalendarRealtime`) — Ably workspace calendar invalidation, capability checks, and access-revocation subscription
+- `use-chat-control-channel` (`useChatControlChannel`) — ref-counted Ably user chat control channel subscription for revoke and rooms-changed signals
+- `use-selected-room-channel-health` (`useSelectedRoomChannelHealth`) — Ably connection and selected room channel health/continuity observer
+- `use-notification-front-presence` (`useNotificationFrontPresence`) — tab-visibility presence reporting on the user's Ably notifications channel
+- `use-notification-realtime` (`useNotificationRealtime`) — Ably notifications channel subscription and attachment reconciliation
+- `use-push-recovery` (`usePushRecovery`) — throttled web push subscription self-healing on foreground return and reconnect
+- `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
+- `use-location-replace` (`useLocationReplace`) — `window.location.replace` redirect when a target URL is set
+- `use-format-toolbar-open-preference` (`useFormatToolbarOpenPreference`) — before-paint chat formatting toolbar preference read and persistence
+- `use-normalized-query-tab` (`useNormalizedQueryTab`) — URL query tab validation against enabled tabs with invalid-URL cleanup
+- `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries
+- `use-latest-ref` (`useLatestRef`) — ref synced to the latest committed value in a layout effect
+- `use-query-error-report` (`useQueryErrorReport`) — calls a query error reporter once per failure while mounted on the active key
+- `use-flash-toast` (`queueFlashSuccessToast`, `useFlashToast`) — shows a one-time `sessionStorage` success toast once on the next document mount
+- `use-mark-agent-unavailable` (`useMarkAgentUnavailable`, `useIsAgentUnavailable`) — ref-counted unavailable-agent external store for mobile header back fallback
+- `use-project-scope-marker` (`useProjectScopeMarker`, `useMarkedProjectSnapshot`) — detail-page project scope marker store keyed by detail path
+- `use-compose-draft` (`usePersistComposeDraft`) — debounced `localStorage` chat compose draft hydration and unmount/key-change flush
+- `use-room-cache-dirty` (`useMarkRoomCacheDirtyOnExit`) — marks a retained room cache entry dirty when leaving the room or switching caches
+- `use-personal-assistant-chrome-visible` (`usePersonalAssistantChromeVisible`) — records session visibility of Personal Assistant sidebar chrome for Instant `/chat`
+- `use-failed-soko-bot-id-publisher` (`useFailedSokoBotIdPublisher`) — before-paint failed Soko Bot id publishing to synchronize sidebar and Direct rows
+- `use-remember-pinned-rooms` (`useRememberPinnedRooms`) — persists the sidebar's Pinned chat rooms in session memory across workspace switches
+- `use-membership-visible-rooms-publisher` (`useMembershipVisibleRoomsPublisher`) — publishes sidebar live rooms and registers the active publisher without bouncing live count on room updates
+- `use-auth-session-hydration` (`useAuthSessionHydration`) — before-paint `authClient` session hydration and rendered-user registration
+- `use-pending-navigation` (`usePendingNavigation`) — optimistic destination tracking for in-flight Next.js navigation transitions
+- `use-pending-created-tasks` (`usePendingCreatedTasks`, `withBoardPreview`) — optimistic pending task board preview registration while a task create transition runs
+- `use-track-view` (`useTrackView`) — fires a typed GTM view event (`view_login_area`, `view_register_area`, `view_credits`, `view_agent`) once on mount or when an explicit key changes
+- `use-analytics-user-id` (`useAnalyticsUserId`) — pushes GA4 `set_user_id` into `window.dataLayer` when the signed-in user id changes
+- `use-track-purchase` (`useTrackPurchase`) — fires the GTM `purchase` event at most once per checkout session id once analytics consent is granted
+- `use-report-route-error` (`useReportRouteError`, `useGlobalRouteError`) — reports route error boundary failures to Sentry and handles one-shot stale-deployment refresh in the global error boundary
+- `use-router-redirect` (`useRouterRedirect`) — client-side Next.js App Router navigation (`replace`/`push`, optional one-shot) driven by state
+- `use-aurora-orb-canvas` (`useAuroraOrbCanvas`) — live `AuroraOrb` and `PlaceholderOrb` canvas handle lifecycle (mount, expression/speed updates, pulse nonce, teardown)
+- `use-live-bot-avatar` (`useLiveBotAvatar`) — shared-WebGL `LiveBotAvatar` canvas handle, intersection visibility, model upload, context-loss teardown, and pointer gaze
+- `use-gradient-background-canvas` (`useGradientBackgroundCanvas`) — WebGL Home gradient canvas lifecycle with theme token observation, reduced motion, and off-screen pause
+- `use-thinking-orb-canvas` (`useThinkingOrbCanvas`) — `thinking-orbs` 2D canvas animation with reduced-motion static frame fallback
+- `use-studio-wall-paint` (`useStudioWallPaint`, `applyStudioWallTransform`) — before-paint Studio template wall layout transform synchronization
+- `use-document-locale-lang` (`useDocumentLocaleLang`) — before-paint `document.documentElement.lang` synchronization with the active locale
+- `use-agent-fullbleed-body` (`useAgentFullbleedBody`) — `data-agent-fullbleed="true"` toggle on `<body>` while the agent jobs layout is mounted
+- `use-soko-bot-creating-body` (`useSokoBotCreatingBody`) — `data-soko-bot-creating="true"` toggle on `<body>` while the Soko Bot creation flow is mounted
+- `use-seo-ask-button-toast-offset` (`useSeoAskButtonToastOffset`) — `--toast-bottom-offset` toggle on `document.documentElement` while the SEO ask button is mounted
+- `use-chat-unreads-filter` (`useChatUnreadsFilter`) — browser-remembered Unreads filter cookie store and before-paint boot attribute cleanup
+- `use-dynamic-type-root-cap` (`useDynamicTypeRootCap`) — Apple Dynamic Type root `fontSize` cap on mount, `pageshow`, and `visibilitychange`
+- `use-browser-time-format-sync` (`useBrowserTimeFormatSync`) — browser 12h/24h time-format cookie sync and Auto route refresh
+- `use-browser-time-zone-sync` (`useBrowserTimeZoneSync`) — browser IANA time-zone cookie sync and route refresh
+- `use-canonical-history-path` (`useCanonicalHistoryPath`) — post-render `window.history.replaceState` pathname canonicalization preserving state, search, and hash
+- `use-internal-traffic-gate` (`useInternalTrafficGate`) — internal-traffic cookie sync, `?internal` URL stripping, and Google tags gating
+- `use-url-timezone` (`useUrlTimezone`) — seeds the browser's IANA time zone into a calendar URL that lacks a valid one
+- `use-push-preference` (`usePushPreference`) — browser Web Push capability, permission, subscription, and repair state synchronization
+- `use-record-project-visit` (`useRecordProjectVisit`) — records visited project IDs in the per-user/per-workspace `localStorage` visit log
+- `use-record-page-visit` (`useRecordPageVisit`) — increments the per-pathname likely-pages visit counter on mount
+- `use-remembered-project-scope` (`useRememberedProjectScope`) — `sessionStorage` external store and workspace-switch-guarded project scope synchronization
+- `use-tasks-restored-view-url` (`useTasksRestoredViewUrl`, `rememberSavedTasksView`, `forgetSavedTasksView`, `withTasksView`) — before-paint restored Tasks view URL synchronization via `history.replaceState` / `router.replace`
+- `use-calendar-week-row-label` (`useCalendarWeekRowLabel`) — sets localized ISO week `aria-label` on FullCalendar month week rows
+- `use-studio-chat-draft` (`useStudioChatDraft`) — `sessionStorage`-backed Image Studio conversation draft restore, persistence, and failed-send recovery
+- `use-studio-chat-intent` (`useStudioChatIntent`) — `sessionStorage`-backed Image Studio first-message create intent restore, claim, and release
+- `use-studio-website-draft-request` (`useStudioWebsiteDraftRequest`) — one-shot Studio website-draft auto-prepare request consumption on mount
+- `use-notification-view-preference` (`useNotificationViewPreference`) — before-paint Notification Center view preference restore and `localStorage` persistence
+- `use-forgot-password-email-hint` (`useForgotPasswordEmailHint`) — one-shot `sessionStorage` email hint fill on Forgot Password mount
+- `use-auth-flow-handover` (`useAuthFlowHandover`) — before-paint sign-in/sign-up `sessionStorage` handover consumption in `AuthFlow`
+- `use-seo-connection-handoff` (`useSeoConnectionHandoff`) — StrictMode-safe `window.name` read-and-clear for the SEO OAuth callback return page
+- `use-cookie-consent-banner` (`useCookieConsentBanner`, `openCookieConsentPreferences`) — consent cookie hydration, OAuth brand lookup, reopen event subscription, and consent choice persistence
+- `use-conditional-passkey-autofill` (`useConditionalPasskeyAutofill`) — WebAuthn conditional passkey autofill lifecycle on sign-in (CMO also has `useCmoAppInitialUrl` under `apps/cmo/src/hooks/effects/use-cmo-app-initial-url.ts` and `useOnboardingReturnNotice` under `apps/cmo/src/hooks/effects/use-onboarding-return-notice.ts`)
+
+### React Query in migrations
+
+When migrating a client fetch effect to React Query in `apps/web`:
+
+- **Session boundary (full document load):** User changes — sign-out via `signOutWithPushRelease` and every sign-out caller (`logout-modal`, `workspace-gate-sign-out`, `invitation-actions`, `oauth-hand-back`, password-reset sign-out), account deletion, sign-in (`finishAuthInPlace` / OAuth callbacks), impersonation start/stop, and session-expiry redirects (`AuthSessionGuard`, `useUnAuthenticatedErrorHandler`) — always end in a full document load (`window.location.assign`, `window.location.replace`, or `window.location.reload`) instead of a client router push/refresh. No in-memory JS cache (including the module `QueryClient`) outlives its user.
+- **Scoped reads (`useScopedQuery` / `useScopedInfiniteQuery` in `apps/web/src/queries/scoped-queries.ts`):**
+  - Pass `scope` explicitly using the exact same value the request uses (organization slug or workspace id, plus viewer id where the server filters per member); the wrapper prepends `scope` to `queryKey`.
+  - Defaults to `networkMode: "always"`, `retry: false`, and `refetchOnWindowFocus: false` without changing global `QueryClient` defaults for existing `useQuery` callers.
+  - `placeholderData` / `keepPreviousData` is intentionally disallowed and stripped so scope A's rows can never render under scope B while loading.
+  - Pass `onError` to toast or report failures: `useQueryErrorReport` fires only while the observer is mounted, enabled (`result.isEnabled`), and still on the failing key, so an abandoned or disabled read cannot toast on another screen.
+- **Writes alongside migrated reads:** Cancel every query under the scoped key prefix before the write; on success apply the result only to already-loaded entries (`status === "success"` — a write's result never marks a failed or unloaded list as loaded), then invalidate that prefix. Keep one-time secrets in the create result/local UI state and never write them into the React Query cache.
+- **Still on their old code:** Write-heavy, protected-preview, public-share, and one-time-secret surfaces stay on their current code rather than migrating to React Query.

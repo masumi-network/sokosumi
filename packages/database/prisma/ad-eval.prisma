@@ -10,6 +10,7 @@ model ProjectImagePromptSnapshot {
   variationIndex    Int?
   brandContextHash  String
   brandLook         Json?
+  route             String?
   assemblyVersion   String
   experimentArm     String?
   createdAt         DateTime @default(now())

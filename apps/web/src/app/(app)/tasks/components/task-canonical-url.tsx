@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useCanonicalHistoryPath } from "@/hooks/effects/use-canonical-history-path";
 import { isUuidString } from "@/lib/utils/uuid";
 
 interface TaskCanonicalUrlProps {
@@ -23,25 +23,14 @@ interface TaskCanonicalUrlProps {
  */
 export function TaskCanonicalUrl({ href }: TaskCanonicalUrlProps) {
   const pathname = usePathname();
+  const match = pathname.match(/^\/tasks\/([^/]+)\/?$/);
+  const ref = match?.[1];
+  const targetPathname = ref && !isUuidString(ref) ? href : null;
 
   // Syncs with the browser history, an external system. Runs after every
   // render: a router refresh (RefreshPrefetchedPage) writes the router's own
   // URL back into history when it commits, so the rewrite must follow it.
-  useEffect(() => {
-    const match = pathname.match(/^\/tasks\/([^/]+)\/?$/);
-    if (!match) return;
-
-    const ref = match[1];
-    if (isUuidString(ref)) return;
-    if (window.location.pathname === href) return;
-
-    const { search, hash } = window.location;
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${href}${search}${hash}`,
-    );
-  });
+  useCanonicalHistoryPath(targetPathname);
 
   return null;
 }

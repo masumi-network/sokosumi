@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { usePushPreference } from "@/lib/ably/use-push-preference";
+import { usePushPreference } from "@/hooks/effects/use-push-preference";
 import { useSession } from "@/lib/auth/auth.client";
 import { preferencesBrowserClient } from "@/lib/clients/core.preferences.browser.client";
 import {

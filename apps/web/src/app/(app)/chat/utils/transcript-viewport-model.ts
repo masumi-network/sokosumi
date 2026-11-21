@@ -2,7 +2,7 @@ import { unfurlCardHasPreviewContent } from "@sokosumi/utils";
 
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import type { RoomTranscriptRow } from "@/app/chat/utils/room-transcript-ranges";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 
 /**
  * Within this distance of the bottom, content resizes still pin the viewport.

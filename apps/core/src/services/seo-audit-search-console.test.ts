@@ -6,6 +6,7 @@ import {
   GSC_PROPERTIES_TOOL,
   GSC_STATS_TOOL,
 } from "@/lib/seo/native-statistics";
+import { expectCoreLog } from "@/test/core-log";
 import { searchConsoleToolDescriptors } from "@/test-fixtures/seo-search-console";
 import { propertyChoices } from "./project-seo-statistics.service";
 import {
@@ -112,6 +113,10 @@ describe("full audit Search Console coverage", () => {
   );
 
   it("stops before dispatch when search statistics work but URL Inspection cannot read the audit page", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Search Console verification failed before the audit started.",
+    );
     boundary.read.mockImplementation(async (_account, slug) => {
       if (slug === GSC_PROPERTIES_TOOL) return sites(domain);
       if (slug === GSC_INSPECT_TOOL) throw new Error("private access error");
@@ -120,6 +125,19 @@ describe("full audit Search Console coverage", () => {
     await expect(checkAuditSearchConsole(actor, pages)).rejects.toMatchObject({
       cause: { kind: "seo_gsc_unavailable" },
       message: expect.not.stringContaining("private access error"),
+    });
+    expect(warnings[0]?.event.stage).toBe("url_inspection");
+  });
+
+  it("verifies the readable property when another entry omits its permission", async () => {
+    boundary.read.mockResolvedValueOnce({
+      siteEntry: [
+        ...sites(domain).siteEntry,
+        { siteUrl: "sc-domain:other.test" },
+      ],
+    });
+    await expect(checkAuditSearchConsole(actor, pages)).resolves.toMatchObject({
+      propertyId: domain,
     });
   });
 
@@ -133,6 +151,8 @@ describe("full audit Search Console coverage", () => {
       siteEntry: [
         { siteUrl: domain, permissionLevel: "unexpectedPermission" },
         { siteUrl: prefix, permissionLevel: "siteUnverifiedUser" },
+        { siteUrl: "sc-domain:missing.test" },
+        { siteUrl: "sc-domain:null.test", permissionLevel: null },
       ],
     });
     expect(
@@ -273,6 +293,11 @@ describe("full audit Search Console coverage", () => {
   });
 
   it("keeps a failed authorized statistics read separate from an expired connection", async () => {
+    expectCoreLog(
+      "warn",
+      "Search Console verification failed before the audit started.",
+      2,
+    );
     boundary.read
       .mockResolvedValueOnce(sites(domain))
       .mockRejectedValueOnce(new Error("private upstream text"));
@@ -302,12 +327,17 @@ describe("full audit Search Console coverage", () => {
   });
 
   it("refuses malformed statistics data without reporting a disconnected account", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Search Console verification failed before the audit started.",
+    );
     boundary.read
       .mockResolvedValueOnce(sites(domain))
       .mockResolvedValueOnce({ unsupported: "wrong tool shape" });
     await expect(checkAuditSearchConsole(actor, pages)).rejects.toMatchObject({
       cause: { kind: "seo_gsc_unavailable" },
     });
+    expect(warnings[0]?.event.stage).toBe("search_analytics");
   });
 
   it("asks the user to select a connection when inherited accounts are ambiguous", async () => {

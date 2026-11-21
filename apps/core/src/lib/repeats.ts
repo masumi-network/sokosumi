@@ -23,7 +23,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
  * and the two that shared only words pass (0.66, 0.70); below it the
  * same-topic posts with their own point start.
  */
-export const REPEAT_CUTOFF = { title: 0.86, post: 0.88 } as const;
+export const REPEAT_CUTOFF = { title: 0.86, post: 0.88, claim: 0.86 } as const;
 
 /** Embeddings by text hash, so a month's siblings are embedded once per process. */
 const cache = new Map<string, number[]>();
@@ -94,25 +94,17 @@ async function embedAll(
   return { vectors, costUsd };
 }
 
-/**
- * For each text, the index of the earlier text it says again (the closest
- * one at or above the cutoff), or null. Blank texts are never repeats.
- */
-export async function findRepeats(
+/** The texts' vectors within the wait, or null: the check is then skipped. */
+async function embedWithin(
   texts: readonly string[],
-  kind: keyof typeof REPEAT_CUTOFF,
-  embed: EmbedTexts = embedTexts,
-): Promise<{ repeats: (number | null)[]; costUsd: number }> {
-  const trimmed = texts.map((text) => text.trim());
-  const none = { repeats: trimmed.map(() => null), costUsd: 0 };
-  const filled = trimmed.filter(Boolean);
-  if (filled.length < 2) return none;
-  let embedded: Awaited<ReturnType<typeof embedAll>>;
+  kind: string,
+  embed: EmbedTexts,
+): Promise<Awaited<ReturnType<typeof embedAll>> | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const embedding = embedAll(filled, embed);
+    const embedding = embedAll(texts, embed);
     embedding.catch(() => {});
-    embedded = await Promise.race([
+    return await Promise.race([
       embedding,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
@@ -132,10 +124,48 @@ export async function findRepeats(
       },
       { failure: messageSafeErrorFields(error) },
     );
-    return none;
+    return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * How close `text` is to each of `others` by meaning (cosine, 0 to 1), or
+ * null when the embedding model did not answer.
+ */
+export async function similarities(
+  text: string,
+  others: readonly string[],
+  embed: EmbedTexts = embedTexts,
+): Promise<{ scores: number[] | null; costUsd: number }> {
+  const trimmed = [text, ...others].map((item) => item.trim());
+  if (trimmed.some((item) => !item)) return { scores: null, costUsd: 0 };
+  const embedded = await embedWithin(trimmed, "similarity", embed);
+  const own = embedded?.vectors.get(hash(trimmed[0] ?? ""));
+  if (!embedded || !own) return { scores: null, costUsd: 0 };
+  const scores = trimmed.slice(1).map((item) => {
+    const theirs = embedded.vectors.get(hash(item));
+    return theirs ? cosine(own, theirs) : 0;
+  });
+  return { scores, costUsd: embedded.costUsd };
+}
+
+/**
+ * For each text, the index of the earlier text it says again (the closest
+ * one at or above the cutoff), or null. Blank texts are never repeats.
+ */
+export async function findRepeats(
+  texts: readonly string[],
+  kind: keyof typeof REPEAT_CUTOFF,
+  embed: EmbedTexts = embedTexts,
+): Promise<{ repeats: (number | null)[]; costUsd: number }> {
+  const trimmed = texts.map((text) => text.trim());
+  const none = { repeats: trimmed.map(() => null), costUsd: 0 };
+  const filled = trimmed.filter(Boolean);
+  if (filled.length < 2) return none;
+  const embedded = await embedWithin(filled, kind, embed);
+  if (!embedded) return none;
   const vectorOf = (text: string) =>
     text ? embedded.vectors.get(hash(text)) : undefined;
   const repeats = trimmed.map((text, index) => {

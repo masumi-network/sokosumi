@@ -795,7 +795,7 @@ textarea {
  * (`--gutter`) where the sidebar's Cuso leans in, so he never covers it.
  */
 .app {
-  --side-width: clamp(264px, 23.6vw, 340px);
+  --side-width: 280px;
   --gutter: 80px;
   --page-x: 48px;
   --page-left: calc(var(--gutter) + var(--page-x));
@@ -903,8 +903,6 @@ textarea {
 .who-button {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -917,23 +915,46 @@ textarea {
   outline-offset: 2px;
 }
 
-.who-button .avatar {
-  width: 40px;
-  height: 40px;
-  border: var(--line-width-small) solid var(--line);
-  box-shadow: var(--shadow);
-  font-size: 1rem;
+/*
+ * The person: a plain 36px avatar, their picture or their initial on a light
+ * disc. It opens a menu, so it gives on hover and shows focus, with no shadow.
+ */
+.avatar-ring {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  transition: background-color 150ms;
 }
 
-.who-button:active .avatar {
-  transform: translate(var(--offset), var(--offset));
-  box-shadow: none;
+.who-button:hover .avatar-ring,
+.who-button[aria-expanded="true"] .avatar-ring {
+  background: var(--border);
 }
 
-/* Settings is open: the avatar is the picked page, so it takes Iris. */
-.who-button .avatar-active {
+/* Settings is open: the picked page's fill, around the avatar. */
+.avatar-ring-active,
+.who-button:hover .avatar-ring-active {
   background: var(--primary);
+}
+
+.who-button .avatar {
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  border: var(--line-width-small) solid var(--line);
+}
+
+.who-button .avatar-initial {
+  background: var(--stage);
   color: var(--primary-foreground);
+  font-size: 0.875rem;
+}
+
+.who-button .avatar-photo {
+  object-fit: cover;
+  background: var(--stage);
 }
 
 .side .ob-who-menu {
@@ -1035,11 +1056,11 @@ textarea {
 }
 
 /*
- * Cuso on every page: on an Iris stage at the foot of the sidebar, large,
- * standing on his light ground and leaning out over the sidebar's edge into
- * the page's gutter (`--gutter`), where no page puts anything. His bubble
- * sits above his head and opens Today. He grows and shrinks with the room
- * the stage has, and leaves it to the bubble when the window is too short.
+ * Cuso on every page: on an Iris stage at the foot of the sidebar, in a
+ * light porthole, reaching out over the sidebar's edge into the page's
+ * gutter (`--gutter`), where no page puts anything. His status pill opens
+ * Today. He grows and shrinks with the room the stage has, and leaves it to
+ * the pill when the window is too short.
  */
 .cuso-status {
   position: relative;
@@ -1051,6 +1072,10 @@ textarea {
   container: stage / size;
 }
 
+/*
+ * His status line: a small dark pill at the stage's top left. It opens
+ * Today (on Today itself it is only words), so it carries a focus ring.
+ */
 .cuso-says {
   position: absolute;
   top: 14px;
@@ -1061,66 +1086,84 @@ textarea {
   gap: 8px;
   max-width: calc(100% - 32px);
   margin: 0;
-  padding: 10px 14px;
-  border: var(--line-width) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--card);
-  color: var(--foreground);
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--strip);
+  color: var(--strip-foreground);
   font: inherit;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.25;
   text-align: left;
 }
 
-button.cuso-says {
-  box-shadow: var(--shadow);
-  cursor: pointer;
+a.cuso-says {
+  text-decoration: none;
 }
 
-button.cuso-says:active {
-  transform: translate(var(--offset), var(--offset));
-  box-shadow: none;
+a.cuso-says:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.cuso-says svg,
+a.cuso-says:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+/* A filled disc says what he is about: yellow while he needs the owner. */
+.cuso-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+.cuso-status[data-pose="needs-you"] .cuso-dot {
+  background: var(--warn);
+}
+
 .cuso-says .ob-box-dot {
   flex: none;
 }
 
+/*
+ * The porthole: a light circle (--cuso-size, up to 240px) centred on the
+ * stage under the pill. Cuso stands whole in it, his feet and their shadow
+ * inside its foot; only his pointing hand reaches over the rim and a little
+ * past the sidebar's edge into the page's gutter, never further.
+ */
 .cuso-figure {
-  --cuso-height: min(360px, calc(100cqh - 76px));
+  --cuso-size: min(240px, calc(100cqh - 88px));
 
   position: absolute;
-  right: calc(var(--cuso-height) * -0.34);
-  bottom: 0;
-  width: calc(var(--cuso-height) * 0.957);
-  height: var(--cuso-height);
+  bottom: max(10px, calc((100cqh - 60px - var(--cuso-size)) / 2));
+  left: calc(50% - var(--cuso-size) / 2);
+  width: var(--cuso-size);
+  height: var(--cuso-size);
   pointer-events: none;
   transition:
     opacity 200ms,
     transform 200ms;
 }
 
-/* His black line needs a light ground in both themes: a half disc. */
+/* His black line needs a light ground in both themes. */
 .cuso-ground {
   position: absolute;
-  bottom: 0;
-  left: 6%;
-  width: 84%;
-  height: 42%;
+  inset: 0;
   border: var(--line-width) solid var(--line);
-  border-bottom: 0;
-  border-radius: var(--radius-pill) var(--radius-pill) 0 0;
+  border-radius: 50%;
   background: var(--stage);
 }
 
 .cuso-figure img {
   position: absolute;
-  bottom: 3%;
-  left: 0;
-  width: 100%;
-  height: auto;
+  bottom: calc(var(--cuso-size) * 0.07);
+  left: calc(var(--cuso-size) * 0.245);
+  width: auto;
+  height: calc(var(--cuso-size) * 0.92);
 }
 
 @container stage (height < 200px) {

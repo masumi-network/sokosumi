@@ -3,15 +3,18 @@
 import { type EveToolPart, useEveAgent } from "eve/react";
 import { AlertTriangle, Loader2, SendHorizonal } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useScrollToEnd } from "@/hooks/effects/use-scroll-to-end";
+import { useStudioChatDraft } from "@/hooks/effects/use-studio-chat-draft";
+import { useStudioChatIntent } from "@/hooks/effects/use-studio-chat-intent";
 
 import { StudioImage } from "./studio-image";
-import type { StudioAsset, StudioLabels, StudioSettings } from "./types";
+import type { StudioAsset, StudioLabels } from "./types";
 
 const headlineUpdateSchema = z.object({
   assetId: z.uuid(),
@@ -76,70 +79,8 @@ function classifyTokenFailure(
  */
 const INTENT_HEADER = "x-sokosumi-studio-intent";
 
-/**
- * A name for "this first message", stable across every retry of it.
- *
- * Without one, a create whose response never arrives leaves the browser with
- * no session id at all, and the next attempt starts a second conversation
- * saying the same thing. It is stored rather than held in memory so a reload
- * mid-attempt is still the same attempt, and it is dropped the moment a
- * session exists, because from then on the session id is the identity.
- */
-function intentStorageKey(projectId: string): string {
-  return `sokosumi:image-studio:intent:${projectId}`;
-}
-
-/**
- * The attempt, and what it was an attempt to say.
- *
- * The name alone was not enough. Reused for a *different* message it means
- * "create-once for this conversation", which is exactly right for a replay and
- * exactly wrong for an edit: the agent answers with the conversation the first
- * attempt created and dispatches nothing, and the edited message disappears
- * without a word. Keeping what the attempt said is what lets the two be told
- * apart.
- */
-interface StudioIntent {
-  id: string;
-  /** The message and selection this attempt was for. */
-  says: string;
-}
-
-function intentSays(
-  message: string,
-  asset: StudioAsset | null,
-  selection: { studioModelId: string | null; studioSettings?: StudioSettings },
-): string {
-  return JSON.stringify([
-    message,
-    asset?.id ?? null,
-    selection.studioModelId,
-    selection.studioModelId ? selection.studioSettings : null,
-  ]);
-}
-
-function readIntent(projectId: string): StudioIntent | null {
-  try {
-    const raw = window.sessionStorage.getItem(intentStorageKey(projectId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StudioIntent>;
-    return typeof parsed.id === "string" && typeof parsed.says === "string"
-      ? { id: parsed.id, says: parsed.says }
-      : null;
-  } catch {
-    // No stored attempt; this page load starts its own.
-    return null;
-  }
-}
-
-function newIntentId(): string {
-  try {
-    return window.crypto.randomUUID();
-  } catch {
-    // Insecure context or no WebCrypto: still unique enough to dedupe one
-    // person's retries of one message, which is all this has to do.
-    return `intent-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-  }
+function intentSays(message: string, asset: StudioAsset | null): string {
+  return JSON.stringify([message, asset?.id ?? null]);
 }
 
 /** The session id an agent error names, when it names one. */
@@ -176,8 +117,6 @@ export function StudioChat({
   onSelectResult,
   projectId,
   selectedAsset,
-  studioModelId = null,
-  studioSettings,
 }: {
   assets: readonly StudioAsset[];
   labels: StudioLabels;
@@ -186,8 +125,6 @@ export function StudioChat({
   onSelectResult: (asset: StudioAsset) => void;
   projectId: string;
   selectedAsset: StudioAsset | null;
-  studioModelId?: string | null;
-  studioSettings?: StudioSettings;
 }) {
   const sessionKey = `sokosumi:image-studio:session:${projectId}`;
   const [sessionId, setSessionId] = useState<string | null>(() => {
@@ -229,8 +166,6 @@ export function StudioChat({
       projectId={projectId}
       resumeSessionId={sessionId}
       selectedAsset={selectedAsset}
-      studioModelId={studioModelId}
-      studioSettings={studioSettings}
     />
   );
 }
@@ -247,8 +182,6 @@ function StudioConversation({
   projectId,
   resumeSessionId,
   selectedAsset,
-  studioModelId,
-  studioSettings,
 }: {
   assets: readonly StudioAsset[];
   labels: StudioLabels;
@@ -272,18 +205,14 @@ function StudioConversation({
    * "this" meant, and would have to guess or ask.
    */
   selectedAsset: StudioAsset | null;
-  studioModelId: string | null;
-  studioSettings?: StudioSettings;
 }) {
   const t = useTranslations("App.Studio.Assistant");
-  const draftKey = `sokosumi:image-studio:draft:${projectId}`;
-  const [draft, setDraft] = useState("");
-  /**
-   * The attempt this client is making, while it still has no session id to
-   * identify the conversation by. Read fresh on every request through the
-   * `headers` resolver, so it needs no rerender to take effect.
-   */
-  const intentRef = useRef<StudioIntent | null>(null);
+  const { draft, handleDraftChange, restoreFailedMessage } =
+    useStudioChatDraft(projectId);
+  const { intentRef, claimIntent, releaseIntent } = useStudioChatIntent(
+    projectId,
+    resumeSessionId,
+  );
   /**
    * `null` while the token works. `"unavailable"` is permanent for this page
    * load (the feature is not configured, or this session cannot see the
@@ -294,78 +223,12 @@ function StudioConversation({
   >(null);
   /** The message currently in flight, so a later failure can put it back. */
   const lastSentRef = useRef<string | null>(null);
-  /**
-   * What is in the composer right now.
-   *
-   * Read by the failure path instead of a `setState` updater, because a
-   * restore can be followed in the same batch by attaching to a recovered
-   * conversation — which remounts this component, so an updater queued against
-   * it may never run and the text would be lost with it.
-   */
-  const draftRef = useRef("");
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   // Read the current selection inside callbacks without making them depend on
   // it; the hook's options are captured when its store is created.
   const selectedAssetRef = useRef<StudioAsset | null>(selectedAsset);
   selectedAssetRef.current = selectedAsset;
-  const studioSelectionRef = useRef({ studioModelId, studioSettings });
-  studioSelectionRef.current = { studioModelId, studioSettings };
-
-  // Restore the draft once, on mount. Storage can throw in a private window
-  // or with site data blocked, so the composer must work without it.
-  useEffect(() => {
-    try {
-      const saved = window.sessionStorage.getItem(draftKey);
-      if (saved) {
-        draftRef.current = saved;
-        setDraft(saved);
-      }
-    } catch {
-      // No draft restore; nothing else depends on it.
-    }
-  }, [draftKey]);
-
-  // Pick up an attempt that was in flight when the page went away, so a reload
-  // mid-create is still the same attempt rather than a second conversation.
-  useEffect(() => {
-    if (resumeSessionId) return;
-    intentRef.current = readIntent(projectId);
-  }, [projectId, resumeSessionId]);
-
-  /**
-   * Name this attempt, once, and keep the name until a session exists.
-   *
-   * Called before the first submit rather than on mount: a conversation nobody
-   * has spoken into has no attempt to identify.
-   */
-  const claimIntent = useCallback(
-    (says: string) => {
-      if (intentRef.current) return;
-      const intent = { id: newIntentId(), says };
-      intentRef.current = intent;
-      try {
-        window.sessionStorage.setItem(
-          intentStorageKey(projectId),
-          JSON.stringify(intent),
-        );
-      } catch {
-        // Memory-only is still enough for a same-page retry.
-      }
-    },
-    [projectId],
-  );
-
-  /** The session id is the identity from here on; the intent has done its job. */
-  const releaseIntent = useCallback(() => {
-    if (!intentRef.current) return;
-    intentRef.current = null;
-    try {
-      window.sessionStorage.removeItem(intentStorageKey(projectId));
-    } catch {
-      // Nothing depends on the removal succeeding.
-    }
-  }, [projectId]);
 
   const fetchToken = useCallback(async () => {
     let response: Response;
@@ -418,42 +281,20 @@ function StudioConversation({
     // each call site. It is ephemeral per-turn context, not session history.
     prepareSend: (input) => {
       const asset = selectedAssetRef.current;
-      const { studioModelId, studioSettings } = studioSelectionRef.current;
-      return {
-        ...input,
-        clientContext: {
-          studioModelId,
-          ...(studioSettings
-            ? {
-                studioSettings: {
-                  ...(studioSettings.aspectRatio !== undefined
-                    ? { aspectRatio: studioSettings.aspectRatio }
-                    : {}),
-                  ...(studioSettings.resolution !== undefined
-                    ? { resolution: studioSettings.resolution }
-                    : {}),
-                  ...(studioSettings.outputFormat !== undefined
-                    ? { outputFormat: studioSettings.outputFormat }
-                    : {}),
-                  ...(studioSettings.seed !== undefined
-                    ? { seed: studioSettings.seed }
-                    : {}),
-                },
-              }
-            : {}),
-          ...(asset
-            ? {
-                selectedVersionId: asset.id,
-                selectedVersionNumber: asset.version,
-                selectedVersionPrompt: asset.prompt,
-                selectedVersionModel: asset.model,
-                selectedVersionSettings: asset.settings,
-                ...(asset.product ? { selectedProduct: asset.product } : {}),
-                note: "The person is looking at this version. Treat 'this', 'it', and 'the image' as referring to it.",
-              }
-            : {}),
-        },
-      };
+      return asset
+        ? {
+            ...input,
+            clientContext: {
+              selectedVersionId: asset.id,
+              selectedVersionNumber: asset.version,
+              selectedVersionPrompt: asset.prompt,
+              selectedVersionModel: asset.model,
+              selectedVersionSettings: asset.settings,
+              ...(asset.product ? { selectedProduct: asset.product } : {}),
+              note: "The person is looking at this version. Treat 'this', 'it', and 'the image' as referring to it.",
+            },
+          }
+        : input;
     },
     onError: (error) => {
       const message = lastSentRef.current;
@@ -492,41 +333,7 @@ function StudioConversation({
   const isResuming = agent.status === "resuming";
 
   // Following a growing transcript is DOM synchronization.
-  useEffect(() => {
-    const node = transcriptRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [agent.messages]);
-
-  function handleDraftChange(value: string) {
-    draftRef.current = value;
-    setDraft(value);
-    try {
-      window.sessionStorage.setItem(draftKey, value);
-    } catch {
-      // Draft persistence is a convenience, never a requirement.
-    }
-  }
-
-  /**
-   * Put a failed message back, unless the person has moved on.
-   *
-   * Clear optimistically while waiting for Eve to accept the send. If delivery
-   * fails, restore the earlier message without overwriting a newer draft. If
-   * something newer is in the box by the time the failure lands, the newer
-   * text wins and the failed message is dropped rather than overwriting it.
-   */
-  function restoreFailedMessage(message: string) {
-    if (draftRef.current.trim().length > 0) return;
-    draftRef.current = message;
-    try {
-      window.sessionStorage.setItem(draftKey, message);
-    } catch {
-      // Persistence is a convenience; the restored text is what matters —
-      // except across the remount a recovery causes, where storage is how it
-      // survives.
-    }
-    setDraft(message);
-  }
+  useScrollToEnd(transcriptRef, agent.messages);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -539,11 +346,7 @@ function StudioConversation({
       // Only the first message needs a name of its own; after that the session
       // id identifies the conversation and every send is addressed to it.
       if (!agent.session) {
-        const says = intentSays(
-          message,
-          selectedAssetRef.current,
-          studioSelectionRef.current,
-        );
+        const says = intentSays(message, selectedAssetRef.current);
         const attempt = intentRef.current;
         if (attempt && attempt.says !== says) {
           // The person changed their message before the earlier attempt's

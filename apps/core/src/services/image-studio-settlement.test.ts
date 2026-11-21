@@ -172,6 +172,78 @@ beforeEach(() => {
   });
 });
 
+describe("vector settlement", () => {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="24"><rect width="32" height="24" fill="red"/></svg>';
+  const sourceKey = "projects/project-1/image-studio/job-1-source.svg";
+  beforeEach(() => {
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    putMock.mockImplementation(async (pathname: string) => ({ pathname }));
+  });
+  it("stores the checked source privately and publishes the rendered PNG as the version", async () => {
+    downloadMediaMock.mockResolvedValue({
+      bytes: Buffer.from(svg),
+      contentType: "image/svg+xml; charset=utf-8",
+    });
+    await settleWithMedia(JOB.id, "https://fal.media/a.svg", {
+      width: 99,
+      height: 99,
+    });
+    expect(putMock).toHaveBeenCalledTimes(2);
+    expect(putMock).toHaveBeenCalledWith(
+      sourceKey,
+      Buffer.from(svg),
+      expect.objectContaining({
+        access: "private",
+        contentType: "image/svg+xml",
+      }),
+    );
+    const [pngKey, png, options] = putMock.mock.calls[1]!;
+    expect(options).toMatchObject({
+      contentType: "image/png",
+      access: "private",
+    });
+    expect(Buffer.from(png).subarray(0, 8).toString("hex")).toBe(
+      "89504e470d0a1a0a",
+    );
+    expect(pngKey).not.toEqual(sourceKey);
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          blobPathname: pngKey,
+          width: 32,
+          height: 24,
+          contentType: "image/png",
+          bytes: png.length,
+        }),
+      }),
+    );
+  });
+  it("fails an unsafe vector before writing or charging, even with a missing SVG MIME", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      model: "fal-ai/recraft/v4.1/text-to-vector",
+    });
+    downloadMediaMock.mockResolvedValue({
+      bytes: Buffer.from('<svg onload="invalid"></svg>'),
+      contentType: "application/octet-stream",
+    });
+    await settleWithMedia(JOB.id, "https://fal.media/a");
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          failureReason: "invalid_vector_image",
+          error:
+            "Studio could not safely convert the generated artwork to PNG.",
+        }),
+      }),
+    );
+    expect(putMock).not.toHaveBeenCalled();
+    expect(assetCreateMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("the settlement lease", () => {
   it("is not touched at all by an unrelated failed poll", async () => {
     // An independent review held one settler inside the Blob put, made another

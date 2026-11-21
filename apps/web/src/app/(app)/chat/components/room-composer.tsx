@@ -27,18 +27,12 @@ import {
   type Ref,
   type SetStateAction,
   useCallback,
-  useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
-import {
-  getFormatToolbarOpenPreference,
-  setFormatToolbarOpenPreference,
-} from "@/app/chat/utils/format-toolbar-preference-storage";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { ComposerAddLinkDialog } from "@/components/chat/composer-add-link-dialog";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
@@ -67,6 +61,10 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
+import { useFormatToolbarOpenPreference } from "@/hooks/effects/use-format-toolbar-open-preference";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { transcribeVoiceRecording } from "@/lib/services/voice-transcription.browser";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
@@ -289,7 +287,6 @@ export function RoomComposer({
   sokoBotsBySlug,
   channels = [],
   channelLinks = [],
-  onSelectedKeysChange,
   placeholder,
   attachments,
   onAttachmentsChange,
@@ -334,7 +331,6 @@ export function RoomComposer({
   sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
-  onSelectedKeysChange: (selectedKeys: string[]) => void;
   placeholder: string;
   attachments: RoomComposerAttachment[];
   onAttachmentsChange: Dispatch<SetStateAction<RoomComposerAttachment[]>>;
@@ -362,6 +358,17 @@ export function RoomComposer({
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
   const formRef = useRef<HTMLFormElement | null>(null);
+  const [form, setForm] = useState<HTMLFormElement | null>(null);
+  const attachForm = useCallback((node: HTMLFormElement | null) => {
+    formRef.current = node;
+    setForm(node);
+    if (!node) return;
+    return () => {
+      formRef.current = null;
+      setForm(null);
+      document.documentElement.style.removeProperty("--toast-bottom-offset");
+    };
+  }, []);
   const editorRef = useRef<ComposerWysiwygEditorHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUploadingFilesRef = useRef(false);
@@ -371,11 +378,8 @@ export function RoomComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
-  /**
-   * Slack Aa toggle: formatting strip above the editor.
-   * SSR + first paint start closed (hydration-safe). Preference persisted via localStorage on Aa.
-   */
-  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
+  const [formatToolbarOpen, setFormatToolbarOpen] =
+    useFormatToolbarOpenPreference();
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
     EMPTY_COMPOSER_ACTIVE_FORMATS,
   );
@@ -388,9 +392,6 @@ export function RoomComposer({
   const contentOverLimit = isRoomComposerContentOverLimit(composedContent);
   const showContentCount = isRoomComposerContentCountVisible(composedContent);
   const composerMentions = showMentionShortcut ? mentions : {};
-  const handleSelectedKeysChange = showMentionShortcut
-    ? onSelectedKeysChange
-    : undefined;
   const mentionDisplay = useMemo(
     () =>
       composerMentionDisplayNames({
@@ -413,56 +414,27 @@ export function RoomComposer({
     ],
   );
 
-  // Stored pref wins; else closed until the reader opens it with Aa.
-  // useLayoutEffect: apply before paint so Instant → real composer does not
-  // grow a second time when the format strip opens after first paint.
-  useLayoutEffect(() => {
-    setFormatToolbarOpen(getFormatToolbarOpenPreference() ?? false);
-  }, []);
-
   // Keep toasts just above the composer (incl. mobile keyboard).
-  useEffect(() => {
-    const form = formRef.current;
-    if (!form) {
+  const updateToastOffset = () => {
+    if (!form || formRef.current !== form || !form.isConnected) {
       return;
     }
-    const root = document.documentElement;
-    const update = () => {
-      const top = form.getBoundingClientRect().top;
-      root.style.setProperty(
-        "--toast-bottom-offset",
-        `${Math.max(0, window.innerHeight - top) + 8}px`,
-      );
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(form);
-    window.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("resize", update);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("resize", update);
-      root.style.removeProperty("--toast-bottom-offset");
-    };
-  }, []);
+    const top = form.getBoundingClientRect().top;
+    document.documentElement.style.setProperty(
+      "--toast-bottom-offset",
+      `${Math.max(0, window.innerHeight - top) + 8}px`,
+    );
+  };
+  useResizeObserver(form, updateToastOffset, { immediate: true });
+  useEventListener(form ? "window" : null, "resize", updateToastOffset);
+  useEventListener(
+    form ? window.visualViewport : null,
+    "resize",
+    updateToastOffset,
+  );
 
   // Re-run when focusOnMount flips true (e.g. progressive history ready).
-  useEffect(() => {
-    if (!focusOnMount) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      editorRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [focusOnMount]);
-
-  useEffect(() => {
-    if (!formatToolbarOpen) {
-      setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
-    }
-  }, [formatToolbarOpen]);
+  useFocusWhen(editorRef, focusOnMount, { deferToFrame: true });
 
   const handleActiveFormatsChange = useCallback(
     (formats: ComposerActiveFormats) => {
@@ -649,7 +621,7 @@ export function RoomComposer({
       <RoomMessageComposer
         typingLine={typingLine}
         aboveCard={aboveCard}
-        formRef={formRef}
+        formRef={attachForm}
         onSubmit={onSubmit}
         withOuterPadding={false}
         withSafeAreaPadding
@@ -819,11 +791,11 @@ export function RoomComposer({
               }
               aria-pressed={formatToolbarOpen}
               onClick={() => {
-                setFormatToolbarOpen((open) => {
-                  const next = !open;
-                  setFormatToolbarOpenPreference(next);
-                  return next;
-                });
+                const next = !formatToolbarOpen;
+                setFormatToolbarOpen(next);
+                if (!next) {
+                  setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
+                }
               }}
             >
               <ALargeSmall className="size-4" aria-hidden />
@@ -887,7 +859,6 @@ export function RoomComposer({
           value={value}
           onChange={onValueChange}
           onBlur={onEditorBlur}
-          onSelectedKeysChange={handleSelectedKeysChange}
           mentions={composerMentions}
           mentionDisplayByKey={mentionDisplay.byKey}
           mentionDisplayBySlug={mentionDisplay.bySlug}

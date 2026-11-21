@@ -21,8 +21,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 import useIsClient from "@/hooks/use-is-client";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { contactsService } from "@/lib/services/contacts.client";
 import type { ContactMentionTarget } from "./contact-mention-target";
 
@@ -80,29 +80,28 @@ function ContactMentionPopover({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState<"hover" | "selected" | null>(null);
-  const timer = useRef<number | undefined>(undefined);
+  const hoverTimeout = useScheduledTimeout();
   const returnFocus = useRef(false);
   const id = useId();
-  const clearTimer = () => window.clearTimeout(timer.current);
-  useMountEffect(() => clearTimer);
 
   function hover(event: PointerEvent) {
     if (event.pointerType !== "mouse") return;
-    clearTimer();
+    hoverTimeout.cancel();
     if (open) return;
-    timer.current = window.setTimeout(() => {
+    hoverTimeout.schedule(() => {
       returnFocus.current = false;
       setOpen("hover");
     }, HOVER_OPEN_MS);
   }
   function leave(event: PointerEvent) {
     if (event.pointerType !== "mouse") return;
-    clearTimer();
-    if (open === "hover")
-      timer.current = window.setTimeout(() => setOpen(null), HOVER_CLOSE_MS);
+    hoverTimeout.cancel();
+    if (open === "hover") {
+      hoverTimeout.schedule(() => setOpen(null), HOVER_CLOSE_MS);
+    }
   }
   function select(next: boolean) {
-    clearTimer();
+    hoverTimeout.cancel();
     if (next) returnFocus.current = true;
     setOpen(next ? "selected" : null);
   }

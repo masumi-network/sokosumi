@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/table";
 import {
   SEO_STACKED_TABLE_CLASS,
-  SeoEmpty,
   SeoPageLink,
   SeoPeriod,
   SeoSection,
@@ -26,6 +25,10 @@ export function SeoAiAssistants({ model }: { model: SeoWorkspaceModel }) {
   const format = useFormatter();
   const assistants = seoAiAssistants(model.data.landingPages);
   if (!assistants) return null;
+  if (!assistants.rows.length)
+    return (
+      <p className="text-muted-foreground px-2 text-sm">{t("noAiData")}</p>
+    );
   return (
     <SeoSection
       title={t("aiAssistants")}
@@ -36,51 +39,47 @@ export function SeoAiAssistants({ model }: { model: SeoWorkspaceModel }) {
         </>
       }
     >
-      {assistants.rows.length ? (
-        <div className={HOLDER_ITEM_CLASS}>
-          <Table className={SEO_STACKED_TABLE_CLASS}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("assistant")}</TableHead>
-                <TableHead>{t("landingPage")}</TableHead>
-                <TableHead className="text-right">{t("sessions")}</TableHead>
-                <TableHead className="text-right">
-                  {t("keyEventsShort")}
-                </TableHead>
+      <div className={HOLDER_ITEM_CLASS}>
+        <Table className={SEO_STACKED_TABLE_CLASS}>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("assistant")}</TableHead>
+              <TableHead>{t("landingPage")}</TableHead>
+              <TableHead className="text-right">{t("sessions")}</TableHead>
+              <TableHead className="text-right">
+                {t("keyEventsShort")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {assistants.rows.map((row) => (
+              <TableRow key={`${row.source}:${row.pageUrl}`}>
+                <TableCell data-label={t("assistant")}>
+                  <bdi>{row.source}</bdi>
+                </TableCell>
+                <TableCell
+                  className="min-w-48 whitespace-normal"
+                  data-label={t("landingPage")}
+                >
+                  <SeoPageLink url={row.pageUrl} />
+                </TableCell>
+                <TableCell
+                  className="text-right tabular-nums"
+                  data-label={t("sessions")}
+                >
+                  {format.number(row.sessions)}
+                </TableCell>
+                <TableCell
+                  className="text-right tabular-nums"
+                  data-label={t("keyEventsShort")}
+                >
+                  {format.number(row.keyEvents)}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assistants.rows.map((row) => (
-                <TableRow key={`${row.source}:${row.pageUrl}`}>
-                  <TableCell data-label={t("assistant")}>
-                    <bdi>{row.source}</bdi>
-                  </TableCell>
-                  <TableCell
-                    className="min-w-48 whitespace-normal"
-                    data-label={t("landingPage")}
-                  >
-                    <SeoPageLink url={row.pageUrl} />
-                  </TableCell>
-                  <TableCell
-                    className="text-right tabular-nums"
-                    data-label={t("sessions")}
-                  >
-                    {format.number(row.sessions)}
-                  </TableCell>
-                  <TableCell
-                    className="text-right tabular-nums"
-                    data-label={t("keyEventsShort")}
-                  >
-                    {format.number(row.keyEvents)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <SeoEmpty title={t("noAiData")} body={t("noAiDataBody")} />
-      )}
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </SeoSection>
   );
 }

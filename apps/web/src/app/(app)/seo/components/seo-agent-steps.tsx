@@ -169,7 +169,11 @@ export function SeoStepRow({
             banner && "max-sm:basis-24",
           )}
         >
-          {banner ? <h3 className="text-sm font-semibold">{banner}</h3> : null}
+          {banner ? (
+            <h3 className="text-sm font-semibold">
+              {sync ? t("agent.connectedSearch") : banner}
+            </h3>
+          ) : null}
           {/* The text and the error share one cell, so the row keeps the height of the taller one. */}
           <div className="grid">
             <p

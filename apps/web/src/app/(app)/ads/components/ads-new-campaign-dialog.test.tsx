@@ -8,12 +8,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getGoogleCampaignSetup } from "@/lib/actions/ads/action";
 import messages from "../../../../../messages/en.json";
 
-const pushMock = vi.hoisted(() => vi.fn());
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock }),
-}));
-
 vi.mock("@/lib/actions/ads/action", () => ({
   getGoogleCampaignSetup: vi.fn(),
 }));
@@ -94,8 +88,13 @@ function renderDialog(account: ProjectAdAccount) {
 }
 
 describe("AdsNewCampaignDialog", () => {
+  let assignSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    assignSpy = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
   });
 
   it("sends a lost session to sign-in instead of the connection failure", async () => {
@@ -107,7 +106,7 @@ describe("AdsNewCampaignDialog", () => {
     renderDialog(GOOGLE);
 
     await vi.waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith(
+      expect(assignSpy).toHaveBeenCalledWith(
         expect.stringContaining("/signin?returnUrl="),
       );
     });
@@ -127,7 +126,7 @@ describe("AdsNewCampaignDialog", () => {
     renderDialog(GOOGLE);
 
     await vi.waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith(
+      expect(assignSpy).toHaveBeenCalledWith(
         expect.stringContaining("/signin?returnUrl="),
       );
     });

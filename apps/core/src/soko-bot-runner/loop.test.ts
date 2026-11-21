@@ -178,6 +178,54 @@ describe("runTurnLoop", () => {
     ).toEqual(["system", "user", "assistant", "tool", "assistant", "user"]);
   });
 
+  it("takes a follow-up's JSON answer with DONE in its message as the report", async () => {
+    // Prod turn 01a1fbce…: the follow-up of an ask_coworker wait_for. Its
+    // first answer relayed Hannah's reply; the nudge it got instead turned
+    // into "Shared Hannah's reply…", which the claim check withheld.
+    const answers = [
+      JSON.stringify({
+        kind: "REPORT",
+        message:
+          "DONE: Hannah says her day's been productive: she wrapped up a few research tasks on agentic commerce.",
+        question: null,
+        observationToolCallIds: [],
+      }),
+      JSON.stringify({
+        kind: "REPORT",
+        message: "DONE: Shared Hannah's reply with Patrick in this chat.",
+        question: null,
+        observationToolCallIds: [],
+      }),
+    ];
+    const model = new MockLanguageModelV3({
+      doStream: async () =>
+        streamOf({
+          content: [{ type: "text", text: answers.shift() ?? "" }],
+          finishReason: { unified: "stop", raw: "stop" },
+          warnings: [],
+          usage,
+        }),
+    });
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message:
+        "Follow-up: something you were waiting for is done.\nNew in the chat:\n- Hannah: Day's been productive.\n\nYour plan: Share Hannah's reply with Patrick in this chat.",
+      tools,
+      maxSteps: 50,
+      background: true,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+    });
+
+    expect(model.doStreamCalls).toHaveLength(1);
+    expect(JSON.parse(result.text).message).toBe(
+      "Hannah says her day's been productive: she wrapped up a few research tasks on agentic commerce.",
+    );
+  });
+
   it("answers a chat turn once, without the report round", async () => {
     const clock = { now: 0 };
     const model = new MockLanguageModelV3({

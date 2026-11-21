@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp, { type Sharp } from "sharp";
 
 /**
  * Where a brand's real screen goes in a styled picture, as shares of its
@@ -38,6 +38,13 @@ export async function placeScreen(
     await shot.metadata();
   if (!width || !height || !shotWidth || !shotHeight)
     return Buffer.from(picture);
+  // A phone capture in the wide browser frame came out small amid grey, and
+  // the check read it as hiding the phone its scene named (2026-11-20).
+  if (shotHeight > shotWidth)
+    return placePhone(picture, { width, height }, shot, {
+      width: shotWidth,
+      height: shotHeight,
+    });
   const box = {
     width: Math.round(width * (SCREEN_PANEL.right - SCREEN_PANEL.left)),
     height: Math.round(height * (SCREEN_PANEL.bottom - SCREEN_PANEL.top)),
@@ -93,6 +100,75 @@ export async function placeScreen(
       },
       { input: chrome, left, top },
       { input: shown, left: screenLeft, top: screenTop },
+    ])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Where a phone capture goes: a phone stood in the middle, taller than the
+ * panel and narrow, so it stays clear of the logo corner on the right.
+ */
+export const PHONE_PANEL = { top: 0.28, bottom: 0.97 } as const;
+
+/** The phone's bezel, as a share of its screen's width. */
+const BEZEL = 0.045;
+
+async function placePhone(
+  picture: Uint8Array,
+  size: { width: number; height: number },
+  shot: Sharp,
+  shotSize: { width: number; height: number },
+): Promise<Buffer> {
+  const shownHeight = Math.min(
+    shotSize.height,
+    Math.round(shotSize.width * PHONE_SCREEN),
+  );
+  const outer = Math.round(
+    size.height * (PHONE_PANEL.bottom - PHONE_PANEL.top),
+  );
+  // The screen's height plus a bezel above and below fills the phone.
+  const screenHeight = Math.round(
+    outer / (1 + (2 * BEZEL * shotSize.width) / shownHeight),
+  );
+  const screenWidth = Math.max(
+    1,
+    Math.round((screenHeight * shotSize.width) / shownHeight),
+  );
+  const bezel = Math.max(2, Math.round(screenWidth * BEZEL));
+  const phone = {
+    width: screenWidth + 2 * bezel,
+    height: screenHeight + 2 * bezel,
+  };
+  const left = Math.round((size.width - phone.width) / 2);
+  const top = Math.round(size.height * PHONE_PANEL.top);
+  const radius = Math.round(phone.width * 0.12);
+  const body = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${phone.width}" height="${phone.height}"><rect width="${phone.width}" height="${phone.height}" rx="${radius}" fill="#151515"/></svg>`,
+  );
+  const shadow = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${phone.width}" height="${phone.height}"><rect width="${phone.width}" height="${phone.height}" rx="${radius}" fill="#000" fill-opacity="0.25"/></svg>`,
+  );
+  const blur = Math.max(1, Math.round(bezel * 0.8));
+  const mask = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${screenWidth}" height="${screenHeight}"><rect width="${screenWidth}" height="${screenHeight}" rx="${Math.round(radius * 0.7)}" fill="#fff"/></svg>`,
+  );
+  const shown = await shot
+    .extract({ left: 0, top: 0, width: shotSize.width, height: shownHeight })
+    .resize(screenWidth, screenHeight)
+    .ensureAlpha()
+    .composite([{ input: mask, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+  return sharp(picture)
+    .composite([
+      {
+        input: await sharp(shadow).blur(blur).png().toBuffer(),
+        left: Math.min(size.width - phone.width, left + blur),
+        top: Math.min(size.height - phone.height, top + blur),
+      },
+      { input: body, left, top },
+      { input: shown, left: left + bezel, top: top + bezel },
     ])
     .png()
     .toBuffer();

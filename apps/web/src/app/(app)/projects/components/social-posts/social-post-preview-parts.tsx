@@ -4,9 +4,10 @@ import type {
 } from "@sokosumi/core-client";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
@@ -292,35 +293,32 @@ export function PreviewMediaCarousel({
   compact?: boolean;
 }) {
   const t = useTranslations("App.Projects.SocialPosts.preview.x");
-  const trackRef = useRef<HTMLDivElement>(null);
+  const [track, setTrack] = useState<HTMLDivElement | null>(null);
   const previousRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const [edges, setEdges] = useState({ previous: false, next: false });
-  const updateEdges = useCallback((track: HTMLDivElement) => {
-    const previous = track.scrollLeft > 1;
-    const next = track.scrollLeft + track.clientWidth < track.scrollWidth - 1;
+  const updateEdges = useCallback((element: HTMLDivElement) => {
+    const previous = element.scrollLeft > 1;
+    const next =
+      element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
     if (
       (!previous && document.activeElement === previousRef.current) ||
       (!next && document.activeElement === nextRef.current)
     ) {
-      track.focus({ preventScroll: true });
+      element.focus({ preventScroll: true });
     }
     setEdges({ previous, next });
   }, []);
 
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const sync = () => updateEdges(track);
-    const observer = new ResizeObserver(sync);
-    observer.observe(track);
-    for (const item of track.children) observer.observe(item);
-    sync();
-    return () => observer.disconnect();
-  }, [media, updateEdges]);
+  useResizeObserver(
+    track,
+    () => {
+      if (track) updateEdges(track);
+    },
+    { immediate: true, observeChildren: true, resetKey: media },
+  );
 
   function scrollItem(direction: "previous" | "next") {
-    const track = trackRef.current;
     if (!track) return;
     const items = Array.from(track.children).filter(
       (item): item is HTMLElement => item instanceof HTMLElement,
@@ -343,7 +341,7 @@ export function PreviewMediaCarousel({
       )}
     >
       <div
-        ref={trackRef}
+        ref={setTrack}
         role="group"
         aria-roledescription="carousel"
         aria-label={t("images", { count: media.length })}

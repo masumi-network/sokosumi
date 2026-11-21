@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 
 /** History loads one screen before the reader reaches where it is missing. */
 const LOAD_AHEAD = "100% 0px";

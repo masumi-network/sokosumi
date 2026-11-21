@@ -1,7 +1,9 @@
 import type { Account } from "@sokosumi/utils";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FlashToast } from "@/components/flash-toast.client";
 
 import { DeleteAccountForm } from "./delete-account-form";
 
@@ -129,9 +131,15 @@ async function openDialog() {
 }
 
 describe("DeleteAccountForm", () => {
+  let assignSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     releasePushDeviceMock.mockResolvedValue(undefined);
+    assignSpy = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
   });
 
   it("lists mapped blockers and disables confirm while any remain", async () => {
@@ -429,12 +437,12 @@ describe("DeleteAccountForm", () => {
       expect(releasePushDeviceMock).toHaveBeenCalledTimes(1);
     });
     // Finished, not merely started. A release still in flight across
-    // `router.push` is one the unmounting page no longer holds.
-    expect(mockRouterPush).not.toHaveBeenCalled();
+    // `window.location.assign` is one the unloading page no longer holds.
+    expect(assignSpy).not.toHaveBeenCalled();
 
     finishRelease();
     await waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith("/");
+      expect(assignSpy).toHaveBeenCalledWith("/");
     });
   });
 
@@ -499,9 +507,15 @@ describe("DeleteAccountForm", () => {
     );
 
     await waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith("/");
+      expect(assignSpy).toHaveBeenCalledWith("/");
     });
     expect(deleteUserMock).toHaveBeenCalledWith({});
+    expect(toast.success).not.toHaveBeenCalled();
+
+    window.history.replaceState({}, "", "/signin");
+    render(<FlashToast />);
+    expect(toast.success).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith("Account deleted successfully");
   });
 
   it("refuses an email that is not the account's", async () => {

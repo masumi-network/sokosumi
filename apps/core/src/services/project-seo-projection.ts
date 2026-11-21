@@ -7,11 +7,12 @@ import type {
   ProjectSeoPage,
   ProjectSeoScope,
 } from "@sokosumi/database";
+import { seoIssueKey } from "@sokosumi/utils";
 import { internalServerError } from "@/helpers/error";
-import {
-  publicSeoPayloadSchema,
-  seoPayloadCoverage,
-} from "@/helpers/project-seo-report";
+import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
+import { scopedObservationChecks } from "@/helpers/seo-checklist-breakdown";
+import { scopedPageMarketEvidence } from "@/helpers/seo-page-market-evidence";
+import { scopedPageSpeed } from "@/helpers/seo-page-speed";
 import {
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
@@ -25,7 +26,11 @@ import {
   actionVerifiedAt,
   latestDate,
 } from "./project-seo-action-verification";
-import { checkIdentity, issueIdentity } from "./project-seo-check-identity";
+import {
+  checkIdentity,
+  issueIdentity,
+  SEO_ISSUE_SEVERITIES,
+} from "./project-seo-check-identity";
 import {
   indexAuditFindings,
   newestIndexStatus,
@@ -44,12 +49,14 @@ import {
   projectSearchEvidence,
   type SearchEvidenceSource,
 } from "./project-seo-search-projection";
+import { projectSiteEvidence } from "./project-seo-site-evidence";
 import {
   canConfirmSeoCompetitor,
   matchesSeoPeriod,
   normalizeSeoUrl,
   SEO_RESULT_LIMIT,
 } from "./project-seo-store";
+import { projectSiteStrategy } from "./project-seo-strategy-projection";
 import { SeoAuditDecisions } from "./seo-audit-decisions";
 import { landingEngagementChange } from "./seo-landing-engagement";
 import type { PrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
@@ -91,14 +98,13 @@ interface ProjectionInput {
   analyses: ProjectSeoAnalysis[];
   actionTasks: ProjectSeoActionTask[];
   tasks: Array<{ id: string; status: string; completedAt: Date | null }>;
+  marketRecoveryTaskIds?: ReadonlySet<string>;
   privateMetricsAllowed: boolean;
   analysisDispatchEnabled?: boolean;
   canUsePaidSearchData?: boolean;
   canSchedule?: boolean;
   monitors?: ProjectSeoWorkspace["monitors"];
 }
-/** Severities that name a problem; notes, tests and measurements do not. */
-const SEO_ISSUE_SEVERITIES = new Set(["critical", "major", "minor"]);
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 /** A Task in one of these states does no work on its action any more. */
 const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
@@ -122,7 +128,7 @@ export function projectSeoProjection(
     observations: ProjectSeoWorkspace["observations"] = [];
   const seenKeywords = new Set<string>(),
     seenCompetitors = new Set<string>(),
-    seenFindings = new Set<string>(),
+    seenFindings = new Map<string, string>(),
     seenMetricGroups = new Set<string>();
   /** The findings that an action of a later check fixes. Rows come newest first. */
   const proposed = new Set<string>();
@@ -131,6 +137,7 @@ export function projectSeoProjection(
     ProjectSeoWorkspace["actions"][number],
     { work: string; observedAt: Date; live: boolean }
   >();
+  const incompleteRuns = new Set<string>();
   const latestChecked = new Map<
     string,
     { id: string; result: "pass" | "fired"; observedAt: Date }
@@ -175,7 +182,10 @@ export function projectSeoProjection(
   };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
-    if (row.kind === "index_triage") continue;
+    if (
+      ["index_triage", "index_inspection", "site_evidence"].includes(row.kind)
+    )
+      continue;
     if (row.kind === "page_change") {
       if (!matchesSeoPeriod(row.observedAt, query)) continue;
       const event = seoPageChangePayloadSchema.parse(row.payload);
@@ -201,8 +211,13 @@ export function projectSeoProjection(
     if (!parsed.success)
       throw internalServerError("Stored SEO evidence is not readable");
     const data = parsed.data;
-    const coverage = seoPayloadCoverage(data);
+    const { coverage, checklistBreakdown, devices } = scopedObservationChecks(
+      data,
+      (url) => selectedUrls.has(normalizeSeoUrl(url)),
+    );
     scopedPublicSources.set(row.id, row);
+    if (!coverage.checked || coverage.failed || coverage.modules?.failed)
+      incompleteRuns.add(row.id);
     // One rule that fails on mobile and on desktop is one issue on that page.
     const issues = new Set(
       data.findings
@@ -211,7 +226,7 @@ export function projectSeoProjection(
             SEO_ISSUE_SEVERITIES.has(item.severity) &&
             selectedUrls.has(normalizeSeoUrl(item.pageUrl)),
         )
-        .map((item) => key(item.rowId, normalizeSeoUrl(item.pageUrl))),
+        .map((item) => seoIssueKey({ observationId: row.id, ...item })),
     ).size;
     const request = row.sourceTaskId
       ? input.analyses.find((item) => item.taskId === row.sourceTaskId)
@@ -255,38 +270,15 @@ export function projectSeoProjection(
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
     // Rows come newest first, so the first strategy is the newest site audit's.
     if (data.strategy && !strategy) {
-      const {
-        purposeOpportunity,
-        demandByIntent,
-        missingDemandByIntent,
-        ...site
-      } = data.strategy;
-      const groups = site.groups.filter(
-        (group) =>
-          !group.pageUrl || selectedUrls.has(normalizeSeoUrl(group.pageUrl)),
+      const recover =
+        row.sourceTaskId && input.marketRecoveryTaskIds?.has(row.sourceTaskId);
+      strategy = projectSiteStrategy(
+        data.strategy,
+        data,
+        row,
+        selectedUrls,
+        recover ? row.sourceFileId : null,
       );
-      const wholeReport = data.pageUrls.every((url) =>
-        selectedUrls.has(normalizeSeoUrl(url)),
-      );
-      strategy = {
-        ...site,
-        groups,
-        ...(purposeOpportunity &&
-          selectedUrls.has(purposeOpportunity.pageUrl) &&
-          groups.some(
-            (group) =>
-              group.pageUrl &&
-              normalizeSeoUrl(group.pageUrl) === purposeOpportunity.pageUrl &&
-              group.lead === purposeOpportunity.keyword &&
-              group.reach === purposeOpportunity.reach,
-          ) && { purposeOpportunity }),
-        ...(wholeReport && demandByIntent && { demandByIntent }),
-        ...(wholeReport && missingDemandByIntent && { missingDemandByIntent }),
-        observationId: row.id,
-        observedAt: row.observedAt.toISOString(),
-        countryCode: data.countryCode || null,
-        languageCode: data.languageCode || null,
-      };
     }
     observations.push({
       id: row.id,
@@ -298,16 +290,21 @@ export function projectSeoProjection(
       sourceTaskId: row.sourceTaskId,
       countryCode: data.countryCode || null,
       languageCode: data.languageCode || null,
-      devices: [
-        ...new Set(
-          [...data.checks, ...data.findings, ...data.keywords].flatMap(
-            (item) => (item.device ? [item.device] : []),
-          ),
-        ),
-      ],
+      devices,
       rulebookVersion: data.rulebookVersion,
       artifactHash: row.artifactHash,
       issues,
+      ...(checklistBreakdown && { checklistBreakdown }),
+      ...scopedPageMarketEvidence(data, selectedUrls),
+      ...(data.kind === "audit_full" &&
+        (data.pageSpeed !== undefined
+          ? { pageSpeed: scopedPageSpeed(data.pageSpeed, selectedUrls) }
+          : row.source === "seo_coworker" &&
+              row.sourceFileId &&
+              row.sourceTaskId &&
+              input.marketRecoveryTaskIds?.has(row.sourceTaskId)
+            ? { pageSpeedRecoveryFileId: row.sourceFileId }
+            : {})),
       coverage,
     });
     for (const check of data.checks) {
@@ -327,12 +324,12 @@ export function projectSeoProjection(
       const identity = checkIdentity(data, item);
       const issue = issueIdentity(data, item);
       if (
-        seenFindings.has(issue) ||
+        (seenFindings.has(issue) && seenFindings.get(issue) !== row.id) ||
         (latestChecked.has(identity) &&
           latestChecked.get(identity)?.id !== row.id)
       )
         continue;
-      seenFindings.add(issue);
+      seenFindings.set(issue, row.id);
       findings.push({
         ...item,
         id: `${row.id}:${item.id}`,
@@ -709,6 +706,9 @@ export function projectSeoProjection(
     ),
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     indexTriage: indexing.triage,
+    ...(input.privateMetricsAllowed
+      ? projectSiteEvidence(input.observations, selectedUrls, query)
+      : { siteEvidence: null, auditSiteEvidence: [] }),
     strategy,
     ...decisions.workspaceEvidence,
     metricsStatus: !metrics.length
@@ -719,7 +719,11 @@ export function projectSeoProjection(
     timeline: timeline.filter((item) =>
       matchesSeoPeriod(new Date(item.at), query),
     ),
-    runs: withIndexIssueCounts(runs, indexing.counts),
+    runs: withIndexIssueCounts(runs, indexing.counts).map((run) =>
+      run.issues === 0 && incompleteRuns.has(run.observationId)
+        ? { ...run, issues: null }
+        : run,
+    ),
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>
       overlaps(monitor.pageIds),

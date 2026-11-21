@@ -1,16 +1,13 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffectEvent } from "react";
 
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 
+import { useRecordPageVisit } from "@/hooks/effects/use-record-page-visit";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import {
-  likelyPages,
-  readVisitCounts,
-  recordVisit,
-} from "@/lib/navigation/likely-pages";
+import { likelyPages, readVisitCounts } from "@/lib/navigation/likely-pages";
 import { prefetchRouteContent } from "@/lib/navigation/prefetch-route-content";
 
 /**
@@ -37,9 +34,7 @@ const ACTIVITY_EVENTS = [
 
 /** Counts one visit per page shown; a new pathname remounts it. */
 function RecordVisit({ pathname }: { pathname: string }) {
-  useMountEffect(() => {
-    recordVisit(pathname);
-  });
+  useRecordPageVisit(pathname);
   return null;
 }
 
@@ -52,10 +47,7 @@ function WarmLoop({ hrefFor }: { hrefFor: (href: string) => string }) {
   const router = useRouter();
   // The sidebar links carry the reader's project scope, so the loop loads
   // the same URLs a click opens. The loop starts once and reads the latest.
-  const latestHrefFor = useRef(hrefFor);
-  useEffect(() => {
-    latestHrefFor.current = hrefFor;
-  });
+  const resolveHref = useEffectEvent(hrefFor);
 
   useMountEffect(() => {
     let lastActivityAt = Date.now();
@@ -70,7 +62,7 @@ function WarmLoop({ hrefFor }: { hrefFor: (href: string) => string }) {
         readVisitCounts(),
         window.location.pathname,
       )) {
-        prefetchRouteContent(router, latestHrefFor.current(href));
+        prefetchRouteContent(router, resolveHref(href));
       }
     };
 

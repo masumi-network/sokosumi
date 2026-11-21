@@ -10,6 +10,10 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { getRememberedPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { isListedInWorkspace } from "@/lib/chat/room-workspace-scope";
+import {
+  filterTopLevelChatRoomMessages,
+  isTopLevelChatRoomMessage,
+} from "./chat-room-message-scope";
 import { isOutboundLocalMessage } from "./outbound-room-message";
 import {
   emptyRoomTranscript,
@@ -73,6 +77,18 @@ function reconcile(
   return newest
     ? mergeRoomJumpWindow(retained, page)
     : mergeRoomHeadPage(retained, page);
+}
+
+function normalizeTopLevelTranscript(
+  transcript: RoomTranscript,
+): RoomTranscript {
+  if (transcript.messages.every(isTopLevelChatRoomMessage)) {
+    return transcript;
+  }
+  return {
+    ...transcript,
+    messages: filterTopLevelChatRoomMessages(transcript.messages),
+  };
 }
 
 /** Query cache owns data; this session owns scroll positions, request coalescing and fences. */
@@ -215,9 +231,12 @@ export class RoomTranscriptCache {
     update: (entry: RoomTranscriptEntry) => RoomTranscriptEntry,
   ) {
     if (!this.current(roomId, lifetime)) return;
-    this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), (entry) =>
-      entry ? update(entry) : undefined,
-    );
+    this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), (entry) => {
+      if (!entry) return undefined;
+      const next = update(entry);
+      const transcript = normalizeTopLevelTranscript(next.transcript);
+      return transcript === next.transcript ? next : { ...next, transcript };
+    });
   }
 
   setTranscript(
@@ -232,7 +251,9 @@ export class RoomTranscriptCache {
         transcript: {
           ...transcript,
           messages: transcript.messages.filter(
-            (message) => !isOutboundLocalMessage(message),
+            (message) =>
+              !isOutboundLocalMessage(message) &&
+              isTopLevelChatRoomMessage(message),
           ),
         },
         revision: entry.revision + 1,

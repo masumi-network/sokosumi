@@ -6,9 +6,9 @@ import { toast } from "sonner";
 
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
+import { useNotificationRealtime } from "@/hooks/effects/use-notification-realtime";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationEventData } from "@/lib/ably/schema";
-import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import {
   getBrowserNotificationPermission,

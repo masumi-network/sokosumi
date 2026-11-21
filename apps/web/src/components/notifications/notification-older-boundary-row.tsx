@@ -5,7 +5,7 @@ import { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { NotificationOlderStatus } from "@/contexts/notification-provider";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 
 interface NotificationOlderBoundaryRowProps {
   /** The oldest row loaded, which is where this boundary sits. */

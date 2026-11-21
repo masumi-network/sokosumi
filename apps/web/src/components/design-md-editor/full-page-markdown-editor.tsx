@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
 import Markdown from "@/components/markdown";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { cn } from "@/lib/utils";
 
 export interface FullPageMarkdownEditorLabels {
@@ -55,21 +55,12 @@ export function FullPageMarkdownEditor({
   const isDirty = value !== initialValue;
   const isEmpty = value.trim().length === 0;
   const canSave = isDirty && !isEmpty;
-  const isDirtyRef = useRef(isDirty);
-  isDirtyRef.current = isDirty;
 
-  useMountEffect(() => {
-    function handleBeforeUnload(event: BeforeUnloadEvent) {
-      if (isDirtyRef.current) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
+  useEventListener("window", "beforeunload", (event) => {
+    if (isDirty) {
+      event.preventDefault();
+      event.returnValue = "";
     }
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
   });
 
   const handleCancelClick = useCallback(() => {

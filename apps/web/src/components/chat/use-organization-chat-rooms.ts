@@ -7,6 +7,7 @@ import type {
 } from "@sokosumi/core-client";
 import type { ChatRoomCollection } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useMembershipVisibleRoomsPublisher } from "@/hooks/effects/use-membership-visible-rooms-publisher";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { withPinnedOrder } from "./chat-room-activity-sort";
@@ -14,14 +15,10 @@ import {
   fetchSidebarRoom,
   fetchSidebarRoomCollection,
 } from "./fetch-sidebar-room-collection";
+import { getLatestMembershipVisibleRoomsSnapshot } from "./membership-visible-rooms-store";
 import {
-  getLatestMembershipVisibleRoomsSnapshot,
-  publishMembershipVisibleRooms,
-  registerMembershipVisibleRoomsPublisher,
-} from "./membership-visible-rooms-store";
-import {
-  subscribeOrganizationChatRoomRead,
-  subscribeOrganizationChatRoomsChanged,
+  useOrganizationChatRoomRead,
+  useOrganizationChatRoomsChanged,
 } from "./organization-chat-events";
 import { keepRoomUnreadState } from "./room-attention";
 import {
@@ -400,20 +397,10 @@ export function useOrganizationChatRooms({
     [requestActive, requestArchived, requestInvitations],
   );
 
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
+  useOrganizationChatRoomRead(setRoomRows, undefined, !paintOnly);
 
-    return subscribeOrganizationChatRoomRead(setRoomRows);
-  }, [paintOnly]);
-
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-
-    return subscribeOrganizationChatRoomsChanged({
+  useOrganizationChatRoomsChanged(
+    {
       onRemoved: (removedRoomId) => {
         latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
         latestArchivedRefreshRef.current = latestAppliedRefreshRef.current;
@@ -428,27 +415,17 @@ export function useOrganizationChatRooms({
       },
       onRoom: upsertRoomToTop,
       onInvalidated: requestCollections,
-    });
-  }, [paintOnly, requestCollections, upsertRoomToTop]);
+    },
+    !paintOnly,
+  );
 
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-    publishMembershipVisibleRooms(
-      roomRows,
-      organizationId,
-      currentUserId,
-      rooms,
-    );
-  }, [currentUserId, organizationId, paintOnly, roomRows, rooms]);
-
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-    return registerMembershipVisibleRoomsPublisher();
-  }, [paintOnly]);
+  useMembershipVisibleRoomsPublisher({
+    rooms: roomRows,
+    organizationId,
+    currentUserId,
+    sourceRooms: rooms,
+    enabled: !paintOnly,
+  });
 
   return {
     roomRows,

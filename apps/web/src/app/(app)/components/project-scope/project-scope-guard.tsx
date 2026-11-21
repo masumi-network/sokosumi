@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
 import {
   clearedScopeHref,
@@ -12,9 +12,9 @@ import {
   SCOPE_SELECTED_QUERY_KEY,
   useIsUnknownScopeProject,
 } from "@/app/components/project-scope/use-scope-projects";
+import { useRouterRedirect } from "@/hooks/effects/use-router-redirect";
 
 function StaleScopeGuard() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { projectId } = useProjectScope();
@@ -25,9 +25,7 @@ function StaleScopeGuard() {
     ? clearedScopeHref(pathname, searchParams ?? new URLSearchParams())
     : null;
 
-  useEffect(() => {
-    if (target) router.replace(target);
-  }, [target, router]);
+  useRouterRedirect(target);
 
   // A rename or new logo lands with a navigation, as the edit form pushes
   // back to the project. Every trigger then asks again.

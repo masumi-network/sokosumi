@@ -2,7 +2,7 @@
 
 import type { TaskStatus } from "@sokosumi/core-client";
 import { Check, ChevronDown } from "lucide-react";
-import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, useMemo, useState } from "react";
 import {
   Command,
   CommandEmpty,
@@ -26,6 +26,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
@@ -91,10 +92,10 @@ export function TaskStatusPicker({
     });
   }, [value, options, isOptionDisabled]);
 
-  useEffect(() => {
-    if (!openShortcutKey || disabled || isPending) return;
-
-    function handleKeyDown(event: globalThis.KeyboardEvent) {
+  useEventListener(
+    openShortcutKey && !disabled && !isPending ? "window" : null,
+    "keydown",
+    (event) => {
       if (event.defaultPrevented || event.repeat) return;
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
         return;
@@ -103,11 +104,8 @@ export function TaskStatusPicker({
       if (isEditableKeyboardTarget(event.target)) return;
       event.preventDefault();
       setOpen(true);
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [openShortcutKey, disabled, isPending]);
+    },
+  );
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);

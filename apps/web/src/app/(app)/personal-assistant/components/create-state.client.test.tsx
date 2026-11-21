@@ -18,33 +18,27 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
   createSokoBotAction: (...args: unknown[]) => createMock(...args),
 }));
 
-// Whether the mocked studio reports its first look on mount.
-let studioReportsOnMount = true;
-
-vi.mock("./avatar-studio.client", async () => {
-  const { useEffect } = await import("react");
-  return {
-    // Reports a random look on mount, as the real studio does.
-    AvatarStudio: ({
-      onChange,
-      compact,
-    }: {
-      onChange: (code: string) => void;
-      compact?: boolean;
-    }) => {
-      useEffect(() => {
-        if (studioReportsOnMount) onChange("v1-first");
-      }, [onChange]);
-      return (
-        <div data-testid="avatar-studio" data-compact={String(!!compact)}>
-          <button type="button" onClick={() => onChange("v1-owl")}>
-            owl look
-          </button>
-        </div>
-      );
-    },
-  };
-});
+vi.mock("./avatar-studio.client", () => ({
+  AvatarStudio: ({
+    code,
+    onChange,
+    compact,
+  }: {
+    code: string | null;
+    onChange: (code: string) => void;
+    compact?: boolean;
+  }) => (
+    <div
+      data-testid="avatar-studio"
+      data-compact={String(!!compact)}
+      data-code={code ?? ""}
+    >
+      <button type="button" onClick={() => onChange("v1-owl")}>
+        owl look
+      </button>
+    </div>
+  ),
+}));
 
 vi.mock("@/components/aurora-orb", () => ({
   AuroraOrb: () => <div data-testid="orb" />,
@@ -64,7 +58,6 @@ function renderCreate() {
 
 describe("CreateState", () => {
   afterEach(() => {
-    studioReportsOnMount = true;
     pushMock.mockClear();
     vi.useRealTimers();
   });
@@ -214,20 +207,18 @@ describe("CreateState", () => {
     );
   });
 
-  it("holds Create until the studio has reported a look", async () => {
+  it("picks an initial avatar code when entering the picture step", async () => {
     const user = userEvent.setup();
-    studioReportsOnMount = false;
-    createMock.mockClear();
     renderCreate();
 
+    expect(await screen.findByTestId("avatar-studio")).toHaveAttribute(
+      "data-code",
+      "",
+    );
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
-    const createButton = screen.getByRole("button", { name: "Create Atlas" });
-    expect(createButton).toBeDisabled();
-    await user.click(createButton);
-    expect(createMock).not.toHaveBeenCalled();
-
-    await user.click(await screen.findByRole("button", { name: "owl look" }));
-    expect(createButton).not.toBeDisabled();
+    const studio = await screen.findByTestId("avatar-studio");
+    expect(studio.getAttribute("data-code")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Create Atlas" })).toBeEnabled();
   });
 
   it("creates the bot with the look picked in the studio", async () => {
@@ -264,5 +255,68 @@ describe("CreateState", () => {
     expect(openNewSokoBotRoom).toHaveBeenCalledWith("bot-1");
     await act(() => vi.advanceTimersByTimeAsync(1500));
     expect(pushMock).toHaveBeenCalled();
+  });
+
+  it("keeps Create disabled over the Avatar Studio loading placeholder until the preview mounts", async () => {
+    const user = userEvent.setup();
+    vi.resetModules();
+    const loadGate = Promise.withResolvers<void>();
+    vi.doMock("next/dynamic", async () => {
+      const React = await import("react");
+      return {
+        default: (
+          loader: () => Promise<{ default: React.ComponentType<unknown> }>,
+          options?: { loading?: () => React.ReactNode },
+        ) => {
+          return function DeferredDynamic(props: Record<string, unknown>) {
+            const [Loaded, setLoaded] = React.useState<{
+              Comp: React.ComponentType<Record<string, unknown>>;
+            } | null>(null);
+            React.useEffect(() => {
+              let cancelled = false;
+              void loadGate.promise
+                .then(() => loader())
+                .then((mod) => {
+                  if (!cancelled) {
+                    setLoaded({
+                      Comp: mod.default as React.ComponentType<
+                        Record<string, unknown>
+                      >,
+                    });
+                  }
+                });
+              return () => {
+                cancelled = true;
+              };
+            }, []);
+            if (!Loaded) {
+              return options?.loading ? options.loading() : null;
+            }
+            const Comp = Loaded.Comp;
+            return React.createElement(Comp, props);
+          };
+        },
+      };
+    });
+    const { CreateState: DeferredCreateState } = await import(
+      "./create-state.client"
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <DeferredCreateState paidByOrganization={false} />
+      </NextIntlClientProvider>,
+    );
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    expect(screen.queryByTestId("avatar-studio")).toBeNull();
+    expect(screen.getByRole("button", { name: "Create Atlas" })).toBeDisabled();
+
+    await act(async () => {
+      loadGate.resolve();
+      await Promise.resolve();
+    });
+    expect(await screen.findByTestId("avatar-studio")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Create Atlas" })).toBeEnabled();
+    vi.doUnmock("next/dynamic");
   });
 });

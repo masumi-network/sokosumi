@@ -21,6 +21,7 @@ import {
 import {
   cmoCalendarEntrySchema,
   marketingStrategyPlanSchema,
+  socialPostPlanningSchema,
 } from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
@@ -28,9 +29,14 @@ import {
   CMO_BATCHED_PRODUCTION_SKILL,
   CMO_PIECE_WRITING_GUIDE,
   CMO_SKILLS,
+  CMO_VARIED_PIECE_WRITING_GUIDE,
 } from "../versions/cmo-skills.js";
 import { cmoV6 } from "../versions/cmo-v6.js";
 import { cmoV7 } from "../versions/cmo-v7.js";
+import {
+  CMO_CLAIMS_STRATEGY_SKILL,
+  CMO_VARIED_PRODUCTION_SKILL,
+} from "../versions/cmo-v8-skills.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
@@ -160,6 +166,76 @@ describe("CMO version", () => {
     expect(CMO_PIECE_WRITING_GUIDE).toContain("## Hooks and copy");
     expect(CMO_PIECE_WRITING_GUIDE).not.toMatch(
       /list_project_social_accounts|update_social_post|save_strategy/,
+    );
+  });
+
+  // Owner, 2026-11-20: varied pictures, no repeated messages, corrections
+  // that reach the whole plan, stronger LinkedIn openings.
+  it("makes cmo-v8 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v8");
+  });
+
+  it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
+    const v7 = getSokoBotVersion("cmo-v7");
+    const v8 = getSokoBotVersion("cmo-v8");
+    expect(v8.systemPrompt).toBe(v7.systemPrompt);
+    expect(v8.skills).toEqual(
+      v7.skills.map((skill) =>
+        skill === "cmo-strategy-every-network"
+          ? CMO_CLAIMS_STRATEGY_SKILL
+          : skill === CMO_BATCHED_PRODUCTION_SKILL
+            ? CMO_VARIED_PRODUCTION_SKILL
+            : skill,
+      ),
+    );
+    // Core still writes the month at once.
+    expect(
+      applyVersionCapabilities(v8, ["read_memory", "write_month_pieces"]),
+    ).toContain("write_month_pieces");
+
+    const strategy = getSokoBotSkill(CMO_CLAIMS_STRATEGY_SKILL).content;
+    expect(strategy).toContain(
+      "also has claim: the one sentence the piece argues",
+    );
+    expect(strategy).toContain(
+      "A correction (an owner's no, a Brand Brain fix",
+    );
+    expect(strategy.length).toBeGreaterThan(
+      getSokoBotSkill("cmo-strategy-every-network").content.length,
+    );
+
+    const production = getSokoBotSkill(CMO_VARIED_PRODUCTION_SKILL).content;
+    expect(production).not.toContain("infographics for data and how-to");
+    expect(production).toContain(
+      "An infographic only for a picture that shows numbers",
+    );
+    expect(production).toContain("A LinkedIn post opens with a result");
+    expect(production).toContain("## Core writes first");
+
+    expect(CMO_VARIED_PIECE_WRITING_GUIDE).toContain(
+      "- purpose, with styleLook",
+    );
+    expect(CMO_VARIED_PIECE_WRITING_GUIDE).toContain(
+      "argues its entry's claim",
+    );
+    expect(CMO_PIECE_WRITING_GUIDE).not.toContain("purpose, with styleLook");
+  });
+
+  it("keeps a piece's claim on its plan entry and its Social post", () => {
+    const entry = {
+      id: "e1",
+      date: "2026-11-21",
+      channel: "x",
+      title: "Mint without code",
+      format: "post",
+      status: "idea",
+      claim: "Minting takes no code",
+    };
+    expect(cmoCalendarEntrySchema.parse(entry).claim).toBe(
+      "Minting takes no code",
+    );
+    expect(socialPostPlanningSchema.parse(entry).claim).toBe(
+      "Minting takes no code",
     );
   });
 
@@ -783,10 +859,6 @@ describe("what Cuso is told a talking video costs", () => {
 });
 
 describe("cmo-v7", () => {
-  it("is the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v7");
-  });
-
   it("answers a change without repeating the card or naming internals", () => {
     expect(cmoV6.systemPrompt).toContain("then answer in one or two sentences");
     expect(cmoV7.systemPrompt).not.toContain(

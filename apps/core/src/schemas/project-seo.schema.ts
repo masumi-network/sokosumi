@@ -1,9 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import {
-  SEO_FULL_AUDIT_CREDITS,
-  SEO_FULL_AUDIT_MAX_SECONDS,
-  SEO_MIN_AUDIT_USD,
-} from "@sokosumi/utils";
+import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
   seoArticleDates,
@@ -12,6 +8,18 @@ import {
 } from "@/helpers/seo-content-history";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
+import {
+  seoDeviceSchema,
+  seoObservationSchema,
+} from "./seo-audit-coverage.schema";
+import { publicSitemapInputFields } from "./seo-sitemap-evidence.schema";
+
+export {
+  seoDeviceSchema,
+  seoModuleCoverageSchema,
+  seoObservationSchema,
+} from "./seo-audit-coverage.schema";
+
 import { seoActionSchema } from "./project-seo-action.schema";
 import {
   seoMonitorChangeSchema,
@@ -34,9 +42,16 @@ import {
   seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
-import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
+import {
+  auditSearchConsoleInputFields,
+  seoAuditPerformanceSchema,
+  validPrivateAuditScope,
+} from "./seo-audit-performance.schema";
+import {
+  seoCostPlusPriceSchema,
+  seoFullAuditLimitsSchema,
+} from "./seo-audit-price.schema";
 import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
-
 import {
   SEO_MAX_PAGES,
   seoBriefAction,
@@ -45,6 +60,7 @@ import {
   seoScopeSchema,
   seoUrlSchema,
 } from "./seo-page.schema";
+import { workspaceSiteEvidenceFields } from "./seo-site-evidence.schema";
 
 export {
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -78,7 +94,6 @@ export const seoDateSchema = z
       date.toISOString().slice(0, 10) === value
     );
   }, "Expected a calendar date");
-export const seoDeviceSchema = z.enum(["mobile", "desktop"]);
 export const seoAnalysisKindSchema = z.enum([
   "page_check",
   "rankings",
@@ -133,8 +148,14 @@ export const importSeoAuditSchema = z
   .object({
     taskId: z.string().min(1).max(128),
     fileId: z.string().min(1).max(128),
+    recoverMarkets: z.boolean().optional(),
+    recoverPageSpeed: z.literal(true).optional(),
   })
   .strict()
+  .refine(
+    (input) => !(input.recoverPageSpeed && input.recoverMarkets),
+    "Choose one report section to recover",
+  )
   .openapi("ImportProjectSeoAuditRequest");
 export const requestSeoAnalysisSchema = z
   .object({
@@ -188,8 +209,8 @@ export const requestSeoAnalysisSchema = z
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
     fullAuditPrice: seoCostPlusPriceSchema.optional(),
-    searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
-    allowLimitedAudit: z.literal(true).optional(),
+    ...auditSearchConsoleInputFields,
+    ...publicSitemapInputFields,
     setupGoal: z
       .strictObject({
         pageId: seoIdSchema,
@@ -203,14 +224,7 @@ export const requestSeoAnalysisSchema = z
         pageIds: z.array(seoIdSchema).min(1).max(SEO_MAX_PAGES),
       })
       .optional(),
-    fullAuditLimits: z
-      .object({
-        usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
-        // 90 minutes: the worker contract accepts this owner-set site limit (owner, 2026-11-13).
-        seconds: z.number().int().min(60).max(SEO_FULL_AUDIT_MAX_SECONDS),
-      })
-      .strict()
-      .optional(),
+    fullAuditLimits: seoFullAuditLimitsSchema.optional(),
     idempotencyKey: z.string().trim().min(8).max(128),
     coworkerId: z.string().min(1).max(128).optional(),
   })
@@ -244,6 +258,10 @@ export const requestSeoAnalysisSchema = z
           ? input.sharedBrief.revision === input.setupGoal.expectedRevision
           : input.sharedBrief.revision > 0)),
     "Share goals from the reviewed brief revision in a full audit",
+  )
+  .refine(
+    validPrivateAuditScope,
+    "Property data requires a full audit with Search Console access",
   )
   .openapi("RequestProjectSeoAnalysisRequest");
 export const saveSeoKeywordSchema = z
@@ -356,6 +374,14 @@ export const seoEditorialKeywordSchema = z.object({
     .max(2),
   record: z.string().regex(/^[a-f0-9]{64}$/),
 });
+export const SEO_AUDIT_IDEA_LIMIT = 50;
+export const seoIdeaRankSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(SEO_AUDIT_IDEA_LIMIT)
+  .nullable()
+  .optional();
 export const seoKeywordSchema = z
   .object({
     id: z.string(),
@@ -368,6 +394,7 @@ export const seoKeywordSchema = z
     source: z.string(),
     volume: z.number().nullable(),
     editorial: seoEditorialKeywordSchema.optional(),
+    ideaRank: seoIdeaRankSchema,
     /** DataForSEO keyword difficulty, 0 to 100: how hard a top 10 place is, from the link profiles of the top 10. */
     difficulty: z.number().nullable(),
     /**
@@ -593,36 +620,6 @@ export const seoTimelineSchema = z
     detail: z.string(),
   })
   .openapi("ProjectSeoTimelineItem");
-export const seoModuleCoverageSchema = z.object({
-  notRequested: z.number().int().nonnegative(),
-  failed: z.number().int().nonnegative(),
-  notRequestedNames: z.array(z.string().max(20_000)).optional(),
-  failedNames: z.array(z.string().max(20_000)).optional(),
-});
-export const seoObservationSchema = z
-  .object({
-    id: seoIdSchema,
-    kind: z.string(),
-    source: z.string(),
-    observedAt: dateTimeSchema,
-    pageIds: z.array(seoIdSchema),
-    scopeVersion: z.number().int(),
-    sourceTaskId: z.string().nullable(),
-    countryCode: z.string().nullable(),
-    languageCode: z.string().nullable(),
-    devices: z.array(seoDeviceSchema),
-    rulebookVersion: z.string(),
-    artifactHash: z.string(),
-    /** Critical, major and minor findings this run saved for the selected pages. */
-    issues: z.number().int().nonnegative(),
-    coverage: z.object({
-      checked: z.number().int(),
-      skipped: z.number().int(),
-      failed: z.number().int(),
-      modules: seoModuleCoverageSchema.optional(),
-    }),
-  })
-  .openapi("ProjectSeoObservation");
 export const seoRunSchema = z
   .object({
     observationId: seoIdSchema,
@@ -700,6 +697,7 @@ export const projectSeoWorkspaceSchema = z
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** Private indexing assessment for the current viewer's audit and selected pages. */
     indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
+    ...workspaceSiteEvidenceFields,
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     landingEngagementChange: seoLandingEngagementChange.optional(),
@@ -718,6 +716,8 @@ export const projectSeoWorkspaceSchema = z
     /** Every check of the selected pages. The period does not cut this list. */
     runs: z.array(seoRunSchema).optional(),
     analyses: z.array(seoJobSchema),
+    auditSearchConsole: z.array(seoAuditPerformanceSchema).optional(),
+    auditSearchConsoleRetryTaskIds: z.array(z.string()).optional(),
     monitors: z.array(seoMonitorSchema),
     availableActions: z.object({
       canEdit: z.boolean(),

@@ -26,7 +26,7 @@ function renderNotes(workspace: ReturnType<typeof seoTestWorkspace>) {
 }
 
 describe("indexing review notes", () => {
-  it("shows one unknown Google verdict without claiming the selected or related page was never checked", () => {
+  it("shows one unknown Google verdict without claiming the selected or related page was never checked", async () => {
     const workspace = seoTestWorkspace();
     const pageUrl = workspace.pages[0].url;
     const checkedAt = new Date("2026-11-16T08:00:00Z");
@@ -57,7 +57,11 @@ describe("indexing review notes", () => {
     workspace.indexTriage = { assessments: [bare] };
     const initial = renderNotes(workspace);
     expect(screen.getByText("Indexed")).toBeVisible();
-    expect(screen.getByText("Not checked")).toBeVisible();
+    expect(screen.getByText(bare.reason)).not.toBeVisible();
+    await userEvent.setup().click(screen.getByText(/Inspection history/));
+    expect(screen.getByText(bare.reason)).toBeVisible();
+    expect(screen.queryByText("Not checked")).toBeNull();
+    expect(screen.getByText(/Index result from/)).toBeVisible();
     initial.unmount();
     const confirmed = { ...bare, googleReturnedUnknown: true as const };
     const related = {

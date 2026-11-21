@@ -61,7 +61,7 @@ vi.mock("@/app/tasks/actions", () => ({
   loadMoreTaskSchedules: loadMoreTaskSchedulesMock,
 }));
 
-vi.mock("@/hooks/use-load-when-visible", () => ({
+vi.mock("@/hooks/effects/use-load-when-visible", () => ({
   useLoadWhenVisible: (
     _ref: unknown,
     options: { armed: boolean; boundaryKey: string; onVisible: () => void },

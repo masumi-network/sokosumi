@@ -27,18 +27,21 @@ import {
   SeoActionsLinkRow,
   SeoStepRow,
 } from "./seo-agent-steps";
+import { currentDiscoveryResult } from "./seo-audit-discovery";
 import { useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
+import { SeoPropertyPerformance } from "./seo-property-performance";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning } from "./seo-setup-model";
+import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
 import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
+import { seoWorklistEvidence } from "./seo-worklist-evidence";
 import { useSeoAnalyticsLine } from "./use-seo-analytics-line";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
@@ -80,13 +83,23 @@ function SeoAgentPanel({
   const reportFormat = useSeoResultFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
+  const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
     model.data,
     model.filters,
-    lastRuleCheck(model.data)?.id ?? null,
+    check?.id ?? null,
   );
   // How the pages do in search sits next to whether they are healthy.
-  const traffic = seoSearchTraffic(model.data.metrics);
+  const auditReport =
+    !model.filters.pageId &&
+    !model.filters.scopeId &&
+    !model.filters.from &&
+    check?.sourceTaskId
+      ? model.data.auditSearchConsole?.find(
+          (row) => row.taskId === check.sourceTaskId && row.propertyTotals,
+        )
+      : undefined;
+  const traffic = auditReport ? null : seoSearchTraffic(model.data.metrics);
   const rarelyShown = Boolean(
     traffic && seoRarelyShown(traffic.impressions, traffic.period),
   );
@@ -165,7 +178,7 @@ function SeoAgentPanel({
   const periodId = useId();
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.
-  const severitySplit = numbers.issues
+  const severitySplit = numbers.issues?.parts.length
     ? `: ${reportFormat.list(
         numbers.issues.parts.map((part) =>
           report("summary.severityCount", {
@@ -175,7 +188,16 @@ function SeoAgentPanel({
         ),
       )}`
     : "";
-  const { actionSeverity } = seoOverviewModel(model.data);
+  const { actionSeverity, actions } = seoOverviewModel(model.data);
+  const evidence = seoWorklistEvidence(
+    model.data,
+    currentDiscoveryResult(
+      model.data,
+      Boolean(model.filters.pageId || model.filters.scopeId),
+    ),
+    actions,
+    report,
+  ).filter((item) => !item.strategy && !item.place);
   // During setup the banner waits until the first check runs: then the statistics are the next useful thing.
   // The setup card now keeps its own Google control while a check runs; the banner waits until setup ends.
   const banner =
@@ -236,6 +258,8 @@ function SeoAgentPanel({
   // No check has saved a result in this view, and the reader can run one.
   const firstCheck =
     !brief.lastCheck &&
+    !brief.ruleCheckOutsideSelection &&
+    !seoRunAction(model.data) &&
     !model.waitingForGoogle &&
     canRequestAnalysis &&
     !model.filters.from &&
@@ -299,20 +323,26 @@ function SeoAgentPanel({
                   ? report("agent.verdict.waiting", {
                       count: brief.opportunities,
                     })
-                  : brief.emptyState === "no_fixes" && lastCheckMeasured
-                    ? rarelyShown
-                      ? report("agent.verdict.clearRarelyShown", {
-                          pages: brief.lastCheck?.pages ?? 1,
-                        })
-                      : report("agent.verdict.clear")
-                    : brief.lastCheck
-                      ? report("actions.checksIncomplete")
-                      : // No call to run a check where no check can run: lead with what is known.
-                        canRequestAnalysis
-                        ? report("agent.verdict.noCheck")
-                        : trafficLead
-                          ? trafficLine
-                          : report("agent.verdict.noCheckOff")}
+                  : brief.earlierIssues
+                    ? report("overview.earlierFindings", {
+                        count: brief.earlierIssues,
+                      })
+                    : brief.checkClear && lastCheckMeasured
+                      ? rarelyShown
+                        ? report("agent.verdict.clearRarelyShown", {
+                            pages: brief.lastCheck?.pages ?? 1,
+                          })
+                        : report("agent.verdict.clear")
+                      : brief.lastCheck
+                        ? report("actions.checksIncomplete")
+                        : brief.ruleCheckOutsideSelection
+                          ? report("agent.verdict.noPageCheckInView")
+                          : // No call to run a check where no check can run: lead with what is known.
+                            canRequestAnalysis
+                            ? report("agent.verdict.noCheck")
+                            : trafficLead
+                              ? trafficLine
+                              : report("agent.verdict.noCheckOff")}
           </h3>
           {/* The runs row over the tabs names the day of the check in view. */}
           {brief.lastCheck && !runsShown ? (
@@ -322,6 +352,7 @@ function SeoAgentPanel({
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
+          {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
           <SeoAgentFigures
             model={model}
             traffic={traffic}
@@ -403,12 +434,22 @@ function SeoAgentPanel({
         </div>
       ) : (analyticsStep &&
           (!analyticsLine.hidden || analyticsLine.analytics !== "unknown")) ||
-        statisticsSync.state === "failed" ? null : (
+        statisticsSync.state === "failed" ||
+        evidence.length ? null : (
         // The Analytics line, a sync that runs or failed, each still ask for something: "nothing is waiting"
         // would be wrong. Only a hidden line with no cause to name asks for nothing.
         <p lang="en" className="text-muted-foreground max-w-prose px-2 text-sm">
           {report("agent.nothingNext")}
         </p>
+      )}
+      {!setup && evidence.length > 0 && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void model.setFilters({ tab: "actions" })}
+        >
+          {t("agent.reviewEvidence", { count: evidence.length })}
+        </Button>
       )}
       <SeoAutomation model={model} />
       <SeoActionDialog

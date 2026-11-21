@@ -11,17 +11,16 @@ import { createAuthClient } from "better-auth/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FlashToast } from "@/components/flash-toast.client";
 import { resetPasswordWithToken } from "@/lib/actions/auth/action";
 import { signOut } from "@/lib/auth/auth.client";
 
 import ResetPasswordForm from "./form";
 
-const { push, searchParams } = vi.hoisted(() => ({
-  push: vi.fn(),
+const { searchParams } = vi.hoisted(() => ({
   searchParams: { current: new URLSearchParams() },
 }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
   useSearchParams: () => searchParams.current,
 }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
@@ -44,8 +43,12 @@ async function submitNewPassword() {
 }
 
 describe("ResetPasswordForm", () => {
+  let assign: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
+    assign = vi.spyOn(window.location, "assign").mockImplementation(() => {});
     searchParams.current = new URLSearchParams();
     vi.mocked(resetPasswordWithToken).mockResolvedValue({
       ok: true,
@@ -71,13 +74,21 @@ describe("ResetPasswordForm", () => {
     }
   });
 
-  it("sends the person to sign in afterwards", async () => {
+  it("sends the person to sign in afterwards and shows the success toast on the next document", async () => {
     render(<ResetPasswordForm />);
 
     await submitNewPassword();
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/signin"));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/signin"));
+    expect(toast.success).not.toHaveBeenCalled();
+
+    window.history.replaceState({}, "", "/signin");
+    render(<FlashToast />);
+    expect(toast.success).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledWith("success");
+
+    render(<FlashToast />);
+    expect(toast.success).toHaveBeenCalledTimes(1);
   });
 
   // Core ended every session, but a signed-in browser still holds the session
@@ -88,12 +99,14 @@ describe("ResetPasswordForm", () => {
       order.push("signOut");
       return { data: { success: true }, error: null };
     });
-    push.mockImplementation(() => order.push("push"));
+    assign.mockImplementation(() => {
+      order.push("assign");
+    });
     render(<ResetPasswordForm />);
 
     await submitNewPassword();
 
-    await waitFor(() => expect(order).toEqual(["signOut", "push"]));
+    await waitFor(() => expect(order).toEqual(["signOut", "assign"]));
   });
 
   it.each(["network", "server"])(
@@ -117,7 +130,7 @@ describe("ResetPasswordForm", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "signOutError",
       );
-      expect(push).not.toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
       expect(
         screen.queryByLabelText("Fields.Password.label"),
       ).not.toBeInTheDocument();
@@ -126,7 +139,7 @@ describe("ResetPasswordForm", () => {
         .click(screen.getByRole("button", { name: "continueToSignIn" }));
 
       await waitFor(() =>
-        expect(push).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
+        expect(assign).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
       );
       expect(resetPasswordWithToken).toHaveBeenCalledOnce();
       expect(signOut).toHaveBeenCalledTimes(2);
@@ -140,7 +153,7 @@ describe("ResetPasswordForm", () => {
     await submitNewPassword();
 
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith("/signin?returnUrl=%2Fchat"),
+      expect(assign).toHaveBeenCalledWith("/signin?returnUrl=%2Fchat"),
     );
   });
 
@@ -153,7 +166,7 @@ describe("ResetPasswordForm", () => {
     await submitNewPassword();
 
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith(
+      expect(assign).toHaveBeenCalledWith(
         "/signin?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
       ),
     );
@@ -167,7 +180,7 @@ describe("ResetPasswordForm", () => {
     await submitNewPassword();
 
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
+      expect(assign).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
     );
   });
 
@@ -202,7 +215,7 @@ describe("ResetPasswordForm", () => {
       await submitNewPassword();
 
       await waitFor(() =>
-        expect(push).toHaveBeenCalledWith(`/signin?${expiredQuery}`),
+        expect(assign).toHaveBeenCalledWith(`/signin?${expiredQuery}`),
       );
       expect(sentBodies).toEqual([{}]);
     } finally {
@@ -245,7 +258,7 @@ describe("ResetPasswordForm", () => {
       expect(
         screen.getByRole("button", { name: "continueToSignIn" }),
       ).not.toHaveAttribute("aria-busy");
-      expect(push).not.toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
@@ -266,6 +279,6 @@ describe("ResetPasswordForm", () => {
     expect(
       screen.getByRole("link", { name: "requestNewLink" }),
     ).toHaveAttribute("href", `/forgot-password?${OAUTH_QUERY}`);
-    expect(push).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
   });
 });

@@ -11,7 +11,7 @@ import { useId, useLayoutEffect, useState } from "react";
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Button } from "@/components/ui/button";
-import { useFilesArchiveDownload } from "@/hooks/use-files-archive-download";
+import { useFilesArchiveDownload } from "@/hooks/effects/use-files-archive-download";
 import type { ArchiveFile } from "@/lib/files-archive";
 
 export type TaskFileListItem =

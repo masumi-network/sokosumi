@@ -1,7 +1,9 @@
 "use client";
 
 import { ChevronRight, X } from "lucide-react";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useRef } from "react";
+import { useEventListener } from "../../hooks/effects/use-event-listener";
+import { useSidePanelFocus } from "../../hooks/effects/use-side-panel-focus";
 
 interface GoalBlockProps {
   label: string;
@@ -102,32 +104,18 @@ export function SidePanel({
 }: SidePanelProps) {
   const sheet = useRef<HTMLElement>(null);
   // The sheet takes the focus it was opened for, and gives it back.
-  useEffect(() => {
-    const opener = document.activeElement;
-    sheet.current?.focus();
-    return () => {
-      if (opener instanceof HTMLElement) opener.focus({ preventScroll: true });
-    };
-  }, []);
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      onClose();
-    };
-    // A press outside closes it; a row's own press swaps or closes it itself.
-    const onPress = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (sheet.current?.contains(target) || target.closest(".ob-tile")) return;
-      onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("pointerdown", onPress);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pointerdown", onPress);
-    };
-  }, [onClose]);
+  useSidePanelFocus(sheet);
+  useEventListener("window", "keydown", (event) => {
+    if (event.key !== "Escape") return;
+    onClose();
+  });
+  // A press outside closes it; a row's own press swaps or closes it itself.
+  useEventListener("window", "pointerdown", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (sheet.current?.contains(target) || target.closest(".ob-tile")) return;
+    onClose();
+  });
   return (
     <aside
       ref={sheet}

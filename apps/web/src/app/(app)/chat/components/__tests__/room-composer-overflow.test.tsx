@@ -127,7 +127,6 @@ function OverflowHarness({
         value={value}
         onValueChange={setValue}
         mentions={{}}
-        onSelectedKeysChange={() => undefined}
         placeholder="Message"
         attachments={attachments}
         onAttachmentsChange={setAttachments}

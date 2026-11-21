@@ -311,6 +311,20 @@ describe("seoDefaultMetric", () => {
     );
   });
 
+  it("opens a measured series when the first count has no daily readings", () => {
+    const clicks = metric({ id: "clicks", points: points([null]) });
+    const position = metric({
+      id: "position",
+      unit: "position",
+      points: points([4]),
+    });
+    expect(seoDefaultMetric([clicks, position]).id).toBe("position");
+    const impressions = metric({ id: "impressions", points: points([0]) });
+    expect(seoDefaultMetric([clicks, impressions, position]).id).toBe(
+      "impressions",
+    );
+  });
+
   it("keeps the first count when counts tie, and the first metric without counts", () => {
     const clicks = metric({ id: "clicks", points: points([1]) });
     const impressions = metric({ id: "impressions", points: points([4]) });

@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildSocialCallbackUrls,
@@ -75,12 +75,8 @@ export default function SocialSignupAutoInitiator({
 
   // A page restored from the back/forward cache does not run the effect
   // again; offer the retry instead of a spinner with nothing behind it.
-  useMountEffect(() => {
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) setIsInitiating(false);
-    };
-    window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
+  useEventListener("window", "pageshow", (event) => {
+    if (event.persisted) setIsInitiating(false);
   });
 
   const handleRetry = () => {

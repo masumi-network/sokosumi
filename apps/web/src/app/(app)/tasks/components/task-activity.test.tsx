@@ -1842,4 +1842,45 @@ describe("TaskActivitySection", () => {
       expect(editorProps.current?.value).toBe("Original\nTyped while pending");
     });
   });
+
+  it("resets activity state and shows fresh events when taskId changes", () => {
+    const firstEvents: TaskEvent[] = [
+      createEvent("task-1-comment", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: null,
+        comment: "First task comment",
+      }),
+    ];
+    const secondEvents: TaskEvent[] = [
+      {
+        ...createEvent("task-2-comment", {
+          createdAt: "2026-01-02T10:00:00.000Z",
+          status: null,
+          comment: "Second task comment",
+        }),
+        taskId: "task-2",
+      },
+    ];
+
+    const { rerender } = render(
+      <TaskActivitySection
+        {...baseProps}
+        taskId="task-1"
+        events={firstEvents}
+      />,
+    );
+
+    expect(screen.getByText("First task comment")).toBeInTheDocument();
+
+    rerender(
+      <TaskActivitySection
+        {...baseProps}
+        taskId="task-2"
+        events={secondEvents}
+      />,
+    );
+
+    expect(screen.queryByText("First task comment")).not.toBeInTheDocument();
+    expect(screen.getByText("Second task comment")).toBeInTheDocument();
+  });
 });
