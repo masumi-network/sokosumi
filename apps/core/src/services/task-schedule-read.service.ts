@@ -4,6 +4,7 @@ import {
   type TaskSchedule,
   type TaskScheduleRun,
   TaskScheduleState,
+  TaskStatus,
   TaskVisibility,
   VendorGrantStatus,
   workCreatorInclude,
@@ -211,11 +212,17 @@ export async function listTaskSchedules(
       where,
       include: {
         ...SCHEDULE_ASSIGNEE_VENDOR,
-        // The newest top-level Task it created that this reader may open.
+        // The newest top-level Task it created that this reader may open:
+        // still in this workspace (a moved Task keeps its schedule), and for a
+        // Coworker not a draft, as its Task detail requires.
         tasks: {
           where: {
+            workspaceId: actor.workspace.workspaceId,
             archivedAt: null,
             parentTaskId: null,
+            ...(actor.kind === "coworker"
+              ? { status: { not: TaskStatus.DRAFT } }
+              : {}),
             ...taskScheduleVisibilityWhere(actor),
           },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],

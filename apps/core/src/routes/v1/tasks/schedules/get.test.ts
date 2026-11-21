@@ -182,6 +182,55 @@ describe("GET /tasks/schedules", () => {
     expect(byId[unused.id]).toBeNull();
   });
 
+  it("leaves out a newer Task that was moved to another workspace", async () => {
+    const schedule = seedTaskSchedule();
+    const stayed = seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(1),
+      status: "COMPLETED",
+      name: "Stayed",
+    });
+    seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(2),
+      status: "FAILED",
+      name: "Moved",
+      workspaceId: PERSONAL_WORKSPACE_ID,
+    });
+
+    const { body } = await list();
+
+    expect(body.data[0]?.lastTask).toMatchObject({
+      id: stayed.id,
+      name: "Stayed",
+    });
+  });
+
+  it("gives a Coworker the newest Task it may open, skipping a draft a person still sees", async () => {
+    const schedule = seedTaskSchedule();
+    const ready = seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(1),
+      status: "READY",
+      name: "Ready",
+    });
+    const draft = seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(2),
+      status: "DRAFT",
+      name: "Draft",
+    });
+
+    const person = await list();
+    const coworker = await list(
+      "",
+      createTaskScheduleTestApp(mountGetTaskSchedules, COWORKER_AUTH),
+    );
+
+    expect(person.body.data[0]?.lastTask?.id).toBe(draft.id);
+    expect(coworker.body.data[0]?.lastTask?.id).toBe(ready.id);
+  });
+
   it("pages with a cursor", async () => {
     const first = seedTaskSchedule({ createdAt: at(3) });
     const second = seedTaskSchedule({ createdAt: at(2) });
