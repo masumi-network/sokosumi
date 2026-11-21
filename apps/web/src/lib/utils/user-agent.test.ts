@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getOSFromUserAgent, isApplePlatform } from "@/lib/utils/user-agent";
+import {
+  getBrowserFromUserAgent,
+  getOSFromUserAgent,
+  isApplePlatform,
+} from "@/lib/utils/user-agent";
 
 function mockNavigator(userAgent: string) {
   Object.defineProperty(global, "navigator", {
@@ -95,5 +99,36 @@ describe("isApplePlatform", () => {
     );
 
     expect(isApplePlatform()).toBe(false);
+  });
+});
+
+describe("user agents passed in", () => {
+  const cases: [string, string | null, string][] = [
+    [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+      "Edge",
+      "Windows",
+    ],
+    [
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
+      "Safari",
+      "MacOS",
+    ],
+    [
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0 Mobile/15E148 Safari/604.1",
+      "Chrome",
+      "iOS",
+    ],
+    [
+      "Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0",
+      "Firefox",
+      "Linux",
+    ],
+    ["node", null, "Unknown"],
+  ];
+
+  it.each(cases)("reads %s", (ua, browser, os) => {
+    expect(getBrowserFromUserAgent(ua)).toBe(browser);
+    expect(getOSFromUserAgent(ua).os).toBe(os);
   });
 });
