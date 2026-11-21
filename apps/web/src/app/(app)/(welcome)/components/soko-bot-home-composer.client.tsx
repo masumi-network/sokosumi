@@ -32,8 +32,8 @@ import {
   isRoomComposerEmpty,
 } from "@/app/chat/components/room-helpers";
 import { GradientBackground } from "@/components/gradient-background";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 
 const NO_MENTIONS = {};
 
@@ -74,11 +74,10 @@ export function SokoBotHomeComposer({
   const [skills, setSkills] = useState<ChatRoomMessageSkill[]>([]);
   const [isSending, startSending] = useTransition();
 
-  useMountEffect(() => {
-    if (window.innerWidth >= MOBILE_BREAKPOINT) {
-      composerRef.current?.focus();
-    }
-  });
+  useFocusWhen(
+    () => (window.innerWidth >= MOBILE_BREAKPOINT ? composerRef.current : null),
+    true,
+  );
 
   async function resolveRoomId(): Promise<string | null> {
     if (roomId) return roomId;
@@ -147,7 +146,6 @@ export function SokoBotHomeComposer({
             value={value}
             onValueChange={setValue}
             mentions={NO_MENTIONS}
-            onSelectedKeysChange={() => {}}
             showMentionShortcut={false}
             placeholder={t("placeholder", { name: botName })}
             attachments={attachments}

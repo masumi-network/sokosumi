@@ -54,6 +54,7 @@ import {
   startCmoCase,
   styledPictureChecks,
 } from "./eval-cmo-runner";
+import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
@@ -328,6 +329,12 @@ async function pollScenario(
   }
   if (scenario.id === CMO_ADS_CASE_ID) {
     const extra = await adsChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_CORRECTION_CASE_ID) {
+    const extra = await correctionChecks(lane);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

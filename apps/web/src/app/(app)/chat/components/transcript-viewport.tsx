@@ -31,7 +31,7 @@ import {
   transcriptRowKey,
 } from "@/app/chat/utils/transcript-viewport-model";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
 
 /**
  * Rows mounted beyond the viewport. Deep above, shallow below: a row is
@@ -265,11 +265,8 @@ export function TranscriptViewport({
   const hold = held !== false || holdOffBottom;
   const holdRef = useRef(hold);
   holdRef.current = hold;
-  const landingRef = useRef(0);
   // Unmount ends a landing still polling for its row.
-  useMountEffect(() => () => {
-    landingRef.current += 1;
-  });
+  const landingAbort = useAbortController();
 
   // Where the list starts inside the scroller: the shell pads above it, and
   // pushes a short list to the bottom. The virtualizer needs that offset so
@@ -291,14 +288,14 @@ export function TranscriptViewport({
   // measurement and on every change after it.
   const reachRef = useRef<{
     atEnd: boolean;
-    placingLanding: number;
+    placingLanding: AbortController | null;
     reported?: boolean;
-  }>({ atEnd, placingLanding: 0 });
+  }>({ atEnd, placingLanding: null });
   const updateReach = (
-    change: { atEnd: boolean } | { placingLanding: number },
+    change: { atEnd: boolean } | { placingLanding: AbortController | null },
   ) => {
     const reach = Object.assign(reachRef.current, change);
-    const reported = reach.atEnd && reach.placingLanding === 0;
+    const reported = reach.atEnd && reach.placingLanding === null;
     if (reported === reach.reported) return;
     reach.reported = reported;
     atEndCallbackRef.current?.(reported);
@@ -645,11 +642,11 @@ export function TranscriptViewport({
       return;
     }
     virtualizer.scrollToIndex(index, { align: "start" });
-    const landing = ++landingRef.current;
+    const landing = landingAbort.start();
     let frames = 0;
     let settledFrames = 0;
     const finishRestore = () => {
-      if (landing !== landingRef.current) return;
+      if (landing.signal.aborted) return;
       const currentIndex = retainedPositionIndex(rowsRef.current, saved);
       const anchor = scroller.querySelector<HTMLElement>(
         `[data-index="${currentIndex}"]`,
@@ -692,13 +689,13 @@ export function TranscriptViewport({
     () => ({
       scrollToBottom: () => {
         restoreRef.current = undefined;
-        landingRef.current += 1;
+        landingAbort.abort();
         setHeld(false);
         virtualizer.scrollToEnd();
       },
       pinToBottomAfterOwnSend: () => {
         restoreRef.current = undefined;
-        landingRef.current += 1;
+        landingAbort.abort();
         // Immediate + rAF: the appended row commits after this call, and the
         // rAF puts the view on it once it exists.
         virtualizer.scrollToEnd();
@@ -708,7 +705,7 @@ export function TranscriptViewport({
       },
       suppressStickToBottom: () => {
         restoreRef.current = undefined;
-        landingRef.current += 1;
+        landingAbort.abort();
         setHeld("jump");
       },
       releaseStickToBottomSuppress: () => {
@@ -720,19 +717,19 @@ export function TranscriptViewport({
         if (index < 0) {
           return false;
         }
-        landingRef.current += 1;
-        const landing = landingRef.current;
+        const landing = landingAbort.start();
         updateReach({ placingLanding: landing });
         const placed = () => {
+          landingAbort.release(landing);
           if (reachRef.current.placingLanding === landing)
-            updateReach({ placingLanding: 0 });
+            updateReach({ placingLanding: null });
         };
         virtualizer.scrollToIndex(index, { align: "center" });
         // The row mounts a render after the scroll. Poll frames for it; a
         // later landing replaces this one, which stops the poll.
         let frames = 0;
         const tryMark = () => {
-          if (landing !== landingRef.current) {
+          if (landing.signal.aborted) {
             placed();
             return;
           }
@@ -752,8 +749,7 @@ export function TranscriptViewport({
       },
       scrollToMessage: (messageId) => {
         restoreRef.current = undefined;
-        landingRef.current += 1;
-        const landing = landingRef.current;
+        const landing = landingAbort.start();
         const index = findTranscriptRowIndex(rowsRef.current, messageId);
         if (index < 0) {
           return false;
@@ -769,7 +765,7 @@ export function TranscriptViewport({
           // Native centering honors scroll-padding after the virtual row mounts.
           let frames = 0;
           const reveal = () => {
-            if (landing !== landingRef.current) return;
+            if (landing.signal.aborted) return;
             const target = containerRef.current?.querySelector<HTMLElement>(
               `[data-message-id="${CSS.escape(messageId)}"]`,
             );
@@ -785,7 +781,7 @@ export function TranscriptViewport({
         return true;
       },
     }),
-    [list, scroller, virtualizer],
+    [landingAbort, list, scroller, virtualizer],
   );
 
   // Stable: an inline callback is detached and reattached on every render,
@@ -838,7 +834,7 @@ export function TranscriptViewport({
               // Ends a restore still placing its anchor, which would pull
               // the view back up.
               restoreRef.current = undefined;
-              landingRef.current += 1;
+              landingAbort.abort();
               setHeld(false);
               virtualizer.scrollToEnd();
             }}

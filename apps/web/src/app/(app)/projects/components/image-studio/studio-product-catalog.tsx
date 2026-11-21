@@ -10,7 +10,7 @@ import {
 } from "@sokosumi/utils";
 import { Package, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
 import {
   attachStudioCatalogPhoto,
   getStudioProducts,
@@ -73,7 +74,7 @@ export function StudioProductCatalogDialog({
   const [message, setMessage] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
   const [transitionPending, startTransition] = useTransition();
-  const batchPreparation = useRef<AbortController | null>(null);
+  const batchPreparation = useAbortController();
   const [preparingBatch, setPreparingBatch] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const pending = transitionPending || preparingBatch || uploadingPhoto;
@@ -112,8 +113,6 @@ export function StudioProductCatalogDialog({
           isValidHttpUrl(product.imageUrl)),
     );
 
-  useEffect(() => () => batchPreparation.current?.abort(), []);
-
   function handleLoad() {
     startTransition(async () => {
       setMessage("");
@@ -135,8 +134,7 @@ export function StudioProductCatalogDialog({
   function handleOpenChange(nextOpen: boolean) {
     if (transitionPending || uploadingPhoto || disabled) return;
     if (!nextOpen) {
-      batchPreparation.current?.abort();
-      batchPreparation.current = null;
+      batchPreparation.abort();
       setPreparingBatch(false);
     }
     setOpen(nextOpen);
@@ -272,8 +270,7 @@ export function StudioProductCatalogDialog({
 
   async function handleUseBatch() {
     if (pending || !canApplyBatch || !onUseBatch) return;
-    const preparation = new AbortController();
-    batchPreparation.current = preparation;
+    const preparation = batchPreparation.start();
     setPreparingBatch(true);
     setMessage("");
     try {
@@ -301,8 +298,8 @@ export function StudioProductCatalogDialog({
       setOpen(false);
       onUseBatch(entries);
     } finally {
+      batchPreparation.release(preparation);
       if (!preparation.signal.aborted) {
-        batchPreparation.current = null;
         setPreparingBatch(false);
       }
     }

@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { MarkNotificationsRead } from "@/components/notifications/mark-notifications-read.client";
+import { useRouterRedirect } from "@/hooks/effects/use-router-redirect";
 
 export function OpenTaskResult({
   taskId,
@@ -13,10 +12,7 @@ export function OpenTaskResult({
   href: string;
   label: string;
 }) {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace(href);
-  }, [href, router]);
+  useRouterRedirect(href);
   return (
     <>
       <MarkNotificationsRead kind="TASK" referenceId={taskId} />

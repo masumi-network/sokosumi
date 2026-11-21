@@ -83,3 +83,43 @@ describe("document framing headers", () => {
     );
   });
 });
+
+describe("reset-password referrer policy", () => {
+  it.each(["/reset-password", "/reset-password/", "/reset-password/exchange"])(
+    "sets Referrer-Policy: no-referrer on %s",
+    async (path) => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: `https://app.example.com${path}`,
+        nextConfig,
+      });
+      expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+      const proxyResponse = NextResponse.next();
+      applyDocumentSecurityHeaders(proxyResponse, {
+        includeHsts: false,
+        pathname: path,
+      });
+      expect(proxyResponse.headers.get("Referrer-Policy")).toBe("no-referrer");
+    },
+  );
+
+  it.each(["/", "/signin", "/forgot-password", "/reset-password-other"])(
+    "keeps strict-origin-when-cross-origin Referrer-Policy on %s",
+    async (path) => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: `https://app.example.com${path}`,
+        nextConfig,
+      });
+      expect(response.headers.get("Referrer-Policy")).toBe(
+        "strict-origin-when-cross-origin",
+      );
+      const proxyResponse = NextResponse.next();
+      applyDocumentSecurityHeaders(proxyResponse, {
+        includeHsts: false,
+        pathname: path,
+      });
+      expect(proxyResponse.headers.get("Referrer-Policy")).toBe(
+        "strict-origin-when-cross-origin",
+      );
+    },
+  );
+});

@@ -72,7 +72,9 @@ describe.each([
       content: `const { renderRoomPanelSlidePage } = await import(${JSON.stringify(PAGE_MODULE)});
         renderRoomPanelSlidePage({ headerAtMount: ${headerAtMount} });`,
     });
-    await page.waitForFunction(() => document.querySelector("main") !== null);
+    await page.waitForFunction(
+      () => document.querySelector('[data-testid="composer"]') !== null,
+    );
     return { page, errors };
   }
 

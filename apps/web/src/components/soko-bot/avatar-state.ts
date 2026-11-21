@@ -3,7 +3,8 @@ import {
   type AvatarState,
   avatarStateOf,
 } from "@sokosumi/soko-bot";
-import { useEffect, useReducer } from "react";
+import { useReducer } from "react";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 
 /**
@@ -35,10 +36,6 @@ export function avatarStateOfChat(
 export function useChatAvatarState(state: SokoBotChatState): AvatarState {
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const current = avatarStateOfChat(state);
-  useEffect(() => {
-    if (current !== "done") return;
-    const timer = setTimeout(rerender, AVATAR_DONE_MS + 50);
-    return () => clearTimeout(timer);
-  }, [current, state]);
+  useTimeout(rerender, current === "done" ? AVATAR_DONE_MS + 50 : null, state);
   return current;
 }

@@ -25,7 +25,7 @@ const useIsMobileMock = vi.fn(() => false);
 
 let searchParams = new URLSearchParams();
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: () => useIsMobileMock(),
   useIsMobileMedia: () => useIsMobileMock(),
   MOBILE_BREAKPOINT: 768,

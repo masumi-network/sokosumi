@@ -101,7 +101,7 @@ it("counts posts written for a network that is not connected as waiting, not as 
     ]),
   });
   expect(html).toContain("Waiting 2 for LinkedIn");
-  expect(html).toContain("2 posts are written and wait for LinkedIn.");
+  expect(html).toContain("2 posts wait for LinkedIn.");
   expect(html).not.toContain("Drafts");
 });
 

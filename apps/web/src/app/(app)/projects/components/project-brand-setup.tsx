@@ -2,7 +2,7 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -35,18 +35,25 @@ interface ProjectBrandSetupProps {
   onBrandChange?: (brand: ProjectBrandChange) => void;
 }
 
-export function ProjectBrandSetup({
+export function ProjectBrandSetup(props: ProjectBrandSetupProps) {
+  const viewerId = useSession().data?.user.id;
+  // Brand setup starts once the viewer is known, so a failure is kept for the
+  // project page: it mounts again when the session loads.
+  return <BrandSetup key={viewerId ?? ""} {...props} viewerId={viewerId} />;
+}
+
+function BrandSetup({
   projectId,
   projectName,
   websiteUrl,
   onReadyLogo,
   onBrandChange,
-}: ProjectBrandSetupProps) {
+  viewerId,
+}: ProjectBrandSetupProps & { viewerId: string | undefined }) {
   const t = useTranslations("App.Projects.Wizard.brand");
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isResolvingLogo, setIsResolvingLogo] = useState(true);
-  const viewerId = useSession().data?.user.id;
 
   const owner = useMemo<DesignMdOwner>(
     () => ({ type: "project", projectId }),
@@ -75,6 +82,7 @@ export function ProjectBrandSetup({
   });
 
   useMountEffect(() => {
+    if (!viewerId) return;
     void (async () => {
       try {
         const result = await resolveProjectSiteIcon({
@@ -102,16 +110,9 @@ export function ProjectBrandSetup({
         setIsResolvingLogo(false);
       }
     })();
-  });
 
-  // Start once the viewer is known, so a failure is kept for the project page.
-  const brandStarted = useRef(false);
-  const { generate } = brand;
-  useEffect(() => {
-    if (!viewerId || brandStarted.current) return;
-    brandStarted.current = true;
-    void generate({ url: websiteUrl });
-  }, [generate, viewerId, websiteUrl]);
+    void brand.generate({ url: websiteUrl });
+  });
 
   const isBusy = isResolvingLogo || brand.isRunning || brand.status === "idle";
 

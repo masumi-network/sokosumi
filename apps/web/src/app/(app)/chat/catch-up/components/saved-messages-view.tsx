@@ -4,7 +4,7 @@ import type { ChatRoom, ChatSavedMessageListItem } from "@sokosumi/core-client";
 import { Bookmark, BookmarkX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listSavedMessagesAction,
@@ -25,6 +25,7 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
@@ -73,10 +74,7 @@ export function SavedMessagesView({
     setItems(initialPage?.items ?? []);
     setNextCursor(initialPage?.nextCursor ?? null);
   }
-  const currentPage = useRef(initialPage);
-  useEffect(() => {
-    currentPage.current = initialPage;
-  }, [initialPage]);
+  const currentPage = useLatestRef(initialPage);
 
   const [loadingOlder, setLoadingOlder] = useState(false);
   // Saves with an unsave on its way to Core. They are off the list at once

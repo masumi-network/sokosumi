@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/hooks/use-keyboard-open", () => ({
+vi.mock("@/hooks/effects/use-keyboard-open", () => ({
   useKeyboardOpen: () => false,
 }));
 
@@ -26,7 +26,7 @@ describe("RoomOpenLoadingView", () => {
     const { container, getByTestId } = render(<RoomOpenLoadingView />);
 
     expect(getByTestId("chat-room-loading")).toBeTruthy();
-    expect(container.querySelector("main")).toBeTruthy();
+    expect(container.querySelector("main")).toBeNull();
     expect(container.querySelector("section")).toBeTruthy();
     expect(getByTestId("room-message-list-skeleton")).toBeTruthy();
     expect(container.querySelector(".flex-row-reverse")).toBeNull();

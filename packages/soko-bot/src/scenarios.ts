@@ -1343,6 +1343,40 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-change-reply-plain",
+    title: "Answers a change in the owner's words, without repeating his card",
+    intent:
+      "After a change the founder asked for, Cuso's card says what he did and his answer only adds what the card leaves out, never his tools, saves or checks.",
+    prompt:
+      "Make the first week of posts more about our newest feature. Keep the rest of the month as it is.",
+    rubric:
+      "Cuso changes week one of the saved month with save_strategy and files a report card (report_update kind request) saying what changed. His chat answer is one short sentence that adds only what the card leaves out (a question he needs answered, or what the owner does next) or says it is done; an answer that lists the changes again, or says the same thing as the card in other words, fails. Neither the answer nor the card names his tools or functions, saves, checks or reviews, entry ids, style references, mirrored or shared copies of a post, captions still to vary, or why something was refused; any of those fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy", "report_update"],
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+      answerAvoids:
+        "save_strategy|report_update|find_style|style ref|mirror|\\bentr(?:y|ies)\\b|\\bflagged\\b|\\b(?:the|my) (?:save|review|check)\\b|\\btools?\\b",
+    },
+  },
+  {
+    id: "cmo-correction-everywhere",
+    title: "Makes a correction true everywhere in the strategy",
+    intent:
+      "When the owner says Cuso got the buyer wrong, every part of the strategy that rested on the old buyer changes, and nothing still names it.",
+    prompt:
+      "No, revenue operations leaders are not our main buyers. Our buyers are recruiting teams that book candidate interviews. Change the strategy to match.",
+    rubric:
+      "Cuso saves the strategy with save_strategy so it is about recruiting teams who book candidate interviews: the summary, the goals, the focus, the funnel stages and their plays, the questions and the calendar titles follow recruiting teams. Nothing in the strategy still names revenue operations, RevOps or revenue teams, not even to say they are out; the changes list saying what changed is fine. The month keeps its channels. Rewriting only the goal or a few posts, calling the strategy the plan, or saying it changed without a successful save_strategy, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
+      tools: ["save_strategy"],
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
     id: "cmo-funnel-aida",
     title: "Puts the funnel in the four classic stages",
     intent:

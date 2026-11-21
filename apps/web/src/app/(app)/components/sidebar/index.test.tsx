@@ -17,7 +17,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => false,
 }));

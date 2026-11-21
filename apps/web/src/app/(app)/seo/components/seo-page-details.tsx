@@ -2,12 +2,10 @@
 
 import { Bot, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  HOLDER_CLASS,
-  HOLDER_ITEM_CLASS,
-} from "@/components/ui/holder-surface";
+import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
 import {
   useSeoResultFormatter,
   useSeoResultTranslations,
@@ -95,7 +93,9 @@ function PageDetail({
   const valueId = useId();
   const pageLabelId = useId();
   const [fullValue, setFullValue] = useState(false);
-  const valueRef = useRef<HTMLParagraphElement>(null);
+  const [valueElement, setValueElement] = useState<HTMLParagraphElement | null>(
+    null,
+  );
   const [clamped, setClamped] = useState(false);
   const name = checkName(finding.title);
   const first = finding.evidence[0];
@@ -130,23 +130,23 @@ function PageDetail({
     data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url;
   // The toggle shows only once the clamp cuts the text. A closed fold has no size,
   // so the check runs again when it opens.
-  useLayoutEffect(() => {
-    const element = valueRef.current;
-    // New text in the same box does not resize it, so the text itself starts a new check.
-    if (!foldable || fullValue || !element || !detail) return;
-    // Once cut, the toggle stays: dropping it on a resize would drop the focus on it.
-    const check = () =>
-      setClamped((cut) => cut || element.scrollHeight > element.clientHeight);
-    check();
-    // Without an observer the fold cannot be measured again; keep the toggle so the text can open.
-    if (typeof ResizeObserver === "undefined") {
-      setClamped(true);
-      return;
-    }
-    const observer = new ResizeObserver(check);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [foldable, fullValue, detail]);
+  // New text in the same box does not resize it, so the text itself starts a new check.
+  useLayoutResizeObserver(
+    foldable && !fullValue && detail ? valueElement : null,
+    () => {
+      if (!valueElement) return;
+      // Without an observer the fold cannot be measured again; keep the toggle so the text can open.
+      if (typeof ResizeObserver === "undefined") {
+        setClamped(true);
+        return;
+      }
+      // Once cut, the toggle stays: dropping it on a resize would drop the focus on it.
+      setClamped(
+        (cut) => cut || valueElement.scrollHeight > valueElement.clientHeight,
+      );
+    },
+    { immediate: true, resetKey: detail },
+  );
   const toggle = foldable && clamped;
   // A note can always be asked about; a measurement only when some tool range leaves it out.
   const ask = measure ? (offersFix ? onAsk : undefined) : onAsk;
@@ -226,7 +226,7 @@ function PageDetail({
           {detail ? (
             <p
               id={valueId}
-              ref={valueRef}
+              ref={setValueElement}
               className={cn(
                 "text-muted-foreground text-sm break-words",
                 foldable && !fullValue && "line-clamp-3",
@@ -367,19 +367,19 @@ function PageDetail({
 /**
  * Title, description and other page details: the measured values and notes of the checks, folded under the
  * action rows of the Actions list. Its head has the shape of an action row: a rail, the name and its counts.
- * Without that list (only strategy actions) it stands in a card of its own, and its headings move up a level.
+ * Notes have their own disclosure beside the measurements, including when the audit has no recommended fixes.
  */
 export function SeoPageDetails({
   model,
-  standalone = false,
+  overview,
 }: {
   model: SeoWorkspaceModel;
-  standalone?: boolean;
+  overview: ReturnType<typeof seoOverviewModel>;
 }) {
   const t = useTranslations("App.Seo");
   const result = useSeoResultTranslations("App.Seo");
   const { data } = model;
-  const overview = seoOverviewModel(data);
+
   // Set on the first render with rows, then kept: a new check that adds actions does not close a fold the reader
   // has open. A workspace without a check yet has no rows, so its first check still decides.
   const [startOpen, setStartOpen] = useState<boolean | null>(null);
@@ -405,7 +405,7 @@ export function SeoPageDetails({
     (finding) => finding.severity === "measure",
   );
   const notes = diagnostics.filter((finding) => finding.severity !== "measure");
-  const flagged = notes.length;
+  const hasPageDetails = measures.length > 0 || offTimeline.length > 0;
   // The Agent tab's suggestions: the newest check's values outside a tool range.
   const suggestionList = measuresOutsideToolRanges(overview.diagnostics);
   const suggestions = suggestionList.length;
@@ -437,10 +437,28 @@ export function SeoPageDetails({
   const askAgent = data.auditId
     ? (question: string) => model.openChat(question)
     : undefined;
-  const counted = suggestions > 0 || flagged > 0;
-  const Heading = standalone ? "h2" : "h3";
-  const SectionHeading = standalone ? "h3" : "h4";
-  const noteHeading = standalone ? "h4" : "h5";
+  const counted = suggestions > 0;
+  const sources = (
+    <>
+      {/* Rows show their value and guidance; provenance folds once. */}
+      {references.length ? (
+        <details className="text-muted-foreground border-border border-t pt-2 text-sm">
+          <SeoFoldSummary className="py-2.5">
+            {result("overview.references", { count: references.length })}
+          </SeoFoldSummary>
+          <ul className="list-disc space-y-1 ps-4 pt-1">
+            {references.map((reference) => (
+              <li key={reference.line} className="break-words">
+                {reference.names.length
+                  ? `${reference.names.join(", ")}: ${reference.line}`
+                  : reference.line}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </>
+  );
   const fold = (
     <details
       open={startOpen ?? false}
@@ -464,40 +482,22 @@ export function SeoPageDetails({
             suggestions ? PAGE_DETAIL_MARK.suggestion : "bg-border",
           )}
         />
-        <Heading className="col-start-2 row-start-1 min-w-0 text-sm font-semibold break-words">
+        <h3 className="col-start-2 row-start-1 min-w-0 text-sm font-semibold break-words">
           {t("overview.diagnostics")}
-        </Heading>
+        </h3>
         {counted ? (
           // On a phone the counts are a line of their own under the name.
           <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs max-sm:col-start-2 max-sm:row-start-2 sm:col-start-3 sm:row-start-1">
-            {suggestions ? (
-              <span className="inline-flex items-center gap-1.5">
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-1.5 rounded-full forced-colors:bg-[CanvasText]",
-                    PAGE_DETAIL_MARK.suggestion,
-                  )}
-                />
-                {result("overview.suggestionCount", { count: suggestions })}
-              </span>
-            ) : null}
-            {/* The marks part the counts on screen; a screen reader hears a comma. */}
-            {suggestions && flagged ? (
-              <span className="sr-only">, </span>
-            ) : null}
-            {flagged ? (
-              <span className="inline-flex items-center gap-1.5">
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-1.5 rounded-full forced-colors:bg-[CanvasText]",
-                    PAGE_DETAIL_MARK.note,
-                  )}
-                />
-                {result("overview.noteCount", { count: flagged })}
-              </span>
-            ) : null}
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className={cn(
+                  "size-1.5 rounded-full forced-colors:bg-[CanvasText]",
+                  PAGE_DETAIL_MARK.suggestion,
+                )}
+              />
+              {result("overview.suggestionCount", { count: suggestions })}
+            </span>
           </span>
         ) : null}
         {/* After the counts, as on a phone, where it is the last row. */}
@@ -554,9 +554,9 @@ export function SeoPageDetails({
         ))}
         {measures.length ? (
           <section className="space-y-3">
-            <SectionHeading className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               {t("overview.pageMeasurements")}
-            </SectionHeading>
+            </h4>
             <ul className="divide-border divide-y">
               {measures.map((finding) => (
                 <PageDetail
@@ -569,59 +569,50 @@ export function SeoPageDetails({
                   offersFix={fixRows.has(finding.id)}
                   onAsk={askAgent}
                   onShowRankings={showRankings}
-                  noteHeading={noteHeading}
+                  noteHeading="h5"
                 />
               ))}
             </ul>
           </section>
         ) : null}
-        {notes.length ? (
-          <section className="space-y-3">
-            {/* Notes do not count toward the verdict; the summary counts them apart from suggestions. */}
-            <SectionHeading className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+        {sources}
+      </div>
+    </details>
+  );
+  return (
+    <>
+      {notes.length > 0 && (
+        <details
+          className={HOLDER_ITEM_CLASS}
+          open={Boolean(startOpen && notes.length <= OPEN_DETAILS_MAX_ACTIONS)}
+        >
+          <SeoFoldSummary className="min-h-11 justify-between px-4 py-2">
+            <h3 className="text-sm font-semibold">
               {result("overview.pageNotes", { count: notes.length })}
-            </SectionHeading>
+            </h3>
+          </SeoFoldSummary>
+          <div className="space-y-3 border-t p-4">
             <ul className="space-y-3">
               {notes.map((finding) => (
                 <PageDetail
                   key={finding.id}
                   finding={finding}
                   data={data}
-                  dated={!oneCheck}
+                  dated
                   showGuidance={guidanceRows.has(finding.id)}
                   suggested={false}
                   offersFix={false}
                   onAsk={askAgent}
                   onShowRankings={showRankings}
-                  noteHeading={noteHeading}
+                  noteHeading="h4"
                 />
               ))}
             </ul>
-          </section>
-        ) : null}
-        {/* Rows show their value and guidance; provenance folds once. */}
-        {references.length ? (
-          <details className="text-muted-foreground border-border border-t pt-2 text-sm">
-            <SeoFoldSummary className="py-2.5">
-              {result("overview.references", { count: references.length })}
-            </SeoFoldSummary>
-            <ul className="list-disc space-y-1 ps-4 pt-1">
-              {references.map((reference) => (
-                <li key={reference.line} className="break-words">
-                  {reference.names.length
-                    ? `${reference.names.join(", ")}: ${reference.line}`
-                    : reference.line}
-                </li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
-      </div>
-    </details>
-  );
-  return standalone ? (
-    <section className={cn(HOLDER_CLASS, "min-w-0")}>{fold}</section>
-  ) : (
-    fold
+            {!hasPageDetails && sources}
+          </div>
+        </details>
+      )}
+      {hasPageDetails && fold}
+    </>
   );
 }

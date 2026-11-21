@@ -20,6 +20,7 @@ import {
   isCompetitorEvalCase,
 } from "./eval-cmo-competitors";
 import { CMO_ADS_CASE_ID, CMO_FUNNEL_CASE_ID } from "./eval-cmo-funnel";
+import { CMO_CORRECTION_CASE_ID } from "./eval-cmo-variety";
 import { MEETING_PREP_SCENARIO } from "./eval-meeting-prep";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
@@ -176,6 +177,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
               scenario.id === "cmo-asks-before-planning"
                 ? "cmo-new-client"
                 : scenario.id === "cmo-change-request" ||
+                    scenario.id === "cmo-change-reply-plain" ||
+                    scenario.id === CMO_CORRECTION_CASE_ID ||
                     scenario.id === CMO_FUNNEL_CASE_ID
                   ? "cmo-plan"
                   : scenario.id === CMO_ADS_CASE_ID

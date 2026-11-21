@@ -7,7 +7,7 @@ import {
   HOVER_DWELL_MS,
   RestingIntentLink,
 } from "@/components/resting-intent-link";
-import { UNSETTLED_MS } from "@/hooks/use-intent-prefetch";
+import { UNSETTLED_MS } from "@/hooks/effects/use-intent-prefetch";
 import { approachElement } from "@/test/approach-element";
 
 const routerPrefetchMock = vi.fn();

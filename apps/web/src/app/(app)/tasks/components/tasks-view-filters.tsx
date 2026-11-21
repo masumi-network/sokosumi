@@ -38,6 +38,7 @@ import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
 import { TaskTagDot } from "./task-tag-colors";
+import { TasksFilterChipStrip } from "./tasks-filter-chip-strip";
 import { replaceTasksQuery, useTasksSearchParams } from "./tasks-search-params";
 import {
   getTasksView,
@@ -69,6 +70,11 @@ interface TasksViewFiltersProps {
   /** The viewer, for the view switcher; without one it is hidden. */
   userId?: string | null;
   /**
+   * The loading shell's toolbar: it has no workspace data yet, so it loads
+   * no tags and shows My tasks until the board knows whether it applies.
+   */
+  pending?: boolean;
+  /**
    * The view options menu, shown after the Filters menu. As a function it
    * gets the view and filters in effect, each named for a reader.
    */
@@ -97,6 +103,7 @@ interface TasksViewFiltersProps {
 export function TasksViewFilters({
   activeOrganizationId,
   userId,
+  pending = false,
   display,
   coworkerOptions,
   projectOptions,
@@ -107,10 +114,12 @@ export function TasksViewFilters({
   const tTags = useTranslations("App.Tasks.Tags");
   const workspaceTags = useWorkspaceTags(activeOrganizationId, {
     includeArchived: true,
+    enabled: !pending,
   });
   const tagOptions = useMemo(
     () => [
-      ...Array.from(workspaceTags.data ?? [])
+      // Cached tags can belong to another workspace; the shell names none.
+      ...Array.from((pending ? undefined : workspaceTags.data) ?? [])
         .sort((a, b) => Number(a.archived) - Number(b.archived))
         .map((tag) => ({
           mark: <TaskTagDot {...tag} />,
@@ -125,7 +134,7 @@ export function TasksViewFilters({
         group: t("topicTags"),
       })),
     ],
-    [t, tTags, workspaceTags.data],
+    [pending, t, tTags, workspaceTags.data],
   );
   const router = useRouter();
   const pathname = usePathname();
@@ -429,28 +438,35 @@ export function TasksViewFilters({
 
   return (
     // Anchored to the board's left edge: the view switcher first, then what
-    // is active, because those are what a reader changes most. Chips wrap
-    // under them. The Filters menu holds the rest and sits at the right
+    // is active, because those are what a reader changes most. Chips follow
+    // on the switcher's line. The Filters menu holds the rest and sits at the right
     // edge, with the view options menu after it.
-    <div className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2">
+    <div
+      data-tasks-toolbar
+      className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2"
+    >
       {userId ? (
         <TasksViewSwitcher
           value={currentView}
           onChange={(view) =>
             handleFilterChange(getTasksViewPatch(view, filters, userId))
           }
-          showMine={!!me}
+          showMine={pending || !!me}
           labels={{ all: labels.all, assignedToMe: labels.assignedToMe }}
         />
       ) : null}
       {chips.length > 0 ? (
-        <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
+        <TasksFilterChipStrip
+          label={t("activeFilters")}
+          itemsKey={chips.map((chip) => `${chip.id}:${chip.value}`).join("|")}
+        >
           {chips.map((chip) => {
             const name = t("chip", { label: chip.label, value: chip.value });
             return (
               <li
                 key={chip.id}
-                className="bg-muted text-foreground inline-flex min-h-8 min-w-0 items-center rounded-full ps-3 text-sm"
+                // As wide as its whole label: the line scrolls instead.
+                className="bg-muted text-foreground inline-flex min-h-8 shrink-0 items-center rounded-full ps-3 text-sm"
               >
                 {chip.id === "tag" && filters.tag && (
                   <span className="me-1.5 flex">
@@ -458,12 +474,15 @@ export function TasksViewFilters({
                       ?.mark ?? <TaskTagDot id={filters.tag} />}
                   </span>
                 )}
-                <span className="truncate">{name}</span>
+                <span className="whitespace-nowrap" title={name}>
+                  {name}
+                </span>
                 <ChipRemoveButton
                   aria-label={t("removeFilter", { filter: name })}
                   onClick={(event) => {
-                    const toolbar =
-                      event.currentTarget.closest("ul")?.parentElement;
+                    const toolbar = event.currentTarget.closest(
+                      "[data-tasks-toolbar]",
+                    );
                     handleFilterChange(chip.clear);
                     focusToolbarControl(toolbar);
                   }}
@@ -471,11 +490,14 @@ export function TasksViewFilters({
               </li>
             );
           })}
-        </ul>
+        </TasksFilterChipStrip>
       ) : null}
       <PageSearchActions>
         <PageQuerySearchField
           inHeader
+          // Narrower beside the chips on a tablet-wide toolbar, so a chip
+          // keeps room for its whole label.
+          className="@2xl/page-toolbar:w-40 @4xl/page-toolbar:w-64"
           maxLength={TASK_SEARCH_MAX_LENGTH}
           placeholder={tPage("searchPlaceholder")}
         />

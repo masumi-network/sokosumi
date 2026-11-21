@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 
 import { ProjectImageJobStatus } from "@sokosumi/database";
 import {
+  CMO_VARIED_PRODUCTION_SKILL,
   type CmoCalendarEntry,
+  getSokoBotVersion,
+  REFERENCE_KINDS,
   SOKO_BOT_VOICEOVER_VOICES,
 } from "@sokosumi/soko-bot";
 import {
@@ -22,6 +25,10 @@ import { recordCoreWarning } from "@/lib/evlog";
 import { renderStudioPng } from "@/lib/image-studio/brand-overlay";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
+import {
+  placeScreen,
+  SCREEN_PANEL_WORDS,
+} from "@/lib/image-studio/screen-composite";
 import {
   DEFAULT_TALKING_VIDEO_VOICE,
   TALKING_VIDEO_PRESENTERS,
@@ -54,6 +61,7 @@ import {
   downloadStudioFileReference,
 } from "@/services/image-studio-jobs.service";
 import {
+  type ReferenceKind,
   readReferenceImage,
   referenceLibraryAvailable,
 } from "@/services/reference-library.service";
@@ -178,17 +186,148 @@ type StyledEntry = Pick<
   | "styleReferenceId"
   | "slides"
   | "slideHeadlines"
->;
+> &
+  Partial<Pick<CmoCalendarEntry, "date" | "time">>;
+
+type OtherStyledEntry = Pick<StyledEntry, "id" | "styleReferenceId"> &
+  Partial<Pick<StyledEntry, "channel" | "date" | "time">>;
+
+/**
+ * Whether a Cuso version makes a varied month (cmo-v8): pictures in varied
+ * kinds of print, and LinkedIn openings Core reads before a save.
+ */
+export function cmoMakesVariedMonth(
+  versionId: string | null | undefined,
+): boolean {
+  return getSokoBotVersion(versionId).skills.includes(
+    CMO_VARIED_PRODUCTION_SKILL,
+  );
+}
+
+/**
+ * Infographics a month of `styled` pictures may hold: one in four. NMKR's
+ * how-to month (2026-11-20) took 56 of 69 and read as one panel diagram
+ * after another.
+ */
+export function cmoInfographicCap(styled: number): number {
+  return Math.max(1, Math.floor(styled / 4));
+}
+
+/** The kinds of print a month's pictures may vary over (cmo-v8). */
+export interface CmoPictureKinds {
+  /** Each reference's kind, by its id. */
+  kindOf: ReadonlyMap<string, string>;
+  /** The styled pictures the month plans. */
+  planned: number;
+}
+
+const byTime = (left: OtherStyledEntry, right: OtherStyledEntry) =>
+  `${left.date ?? ""}${left.time ?? ""}`.localeCompare(
+    `${right.date ?? ""}${right.time ?? ""}`,
+  );
+
+/**
+ * The month's kind rules for a save: at most one infographic in four, and
+ * no two neighbouring pieces on a network in one kind. Only what the save
+ * brings is refused; a month that already broke a rule keeps what it has.
+ */
+function pictureKindProblem(
+  saved: readonly OtherStyledEntry[],
+  others: readonly OtherStyledEntry[],
+  kinds: CmoPictureKinds,
+): string | null {
+  const savedIds = new Set(saved.map((entry) => entry.id));
+  const month = new Map<string, OtherStyledEntry & { kind: string }>();
+  for (const entry of [...others, ...saved]) {
+    const kind = entry.styleReferenceId
+      ? kinds.kindOf.get(entry.styleReferenceId)
+      : undefined;
+    if (kind) month.set(entry.id, { ...entry, kind });
+    else month.delete(entry.id);
+  }
+  const infographics = [...month.values()].filter(
+    (entry) => entry.kind === "infographic",
+  );
+  const cap = cmoInfographicCap(kinds.planned);
+  const added = infographics.filter((entry) => savedIds.has(entry.id));
+  if (infographics.length > cap && added.length > 0)
+    return `Nothing was saved: ${added.map((entry) => entry.id).join(", ")} would make ${infographics.length} infographics in a month of ${kinds.planned} pictures. At most ${cap} (one in four), and only on a picture that shows numbers or a comparison: give ${added.length === 1 ? "it" : "them"} another kind of print (find_style_references with the piece's real purpose) and save again.`;
+  const byChannel = new Map<string, (OtherStyledEntry & { kind: string })[]>();
+  for (const entry of month.values())
+    if (entry.channel && entry.date)
+      byChannel.set(entry.channel, [
+        ...(byChannel.get(entry.channel) ?? []),
+        entry,
+      ]);
+  for (const [channel, entries] of byChannel) {
+    const ordered = entries.sort(byTime);
+    for (let index = 1; index < ordered.length; index++) {
+      const before = ordered[index - 1]!;
+      const after = ordered[index]!;
+      if (
+        before.kind === after.kind &&
+        (savedIds.has(before.id) || savedIds.has(after.id))
+      )
+        return `Nothing was saved: ${before.id} and ${after.id} follow each other on ${channel} in one kind of print (${after.kind}). Give one of them another kind (find_style_references with kinds left out of ${after.kind}) and save again.`;
+    }
+  }
+  return null;
+}
+
+/** A styled piece of the month with its print's kind. */
+export interface CmoKindedPiece {
+  id: string;
+  channel: string;
+  date?: string;
+  time?: string;
+  kind: string;
+}
+
+/**
+ * The kinds a piece's print may take so the month keeps the kind rules: not
+ * its neighbours' on its network, and an infographic only for numbers or a
+ * comparison while the month is under its cap.
+ */
+export function cmoAllowedKinds(input: {
+  piece: Omit<CmoKindedPiece, "kind">;
+  month: readonly CmoKindedPiece[];
+  infographicSuits: boolean;
+  planned: number;
+}): ReferenceKind[] {
+  const { piece } = input;
+  const others = input.month.filter((entry) => entry.id !== piece.id);
+  const lane = [
+    ...others.filter((entry) => entry.channel === piece.channel),
+    piece,
+  ].sort(byTime);
+  const at = lane.indexOf(piece);
+  const neighbours = new Set(
+    [lane[at - 1], lane[at + 1]].flatMap((entry) =>
+      entry && "kind" in entry ? [entry.kind] : [],
+    ),
+  );
+  const infographics = others.filter(
+    (entry) => entry.kind === "infographic",
+  ).length;
+  const infographicFits =
+    input.infographicSuits && infographics < cmoInfographicCap(input.planned);
+  return REFERENCE_KINDS.filter(
+    (kind) =>
+      !neighbours.has(kind) && (kind !== "infographic" || infographicFits),
+  );
+}
 
 /**
  * Why a save of pictures cannot be kept, or null: every picture takes a
  * library style, a carousel has its words per slide, and no reference is
- * used on two pieces of a month. `saved` are the pieces being saved, as they
- * will stand; `others` every other piece of the month.
+ * used on two pieces of a month. With `kinds` (cmo-v8), the month's kinds
+ * vary too. `saved` are the pieces being saved, as they will stand;
+ * `others` every other piece of the month.
  */
 export function cmoPictureStyleProblem(
   saved: readonly StyledEntry[],
-  others: readonly Pick<StyledEntry, "id" | "styleReferenceId">[],
+  others: readonly OtherStyledEntry[],
+  kinds?: CmoPictureKinds,
 ): string | null {
   const pictures = saved.filter(
     (entry) => cmoPieceTakesStyle(entry) && entry.visual?.trim(),
@@ -210,7 +349,7 @@ export function cmoPictureStyleProblem(
       return `Nothing was saved: ${entry.id} and ${first} use the same style reference. Each piece takes its own: pick another result of find_style_references for one of them and save again.`;
     owner.set(entry.styleReferenceId, entry.id);
   }
-  return null;
+  return kinds ? pictureKindProblem(pictures, others, kinds) : null;
 }
 
 /** What Core makes a piece's media from: its visual, or a talking video's script. */
@@ -552,6 +691,8 @@ export function cmoStylePrompt(input: {
   colours: readonly string[];
   /** The brand's own pictures sent after the reference. */
   brandPictures?: number;
+  /** Core places the brand's real screen on a plain panel afterwards. */
+  screen?: boolean;
 }): string {
   const { piece } = input;
   const slides = piece.slides?.length ?? 0;
@@ -565,6 +706,9 @@ export function cmoStylePrompt(input: {
       ? `${own > 1 ? "The other images are" : "The second image is"} ${input.businessName}'s own picture${own > 1 ? "s" : ""} of its site or product. Set what the scene shows of it into the composition as it is, like a plate printed into the page: its layout, words and colours unchanged and readable. Invent no price, number, plan, label or interface detail it does not show.`
       : "",
     `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slides > 1 ? " One picture of a series: the others share this same style and colours. Draw no slide number, page number or counter." : ""}${slide ? ` This slide: ${slide}.` : ""}`,
+    input.screen
+      ? `Leave one plain, light, empty panel ${SCREEN_PANEL_WORDS}, with nothing drawn in it and no frame of your own: the brand's real screen is placed there afterwards. Draw no other screen, browser, phone, laptop, monitor or web page anywhere in the picture. Keep the headline in the top quarter, above the panel.`
+      : "",
     headline
       ? `${own > 0 ? "Besides what stands in the brand's own picture, the" : "The"} only words in the picture: "${headline}", lettered large in the reference's style and spelled exactly. ${STEPS_WITHOUT_WORDS}`
       : own > 0
@@ -629,6 +773,11 @@ interface MediaContext {
   cuso: Pick<Cuso, "projectId" | "workspaceId" | "sokoBotId" | "businessName">;
   versionId: string;
   connected: ReadonlySet<string>;
+  /**
+   * Core schedules every finished post, words-only ones too (cmo-v6): Cuso
+   * no longer schedules in a production run.
+   */
+  schedulesEveryPost?: boolean;
 }
 
 /** The brand a styled picture is made and finished with. */
@@ -719,8 +868,9 @@ export async function advanceCmoMedia(
       piece.socialPostId &&
       piece.status === "draft" &&
       context.connected.has(piece.channel) &&
-      cmoPieceNeedsMedia(piece) &&
-      cmoMediaState(piece, []) === "made",
+      (cmoPieceNeedsMedia(piece)
+        ? cmoMediaState(piece, []) === "made"
+        : context.schedulesEveryPost === true),
   );
   if (wanted.length === 0 && unscheduled.length === 0) return;
   const drive = await cusoDrive(context.cuso);
@@ -778,12 +928,15 @@ export async function advanceCmoMedia(
         piece,
         slot,
         action,
+        // A styled picture's screen is placed by Core, never redrawn.
         references:
-          action.step === "video" || action.step === "talking"
+          action.step === "video" || action.step === "talking" || styled(piece)
             ? []
-            : styled(piece)
-              ? styleBrandPictures(piece, brandPictures)
-              : references(piece, brandPictures),
+            : references(piece, brandPictures),
+        screen:
+          styled(piece) &&
+          action.step === "image" &&
+          styleBrandPictures(piece, brandPictures).length > 0,
         colours:
           styled(piece) && action.step !== "video" && action.step !== "talking"
             ? (await brandFor()).colours
@@ -913,6 +1066,8 @@ async function start(
     references: string[];
     /** The brand's colours, for a picture in a reference library style. */
     colours: string[];
+    /** A styled picture leaves a panel for the brand's real screen. */
+    screen?: boolean;
   },
 ): Promise<boolean> {
   const { piece, slot, action } = input;
@@ -977,7 +1132,7 @@ async function start(
             slot,
             businessName: context.cuso.businessName,
             colours: input.colours,
-            brandPictures: input.references.length,
+            screen: input.screen ?? false,
           })
         : cmoImagePrompt({
             piece,
@@ -1042,6 +1197,7 @@ async function attach(
         },
         job,
         style,
+        job.step === "image" ? await pieceScreen(context, drive, piece) : null,
       )
     : null;
   if (finished === "rejected") return false;
@@ -1136,6 +1292,8 @@ async function checkAndBrand(
   piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline" | "visual">,
   job: Pick<CmoMediaJob, "id" | "assetId">,
   style: StyleBrand,
+  /** The brand's real screen, placed on the picture's panel before the check. */
+  screen: Uint8Array | null = null,
 ): Promise<"rejected" | { bytes: Buffer; contentType: string }> {
   const asset = await prisma.projectImageAsset.findUnique({
     where: { id: job.assetId ?? "" },
@@ -1145,29 +1303,50 @@ async function checkAndBrand(
     ? await readReferenceImage(piece.styleReferenceId)
     : null;
   if (!asset || !reference) return "rejected";
-  const picture = await readAssetBytes(asset.blobPathname);
-  const check = await checkStyledPicture({
-    picture,
-    reference: reference.bytes,
-    headline: piece.headline ?? null,
-    scene: piece.visual ?? null,
-    colours: style.colours,
-    brandPictures: await jobBrandPictures(job.id),
-  });
-  await recordSokoBotCheckUsage({
-    sokoBotId: context.cuso.sokoBotId,
-    key: `cmo-style-check:${job.id}`,
-    costUsd: check.costUsd,
-  });
-  if (!check.passes) {
-    await prisma.projectImageJob.update({
-      where: { id: job.id },
-      data: {
-        error: `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`,
-      },
-      select: { id: true },
+  // One verdict per job: a pass that already judged it is followed.
+  const judged = await jobVerdict(job.id);
+  if (judged === "rejected") return "rejected";
+  const made = await readAssetBytes(asset.blobPathname);
+  const picture = screen
+    ? asset.contentType === "image/png"
+      ? await placeScreen(made, screen)
+      : await sharp(await placeScreen(made, screen))
+          .jpeg({ quality: 92 })
+          .toBuffer()
+    : made;
+  if (judged !== "passed") {
+    const check = await checkStyledPicture({
+      picture,
+      reference: reference.bytes,
+      headline: piece.headline ?? null,
+      scene: screen
+        ? `${piece.visual ?? ""} ${PLACED_SCREEN_NOTE}`.trim()
+        : (piece.visual ?? null),
+      colours: style.colours,
+      brandPictures: screen ? [screen] : await jobBrandPictures(job.id),
     });
-    return "rejected";
+    await recordSokoBotCheckUsage({
+      sokoBotId: context.cuso.sokoBotId,
+      key: `cmo-style-check:${job.id}`,
+      costUsd: check.costUsd,
+    });
+    // Two passes once checked one job at the same time: the first passed and
+    // put the picture on its post, the second refused and marked the job.
+    // The first verdict stored wins, and a later one follows it.
+    const verdict = check.passes
+      ? CMO_STYLE_PASSED
+      : `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`;
+    const { count } = await prisma.projectImageJob.updateMany({
+      where: { id: job.id, error: null },
+      data: { error: verdict },
+    });
+    const outcome =
+      count > 0
+        ? check.passes
+          ? "passed"
+          : "rejected"
+        : await jobVerdict(job.id);
+    if (outcome !== "passed") return "rejected";
   }
   const logo = await logoForPicture(picture, style);
   if (!logo) {
@@ -1182,6 +1361,47 @@ async function checkAndBrand(
         bytes: await sharp(png).jpeg({ quality: 90 }).toBuffer(),
         contentType: "image/jpeg",
       };
+}
+
+/**
+ * Told to the check when Core placed the screen: scenes name "hands holding
+ * a phone showing the page", and the check refused Core's frame for hiding
+ * the phone (2026-11-20).
+ */
+export const PLACED_SCREEN_NOTE =
+  "(Core placed the brand's real page itself, in a plain browser window or phone in the middle: it stands in for any screen, phone or laptop this scene names.)";
+
+/** The style verdict stored on a job, if a check already judged it. */
+async function jobVerdict(
+  jobId: string,
+): Promise<"passed" | "rejected" | null> {
+  const row = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: { error: true },
+  });
+  if (row?.error === CMO_STYLE_PASSED) return "passed";
+  if (row?.error?.startsWith(CMO_STYLE_REJECTED)) return "rejected";
+  return null;
+}
+
+/** The brand's real screen a styled piece shows, if its visual names one. */
+async function pieceScreen(
+  context: MediaContext,
+  drive: CusoDrive,
+  piece: CmoMediaPiece,
+): Promise<Uint8Array | null> {
+  const [fileId] = styleBrandPictures(
+    piece,
+    await listCmoBrandPictures(context.cuso.projectId),
+  );
+  if (!fileId) return null;
+  return downloadStudioFileReference(drive.workspaceId, fileId, {
+    userId: drive.userId,
+    organizationId: drive.organizationId,
+    kind: "soko_bot",
+  })
+    .then((file) => file.bytes)
+    .catch(() => null);
 }
 
 /** The brand's own pictures a styled job was made from, for its check. */

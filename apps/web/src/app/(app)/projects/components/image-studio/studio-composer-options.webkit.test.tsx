@@ -22,11 +22,10 @@ import english from "../../../../../../messages/en.json";
 import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG } from "./studio-fixtures";
 import { buildStudioLabels } from "./studio-labels";
-import type { StudioCatalog } from "./types";
 
 vi.mock("@/lib/auth/auth.client", () => ({ authClient: {} }));
-vi.mock("./studio-approved-headlines", () => ({
-  readApprovedStudioHeadlines: vi.fn(),
+vi.mock("./studio-headline-kit", () => ({
+  readStudioHeadlineKit: vi.fn(),
 }));
 // Static markup has no open Radix popover, so each popover's content renders
 // in place with the shell classes of `PopoverContent`. `showOptions` then lifts
@@ -58,26 +57,6 @@ vi.mock("@/components/ui/popover", async () => {
 });
 
 const WEB_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
-const [imageModel] = TEST_CATALOG.models;
-// Six models as production lists them: four write png, two pick their own
-// format, so every model shares the frame and only the format differs.
-const catalog: StudioCatalog = {
-  ...TEST_CATALOG,
-  models: [
-    "Meta Muse Image",
-    "Gemini 3.1 Flash Image",
-    "Gemini 3 Pro Image",
-    "FLUX.2 Pro",
-    "Ideogram Text to Image",
-    "Recraft V3",
-  ].map((label, index) => ({
-    ...imageModel,
-    id: `options-model-${index}`,
-    label,
-    outputFormats: index < 4 ? imageModel.outputFormats : [],
-  })),
-};
-
 let context: BrowserContext;
 let page: Page;
 let profile: string;
@@ -126,7 +105,7 @@ async function showOptions(width: number, locale: "en" | "de" = "en") {
         <div className="mx-auto w-full max-w-3xl">
           <StudioComposer
             busy={false}
-            catalog={catalog}
+            catalog={TEST_CATALOG}
             labels={labels}
             onApplyTemplate={() => {}}
             onClearReferences={() => {}}
@@ -137,7 +116,6 @@ async function showOptions(width: number, locale: "en" | "de" = "en") {
             prompt=""
             referenceAssets={[]}
             target={{
-              modelIds: catalog.models.map(({ id }) => id),
               settings: {
                 aspectRatio: "1:1",
                 resolution: "1K",
@@ -185,32 +163,20 @@ async function showOptions(width: number, locale: "en" | "de" = "en") {
 }
 
 describe("Content Studio Options popover", () => {
-  it.each([390, 1024])(
-    "states the shared size once and keeps placements in view at %ipx",
-    async (width) => {
-      const options = await showOptions(width);
-      const studio = english.App.Studio;
+  it.each([390, 1024])("keeps placements in view at %ipx", async (width) => {
+    const options = await showOptions(width);
+    const studio = english.App.Studio;
 
-      // One shared line, then only the two models whose format differs.
-      expect(
-        await options.getByText(`${studio.dimensions}: 1:1 · 1K · png`).count(),
-      ).toBe(1);
-      expect(await options.getByRole("listitem").allTextContents()).toEqual([
-        `Ideogram Text to Image · 1:1 · 1K · ${studio.modelChoosesFormat}`,
-        `Recraft V3 · 1:1 · 1K · ${studio.modelChoosesFormat}`,
-      ]);
-
-      // Placements sit inside the opened popover, not below its fold.
-      const box = await options.boundingBox();
-      const placements = await options
-        .getByText(studio.adPlacements, { exact: true })
-        .boundingBox();
-      if (!box || !placements) throw new Error("Popover is hidden");
-      expect(placements.y + placements.height).toBeLessThanOrEqual(
-        box.y + box.height,
-      );
-    },
-  );
+    // Placements sit inside the opened popover, not below its fold.
+    const box = await options.boundingBox();
+    const placements = await options
+      .getByText(studio.adPlacements, { exact: true })
+      .boundingBox();
+    if (!box || !placements) throw new Error("Popover is hidden");
+    expect(placements.y + placements.height).toBeLessThanOrEqual(
+      box.y + box.height,
+    );
+  });
 
   it.each(["en", "de"] as const)(
     "keeps each option label on one line at 390px in %s",

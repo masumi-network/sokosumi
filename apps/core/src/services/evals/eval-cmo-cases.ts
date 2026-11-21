@@ -29,8 +29,8 @@ export interface CmoEvalBrand {
   why?: string;
   /** Research found a website and no profile on any network. */
   websiteOnly?: boolean;
-  /** One cmo-v5 promise the case checks on its own. */
-  focus?: "top-volume" | "funnel-plan" | "video-networks";
+  /** One promise the case checks on its own (cmo-v5's three, cmo-v8's claims). */
+  focus?: "top-volume" | "funnel-plan" | "video-networks" | "claims";
   /** The Cuso works on Tester credits, with no plan bought. */
   testerCredits?: boolean;
 }
@@ -66,6 +66,15 @@ export type CmoEvalCase =
       pictures?: true;
       /** A month with a newsletter issue: scored on the issue Core files. */
       newsletter?: true;
+      /**
+       * cal.com's 28-piece month (the change request's), timed: how long
+       * until every word is written and how many tokens production read.
+       */
+      timed?: true;
+      /** A one-pillar how-to month: scored on the kinds of print its pictures take. */
+      variety?: true;
+      /** A LinkedIn month: scored on Jev's read of each post's first two lines. */
+      openings?: true;
     };
 
 /**
@@ -225,6 +234,119 @@ const PICTURE_PIECES = [
   campaignId: "team-routing-trial",
 }));
 
+/**
+ * NMKR's month (2026-11-20) was how-to from end to end, on one pillar, and
+ * 56 of its 69 pictures took an infographic. Eight how-to pictures on three
+ * networks, one pillar: the kinds must still vary.
+ */
+const VARIETY_PIECES = [
+  ["x", "09:00", "Mint a token in three steps"],
+  ["linkedin", "10:00", "Set royalties before the first sale"],
+  ["instagram", "11:00", "Upload art and metadata in one go"],
+  ["x", "09:00", "Check a policy ID before you buy"],
+  ["linkedin", "10:00", "Price a drop without a spreadsheet"],
+  ["instagram", "11:00", "Airdrop to a holder list"],
+  ["x", "09:00", "Lock a policy so supply is final"],
+  ["linkedin", "10:00", "Sell with a payment link in NMKR Studio"],
+].map(([channel, time, title], index) => ({
+  id: `nmkr-variety-${index + 1}`,
+  date: `2026-11-${String(10 + Math.floor(index / 3)).padStart(2, "0")}`,
+  time,
+  channel,
+  title,
+  format: "image",
+  brief: `A how-to piece: ${title.toLowerCase()} in NMKR Studio, step by step, for a creator launching a first collection.`,
+  approach: "educational",
+  pillar: "Minting without code",
+  status: "idea",
+}));
+
+/** NMKR's strategy for the variety month: one pillar, how-to only. */
+function nmkrHowToPlan(): unknown {
+  const base = frozenPlans["cal.com"] as Record<string, unknown>;
+  return {
+    ...base,
+    summary:
+      "Show creators and brands how to mint and sell tokens on Cardano with NMKR Studio, no code.",
+    why: "Creators pick a minting tool by how fast a first drop goes live.",
+    goals: ["More paid NMKR Studio projects"],
+    audience: "Creators and brands launching tokens on Cardano",
+    positioning: "The no-code way to mint and sell on Cardano",
+    idea: {
+      who: "Creators and brands launching tokens on Cardano",
+      position: "The no-code way to mint and sell on Cardano",
+      attract: "One NMKR Studio task shown start to finish on each network",
+      offer: "NMKR Studio",
+      sentence:
+        "We show creators one NMKR Studio task at a time, start to finish, and invite them to start a project.",
+    },
+    pillars: [
+      {
+        name: "Minting without code",
+        share: 100,
+        why: "What NMKR Studio does",
+      },
+    ],
+    mix: [
+      {
+        approach: "educational",
+        share: 100,
+        why: "How-to teaches the product",
+      },
+    ],
+    channels: ["x", "linkedin", "instagram"].map((channel) => ({
+      channel,
+      cadence: "3 a week",
+      why: "Where Cardano creators and brands look for tools.",
+    })),
+    offer: {
+      what: "NMKR Studio",
+      why: "Mint and sell without code",
+      proof: [],
+      action: "Start a project in NMKR Studio",
+    },
+    campaigns: [],
+    funnel: [],
+    questions: [],
+    beforeAfter: [],
+    calendar: VARIETY_PIECES,
+  };
+}
+
+/**
+ * cal.com's LinkedIn posts (2026-11-20) opened on advice and failed Jev's
+ * hook rule on 2 of 2 runs: four how-to and product posts, where advice is
+ * the easy opening.
+ */
+const OPENING_PIECES = [
+  [
+    "09:00",
+    "How routing forms pick the right rep",
+    "educational",
+    "Lead routing",
+  ],
+  [
+    "10:00",
+    "Five settings admins change first",
+    "educational",
+    "Setup and control",
+  ],
+  ["11:00", "Round-robin without spreadsheets", "product-led", "Team booking"],
+  ["12:00", "Reminders that cut no-shows", "educational", "Team booking"],
+].map(([time, title, approach, pillar], index) => ({
+  id: `cal-openings-${index + 1}`,
+  date: "2026-11-10",
+  time,
+  channel: "linkedin",
+  title,
+  format: "post",
+  brief: `${title}, for revenue teams evaluating Cal.com Teams.`,
+  approach,
+  pillar,
+  status: "idea",
+  campaignId: "team-routing-trial",
+}));
+
 /** A post and the newsletter issue it points to: the issue is a Files piece. */
 const NEWSLETTER_PIECES = [
   {
@@ -295,6 +417,34 @@ export const CMO_EVAL_CASES = [
         },
       ]
     : []),
+  ...(frozenBrains["nmkr.io"]
+    ? [
+        {
+          id: "cmo-strategy-one-pillar-claims",
+          suite: "cmo" as const,
+          area: "Strategy",
+          title: "Gives every piece of a one-pillar month its own point",
+          intent:
+            "NMKR's month made one point in most posts. On a one-pillar brand every calendar entry argues its own claim, and no point comes back twice in a week or more than three times in the month.",
+          kind: "cmo-strategy" as const,
+          brand: { ...brand("nmkr.io"), focus: "claims" as const },
+          brandBrain: frozenBrains["nmkr.io"],
+        },
+        {
+          id: "cmo-month-picture-variety",
+          suite: "cmo" as const,
+          area: "Month",
+          title: "Varies the pictures of a how-to month",
+          intent:
+            "A month of how-to pieces on one pillar takes an infographic for at most one picture in four, and neighbouring pictures on a network take different kinds of print.",
+          kind: "cmo-month" as const,
+          brand: brand("nmkr.io"),
+          brandBrain: frozenBrains["nmkr.io"],
+          plan: nmkrHowToPlan(),
+          variety: true as const,
+        },
+      ]
+    : []),
   ...CMO_V5_FOCUS_CASES.filter(({ brand: name }) => frozenBrains[name]).map(
     ({ id, brand: name, title, intent, ...extra }) => ({
       id,
@@ -324,6 +474,19 @@ export const CMO_EVAL_CASES = [
   ...(frozenBrains["cal.com"] && frozenPlans["cal.com"]
     ? [
         {
+          id: "cmo-month-timed",
+          suite: "cmo" as const,
+          area: "Month",
+          title: "Makes a 28-piece month in minutes, on few tokens",
+          intent:
+            "A whole month of posts, pictures and newsletter issues is written within fifteen minutes of approval, production reads at most 200,000 input tokens a piece, and Jev finds the pieces follow their skills and the brand's voice.",
+          kind: "cmo-month" as const,
+          brand: brand("cal.com"),
+          brandBrain: frozenBrains["cal.com"],
+          plan: frozenPlans["cal.com"],
+          timed: true as const,
+        },
+        {
           id: "cmo-month-styled-pictures",
           suite: "cmo" as const,
           area: "Month",
@@ -338,6 +501,22 @@ export const CMO_EVAL_CASES = [
             calendar: PICTURE_PIECES,
           },
           pictures: true as const,
+        },
+        {
+          id: "cmo-month-linkedin-openings",
+          suite: "cmo" as const,
+          area: "Month",
+          title: "Opens cal.com's LinkedIn posts on a result",
+          intent:
+            "Every LinkedIn post's first two lines carry a result, a number, a named customer or a surprising decision, never advice, so Jev's hook rule holds on all of them.",
+          kind: "cmo-month" as const,
+          brand: brand("cal.com"),
+          brandBrain: frozenBrains["cal.com"],
+          plan: {
+            ...(frozenPlans["cal.com"] as object),
+            calendar: OPENING_PIECES,
+          },
+          openings: true as const,
         },
         {
           id: "cmo-month-newsletter",

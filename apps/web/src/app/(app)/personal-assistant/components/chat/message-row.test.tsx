@@ -5,6 +5,7 @@ import { expect, it } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import type { ChatTurn } from "@/lib/soko-bot/chat-state";
 import messages from "@/messages/en.json";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { TurnRows } from "./message-row";
 
@@ -43,14 +44,16 @@ it.each([
   };
 
   render(
-    <NextIntlClientProvider
-      locale="en"
-      messages={messages}
-      formats={createFormats()}
-      timeZone="UTC"
-    >
-      <TurnRows turn={turn} onDecisionResolved={() => {}} />
-    </NextIntlClientProvider>,
+    <TestQueryProvider>
+      <NextIntlClientProvider
+        locale="en"
+        messages={messages}
+        formats={createFormats()}
+        timeZone="UTC"
+      >
+        <TurnRows turn={turn} onDecisionResolved={() => {}} />
+      </NextIntlClientProvider>
+    </TestQueryProvider>,
   );
 
   expect(screen.queryByText(providerDetail)).not.toBeInTheDocument();

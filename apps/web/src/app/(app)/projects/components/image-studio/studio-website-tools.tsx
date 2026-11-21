@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useStudioWebsiteDraftRequest } from "@/hooks/effects/use-studio-website-draft-request";
 import { prepareStudioWebsiteDraft } from "@/lib/actions/image-studio/brand-kit";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,6 @@ import {
   STUDIO_TOOLBAR_LABEL_CLASS,
   StudioToolbarTip,
 } from "./studio-project-toolbar";
-import { consumeStudioWebsiteDraftRequest } from "./studio-website-intent";
 
 export function StudioWebsiteTools({
   canUseProduct,
@@ -95,9 +94,7 @@ export function StudioWebsiteTools({
     });
   }
 
-  useMountEffect(() => {
-    if (websiteUrl && consumeStudioWebsiteDraftRequest(projectId)) prepare();
-  });
+  useStudioWebsiteDraftRequest(projectId, websiteUrl, prepare);
 
   return (
     <>

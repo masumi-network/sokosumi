@@ -790,9 +790,18 @@ textarea {
 }
 
 /* ── Shell ── */
+/*
+ * The app: the sidebar, then the page. The page keeps a gutter on its left
+ * (`--gutter`) where the sidebar's Cuso leans in, so he never covers it.
+ */
 .app {
+  --side-width: 280px;
+  --gutter: 80px;
+  --page-x: 48px;
+  --page-left: calc(var(--gutter) + var(--page-x));
+
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: var(--side-width) minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
   font-size: 0.875rem;
@@ -838,330 +847,67 @@ textarea {
 
 .side {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  /* A short window still reaches the account at the bottom. */
-  overflow-y: auto;
   border-right: var(--line-width) solid var(--line);
   background: var(--surface);
 }
 
-/* Room enough for every row and Cuso: he may lean out over the edge. */
-@media (min-height: 840px) {
-  .side {
-    overflow: visible;
-  }
-}
-
-/*
- * The Business this Cuso works for, as the head of the sidebar: its logo (or
- * mark and name), its site, and the switch to the Cuso picker.
- */
+/* The Business this Cuso works for, and the person: their avatar opens the account menu. */
 .side-head {
-  display: grid;
-  flex: none;
-  gap: 8px;
-  padding: 20px 20px 16px;
-  border-bottom: var(--line-width) solid var(--line);
-}
-
-.side-logo {
   display: flex;
-  height: 32px;
-}
-
-.side-logo img {
-  max-width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: left center;
-}
-
-.side-logo .side-logo-dark {
-  display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .side-logo .side-logo-light {
-    display: none;
-  }
-
-  :root:not([data-theme="light"]) .side-logo .side-logo-dark {
-    display: block;
-  }
-}
-
-:root[data-theme="dark"] .side-logo .side-logo-light {
-  display: none;
-}
-
-:root[data-theme="dark"] .side-logo .side-logo-dark {
-  display: block;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 20px 8px;
 }
 
 .side-name {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex: 1;
+  flex-direction: column;
   min-width: 0;
-  font-size: 1rem;
   line-height: 1.25;
 }
 
-.side-name b {
+.side-name b,
+.side-name a {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.side-head-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  font-size: 0.75rem;
+.side-name b {
+  font-size: 1rem;
 }
 
-.side-head-row a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
+.side-name a {
   color: var(--muted);
+  font-size: 0.75rem;
   text-decoration: none;
 }
 
-.side-head-row a:hover {
+.side-name a:hover {
   color: var(--foreground);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.side-site {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-}
-
-.nav a {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 10px;
-  border: var(--line-width-small) solid var(--clear);
-  border-radius: var(--radius-control);
-  background: var(--clear);
-  color: var(--foreground);
-  font: inherit;
-  font-size: 0.875rem;
-  text-align: left;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.nav-label {
-  flex: 1;
-}
-
-.nav a svg {
-  flex: none;
-  color: var(--muted);
-}
-
-.nav a:hover {
-  background: var(--card);
-}
-
-/* The page you are on: Iris, the pill line and the pill shadow. */
-.nav a.active {
-  border-color: var(--line);
-  background: var(--primary);
-  box-shadow: var(--shadow);
-  color: var(--primary-foreground);
-  font-weight: 600;
-}
-
-.nav a.active svg {
-  color: var(--primary-foreground);
-}
-
-/*
- * Cuso on every page: large, at the foot of the sidebar, on his light stage
- * leaning 20px out over its edge (no page puts anything in its first 24px).
- * Above him, his bubble says what he is doing. The drawing never takes a
- * press; only the bubble does, while he needs the owner.
- */
-.cuso-status {
-  display: grid;
-  flex: none;
-  gap: 6px;
-  padding: 0 12px 8px;
-  pointer-events: none;
-}
-
-.cuso-says {
-  position: relative;
-  display: grid;
-  gap: 2px;
-  justify-self: start;
-  max-width: 100%;
-  margin: 0;
-  padding: 8px 12px;
-  border: var(--line-width-small) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--card);
-  color: var(--foreground);
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1.3;
-  text-align: left;
-  pointer-events: auto;
-}
-
-/* The bubble's tail points down at him. */
-.cuso-says::after {
-  position: absolute;
-  right: 20px;
-  bottom: -7px;
-  width: 12px;
-  height: 12px;
-  border-right: var(--line-width-small) solid var(--line);
-  border-bottom: var(--line-width-small) solid var(--line);
-  background: inherit;
-  content: "";
-  transform: rotate(45deg);
-}
-
-.cuso-says-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-}
-
-.cuso-says .ob-box-dot {
-  flex: none;
-}
-
-.cuso-says .ob-scene-bar {
-  position: relative;
-  inset: auto;
-  width: 100%;
-  background: var(--border);
-}
-
-/* He needs the owner: the bubble is the way to Today, on Iris. */
-button.cuso-says-call {
-  background: var(--primary);
-  box-shadow: var(--shadow);
-  color: var(--primary-foreground);
-  cursor: pointer;
-}
-
-button.cuso-says-call .cuso-says-line {
-  color: var(--primary-foreground);
-  font-weight: 600;
-}
-
-button.cuso-says-call:active {
-  transform: translate(var(--offset), var(--offset));
-  box-shadow: none;
-}
-
-/* His black line needs a light ground in both themes: the stage. */
-.cuso-stage {
-  display: grid;
-  justify-self: end;
-  place-items: end center;
-  width: 168px;
-  height: 168px;
-  margin-right: -32px;
-  overflow: hidden;
-  border: var(--line-width) solid var(--line);
-  border-radius: 50%;
-  background: var(--stage);
-  transition:
-    opacity 200ms,
-    transform 200ms;
-}
-
-.cuso-stage img {
-  width: 82%;
-  height: 82%;
-  object-fit: contain;
-  object-position: 50% 100%;
-}
-
-/* A sheet or dialog is open: he steps back so nothing sits on it. */
-.app:has(.sheet-scrim, [role="dialog"]) .cuso-stage {
-  opacity: 0;
-  transform: translateY(24px);
-}
-
-@media (max-height: 899px) {
-  .cuso-stage {
-    width: 128px;
-    height: 128px;
-  }
-}
-
-@media (max-height: 839px) {
-  .cuso-stage {
-    display: none;
-  }
-}
-
-/* He arrives in each new pose, then breathes. */
-@media (prefers-reduced-motion: no-preference) {
-  .cuso-stage img {
-    animation:
-      cuso-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
-      cuso-bob 3.2s ease-in-out 520ms infinite alternate;
-  }
-}
-
-@keyframes cuso-bob {
-  to {
-    transform: translateY(-5px);
-  }
-}
-
-/* The person, at the foot of the sidebar: the whole row opens the account menu. */
 .side .ob-who {
-  display: block;
+  position: relative;
   flex: none;
-  margin: 0 12px 12px;
 }
 
 .who-button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
-  border: var(--line-width-small) solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  color: var(--foreground);
-  font: inherit;
-  text-align: left;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
   cursor: pointer;
-}
-
-.who-button:hover,
-.who-button[aria-expanded="true"] {
-  background: var(--surface);
 }
 
 .who-button:focus-visible {
@@ -1169,15 +915,67 @@ button.cuso-says-call:active {
   outline-offset: 2px;
 }
 
-.who-button > svg {
-  flex: none;
+/*
+ * The person: a plain 36px avatar, their picture or their initial on a light
+ * disc. It opens a menu, so it gives on hover and shows focus, with no shadow.
+ */
+.avatar-ring {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  transition: background-color 150ms;
+}
+
+.who-button:hover .avatar-ring,
+.who-button[aria-expanded="true"] .avatar-ring {
+  background: var(--border);
+}
+
+/* Settings is open: the picked page's fill, around the avatar. */
+.avatar-ring-active,
+.who-button:hover .avatar-ring-active {
+  background: var(--primary);
+}
+
+.who-button .avatar {
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  border: var(--line-width-small) solid var(--line);
+}
+
+.who-button .avatar-initial {
+  background: var(--stage);
+  color: var(--primary-foreground);
+  font-size: 0.875rem;
+}
+
+.who-button .avatar-photo {
+  object-fit: cover;
+  background: var(--stage);
 }
 
 .side .ob-who-menu {
-  top: auto;
+  top: calc(100% + 6px);
   right: 0;
-  bottom: calc(100% + 6px);
-  left: 0;
+  left: auto;
+  z-index: 4;
+  width: 260px;
+}
+
+.ob-who-person {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.ob-who-person .note {
+  color: var(--muted);
 }
 
 .avatar,
@@ -1194,26 +992,228 @@ button.cuso-says-call:active {
   font-weight: 600;
 }
 
-.who-text {
+/* The pages: what the owner opens daily, then a quiet group for the brand. */
+.nav {
   display: flex;
-  flex: 1;
+  flex: 0 1 auto;
   flex-direction: column;
-  min-width: 0;
-  line-height: 1.3;
+  min-height: 0;
+  padding: 12px 16px 16px;
+  overflow-y: auto;
 }
 
-/* The name and email show whole: a long one wraps, it is never cut. */
-.who-name,
-.who-text .note {
-  overflow-wrap: anywhere;
+.nav-main,
+.nav-brand {
+  display: grid;
+  gap: 4px;
 }
 
-.who-name {
-  font-weight: 500;
-}
-
-.who-text .note {
+.nav-group {
+  margin: 0;
+  padding: 16px 14px 6px;
+  color: var(--muted);
   font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nav a {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 14px;
+  border: var(--line-width) solid var(--clear);
+  border-radius: var(--radius-control);
+  color: var(--foreground);
+  font-size: 1rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-brand a {
+  height: 40px;
+}
+
+.nav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav a:hover {
+  background: var(--card);
+}
+
+/* The page you are on: a white card on its line with the hard shadow. */
+.nav a.active {
+  border-color: var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+}
+
+/*
+ * Cuso on every page: on an Iris stage at the foot of the sidebar, in a
+ * light porthole, reaching out over the sidebar's edge into the page's
+ * gutter (`--gutter`), where no page puts anything. His status pill opens
+ * Today. He grows and shrinks with the room the stage has, and leaves it to
+ * the pill when the window is too short.
+ */
+.cuso-status {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 72px;
+  max-height: 440px;
+  border-top: var(--line-width) solid var(--line);
+  background: var(--primary);
+  container: stage / size;
+}
+
+/*
+ * His status line: a small dark pill at the stage's top left. It opens
+ * Today (on Today itself it is only words), so it carries a focus ring.
+ */
+.cuso-says {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--strip);
+  color: var(--strip-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+}
+
+a.cuso-says {
+  text-decoration: none;
+}
+
+a.cuso-says:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+a.cuso-says:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+/* A filled disc says what he is about: yellow while he needs the owner. */
+.cuso-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+.cuso-status[data-pose="needs-you"] .cuso-dot {
+  background: var(--warn);
+}
+
+.cuso-says .ob-box-dot {
+  flex: none;
+}
+
+/*
+ * The porthole: a light circle (--cuso-size, up to 240px) centred on the
+ * stage under the pill. Cuso stands whole in it, his feet and their shadow
+ * inside its foot; only his pointing hand reaches over the rim and a little
+ * past the sidebar's edge into the page's gutter, never further.
+ */
+.cuso-figure {
+  --cuso-size: min(240px, calc(100cqh - 88px));
+
+  position: absolute;
+  bottom: max(10px, calc((100cqh - 60px - var(--cuso-size)) / 2));
+  left: calc(50% - var(--cuso-size) / 2);
+  width: var(--cuso-size);
+  height: var(--cuso-size);
+  pointer-events: none;
+  transition:
+    opacity 200ms,
+    transform 200ms;
+}
+
+/* His black line needs a light ground in both themes. */
+.cuso-ground {
+  position: absolute;
+  inset: 0;
+  border: var(--line-width) solid var(--line);
+  border-radius: 50%;
+  background: var(--stage);
+}
+
+.cuso-figure img {
+  position: absolute;
+  bottom: calc(var(--cuso-size) * 0.07);
+  left: calc(var(--cuso-size) * 0.245);
+  width: auto;
+  height: calc(var(--cuso-size) * 0.92);
+}
+
+@container stage (height < 200px) {
+  .cuso-figure {
+    display: none;
+  }
+}
+
+/* A sheet or dialog is open: he steps back so nothing sits on it. */
+.app:has(.sheet-scrim, [role="dialog"]) .cuso-figure {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+/* A short window: tighter rows, so the stage keeps room for him. */
+@media (max-height: 820px) {
+  .side-head {
+    padding-top: 14px;
+  }
+
+  .nav {
+    padding-top: 8px;
+  }
+
+  .nav a {
+    height: 40px;
+  }
+
+  .nav-brand a {
+    height: 34px;
+  }
+
+  .nav-group {
+    padding-top: 10px;
+  }
+}
+
+/* He arrives in each new pose, then breathes. */
+@media (prefers-reduced-motion: no-preference) {
+  .cuso-figure img {
+    animation:
+      cuso-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+      cuso-bob 3.2s ease-in-out 520ms infinite alternate;
+  }
+}
+
+@keyframes cuso-bob {
+  to {
+    transform: translateY(-5px);
+  }
 }
 
 .main {
@@ -1221,23 +1221,6 @@ button.cuso-says-call:active {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-}
-
-.vhead {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 12px;
-  height: 64px;
-  padding: 0 24px;
-  border-bottom: var(--line-width) solid var(--line);
-}
-
-.vhead h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.25;
 }
 
 .status {
@@ -1251,7 +1234,7 @@ button.cuso-says-call:active {
 .scroll {
   flex: 1;
   min-height: 0;
-  padding: 32px;
+  padding: 40px var(--page-x) 48px var(--page-left);
   overflow-y: auto;
 }
 
@@ -1260,7 +1243,7 @@ button.cuso-says-call:active {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding: 12px 24px;
+  padding: 12px var(--page-x) 12px var(--page-left);
   background: var(--strip);
   color: var(--strip-foreground);
   font-size: 0.875rem;
@@ -1277,7 +1260,7 @@ button.cuso-says-call:active {
 /* ── Chat: rows like Sokosumi's chat rooms, no bubbles ── */
 /* The chat scrolls right down to the composer: no empty band above it. */
 .scroll.chat {
-  padding: 24px 24px 12px;
+  padding: 24px var(--page-x) 12px var(--page-left);
 }
 
 .thread {
@@ -1285,7 +1268,13 @@ button.cuso-says-call:active {
   flex-direction: column;
   gap: 12px;
   max-width: 880px;
-  margin: 0 auto;
+}
+
+/* The chat's lead stays put over the thread, on its line. */
+.main > .page-lead {
+  flex: none;
+  padding: 32px var(--page-x) 20px var(--page-left);
+  border-bottom: var(--line-width) solid var(--line);
 }
 
 .msg {
@@ -1640,14 +1629,22 @@ button.card-focus {
   font-weight: 600;
 }
 
+/* A fixed box before the file loads, so nothing under it jumps. */
 .draft-media {
   display: block;
   align-self: flex-start;
-  max-width: 100%;
-  max-height: 440px;
+  width: min(100%, 360px);
+  height: auto;
+  aspect-ratio: 1;
   border-radius: var(--radius-control);
   background: var(--surface);
   object-fit: contain;
+}
+
+/* Cuso's videos are vertical. */
+video.draft-media {
+  width: min(100%, 248px);
+  aspect-ratio: 9 / 16;
 }
 
 /* Month calendar */
@@ -1829,7 +1826,7 @@ button.card-focus {
 
 .composer-wrap {
   flex: none;
-  padding: 4px 24px 20px;
+  padding: 4px var(--page-x) 24px var(--page-left);
 }
 
 .suggest {
@@ -1837,7 +1834,7 @@ button.card-focus {
   flex-wrap: wrap;
   gap: 8px;
   max-width: 880px;
-  margin: 0 auto 8px;
+  margin: 0 0 8px;
 }
 
 .suggest:empty {
@@ -1848,7 +1845,6 @@ button.card-focus {
   display: flex;
   flex-direction: column;
   max-width: 880px;
-  margin: 0 auto;
   border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
@@ -2060,28 +2056,82 @@ button.card-focus {
 }
 
 /*
- * An app page, as the onboarding steps look: one centred column under a lead,
- * sections on the soft surface, and a white card only where the owner acts.
+ * An app page: a light lead that answers what the owner came for, then its
+ * sections, in one column from the gutter's edge.
  */
 .page {
   display: grid;
-  gap: 24px;
+  gap: 28px;
   width: 100%;
-  max-width: 880px;
-  margin: 0 auto;
+  max-width: 1040px;
 }
 
 .page-lead {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
 }
 
-.page-lead h1,
-.page-lead p {
+.page-lead-text {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.page-kicker,
+.page-line {
   margin: 0;
+  font-size: 1rem;
+  line-height: 1.375;
+}
+
+.page-kicker {
+  color: var(--muted);
+}
+
+.page-title {
+  margin: 0;
+  font-size: clamp(2.25rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-heading);
   text-wrap: balance;
+}
+
+/* Strategy's goal is its headline, set under the lead like every page's. */
+.page-strategy {
+  gap: 6px;
+}
+
+.page-strategy .ob-plan .ob-goal {
+  justify-items: start;
+  text-align: left;
+}
+
+.page-strategy .ob-goal-label {
+  display: none;
+}
+
+.page-strategy .ob-goal-headline {
+  font-size: clamp(2.25rem, 4vw, 2.75rem);
+  line-height: 1.05;
+}
+
+.page-strategy .ob-fullplan-body > .ob-tabs {
+  justify-content: flex-start;
+}
+
+.app .cal-waits {
+  max-width: none;
+}
+
+.page-lead-aside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .page h3 {
@@ -2166,8 +2216,11 @@ button.card-focus {
 }
 
 @media (max-width: 860px) {
-  /* A phone: the page, and the tab bar under the thumb. */
+  /* A phone: the page, and the tab bar under the thumb; Cuso lives in his tab. */
   .app {
+    --gutter: 0px;
+    --page-x: 16px;
+
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
   }
@@ -2182,24 +2235,27 @@ button.card-focus {
   }
 
   .scroll {
-    padding: 16px;
+    padding-top: 24px;
+    padding-bottom: 24px;
   }
 
   .scroll.chat {
-    padding: 16px 16px 12px;
+    padding-top: 16px;
   }
 
-  .vhead {
-    height: 56px;
-    padding: 0 16px;
+  .main > .page-lead {
+    padding-top: 16px;
+    padding-bottom: 12px;
   }
 
-  .banner {
-    padding: 12px 16px;
+  /* The chat leaves the phone's height to the thread. */
+  .main > .page-lead .page-title {
+    font-size: 1.5rem;
   }
 
   .composer-wrap {
-    padding: 8px 16px 16px;
+    padding-top: 8px;
+    padding-bottom: 16px;
   }
 }
 
@@ -4515,10 +4571,97 @@ button.cal-card:hover {
   color: var(--primary-foreground);
 }
 
-/* ── Today: home ── */
+/*
+ * ── Today: home ──
+ * The greeting, the month, the week filling the height, and what needs the
+ * owner last, where the sidebar's Cuso points.
+ */
+.page-today {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
 .today {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.today-month {
   display: grid;
-  gap: 32px;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.today-month .month {
+  padding: 0;
+  border: 0;
+}
+
+.today-week {
+  flex: 1 0 auto;
+  grid-template-rows: auto minmax(200px, 1fr);
+}
+
+.today-needs {
+  margin-top: auto;
+}
+
+/* A short laptop screen: tighter, so what needs the owner stays in view. */
+@media (min-width: 861px) and (max-height: 820px) {
+  .page-today {
+    margin-top: -12px;
+  }
+
+  .today {
+    gap: 18px;
+  }
+
+  .today-says {
+    font-size: 1rem;
+    line-height: 1.375rem;
+  }
+
+  .today-month {
+    gap: 8px;
+    padding: 14px 20px;
+  }
+
+  .today-month .month {
+    gap: 8px;
+  }
+
+  .today-week {
+    grid-template-rows: auto minmax(120px, 1fr);
+  }
+
+  .today .page-title {
+    font-size: 2.25rem;
+  }
+
+  .today .week-post-title {
+    -webkit-line-clamp: 1;
+  }
+
+  .today .week-nets,
+  .today .week-post-extra,
+  .today .more-wide {
+    display: none;
+  }
+
+  .today .more-short {
+    display: inline;
+  }
+
+  .today .week button.week-more.week-more-short {
+    display: grid;
+  }
+
+  .needs .needs-row {
+    padding: 10px 16px;
+  }
 }
 
 .today-hello {
@@ -4755,6 +4898,12 @@ button.week-post svg {
   -webkit-line-clamp: 2;
 }
 
+/* The short window's count; the full one shows elsewhere. */
+.more-short,
+button.week-more.week-more-short {
+  display: none;
+}
+
 button.week-more {
   justify-self: start;
   padding: 0;
@@ -4885,6 +5034,10 @@ button.week-more {
    * The week as a row of dates over one day: today at first, or the date
    * tapped. Each date is one of a set to pick from, so it casts the shadow.
    */
+  .today-week {
+    grid-template-rows: auto auto;
+  }
+
   .week {
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 4px;

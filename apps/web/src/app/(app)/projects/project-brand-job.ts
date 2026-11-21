@@ -63,14 +63,19 @@ export function savePendingProjectBrandJob(
   }
 }
 
-/** A stored JSON value that passes `isValid`; anything else is dropped. */
-function readStored<T>(key: string, isValid: (value: Partial<T>) => boolean) {
-  let raw: string | null | undefined;
+function readRaw(key: string): string | null {
   try {
-    raw = getStorage()?.getItem(key);
+    return getStorage()?.getItem(key) ?? null;
   } catch {
     return null;
   }
+}
+
+/** A JSON value that passes `isValid`, or `null`. */
+function parseStored<T>(
+  raw: string | null,
+  isValid: (value: Partial<T>) => boolean,
+): T | null {
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -78,10 +83,17 @@ function readStored<T>(key: string, isValid: (value: Partial<T>) => boolean) {
       return parsed as T;
     }
   } catch {
-    // fall through — corrupt entries are simply dropped
+    // corrupt
   }
-  removeStored(key);
   return null;
+}
+
+/** A stored JSON value that passes `isValid`; anything else is dropped. */
+function readStored<T>(key: string, isValid: (value: Partial<T>) => boolean) {
+  const raw = readRaw(key);
+  const value = parseStored(raw, isValid);
+  if (raw && !value) removeStored(key);
+  return value;
 }
 
 function removeStored(key: string): void {
@@ -123,17 +135,34 @@ export function saveFailedProjectBrandGeneration(
   }
 }
 
+function isFailedGeneration(failure: Partial<FailedProjectBrandGeneration>) {
+  return (
+    typeof failure.website === "string" &&
+    typeof failure.failedAt === "string" &&
+    !Number.isNaN(Date.parse(failure.failedAt))
+  );
+}
+
 export function readFailedProjectBrandGeneration(
   projectId: string,
   viewerId: string,
 ): FailedProjectBrandGeneration | null {
-  return readStored<FailedProjectBrandGeneration>(
-    failureKey(projectId, viewerId),
-    (failure) =>
-      typeof failure.website === "string" &&
-      typeof failure.failedAt === "string" &&
-      !Number.isNaN(Date.parse(failure.failedAt)),
-  );
+  return readStored(failureKey(projectId, viewerId), isFailedGeneration);
+}
+
+/** The viewer's stored failure as written: a `useSyncExternalStore`
+ * snapshot, read with `parseFailedProjectBrandGeneration`. */
+export function readFailedProjectBrandGenerationJson(
+  projectId: string,
+  viewerId: string,
+): string | null {
+  return readRaw(failureKey(projectId, viewerId));
+}
+
+export function parseFailedProjectBrandGeneration(
+  json: string | null,
+): FailedProjectBrandGeneration | null {
+  return parseStored(json, isFailedGeneration);
 }
 
 export function clearFailedProjectBrandGeneration(
@@ -194,7 +223,16 @@ export function onProjectBrandStorageChange(
   return () => window.removeEventListener(CHANGE_EVENT, handle);
 }
 
+let storageVersion = 0;
+
+/** Counts this tab's announced writes: a `useSyncExternalStore` snapshot
+ * for `onProjectBrandStorageChange`. */
+export function getProjectBrandStorageVersion(): number {
+  return storageVersion;
+}
+
 function notifyChange(projectId: string): void {
+  storageVersion += 1;
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: projectId }));
 }
 
@@ -248,6 +286,7 @@ export function projectBrandJobCallbacks(
       }
       if (viewerId) clearFailedProjectBrandGeneration(projectId, viewerId);
       onFailureChange?.(null);
+      notifyChange(projectId);
     },
   };
 }

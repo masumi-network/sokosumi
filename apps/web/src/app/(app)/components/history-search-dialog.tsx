@@ -9,7 +9,17 @@ import type {
 } from "@sokosumi/core-client";
 import { Copy, FileText, ListTodo, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  GoToSearchList,
+  type GoToSearchState,
+} from "@/app/components/go-to-search-groups";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -29,13 +39,15 @@ import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import {
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList,
 } from "@/components/ui/command";
-import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
+import {
+  matchesMediaQuery,
+  subscribeMediaQuery,
+} from "@/hooks/effects/use-media-query";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { escapeMarkdownDisplayText } from "@/lib/utils/mention-parser";
 
@@ -59,6 +71,8 @@ interface HistorySearchDialogLabels {
   tagTasksGroup: (tag: string) => string;
   tagsError: string;
   tagTasksError: string;
+  projectsGroup: string;
+  channelsGroup: string;
 }
 
 interface HistorySearchDialogProps {
@@ -215,23 +229,23 @@ export function HistorySearchDialog({
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList ref={listRef} style={{ maxHeight: listMaxHeight }}>
-        {searching && history.length === 0 ? (
-          <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {labels.loading}
-          </div>
-        ) : null}
-
-        {nothingFound && error ? (
-          <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {error}
-          </div>
-        ) : null}
-
-        {nothingFound && !error ? (
-          <CommandEmpty>{labels.empty}</CommandEmpty>
-        ) : null}
-
+      <GoToSearchList
+        query={query}
+        labels={labels}
+        onSelect={closeAndGo}
+        listRef={listRef}
+        listStyle={{ maxHeight: listMaxHeight }}
+        renderStatus={(goTo) => (
+          <SearchStatus
+            searching={searching}
+            nothingFound={nothingFound}
+            hasHistory={history.length > 0}
+            error={error}
+            goTo={goTo}
+            labels={labels}
+          />
+        )}
+      >
         <TagSearchGroups
           tags={tags}
           tagsState={tagsState}
@@ -311,8 +325,46 @@ export function HistorySearchDialog({
             </CommandItem>
           </CommandGroup>
         ) : null}
-      </CommandList>
+      </GoToSearchList>
     </CommandDialog>
+  );
+}
+
+/**
+ * Loading, failed or empty, across every group, in one status region that
+ * stays mounted while Search is open so each change is announced. "No
+ * results found" waits for every source, and a failed read says so.
+ */
+function SearchStatus({
+  searching,
+  nothingFound,
+  hasHistory,
+  error,
+  goTo,
+  labels,
+}: {
+  searching: boolean;
+  nothingFound: boolean;
+  hasHistory: boolean;
+  error: string | null;
+  goTo: GoToSearchState;
+  labels: Pick<HistorySearchDialogLabels, "loading" | "empty" | "error">;
+}) {
+  let message: string | null = null;
+  if ((searching || goTo.pending) && !hasHistory && goTo.count === 0) {
+    message = labels.loading;
+  } else if (nothingFound && goTo.count === 0) {
+    message = error ?? (goTo.failed ? labels.error : labels.empty);
+  }
+  return (
+    <div
+      role="status"
+      className={
+        message ? "text-muted-foreground px-2 py-6 text-center text-sm" : ""
+      }
+    >
+      {message}
+    </div>
   );
 }
 
@@ -582,6 +634,10 @@ const LIST_KEYBOARD_GAP_PX = 8;
 /** Tailwind `max-sm`, where the dialog is pinned to the top. */
 const PHONE_LAYOUT_QUERY = "(width < 40rem)";
 
+function getServerListMaxHeight(): undefined {
+  return undefined;
+}
+
 /**
  * Phone layout only: caps the results list at the bottom of the visual
  * viewport, which the on-screen keyboard shrinks, so every row stays
@@ -592,32 +648,43 @@ const PHONE_LAYOUT_QUERY = "(width < 40rem)";
 function useListFitsVisibleViewport(open: boolean) {
   // State, not a ref: the dialog portal mounts the list after the first effect.
   const [list, listRef] = useState<HTMLDivElement | null>(null);
-  const [listMaxHeight, setListMaxHeight] = useState<number>();
 
-  useEffect(() => {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const viewport = window.visualViewport;
+      if (!open || !viewport || !list) return () => {};
+
+      viewport.addEventListener("resize", onStoreChange);
+      viewport.addEventListener("scroll", onStoreChange);
+      const unsubscribeMedia = subscribeMediaQuery(
+        PHONE_LAYOUT_QUERY,
+        onStoreChange,
+      );
+      return () => {
+        viewport.removeEventListener("resize", onStoreChange);
+        viewport.removeEventListener("scroll", onStoreChange);
+        unsubscribeMedia();
+      };
+    },
+    [open, list],
+  );
+
+  const getSnapshot = useCallback((): number | undefined => {
     const viewport = window.visualViewport;
-    if (!open || !viewport || !list) return;
-
-    function fit() {
-      if (!list || !viewport) return;
-      if (!window.matchMedia(PHONE_LAYOUT_QUERY).matches) {
-        setListMaxHeight(undefined);
-        return;
-      }
-      const visibleBottom = viewport.offsetTop + viewport.height;
-      const room =
-        visibleBottom - list.getBoundingClientRect().top - LIST_KEYBOARD_GAP_PX;
-      setListMaxHeight(Math.min(LIST_MAX_HEIGHT_PX, Math.max(0, room)));
+    if (!open || !viewport || !list || !matchesMediaQuery(PHONE_LAYOUT_QUERY)) {
+      return undefined;
     }
-
-    fit();
-    viewport.addEventListener("resize", fit);
-    viewport.addEventListener("scroll", fit);
-    return () => {
-      viewport.removeEventListener("resize", fit);
-      viewport.removeEventListener("scroll", fit);
-    };
+    const visibleBottom = viewport.offsetTop + viewport.height;
+    const room =
+      visibleBottom - list.getBoundingClientRect().top - LIST_KEYBOARD_GAP_PX;
+    return Math.min(LIST_MAX_HEIGHT_PX, Math.max(0, room));
   }, [open, list]);
+
+  const listMaxHeight = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerListMaxHeight,
+  );
 
   return { listRef, listMaxHeight };
 }

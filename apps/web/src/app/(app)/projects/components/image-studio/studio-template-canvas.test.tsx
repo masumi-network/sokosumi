@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { STUDIO_EMPTY_ADS } from "./studio-empty-ads";
 import { TEST_LABELS } from "./studio-fixtures";
@@ -337,10 +338,11 @@ describe("Studio template canvas", () => {
   });
 
   it("keeps the wall still when reduced motion is preferred", () => {
-    const preference = window.matchMedia(
-      "(prefers-reduced-motion: no-preference)",
-    );
-    Object.defineProperty(preference, "matches", { value: false });
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    Object.defineProperty(preference, "matches", {
+      configurable: true,
+      value: true,
+    });
     vi.spyOn(window, "matchMedia").mockReturnValue(preference);
     const { row, column } = mount();
     const initial = position(row, column);
@@ -374,6 +376,53 @@ describe("Studio template canvas", () => {
     expect(position(row, canvas.querySelector("[data-studio-column]")!).x).toBe(
       -layout.periodX,
     );
+    expect(
+      canvas.querySelector<HTMLElement>("[data-studio-column]")!.style.width,
+    ).toBe(`${layout.columnWidth}px`);
+  });
+
+  it("registers a non-passive wheel listener and re-attaches observers across Activity hide/resume", () => {
+    const addSpy = vi.spyOn(HTMLElement.prototype, "addEventListener");
+    const disconnect = vi.fn();
+    let resize = () => undefined;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => undefined) {
+          resize = callback;
+        }
+        observe() {}
+        disconnect = disconnect;
+      },
+    );
+
+    const canvasTree = (
+      <StudioTemplateCanvas labels={TEST_LABELS} onApplyTemplate={vi.fn()} />
+    );
+    const { container, rerender } = render(
+      <Activity mode="visible">{canvasTree}</Activity>,
+    );
+
+    const canvas = container.querySelector<HTMLElement>(
+      "[data-studio-canvas]",
+    )!;
+    const wheelCalls = addSpy.mock.calls.filter(
+      ([type], index) =>
+        type === "wheel" && addSpy.mock.instances[index] === canvas,
+    );
+    expect(wheelCalls).toHaveLength(1);
+    expect(wheelCalls[0]?.[2]).toEqual({ passive: false });
+
+    rerender(<Activity mode="hidden">{canvasTree}</Activity>);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+
+    Object.defineProperties(canvas, {
+      clientWidth: { configurable: true, value: 1440 },
+      clientHeight: { configurable: true, value: 900 },
+    });
+    rerender(<Activity mode="visible">{canvasTree}</Activity>);
+    act(() => resize());
+    const layout = buildStudioWall({ width: 1440, height: 900 });
     expect(
       canvas.querySelector<HTMLElement>("[data-studio-column]")!.style.width,
     ).toBe(`${layout.columnWidth}px`);

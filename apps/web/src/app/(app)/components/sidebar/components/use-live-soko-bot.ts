@@ -1,7 +1,7 @@
 import { SokoBotStatus } from "@sokosumi/core-client";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { publishFailedSokoBotId } from "@/components/chat/personal-assistant-chrome-store";
+import { useFailedSokoBotIdPublisher } from "@/hooks/effects/use-failed-soko-bot-id-publisher";
 
 const ACTIVITY_ENDPOINT = "/api/personal-assistant/activity";
 /**
@@ -85,11 +85,10 @@ export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
   const current = live ? { ...bot, ...live } : bot;
   // The chat list's Direct with this bot says what this row says: from the
   // server's status until a poll answers, and kept when a poll fails.
+  // Publish before paint (`useLayoutEffect`) so the Direct row updates in the
+  // same frame as this row instead of lagging behind a passive effect.
   const failedId = current.status === SokoBotStatus.ERROR ? current.id : null;
-  useEffect(() => {
-    publishFailedSokoBotId(failedId);
-    return () => publishFailedSokoBotId(null);
-  }, [failedId]);
+  useFailedSokoBotIdPublisher(failedId);
 
   return current;
 }

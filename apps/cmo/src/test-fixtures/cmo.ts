@@ -136,6 +136,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     },
     brandBrainUpdatedAt: new Date("2026-10-01T09:01:00Z"),
     strategy: cmoStrategy,
+    strategyShort: null,
     approvedStrategy: null,
     media: [],
     postRevisions: {},

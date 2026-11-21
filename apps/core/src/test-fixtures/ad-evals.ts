@@ -11,9 +11,12 @@ export function adEvalAsset(overrides: Partial<AdEvalAsset> = {}): AdEvalAsset {
     blobPathname: "projects/project-a/image-studio/job-a/image.png",
     job: {
       batchId: "batch-a",
+      kind: "GENERATE",
       promptSnapshot: {
         templateId: "ad",
         creativeDirection: "spotlight",
+        route: null,
+        experimentArm: null,
         brandLook: { colors: ["#23453C"], fonts: ["Inter"] },
       },
     },

@@ -24,6 +24,8 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
 import {
@@ -58,10 +60,7 @@ interface Connector {
  */
 function useCatalog(query: string, enabled: boolean) {
   const [debounced, setDebounced] = useState(query);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(query), SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [query]);
+  useTimeout(() => setDebounced(query), SEARCH_DELAY_MS, query);
   const catalog = useQuery({
     queryKey: ["soko-bot-integration-catalog", debounced.trim()],
     queryFn: async (): Promise<SokoBotIntegrationCatalogEntry[]> => {
@@ -130,10 +129,10 @@ export function ToolConnectors({
   // A connect link never searches on a read-only bot.
   const searching = !readOnly && query.trim().length > 0;
 
-  useEffect(() => {
-    if (focusProvider && catalog.data)
-      focused.current?.scrollIntoView({ block: "center" });
-  }, [focusProvider, catalog.data]);
+  useScrollIntoViewWhen(focused, catalog.data ? focusProvider : false, {
+    block: "center",
+    resetKey: catalog.data,
+  });
 
   if (!integrations.configured) {
     return <p className="text-muted-foreground text-sm">{t("unavailable")}</p>;

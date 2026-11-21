@@ -106,8 +106,14 @@ export async function createProjectSeoMonitor(
       },
       seoAnalysisAdmissionCredits(preparedAnalysis, pageUrls.length),
     );
-  const { searchConsolePropertyId, allowLimitedAudit, ...publicAnalysis } =
-    preparedAnalysis;
+  const {
+    searchConsolePropertyId,
+    allowLimitedAudit,
+    includeSitemaps,
+    includePropertyTotals,
+    includePageDiscovery,
+    ...publicAnalysis
+  } = preparedAnalysis;
   const approveCoverage =
     origin === "interactive" &&
     publicAnalysis.kind === "audit_full" &&
@@ -121,6 +127,9 @@ export async function createProjectSeoMonitor(
           searchConsolePropertyId,
         )
       : null;
+  if (access && includePageDiscovery) access.includePageDiscovery = true;
+  if (access && includePropertyTotals) access.includePropertyTotals = true;
+  if (access && includeSitemaps) access.includeSitemaps = true;
   const analysis = requestSeoAnalysisSchema.parse({
     ...publicAnalysis,
     coworkerId: executor.coworkerId,
@@ -155,7 +164,13 @@ export async function createProjectSeoMonitor(
     {
       origin,
       ...(approveCoverage && {
-        requestIdentity: { searchConsolePropertyId, allowLimitedAudit },
+        requestIdentity: {
+          searchConsolePropertyId,
+          allowLimitedAudit,
+          ...(includePageDiscovery && { includePageDiscovery }),
+          ...(includePropertyTotals && { includePropertyTotals }),
+          ...(includeSitemaps && { includeSitemaps }),
+        },
         saveApproval: async (tx, scheduleId) => {
           if (made)
             throw conflict("The saved SEO monitor changed. Retry scheduling.");
@@ -257,6 +272,16 @@ export async function approveManualSeoRun(
           pages,
           searchConsolePropertyId ?? saved?.propertyId,
         );
+  if (
+    access &&
+    saved &&
+    access.connectionVersion === saved.connectionVersion &&
+    access.propertyId === saved.propertyId
+  ) {
+    if (saved.includeSitemaps) access.includeSitemaps = true;
+    if (saved.includePageDiscovery) access.includePageDiscovery = true;
+    if (saved.includePropertyTotals) access.includePropertyTotals = true;
+  }
   return { pages: pages.map(({ id, url }) => ({ id, url })), access };
 }
 

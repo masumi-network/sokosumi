@@ -45,7 +45,9 @@ export function StrategyVersions({
             </span>
             {version.approvedAt ? (
               <StatusText>Approved</StatusText>
-            ) : overview.viewerCanApprove && onApprove ? (
+            ) : overview.viewerCanApprove &&
+              onApprove &&
+              !(index === 0 && overview.strategyShort) ? (
               <button
                 type="button"
                 className="button button-secondary button-small"

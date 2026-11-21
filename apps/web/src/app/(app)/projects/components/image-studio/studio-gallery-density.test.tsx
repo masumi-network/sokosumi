@@ -432,7 +432,14 @@ describe("a gallery with work in it", () => {
     const first = "A slower morning.";
     const second = "Pour with precision.";
     mocks.listBatchAssets.mockResolvedValue([open, older]);
-    mocks.loadBrandKit.mockResolvedValue({ approvedLines: [first, second] });
+    const look = {
+      colors: ["#A33421", "#F5EBDD"],
+      fonts: ["Playfair Display"],
+    };
+    mocks.loadBrandKit.mockResolvedValue({
+      approvedLines: [first, second],
+      ...look,
+    });
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open]);
@@ -475,6 +482,7 @@ describe("a gallery with work in it", () => {
         undefined,
         { [open.id]: first, [older.id]: second },
         [],
+        { p: look },
       ),
     );
   });
@@ -712,6 +720,15 @@ describe("a gallery with work in it", () => {
     expect(
       within(alert).getByRole("button", { name: TEST_LABELS.close }),
     ).toBeInTheDocument();
+  });
+
+  it("shows a terminal vector failure without offering a paid retry", () => {
+    mount([], [job("failed", "FAILED", undefined, "invalid_vector_image")]);
+    const alert = screen.getByRole("status");
+    expect(alert).toHaveTextContent("invalid_vector_image");
+    expect(
+      within(alert).queryByRole("button", { name: TEST_LABELS.tryAgain }),
+    ).toBeNull();
   });
 
   it("keeps the reason behind the line when the provider said nothing", () => {

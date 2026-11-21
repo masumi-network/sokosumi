@@ -151,7 +151,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: isMobileMock,
 }));
 

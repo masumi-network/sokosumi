@@ -4,7 +4,14 @@ import { CmoApp, type CmoAppActions } from "../../../components/app/cmo-app";
 import type { View } from "../../../lib/views";
 import { cmoPlans } from "../../../test-fixtures/cmo";
 import { competitors, noCompetitors } from "./competitors-fixture";
-import { busyOverview, chat, messages, overview, seo } from "./fixtures";
+import {
+  busyOverview,
+  chat,
+  messages,
+  overview,
+  quietOverview,
+  seo,
+} from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
 const actions: CmoAppActions = {
@@ -112,15 +119,21 @@ interface FixtureAppProps {
    * Competitors: the page with nobody watched yet, or still loading.
    * blocked: the month could not start, and a message does not send.
    * busy: a full month, five or six posts a day.
+   * quiet: no posts yet, nothing that needs the owner, a long business name.
    */
-  state?: "empty" | "loading" | "blocked" | "busy";
+  state?: "empty" | "loading" | "blocked" | "busy" | "quiet";
 }
 
 export function FixtureApp({ view, state }: FixtureAppProps) {
   const shown =
-    view === "chat"
-      ? chat
-      : { overview: state === "busy" ? busyOverview : overview, messages };
+    state === "quiet"
+      ? { overview: quietOverview, messages }
+      : view === "chat"
+        ? chat
+        : {
+            overview: state === "busy" ? busyOverview : overview,
+            messages,
+          };
   const data =
     state === "blocked"
       ? {
@@ -148,6 +161,8 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
       work={view === "chat" ? chat.work : []}
       name="Francis Luz"
       email="francis@acme.io"
+      // The quiet state shows an account with its own picture.
+      image={state === "quiet" ? "/apple-icon.png" : null}
       initialView={view}
       plans={cmoPlans}
       mayHire

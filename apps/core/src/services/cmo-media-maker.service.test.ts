@@ -15,6 +15,8 @@ const {
   updateSocialPost,
   scheduleSocialPost,
   brandPictures,
+  jobs,
+  checkStyledPicture,
 } = vi.hoisted(() => ({
   jobFindMany: vi.fn(),
   jobCount: vi.fn(),
@@ -28,12 +30,24 @@ const {
   updateSocialPost: vi.fn(),
   scheduleSocialPost: vi.fn(),
   brandPictures: vi.fn(),
+  jobs: {
+    findUnique: vi.fn(),
+    updateMany: vi.fn(),
+    update: vi.fn(),
+  },
+  checkStyledPicture: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findUnique: async () => null },
-    projectImageJob: { findMany: jobFindMany, count: jobCount },
+    projectImageJob: { findMany: jobFindMany, count: jobCount, ...jobs },
+    projectImageAsset: {
+      findUnique: async () => ({
+        blobPathname: "studio/asset-1.png",
+        contentType: "image/png",
+      }),
+    },
     socialPost: { findUnique: postFindUnique, updateMany: postUpdateMany },
     marketingStrategyFile: { updateMany: fileUpdateMany },
   },
@@ -51,6 +65,14 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob,
   createVideoJob,
   createTalkingVideoJob,
+  downloadStudioFileReference: async () => ({
+    bytes: await (await import("sharp"))
+      .default({
+        create: { width: 390, height: 844, channels: 3, background: "#0f0" },
+      })
+      .png()
+      .toBuffer(),
+  }),
   DEFAULT_SETTINGS: {
     aspectRatio: "1:1",
     resolution: "1K",
@@ -79,10 +101,30 @@ vi.mock("@/services/cuso-project-files.service", () => ({
     userId: "runner-1",
     projectId: "project-1",
   }),
+  saveCusoProjectFile: async () => true,
 }));
 vi.mock("@/services/reference-library.service", () => ({
   referenceLibraryAvailable: () => true,
-  readReferenceImage: vi.fn(),
+  readReferenceImage: async () => ({
+    bytes: Buffer.from("reference"),
+    contentType: "image/jpeg",
+    description: "an old poster",
+  }),
+}));
+vi.mock("@/lib/reference-library/style-check", () => ({
+  checkStyledPicture,
+}));
+vi.mock("@/services/image-studio-assets.service", () => ({
+  readAssetBytes: async () =>
+    (await import("sharp"))
+      .default({
+        create: { width: 100, height: 125, channels: 3, background: "#fff" },
+      })
+      .png()
+      .toBuffer(),
+}));
+vi.mock("@/services/soko-bot-billing.service", () => ({
+  recordSokoBotCheckUsage: vi.fn(),
 }));
 vi.mock("@/services/cmo-brand-visual.service", () => ({
   cmoBrandVisual: async () => null,
@@ -101,7 +143,10 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   type CmoMediaPiece,
+  cmoAllowedKinds,
   cmoImagePrompt,
+  cmoInfographicCap,
+  cmoMakesVariedMonth,
   cmoMediaState,
   cmoPictureOutdated,
   cmoPictureStyleProblem,
@@ -111,6 +156,7 @@ import {
   cmoStylePrompt,
   cmoVisualKey,
   logoForPicture,
+  PLACED_SCREEN_NOTE,
   REFERENCE_STYLE_MODELS,
 } from "./cmo-media-maker.service";
 
@@ -525,6 +571,122 @@ describe("advanceCmoMedia", () => {
     });
   });
 
+  it("tells the check that Core placed the brand's page itself", async () => {
+    const shows = piece({
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      headline: "Fresh minted",
+      visual: "Hands holding a phone that shows the homepage",
+      visualFileIds: ["f-home"],
+    });
+    jobFindMany.mockResolvedValue([
+      {
+        id: "job-1",
+        idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(shows)}:1`,
+        status: "SUCCEEDED",
+        prompt: "prompt",
+        error: null,
+        asset: { id: "asset-1" },
+      },
+    ]);
+    jobs.findUnique.mockResolvedValue({ error: null });
+    jobs.updateMany.mockResolvedValue({ count: 1 });
+    checkStyledPicture.mockResolvedValue({
+      passes: false,
+      costUsd: 0.01,
+      verdict: { problems: ["anything"] },
+    });
+    await advanceCmoMedia(context, [shows]);
+    const input = checkStyledPicture.mock.calls[0]?.[0];
+    // Scenes name a phone or laptop: the check is told Core's frame is it.
+    expect(input.scene).toContain("Hands holding a phone");
+    expect(input.scene).toContain(PLACED_SCREEN_NOTE);
+    expect(input.brandPictures).toHaveLength(1);
+  });
+
+  it("keeps one verdict per picture when two passes check it at once", async () => {
+    const styledPiece = piece({
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      headline: "Fresh minted",
+    });
+    jobFindMany.mockResolvedValue([
+      {
+        id: "job-1",
+        idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(styledPiece)}:1`,
+        status: "SUCCEEDED",
+        prompt: "prompt",
+        error: null,
+        asset: { id: "asset-1" },
+      },
+    ]);
+    // The job row: a verdict is written once, where none is stored yet.
+    let stored: string | null = null;
+    jobs.findUnique.mockImplementation(async () => ({
+      error: stored,
+      workspaceId: "ws-1",
+      requestedByUserId: "runner-1",
+      referenceFileIds: [],
+      workspace: { organizationId: "org-1" },
+    }));
+    jobs.updateMany.mockImplementation(async ({ where, data }) => {
+      if (where.error === null && stored !== null) return { count: 0 };
+      stored = data.error;
+      return { count: 1 };
+    });
+    jobs.update.mockImplementation(async ({ data }) => {
+      stored = data.error;
+      return { id: "job-1" };
+    });
+    // Both passes read the job before either decides; the first check
+    // passes, the second refuses a moment later.
+    let release: () => void = () => {};
+    const bothChecking = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    checkStyledPicture.mockImplementation(async () => {
+      calls += 1;
+      const passes = calls === 1;
+      if (calls === 2) release();
+      await bothChecking;
+      if (!passes) await new Promise((resolve) => setTimeout(resolve, 5));
+      return {
+        passes,
+        costUsd: 0.01,
+        verdict: { problems: passes ? [] : ["Extra words"] },
+      };
+    });
+    ensureDriveFile.mockResolvedValue({
+      id: "file-1",
+      name: "fresh.png",
+      pathname: "drive/fresh.png",
+      mimeType: "image/png",
+      size: 10,
+    });
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "x",
+      text: "Fresh minted",
+      media: [],
+      revision: 1,
+      status: "DRAFT",
+      scheduledAt: null,
+      planning: { title: "Fresh minted" },
+    });
+    updateSocialPost.mockResolvedValue({
+      media: [{ pathname: "drive/fresh.png" }],
+      revision: 2,
+    });
+
+    await Promise.all([
+      advanceCmoMedia(context, [styledPiece]),
+      advanceCmoMedia(context, [styledPiece]),
+    ]);
+
+    // The picture went on its post, and the job says it passed.
+    expect(updateSocialPost).toHaveBeenCalled();
+    expect(stored).toBe("Style passed");
+  });
+
   it("starts each piece's picture once, within the month's limit, from the brand's pictures", async () => {
     jobFindMany.mockResolvedValue([]);
     jobCount.mockResolvedValue(4);
@@ -601,7 +763,7 @@ describe("advanceCmoMedia", () => {
     ]);
   });
 
-  it("gives a styled picture only the brand pictures its visual names", async () => {
+  it("never sends a styled picture's screen to the model, and leaves it a panel", async () => {
     jobFindMany.mockResolvedValue([]);
     jobCount.mockResolvedValue(0);
     const style = "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9";
@@ -621,12 +783,23 @@ describe("advanceCmoMedia", () => {
     expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain(
       "own picture",
     );
+    // Asked to redraw the real homepage, the models cropped or changed it in
+    // 8 of 8 tries: Core places the screenshot on the panel afterwards.
     expect(createImageJob.mock.calls[1]?.[0]).toMatchObject({
-      referenceFileIds: ["f-home"],
+      referenceFileIds: [],
     });
     expect(createImageJob.mock.calls[1]?.[0].prompt).toContain(
-      "The second image is NMKR's own picture",
+      "Leave one plain, light, empty panel from 10% to 90% of the width and 30% to 76% of the height",
     );
+    expect(createImageJob.mock.calls[1]?.[0].prompt).not.toContain(
+      "own picture",
+    );
+    // Told only to leave the panel, the models drew their own pages with
+    // invented words around it, and ran the headline behind the phone.
+    expect(createImageJob.mock.calls[1]?.[0].prompt).toContain(
+      "Draw no other screen, browser, phone, laptop, monitor or web page",
+    );
+    expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain("panel");
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
@@ -809,6 +982,27 @@ describe("advanceCmoMedia", () => {
         revision: 10,
         scheduledAt: at,
       }),
+    );
+    expect(createImageJob).not.toHaveBeenCalled();
+  });
+
+  it("schedules a finished words-only post only where Core schedules every post (cmo-v6)", async () => {
+    const at = new Date(Date.now() + 86_400_000);
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "x",
+      text: "Words that need no picture.",
+      revision: 4,
+      status: "DRAFT",
+      scheduledAt: at,
+      planning: { title: "A words-only post" },
+    });
+    const words = piece({ format: "post", visual: undefined });
+    await advanceCmoMedia(context, [words]);
+    expect(scheduleSocialPost).not.toHaveBeenCalled();
+    await advanceCmoMedia({ ...context, schedulesEveryPost: true }, [words]);
+    expect(scheduleSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ postId: "post-1", revision: 4 }),
     );
     expect(createImageJob).not.toHaveBeenCalled();
   });
@@ -1035,5 +1229,103 @@ describe("logoForPicture", () => {
     expect(
       await logoForPicture(await plain("#0c0c0c"), { logo, darkLogo: null }),
     ).toBe(logo);
+  });
+});
+
+// NMKR's how-to month (2026-11-20): 56 of 69 pictures took an infographic.
+describe("a cmo-v8 month's kinds of print", () => {
+  const kindOf = new Map([
+    ["ref-info-1", "infographic"],
+    ["ref-info-2", "infographic"],
+    ["ref-poster", "poster"],
+    ["ref-poster-2", "poster"],
+    ["ref-poster-3", "poster"],
+    ["ref-ad", "ad"],
+    ["ref-label", "label"],
+  ]);
+  const at = (
+    id: string,
+    date: string,
+    styleReferenceId: string,
+    channel = "x",
+  ) => ({
+    ...piece({ id, channel, styleReferenceId }),
+    date,
+    time: "09:00",
+  });
+
+  it("are kept only by a cmo-v8 Cuso", () => {
+    expect(cmoMakesVariedMonth("cmo-v8")).toBe(true);
+    expect(cmoMakesVariedMonth("cmo-v7")).toBe(false);
+    expect(cmoMakesVariedMonth(null)).toBe(false);
+  });
+
+  it("hold at most one infographic in four pictures", () => {
+    expect(cmoInfographicCap(8)).toBe(2);
+    expect(cmoInfographicCap(3)).toBe(1);
+    const others = [at("a", "2026-11-02", "ref-info-1", "linkedin")];
+    const second = at("b", "2026-11-03", "ref-info-2");
+    expect(
+      cmoPictureStyleProblem([second], others, { kindOf, planned: 4 }),
+    ).toContain("b would make 2 infographics in a month of 4 pictures");
+    // Eight pictures make room for two; without kinds nothing is counted.
+    expect(
+      cmoPictureStyleProblem([second], others, { kindOf, planned: 8 }),
+    ).toBeNull();
+    expect(cmoPictureStyleProblem([second], others)).toBeNull();
+  });
+
+  it("give neighbouring pieces on one network different kinds", () => {
+    const others = [
+      at("a", "2026-11-02", "ref-ad"),
+      at("c", "2026-11-04", "ref-poster"),
+    ];
+    expect(
+      cmoPictureStyleProblem([at("b", "2026-11-03", "ref-poster-2")], others, {
+        kindOf,
+        planned: 12,
+      }),
+    ).toContain("b and c follow each other on x in one kind of print (poster)");
+    // Another network is no neighbour, and a month that already broke the
+    // rule keeps it: only what the save brings is refused.
+    expect(
+      cmoPictureStyleProblem(
+        [at("b", "2026-11-03", "ref-poster-2", "linkedin")],
+        [...others, at("e", "2026-11-05", "ref-poster-3")],
+        { kindOf, planned: 12 },
+      ),
+    ).toBeNull();
+  });
+
+  it("leave a pick the kinds that keep the rules", () => {
+    const month = [
+      { id: "a", channel: "x", date: "2026-11-02", time: "09:00", kind: "ad" },
+      {
+        id: "c",
+        channel: "x",
+        date: "2026-11-04",
+        time: "09:00",
+        kind: "poster",
+      },
+      { id: "i", channel: "linkedin", date: "2026-11-02", kind: "infographic" },
+    ];
+    const piece = { id: "b", channel: "x", date: "2026-11-03", time: "09:00" };
+    const howTo = cmoAllowedKinds({
+      piece,
+      month,
+      infographicSuits: false,
+      planned: 12,
+    });
+    expect(howTo).not.toContain("ad");
+    expect(howTo).not.toContain("poster");
+    expect(howTo).not.toContain("infographic");
+    expect(howTo).toContain("label");
+    // Numbers may take one while the month is under its cap.
+    expect(
+      cmoAllowedKinds({ piece, month, infographicSuits: true, planned: 12 }),
+    ).toContain("infographic");
+    expect(
+      cmoAllowedKinds({ piece, month, infographicSuits: true, planned: 4 }),
+    ).not.toContain("infographic");
   });
 });

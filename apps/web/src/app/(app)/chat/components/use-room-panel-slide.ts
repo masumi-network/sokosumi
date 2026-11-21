@@ -1,12 +1,19 @@
 import { usePresence } from "motion/react";
-import { type RefObject, useEffect, useEffectEvent, useRef } from "react";
+import {
+  type RefObject,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 
 /** The enter pairing dialogs use (`duration-200 ease-out-strong`). */
 const SLIDE_MS = 200;
 const SLIDE_EASING_TOKEN = "--ease-out-strong";
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 /** Marks the header's actions, which end at the section's right edge. */
 export const ROOM_HEADER_ACTIONS_SLOT = "room-header-actions";
@@ -34,10 +41,12 @@ export function useRoomPanelSlideOut(
   panelRef: RefObject<HTMLDivElement | null>,
 ) {
   const [isPresent, safeToRemove] = usePresence();
+  const reduceMotion = usePrefersReducedMotion();
   // `safeToRemove` is new on every render. As an effect dependency, each render
   // during the slide would restart it, and a streaming room would never let the
   // panel unmount.
   const removePanel = useEffectEvent(() => safeToRemove?.());
+  const shouldReduceMotion = useEffectEvent(() => reduceMotion);
 
   // Not a layout effect: `AnimatePresence` registers the exit in its own layout
   // effect, after this child's, and ignores a removal that comes before it.
@@ -46,11 +55,7 @@ export function useRoomPanelSlideOut(
     const panel = panelRef.current;
     // Below `lg` the slot is `display: contents` and has no box: the panel
     // overlays the room, so it just goes.
-    if (
-      !panel ||
-      panel.offsetWidth === 0 ||
-      window.matchMedia(REDUCED_MOTION_QUERY).matches
-    ) {
+    if (!panel || panel.offsetWidth === 0 || shouldReduceMotion()) {
       removePanel();
       return;
     }
@@ -83,63 +88,82 @@ export function useRoomPanelSlideOut(
  * under reduced motion.
  */
 export function useRoomPanelSlide() {
-  const mainRef = useRef<HTMLElement>(null);
-  const sectionRef = useRef<HTMLElement>(null);
+  const [main, setMain] = useState<HTMLDivElement | null>(null);
+  const [section, setSection] = useState<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = usePrefersReducedMotion();
+  const targets = useMemo(
+    () => (main && section ? ([main, section] as const) : null),
+    [main, section],
+  );
+  const slideStateRef = useRef<{
+    easing: string;
+    slides: WeakMap<HTMLElement, Animation>;
+    mainWidth: number;
+    sectionWidth: number;
+    panelDocked: boolean;
+    layoutLeft: number | undefined;
+  } | null>(null);
 
-  useMountEffect(() => {
-    const main = mainRef.current;
-    const section = sectionRef.current;
-    if (!main || !section) return;
-    // Read on every resize: `wrapColumn` (the file drop zone) can remount the
-    // column body, so the nodes from mount may be gone.
-    const columns = () => [listRef.current, composerRef.current];
-    const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
-    const easing = readSlideEasing();
-    const slides = new WeakMap<HTMLElement, Animation>();
-    const slide = (node: HTMLElement, distance: number) => {
-      // Start from where it is painted, so a toggle mid-slide does not jump.
-      const startOffset = distance + readPaintedOffset(node);
-      slides.get(node)?.cancel();
-      slides.set(
-        node,
-        node.animate(
-          [
-            { transform: `translateX(${startOffset}px)` },
-            { transform: "none" },
-          ],
-          { duration: SLIDE_MS, easing },
-        ),
-      );
-    };
-    let mainWidth = main.clientWidth;
-    let sectionWidth = section.clientWidth;
-    // A closing panel's slot is `inert` until it unmounts.
-    const isPanelDocked = () => {
-      const panel = panelRef.current;
-      return panel !== null && !panel.inert;
-    };
-    let panelDocked = isPanelDocked();
-    // The transcript and composer share `ROOM_CONTENT_COLUMN_CLASSNAME`, so one
-    // left stands for both.
-    // offsetLeft is the layout position: it ignores the slide's own transform.
-    const columnLeft = () => columns().find((column) => column)?.offsetLeft;
-    let layoutLeft = columnLeft();
+  useResizeObserver(
+    targets,
+    (entries) => {
+      if (!main || !section) return;
+      // Read on every resize: `wrapColumn` (the file drop zone) can remount the
+      // column body, so the nodes from mount may be gone.
+      const columns = () => [listRef.current, composerRef.current];
+      // A closing panel's slot is `inert` until it unmounts.
+      const isPanelDocked = () => {
+        const panel = panelRef.current;
+        return panel !== null && !panel.inert;
+      };
+      // The transcript and composer share `ROOM_CONTENT_COLUMN_CLASSNAME`, so one
+      // left stands for both.
+      // offsetLeft is the layout position: it ignores the slide's own transform.
+      const columnLeft = () => columns().find((column) => column)?.offsetLeft;
 
-    // Runs after layout and before paint, so the first painted frame is
-    // already the column at its old place.
-    const observer = new ResizeObserver(() => {
+      if (entries.length === 0 || !slideStateRef.current) {
+        slideStateRef.current = {
+          easing: readSlideEasing(),
+          slides: new WeakMap<HTMLElement, Animation>(),
+          mainWidth: main.clientWidth,
+          sectionWidth: section.clientWidth,
+          panelDocked: isPanelDocked(),
+          layoutLeft: columnLeft(),
+        };
+        return;
+      }
+
+      const state = slideStateRef.current;
+      const slide = (node: HTMLElement, distance: number) => {
+        // Start from where it is painted, so a toggle mid-slide does not jump.
+        const startOffset = distance + readPaintedOffset(node);
+        state.slides.get(node)?.cancel();
+        state.slides.set(
+          node,
+          node.animate(
+            [
+              { transform: `translateX(${startOffset}px)` },
+              { transform: "none" },
+            ],
+            { duration: SLIDE_MS, easing: state.easing },
+          ),
+        );
+      };
+
+      // Runs after layout and before paint, so the first painted frame is
+      // already the column at its old place.
       const nextWidth = main.clientWidth;
       const nextSectionWidth = section.clientWidth;
       const nextPanelDocked = isPanelDocked();
-      const from = layoutLeft;
+      const from = state.layoutLeft;
       const to = columnLeft();
       if (
-        nextWidth === mainWidth &&
-        !reducedMotion.matches &&
-        !(panelDocked && nextPanelDocked)
+        nextWidth === state.mainWidth &&
+        !reduceMotion &&
+        !(state.panelDocked && nextPanelDocked)
       ) {
         // A height-only resize leaves the column where it is: let a running
         // slide finish rather than restart it.
@@ -150,7 +174,7 @@ export function useRoomPanelSlide() {
         }
         // The actions move by whatever the section gained or lost. Measured
         // from the section, because the header can mount after this effect.
-        const sectionShrink = sectionWidth - nextSectionWidth;
+        const sectionShrink = state.sectionWidth - nextSectionWidth;
         const actions = section.querySelector<HTMLElement>(
           `[data-slot="${ROOM_HEADER_ACTIONS_SLOT}"]`,
         );
@@ -162,15 +186,19 @@ export function useRoomPanelSlide() {
           slide(panelRef.current, sectionShrink);
         }
       }
-      mainWidth = nextWidth;
-      sectionWidth = nextSectionWidth;
-      panelDocked = nextPanelDocked;
-      layoutLeft = to;
-    });
-    observer.observe(main);
-    observer.observe(section);
-    return () => observer.disconnect();
-  });
+      state.mainWidth = nextWidth;
+      state.sectionWidth = nextSectionWidth;
+      state.panelDocked = nextPanelDocked;
+      state.layoutLeft = to;
+    },
+    { immediate: true },
+  );
 
-  return { mainRef, sectionRef, panelRef, listRef, composerRef };
+  return {
+    mainRef: setMain,
+    sectionRef: setSection,
+    panelRef,
+    listRef,
+    composerRef,
+  };
 }

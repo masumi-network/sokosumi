@@ -5,27 +5,18 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { NEWSLETTER_EMBED_PATH } from "@/config/document-security-headers";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import {
-  applyConsentMode,
-  type ConsentChoice,
-  readConsent,
-  writeConsent,
-} from "@/lib/analytics/consent";
-import {
-  authProductName,
-  buildSignedOAuthQueryFromSearchParams,
-  oauthRequestBrand,
-} from "@/lib/auth/auth.utils";
+  openCookieConsentPreferences,
+  useCookieConsentBanner,
+} from "@/hooks/effects/use-cookie-consent-banner";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 import { cn } from "@/lib/utils";
 
 const COOKIE_POLICY_URL = "https://www.sokosumi.com/legal/cookie-policy";
 
 /** Reopen the preferences panel from anywhere (e.g. a footer link). */
-const OPEN_CONSENT_EVENT = "sokosumi:open-consent";
-
 export function openConsentPreferences() {
-  window.dispatchEvent(new Event(OPEN_CONSENT_EVENT));
+  openCookieConsentPreferences();
 }
 
 /** Desktop app chrome reserves a left sidebar; align to that column, not the viewport. */
@@ -81,42 +72,19 @@ export function CookieBanner() {
   const t = useTranslations("CookieConsent");
   const pathname = usePathname();
   const chromeLeftPx = useMainChromeLeftPx();
-  const [visible, setVisible] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [analytics, setAnalytics] = useState(false);
-  const [marketing, setMarketing] = useState(false);
-  const [product, setProduct] = useState(() => authProductName(undefined));
-
-  useEffect(() => {
-    // A sign-in page opened from another product names that product.
-    const oauthQuery = buildSignedOAuthQueryFromSearchParams(
-      new URLSearchParams(window.location.search),
-    );
-    setProduct(
-      authProductName(oauthQuery ? oauthRequestBrand(oauthQuery) : undefined),
-    );
-    const stored = readConsent();
-    if (!stored) setVisible(true);
-
-    const reopen = () => {
-      const current = readConsent();
-      setAnalytics(current?.analytics ?? false);
-      setMarketing(current?.marketing ?? false);
-      setExpanded(true);
-      setVisible(true);
-    };
-    window.addEventListener(OPEN_CONSENT_EVENT, reopen);
-    return () => window.removeEventListener(OPEN_CONSENT_EVENT, reopen);
-  }, []);
+  const {
+    visible,
+    expanded,
+    setExpanded,
+    analytics,
+    setAnalytics,
+    marketing,
+    setMarketing,
+    product,
+    decide,
+  } = useCookieConsentBanner();
 
   if (!visible || NEWSLETTER_EMBED_PATH.test(pathname)) return null;
-
-  const decide = (choice: Omit<ConsentChoice, "necessary">) => {
-    const stored = writeConsent(choice);
-    applyConsentMode(stored);
-    setVisible(false);
-    setExpanded(false);
-  };
 
   return (
     <div

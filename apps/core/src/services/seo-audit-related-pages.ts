@@ -11,15 +11,17 @@ import { seoRelatedIndexingSelectionSchema } from "@/schemas/seo-task-pages.sche
 export function seoAuditInspectionPages(
   request: unknown,
   pageUrls: string[],
+  completed = false,
 ): string[] {
   const metadata = z
     .object({
       inspectRelated: z.boolean().optional(),
+      searchConsoleAccess: z.unknown().optional(),
       relatedIndexingSelection: z.unknown().optional(),
     })
     .parse(request);
   if (metadata.relatedIndexingSelection === undefined) {
-    if (metadata.inspectRelated)
+    if (metadata.inspectRelated && !completed)
       throw conflict("Prepare the related indexing targets before inspection");
     return pageUrls;
   }
@@ -29,5 +31,9 @@ export function seoAuditInspectionPages(
   );
   if (JSON.stringify(selection.seedPageUrls) !== JSON.stringify(pageUrls))
     throw conflict("The approved audit seed pages changed");
-  return selectSeoRelatedPages(pageUrls, selection.relatedPageUrls);
+  return selectSeoRelatedPages(
+    pageUrls,
+    selection.relatedPageUrls,
+    metadata.searchConsoleAccess,
+  );
 }

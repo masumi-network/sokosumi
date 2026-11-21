@@ -1,4 +1,3 @@
-import { z } from "@hono/zod-openapi";
 import { productBrief } from "@sokosumi/utils";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -10,7 +9,7 @@ import {
   IMAGE_PROMPT_MAX_LENGTH,
 } from "@/lib/image-studio/request-validation";
 
-import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
+import { createAgentImageJobSchema } from "@/schemas/project-image-studio.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
   getAsset,
@@ -46,9 +45,6 @@ import { authorizeAgentGrant as authorize } from "./authorize";
  */
 
 const app = new Hono();
-const createAgentImageJobSchema = createImageJobRequestSchema
-  .omit({ exportHeadline: true, useProductCutout: true })
-  .extend({ catalogProductId: z.string().uuid().optional() });
 
 /**
  * Confirm the grant's user still has access to the grant's project.
@@ -81,7 +77,7 @@ app.get("/options", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
   await ensureImageCatalogFresh();
-  return c.json({ ok: true, catalog: getImageCatalog() });
+  return c.json({ ok: true, catalog: getImageCatalog("agent") });
 });
 
 app.get("/versions", async (c) => {
@@ -216,6 +212,8 @@ app.post("/generations", async (c) => {
       prompt,
       ...(product ? { product } : {}),
       modelId: input.modelId,
+      route: input.route,
+      experimentArm: input.experimentArm,
       settings: { ...DEFAULT_SETTINGS, ...input.settings },
       referenceAssetIds: input.referenceAssetIds,
       ...(photoId ? { referenceFileIds: [photoId] } : {}),

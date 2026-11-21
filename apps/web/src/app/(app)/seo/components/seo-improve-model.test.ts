@@ -104,6 +104,37 @@ describe("customer-facing limitations", () => {
     });
   });
 
+  it("recognizes a partial audit read with zero traffic only for the measured pages", () => {
+    const workspace = seoTestWorkspace();
+    const pageUrl = workspace.pages[0].url;
+    const evidence = {
+      taskId: "audit-run",
+      propertyId: "sc-domain:example.com",
+      from: new Date("2026-08-20"),
+      to: new Date("2026-11-17"),
+      pageUrls: [pageUrl],
+      measuredPages: [
+        { pageUrl, measuredUrl: pageUrl, basis: "unverified" as const },
+      ],
+      coverage: "partial" as const,
+      clicks: 0,
+      impressions: 0,
+      ctr: null,
+      averagePosition: null,
+      previous: null,
+      queries: { rows: [], truncated: false },
+      opportunities: [],
+    };
+    workspace.auditSearchConsole = [evidence];
+    const gaps = () =>
+      seoCustomerAuditGaps(workspace).map((gap) => gap.message);
+    expect(gaps()).not.toContain("noSearchConsole");
+    workspace.auditSearchConsole = [
+      { ...evidence, pageUrls: ["https://unrelated.example/"] },
+    ];
+    expect(gaps()).toContain("noSearchConsole");
+  });
+
   it("groups the open catalog into five limits and omits completed areas", () => {
     expect(seoCustomerLimitations()).toEqual([
       "site",

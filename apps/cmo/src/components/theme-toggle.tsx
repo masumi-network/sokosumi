@@ -1,16 +1,27 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
+import { useMediaQuery } from "../hooks/effects/use-media-query";
 import { THEME_COOKIE, type Theme } from "../lib/theme";
 
-function currentTheme(): Theme {
+const themeListeners = new Set<() => void>();
+
+function subscribeThemeOverride(listener: () => void): () => void {
+  themeListeners.add(listener);
+  return () => {
+    themeListeners.delete(listener);
+  };
+}
+
+function getThemeOverride(): Theme | null {
   const chosen = document.documentElement.dataset.theme;
-  if (chosen === "light" || chosen === "dark") return chosen;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return chosen === "light" || chosen === "dark" ? chosen : null;
+}
+
+function getServerThemeOverride(): null {
+  return null;
 }
 
 /**
@@ -26,8 +37,14 @@ export function ThemeToggle({
   withLabel?: boolean;
   role?: "menuitem";
 }) {
-  const [theme, setTheme] = useState<Theme | null>(null);
-  useEffect(() => setTheme(currentTheme()), []);
+  const override = useSyncExternalStore(
+    subscribeThemeOverride,
+    getThemeOverride,
+    getServerThemeOverride,
+  );
+  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)", null);
+  const theme: Theme | null =
+    override ?? (prefersDark === null ? null : prefersDark ? "dark" : "light");
   const next: Theme = theme === "dark" ? "light" : "dark";
   const label = `${next === "dark" ? "Dark" : "Light"} mode`;
 
@@ -41,7 +58,7 @@ export function ThemeToggle({
       onClick={() => {
         document.documentElement.dataset.theme = next;
         document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-        setTheme(next);
+        for (const listener of themeListeners) listener();
       }}
     >
       {next === "dark" ? (

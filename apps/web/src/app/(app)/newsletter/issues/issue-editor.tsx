@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { IssueAnalyticsSummary } from "@/app/newsletter/analytics/issue-analytics-summary";
 import { newsletterDesignDefaults } from "@/app/newsletter/newsletter-design-fields";
@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { saveNewsletterIssue } from "@/lib/actions/newsletter/issues";
 import {
   type NewsletterSettingsValues,
@@ -141,14 +142,9 @@ export function NewsletterIssueEditor({
   const designDirty = designForm.formState.isDirty;
   const unsaved = isDirty || designDirty;
 
-  useEffect(() => {
-    if (!unsaved) return;
-    function handleBeforeUnload(event: BeforeUnloadEvent) {
-      event.preventDefault();
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [unsaved]);
+  useEventListener(unsaved ? "window" : null, "beforeunload", (event) => {
+    event.preventDefault();
+  });
 
   async function handleSave(values: NewsletterIssueValues) {
     form.clearErrors("root");

@@ -486,4 +486,19 @@ describe("proxy", () => {
       "max-age=31536000; includeSubDomains",
     );
   });
+
+  it.each(["/reset-password", "/reset-password/exchange"])(
+    "sets Referrer-Policy: no-referrer on %s",
+    async (path) => {
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("./proxy");
+      getSessionCookieMock.mockReturnValue(null);
+
+      const response = await proxy(
+        new NextRequest(`https://app.example.com${path}`),
+      );
+
+      expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    },
+  );
 });

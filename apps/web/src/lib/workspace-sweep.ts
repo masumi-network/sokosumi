@@ -4,7 +4,7 @@ import {
   gradientLoopAt,
   gradientUnit,
   linkProgram,
-} from "@/components/gradient-background";
+} from "@/lib/gradient-background";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const COVER_MS = 650;

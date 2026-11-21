@@ -2,7 +2,17 @@ import { z } from "@hono/zod-openapi";
 import {
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MARKUP_PERCENT,
+  SEO_FULL_AUDIT_MAX_SECONDS,
+  SEO_MIN_AUDIT_USD,
 } from "@sokosumi/utils";
+
+export const seoFullAuditLimitsSchema = z
+  .object({
+    usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
+    // 90 minutes: the worker contract accepts this owner-set site limit (owner, 2026-11-13).
+    seconds: z.number().int().min(60).max(SEO_FULL_AUDIT_MAX_SECONDS),
+  })
+  .strict();
 
 export const seoCostPlusPriceSchema = z.strictObject({
   kind: z.literal("cost_plus"),

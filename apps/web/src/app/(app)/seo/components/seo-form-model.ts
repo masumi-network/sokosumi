@@ -336,6 +336,14 @@ export function analysisSeoBody(
     throw new RangeError("The selected checks exceed the data request limit");
   return {
     kind,
+    ...(kind === "audit_full" &&
+      formText(form, "publicSitemapUrl") && {
+        publicSitemapUrl: formText(form, "publicSitemapUrl"),
+      }),
+    ...(kind === "audit_full" &&
+      form.has("sitemapPageHints") && {
+        sitemapPageHints: form.getAll("sitemapPageHints").map(String),
+      }),
     // A new full audit approves the cost-plus terms with no maximum (owner, 2026-11-19); never the old fixed price.
     ...(kind === "audit_full" ? { fullAuditPrice: seoFullAuditPrice() } : {}),
     ...(workspace.scope.id

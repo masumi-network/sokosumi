@@ -3,7 +3,8 @@
 import "./onboarding.css";
 import type { CmoBrandMedia, CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
+import { useTimeout } from "../../hooks/effects/use-timeout";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   BRAND_SECTIONS,
@@ -344,6 +345,8 @@ interface BrandStepProps {
   subscribe?: StartTopUp | null;
   /** Continues without a subscription, for a tester Core allows it. */
   skip?: SkipSubscription | null;
+  /** False in the app, whose page leads itself and shows Cuso in the sidebar. */
+  withLead?: boolean;
 }
 
 /** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
@@ -359,6 +362,7 @@ export function BrandStep({
   topUp = null,
   subscribe = null,
   skip = null,
+  withLead = true,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -383,14 +387,11 @@ export function BrandStep({
   const [staleSent, setStaleSent] = useState<typeof sent>(null);
   const stale = sent !== null && staleSent === sent;
   const idle = overview.botStatus !== "RUNNING";
-  useEffect(() => {
-    if (sent === null || answered) return;
-    const timer = window.setTimeout(
-      () => setStaleSent(sent),
-      idle ? 30_000 : 240_000,
-    );
-    return () => window.clearTimeout(timer);
-  }, [sent, answered, idle]);
+  useTimeout(
+    () => setStaleSent(sent),
+    sent !== null && !answered ? (idle ? 30_000 : 240_000) : null,
+    sent,
+  );
   // With onFix the overview says when a fix runs; the chat's reply never has to.
   const fixing = onFix
     ? overview.botStatus === "RUNNING" && overview.work?.change === "fix"
@@ -466,14 +467,16 @@ export function BrandStep({
 
   return (
     <section className="ob-brand">
-      <div className="ob-lead">
-        <CusoScene
-          scene="brand"
-          now={fixing ? "Updating your Brand Brain" : null}
-        />
-        <h1 className="ob-h1">Here's {site} as I see it.</h1>
-        <p className="muted">Tap any line to see the source or fix it.</p>
-      </div>
+      {withLead ? (
+        <div className="ob-lead">
+          <CusoScene
+            scene="brand"
+            now={fixing ? "Updating your Brand Brain" : null}
+          />
+          <h1 className="ob-h1">Here's {site} as I see it.</h1>
+          <p className="muted">Tap any line to see the source or fix it.</p>
+        </div>
+      ) : null}
       {refusal ? (
         <Refusal
           text={refusal}

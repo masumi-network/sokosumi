@@ -1,10 +1,17 @@
 import {
   type BrandBrain,
   CMO_AIDA_STAGES,
+  CMO_CLAIMS_STRATEGY_SKILL,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
+import { z } from "zod";
+
+import {
+  type AskCompetitorModel,
+  askCompetitorModel,
+} from "@/lib/competitors/model";
 import type { EmbedTexts } from "@/lib/embeddings";
 import { findRepeats } from "@/lib/repeats";
 import { bannedCopyProblems } from "@/lib/social-post-writing";
@@ -230,25 +237,15 @@ export function cmoPlanProblems(
       problems.push(
         `${hedged.length} calendar titles only tell people to check details ("${hedged[0]?.title}"); make each title say the point itself.`,
       );
-    // A long month is saved week by week (cmo-v3): until its fourth week is
-    // in, it asks for the next one, and the pace holds for the weeks so far.
     const weeks = options.weekly ? calendarWeeks(pieces) : 4;
-    if (weeks < 4)
-      problems.push(
-        `calendar covers ${weeks} of four weeks; add each later week with part patch (new ids). The month's counts are checked once all four are in.`,
-      );
-    // A calendar far below its own pace undersells it.
-    const perWeek = Math.round(pieces.length / weeks);
-    if (strategy.pace && perWeek < strategy.pace.perWeek * 0.6)
-      problems.push(
-        `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
-      );
+    problems.push(...volumeShortfalls(strategy, pieces, weeks));
     if (weeks >= 4)
-      problems.push(...cadenceProblems(strategy.channels, pieces));
+      problems.push(...cadenceProblems(strategy.channels, pieces, "over"));
     if (options.weekly)
       problems.push(...roleProblems(strategy.channels, pieces, weeks));
     problems.push(...crowdedNetworks(pieces));
-    problems.push(...storyProblems(pieces));
+    problems.push(...storyProblems(pieces, options.claims === true));
+    if (options.claims) problems.push(...claimProblems(pieces));
     problems.push(...repeatedTitles(pieces));
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
@@ -274,6 +271,8 @@ export function cmoPlanProblemsSince(
 ): string[] {
   const problems = cmoPlanProblems(strategy, options);
   if (!before || before.calendar.length === 0) return problems;
+  // A new month is held to the volume it promises, whatever the last had.
+  const fresh = new Set(options.fresh ? cmoPromiseGaps(strategy, options) : []);
   // A calendar already short of the month's totals stays short by any
   // count: adding one piece must not demand the other twelve.
   const rule = (problem: string) =>
@@ -291,7 +290,7 @@ export function cmoPlanProblemsSince(
   return problems.filter(
     (problem) =>
       problem.startsWith("calendar covers ") ||
-      (options.fresh === true && isTopVolumeProblem(problem)) ||
+      fresh.has(problem) ||
       (!had.has(rule(problem)) && withoutSkips.has(counted(problem))),
   );
 }
@@ -299,6 +298,8 @@ export function cmoPlanProblemsSince(
 export interface PlanReviewOptions {
   /** The Cuso saves a long month week by week (cmo-v3's strategy skill). */
   weekly?: boolean;
+  /** Every entry argues its own claim (cmo-v8's strategy skill). */
+  claims?: boolean;
   /** The Cuso writes the funnel in AIDA's four stages (cmo-v5's strategy skill). */
   aida?: boolean;
   /** The Cuso plans every live social network CMO offers (cmo-v5's strategy skill). */
@@ -313,11 +314,14 @@ export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
 
 /** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
 export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
-  const everyNetwork = skills.includes(EVERY_NETWORK_STRATEGY_SKILL);
+  // cmo-v8's strategy skill is cmo-v5's with claims and corrections.
+  const claims = skills.includes(CMO_CLAIMS_STRATEGY_SKILL);
+  const everyNetwork = claims || skills.includes(EVERY_NETWORK_STRATEGY_SKILL);
   return {
     weekly: everyNetwork || skills.includes(WEEKLY_STRATEGY_SKILL),
     aida: everyNetwork,
     everyNetwork,
+    claims,
   };
 }
 
@@ -552,12 +556,84 @@ function belowTopVolume(
   return range !== null && range[1] < topVolume(channel).pieces;
 }
 
-/** Whether a problem is about the month's volume (pace or a cadence). */
-export function isTopVolumeProblem(problem: string): boolean {
-  return (
-    problem.startsWith("pace is ") ||
-    / has the cadence ".*"; at the top volume /.test(problem)
+/**
+ * Where a calendar falls short of the volume its own plan states: weeks
+ * still missing, fewer pieces a week than the pace, fewer on a channel than
+ * its cadence. The pace holds for the weeks saved so far.
+ */
+function volumeShortfalls(
+  strategy: MarketingStrategyPlan,
+  pieces: MarketingStrategyPlan["calendar"],
+  weeks: number,
+): string[] {
+  const problems: string[] = [];
+  if (weeks < 4)
+    problems.push(
+      `calendar covers ${weeks} of four weeks; add each later week with part patch (new ids). The month's counts are checked once all four are in.`,
+    );
+  if (weeks === 0) return problems;
+  const perWeek = Math.round(pieces.length / weeks);
+  if (strategy.pace && perWeek < strategy.pace.perWeek * 0.6)
+    problems.push(
+      `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
+    );
+  if (weeks >= 4)
+    problems.push(...cadenceProblems(strategy.channels, pieces, "under"));
+  return problems;
+}
+
+/**
+ * What a month promises and its calendar does not hold: weeks, pace and
+ * cadences, and on cmo-v5 the top volume and the video its funnel and
+ * video networks promise. NMKR's test copy ended its plan turn at 16 pieces
+ * a week against the pace's 43 and was approved, so its month was made at a third.
+ */
+export function cmoPromiseGaps(
+  strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
+): string[] {
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
   );
+  return [
+    ...(options.everyNetwork
+      ? [...cmoTopVolumeProblems(strategy), ...funnelVideoGaps(strategy)]
+      : []),
+    ...volumeShortfalls(
+      strategy,
+      pieces,
+      options.weekly ? cmoCalendarWeeks(pieces) : pieces.length > 0 ? 4 : 0,
+    ),
+  ];
+}
+
+/**
+ * A month that does not hold what it promises, in numbers the owner reads:
+ * the pieces it plans and about how many its pace and cadences promise
+ * (the same when only a video is missing). Null when it holds all of it.
+ */
+export function cmoMonthShortfall(
+  strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
+): { planned: number; promised: number } | null {
+  if (cmoPromiseGaps(strategy, options).length === 0) return null;
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  const missing = strategy.channels.reduce((sum, channel) => {
+    const low = cadenceRange(channel.cadence)?.[0] ?? 0;
+    const count = pieces.filter((entry) =>
+      goesOutOn(entry, channel.channel),
+    ).length;
+    return sum + Math.max(0, low - count);
+  }, 0);
+  return {
+    planned: pieces.length,
+    promised: Math.max(
+      (strategy.pace?.perWeek ?? 0) * 4,
+      pieces.length + missing,
+    ),
+  };
 }
 
 /** Words that ask for less: "only 1 a day on LinkedIn", "post less on X". */
@@ -651,10 +727,6 @@ export function cmoFunnelPlanProblems(
   const leftOut = new Set(
     (strategy.leftOut ?? []).map((item) => item.channel.toLowerCase()),
   );
-  const pieces = strategy.calendar.filter(
-    (entry) => entry.status !== "skipped",
-  );
-  const complete = pieces.length > 0 && calendarWeeks(pieces) >= 4;
   const problems: string[] = [];
   const named = new Set<string>();
   for (const stage of strategy.funnel) {
@@ -685,14 +757,6 @@ export function cmoFunnelPlanProblems(
         problems.push(
           `the funnel's ${stage.stage} play on ${key} says "${play.cadence}", but ${key}'s cadence is "${channel.cadence}"; say the same in both.`,
         );
-      if (
-        complete &&
-        PROMISES_VIDEO.test(play.what) &&
-        !pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key))
-      )
-        problems.push(
-          `the funnel's ${stage.stage} play on ${key} promises video ("${play.what}"), but no talking video in the calendar goes out on ${key}; plan one with ${key} in its alsoOn, or take video out of the play.`,
-        );
     }
   }
   const unnamed = [...channels.keys()].filter(
@@ -702,16 +766,39 @@ export function cmoFunnelPlanProblems(
     problems.push(
       `${unnamed.join(", ")} ${unnamed.length === 1 ? "is" : "are"} in channels but in no funnel stage; name ${unnamed.length === 1 ? "it" : "each"} with a play at the stage it serves.`,
     );
-  if (complete)
-    for (const key of VIDEO_ONLY_NETWORKS) {
-      if (
-        channels.has(key) &&
-        !pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key))
-      )
+  problems.push(...funnelVideoGaps(strategy));
+  return problems;
+}
+
+/**
+ * Video the plan promises and its calendar does not hold: a funnel play
+ * that promises it on a network, or a video-only network, with no talking
+ * video going out there. Checked once the month's four weeks are in.
+ */
+function funnelVideoGaps(strategy: MarketingStrategyPlan): string[] {
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  if (pieces.length === 0 || calendarWeeks(pieces) < 4) return [];
+  const planned = new Set(
+    strategy.channels.map((channel) => channel.channel.toLowerCase()),
+  );
+  const videoOn = (key: string) =>
+    pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key));
+  const problems: string[] = [];
+  for (const stage of strategy.funnel)
+    for (const play of stage.plays) {
+      const key = play.channel.toLowerCase();
+      if (planned.has(key) && PROMISES_VIDEO.test(play.what) && !videoOn(key))
         problems.push(
-          `${key} is in channels, but no talking video in the calendar goes out on it; list ${key} in the talking videos' alsoOn.`,
+          `the funnel's ${stage.stage} play on ${key} promises video ("${play.what}"), but no talking video in the calendar goes out on ${key}; plan one with ${key} in its alsoOn, or take video out of the play.`,
         );
     }
+  for (const key of VIDEO_ONLY_NETWORKS)
+    if (planned.has(key) && !videoOn(key))
+      problems.push(
+        `${key} is in channels, but no talking video in the calendar goes out on it; list ${key} in the talking videos' alsoOn.`,
+      );
   return problems;
 }
 
@@ -963,10 +1050,15 @@ function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
  * LinkedIn rewards one real story, and proof without one is a vague "a
  * reviewer liked it"; a month without them read as generic tips.
  */
-function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
+function storyProblems(
+  pieces: MarketingStrategyPlan["calendar"],
+  /** cmo-v8: a LinkedIn piece argues its own claim; only proof needs a story. */
+  proofOnly = false,
+): string[] {
   const missing = pieces.filter(
     (entry) =>
-      (entry.channel === "linkedin" || entry.approach === "social-proof") &&
+      ((!proofOnly && entry.channel === "linkedin") ||
+        entry.approach === "social-proof") &&
       !entry.story,
   );
   if (missing.length === 0) return [];
@@ -976,6 +1068,26 @@ function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
       .join(
         ", ",
       )}); give each the one real customer, launch, number or decision from the Brand Brain it tells. A social-proof piece the Brand Brain has no story for takes another approach.`,
+  ];
+}
+
+/** Entries Core compares by their claim: a talking video's copies are its own piece. */
+function arguing(
+  pieces: MarketingStrategyPlan["calendar"],
+): MarketingStrategyPlan["calendar"] {
+  return pieces.filter((entry) => entry.status !== "skipped" && !entry.videoOf);
+}
+
+function claimProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
+  const missing = arguing(pieces).filter((entry) => !entry.claim?.trim());
+  if (missing.length === 0) return [];
+  return [
+    `${missing.length} calendar entries have no claim (${missing
+      .slice(0, 12)
+      .map((entry) => entry.id)
+      .join(
+        ", ",
+      )}${missing.length > 12 ? ", …" : ""}); give each the one sentence it argues, a point no other piece that week makes.`,
   ];
 }
 
@@ -1002,6 +1114,7 @@ function cadenceRange(cadence: string): [number, number] | null {
 function cadenceProblems(
   channels: MarketingStrategyPlan["channels"],
   pieces: MarketingStrategyPlan["calendar"],
+  side: "under" | "over",
 ): string[] {
   return channels.flatMap((channel) => {
     const range = cadenceRange(channel.cadence);
@@ -1010,10 +1123,20 @@ function cadenceProblems(
       goesOutOn(entry, channel.channel),
     ).length;
     const [low, high] = range;
-    if (count >= Math.floor(low * 0.6) && count <= Math.ceil(high * 1.4))
+    if (
+      side === "under"
+        ? count >= Math.floor(low * 0.6)
+        : count <= Math.ceil(high * 1.4)
+    )
       return [];
+    const key = channel.channel.toLowerCase();
+    // A video network's pieces are the month's talking videos, capped.
+    const fix =
+      side === "under" && VIDEO_ONLY_NETWORKS.includes(key)
+        ? `List ${key} in the alsoOn of more of the month's talking videos (at most ${CMO_MAX_VIDEOS_PER_MONTH} videos a month), or set its cadence to what they hold.`
+        : "Save part calendar so they match.";
     return [
-      `${channel.channel} has ${count} calendar pieces, but its cadence "${channel.cadence}" means about ${low === high ? low : `${low} to ${high}`} over four weeks. Save part calendar so they match.`,
+      `${channel.channel} has ${count} calendar pieces, but its cadence "${channel.cadence}" means about ${low === high ? low : `${low} to ${high}`} over four weeks. ${fix}`,
     ];
   });
 }
@@ -1085,10 +1208,11 @@ async function sameMessage(
   entries: MarketingStrategyPlan["calendar"],
   text: (entry: MarketingStrategyPlan["calendar"][number]) => string,
   embed?: EmbedTexts,
+  kind: "title" | "claim" = "title",
 ): Promise<{ groups: MarketingStrategyPlan["calendar"][]; costUsd: number }> {
   const { repeats, costUsd } = await findRepeats(
     entries.map(text),
-    "title",
+    kind,
     embed,
   );
   // Each text joins the message of the earlier text it repeats.
@@ -1120,12 +1244,18 @@ export async function cmoCalendarRepeats(
   embed?: EmbedTexts,
 ): Promise<{ problems: string[]; costUsd: number }> {
   const planned = calendar.filter((entry) => entry.status !== "skipped");
-  const [titles, stories] = await Promise.all([
+  const [titles, stories, claims] = await Promise.all([
     sameMessage(planned, (entry) => entry.title, embed),
     sameMessage(
       planned.filter((entry) => entry.story?.trim()),
       (entry) => entry.story ?? "",
       embed,
+    ),
+    sameMessage(
+      arguing(planned).filter((entry) => entry.claim?.trim()),
+      (entry) => entry.claim ?? "",
+      embed,
+      "claim",
     ),
   ]);
   const ids = (entries: MarketingStrategyPlan["calendar"]) =>
@@ -1143,8 +1273,73 @@ export async function cmoCalendarRepeats(
         (entries) =>
           `${ids(entries)} tell one story ("${entries[0]?.story}"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.`,
       ),
+    // A few at a time: each is a rewrite of its pieces.
+    ...claims.groups
+      .flatMap((entries) => {
+        const repeated = repeatedClaim(entries);
+        return repeated
+          ? [
+              `${ids(repeated)} argue one claim ("${entries[0]?.claim}"); ${MAX_CLAIM_PIECES} pieces a month at most, never two in one week. Keep ${repeated[0]?.id} and give the others their own claim from their pillar.`,
+            ]
+          : [];
+      })
+      .slice(0, MAX_CLAIM_PROBLEMS),
   ];
-  return { problems, costUsd: titles.costUsd + stories.costUsd };
+  return {
+    problems,
+    costUsd: titles.costUsd + stories.costUsd + claims.costUsd,
+  };
+}
+
+/**
+ * The points a month argues more than its limits allow: each entry's claim,
+ * or its title where it has none (a plan before cmo-v8), by meaning.
+ */
+export async function cmoRepeatedMessages(
+  calendar: MarketingStrategyPlan["calendar"],
+  embed?: EmbedTexts,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const point = (entry: MarketingStrategyPlan["calendar"][number]) =>
+    entry.claim?.trim() || entry.title;
+  const { groups, costUsd } = await sameMessage(
+    arguing(calendar),
+    point,
+    embed,
+    "claim",
+  );
+  const problems = groups.flatMap((entries) => {
+    const repeated = repeatedClaim(entries);
+    return repeated && entries[0]
+      ? [
+          `${repeated.map((entry) => entry.id).join(", ")} argue one point ("${point(entries[0])}")`,
+        ]
+      : [];
+  });
+  return { problems, costUsd };
+}
+
+/** Repeated claims one review names; the next save names the rest. */
+const MAX_CLAIM_PROBLEMS = 5;
+
+/** Pieces one claim may carry in a month, in different weeks (cmo-v8). */
+const MAX_CLAIM_PIECES = 3;
+
+/**
+ * The pieces of one claim that break its limits, or null: two in one week
+ * (counted from the calendar's first day), or more than three in the month.
+ */
+function repeatedClaim(
+  entries: MarketingStrategyPlan["calendar"],
+): MarketingStrategyPlan["calendar"] | null {
+  if (entries.length < 2) return null;
+  if (entries.length > MAX_CLAIM_PIECES) return entries;
+  const first = Math.min(...entries.map((entry) => Date.parse(entry.date)));
+  const week = (entry: MarketingStrategyPlan["calendar"][number]) =>
+    Math.floor((Date.parse(entry.date) - first) / (7 * 86_400_000));
+  const sameWeek = entries.filter((entry) =>
+    entries.some((other) => other !== entry && week(other) === week(entry)),
+  );
+  return sameWeek.length > 0 ? sameWeek : null;
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */
@@ -1400,4 +1595,359 @@ export async function cmoReplySafety(input: {
   } catch {
     return { safe: false, costUsd: 0 };
   }
+}
+
+const rejectedSchema = z.object({ rejected: z.array(z.string()) });
+
+/** Each turn's rejected words, asked once: a turn saves several times. */
+const rejectedByTurn = new Map<
+  string,
+  Promise<{ terms: string[]; costUsd: number }>
+>();
+const MAX_REMEMBERED_TURNS = 200;
+
+/**
+ * The words naming what the owner's correction in a turn's request rejects
+ * ("ballcaps" in "No, we don't sell ballcaps anymore, push the jackets"),
+ * as a plan would spell them. None when the request rejects nothing.
+ */
+export function cmoRejectedTerms(
+  turnId: string,
+  request: string,
+  /**
+   * The strategy before the correction: the owner says "revenue operations
+   * leaders", the plan said "revenue teams", and only its words find it.
+   */
+  before: MarketingStrategyPlan | null,
+  ask: AskCompetitorModel = askCompetitorModel,
+): Promise<{ terms: string[]; costUsd: number }> {
+  const known = rejectedByTurn.get(turnId);
+  if (known) return known.then((found) => ({ ...found, costUsd: 0 }));
+  const asked = ask({
+    system:
+      "You read a business owner's request to their marketing lead and list what the owner says is not true or no longer wanted, as the words a marketing plan would use for it.",
+    prompt: [
+      "Request:",
+      request.slice(0, 6_000),
+      ...(before
+        ? ["", "The strategy before the request:", planWords(before)]
+        : []),
+      "",
+      'List the words or short phrases (one to three words each, in the language the plan is written in) that name only what the owner rejected: a product, audience, market, place or claim that must no longer appear anywhere in the marketing strategy. Give the forms a plan would use ("ballcap", "ballcaps", "baseball caps"), and every phrase the strategy above uses for the same thing (it may say "revenue teams" where the owner said "revenue operations leaders"). Never a word the corrected truth also uses, never the business\'s own name, never a common word ("team", "teams", "price", "customers"). An empty list when the owner rejects nothing (a change of pace, a new idea, a budget, a request to add something).',
+    ].join("\n"),
+    schema: rejectedSchema,
+  })
+    .then(({ output, costUsd }) => ({
+      terms: [
+        ...new Set(
+          output.rejected
+            .map((term) => term.trim().toLowerCase())
+            .filter((term) => term.length >= 3),
+        ),
+      ].slice(0, 8),
+      costUsd,
+    }))
+    .catch(() => {
+      rejectedByTurn.delete(turnId);
+      return { terms: [], costUsd: 0 };
+    });
+  rejectedByTurn.set(turnId, asked);
+  while (rejectedByTurn.size > MAX_REMEMBERED_TURNS) {
+    const oldest = rejectedByTurn.keys().next().value;
+    if (oldest === undefined) break;
+    rejectedByTurn.delete(oldest);
+  }
+  return asked;
+}
+
+/** What a strategy says about whom it serves and what it sells, for reading its words. */
+function planWords(plan: MarketingStrategyPlan): string {
+  const { calendar, ...fields } = plan;
+  return [
+    ...Object.entries(fields)
+      .filter(([key]) => !NOT_THE_PLAN.has(key))
+      .flatMap(([, value]) => textsIn(value)),
+    ...calendar.map((entry) => entry.title),
+  ]
+    .join("\n")
+    .slice(0, 6_000);
+}
+
+/** Fields that record the plan's history or other options, not what it says now. */
+const NOT_THE_PLAN = new Set([
+  "changes",
+  "patched",
+  "previews",
+  "alternatives",
+  "leftOut",
+  "contentLanguage",
+]);
+
+function textsIn(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(textsIn);
+  if (value && typeof value === "object")
+    return Object.values(value).flatMap(textsIn);
+  return [];
+}
+
+/**
+ * Where the strategy still names what the owner rejected (cmo-v8): every
+ * field but its history, and each planned entry's title, brief, story and
+ * claim. A correction is true everywhere, so each place is named.
+ */
+export function cmoRejectedTermProblems(
+  strategy: MarketingStrategyPlan,
+  terms: readonly string[],
+): string[] {
+  const places: { place: string; texts: string[] }[] = [
+    ...Object.entries(strategy)
+      .filter(([key]) => key !== "calendar" && !NOT_THE_PLAN.has(key))
+      .map(([key, value]) => ({ place: key, texts: textsIn(value) })),
+    ...strategy.calendar
+      .filter((entry) => entry.status !== "skipped")
+      .map((entry) => ({
+        place: `${entry.id}'s words`,
+        texts: [
+          entry.title,
+          entry.brief,
+          entry.why,
+          entry.hook,
+          entry.story,
+          entry.claim,
+        ].flatMap((text) => text ?? []),
+      })),
+  ];
+  return terms.flatMap((term) => {
+    const pattern = new RegExp(
+      `(?<![\\p{L}\\p{N}])${RegExp.escape(term)}(?:s|es)?(?![\\p{L}\\p{N}])`,
+      "iu",
+    );
+    const found = places
+      .filter(({ texts }) => texts.some((text) => pattern.test(text)))
+      .map(({ place }) => place);
+    if (found.length === 0) return [];
+    const shown = found.slice(0, 8).join(", ");
+    return [
+      `"${term}" is what the owner said is not true, and it is still in ${shown}${found.length > 8 ? ` and ${found.length - 8} more` : ""}. A correction is true everywhere: rewrite each of these so none names it, not even to say it is out, and save with part patch. Send a field you change whole, with its other items as they are: an empty list keeps what is saved, so to drop a whole list also name it in clear.`,
+    ];
+  });
+}
+
+const distinctClaimsSchema = z.object({
+  claims: z.array(z.object({ id: z.string(), claim: z.string() })),
+});
+
+/** Entries one review gives new claims; a month rarely repeats more. */
+const MAX_CLAIM_REWRITES = 40;
+const CLAIMS_PER_CALL = 12;
+
+/**
+ * New claims for the entries that repeat another's (cmo-v8), each its own
+ * point from its title, brief and pillar. Told the repeats, Cuso fixed a few
+ * and left the rest: four of six NMKR plans ended with four or more. The
+ * first entry of each repeated claim keeps it.
+ */
+export async function cmoDistinctClaims(
+  calendar: MarketingStrategyPlan["calendar"],
+  ask: AskCompetitorModel = askCompetitorModel,
+  embed?: EmbedTexts,
+): Promise<{ claims: Map<string, string>; costUsd: number }> {
+  const pieces = arguing(calendar).filter((entry) => entry.claim?.trim());
+  const { groups, costUsd } = await sameMessage(
+    pieces,
+    (entry) => entry.claim ?? "",
+    embed,
+    "claim",
+  );
+  const redo = groups
+    .filter((entries) => repeatedClaim(entries) !== null)
+    .flatMap((entries) => entries.slice(1))
+    .slice(0, MAX_CLAIM_REWRITES);
+  if (redo.length === 0) return { claims: new Map(), costUsd };
+  const ids = new Set(redo.map((entry) => entry.id));
+  const kept = pieces
+    .filter((entry) => !ids.has(entry.id))
+    .map((entry) => entry.claim);
+  // A few pieces a call: forty at once ran past the check model's 25 s.
+  const batches = Array.from(
+    { length: Math.ceil(redo.length / CLAIMS_PER_CALL) },
+    (_, index) =>
+      redo.slice(index * CLAIMS_PER_CALL, (index + 1) * CLAIMS_PER_CALL),
+  );
+  const answers = await Promise.all(
+    batches.map((batch) =>
+      ask({
+        system:
+          "You give pieces of a marketing month their own point. Each claim is one short sentence in plain words a reader can agree or disagree with, in the language of the claims below, specific to the piece's title and brief. Use only facts the piece's title, brief and old claim state: never add a customer, a number, a quote or a result they do not name.",
+        prompt: [
+          "Claims the month already makes (never repeat one, not in other words):",
+          ...kept.map((claim) => `- ${claim}`),
+          "",
+          "Write one new claim for each of these pieces, by its id. Give each a different point from the others in this list too:",
+          JSON.stringify(
+            batch.map((entry) => ({
+              id: entry.id,
+              channel: entry.channel,
+              title: entry.title,
+              brief: entry.brief,
+              pillar: entry.pillar,
+              approach: entry.approach,
+              oldClaim: entry.claim,
+            })),
+          ),
+        ].join("\n"),
+        schema: distinctClaimsSchema,
+      }).catch(() => null),
+    ),
+  );
+  const claims = new Map<string, string>();
+  let asked = 0;
+  for (const answer of answers) {
+    if (!answer) continue;
+    asked += answer.costUsd;
+    for (const { id, claim } of answer.output.claims)
+      if (ids.has(id) && claim.trim())
+        claims.set(id, claim.trim().slice(0, 400));
+  }
+  return { claims, costUsd: costUsd + asked };
+}
+
+const pointGroupsSchema = z.object({
+  groups: z.array(z.object({ point: z.string(), pieces: z.array(z.string()) })),
+});
+
+/**
+ * The pieces past the third that argue a point the month already makes,
+ * across every network. Embeddings cannot tell a point from a topic: on
+ * NMKR's month "Show the fee early", "Show the Fee Up Front", "Show fees
+ * before choosing" and "Plan fees before scope" scored 0.59 to 0.82, below
+ * the same-point cutoff and among different points, so a model groups them.
+ */
+async function samePoint(
+  pieces: MarketingStrategyPlan["calendar"],
+  ask: AskCompetitorModel,
+): Promise<{
+  overflow: MarketingStrategyPlan["calendar"];
+  points: string[];
+  costUsd: number;
+}> {
+  if (pieces.length <= MAX_CLAIM_PIECES)
+    return { overflow: [], points: [], costUsd: 0 };
+  const key = (index: number) => `c${index}`;
+  try {
+    const { output, costUsd } = await ask({
+      system:
+        "You read a marketing month's claims and find the points it makes too often. Two claims make the same point when a reader would say they say one thing, whatever the words or the network.",
+      prompt: [
+        "Claims, by key:",
+        ...pieces.map((entry, index) => `${key(index)}: ${entry.claim}`),
+        "",
+        `List only the points that more than ${MAX_CLAIM_PIECES} claims make, each with the keys of every claim that makes it. Leave out every point ${MAX_CLAIM_PIECES} or fewer claims make.`,
+      ].join("\n"),
+      schema: pointGroupsSchema,
+    });
+    const byKey = new Map(pieces.map((entry, index) => [key(index), entry]));
+    const order = new Map(pieces.map((entry, index) => [entry.id, index]));
+    const overflow = output.groups.flatMap((group) =>
+      group.pieces
+        .flatMap((piece) => byKey.get(piece.trim()) ?? [])
+        .sort(
+          (left, right) =>
+            left.date.localeCompare(right.date) ||
+            (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0),
+        )
+        .slice(MAX_CLAIM_PIECES),
+    );
+    return {
+      overflow,
+      points: output.groups.map((group) => group.point),
+      costUsd,
+    };
+  } catch {
+    return { overflow: [], points: [], costUsd: 0 };
+  }
+}
+
+const respreadSchema = z.object({
+  pieces: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      brief: z.string(),
+      claim: z.string(),
+    }),
+  ),
+});
+
+/** A piece Core moved onto a point of its own. */
+export interface CmoRespreadPiece {
+  title: string;
+  brief: string;
+  claim: string;
+}
+
+/**
+ * New points for the pieces past the third on one point, across every
+ * network (cmo-v8): each gets its own title, brief and claim within its
+ * pillar, from the given facts only. Rewording a claim alone kept the point
+ * ("Displaying fees upfront allows teams to commit…" for a fees piece).
+ */
+export async function cmoSpreadPoints(
+  calendar: MarketingStrategyPlan["calendar"],
+  facts: readonly string[],
+  ask: AskCompetitorModel = askCompetitorModel,
+): Promise<{ pieces: Map<string, CmoRespreadPiece>; costUsd: number }> {
+  const pieces = arguing(calendar).filter((entry) => entry.claim?.trim());
+  const { overflow, points, costUsd } = await samePoint(pieces, ask);
+  const redo = overflow.slice(0, MAX_CLAIM_REWRITES);
+  if (redo.length === 0) return { pieces: new Map(), costUsd };
+  const ids = new Set(redo.map((entry) => entry.id));
+  const batches = Array.from(
+    { length: Math.ceil(redo.length / CLAIMS_PER_CALL) },
+    (_, index) =>
+      redo.slice(index * CLAIMS_PER_CALL, (index + 1) * CLAIMS_PER_CALL),
+  );
+  const answers = await Promise.all(
+    batches.map((batch) =>
+      ask({
+        system:
+          "You move pieces of a marketing month onto points of their own. For each piece write a new title (at most 10 words, sentence case), a one-line brief and a claim (one short sentence in plain words a reader can agree or disagree with), within its pillar and its approach, in the language of its title. Use only the facts listed: never add a customer, a number, a quote or a result they do not name, and never build a piece on a complaint or a critical review of the business.",
+        prompt: [
+          "Points the month already makes enough (give no piece any of them, not in other words):",
+          ...points.map((point) => `- ${point}`),
+          "",
+          "Facts you may use:",
+          ...facts.map((fact) => `- ${fact}`),
+          "",
+          "Give each of these pieces, by its id, a different point from the others in this list too:",
+          JSON.stringify(
+            batch.map((entry) => ({
+              id: entry.id,
+              channel: entry.channel,
+              format: entry.format,
+              pillar: entry.pillar,
+              approach: entry.approach,
+              title: entry.title,
+            })),
+          ),
+        ].join("\n"),
+        schema: respreadSchema,
+      }).catch(() => null),
+    ),
+  );
+  const moved = new Map<string, CmoRespreadPiece>();
+  let asked = 0;
+  for (const answer of answers) {
+    if (!answer) continue;
+    asked += answer.costUsd;
+    for (const piece of answer.output.pieces)
+      if (ids.has(piece.id) && piece.title.trim() && piece.claim.trim())
+        moved.set(piece.id, {
+          title: piece.title.trim().slice(0, 400),
+          brief: piece.brief.trim().slice(0, 400),
+          claim: piece.claim.trim().slice(0, 400),
+        });
+  }
+  return { pieces: moved, costUsd: costUsd + asked };
 }

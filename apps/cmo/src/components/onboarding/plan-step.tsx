@@ -158,6 +158,10 @@ interface PlanStepProps {
   phase: PlanPhase;
   /** The tab to open, such as Results after a measurement connection. */
   initialTab?: PlanTab;
+  /** Why a measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
+  /** Called once the one-shot measurement return notice has been left behind. */
+  onConsumeMeasureError?: () => void;
   /** Cuso writes or changes the plan; a refusal comes back as text. */
   onRequest: (note?: string) => Promise<string | null>;
   /** The owner's own monthly ad budget; a refusal comes back as text. */
@@ -403,6 +407,8 @@ export function PlanReview({
   overview,
   readOnly = false,
   initialTab = "plan",
+  measureError = null,
+  onConsumeMeasureError,
   onRequest,
   onSetAds,
   onAnswer,
@@ -415,7 +421,29 @@ export function PlanReview({
   skip = null,
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
-  const [tab, setTab] = useState<PlanTab>(initialTab);
+  const [tabState, setTabState] = useState({
+    tab: initialTab,
+    measureError,
+  });
+  const { tab } = tabState;
+  // Leaving Results consumes its one-shot measurement return notice so
+  // switching back later does not show it again.
+  function selectTab(next: PlanTab) {
+    if (tabState.tab === next) return;
+    const leavingResults = tabState.tab === "results";
+    setTabState((current) =>
+      current.tab === next
+        ? current
+        : {
+            tab: next,
+            measureError:
+              current.tab === "results" ? null : current.measureError,
+          },
+    );
+    if (leavingResults) {
+      onConsumeMeasureError?.();
+    }
+  }
   // The plan's detail, folded until asked for; a measurement return opens it.
   // On the app's Strategy page the plan is the page, so it starts open.
   const [full, setFull] = useState(readOnly || initialTab === "results");
@@ -448,6 +476,8 @@ export function PlanReview({
     strategy: { ...strategy, questions },
   });
   const month = monthLabel(strategy.calendar);
+  // Core refuses to approve a month short of what it promises.
+  const short = overview.strategyShort;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -504,7 +534,19 @@ export function PlanReview({
       Continue to {ahead.label}
       <ArrowRight size={16} aria-hidden="true" />
     </button>
-  ) : locked ? null : !overview.viewerCanApprove && !unfitted ? (
+  ) : locked ? null : short && !busy ? (
+    <button
+      type="button"
+      className="button"
+      onClick={() => {
+        setRefusal(null);
+        send("Writing your strategy again", () => onRequest()).catch(() => {});
+      }}
+    >
+      Write it again
+      <ArrowRight size={16} aria-hidden="true" />
+    </button>
+  ) : !overview.viewerCanApprove && !unfitted ? (
     <p className="muted">An owner or admin approves the strategy.</p>
   ) : (
     <button
@@ -629,6 +671,15 @@ export function PlanReview({
           subscribe={subscribe}
           skip={skip}
         />
+      ) : null}
+      {short && !busy && !locked ? (
+        <p className="alert" role="status">
+          {short.promised > short.planned
+            ? `This strategy plans ${short.planned} posts, but it promises about ${short.promised}.`
+            : "This strategy promises more than its calendar holds."}{" "}
+          {AGENT_NAME} couldn't fill the month, so it can't be approved. Ask him
+          to write it again.
+        </p>
       ) : null}
       {stopped ? (
         <p className="alert" role="alert">
@@ -777,12 +828,12 @@ export function PlanReview({
                     aria-selected={tab === candidate.id}
                     aria-controls={`ob-tabpanel-${candidate.id}`}
                     tabIndex={tab === candidate.id ? 0 : -1}
-                    onClick={() => setTab(candidate.id)}
+                    onClick={() => selectTab(candidate.id)}
                     onKeyDown={(event) => {
                       const next = planTabAfterKey(event, index);
                       if (next === null) return;
                       event.preventDefault();
-                      setTab(TABS[next]!.id);
+                      selectTab(TABS[next]!.id);
                       document
                         .getElementById(`ob-tab-${TABS[next]!.id}`)
                         ?.focus();
@@ -820,6 +871,7 @@ export function PlanReview({
                     overview={overview}
                     strategy={strategy}
                     onConnectMeasurement={onConnectMeasurement}
+                    measureError={tabState.measureError}
                   />
                 )}
               </div>

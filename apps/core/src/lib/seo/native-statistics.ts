@@ -266,8 +266,51 @@ export function gscSearchAnalyticsArguments(
     operator === "equals"
       ? query.pageUrls[0]!
       : `^(?:${[...new Set(query.pageUrls)].map(escapeRegex).join("|")})$`;
-  if (expression.length > 4096)
+  return gscPageFilterArguments(
+    query,
+    dimensions,
+    rowLimit,
+    0,
+    operator,
+    expression,
+  );
+}
+
+const GSC_FILTER_EXPRESSION_LIMIT = 4096;
+
+export function gscPageFilterArguments(
+  query: Pick<
+    NativeStatisticsQuery,
+    "propertyId" | "from" | "to" | "searchType"
+  >,
+  dimensions: string[],
+  rowLimit: number,
+  start: number,
+  operator: "includingRegex" | "equals",
+  expression: string,
+) {
+  if (expression.length > GSC_FILTER_EXPRESSION_LIMIT)
     throw new Error("Select fewer pages for this Search Console query");
+  return {
+    ...gscReportArguments(query, dimensions, rowLimit, start),
+    dimension_filter_groups: [
+      {
+        groupType: "and",
+        filters: [{ dimension: "page", operator, expression }],
+      },
+    ],
+  };
+}
+
+export function gscReportArguments(
+  query: Pick<
+    NativeStatisticsQuery,
+    "propertyId" | "from" | "to" | "searchType"
+  >,
+  dimensions: string[],
+  rowLimit: number,
+  start = 0,
+) {
   return {
     site_url: query.propertyId,
     start_date: query.from,
@@ -275,14 +318,39 @@ export function gscSearchAnalyticsArguments(
     dimensions,
     search_type: query.searchType ?? "web",
     data_state: "final",
-    dimension_filter_groups: [
-      {
-        groupType: "and",
-        filters: [{ dimension: "page", operator, expression }],
-      },
-    ],
     row_limit: rowLimit,
-    start_row: 0,
+    start_row: start,
+  };
+}
+
+export async function readGscPropertyTotals(
+  query: Pick<NativeStatisticsQuery, "propertyId" | "from" | "to">,
+  read: (args: Record<string, unknown>) => Promise<unknown>,
+) {
+  if (!withinSearchConsoleRetention(query.from))
+    throw new Error("Audit period is outside Search Console retention");
+  const body = unwrapNativeStatistics(
+    await read({
+      ...gscReportArguments({ ...query, searchType: "web" }, [], 1),
+      aggregation_type: "byProperty",
+    }),
+    ["rows", "responseAggregationType"],
+  );
+  if (
+    (body.responseAggregationType !== undefined &&
+      body.responseAggregationType !== "byProperty") ||
+    (!Array.isArray(body.rows) && body.responseAggregationType !== "byProperty")
+  )
+    throw new Error("Missing property aggregate");
+  const { rows } = gscReportSchema.parse(body);
+  if (rows.length > 1 || rows[0]?.keys.length)
+    throw new Error("Unexpected property grouping");
+  const row = rows[0];
+  return {
+    clicks: row?.clicks ?? 0,
+    impressions: row?.impressions ?? 0,
+    ctr: row ? gscValue(row, "ctr") : null,
+    averagePosition: row ? gscValue(row, "position") : null,
   };
 }
 
@@ -329,7 +397,7 @@ export function searchConsoleSettledEnd(
 
 export function withinPeriod(
   date: string,
-  query: NativeStatisticsQuery,
+  query: Pick<NativeStatisticsQuery, "from" | "to">,
 ): boolean {
   const parsed = new Date(`${date}T00:00:00Z`);
   return (
@@ -509,4 +577,28 @@ export function normalizeGscStatistics(
         })),
     })),
   };
+}
+
+export function applyPreviousSeoPeriod(
+  metrics: NativeSeoMetrics,
+  totals: NativeSeoMetrics,
+  window: { from: string; to: string },
+) {
+  const previousNotes = totals.notes;
+  if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE)) {
+    metrics.coverage = "partial";
+    if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE))
+      metrics.notes.push(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE);
+  }
+  if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)) {
+    metrics.coverage = "partial";
+    if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE))
+      metrics.notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
+  }
+  for (const metric of metrics.metrics) {
+    const before = totals.metrics.find(
+      (candidate) => candidate.key === metric.key,
+    );
+    if (before) metric.previous = { ...window, value: before.value };
+  }
 }

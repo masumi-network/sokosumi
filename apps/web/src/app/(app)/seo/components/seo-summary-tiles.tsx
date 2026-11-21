@@ -7,6 +7,7 @@ import {
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
+import { SeoChecklistDetails } from "./seo-audit-coverage";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SEO_SEVERITY_MARK_CLASS, SeoDate, SeoSource } from "./seo-shared";
 import { seoSummary } from "./seo-summary-model";
@@ -105,6 +106,10 @@ export function SeoSummaryTiles({
     seoRunsDateCheck(workspace, filters, tests.observationId)
   );
   if (!issues && !tests) return null;
+  const check =
+    tests &&
+    workspace.observations.find((row) => row.id === tests.observationId);
+  const breakdown = check?.checklistBreakdown;
   return (
     <dl
       className="stagger grid grid-cols-2 gap-2"
@@ -135,9 +140,9 @@ export function SeoSummaryTiles({
                 </li>
               ))}
             </ul>
-          ) : (
+          ) : issues.total === 0 ? (
             result("summary.issuesNone")
-          )}
+          ) : null}
         </Tile>
       ) : null}
       {tests ? (
@@ -178,7 +183,14 @@ export function SeoSummaryTiles({
             {/* The issues can come from older checks too; the tests are of this one. The date opens its results:
                 a page row of this check, under the tile, repeats no link to them. Where the runs row over the
                 tabs names the day, the link names the results alone. */}
-            {testsDated ? (
+            {breakdown || check?.kind === "audit_full" ? (
+              testsDated && (
+                <span>
+                  {result("agent.lastCheckOn")}{" "}
+                  <SeoDate report day value={tests.observedAt} />
+                </span>
+              )
+            ) : testsDated ? (
               <span>
                 {result("agent.lastCheckOn")}{" "}
                 {/* The date alone is the link: a link that broke into two underlined lines read as two links.
@@ -200,6 +212,9 @@ export function SeoSummaryTiles({
               />
             )}
           </span>
+          {(breakdown || check?.kind === "audit_full") && (
+            <SeoChecklistDetails data={breakdown} />
+          )}
         </Tile>
       ) : null}
     </dl>

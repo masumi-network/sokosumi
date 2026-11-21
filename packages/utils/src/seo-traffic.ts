@@ -30,3 +30,8 @@ export function seoSearchUrlPrefixCovers(
     })
   );
 }
+
+/** The SEO website includes its www alias and keeps other subdomains and ports separate. */
+export function seoSearchSiteHost(url: string) {
+  return new URL(url).host.replace(/^www\./, "");
+}

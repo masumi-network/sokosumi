@@ -3,6 +3,8 @@ import {
   type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
+  cmoWritesMonthAtOnce,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
   SOKO_BOT_CMO_RHYTHMS,
   writingSkillsBrief,
@@ -22,6 +24,7 @@ import {
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
+import { evaluateWithJev } from "@/lib/soko-bot/jev";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { cmoPlanLevel, isCmoSubscribed } from "@/services/cmo-billing.service";
@@ -243,7 +246,9 @@ export interface CmoProductionStatus {
   beyondPlan: string[];
 }
 
-async function connectedChannels(projectId: string): Promise<Set<string>> {
+export async function cmoConnectedChannels(
+  projectId: string,
+): Promise<Set<string>> {
   const channels = await listCmoChannels(projectId);
   return new Set(
     channels
@@ -269,7 +274,8 @@ export function cmoMixLedger(
     .join(", ");
 }
 
-function pieceLine(piece: CmoPiece, failed: boolean): string {
+/** One piece as a production brief lists it: what to make and what is missing. */
+export function cmoPieceLine(piece: CmoPiece, failed: boolean): string {
   const slides = cmoPieceSlides(piece);
   return [
     `- ${piece.id}`,
@@ -284,6 +290,7 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
       ? `brief: ${piece.brief}`
       : "(no brief: write it from its title, approach and pillar)",
     piece.story ? `story: ${piece.story}` : "",
+    piece.claim ? `claim: ${piece.claim}` : "",
     slides > 0
       ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
       : "",
@@ -314,6 +321,19 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
     .join(" · ");
 }
 
+/** What the writer may write: a Social post missing its words, visual or script. */
+export function cmoWriterPieces(pending: readonly CmoPiece[]): CmoPiece[] {
+  return pending.filter(
+    (piece) =>
+      !isMarketingFilePiece(piece) &&
+      (!piece.draft?.trim() ||
+        (cmoPieceIsTalking(piece) && !piece.videoOf && !piece.script) ||
+        (cmoPieceNeedsMedia(piece) &&
+          !cmoPieceIsTalking(piece) &&
+          !piece.visual)),
+  );
+}
+
 /** Proof points a brief may hold: enough for a month, short enough for a brief. */
 const MAX_PROOF_POINTS = 12;
 /** Brand Brain sections whose findings name customers, results and reviews. */
@@ -334,6 +354,60 @@ export function cmoProofPoints(brain: BrandBrain | null): string[] {
   return [...new Set(points)].slice(0, MAX_PROOF_POINTS);
 }
 
+/** Each proof point's verdict, by its words: a Brand Brain changes rarely. */
+const praiseVerdicts = new Map<string, boolean>();
+/** Below this Jev reads a point as not clearly positive. */
+const PRAISE_PASS = 0.5;
+
+/**
+ * The proof points a cmo-v8 piece may stand on: clearly positive praise and
+ * plain facts. NMKR's month opened two posts on "One G2 review, rated
+ * 4.0/5" whose reviewer found the fees "somewhat high": the reputation
+ * section holds complaints for Cuso's understanding, never a post's angle.
+ * When Jev does not answer, a point that names a review or rating is left
+ * out and the rest kept.
+ */
+export async function cmoPraiseOnly(
+  points: readonly string[],
+  evaluate: typeof evaluateWithJev = evaluateWithJev,
+): Promise<{ points: string[]; costUsd: number }> {
+  const unread = points.filter((point) => !praiseVerdicts.has(point));
+  let costUsd = 0;
+  if (unread.length > 0) {
+    try {
+      const answer = await evaluate({
+        state: { points: unread.map((point, index) => ({ index, point })) },
+        questions: Object.fromEntries(
+          unread.map((_, index) => [
+            `p${index}`,
+            {
+              type: "boolean" as const,
+              instructions: `Is point ${index} clearly positive about the business (praise, a result, a customer's win) or a plain fact? A complaint, a criticism, a mixed or lukewarm review, or a middling rating with a reservation is not.`,
+            },
+          ]),
+        ),
+        timeoutMs: 30_000,
+      });
+      costUsd = answer.costUsd;
+      unread.forEach((point, index) => {
+        const read = answer.answers.get(`p${index}`);
+        if (read?.type === "boolean")
+          praiseVerdicts.set(point, read.probability >= PRAISE_PASS);
+      });
+    } catch {
+      // Unread points stay out only when they name a review or rating.
+    }
+  }
+  return {
+    points: points.filter(
+      (point) =>
+        praiseVerdicts.get(point) ??
+        !/\b(review|reviewer|rating|rated|stars?)\b/i.test(point),
+    ),
+    costUsd,
+  };
+}
+
 /** What the production run reads: the whole month to make, in one brief. */
 export function cmoProductionMessage(input: {
   businessName: string;
@@ -349,8 +423,12 @@ export function cmoProductionMessage(input: {
   failedMedia?: ReadonlySet<string>;
   /** The reference library is set up here: every picture takes an old print's look. */
   styles?: boolean;
+  /** Core writes the social pieces (write_month_pieces); Cuso gets the rest. */
+  coreWrites?: boolean;
 }): string {
-  const { strategy, pending } = input;
+  const { strategy } = input;
+  const forCore = input.coreWrites ? cmoWriterPieces(input.pending) : [];
+  const pending = input.pending.filter((piece) => !forCore.includes(piece));
   const batch = pending.slice(0, PIECES_PER_RUN);
   const connected = [...input.connected];
   return [
@@ -361,13 +439,18 @@ export function cmoProductionMessage(input: {
     !input.topUp && input.attempt > 1
       ? "An earlier run made part of the month; these pieces are still missing something."
       : "",
+    forCore.length > 0
+      ? `Core writes ${forCore.length} social piece${forCore.length === 1 ? "" : "s"} of the month for you: call write_month_pieces first, and again until left is 0. Then fix each piece it hands back${batch.length > 0 ? ", and make the pieces below yourself" : ""}.`
+      : "",
     batch.some((piece) => !isMarketingFilePiece(piece))
       ? "Each social piece is already a draft Social post, under the id below: never create another post for it. Put its words on that post with update_social_post (read get_social_post first for its revision)."
       : "",
     batch.some(isMarketingFilePiece)
       ? "Every other piece (an article, a page fix, ad copy, a newsletter issue) becomes a file in the owner's Files: write it in full, ready to paste, launch or send, and save it with save_strategy part pieces, sending that entry with its id and draft (and its visual when its format has a picture). Core writes the file; never upload it yourself."
       : "",
-    `Connected networks: ${connected.length > 0 ? connected.join(", ") : "none yet"}. On a connected network, schedule a post that needs no picture with schedule_social_post at its date and time; Core schedules a post with a picture once it has it. On any other network a post stays a finished draft until the owner connects it.`,
+    input.coreWrites
+      ? `Connected networks: ${connected.length > 0 ? connected.join(", ") : "none yet"}. Core schedules every finished post on a connected network at its date and time, with or without a picture: never schedule one yourself. On any other network a post stays a finished draft until the owner connects it.`
+      : `Connected networks: ${connected.length > 0 ? connected.join(", ") : "none yet"}. On a connected network, schedule a post that needs no picture with schedule_social_post at its date and time; Core schedules a post with a picture once it has it. On any other network a post stays a finished draft until the owner connects it.`,
     `The mix, as planned: ${cmoMixLedger(strategy)}. Each piece keeps its approach.`,
     input.proof && input.proof.length > 0
       ? [
@@ -376,12 +459,16 @@ export function cmoProductionMessage(input: {
         ].join("\n")
       : "",
     "",
-    `Pieces (${batch.length}${pending.length > batch.length ? ` of ${pending.length}; the rest come in the next run` : ""}):`,
+    batch.length > 0
+      ? `${forCore.length > 0 ? "Pieces for you" : "Pieces"} (${batch.length}${pending.length > batch.length ? ` of ${pending.length}; the rest come in the next run` : ""}):`
+      : "",
     ...batch.map((piece) =>
-      pieceLine(piece, input.failedMedia?.has(piece.id) ?? false),
+      cmoPieceLine(piece, input.failedMedia?.has(piece.id) ?? false),
     ),
     "",
-    "As your production skill says: first list each pillar's different messages and give every piece its own, then write every piece's words, then save the visuals of the pieces with a picture or video (visual and visualFileIds from brandPictures) in one save_strategy part pieces call. Core makes and attaches every picture and video; never call generate_image or generate_video.",
+    batch.length > 0
+      ? "As your production skill says: first list each pillar's different messages and give every piece its own, then write every piece's words, then save the visuals of the pieces with a picture or video (visual and visualFileIds from brandPictures) in one save_strategy part pieces call. Core makes and attaches every picture and video; never call generate_image or generate_video."
+      : "Core makes and attaches every picture and video; never call generate_image or generate_video.",
     input.styles && batch.some(cmoPieceTakesStyle)
       ? [
           "Picture styles: every piece with a picture takes the look of an old print, whatever it shows; this replaces your skill's choice per piece. Before you save the visuals, call find_style_references for each such piece with what it is about and the look that suits it, and save each with its styleReferenceId in that same call; Core refuses a save that leaves one without a style.",
@@ -393,11 +480,21 @@ export function cmoProductionMessage(input: {
         ].join("\n")
       : "",
     "",
+    // A piece Core hands back names its network: read_writing_skill opens it.
     writingSkillsBrief(batch.map((piece) => piece.channel)),
     "When every piece is made, report with report_update kind production: how many pieces you made per channel, what is scheduled and what waits for a connection. Then end with DONE: and one sentence for the owner. A reply without DONE: is treated as a progress note and you will be asked to continue.",
   ]
     .filter((line) => line !== "")
     .join("\n");
+}
+
+/** Whether Cuso's version has Core write the month (cmo-v6 on). */
+async function cmoCoreWritesMonth(sokoBotId: string): Promise<boolean> {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { versionId: true },
+  });
+  return cmoWritesMonthAtOnce(getSokoBotVersion(bot?.versionId).skills);
 }
 
 /** The turn a run hangs under: the newest top-level turn of Cuso's bot. */
@@ -752,7 +849,7 @@ export async function advanceCmoProduction(
   cuso: Cuso,
   now: Date = new Date(),
 ): Promise<CmoProductionStatus> {
-  const connected = await connectedChannels(cuso.projectId);
+  const connected = await cmoConnectedChannels(cuso.projectId);
   const {
     status: current,
     version,
@@ -771,7 +868,12 @@ export async function advanceCmoProduction(
   // Core makes the pictures from the visuals saved so far, runs or no runs.
   if (version && current.state !== "waiting")
     await advanceCmoMedia(
-      { cuso, versionId: version.id, connected },
+      {
+        cuso,
+        versionId: version.id,
+        connected,
+        schedulesEveryPost: await cmoCoreWritesMonth(cuso.sokoBotId),
+      },
       pieces,
     ).catch((error: unknown) => {
       // Media errors can quote a prompt or a post, so only name and code.
@@ -828,6 +930,7 @@ export async function advanceCmoProduction(
       ),
       failedMedia,
       styles: referenceLibraryAvailable(),
+      coreWrites: await cmoCoreWritesMonth(cuso.sokoBotId),
     }),
     `${approvalRunPrefix(cuso.sokoBotId, approvedAt)}${attempt}:${current.ready}`,
   );

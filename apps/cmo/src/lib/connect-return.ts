@@ -18,3 +18,18 @@ export function connectReturnError(code: string | null): string | null {
       return "That connection didn't finish. Try again.";
   }
 }
+
+/** What the owner reads for the `ads` marker on the return address. */
+export function adsReturnErrorFromCode(code: string | null): string | null {
+  if (code === "none") {
+    return "That login has no ad account. Create one in Google Ads or Meta, then connect again.";
+  }
+  return code === "failed"
+    ? "That ad connection didn't finish. Try again."
+    : null;
+}
+
+/** What the owner reads for the `measure` marker on the return address. */
+export function measureReturnError(code: string | null): string | null {
+  return code === "failed" ? "That connection didn't finish. Try again." : null;
+}

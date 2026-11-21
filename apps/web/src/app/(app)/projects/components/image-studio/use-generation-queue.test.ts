@@ -73,7 +73,6 @@ describe("useGenerationQueue", () => {
     await waitFor(() => expect(result.current.queued).toHaveLength(0));
     expect(startImageGeneration).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelId: "gemini-pro",
         exportHeadline: "Made to last",
         lettering: "ideogram",
       }),

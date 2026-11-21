@@ -82,13 +82,28 @@ vi.mock("@/components/chat/composer-add-link-dialog", () => ({
   ),
 }));
 
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: () => ({
-    typistIds: [],
-    handleComposerChange: handleComposerChangeSpy,
-    handleStopTyping: handleStopTypingSpy,
-  }),
-}));
+vi.mock("@/hooks/effects/use-room-typing", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/hooks/effects/use-room-typing")>();
+  return {
+    ...actual,
+    useRoomTypingSync: (
+      _roomId: string,
+      _userId: string,
+      store: {
+        setActions: (actions: {
+          handleComposerChange: typeof handleComposerChangeSpy;
+          handleStopTyping: typeof handleStopTypingSpy;
+        }) => void;
+      },
+    ) => {
+      store.setActions({
+        handleComposerChange: handleComposerChangeSpy,
+        handleStopTyping: handleStopTypingSpy,
+      });
+    },
+  };
+});
 
 import { RoomSessionComposer } from "./room-session-composer";
 import { RoomTypingProvider } from "./room-typing-provider";

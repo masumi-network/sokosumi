@@ -20,18 +20,23 @@ vi.mock("@/lib/soko-bot/jev", () => ({
 import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
+  cmoDistinctClaims,
   cmoDraftProblems,
+  cmoMonthShortfall,
   cmoNewNetworkProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoPlanProblemsSince,
   cmoPlanRuleProblems,
+  cmoPromiseGaps,
+  cmoRejectedTermProblems,
+  cmoRejectedTerms,
   cmoReplySafety,
   cmoSideChannelFit,
+  cmoSpreadPoints,
   cmoStrategyRules,
   cmoTopVolumeProblems,
   cmoWithOwnerPace,
-  isTopVolumeProblem,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
@@ -424,6 +429,48 @@ describe("the funnel strategy", () => {
     expect(
       cmoPlanProblems(plan({ calendar: weekOne, pace })).join(" "),
     ).not.toContain("calendar covers");
+  });
+
+  it("names a four-week month short of its own pace and cadences, and how short", () => {
+    // NMKR's test copy: four weeks at 16 a week against an all_in pace of 43.
+    const calendar = Array.from({ length: 64 }, (_, index) => ({
+      ...entry(`p${index}`, index % 2 ? "x" : "linkedin", "post"),
+      date: `2026-11-${String(2 + Math.floor(index / 16) * 7 + (index % 7)).padStart(2, "0")}`,
+    }));
+    const short = plan({
+      calendar,
+      pace: { level: "all_in", why: "Go hard", perWeek: 43 },
+      channels: [
+        { channel: "x", cadence: "3 a day", role: "main" },
+        { channel: "linkedin", cadence: "2 a day", role: "main" },
+      ],
+    });
+    const options = { weekly: true, everyNetwork: true };
+    expect(cmoPromiseGaps(short, options)).toEqual([
+      "calendar has about 16 pieces a week; the all_in pace says 43. Match them.",
+      'x has 32 calendar pieces, but its cadence "3 a day" means about 84 over four weeks. Save part calendar so they match.',
+      'linkedin has 32 calendar pieces, but its cadence "2 a day" means about 56 over four weeks. Save part calendar so they match.',
+    ]);
+    expect(cmoMonthShortfall(short, options)).toEqual({
+      planned: 64,
+      promised: 172,
+    });
+    // Too many on a channel is no gap: the plan bought caps what is made.
+    const whole = plan({
+      calendar,
+      pace: { level: "all_in", why: "Go hard", perWeek: 16 },
+      channels: [
+        { channel: "x", cadence: "1 a day", role: "main", setByOwner: true },
+        {
+          channel: "linkedin",
+          cadence: "1 a week",
+          role: "main",
+          setByOwner: true,
+        },
+      ],
+    });
+    expect(cmoPromiseGaps(whole, options)).toEqual([]);
+    expect(cmoMonthShortfall(whole, options)).toBeNull();
   });
 
   it("holds a weekly Cuso's side channels to a buyer and three a week", () => {
@@ -1119,16 +1166,19 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       weekly: true,
       aida: true,
       everyNetwork: true,
+      claims: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
       aida: false,
       everyNetwork: false,
+      claims: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
       aida: false,
       everyNetwork: false,
+      claims: false,
     });
   });
 
@@ -1514,6 +1564,59 @@ describe("a cmo-v5 month at the top volume, whose funnel says what it plans", ()
     );
   });
 
+  it("counts video a funnel promises and the calendar lacks as a gap of the month", () => {
+    const month = plan({
+      pace: { level: "all_in", why: "Top volume", perWeek: 1 },
+      channels: [
+        { ...channel("x", "1 a week", "main"), setByOwner: true },
+        { ...channel("instagram", "1 a week", "side"), setByOwner: true },
+      ],
+      funnel: [
+        stage("awareness", [{ channel: "x", what: "Weekly posts" }]),
+        stage("interest", [
+          { channel: "instagram", what: "Moments, including weekly video" },
+        ]),
+      ],
+      calendar: [0, 1, 2, 3].flatMap((n) => [
+        { ...entry(`x${n}`, "x", "post"), date: week(n), title: `Post ${n}` },
+        {
+          ...entry(`i${n}`, "instagram", "image"),
+          date: week(n),
+          title: `Picture ${n}`,
+        },
+      ]),
+    });
+    const options = { everyNetwork: true, weekly: true };
+    expect(cmoPromiseGaps(month, options)).toEqual([
+      'the funnel\'s interest play on instagram promises video ("Moments, including weekly video"), but no talking video in the calendar goes out on instagram; plan one with instagram in its alsoOn, or take video out of the play.',
+    ]);
+    // Only a video is missing: the owner reads no count.
+    expect(cmoMonthShortfall(month, options)).toEqual({
+      planned: 8,
+      promised: 8,
+    });
+    const withVideo = {
+      ...month,
+      calendar: [...month.calendar, { ...video(1), alsoOn: ["instagram"] }],
+    };
+    expect(cmoPromiseGaps(withVideo, options)).toEqual([]);
+  });
+
+  it("fills a video network through the talking videos' alsoOn, within the video cap", () => {
+    // A finish turn once added a fifth video for YouTube's "1 a week".
+    const month = plan({
+      pace: { level: "all_in", why: "Top volume", perWeek: 1 },
+      channels: [{ ...channel("youtube", "1 a week", "main") }],
+      calendar: [0, 1, 2, 3].map((n) => ({
+        ...video(n),
+        alsoOn: n === 0 ? ["youtube"] : [],
+      })),
+    });
+    expect(cmoPromiseGaps(month, { weekly: true })).toEqual([
+      'youtube has 1 calendar pieces, but its cadence "1 a week" means about 4 over four weeks. List youtube in the alsoOn of more of the month\'s talking videos (at most 4 videos a month), or set its cadence to what they hold.',
+    ]);
+  });
+
   it("passes the same month at the top volume, on every network, with talking videos", () => {
     const fixed = plan({
       ...nmkr,
@@ -1701,12 +1804,305 @@ describe("a pace or cadence only the owner lowers", () => {
     });
     const options = { everyNetwork: true, weekly: true, aida: true };
     const volume = (fresh: boolean) =>
-      cmoPlanProblemsSince(old, old, { ...options, fresh }).filter(
-        isTopVolumeProblem,
+      cmoPlanProblemsSince(old, old, { ...options, fresh }).filter((problem) =>
+        problem.includes("at the top volume"),
       );
     expect(volume(false)).toEqual([]);
     expect(volume(true)).toEqual([
       'x has the cadence "13 posts a week"; at the top volume a main x takes 3 a day. Set it and plan its pieces, unless the owner asked for less.',
     ]);
+  });
+
+  it("holds a new month to its own pace whatever the month before had", () => {
+    const calendar = Array.from({ length: 16 }, (_, index) => ({
+      ...entry(`p${index}`, "x", "post"),
+      date: `2026-11-${String(2 + index * 2).padStart(2, "0")}`,
+    }));
+    const short = plan({
+      calendar,
+      pace: { level: "all_in", why: "Go hard", perWeek: 43 },
+    });
+    const pace = (fresh: boolean) =>
+      cmoPlanProblemsSince(short, short, { weekly: true, fresh }).filter(
+        (problem) => problem.includes("pace says"),
+      );
+    expect(pace(false)).toEqual([]);
+    expect(pace(true)).toEqual([
+      "calendar has about 4 pieces a week; the all_in pace says 43. Match them.",
+    ]);
+  });
+});
+
+// cmo-v8: NMKR's month (2026-11-20) made one point in most posts, in other
+// words each time; each entry now argues its own claim.
+describe("claims", () => {
+  const claimed = (id: string, date: string, claim?: string) => ({
+    ...entry(id, "x", "post"),
+    date,
+    title: `Piece ${id}`,
+    ...(claim ? { claim } : {}),
+  });
+
+  it("are asked of a cmo-v8 Cuso's every entry", () => {
+    expect(cmoStrategyRules(["cmo-strategy-claims"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+      claims: true,
+    });
+    const strategy = plan({
+      calendar: [
+        claimed("c1", "2026-11-02", "Minting needs no code"),
+        claimed("c2", "2026-11-03"),
+        { ...claimed("c3", "2026-11-04"), videoOf: "c1" },
+      ],
+    });
+    const missing = (claims: boolean) =>
+      cmoPlanProblems(strategy, { claims }).filter((problem) =>
+        problem.includes("have no claim"),
+      );
+    expect(missing(true)).toEqual([
+      "1 calendar entries have no claim (c2); give each the one sentence it argues, a point no other piece that week makes.",
+    ]);
+    expect(missing(false)).toEqual([]);
+  });
+
+  it("name one claim argued twice in a week, or more than three times a month", async () => {
+    const embed = topicEmbed([/no code|without code|zero code/i]);
+    const twiceInAWeek = await cmoCalendarRepeats(
+      [
+        claimed("w1", "2026-11-02", "Minting a token takes no code"),
+        claimed("w2", "2026-11-05", "You mint without code in NMKR Studio"),
+        claimed("w3", "2026-11-03", "Royalties pay the artist on every resale"),
+      ],
+      embed,
+    );
+    expect(twiceInAWeek.problems).toEqual([
+      'w1, w2 argue one claim ("Minting a token takes no code"); 3 pieces a month at most, never two in one week. Keep w1 and give the others their own claim from their pillar.',
+    ]);
+    // Three weeks apart, three times is still one point a week.
+    const spread = await cmoCalendarRepeats(
+      [
+        claimed("s1", "2026-11-02", "Minting a token takes no code at all"),
+        claimed("s2", "2026-11-10", "NMKR mints without code"),
+        claimed("s3", "2026-11-18", "Zero code to mint on NMKR"),
+      ],
+      embed,
+    );
+    expect(spread.problems).toEqual([]);
+    const four = await cmoCalendarRepeats(
+      [
+        claimed("f1", "2026-11-02", "No code is needed to mint"),
+        claimed("f2", "2026-11-10", "Minting works without code"),
+        claimed("f3", "2026-11-18", "Zero code minting"),
+        claimed("f4", "2026-11-26", "Mint with no code"),
+      ],
+      embed,
+    );
+    expect(four.problems).toHaveLength(1);
+    expect(four.problems[0]).toMatch(/^f1, f2, f3, f4 argue one claim/);
+  });
+});
+
+// cmo-v8: NMKR's 56 LinkedIn posts a month met a handful of stories, and
+// four strategy turns ended without a calendar.
+describe("stories on a cmo-v8 calendar", () => {
+  it("are asked only of proof pieces", () => {
+    const strategy = plan({
+      calendar: [
+        { ...entry("s1", "linkedin", "post"), claim: "A point" },
+        {
+          ...entry("s2", "x", "post"),
+          approach: "social-proof",
+          claim: "Another point",
+        },
+      ],
+    } as Partial<MarketingStrategyPlan>);
+    const stories = (claims: boolean) =>
+      cmoPlanProblems(strategy, { claims }).find((problem) =>
+        problem.includes("have no story"),
+      );
+    expect(stories(true)).toContain("(s2)");
+    expect(stories(false)).toContain("(s1, s2)");
+  });
+});
+
+// cmo-v8: told the repeats, Cuso fixed a few and left the rest.
+describe("cmoDistinctClaims", () => {
+  const entry = (id: string, date: string, claim: string) => ({
+    id,
+    date,
+    channel: "x",
+    format: "post",
+    title: `Title ${id}`,
+    status: "idea" as const,
+    claim,
+  });
+
+  it("gives the later pieces of a repeated claim their own, and keeps the first", async () => {
+    const ask = vi.fn(async () => ({
+      output: {
+        claims: [
+          { id: "d2", claim: "Royalties pay the artist on every resale" },
+          { id: "other", claim: "ignored" },
+        ],
+      },
+      costUsd: 0.000_5,
+    }));
+    const { claims, costUsd } = await cmoDistinctClaims(
+      [
+        entry("d1", "2026-11-02", "Minting needs no code at all here"),
+        entry("d2", "2026-11-03", "You can mint with no code"),
+        entry("d3", "2026-11-04", "Fees are listed per token"),
+      ],
+      ask as never,
+      topicEmbed([/no code/i]),
+    );
+    expect([...claims]).toEqual([
+      ["d2", "Royalties pay the artist on every resale"],
+    ]);
+    expect(costUsd).toBeGreaterThan(0.000_5);
+    const prompt = (ask.mock.calls[0] as unknown as [{ prompt: string }])[0]
+      .prompt;
+    expect(prompt).toContain("- Minting needs no code at all here");
+    expect(prompt).toContain('"id":"d2"');
+  });
+
+  it("asks nothing when every claim is the piece's own", async () => {
+    const ask = vi.fn();
+    const { claims } = await cmoDistinctClaims(
+      [entry("e1", "2026-11-02", "Fees are per token, not per month")],
+      ask as never,
+      topicEmbed([]),
+    );
+    expect(claims.size).toBe(0);
+    expect(ask).not.toHaveBeenCalled();
+  });
+});
+
+// cmo-v8: NMKR's month argued "show the fee early" in 11 pieces across
+// four networks, each worded its own way.
+describe("cmoSpreadPoints", () => {
+  const entry = (id: string, date: string, claim: string) => ({
+    id,
+    date,
+    channel: id.startsWith("x") ? "x" : "linkedin",
+    format: "post",
+    title: `Title ${id}`,
+    status: "idea" as const,
+    pillar: "Fees",
+    claim,
+  });
+  const calendar = [
+    entry("x1", "2026-11-02", "Show the fee early"),
+    entry("li1", "2026-11-03", "Fees belong up front"),
+    entry("x2", "2026-11-09", "Put the fee before the choice"),
+    entry("li2", "2026-11-16", "A clear fee builds trust"),
+    entry("x3", "2026-11-23", "Royalties pay artists on resale"),
+  ];
+
+  it("moves the pieces past the third on one point onto points of their own", async () => {
+    const ask = vi.fn(async (input: { prompt: string }) =>
+      input.prompt.startsWith("Claims, by key:")
+        ? {
+            output: {
+              groups: [
+                { point: "Show fees early", pieces: ["c0", "c1", "c2", "c3"] },
+              ],
+            },
+            costUsd: 0.000_2,
+          }
+        : {
+            output: {
+              pieces: [
+                {
+                  id: "li2",
+                  title: "A 150 ADA audit before launch",
+                  brief: "What the project audit checks.",
+                  claim: "An audit catches setup mistakes before the mint",
+                },
+              ],
+            },
+            costUsd: 0.000_3,
+          },
+    );
+    const { pieces, costUsd } = await cmoSpreadPoints(
+      calendar,
+      ["NMKR Studio project audit: 150 ADA"],
+      ask as never,
+    );
+    expect([...pieces.keys()]).toEqual(["li2"]);
+    expect(pieces.get("li2")?.title).toBe("A 150 ADA audit before launch");
+    expect(costUsd).toBeCloseTo(0.000_5);
+    const rewrite = (ask.mock.calls[1] as unknown as [{ prompt: string }])[0]
+      .prompt;
+    expect(rewrite).toContain("- Show fees early");
+    expect(rewrite).toContain("- NMKR Studio project audit: 150 ADA");
+  });
+
+  it("moves nothing when no point is made more than three times", async () => {
+    const ask = vi.fn(async () => ({ output: { groups: [] }, costUsd: 0 }));
+    const { pieces } = await cmoSpreadPoints(calendar, [], ask as never);
+    expect(pieces.size).toBe(0);
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+});
+
+// cmo-v8: a no to ballcaps once changed the goal and left caps in the
+// funnel's plays and a question.
+describe("an owner's correction", () => {
+  it("names every field and title that still says what the owner rejected", () => {
+    const strategy = plan({
+      summary: "Sell jackets to collectors.",
+      questions: [
+        {
+          id: "q1",
+          question: "Do ballcaps sell best in spring?",
+          statement: "Ballcaps sell best in spring.",
+        },
+      ],
+      calendar: [
+        { ...entry("b1", "x", "post"), title: "Our new ballcap drop" },
+        { ...entry("b2", "x", "post"), title: "Wool jackets for winter" },
+        {
+          ...entry("b3", "x", "post"),
+          title: "Old ballcap idea",
+          status: "skipped" as const,
+        },
+      ],
+      changes: ["Took the ballcaps out of the goal"],
+    } as Partial<MarketingStrategyPlan>);
+    const problems = cmoRejectedTermProblems(strategy, ["ballcap", "jackets"]);
+    expect(problems).toHaveLength(2);
+    expect(problems[0]).toContain(
+      '"ballcap" is what the owner said is not true, and it is still in questions, b1\'s words.',
+    );
+    expect(problems[0]).not.toContain("changes");
+    expect(problems[0]).not.toContain("b3");
+    expect(cmoRejectedTermProblems(strategy, [])).toEqual([]);
+  });
+
+  it("reads the rejected words once per turn", async () => {
+    const ask = vi.fn(async () => ({
+      output: { rejected: ["Ballcaps", " ballcap ", "x"] },
+      costUsd: 0.000_3,
+    }));
+    const request = "No, we don't sell ballcaps anymore. Push the jackets.";
+    await expect(
+      cmoRejectedTerms("turn-ballcaps", request, null, ask as never),
+    ).resolves.toEqual({ terms: ["ballcaps", "ballcap"], costUsd: 0.000_3 });
+    await expect(
+      cmoRejectedTerms("turn-ballcaps", request, null, ask as never),
+    ).resolves.toEqual({ terms: ["ballcaps", "ballcap"], costUsd: 0 });
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a save through when the words cannot be read", async () => {
+    const ask = vi.fn(async () => {
+      throw new Error("gateway down");
+    });
+    await expect(
+      cmoRejectedTerms("turn-down", "No caps.", null, ask as never),
+    ).resolves.toEqual({ terms: [], costUsd: 0 });
   });
 });

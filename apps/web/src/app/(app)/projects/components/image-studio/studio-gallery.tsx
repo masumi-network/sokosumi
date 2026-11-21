@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { resolveModel, supportsVariation } from "./catalog";
+import { imageRepeatRoute, resolveModel } from "./catalog";
 import { canCompareStudioAsset } from "./studio-batch";
 import { StudioImage } from "./studio-image";
 import { StudioAssetMenu, StudioRating } from "./studio-rating";
@@ -224,9 +224,12 @@ export function StudioGallery({
               const selected = selectedIds.includes(asset.id);
               const model = resolveModel(catalog, asset.model);
               const video = isVideoAsset(asset);
-              const reroll = video ? undefined : onReroll;
+              const reroll =
+                !video && imageRepeatRoute(catalog, asset, 0)
+                  ? onReroll
+                  : undefined;
               const variation =
-                !video && supportsVariation(catalog, asset.model)
+                !video && imageRepeatRoute(catalog, asset, 1)
                   ? onVariation
                   : undefined;
               const downloadName = `v${asset.version}.${assetFileExtension(asset)}`;

@@ -73,6 +73,9 @@ export function parseSeoMonitorPlan(
     parsed.data.analysis.sharedBrief ||
     parsed.data.analysis.searchConsolePropertyId !== undefined ||
     parsed.data.analysis.allowLimitedAudit !== undefined ||
+    parsed.data.analysis.includeSitemaps !== undefined ||
+    parsed.data.analysis.includePropertyTotals !== undefined ||
+    parsed.data.analysis.includePageDiscovery !== undefined ||
     !parsed.data.analysis.pageIds?.length ||
     !parsed.data.analysis.coworkerId
   )

@@ -3,7 +3,7 @@
 import { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 
 export type ThreadListLoadMoreStatus = "idle" | "loading" | "failed";
 

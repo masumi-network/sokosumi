@@ -17,6 +17,14 @@ import {
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
 } from "./project-seo-traffic.schema";
+import {
+  auditClickHistorySchema,
+  auditMeasuredPageSchema,
+  auditTotalsSchema,
+} from "./seo-audit-performance.schema";
+
+import { seoPageDiscoverySchema } from "./seo-page-discovery.schema";
+import { auditDiscoverySchema } from "./seo-sitemap-evidence.schema";
 
 /** Native metrics are owner-only, never part of a public Coworker result. */
 export const nativeSeoMetricsSchema = z
@@ -24,6 +32,8 @@ export const nativeSeoMetricsSchema = z
     provider: z.enum(["ga4", "search_console"]),
     propertyId: z.string().min(1).max(500),
     pageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
+    /** Dashboard pages whose Search Analytics filter used a verified www alias. Older snapshots measured the selected URLs. */
+    trafficPageAliases: z.record(seoUrlSchema, seoUrlSchema).optional(),
     channel: seoTrafficChannelSchema,
     /** Search Console search type. Absent on web search reads and on older observations. */
     searchType: seoSearchTypeSchema.optional(),
@@ -38,6 +48,15 @@ export const nativeSeoMetricsSchema = z
       .string()
       .regex(/^[a-f0-9]{64}$/)
       .optional(),
+    auditMeasuredPages: z
+      .array(auditMeasuredPageSchema)
+      .max(SEO_MAX_PAGES)
+      .optional(),
+    auditPropertyTotals: auditTotalsSchema.optional(),
+    auditPageDiscovery: seoPageDiscoverySchema.optional(),
+    auditDiscovery: auditDiscoverySchema.optional(),
+    auditClickHistory: auditClickHistorySchema.optional(),
+    auditPerformanceComplete: z.boolean().optional(),
     coverage: z.enum(["complete", "partial", "unavailable"]),
     notes: z.array(z.string().max(2000)).max(50),
     metrics: z

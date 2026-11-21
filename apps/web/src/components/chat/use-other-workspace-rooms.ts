@@ -16,6 +16,7 @@ import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
 import {
   subscribeOrganizationChatRoomRead,
   subscribeOrganizationChatRoomsChanged,
+  useOrganizationChatRoomsChanged,
 } from "./organization-chat-events";
 import { getRememberedPinnedRooms } from "./remembered-pinned-rooms";
 import { roomHasUnread } from "./room-attention";
@@ -259,16 +260,14 @@ export function useOtherWorkspaceRooms({
   }
   const held = hold?.key === holdKey ? hold : null;
 
-  useMountEffect(() =>
-    subscribeOrganizationChatRoomsChanged({
-      onRemoved: (removedRoomId) =>
-        setHold((current) =>
-          current?.room?.id === removedRoomId
-            ? { ...current, room: null }
-            : current,
-        ),
-    }),
-  );
+  useOrganizationChatRoomsChanged({
+    onRemoved: (removedRoomId) =>
+      setHold((current) =>
+        current?.room?.id === removedRoomId
+          ? { ...current, room: null }
+          : current,
+      ),
+  });
 
   function replaceRoom(updated: ChatRoom) {
     if (updated.markedUnread) {

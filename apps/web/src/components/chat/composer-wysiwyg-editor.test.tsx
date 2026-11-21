@@ -874,6 +874,58 @@ describe("ComposerWysiwygEditor", () => {
     );
   });
 
+  it.each([
+    ["Review tomorrow", "Review tomorrow Plan a launch"],
+    ["Review tomorrow ", "Review tomorrow Plan a launch"],
+    ["", "Plan a launch"],
+  ])(
+    "appends to %j after the draft, wherever the caret was",
+    (draft, expected) => {
+      function Harness() {
+        const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+        const [value, setValue] = useState(draft);
+        return (
+          <>
+            <button type="button" onClick={() => editorRef.current?.focus()}>
+              focus-editor
+            </button>
+            <button
+              type="button"
+              onClick={() => editorRef.current?.appendText("Plan a launch")}
+            >
+              append
+            </button>
+            <ComposerWysiwygEditor
+              ref={editorRef}
+              value={value}
+              onChange={setValue}
+              mentions={{}}
+            />
+            <output data-testid="composer-value">{value}</output>
+          </>
+        );
+      }
+
+      render(<Harness />);
+      const editor = screen.getByRole("textbox");
+      fireEvent.click(screen.getByRole("button", { name: "focus-editor" }));
+      const textNode = editor.firstChild;
+      if (textNode) {
+        // Caret between the words, at the space before "tomorrow".
+        const range = document.createRange();
+        range.setStart(textNode as Text, 6);
+        range.collapse(true);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        document.dispatchEvent(new Event("selectionchange"));
+      }
+
+      fireEvent.click(screen.getByRole("button", { name: "append" }));
+
+      expect(screen.getByTestId("composer-value").textContent).toBe(expected);
+    },
+  );
+
   it("pastes plain text only and drops rich clipboard HTML", () => {
     function Harness() {
       const [value, setValue] = useState("");
@@ -1551,5 +1603,113 @@ describe("ComposerWysiwygEditor", () => {
     expect(
       screen.queryByRole("option", { name: /Andreas Osberghaus/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("scrolls the newly active option into view on ArrowDown for mentions, channels, and emoji shortcodes", () => {
+    const scrolled: Array<{
+      index: string | null;
+      options: ScrollIntoViewOptions | boolean | undefined;
+    }> = [];
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (
+      this: Element,
+      options?: ScrollIntoViewOptions | boolean,
+    ) {
+      scrolled.push({ index: this.getAttribute("data-index"), options });
+    };
+
+    try {
+      const mentions = Object.fromEntries(
+        Array.from({ length: 12 }, (_, i) => [
+          `user-${i}`,
+          { value: `Member ${i}`, slug: `member-${i}` },
+        ]),
+      );
+      const channels = Array.from({ length: 12 }, (_, i) => ({
+        id: `chan-${i}`,
+        name: `Channel ${i}`,
+        slug: `channel-${i}`,
+        organizationName: null,
+      }));
+
+      render(
+        <ComposerWysiwygEditor
+          value=""
+          onChange={() => undefined}
+          mentions={mentions}
+          channels={channels}
+        />,
+      );
+
+      const editor = screen.getByRole("textbox");
+      const openTrigger = (text: string) => {
+        editor.focus();
+        editor.textContent = text;
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        fireEvent.input(editor);
+      };
+
+      const pressArrowDown = () => {
+        editor.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "ArrowDown",
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      };
+
+      // 1. Mentions (@)
+      scrolled.length = 0;
+      openTrigger("@");
+      expect(scrolled).toEqual([{ index: "0", options: { block: "nearest" } }]);
+      for (let step = 1; step <= 6; step += 1) {
+        scrolled.length = 0;
+        act(() => {
+          pressArrowDown();
+        });
+        expect(scrolled).toEqual([
+          { index: String(step), options: { block: "nearest" } },
+        ]);
+      }
+
+      // 2. Channels (#)
+      scrolled.length = 0;
+      openTrigger("#");
+      expect(scrolled).toEqual([{ index: "0", options: { block: "nearest" } }]);
+      for (let step = 1; step <= 6; step += 1) {
+        scrolled.length = 0;
+        act(() => {
+          pressArrowDown();
+        });
+        expect(scrolled).toEqual([
+          { index: String(step), options: { block: "nearest" } },
+        ]);
+      }
+
+      // 3. Emoji shortcodes (:)
+      scrolled.length = 0;
+      openTrigger(":sm");
+      const emojiCount = screen.getAllByRole("option").length;
+      expect(emojiCount).toBeGreaterThanOrEqual(4);
+      expect(scrolled).toEqual([{ index: "0", options: { block: "nearest" } }]);
+      const emojiSteps = Math.min(6, emojiCount - 1);
+      for (let step = 1; step <= emojiSteps; step += 1) {
+        scrolled.length = 0;
+        act(() => {
+          pressArrowDown();
+        });
+        expect(scrolled).toEqual([
+          { index: String(step), options: { block: "nearest" } },
+        ]);
+      }
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
   });
 });

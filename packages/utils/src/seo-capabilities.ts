@@ -144,7 +144,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Core Web Vitals in the SEO tab",
     status: "partial",
-    missing: "Loading speed and layout scores do not show in the SEO tab.",
+    missing:
+      "Real-user measurements require a CrUX sample for the URL or its origin.",
     unlocks: [DEV],
   },
   {

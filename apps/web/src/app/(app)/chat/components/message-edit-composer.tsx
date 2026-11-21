@@ -15,7 +15,7 @@ import {
 } from "@/components/chat/composer-wysiwyg-editor";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useMessageEditComposerFocus } from "@/hooks/effects/use-message-edit-composer-focus";
 import { cn } from "@/lib/utils";
 import {
   composerMentionDisplayNames,
@@ -83,9 +83,7 @@ export function MessageEditComposer({
     ],
   );
 
-  useMountEffect(() => {
-    editorRef.current?.focusAtEnd();
-  });
+  useMessageEditComposerFocus(editorRef);
 
   function liveMarkdown(): string {
     return editorRef.current?.getMarkdown() ?? liveRef.current;

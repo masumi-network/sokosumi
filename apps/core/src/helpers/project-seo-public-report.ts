@@ -138,3 +138,14 @@ export const skippedPages = (raw: unknown) => {
   const parsed = siteSkipped.safeParse(raw);
   return parsed.success ? parsed.data.selection.skipped : [];
 };
+
+export const finiteReportNumber = (
+  value: unknown,
+  keys: string[],
+): number | null => {
+  let current = value;
+  for (const key of keys) current = reportObject(current)?.[key];
+  return typeof current === "number" && Number.isFinite(current)
+    ? current
+    : null;
+};

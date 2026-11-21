@@ -21,21 +21,24 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 import { toast } from "sonner";
 import {
   type FailedProjectBrandGeneration,
+  getProjectBrandStorageVersion,
   hasProjectBrandAttemptInFlight,
   hasProjectBrandAutoStartAttempted,
   markProjectBrandAutoStartAttempted,
   onProjectBrandStorageChange,
+  parseFailedProjectBrandGeneration,
   projectBrandJobCallbacks,
   projectBrandWebsite,
   readFailedProjectBrandGeneration,
+  readFailedProjectBrandGenerationJson,
   readPendingProjectBrandJob,
 } from "@/app/projects/project-brand-job";
 import { DesignMdUploadTrigger } from "@/components/design-md/design-md-upload-trigger";
@@ -116,7 +119,7 @@ export function ProjectBrandProvider({
     initialDesignMd,
   );
   const viewerId = useSession().data?.user.id;
-  const [failure, setFailure] = useState<BrandFailure | null>(null);
+  const [liveFailure, setLiveFailure] = useState<BrandFailure | null>(null);
   const backgroundGenerationAttempted = useRef(false);
   const owner = useMemo(
     () => ({ type: "project" as const, projectId }),
@@ -145,36 +148,44 @@ export function ProjectBrandProvider({
     // The job's own URL: a website just saved in the card is not in the
     // props yet when its generation starts.
     ...projectBrandJobCallbacks(projectId, viewerId, (nextFailure) =>
-      setFailure(nextFailure && { ...nextFailure, live: true }),
+      setLiveFailure(nextFailure && { ...nextFailure, live: true }),
     ),
     owner,
   });
 
   // Bumped when another surface in this tab writes the project's brand
   // state, such as a wizard that closed before its job or failure came back.
-  const [storageVersion, bumpStorageVersion] = useReducer(
-    (version: number) => version + 1,
-    0,
-  );
-  useEffect(
-    () => onProjectBrandStorageChange(projectId, bumpStorageVersion),
+  const subscribeToStorage = useCallback(
+    (onChange: () => void) => onProjectBrandStorageChange(projectId, onChange),
     [projectId],
+  );
+  const storageVersion = useSyncExternalStore(
+    subscribeToStorage,
+    getProjectBrandStorageVersion,
+    () => 0,
   );
 
   // Browser storage exists only after hydration and the viewer once the
   // session loads, so a remembered failure comes in after the first render.
+  const storedFailureJson = useSyncExternalStore(
+    subscribeToStorage,
+    () =>
+      viewerId
+        ? readFailedProjectBrandGenerationJson(projectId, viewerId)
+        : null,
+    () => null,
+  );
+  const storedFailure = useMemo(
+    () => parseFailedProjectBrandGeneration(storedFailureJson),
+    [storedFailureJson],
+  );
   // The failure this page just saw keeps its `live` flag, and stays when
   // storage could not keep it; a retry here clears it.
-  useEffect(() => {
-    const stored = viewerId
-      ? readFailedProjectBrandGeneration(projectId, viewerId)
-      : null;
-    setFailure((current) =>
-      current?.live && (!stored || current.failedAt === stored.failedAt)
-        ? current
-        : stored,
-    );
-  }, [projectId, storageVersion, viewerId]);
+  const failure =
+    liveFailure &&
+    (!storedFailure || liveFailure.failedAt === storedFailure.failedAt)
+      ? liveFailure
+      : storedFailure;
 
   // Background brand setup: the wizard may have closed mid-generation, so pick
   // up its pending job here; if there is none but the project has a website

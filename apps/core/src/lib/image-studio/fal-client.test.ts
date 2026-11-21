@@ -193,6 +193,29 @@ describe("model-specific payloads", () => {
     });
   });
 
+  it("sends Recraft vector brand colors as RGB and reserves prompt space for the brief", () => {
+    const brief = "An icon.\n\nBrief:\nA red fox.";
+    const prompt = `${brief}\n\nFollow this project's brand.\n\n${"x".repeat(10000)}`;
+    const input = buildFalInput(
+      {
+        ...settings,
+        prompt,
+        seed: null,
+        brandColors: ["#aBc", "#0011ff", "invalid"],
+      },
+      "fal-ai/recraft/v4.1/text-to-vector",
+    );
+    expect(input).toEqual({
+      prompt: expect.stringContaining(brief),
+      image_size: { width: 2048, height: 1152 },
+      colors: [
+        { r: 170, g: 187, b: 204 },
+        { r: 0, g: 17, b: 255 },
+      ],
+    });
+    expect(input.prompt).toHaveLength(10000);
+  });
+
   it("fits Recraft V3's 1000-character prompt limit without losing the branded brief", () => {
     const brief = "A red ceramic mug on a linen tablecloth.";
     const brand = `Follow this project's brand.\n\nPalette: red, cream.\n\n${"Brand context. ".repeat(100)}`;
