@@ -4,7 +4,6 @@ import { TaskStatus } from "@sokosumi/core-client";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { useHiddenResetKey } from "@/hooks/effects/use-hidden-reset-key";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type {
   TaskFormInitialDesignMdAttachment,
@@ -48,9 +47,6 @@ export function TaskEditModal({
   const router = useRouter();
   const pathname = usePathname();
   const [isDismissDisabled, setIsDismissDisabled] = useState(false);
-  // Closing the dialog leaves the route hidden, not unmounted. The next edit
-  // opens from the saved task, not from an edit that was cancelled.
-  const formKey = useHiddenResetKey();
   // Path may be an identifier slug (`/tasks/SOK-12-fix-login/edit`) while
   // `taskId` is the uuid used for PATCH. Close by stripping `/edit`.
   const handleClose = useCallback(() => {
@@ -73,7 +69,10 @@ export function TaskEditModal({
       isDismissDisabled={isDismissDisabled}
     >
       <TaskForm
-        key={formKey}
+        // Next keeps a closed edit route mounted but hidden, with the draft
+        // in it. Each opening is a new navigation with a new bfcacheId, so
+        // Edit starts from the saved task, not from an edit that was cancelled.
+        key={router.bfcacheId}
         mode="edit"
         showCancel={false}
         labels={labels}

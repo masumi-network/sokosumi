@@ -78,7 +78,6 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
 - `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus a ref or getter target when a condition turns true (reads the target at effect time; optional `preventScroll`, `deferToFrame`, and `resetKey`)
 - `use-focus-form-field-on-mount` (`useFocusFormFieldOnMount`) — focus a `react-hook-form` field once on mount (or Activity reveal)
-- `use-hidden-reset-key` (`useHiddenResetKey`) — a `key` that changes after each React Activity hide, so a kept-alive route's form reopens fresh
 - `use-message-edit-composer-focus` (`useMessageEditComposerFocus`) — focus `MessageEditComposer` at the end of its content once on mount (or Activity reveal)
 - `use-scroll-into-view-when` (`useScrollIntoViewWhen`) — scroll a ref or getter target into view when a condition turns true (reads the target at effect time; optional reduced-motion downgrade and `resetKey`; CMO has `useScrollIntoViewWhen` under `apps/cmo/src/hooks/effects/use-scroll-into-view-when.ts`)
 - `use-scroll-child-into-view-x` (`useScrollChildIntoViewX`) — horizontally scroll a container's `scrollLeft` just enough to reveal a matched child without moving vertical page scroll

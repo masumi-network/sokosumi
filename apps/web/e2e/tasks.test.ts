@@ -7,8 +7,8 @@ import { type Browser, chromium, type Page, type Route } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 
-// A new user's Task, end to end: create, rename to a long title, see its card on
-// the board, archive, find it in Archived, restore. Each size signs up its own
+// A new user's Task, end to end: create, rename to a long title, reopen Edit
+// after Save and after Cancel, see its card on the board, archive, find it in Archived, restore. Each size signs up its own
 // disposable mail.tm inbox. Screen reader checks ride along: the task page is
 // titled with the task's name, closed dialogs leave no headings behind, and a
 // board card is a link, not a nameless "draggable" button.
@@ -575,6 +575,34 @@ for (const { name: size, ...viewport } of PROJECTS) {
         1,
         `the Assignee row shows ${assigneeCount} times after Save`,
       );
+
+      // Next keeps the closed edit route alive. Without a reload, Edit opens
+      // with the name just saved, and an edit cancelled before does not come
+      // back (a later Save would store it).
+      const editDialog = page.getByRole("dialog", { name: "Edit task" });
+      const openEdit = async () => {
+        await page.getByRole("button", { name: "Actions" }).click();
+        await page.getByRole("menuitem", { name: "Edit" }).click();
+        await editDialog.waitFor();
+      };
+      await openEdit();
+      assert.equal(
+        await nameField.inputValue(),
+        LONG_NAME,
+        "Edit after Save does not show the saved name",
+      );
+      await nameField.fill(`${LONG_NAME} DISCARD`);
+      await editDialog.getByRole("button", { name: "Cancel" }).click();
+      await editDialog.waitFor({ state: "hidden" });
+      await openEdit();
+      assert.equal(
+        await nameField.inputValue(),
+        LONG_NAME,
+        "Edit shows the edit that was cancelled",
+      );
+      await shot(page, size, "2b-edit-after-cancel");
+      await editDialog.getByRole("button", { name: "Cancel" }).click();
+      await editDialog.waitFor({ state: "hidden" });
 
       // Back on the board: a card without tags has no empty tags line. Only
       // cards count: the task page stays in the DOM, hidden, and its Auto
