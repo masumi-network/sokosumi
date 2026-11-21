@@ -158,7 +158,8 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-notification-url-target-opener` (`useNotificationUrlTargetOpener`) — consumes and opens a service-worker URL notification target once the initial feed finishes loading
 - `use-social-auth-callback` (`useSocialAuthCallback`) — confirms session, records GTM auth conversion, and redirects on social auth callback pages
 - `use-social-signup-auto-initiator` (`useSocialSignupAutoInitiator`) — starts direct social sign-up OAuth on mount and handles bfcache `pageshow` recovery
-- `use-email-step-lifecycle` (`useEmailStepLifecycle`) — tracks mounted state, aborts pending requests on unmount, and applies one-shot email hint and initial focus for `EmailStep`
+- `use-email-step-pending-request` (`useEmailStepPendingRequest`) — tracks mounted state and aborts any in-flight `AbortController` on unmount or `<Activity>` hide for `EmailStep`
+- `use-email-step-hint-and-focus` (`useEmailStepHintAndFocus`) — consumes a one-shot auth email hint and applies initial email field focus for `EmailStep`
 - `use-header-mobile-search` (`useHeaderMobileSearch`) — coordinates mobile header search `/history` navigation, debounced `?q=` updates, and route-exit cleanup
 
 ### React Query in migrations

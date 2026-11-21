@@ -13,7 +13,8 @@ import { SubmitButton } from "@/auth/components/form/submit-button";
 import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
-import { useEmailStepLifecycle } from "@/hooks/effects/use-email-step-lifecycle";
+import { useEmailStepHintAndFocus } from "@/hooks/effects/use-email-step-hint-and-focus";
+import { useEmailStepPendingRequest } from "@/hooks/effects/use-email-step-pending-request";
 import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { authClient } from "@/lib/auth/auth.client";
 import {
@@ -168,7 +169,9 @@ export function EmailStep({
     },
   ];
 
-  const { mountedRef: mounted, pendingRef: pending } = useEmailStepLifecycle({
+  const { mountedRef: mounted, pendingRef: pending } =
+    useEmailStepPendingRequest();
+  useEmailStepHintAndFocus({
     form,
     emailLocked,
     autoFocus,

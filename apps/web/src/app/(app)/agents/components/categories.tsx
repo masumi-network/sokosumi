@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { Category } from "@/lib/types/category";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,8 @@ export default function Categories({
     setHasDragged(false);
     setStartX(pageX - container.offsetLeft);
     setScrollLeft(container.scrollLeft);
+    container.style.cursor = "grabbing";
+    container.style.userSelect = "none";
   }, []);
 
   const handleMouseDown = useCallback(
@@ -101,6 +104,8 @@ export default function Categories({
     if (!container) return;
 
     setIsDragging(false);
+    container.style.cursor = "grab";
+    container.style.userSelect = "";
 
     setTimeout(() => {
       setHasDragged(false);
@@ -112,6 +117,8 @@ export default function Categories({
     if (!container) return;
 
     setIsDragging(false);
+    container.style.cursor = "grab";
+    container.style.userSelect = "";
 
     setTimeout(() => {
       setHasDragged(false);
@@ -157,6 +164,18 @@ export default function Categories({
     }, 0);
   }, []);
 
+  useMountEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.style.cursor = "grab";
+
+    return () => {
+      container.style.cursor = "";
+      container.style.userSelect = "";
+    };
+  });
+
   if (validCategories.length === 0) {
     return null;
   }
@@ -164,10 +183,7 @@ export default function Categories({
   return (
     <div
       ref={scrollContainerRef}
-      className={cn(
-        "overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-        isDragging ? "cursor-grabbing select-none" : "cursor-grab",
-      )}
+      className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

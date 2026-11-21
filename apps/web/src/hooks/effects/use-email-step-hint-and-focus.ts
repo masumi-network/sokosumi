@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 import { takeAuthEmailHint } from "@/lib/auth/auth-email-hint";
 
@@ -10,32 +10,24 @@ interface EmailStepFormControl {
   setFocus: (name: "email") => void;
 }
 
-interface UseEmailStepLifecycleOptions {
+interface UseEmailStepHintAndFocusOptions {
   form: EmailStepFormControl;
   emailLocked: boolean;
   autoFocus: boolean;
   onEmailChange?: ((email: string) => void) | undefined;
 }
 
-interface EmailStepLifecycle {
-  mountedRef: RefObject<boolean>;
-  pendingRef: RefObject<AbortController | null>;
-}
-
 /**
- * Owns `EmailStep`'s mount/unmount lifecycle: tracks mounted state, aborts any
- * in-flight request on unmount, and consumes a one-shot auth email hint and
- * initial focus on mount.
+ * Consumes a one-shot auth email hint into `EmailStep`'s form on mount (or
+ * React `<Activity>` reveal) and focuses the email field when requested or
+ * populated from a hint.
  */
-export function useEmailStepLifecycle({
+export function useEmailStepHintAndFocus({
   form,
   emailLocked,
   autoFocus,
   onEmailChange,
-}: UseEmailStepLifecycleOptions): EmailStepLifecycle {
-  const mountedRef = useRef(false);
-  const pendingRef = useRef<AbortController | null>(null);
-
+}: UseEmailStepHintAndFocusOptions): void {
   const applyMountHintAndFocus = useEffectEvent(() => {
     // The other page hands over the address the person typed there. It is a
     // starting value, not a locked one like an invitation's address.
@@ -52,13 +44,6 @@ export function useEmailStepLifecycle({
   });
 
   useEffect(() => {
-    mountedRef.current = true;
     applyMountHintAndFocus();
-    return () => {
-      mountedRef.current = false;
-      pendingRef.current?.abort();
-    };
   }, []);
-
-  return { mountedRef, pendingRef };
 }
