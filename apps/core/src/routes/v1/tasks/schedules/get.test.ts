@@ -8,6 +8,7 @@ import {
   PERSONAL_WORKSPACE_ID,
   PROJECT_ID,
   resetTaskScheduleTestDb,
+  seedTask,
   seedTaskSchedule,
   taskScheduleTestDb,
   userAuth,
@@ -43,6 +44,12 @@ interface ListBody {
     id: string;
     canWrite: boolean;
     ownerId: string | null;
+    lastTask?: {
+      id: string;
+      identifier: string | null;
+      name: string;
+      status: string;
+    } | null;
   }>;
   meta: { pagination: { nextCursor: string | null; total: number } };
 }
@@ -118,6 +125,110 @@ describe("GET /tasks/schedules", () => {
     );
 
     expect(body.data.map((schedule) => schedule.id)).toEqual([visible.id]);
+  });
+
+  it("returns each schedule's newest top-level Task the reader can see, or null", async () => {
+    const schedule = seedTaskSchedule();
+    const unused = seedTaskSchedule();
+    seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(1),
+      status: "COMPLETED",
+      name: "Week 1",
+    });
+    const newest = seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(2),
+      status: "FAILED",
+      name: "Week 2",
+    });
+    seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(3),
+      status: "RUNNING",
+      name: "Archived",
+      archivedAt: at(4),
+    });
+    seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(3),
+      status: "RUNNING",
+      name: "Sub-task",
+      parentTaskId: newest.id,
+    });
+    seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(3),
+      status: "RUNNING",
+      name: "Private",
+      visibility: "PRIVATE",
+      ownerId: OWNER_ID,
+    });
+
+    const { body } = await list(
+      "",
+      createTaskScheduleTestApp(mountGetTaskSchedules, userAuth(MEMBER_ID)),
+    );
+
+    const byId = Object.fromEntries(
+      body.data.map((row) => [row.id, row.lastTask]),
+    );
+    expect(byId[schedule.id]).toEqual({
+      id: newest.id,
+      identifier: null,
+      name: "Week 2",
+      status: "FAILED",
+    });
+    expect(byId[unused.id]).toBeNull();
+  });
+
+  it("leaves out a newer Task that was moved to another workspace", async () => {
+    const schedule = seedTaskSchedule();
+    const stayed = seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(1),
+      status: "COMPLETED",
+      name: "Stayed",
+    });
+    seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(2),
+      status: "FAILED",
+      name: "Moved",
+      workspaceId: PERSONAL_WORKSPACE_ID,
+    });
+
+    const { body } = await list();
+
+    expect(body.data[0]?.lastTask).toMatchObject({
+      id: stayed.id,
+      name: "Stayed",
+    });
+  });
+
+  it("gives a Coworker the newest Task it may open, skipping a draft a person still sees", async () => {
+    const schedule = seedTaskSchedule();
+    const ready = seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(1),
+      status: "READY",
+      name: "Ready",
+    });
+    const draft = seedTask({
+      scheduleId: schedule.id,
+      createdAt: at(2),
+      status: "DRAFT",
+      name: "Draft",
+    });
+
+    const person = await list();
+    const coworker = await list(
+      "",
+      createTaskScheduleTestApp(mountGetTaskSchedules, COWORKER_AUTH),
+    );
+
+    expect(person.body.data[0]?.lastTask?.id).toBe(draft.id);
+    expect(coworker.body.data[0]?.lastTask?.id).toBe(ready.id);
   });
 
   it("pages with a cursor", async () => {

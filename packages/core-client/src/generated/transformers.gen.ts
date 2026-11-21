@@ -6817,8 +6817,13 @@ const taskScheduleSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const taskScheduleListItemSchemaResponseTransformer = (data: any) => {
+    data = taskScheduleSchemaResponseTransformer(data);
+    return data;
+};
+
 export const getTasksSchedulesResponseTransformer = async (data: any): Promise<GetTasksSchedulesResponse> => {
-    data.data = data.data.map((item: any) => taskScheduleSchemaResponseTransformer(item));
+    data.data = data.data.map((item: any) => taskScheduleListItemSchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

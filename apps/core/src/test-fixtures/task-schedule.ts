@@ -393,7 +393,28 @@ function withInclude(row: TaskSchedule, include?: Record<string, unknown>) {
     ...row,
     ...(include.assignee ? { assignee } : {}),
     ...(include.creatorUser ? creatorRelations(row) : {}),
+    ...(include.tasks ? { tasks: scheduleTasks(row, include.tasks) } : {}),
   };
+}
+
+/** A schedule's `tasks` include: its where, newest first, its take. */
+function scheduleTasks(row: TaskSchedule, args: unknown) {
+  const { where, take } = args as { where?: Where; take?: number };
+  return taskScheduleTestDb.tasks
+    .map((task) => ({
+      visibility: TaskVisibility.PUBLIC,
+      parentTaskId: null,
+      number: null,
+      project: null,
+      ...task,
+    }))
+    .filter((task) => task.scheduleId === row.id && matchesRow(task, where))
+    .sort(
+      (a, b) =>
+        (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0) ||
+        b.id.localeCompare(a.id),
+    )
+    .slice(0, take);
 }
 
 function sortSchedules(rows: TaskSchedule[]): TaskSchedule[] {

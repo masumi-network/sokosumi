@@ -4,10 +4,12 @@ import {
   type TaskSchedule,
   type TaskScheduleRun,
   TaskScheduleState,
+  TaskStatus,
   TaskVisibility,
   VendorGrantStatus,
   workCreatorInclude,
 } from "@sokosumi/database";
+import { formatTaskIdentifier } from "@sokosumi/utils";
 import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
@@ -116,10 +118,10 @@ export async function resolveScheduleActor(
   return { kind: "user", userId: userContext.userId, workspace };
 }
 
-/** The schedules a reader sees, in any workspace it may read. */
+/** The schedules, and the Tasks they created, a reader sees, in any workspace it may read. */
 export function taskScheduleVisibilityWhere(
   reader: TaskScheduleReader,
-): Prisma.TaskScheduleWhereInput {
+): Prisma.TaskScheduleWhereInput & Prisma.TaskWhereInput {
   if (reader.kind === "user") {
     return buildHumanTaskVisibilityWhere(reader.userId);
   }
@@ -208,7 +210,32 @@ export async function listTaskSchedules(
   const [rows, total] = await Promise.all([
     prisma.taskSchedule.findMany({
       where,
-      include: SCHEDULE_ASSIGNEE_VENDOR,
+      include: {
+        ...SCHEDULE_ASSIGNEE_VENDOR,
+        // The newest top-level Task it created that this reader may open:
+        // still in this workspace (a moved Task keeps its schedule), and for a
+        // Coworker not a draft, as its Task detail requires.
+        tasks: {
+          where: {
+            workspaceId: actor.workspace.workspaceId,
+            archivedAt: null,
+            parentTaskId: null,
+            ...(actor.kind === "coworker"
+              ? { status: { not: TaskStatus.DRAFT } }
+              : {}),
+            ...taskScheduleVisibilityWhere(actor),
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 1,
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            number: true,
+            project: { select: { identifier: true } },
+          },
+        },
+      },
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -216,9 +243,23 @@ export async function listTaskSchedules(
     prisma.taskSchedule.count({ where }),
   ]);
   const hasMore = rows.length > take;
-  const schedules = rows
-    .slice(0, take)
-    .map((row) => toTaskScheduleView(actor, row));
+  const schedules = rows.slice(0, take).map(({ tasks, ...row }) => {
+    const task = tasks[0];
+    return {
+      ...toTaskScheduleView(actor, row),
+      lastTask: task
+        ? {
+            id: task.id,
+            identifier: formatTaskIdentifier(
+              task.project?.identifier,
+              task.number,
+            ),
+            name: task.name,
+            status: task.status,
+          }
+        : null,
+    };
+  });
   return {
     schedules,
     pagination: createPaginationMeta(schedules, total, take, hasMore, cursor),

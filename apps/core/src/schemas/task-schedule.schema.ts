@@ -8,6 +8,7 @@ import { coworkerSchema } from "@/schemas/coworker.schema";
 import {
   taskScheduleEndsModeSchema,
   taskScheduleStateSchema,
+  taskStatusSchema,
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -264,6 +265,24 @@ export const taskScheduleSchema = z
       }),
   })
   .openapi("TaskSchedule");
+
+/** A list row: the schedule and the newest Task it created that the reader may open. */
+export const taskScheduleListItemSchema = taskScheduleSchema
+  .extend({
+    lastTask: z
+      .object({
+        id: z.string(),
+        identifier: z.string().nullable(),
+        name: z.string(),
+        status: taskStatusSchema,
+      })
+      .nullable()
+      .openapi({
+        description:
+          "The newest top-level, unarchived Task this schedule created that the caller can see. Its status is that Task's outcome, not whether the schedule's Runs are being released. Null when there is none.",
+      }),
+  })
+  .openapi("TaskScheduleListItem");
 
 export const taskScheduleParamsSchema = z.object({
   id: z

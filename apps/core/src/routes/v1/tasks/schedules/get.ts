@@ -10,8 +10,8 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
+  taskScheduleListItemSchema,
   taskScheduleListQuerySchema,
-  taskScheduleSchema,
 } from "@/schemas/task-schedule.schema";
 import {
   listTaskSchedules,
@@ -28,7 +28,7 @@ const route = withCoworkerContextHeaderParameters(
     request: { query: taskScheduleListQuerySchema },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(taskScheduleSchema),
+        z.array(taskScheduleListItemSchema),
         "Task Schedules",
       ),
       401: jsonErrorResponse("Unauthorized"),
@@ -45,7 +45,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     return ok(
       c,
-      z.array(taskScheduleSchema).parse(schedules.map(mapTaskSchedule)),
+      z.array(taskScheduleListItemSchema).parse(
+        schedules.map((schedule) => ({
+          ...mapTaskSchedule(schedule),
+          lastTask: schedule.lastTask,
+        })),
+      ),
       pagination,
     );
   });

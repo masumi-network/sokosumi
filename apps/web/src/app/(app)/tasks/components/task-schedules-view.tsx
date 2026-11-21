@@ -1,6 +1,9 @@
 "use client";
 
-import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
+import {
+  type TaskScheduleListItem,
+  TaskScheduleState,
+} from "@sokosumi/core-client";
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -67,7 +70,7 @@ function currentUrl(): string {
 
 interface TaskSchedulesViewProps {
   defaultViewMode?: SchedulesViewMode;
-  schedules: TaskSchedule[];
+  schedules: TaskScheduleListItem[];
   nextCursor: string | null;
   /** What the other state tabs hold, sent only when the shown filter is empty. */
   otherStateCounts?: { state: TaskScheduleState; count: number }[];
