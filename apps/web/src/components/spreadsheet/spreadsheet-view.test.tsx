@@ -58,14 +58,16 @@ describe("SpreadsheetFileView", () => {
     ]);
   });
 
-  it("caps a tall header's height but keeps its whole label", async () => {
+  it("shows a tall header whole, in the flow instead of pinned", async () => {
     const label = Array.from({ length: 40 }, (_, i) => `line ${i}`).join("\n");
     renderCsv(`"${label}",Price\nRye,5.80\n`);
 
     const [tall] = await screen.findAllByRole("columnheader");
+    // Nothing clamps or hides the label: it reads in full on screen.
     expect(tall?.textContent).toBe(label);
-    expect(tall?.getAttribute("title")).toBe(label);
-    expect(tall?.querySelector(".line-clamp-3")?.textContent).toBe(label);
+    expect(tall?.querySelector("[class*='line-clamp']")).toBeNull();
+    // Pinned, it would cover the rows; it scrolls away with them instead.
+    expect(tall?.closest("thead")?.className).not.toContain("sticky");
   });
 });
 

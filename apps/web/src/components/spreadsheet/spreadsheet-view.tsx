@@ -90,6 +90,15 @@ export function SpreadsheetView({
   const body = headerRow ? rest : sheet.rows;
   // Rows can be ragged: every column any row reaches gets a header.
   const width = Math.max(0, ...sheet.rows.map((row) => row.length));
+  const labels = Array.from({ length: width }, (_, index) => {
+    const text = head?.[index]?.text;
+    return text?.trim() ? text : null;
+  });
+  // A label past about three lines would cover the rows if pinned, so such a
+  // header stays in the flow, whole, and scrolls away with the rows.
+  const pinned = labels.every(
+    (label) => !label || (label.split("\n").length <= 3 && label.length <= 120),
+  );
 
   return (
     <div className="grid min-w-0 gap-3">
@@ -130,32 +139,28 @@ export function SpreadsheetView({
             {headerRow && head ? (
               // Collapsed borders stay behind a sticky row; the inset shadow
               // draws its bottom edge instead.
-              <thead className="bg-card-background sticky top-0 z-10 shadow-[inset_0_-1px_0_var(--color-border)]">
+              <thead
+                className={cn(
+                  "bg-card-background shadow-[inset_0_-1px_0_var(--color-border)]",
+                  pinned && "sticky top-0 z-10",
+                )}
+              >
                 <tr>
-                  {Array.from({ length: width }, (_, cellIndex) => {
-                    const text = head[cellIndex]?.text;
-                    const label = text?.trim()
-                      ? text
-                      : t("column", { number: cellIndex + 1 });
-                    return (
-                      <th
-                        key={cellIndex}
-                        scope="col"
-                        // The clamp hides lines from sight only; the title
-                        // and the accessible name keep the whole label.
-                        title={label}
-                        className={cn(
-                          "max-w-80 border-e px-3 py-1.5 text-start align-top font-semibold whitespace-pre-wrap last:border-e-0",
-                          // Over a column of numbers, align with them.
-                          rest[0]?.[cellIndex]?.numeric && "text-end",
-                          !text?.trim() && "text-muted-foreground",
-                        )}
-                      >
-                        {/* A pinned header taller than three lines would cover the rows. */}
-                        <span className="line-clamp-3">{label}</span>
-                      </th>
-                    );
-                  })}
+                  {labels.map((label, cellIndex) => (
+                    <th
+                      // Columns have no identity beyond their place in the sheet.
+                      key={cellIndex}
+                      scope="col"
+                      className={cn(
+                        "max-w-80 border-e px-3 py-1.5 text-start align-top font-semibold whitespace-pre-wrap last:border-e-0",
+                        // Over a column of numbers, align with them.
+                        rest[0]?.[cellIndex]?.numeric && "text-end",
+                        !label && "text-muted-foreground",
+                      )}
+                    >
+                      {label ?? t("column", { number: cellIndex + 1 })}
+                    </th>
+                  ))}
                 </tr>
               </thead>
             ) : null}
