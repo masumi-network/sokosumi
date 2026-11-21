@@ -320,6 +320,7 @@ export const sokoBotSchema = z
     avatarCode: z.string().nullable().optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),
+    joinsTeamStandup: z.boolean().optional(),
     mailAutoRead: z.boolean().optional(),
     ingestTimezone: z.string().optional(),
     proactivePaused: z.boolean().optional(),
@@ -831,6 +832,11 @@ export const updateSokoBotBoardFollowingRequestSchema = z
   .strict()
   .openapi("UpdateSokoBotBoardFollowingRequest");
 
+export const updateSokoBotTeamStandupRequestSchema = z
+  .object({ enabled: z.boolean() })
+  .strict()
+  .openapi("UpdateSokoBotTeamStandupRequest");
+
 export const updateSokoBotVersionRequestSchema = z
   .object({ versionId: z.string().min(1).max(64) })
   .strict()
@@ -1239,6 +1245,7 @@ export const sokoBotAvailabilitySchema = z
     disabled: z.boolean(),
     disabledAt: z.string().nullable(),
     disabledReason: z.string().nullable(),
+    standupPaused: z.boolean(),
   })
   .openapi("SokoBotAvailability");
 
@@ -1246,6 +1253,8 @@ export const setSokoBotAvailabilityRequestSchema = z
   .object({
     disabled: z.boolean(),
     reason: z.string().trim().max(300).optional(),
+    /** Pauses or resumes every organization's daily agent stand-up. */
+    standupPaused: z.boolean().optional(),
   })
   .openapi("SetSokoBotAvailabilityRequest");
 

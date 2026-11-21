@@ -118,12 +118,41 @@ it("opens a post as it looks on its network and saves the owner's own words thro
   expect(container.querySelector(".sheet textarea")).toBeNull();
 });
 
-it("offers no edit on a post that is already out", async () => {
+it("offers no edit and no change on a post that is already out", async () => {
   await render(drafts());
   await press("Launch day countdown");
   expect(container.querySelector(".sheet .post")).not.toBeNull();
-  expect(container.querySelector(".sheet")?.textContent).not.toContain(
-    "Edit text",
+  const sheet = container.querySelector(".sheet")?.textContent;
+  expect(sheet).not.toContain("Edit text");
+  expect(sheet).not.toContain("Change this post");
+});
+
+it("says a post didn't go out, and why when it is open", async () => {
+  const calendar = (overview.strategy?.calendar ?? []).map((entry) =>
+    entry.title === "What a slipped launch costs"
+      ? { ...entry, notSent: "X refused it." }
+      : entry,
+  );
+  const strategy = overview.strategy
+    ? { ...overview.strategy, calendar }
+    : null;
+  await act(async () =>
+    root.render(
+      <CalendarPage
+        overview={{ ...overview, strategy, approvedStrategy: strategy }}
+        drafts={drafts()}
+        onAsk={async () => {}}
+      />,
+    ),
+  );
+  const card = [...container.querySelectorAll("button.cal-card")].find(
+    (button) => button.textContent?.includes("What a slipped launch costs"),
+  );
+  expect(card?.textContent).toContain("Didn't go out");
+  expect(card?.textContent).not.toContain("Written");
+  await press("What a slipped launch costs");
+  expect(container.querySelector(".sheet")?.textContent).toContain(
+    "Didn't go out. X refused it.",
   );
 });
 

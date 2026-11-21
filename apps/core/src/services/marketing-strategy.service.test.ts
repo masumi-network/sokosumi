@@ -4,17 +4,26 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
-import { listMarketingStrategyPosts } from "@/services/marketing-strategy.service";
+import {
+  listMarketingStrategyPosts,
+  socialPostNotSent,
+} from "@/services/marketing-strategy.service";
 
 const script = "Name the asset, map the buyer path, then pick a mint route.";
 
-function row(id: string, provider: string, planning: Record<string, unknown>) {
+function row(
+  id: string,
+  provider: string,
+  planning: Record<string, unknown>,
+  failed: { status?: string; lastError?: string | null } = {},
+) {
   return {
     id,
     provider,
     text: "Caption",
     media: [],
-    status: "DRAFT",
+    status: failed.status ?? "DRAFT",
+    lastError: failed.lastError ?? null,
     revision: 1,
     scheduledAt: new Date("2026-11-22T17:30:00Z"),
     createdAt: new Date("2026-11-19T23:41:17Z"),
@@ -68,5 +77,70 @@ describe("a talking video's posts on other networks", () => {
       "post-tiktok",
       "post-youtube",
     ]);
+  });
+});
+
+describe("a post that did not go out", () => {
+  const spendCap =
+    'X rejected the post: Request failed error: `{"detail":"Your monthly spend cap has been reached.","status":403}`';
+
+  it("says why in the owner's words, not the network's JSON", () => {
+    expect(
+      socialPostNotSent({
+        status: "FAILED",
+        provider: "x",
+        lastError: spendCap,
+      }),
+    ).toBe("X refused it: Your monthly spend cap has been reached.");
+    expect(
+      socialPostNotSent({
+        status: "FAILED",
+        provider: "linkedin",
+        lastError: null,
+      }),
+    ).toBe("LinkedIn refused it.");
+    expect(
+      socialPostNotSent({
+        status: "FAILED",
+        provider: "instagram",
+        lastError: "Social connection needs reconnecting",
+      }),
+    ).toBe("Instagram needs reconnecting in Channels.");
+    expect(
+      socialPostNotSent({
+        status: "MISSED",
+        provider: "x",
+        lastError: "Missed: found 40 minutes after the planned time",
+      }),
+    ).toBe("It missed its time.");
+  });
+
+  it("is said nowhere for a post on its way or out", () => {
+    for (const status of ["DRAFT", "SCHEDULED", "PUBLISHED"] as const) {
+      expect(
+        socialPostNotSent({ status, provider: "x", lastError: spendCap }),
+      ).toBeNull();
+    }
+  });
+
+  it("reaches the calendar entry, which still reads as written", async () => {
+    const [post] = await listMarketingStrategyPosts(
+      { id: "version-1", projectId: "project-1" },
+      db([
+        row(
+          "post-x",
+          "x",
+          { id: "e1", format: "image" },
+          {
+            status: "FAILED",
+            lastError: spendCap,
+          },
+        ),
+      ]),
+    );
+    expect(post?.entry.status).toBe("draft");
+    expect(post?.entry.notSent).toBe(
+      "X refused it: Your monthly spend cap has been reached.",
+    );
   });
 });

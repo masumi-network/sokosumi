@@ -134,6 +134,7 @@ model Organization {
   coworkerUsages CoworkerUsage[]
   sokoBotUsages  SokoBotUsage[]
   chatRooms      ChatRoom[]
+  teamStandup    TeamStandup?
 
   stripeCustomerId String?
 
@@ -2657,6 +2658,8 @@ model SokoBot {
   /// default: an assistant that only watches what it created misses most of
   /// what its owner is actually working on.
   followWholeBoard    Boolean   @default(true)
+  /// The owner put this bot in the organization's daily stand-up.
+  joinsTeamStandup    Boolean   @default(false)
   /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
   proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
@@ -3100,6 +3103,9 @@ model SokoBotSetting {
   disabledAt       DateTime?
   disabledByUserId String?
   disabledReason   String?
+
+  /// Set while an administrator has paused every organization's stand-up.
+  standupPausedAt DateTime?
 
   @@map("soko_bot_setting")
 }
@@ -4423,6 +4429,7 @@ model ChatRoom {
   guestInviteLinks ChatRoomGuestInviteLink[]
   sharedSokoBot    SokoBot?                  @relation("SokoBotSharedRoom")
   messageSignals   ChatMessageSignal[]
+  teamStandups     TeamStandup[]
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.

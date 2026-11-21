@@ -90,10 +90,15 @@ export const adminSokoBotService = {
     return response.data;
   },
 
-  async setAvailability(disabled: boolean, reason?: string) {
+  async setAvailability(
+    disabled: boolean,
+    reason?: string,
+    standupPaused?: boolean,
+  ) {
     const response = await coreClient.setAdminSokoBotAvailability({
       disabled,
       ...(reason ? { reason } : {}),
+      ...(standupPaused === undefined ? {} : { standupPaused }),
     });
     return response.data;
   },

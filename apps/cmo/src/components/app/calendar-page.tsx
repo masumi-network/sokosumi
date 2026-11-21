@@ -22,7 +22,7 @@ import {
   formatName,
 } from "../../lib/channels";
 import { monthLabel } from "../../lib/strategy";
-import { dayIn, waitingLine } from "../../lib/today";
+import { dayIn, monthMade, waitingLine } from "../../lib/today";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
 import { StatusDisc } from "../status";
@@ -47,10 +47,24 @@ const STATUS: Record<Entry["status"], string> = {
 export function PieceState({
   status,
   waitsFor = null,
+  notSent,
+  why = false,
 }: {
   status: Entry["status"];
   waitsFor?: string | null;
+  /** Why it did not go out, when it failed or missed its time. */
+  notSent?: string;
+  /** Say why too, where there is room (the open post). */
+  why?: boolean;
 }) {
+  if (notSent) {
+    return (
+      <span className="state">
+        <StatusDisc status="fail" decorative />
+        {why ? `Didn't go out. ${notSent}` : "Didn't go out"}
+      </span>
+    );
+  }
   if (waitsFor) {
     return (
       <span className="state">
@@ -194,7 +208,8 @@ export function CalendarPage({
   const made = (entry: Entry) => pieceMade(entry, Boolean(mediaFor(entry)));
   const connected = connectedNetworks(overview.channels);
   const waits = waitingLine(overview);
-  const ready = live.filter(made).length;
+  // Posts only, the count Today and the chat say; ads are counted apart.
+  const { ready, total } = monthMade(overview);
   const readable = shown.filter(made);
   const index = readable.findIndex((entry) => entry.id === openId);
   const open = index >= 0 ? readable[index] : undefined;
@@ -205,7 +220,7 @@ export function CalendarPage({
       <div className="card cal-head">
         <p className="note num">
           {monthLabel(live)} this month · {ready} ready
-          {ready < live.length ? ` · ${live.length - ready} being made` : ""}
+          {ready < total ? ` · ${total - ready} being made` : ""}
           {beyond.size > 0
             ? ` · ${beyond.size} more with a bigger plan, in Settings`
             : ""}
@@ -335,6 +350,8 @@ export function CalendarPage({
               <PieceState
                 status={open.status}
                 waitsFor={waitsForNetwork(open, connected)}
+                notSent={open.notSent}
+                why
               />
             }
             onEdit={
@@ -476,7 +493,11 @@ function PieceCard({
         ) : null}
         <span className="cal-title">{entry.title}</span>
         {visual && words ? <span className="cal-excerpt">{words}</span> : null}
-        <PieceState status={entry.status} waitsFor={waitsFor} />
+        <PieceState
+          status={entry.status}
+          waitsFor={waitsFor}
+          notSent={entry.notSent}
+        />
       </span>
     </button>
   );

@@ -582,6 +582,78 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     );
   });
 
+  it("offers the site's own Search Console searches when research measures nothing, and saves an article on one", async () => {
+    const row = (query: string, impressions: number, position: number) => ({
+      query,
+      pageUrl: "https://battery-sensei.app/guide",
+      clicks: 1,
+      impressions,
+      ctr: 1 / impressions,
+      position,
+    });
+    const gsc = await prisma.projectSeoResearch.create({
+      data: {
+        projectId,
+        kind: "search_console",
+        key: "latest",
+        observedAt: new Date(),
+        payload: {
+          property: "sc-domain:battery-sensei.app",
+          from: "2026-10-20",
+          to: "2026-11-16",
+          totals: { clicks: 2, impressions: 320, ctr: 0.006, position: 14 },
+          rows: [
+            row("macbook battery cycle count", 200, 12.4),
+            row("battery cycle count mac", 120, 18),
+            row("swiss watch straps", 90, 30),
+          ],
+        },
+      },
+    });
+    try {
+      vi.mocked(fetchKeywordIdeas).mockImplementationOnce(async () => []);
+      const search = await searchCmoKeywords(cuso, "macbook battery cycles");
+      expect(search.ideas.map((i) => i.keyword)).toEqual([
+        "macbook battery cycle count",
+        "battery cycle count mac",
+      ]);
+      expect(search.ideas[0]).toMatchObject({
+        searchVolume: null,
+        impressions: 200,
+        position: 12.4,
+        positionSource: "search_console",
+      });
+      const saved = await saveCmoSeoSuggestions(cuso, {
+        articles: [
+          {
+            title: "How to read your MacBook battery cycle count",
+            keyword: "macbook battery cycle count",
+            why: "Google already shows the site for it, at 12.4.",
+            outline: "## Where to find it\n## What the number means",
+          },
+        ],
+      });
+      expect(saved.refused).toEqual([]);
+      const article = (await readCmoSeo(cuso)).articles.find(
+        (a) => a.keyword === "macbook battery cycle count",
+      );
+      expect(article?.evidence).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            metric: "impressions",
+            value: "200",
+            source: "search_console",
+          }),
+        ]),
+      );
+    } finally {
+      await prisma.projectSeoSuggestion.deleteMany({
+        where: { projectId, keyword: "macbook battery cycle count" },
+      });
+      await prisma.projectSeoResearch.delete({ where: { id: gsc.id } });
+    }
+  });
+
   it("keeps CMO search receipts separate, reuses its weekly result and saves a billed vendor refusal", async () => {
     const today = new Date();
     const term = "How to choose a shelf";

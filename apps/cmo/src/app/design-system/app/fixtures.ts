@@ -478,11 +478,24 @@ export const busyOverview: CmoOverview = (() => {
     (day) =>
       Array.from({ length: 4 + (day % 3) }, (_, slot) => {
         const channel = networks[(day + slot) % networks.length] ?? "x";
+        const id = `busy-${day}-${slot}`;
+        // One post X refused yesterday: Today and the Calendar say so.
+        const refused = id === "busy-20-4";
         return {
           ...entry(day, channel, titles[(day + slot) % titles.length] ?? ""),
-          id: `busy-${day}-${slot}`,
+          id,
           time: `${String(8 + slot * 2).padStart(2, "0")}:00`,
-          status: day < 19 ? ("published" as const) : ("scheduled" as const),
+          status: refused
+            ? ("draft" as const)
+            : day < 19
+              ? ("published" as const)
+              : ("scheduled" as const),
+          ...(refused
+            ? {
+                notSent:
+                  "X refused it: Your monthly spend cap has been reached.",
+              }
+            : {}),
         };
       }),
   );
@@ -761,6 +774,12 @@ export const seo: CmoSeo = {
     to: "2026-11-13",
     observedAt: seoAt("2026-11-17T08:00:00Z"),
     totals: { clicks: 412, impressions: 18_940, ctr: 0.0218, position: 14.6 },
+    previousTotals: {
+      clicks: 368,
+      impressions: 17_210,
+      ctr: 0.0214,
+      position: 15.9,
+    },
     nearFirstPage: [
       {
         query: "team booking software",
@@ -934,6 +953,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: 11.4,
           positionSource: "search_console",
+          impressions: 412,
+          clicks: 9,
         },
         {
           keyword: "free team booking software",
@@ -942,6 +963,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
         {
           keyword: "team booking app free",
@@ -950,6 +973,8 @@ export const seo: CmoSeo = {
           intent: "commercial",
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
         {
           keyword: "booking software for sales teams",
@@ -958,6 +983,8 @@ export const seo: CmoSeo = {
           intent: null,
           position: null,
           positionSource: null,
+          impressions: null,
+          clicks: null,
         },
       ],
     },

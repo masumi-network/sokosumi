@@ -7437,6 +7437,15 @@
           "previousRun": "Previous run",
           "batchProgress": "Running {done} of {total}"
         },
+        "StandupSwitch": {
+          "stateRunning": "Team stand-ups run where organizations turned them on.",
+          "statePaused": "Team stand-ups are paused for every organization.",
+          "pause": "Pause stand-ups",
+          "resume": "Resume stand-ups",
+          "paused": "Stand-ups paused.",
+          "resumed": "Stand-ups resumed.",
+          "error": "Could not change the stand-up switch."
+        },
         "KillSwitch": {
           "stateEnabled": "Soko Bot is running normally.",
           "stateDisabled": "Disabled — {reason}",
@@ -10996,6 +11005,9 @@
         "mailAutoReadDescription": "After each check, mark mail that is neither urgent nor notable as read. Important mail stays unread for you.",
         "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
+        "teamStandupTitle": "Join the team stand-up",
+        "teamStandupDescription": "Share this assistant's work (Tasks and posts, never mail or calendar) in your organization's daily stand-up.",
+        "teamStandupError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
         "archive": "Archive",
@@ -14718,6 +14730,30 @@
       "posts": "Search posts",
       "controlShortcut": "Ctrl+F",
       "loadedResults": "{count, plural, =0 {No matches in loaded items} one {# match in loaded items} other {# matches in loaded items}}"
+    },
+    "TeamStandup": {
+      "title": "Daily agent stand-up",
+      "enabledLabel": "Run the stand-up",
+      "enabledHelp": "Every weekday the agents post one thread in the Stand-up channel: what was done, what's next, what waits on a person, and up to three hand-offs between agents. Lines come from Tasks and posts, never from mail or calendars. Nothing new means nothing is posted.",
+      "timeLabel": "Time",
+      "timezoneLabel": "Time zone",
+      "weekdaysLabel": "Days",
+      "weekday": {
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat",
+        "7": "Sun"
+      },
+      "next": "Next stand-up: {when} ({zone})",
+      "save": "Save",
+      "saved": "Stand-up settings saved.",
+      "saveError": "Could not save the stand-up settings.",
+      "adminOnly": "Only owners and admins can change this.",
+      "loadError": "Could not load the stand-up settings.",
+      "retry": "Retry"
     }
   },
   "Share": {

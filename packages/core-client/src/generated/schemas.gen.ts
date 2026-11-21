@@ -2149,12 +2149,16 @@ export const SokoBotAvailabilitySchema = {
                 'string',
                 'null'
             ]
+        },
+        standupPaused: {
+            type: 'boolean'
         }
     },
     required: [
         'disabled',
         'disabledAt',
-        'disabledReason'
+        'disabledReason',
+        'standupPaused'
     ]
 } as const;
 
@@ -2167,6 +2171,9 @@ export const SetSokoBotAvailabilityRequestSchema = {
         reason: {
             type: 'string',
             maxLength: 300
+        },
+        standupPaused: {
+            type: 'boolean'
         }
     },
     required: [
@@ -2939,6 +2946,25 @@ export const ChatRoomMessageSenderSchema = {
             },
             required: [
                 'type'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'system'
+                    ]
+                },
+                name: {
+                    type: 'string',
+                    example: 'Stand-up'
+                }
+            },
+            required: [
+                'type',
+                'name'
             ]
         }
     ]
@@ -5393,6 +5419,9 @@ export const SokoBotSchema = {
             ]
         },
         followWholeBoard: {
+            type: 'boolean'
+        },
+        joinsTeamStandup: {
             type: 'boolean'
         },
         mailAutoRead: {
@@ -26023,6 +26052,88 @@ export const UpdateOrganizationSubscriptionSeatsSchema = {
     ]
 } as const;
 
+export const TeamStandupSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        },
+        roomId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        timeOfDay: {
+            type: 'string',
+            example: '09:00'
+        },
+        weekdays: {
+            type: 'array',
+            items: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 7
+            }
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Berlin'
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastRunAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'enabled',
+        'roomId',
+        'timeOfDay',
+        'weekdays',
+        'timezone',
+        'nextRunAt',
+        'lastRunAt'
+    ]
+} as const;
+
+export const UpdateTeamStandupSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        },
+        timeOfDay: {
+            type: 'string',
+            pattern: '^([01]\\d|2[0-3]):[0-5]\\d$',
+            description: 'Local time in `timezone`, HH:MM.'
+        },
+        weekdays: {
+            type: 'array',
+            items: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 7
+            },
+            minItems: 1,
+            maxItems: 7,
+            description: '1 Monday … 7 Sunday.'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    }
+} as const;
+
 export const OrganizationLogoCleanupResultSchema = {
     type: 'object',
     properties: {
@@ -33678,6 +33789,11 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         format: 'uuid'
                                     },
+                                    notSent: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 300
+                                    },
                                     visual: {
                                         type: 'string',
                                         minLength: 1,
@@ -34050,6 +34166,11 @@ export const MarketingStrategySchema = {
                                             socialPostId: {
                                                 type: 'string',
                                                 format: 'uuid'
+                                            },
+                                            notSent: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 300
                                             },
                                             visual: {
                                                 type: 'string',
@@ -35582,6 +35703,11 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 format: 'uuid'
                             },
+                            notSent: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 300
+                            },
                             visual: {
                                 type: 'string',
                                 minLength: 1,
@@ -35954,6 +36080,11 @@ export const MarketingStrategyRequestSchema = {
                                     socialPostId: {
                                         type: 'string',
                                         format: 'uuid'
+                                    },
+                                    notSent: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 300
                                     },
                                     visual: {
                                         type: 'string',
@@ -60134,6 +60265,11 @@ export const CmoPlanSchema = {
                         type: 'string',
                         format: 'uuid'
                     },
+                    notSent: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 300
+                    },
                     visual: {
                         type: 'string',
                         minLength: 1,
@@ -60506,6 +60642,11 @@ export const CmoPlanSchema = {
                             socialPostId: {
                                 type: 'string',
                                 format: 'uuid'
+                            },
+                            notSent: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 300
                             },
                             visual: {
                                 type: 'string',
@@ -62361,6 +62502,38 @@ export const CmoSearchConsoleSchema = {
                 'position'
             ]
         },
+        previousTotals: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                clicks: {
+                    type: 'number'
+                },
+                impressions: {
+                    type: 'number'
+                },
+                ctr: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                position: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'clicks',
+                'impressions',
+                'ctr',
+                'position'
+            ]
+        },
         nearFirstPage: {
             type: 'array',
             items: {
@@ -62449,6 +62622,7 @@ export const CmoSearchConsoleSchema = {
         'to',
         'observedAt',
         'totals',
+        'previousTotals',
         'nearFirstPage',
         'lowClickRate'
     ]
@@ -62728,6 +62902,18 @@ export const CmoKeywordIdeaSchema = {
                 'weekly_audit',
                 null
             ]
+        },
+        impressions: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        clicks: {
+            type: [
+                'number',
+                'null'
+            ]
         }
     },
     required: [
@@ -62736,7 +62922,9 @@ export const CmoKeywordIdeaSchema = {
         'difficulty',
         'intent',
         'position',
-        'positionSource'
+        'positionSource',
+        'impressions',
+        'clicks'
     ]
 } as const;
 
@@ -63367,6 +63555,9 @@ export const SokoBotStateSchema = {
                     ]
                 },
                 followWholeBoard: {
+                    type: 'boolean'
+                },
+                joinsTeamStandup: {
                     type: 'boolean'
                 },
                 mailAutoRead: {
@@ -64167,6 +64358,19 @@ export const SokoBotTurnFeedbackRequestSchema = {
 } as const;
 
 export const UpdateSokoBotBoardFollowingRequestSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'enabled'
+    ],
+    additionalProperties: false
+} as const;
+
+export const UpdateSokoBotTeamStandupRequestSchema = {
     type: 'object',
     properties: {
         enabled: {

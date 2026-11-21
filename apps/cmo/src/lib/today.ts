@@ -1,6 +1,11 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { AGENT_NAME } from "./agent";
-import { channelLabel, connectedNetworks, waitsForNetwork } from "./calendar";
+import {
+  channelLabel,
+  connectedNetworks,
+  pieceMade,
+  waitsForNetwork,
+} from "./calendar";
 import { isAd, strategyApproved } from "./strategy";
 import type { View } from "./views";
 
@@ -13,6 +18,8 @@ export interface NeedsYou {
   detail: string;
   action: string;
   view: View;
+  /** The post the action opens on the Calendar, when it is about one. */
+  entryId?: string;
 }
 
 /**
@@ -29,6 +36,23 @@ export function monthEntries(overview: CmoOverview): Entry[] {
         a.date.localeCompare(b.date) ||
         (a.time ?? "").localeCompare(b.time ?? ""),
     );
+}
+
+/**
+ * The month's posts as they go out, and how many of them are made: the one
+ * count Today, the Calendar, the chat and Cuso's pill all say.
+ */
+export function monthMade(overview: CmoOverview): {
+  ready: number;
+  total: number;
+} {
+  const posts = monthEntries(overview).filter((entry) => !isAd(entry));
+  const media = new Set(overview.media.map((item) => item.entryId));
+  return {
+    ready: posts.filter((entry) => pieceMade(entry, media.has(entry.id)))
+      .length,
+    total: posts.length,
+  };
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -87,6 +111,18 @@ export function needsYou(overview: CmoOverview): NeedsYou[] {
       detail: "Nothing goes out until you approve.",
       action: drafts.length === 1 ? "Review post" : "Review posts",
       view: "calendar",
+    });
+  }
+  const notSent = monthEntries(overview).filter((entry) => entry.notSent);
+  const [first] = notSent;
+  if (first?.notSent) {
+    items.push({
+      id: "not-sent",
+      title: `${plural(notSent.length, "post", "posts")} didn't go out`,
+      detail: first.notSent,
+      action: notSent.length === 1 ? "See post" : "See the first",
+      view: "calendar",
+      entryId: first.id,
     });
   }
   const waiting = waitingByNetwork(overview);
@@ -150,6 +186,8 @@ export interface MonthProgress {
   out: number;
   scheduled: number;
   written: number;
+  /** Failed or missed its time. */
+  notSent: number;
   planned: number;
   total: number;
 }
@@ -158,11 +196,12 @@ export function monthProgress(month: Entry[]): MonthProgress {
   // Ads are launched by the owner and never go out as posts.
   const entries = month.filter((entry) => !isAd(entry));
   const count = (status: Entry["status"]) =>
-    entries.filter((entry) => entry.status === status).length;
+    entries.filter((entry) => entry.status === status && !entry.notSent).length;
   return {
     out: count("published"),
     scheduled: count("scheduled"),
     written: count("draft"),
+    notSent: entries.filter((entry) => entry.notSent).length,
     planned: count("idea"),
     total: entries.length,
   };
