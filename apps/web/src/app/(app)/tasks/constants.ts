@@ -7,6 +7,13 @@ export const TASKS_ROUTE_REFRESH_DEBOUNCE_MS = 500;
  */
 export const TASKS_BOARD_MIN_HEIGHT_CLASS = "min-h-[calc(100dvh-9rem)]";
 
+/**
+ * The row above the columns that names the columns past the board's right
+ * edge. Reserved on the board and in its loading shell alike, so the columns
+ * never move and the shortcuts never cover a card.
+ */
+export const TASKS_BOARD_EDGE_ROW_CLASS = "flex h-8 shrink-0";
+
 /** The row that holds the Tasks toolbar, on the board and in its loading shell. */
 export const TASKS_TOOLBAR_ROW_CLASS = "flex items-start gap-2";
 

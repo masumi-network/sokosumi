@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TASKS_BOARD_EDGE_ROW_CLASS } from "@/app/tasks/constants";
 import { BoardEdgeShortcuts } from "./board-edge-shortcuts";
 
 vi.mock("next-intl", () => ({
@@ -22,16 +23,18 @@ function rect(left: number, width: number) {
 
 function Board() {
   return (
-    <div data-testid="scroller">
-      {columns.map((column) => (
-        <section
-          key={column.id}
-          data-column-id={column.id}
-          aria-label={column.title}
-          tabIndex={-1}
-        />
-      ))}
+    <div>
       <BoardEdgeShortcuts columns={[...columns]} />
+      <div data-testid="scroller" data-board-scroller>
+        {columns.map((column) => (
+          <section
+            key={column.id}
+            data-column-id={column.id}
+            aria-label={column.title}
+            tabIndex={-1}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -94,5 +97,22 @@ describe("BoardEdgeShortcuts", () => {
   it("shows nothing before the board has a width", () => {
     render(<Board />);
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+  });
+
+  // The shortcuts sit in their own row above the columns, never over a card,
+  // and the row keeps its height whether or not it has shortcuts.
+  it("keeps the shortcuts in a reserved row outside the scrolling board", () => {
+    const { rerender } = render(<Board />);
+    const scroller = screen.getByTestId("scroller");
+    const row = scroller.previousElementSibling as HTMLElement;
+    expect(row).toHaveClass(...TASKS_BOARD_EDGE_ROW_CLASS.split(" "));
+    layOut(scroller);
+    rerender(<Board />);
+    act(() => {
+      fireEvent.scroll(scroller);
+    });
+    const nav = screen.getByRole("navigation", { name: "label" });
+    expect(row.contains(nav)).toBe(true);
+    expect(scroller.contains(nav)).toBe(false);
   });
 });

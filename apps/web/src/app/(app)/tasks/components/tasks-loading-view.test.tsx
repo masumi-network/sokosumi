@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { TasksLoadingView } from "@/app/tasks/components/tasks-loading-view";
 import {
+  TASKS_BOARD_EDGE_ROW_CLASS,
   TASKS_BOARD_MIN_HEIGHT_CLASS,
   TASKS_TOOLBAR_ROW_CLASS,
 } from "@/app/tasks/constants";
@@ -87,8 +88,13 @@ describe("TasksLoadingView", () => {
       <TasksLoadingView labels={TASKS_LOADING_DEFAULT_LABELS} />,
     );
 
-    expect(container.querySelector(".overflow-x-auto")).toHaveClass(
-      TASKS_BOARD_MIN_HEIGHT_CLASS,
+    // The frame holds the edge-shortcut row and the columns, so the loaded
+    // board's columns open where the skeleton drew them.
+    const scroller = container.querySelector(".overflow-x-auto");
+    const frame = scroller?.parentElement;
+    expect(frame).toHaveClass(TASKS_BOARD_MIN_HEIGHT_CLASS);
+    expect(scroller?.previousElementSibling).toHaveClass(
+      ...TASKS_BOARD_EDGE_ROW_CLASS.split(" "),
     );
   });
 

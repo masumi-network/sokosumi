@@ -55,70 +55,12 @@ export function KanbanBoard({
 }: KanbanBoardProps) {
   const compare = compareTasks(sort);
   return (
-    <DragScrollContainer
+    <div
       className={cn(
-        "-mx-2 flex size-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar",
+        "flex min-w-0 flex-1 flex-col gap-2",
         TASKS_BOARD_MIN_HEIGHT_CLASS,
       )}
     >
-      {columns.map((column) => {
-        const columnTasks = tasks.filter((task) => task.columnId === column.id);
-        if (!preserveSearchOrder) columnTasks.sort(compare);
-        const isDraggableColumn = isDragEnabled && isDnDDragColumn(column.id);
-        const isDropTargetColumn = isDragEnabled && isDnDDropColumn(column.id);
-
-        const columnContent = (
-          <KanbanColumn
-            key={column.id}
-            id={column.id}
-            title={labels.columns[column.id]}
-            statusColor={COLUMN_STATUS_COLORS[column.id]}
-            tasks={columnTasks}
-            hiddenCount={columnHiddenCountById?.[column.id] ?? 0}
-            emptyLabel={labels.emptyColumn}
-            footer={columnFooterById?.[column.id]}
-            renderTask={(task) =>
-              isDraggableColumn && canDragTask(task) ? (
-                <DraggableTask
-                  key={task.id}
-                  id={task.id}
-                  columnId={task.columnId}
-                >
-                  {(dragHandleProps) => (
-                    <TaskCard
-                      task={task}
-                      dragHandleProps={dragHandleProps}
-                      compact={compact}
-                      statusLabels={statusLabels}
-                      quietStatus={COLUMN_MAIN_STATUS[column.id]}
-                    />
-                  )}
-                </DraggableTask>
-              ) : (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  compact={compact}
-                  statusLabels={statusLabels}
-                  quietStatus={COLUMN_MAIN_STATUS[column.id]}
-                />
-              )
-            }
-          />
-        );
-
-        return isDropTargetColumn ? (
-          <DroppableColumn
-            key={column.id}
-            id={column.id}
-            className="flex h-full min-h-0 shrink-0 flex-1"
-          >
-            {columnContent}
-          </DroppableColumn>
-        ) : (
-          columnContent
-        );
-      })}
       <BoardEdgeShortcuts
         columns={columns.map((column) => ({
           id: column.id,
@@ -129,6 +71,69 @@ export function KanbanBoard({
             (columnHiddenCountById?.[column.id] ?? 0),
         }))}
       />
-    </DragScrollContainer>
+      <DragScrollContainer className="-mx-2 flex min-h-0 min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
+        {columns.map((column) => {
+          const columnTasks = tasks.filter(
+            (task) => task.columnId === column.id,
+          );
+          if (!preserveSearchOrder) columnTasks.sort(compare);
+          const isDraggableColumn = isDragEnabled && isDnDDragColumn(column.id);
+          const isDropTargetColumn =
+            isDragEnabled && isDnDDropColumn(column.id);
+
+          const columnContent = (
+            <KanbanColumn
+              key={column.id}
+              id={column.id}
+              title={labels.columns[column.id]}
+              statusColor={COLUMN_STATUS_COLORS[column.id]}
+              tasks={columnTasks}
+              hiddenCount={columnHiddenCountById?.[column.id] ?? 0}
+              emptyLabel={labels.emptyColumn}
+              footer={columnFooterById?.[column.id]}
+              renderTask={(task) =>
+                isDraggableColumn && canDragTask(task) ? (
+                  <DraggableTask
+                    key={task.id}
+                    id={task.id}
+                    columnId={task.columnId}
+                  >
+                    {(dragHandleProps) => (
+                      <TaskCard
+                        task={task}
+                        dragHandleProps={dragHandleProps}
+                        compact={compact}
+                        statusLabels={statusLabels}
+                        quietStatus={COLUMN_MAIN_STATUS[column.id]}
+                      />
+                    )}
+                  </DraggableTask>
+                ) : (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    compact={compact}
+                    statusLabels={statusLabels}
+                    quietStatus={COLUMN_MAIN_STATUS[column.id]}
+                  />
+                )
+              }
+            />
+          );
+
+          return isDropTargetColumn ? (
+            <DroppableColumn
+              key={column.id}
+              id={column.id}
+              className="flex h-full min-h-0 shrink-0 flex-1"
+            >
+              {columnContent}
+            </DroppableColumn>
+          ) : (
+            columnContent
+          );
+        })}
+      </DragScrollContainer>
+    </div>
   );
 }

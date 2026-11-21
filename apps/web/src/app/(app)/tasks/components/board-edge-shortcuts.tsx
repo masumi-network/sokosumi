@@ -3,6 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { TASKS_BOARD_EDGE_ROW_CLASS } from "@/app/tasks/constants";
 import { Button } from "@/components/ui/button";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { matchesMediaQuery } from "@/hooks/effects/use-media-query";
@@ -29,14 +30,17 @@ function columnsPastEdge(scroller: HTMLElement) {
 
 /**
  * Names the board columns that sit wholly past its right edge, with their
- * counts, so a Task moved to Done stays in reach. Rendered as the board's last
- * child: it sticks to the visible right edge and takes no width.
+ * counts, so a Task moved to Done stays in reach. It is the reserved row above
+ * the board's scroller (`data-board-scroller`), so it never covers a card.
  */
 export function BoardEdgeShortcuts({ columns }: { columns: EdgeColumn[] }) {
   const t = useTranslations("App.Tasks.BoardEdge");
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
-  const scroller = anchor?.parentElement ?? null;
+  const scroller =
+    anchor?.parentElement?.querySelector<HTMLElement>(
+      "[data-board-scroller]",
+    ) ?? null;
 
   function measure() {
     if (!scroller) return;
@@ -73,15 +77,15 @@ export function BoardEdgeShortcuts({ columns }: { columns: EdgeColumn[] }) {
   const hiddenSet = new Set(hiddenIds);
   const hidden = columns.filter((column) => hiddenSet.has(column.id));
   return (
+    // Scrolls sideways only when the shortcuts outgrow a narrow screen.
     <div
       ref={setAnchor}
-      className="sticky right-0 -ml-3 w-0 shrink-0"
-      data-no-drag-scroll
+      className={cn(TASKS_BOARD_EDGE_ROW_CLASS, "min-w-0 overflow-x-auto")}
     >
       {hidden.length > 0 && (
         <nav
           aria-label={t("label")}
-          className="absolute top-1/2 right-2 flex -translate-y-1/2 flex-col items-end gap-1.5"
+          className="ml-auto flex w-max items-center gap-1.5"
         >
           {hidden.map((column) => (
             <Button
@@ -89,7 +93,7 @@ export function BoardEdgeShortcuts({ columns }: { columns: EdgeColumn[] }) {
               type="button"
               variant="outline"
               size="sm"
-              className="gap-2 rounded-full shadow-sm"
+              className="h-7 gap-1.5 rounded-full px-2.5 text-xs"
               onClick={() => show(column.id)}
             >
               <span
@@ -106,7 +110,7 @@ export function BoardEdgeShortcuts({ columns }: { columns: EdgeColumn[] }) {
               <span className="text-muted-foreground tabular-nums" aria-hidden>
                 {column.count}
               </span>
-              <ChevronRight aria-hidden className="size-4" />
+              <ChevronRight aria-hidden className="size-3.5" />
             </Button>
           ))}
         </nav>
