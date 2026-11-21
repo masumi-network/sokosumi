@@ -8,7 +8,10 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ThreadListPanel } from "./thread-list-panel";
+import {
+  ThreadListPanel,
+  type ThreadListPanelLabels,
+} from "./thread-list-panel";
 
 const listThreadsActionMock = vi.fn();
 const markAllUnreadThreadsReadActionMock = vi.fn();
@@ -28,7 +31,8 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 const labels = {
   title: "Threads",
   markAllRead: "Mark all as read",
-  empty: "No threads yet.",
+  empty: "No threads yet",
+  emptyHint: "Reply to a message in its thread to start one.",
   loading: "Loading threads…",
   error: "Could not load threads.",
   markAllReadError: "Could not mark unread threads as read.",
@@ -120,12 +124,13 @@ function renderPanel(
     onOpenThread?: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
     onClose?: () => void;
     onAllThreadsLooked?: (stillUnreadParentIds: string[]) => void;
+    labels?: ThreadListPanelLabels;
   } = {},
 ) {
   return render(
     <ThreadListPanel
       roomId={ROOM_ID}
-      labels={labels}
+      labels={options.labels ?? labels}
       onOpenThread={options.onOpenThread ?? vi.fn().mockResolvedValue(true)}
       onClose={options.onClose ?? vi.fn()}
       onAllThreadsLooked={options.onAllThreadsLooked}
@@ -209,12 +214,25 @@ describe("ThreadListPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByTestId("thread-list-empty")).toHaveTextContent(
-      labels.empty,
-    );
+    const empty = await screen.findByTestId("thread-list-empty");
+    expect(empty).toHaveTextContent(labels.empty);
+    expect(empty).toHaveTextContent(labels.emptyHint);
     expect(
       screen.queryByTestId("thread-list-mark-all-read"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows only the empty title when there is no hint to give", async () => {
+    listThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: { threads: [], nextCursor: null },
+    });
+
+    renderPanel({ labels: { ...labels, emptyHint: undefined } });
+
+    const empty = await screen.findByTestId("thread-list-empty");
+    expect(empty).toHaveTextContent(labels.empty);
+    expect(empty).not.toHaveTextContent(labels.emptyHint);
   });
 
   it("loads older threads when the recency cursor is present", async () => {

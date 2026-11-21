@@ -11,6 +11,7 @@ import {
   monthMade,
   monthProgress,
   needsYou,
+  todayLine,
   waitingLine,
   weekOf,
 } from "./today";
@@ -285,5 +286,34 @@ it("leaves a post X paused out of Needs you: it is still scheduled, and Core ret
   expect(monthProgress(monthEntries(held))).toMatchObject({
     notSent: 0,
     scheduled: 1,
+  });
+});
+
+describe("todayLine", () => {
+  const hired = cmoOverview({ ...approved });
+  const made = monthMade(hired);
+  const at = (state: (typeof hired)["production"]["state"]) => ({
+    ...hired,
+    production: { ...hired.production, state },
+  });
+
+  it("never says nothing needs doing while the month stopped half made", () => {
+    const line = todayLine(at("stuck"), 0);
+    expect(line).not.toMatch(/Nothing needs you|on its day/);
+    expect(line).toBe(
+      `I stopped making your month at ${made.ready} of ${made.total}. I try the rest again on my next round.`,
+    );
+  });
+
+  it("counts the month while a run is about to make the rest", () => {
+    expect(todayLine(at("starting"), 0)).toBe(
+      `I'm making your month: ${made.ready} of ${made.total} ready.`,
+    );
+  });
+
+  it("says nothing needs the owner only once the month is made", () => {
+    expect(todayLine(at("ready"), 0)).toBe(
+      "Nothing needs you. Everything goes out on its day.",
+    );
   });
 });

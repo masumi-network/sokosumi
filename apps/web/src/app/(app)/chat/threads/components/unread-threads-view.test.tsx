@@ -183,7 +183,10 @@ describe("UnreadThreadsView", () => {
     ];
     renderView();
 
-    expect(screen.getByText("All caught up")).toBeInTheDocument();
+    expect(screen.getByText("You're all caught up")).toBeInTheDocument();
+    expect(
+      screen.getByText("New replies in threads you're part of show up here."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Unread threads" })).toBeNull();
     // The live rooms already said so; Core is not asked.
     expect(fetchUnreadThreadsMock).not.toHaveBeenCalled();
@@ -195,7 +198,10 @@ describe("UnreadThreadsView", () => {
     liveRooms.current = [];
     renderView();
 
-    expect(screen.getByText("All caught up")).toBeInTheDocument();
+    expect(screen.getByText("You're all caught up")).toBeInTheDocument();
+    expect(
+      screen.getByText("New replies in threads you're part of show up here."),
+    ).toBeInTheDocument();
   });
 
   it("drops a Thread whose room the reader has muted since", async () => {
@@ -285,7 +291,7 @@ describe("UnreadThreadsView with a filtered page", () => {
       nextCursor: "p-left",
     });
 
-    expect(screen.queryByText("All caught up")).toBeNull();
+    expect(screen.queryByText("You're all caught up")).toBeNull();
     expect(screen.getByTestId("thread-list-load-more")).toBeInTheDocument();
   });
 });

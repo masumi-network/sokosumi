@@ -2,7 +2,6 @@ import { getPrivateCachedMembershipVisibleRooms } from "@/app/components/private
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 
-import { CatchUpTabs } from "../components/catch-up-tabs";
 import { SavedMessagesView } from "../components/saved-messages-view";
 
 /** Catch up's Saved tab: the messages the reader saved for later. */
@@ -18,13 +17,10 @@ export default async function ChatCatchUpSavedPage() {
   ]);
 
   return (
-    <>
-      <CatchUpTabs active="saved" />
-      <SavedMessagesView
-        initialPage={initialPage}
-        initialRooms={roomsPage.rooms}
-        currentUserId={session.user.id}
-      />
-    </>
+    <SavedMessagesView
+      initialPage={initialPage}
+      initialRooms={roomsPage.rooms}
+      currentUserId={session.user.id}
+    />
   );
 }

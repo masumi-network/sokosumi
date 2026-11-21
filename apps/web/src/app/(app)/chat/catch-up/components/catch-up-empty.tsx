@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hash, MessageSquare, Sunrise } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { loadChatComposeRosterAction } from "@/app/chat/actions";
-import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
+import { ChatEmptyState } from "@/app/chat/components/chat-unread-view-header";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
@@ -99,7 +99,7 @@ export function CatchUpEmpty({
             <Skeleton className="h-5 w-64 max-w-full" />
           </div>
         ) : firstSteps ? (
-          <ChatCaughtUp
+          <ChatEmptyState
             icon={Sunrise}
             title={t("firstCatchUpTitle")}
             description={t("firstCatchUpDescription")}
@@ -128,9 +128,9 @@ export function CatchUpEmpty({
                 ) : null}
               </div>
             ) : null}
-          </ChatCaughtUp>
+          </ChatEmptyState>
         ) : (
-          <ChatCaughtUp
+          <ChatEmptyState
             title={t("caughtUpTitle")}
             description={t("caughtUpDescription")}
           />

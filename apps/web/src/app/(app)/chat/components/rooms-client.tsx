@@ -3535,6 +3535,10 @@ function RoomView({
                   title: t("UnreadThreads.title"),
                   markAllRead: t("UnreadThreads.markAllRead"),
                   empty: t("UnreadThreads.empty"),
+                  // A read-only Direct takes no new Thread: no hint to start one.
+                  emptyHint: selectedRoom.isReadOnly
+                    ? undefined
+                    : t("UnreadThreads.emptyHint"),
                   loading: t("UnreadThreads.loading"),
                   error: t("UnreadThreads.error"),
                   markAllReadError: t("UnreadThreads.markAllReadError"),
@@ -3576,6 +3580,7 @@ function RoomView({
                   title: t("PinnedMessages.title"),
                   close: t("PinnedMessages.close"),
                   empty: t("PinnedMessages.empty"),
+                  emptyHint: t("PinnedMessages.emptyHint"),
                   loading: t("PinnedMessages.loading"),
                   error: t("PinnedMessages.error"),
                   couldNotLoad: t("PinnedMessages.couldNotLoad"),

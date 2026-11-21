@@ -1,6 +1,5 @@
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 
-import { CatchUpTabs } from "./components/catch-up-tabs";
 import { CatchUpView } from "./components/catch-up-view";
 
 /**
@@ -11,12 +10,9 @@ import { CatchUpView } from "./components/catch-up-view";
 export default async function ChatCatchUpPage() {
   const session = await getSessionOrRedirect();
   return (
-    <>
-      <CatchUpTabs active="overview" />
-      <CatchUpView
-        currentUserId={session.user.id}
-        organizationId={session.session.activeOrganizationId ?? null}
-      />
-    </>
+    <CatchUpView
+      currentUserId={session.user.id}
+      organizationId={session.session.activeOrganizationId ?? null}
+    />
   );
 }

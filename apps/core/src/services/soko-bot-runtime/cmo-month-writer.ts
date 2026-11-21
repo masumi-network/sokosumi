@@ -23,7 +23,11 @@ import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-calls";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
-import { RuntimeEventLog, runtimeEvent } from "@/lib/soko-bot/turn-loop";
+import {
+  RuntimeEventLog,
+  runtimeEvent,
+  sokoBotToolCallTimeoutMs,
+} from "@/lib/soko-bot/turn-loop";
 import {
   compactBrandBrain,
   getBrandBrain,
@@ -75,16 +79,33 @@ import { type RuntimeOperations } from "./operations";
  * Core's month writer (cmo-v6): one structured call per chunk of pieces,
  * the chunks at once, every result saved through the same tools Cuso's own
  * saves go through, so each piece passes the same checks and leaves the same
- * receipts. A call must answer within the runner's two minutes, so it takes
- * at most PIECES_PER_CALL pieces and stops saving at SAVE_DEADLINE_MS; what
- * it did not save stays pending for the next call.
+ * receipts. A call must answer within its tool timeout, so it takes at most
+ * PIECES_PER_CALL pieces and works to one deadline, cmoMonthWriterBudgetMs():
+ * a model call, the saves, the month's checks and the repair each stop in
+ * time to answer; what it did not save stays pending for the next call.
  */
 const PIECES_PER_CALL = 40;
 const PIECES_PER_CHUNK = 10;
 const MODEL_TIMEOUT_MS = 75_000;
-const SAVE_DEADLINE_MS = 100_000;
+/** What the writer leaves of its tool timeout to answer and log. */
+const ANSWER_MARGIN_MS = 15_000;
+export function cmoMonthWriterBudgetMs(): number {
+  return sokoBotToolCallTimeoutMs("write_month_pieces") - ANSWER_MARGIN_MS;
+}
+/** A model call ends this long before the deadline, so its pieces still save. */
+const SAVE_RESERVE_MS = 15_000;
+/** The month's checks read every draft; they start only with this much left. */
+const CHECKS_RESERVE_MS = 15_000;
 /** A repair round starts only while a chunk call and its saves still fit. */
 const REPAIR_START_MS = 60_000;
+
+/** How long a model call may take: its own cap, or what the deadline leaves. */
+export function cmoWriterModelTimeoutMs(deadline: number, now: number): number {
+  return Math.max(
+    0,
+    Math.min(MODEL_TIMEOUT_MS, deadline - SAVE_RESERVE_MS - now),
+  );
+}
 
 const writtenPieceSchema = z.object({
   id: z.string(),
@@ -282,14 +303,17 @@ async function writeChunk(
   modelId: string,
   system: string,
   prompt: string,
+  deadline: number,
 ): Promise<WrittenPiece[]> {
+  const timeoutMs = cmoWriterModelTimeoutMs(deadline, Date.now());
+  if (timeoutMs <= 0) return [];
   const result = await generateText({
     ...request,
     system,
     prompt,
     output: Output.object({ schema: writtenChunkSchema }),
     maxOutputTokens: 16_000,
-    abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
+    abortSignal: AbortSignal.timeout(timeoutMs),
     telemetry: modelCallTelemetryFor("cmo-month-writer"),
   }).catch(rethrowAiGatewayFailure);
   // Charged to the turn like its own steps, with its tokens.
@@ -332,6 +356,7 @@ export async function writeCmoMonthPieces(
   next: string;
 }> {
   const startedAt = Date.now();
+  const deadline = startedAt + cmoMonthWriterBudgetMs();
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: authorized.turn.id },
     select: { clientTurnId: true },
@@ -538,7 +563,7 @@ export async function writeCmoMonthPieces(
       const entry = await entryOf(byId.get(written.id)!, written);
       if (entry) entries.push(entry);
     }
-    if (entries.length > 0) {
+    if (entries.length > 0 && Date.now() < deadline) {
       // One save for the chunk; a refusal there is retried piece by piece,
       // so one piece's problem never holds back the rest.
       try {
@@ -560,7 +585,7 @@ export async function writeCmoMonthPieces(
       }
     }
     for (const written of mine) {
-      if (Date.now() - startedAt > SAVE_DEADLINE_MS) break;
+      if (Date.now() > deadline) break;
       const piece = byId.get(written.id)!;
       if (!written.draft?.trim() || piece.draft?.trim()) continue;
       try {
@@ -613,6 +638,7 @@ export async function writeCmoMonthPieces(
           cmoChunkProof(proof, index, chunks.length),
           said,
         ),
+        deadline,
       )
         .catch(() => [] as WrittenPiece[])
         .then(saveInTurn),
@@ -622,8 +648,12 @@ export async function writeCmoMonthPieces(
   // The month's own checks over every draft, as save_strategy answers them
   // to Cuso: a repeated opening or phrase, a banned line, the same message
   // in other words. What they find in this batch is rewritten below too.
+  // Left for the next call when the deadline is near: it checks the month again.
   const month = await read();
-  const drafts = await cmoDraftProblems(month.strategy?.calendar ?? []);
+  const drafts =
+    deadline - Date.now() > CHECKS_RESERVE_MS
+      ? await cmoDraftProblems(month.strategy?.calendar ?? [])
+      : { problems: [], costUsd: 0 };
   await chargeCheck(input, EMBEDDING_MODEL, drafts.costUsd);
   const ids = new Set(batch.map((piece) => piece.id));
   for (const problem of drafts.problems) {
@@ -645,6 +675,7 @@ export async function writeCmoMonthPieces(
           modelId,
           system,
           chunkPrompt(chunk, failedMedia, refused, [], []),
+          deadline,
         ).catch(() => [] as WrittenPiece[]),
       ),
     );

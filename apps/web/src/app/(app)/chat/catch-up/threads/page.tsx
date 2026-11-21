@@ -3,7 +3,6 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 
 import { UnreadThreadsView } from "../../threads/components/unread-threads-view";
-import { CatchUpTabs } from "../components/catch-up-tabs";
 
 /**
  * Catch up's Threads tab: every unread Thread across the reader's rooms
@@ -22,13 +21,10 @@ export default async function ChatCatchUpThreadsPage() {
   ]);
 
   return (
-    <>
-      <CatchUpTabs active="threads" />
-      <UnreadThreadsView
-        initialPage={initialPage}
-        initialRooms={roomsPage.rooms}
-        currentUserId={session.user.id}
-      />
-    </>
+    <UnreadThreadsView
+      initialPage={initialPage}
+      initialRooms={roomsPage.rooms}
+      currentUserId={session.user.id}
+    />
   );
 }
