@@ -57,7 +57,10 @@ const savedTableId = (key: string) => {
   return copy?.done === copy?.plan.batches.length ? copy?.tableId : undefined;
 };
 
-/** The toasts carry the way to the new Table or how to finish it: they stay until dismissed. */
+/**
+ * The error toasts carry how to finish the copy: they stay until dismissed. The success toast goes by itself:
+ * the row keeps Open table, and on a phone a toast that stays covers the comment Submit.
+ */
 const STAY = { duration: Infinity, closeButton: true };
 
 function SaveableTable({
@@ -121,7 +124,6 @@ function SaveableTable({
       for (const listener of listeners) listener();
       const { total } = tableCopyRows(copy);
       toast.success(t("saved", { count: total }), {
-        ...STAY,
         action: {
           label: t("open"),
           onClick: () => router.push(`/drive/tables/${id}`),

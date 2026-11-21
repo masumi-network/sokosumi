@@ -105,6 +105,8 @@ it("saves the table as the reader sees it and then links to it", async () => {
     "Saved 2 rows to a new table.",
     expect.anything(),
   );
+  // The row keeps the link, so the toast goes by itself: on a phone it covers the comment Submit.
+  expect(m.success.mock.calls[0][1]).not.toHaveProperty("duration");
   expect(screen.getByRole("link", { name: "Open table" })).toHaveAttribute(
     "href",
     "/drive/tables/table-1",
