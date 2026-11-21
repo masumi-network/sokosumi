@@ -123,6 +123,8 @@ export interface ModelCallRecord {
     cacheWriteTokens?: number;
     outputTokens?: number;
   };
+  /** For a call that did not go through the Gateway. */
+  provider?: string;
   /** Overrides the Gateway's reported cost, e.g. a priced search. */
   costUsd?: number;
   failed?: boolean;
@@ -152,6 +154,7 @@ export async function recordModelCall(record: ModelCallRecord): Promise<void> {
           : (requestedModel ?? record.requestedModel)
         ).slice(0, 200),
         ...facts,
+        provider: facts.provider ?? record.provider ?? null,
         inputTokens: whole(record.usage?.inputTokens),
         cacheReadTokens: whole(record.usage?.cacheReadTokens),
         cacheWriteTokens: whole(record.usage?.cacheWriteTokens),

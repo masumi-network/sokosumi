@@ -1,8 +1,14 @@
 import type { AdminSokoBotTurn } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-import { formatUsd } from "@/components/soko-bot/format";
 
 type ModelCall = AdminSokoBotTurn["modelCalls"][number];
+
+/** One precision for every row and total, so the sums can be checked. */
+function callUsd(value: number): string {
+  if (value === 0) return "$0";
+  if (value < 0.0001) return "<$0.0001";
+  return `$${value.toFixed(4)}`;
+}
 
 /** What answered the call; the asked-for model when the Gateway named none. */
 function answered(call: ModelCall): string {
@@ -32,16 +38,17 @@ export async function TurnModelCalls({ calls }: { calls: ModelCall[] }) {
     );
   return (
     <div className="space-y-3">
+      <p className="text-muted-foreground text-xs">{t("spendByModel")}</p>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
         {spendByModel(calls).map(([model, total]) => (
           <li key={model} className="tabular-nums">
             <span className="font-mono">{model}</span> × {total.calls} ·{" "}
-            {formatUsd(total.costUsd)}
+            {callUsd(total.costUsd)}
           </li>
         ))}
       </ul>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
+        <table className="w-full whitespace-nowrap text-left text-xs">
           <thead className="text-muted-foreground">
             <tr>
               <th className="py-1 pr-3 font-medium">{t("callRole")}</th>
@@ -80,10 +87,11 @@ export async function TurnModelCalls({ calls }: { calls: ModelCall[] }) {
                 <td className="py-1 pr-3 text-right tabular-nums">
                   {format.number(call.inputTokens)} /{" "}
                   {format.number(call.cacheReadTokens)} /{" "}
+                  {format.number(call.cacheWriteTokens)} /{" "}
                   {format.number(call.outputTokens)}
                 </td>
                 <td className="py-1 text-right tabular-nums">
-                  {formatUsd(call.costUsd)}
+                  {callUsd(call.costUsd)}
                 </td>
               </tr>
             ))}

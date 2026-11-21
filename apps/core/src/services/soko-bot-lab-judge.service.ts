@@ -255,7 +255,9 @@ async function askJudge(
         });
         await recordModelCall({
           role: "judge",
-          label: "claude-code",
+          // Paid by the Claude Code subscription, so nothing is metered.
+          label: "not metered",
+          provider: "claude-code",
           requestedModel: sokoBotJudgeModel(),
           costUsd: 0,
         });

@@ -264,6 +264,17 @@ describe("CMO version", () => {
     expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v8");
   });
 
+  it("has cmo-v10 run cmo-v9 word for word with a stronger model for hard work", () => {
+    const v9 = getSokoBotVersion("cmo-v9");
+    const v10 = getSokoBotVersion("cmo-v10");
+    expect(v10.profile).toBe("cmo");
+    expect(v10.model).toBe(v9.model);
+    expect(v10.systemPrompt).toBe(v9.systemPrompt);
+    expect(v10.skills).toEqual(v9.skills);
+    expect(v10.strongModel).toBe("openai/gpt-6.2-sol");
+    expect(v9.strongModel).toBeUndefined();
+  });
+
   it("keeps a piece's claim on its plan entry and its Social post", () => {
     const entry = {
       id: "e1",

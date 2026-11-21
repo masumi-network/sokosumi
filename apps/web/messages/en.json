@@ -7180,7 +7180,7 @@
           "callRequested": "Asked for",
           "callAnswered": "Answered",
           "callProvider": "Provider",
-          "callTokens": "Tokens in / cached / out",
+          "callTokens": "Tokens in / cache read / cache write / out",
           "callCost": "Cost"
         },
         "Decisions": {

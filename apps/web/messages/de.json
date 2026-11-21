@@ -7144,7 +7144,7 @@
           "callRequested": "Angefragt",
           "callAnswered": "Geantwortet",
           "callProvider": "Anbieter",
-          "callTokens": "Tokens ein / Cache / aus",
+          "callTokens": "Tokens ein / Cache gelesen / Cache geschrieben / aus",
           "callCost": "Kosten"
         },
         "Decisions": {

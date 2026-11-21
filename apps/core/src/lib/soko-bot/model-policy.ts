@@ -43,10 +43,11 @@ const GLOBAL_AGENT_MODELS: ReadonlySet<string> = new Set([
   "openai/gpt-oss-20b",
   "deepseek/deepseek-v4-flash",
   "google/gemini-2.5-flash-lite",
-  // The stronger model for strategy, background runs and complex chat
+  // The stronger models for background runs and complex chat
   // (`turn-model.ts`), on the same terms: zero retention, no training.
   // Added 2026-11-21 for the owner's review in the routing PR.
   "openai/gpt-6.1-terra",
+  "openai/gpt-6.2-sol",
 ]);
 
 /** Whether the agent may run on `model` without EU pinning. */

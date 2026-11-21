@@ -7144,7 +7144,7 @@
           "callRequested": "Solicitado",
           "callAnswered": "Respondió",
           "callProvider": "Proveedor",
-          "callTokens": "Tokens entrada / caché / salida",
+          "callTokens": "Tokens entrada / caché leída / caché escrita / salida",
           "callCost": "Coste"
         },
         "Decisions": {

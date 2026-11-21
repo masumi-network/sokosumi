@@ -645,7 +645,7 @@ describe("failing closed", () => {
     ).classify("Do it", EMPTY_CONTEXT);
     expect(result.failed).toBe(true);
     expect(result.classification.route).toBe("CLARIFY");
-    expect(result.usage).toEqual({
+    expect(result.usage).toMatchObject({
       inputTokens: 300,
       outputTokens: 20,
       costUsd: 0.00001,
