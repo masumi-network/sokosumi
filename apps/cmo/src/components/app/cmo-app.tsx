@@ -923,7 +923,7 @@ function ProductionCard({
           {ready
             ? "Your month is ready"
             : production.state === "stuck"
-              ? "Most of your month is ready"
+              ? "Making your month stopped"
               : production.state === "blocked"
                 ? `${AGENT_NAME} couldn't start your month`
                 : notStarted
@@ -948,7 +948,7 @@ function ProductionCard({
         {ready
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
-            ? `A few posts didn't finish. ${AGENT_NAME} tries them again on his next round.`
+            ? `${productionSteps(production, month.total)}. ${AGENT_NAME} tries the rest again on his next round.`
             : production.state === "blocked"
               ? "Something on our side keeps him from starting. He tries again every ten minutes."
               : notStarted

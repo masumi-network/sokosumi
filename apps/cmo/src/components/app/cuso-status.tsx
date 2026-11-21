@@ -30,6 +30,8 @@ interface Mood {
   needs: number;
   /** He is at work: reading, thinking or making the month. */
   busy: boolean;
+  /** The month stopped or could not start: no page line hides it. */
+  alarm: boolean;
 }
 
 /** Every drawing he has, with its size, kept on the stage so a change never loads one. */
@@ -47,6 +49,12 @@ function madeLine(overview: CmoOverview): string {
   return `${ready} of ${total} made`;
 }
 
+/** "Stopped at 67 of 171": the month stopped with posts missing. */
+function stoppedLine(overview: CmoOverview): string {
+  const { ready, total } = monthMade(overview);
+  return `Stopped at ${ready} of ${total}`;
+}
+
 /** Pages where he is looking things up while nothing else is going on. */
 const LOOKING: ReadonlySet<View> = new Set(["seo", "competitors"]);
 
@@ -60,12 +68,16 @@ export function cusoMood(overview: CmoOverview, now: Date = new Date()): Mood {
       ? "One thing needs you"
       : needs > 1
         ? `${needs} things need you`
-        : production.state === "running"
+        : production.state === "running" || production.state === "starting"
           ? madeLine(overview)
-          : cusoStatus(overview);
+          : production.state === "stuck"
+            ? stoppedLine(overview)
+            : cusoStatus(overview);
   const busy =
     pose === "reading" || pose === "thinking" || production.state === "running";
-  return { pose, art: ART[pose], line, needs, busy };
+  // A month that stopped or could not start is said on every page.
+  const alarm = production.state === "stuck" || production.state === "blocked";
+  return { pose, art: ART[pose], line, needs, busy, alarm };
 }
 
 /** What he says about the page the owner is on, while nothing needs them. */
@@ -110,7 +122,7 @@ export function cusoBubble(
   now: Date = new Date(),
 ): Mood {
   const mood = cusoMood(overview, now);
-  if (mood.needs > 0 || mood.busy) return mood;
+  if (mood.needs > 0 || mood.busy || mood.alarm) return mood;
   return {
     ...mood,
     art: LOOKING.has(view) ? "searching" : mood.art,

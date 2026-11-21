@@ -8,10 +8,10 @@ import {
   dayIn,
   greeting,
   monthEntries,
-  monthMade,
   monthProgress,
   type NeedsYou,
   needsYou,
+  todayLine,
   weekOf,
 } from "../../lib/today";
 import type { View } from "../../lib/views";
@@ -50,7 +50,7 @@ export function TodayPage({
           {greeting(overview.timeZone, now)}
           {firstName ? `, ${firstName}` : ""}.
         </h1>
-        <p className="today-says">{saying(overview, needs.length)}</p>
+        <p className="today-says">{todayLine(overview, needs.length)}</p>
       </header>
 
       {entries.length > 0 ? (
@@ -95,23 +95,6 @@ export function TodayPage({
       <NeedsYouList items={needs} open={open} openEntry={openEntry} />
     </div>
   );
-}
-
-/** What Cuso says on top of the day, in one line. */
-function saying(overview: CmoOverview, needs: number): string {
-  if (needs === 1) return "One thing needs you. The rest is on me.";
-  if (needs > 1) return `${needs} things need you. The rest is on me.`;
-  if (overview.botStatus === "RUNNING") {
-    return `I'm on it: ${overview.activity?.step ?? "working"}.`;
-  }
-  if (overview.production.state === "running") {
-    const { ready, total } = monthMade(overview);
-    return `I'm making your month: ${ready} of ${total} ready.`;
-  }
-  if (overview.production.state === "blocked") {
-    return "I couldn't start your month yet. I keep trying every ten minutes.";
-  }
-  return "Nothing needs you. Everything goes out on its day.";
 }
 
 function NeedsYouList({

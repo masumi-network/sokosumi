@@ -233,3 +233,27 @@ export function greeting(timeZone: string, now: Date = new Date()): string {
   if (hour < 18) return "Good afternoon";
   return "Good evening";
 }
+
+/**
+ * What Cuso says on top of the day, in one line. "Nothing needs you" only
+ * once the month is made: a month that stopped half made says so.
+ */
+export function todayLine(overview: CmoOverview, needs: number): string {
+  if (needs === 1) return "One thing needs you. The rest is on me.";
+  if (needs > 1) return `${needs} things need you. The rest is on me.`;
+  if (overview.botStatus === "RUNNING") {
+    return `I'm on it: ${overview.activity?.step ?? "working"}.`;
+  }
+  const { state } = overview.production;
+  const { ready, total } = monthMade(overview);
+  if (state === "running" || state === "starting") {
+    return `I'm making your month: ${ready} of ${total} ready.`;
+  }
+  if (state === "stuck") {
+    return `I stopped making your month at ${ready} of ${total}. I try the rest again on my next round.`;
+  }
+  if (state === "blocked") {
+    return "I couldn't start your month yet. I keep trying every ten minutes.";
+  }
+  return "Nothing needs you. Everything goes out on its day.";
+}
