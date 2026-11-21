@@ -7,8 +7,8 @@ import { type Browser, chromium, type Page, type Route } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 
-// A new user's Task, end to end: create, rename to a long title, see its card on
-// the board, archive, find it in Archived, restore. Each size signs up its own
+// A new user's Task, end to end: create, rename to a long title, reopen Edit
+// after Save and after Cancel, see its card on the board, archive, find it in Archived, restore. Each size signs up its own
 // disposable mail.tm inbox. Screen reader checks ride along: the task page is
 // titled with the task's name, closed dialogs leave no headings behind, and a
 // board card is a link, not a nameless "draggable" button.
@@ -512,7 +512,10 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await newTask.getByRole("button", { name: /Start from scratch/ }).click();
       await newTask
         .getByRole("textbox", { name: "Details" })
-        .fill("Three sections, one recipe teaser and a short chef note.");
+        // Asks for writing, so the free tag step reliably picks a topic.
+        .fill(
+          "Write three newsletter subject lines, one recipe teaser and a short chef note.",
+        );
       await newTask.getByRole("button", { name: "Create task" }).click();
       const goToTask = newTask.getByRole("button", {
         name: "Bring me to the task",
@@ -550,6 +553,16 @@ for (const { name: size, ...viewport } of PROJECTS) {
       }
       await shot(page, size, "1-task");
 
+      // The task's own Tags region (the Edit dialog has one too).
+      const tagsRegion = page
+        .getByRole("complementary")
+        .getByRole("region", { name: "Tags" })
+        .filter({ visible: true });
+      const tagNames = () =>
+        tagsRegion.locator("[data-slot=badge]").allInnerTexts();
+      await tagsRegion.locator("[data-slot=badge]").first().waitFor();
+      const tagsBefore = await tagNames();
+
       await page.getByRole("button", { name: "Actions" }).click();
       await page.getByRole("menuitem", { name: "Edit" }).click();
       const nameField = page.getByRole("textbox", { name: "Task name" });
@@ -564,6 +577,18 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Save" })
         .click();
       await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
+      // A rename keeps the automatic tags, marked as being checked. Previews
+      // never run the tag job, so the mark stays.
+      await tagsRegion
+        .getByRole("status")
+        .getByText("Checking tags for the latest changes…")
+        .waitFor();
+      assert.deepEqual(
+        await tagNames(),
+        tagsBefore,
+        "a rename drops the task's tags",
+      );
+      await shot(page, size, "2a-tags-checking");
       // Saving refreshes Properties; each row shows once, not once per refresh.
       const assigneeRows = page
         .getByRole("combobox", { name: /^Assignee:/ })
@@ -575,6 +600,34 @@ for (const { name: size, ...viewport } of PROJECTS) {
         1,
         `the Assignee row shows ${assigneeCount} times after Save`,
       );
+
+      // Next keeps the closed edit route alive. Without a reload, Edit opens
+      // with the name just saved, and an edit cancelled before does not come
+      // back (a later Save would store it).
+      const editDialog = page.getByRole("dialog", { name: "Edit task" });
+      const openEdit = async () => {
+        await page.getByRole("button", { name: "Actions" }).click();
+        await page.getByRole("menuitem", { name: "Edit" }).click();
+        await editDialog.waitFor();
+      };
+      await openEdit();
+      assert.equal(
+        await nameField.inputValue(),
+        LONG_NAME,
+        "Edit after Save does not show the saved name",
+      );
+      await nameField.fill(`${LONG_NAME} DISCARD`);
+      await editDialog.getByRole("button", { name: "Cancel" }).click();
+      await editDialog.waitFor({ state: "hidden" });
+      await openEdit();
+      assert.equal(
+        await nameField.inputValue(),
+        LONG_NAME,
+        "Edit shows the edit that was cancelled",
+      );
+      await shot(page, size, "2b-edit-after-cancel");
+      await editDialog.getByRole("button", { name: "Cancel" }).click();
+      await editDialog.waitFor({ state: "hidden" });
 
       // Back on the board: a card without tags has no empty tags line. Only
       // cards count: the task page stays in the DOM, hidden, and its Auto
@@ -591,18 +644,76 @@ for (const { name: size, ...viewport } of PROJECTS) {
         0,
         "a board card shows an empty tags line",
       );
-      // Keyboard order: the next Tab stop after the toolbar's last control,
-      // View options, is the card's task link, with no extra stop on the card.
-      await page
-        .getByRole("button", { name: "View options" })
-        .filter({ visible: true })
-        .focus();
-      await page.keyboard.press("Tab");
-      assert.equal(
-        await page.evaluate(() => document.activeElement?.textContent),
-        LONG_NAME,
-        "Tab after View options does not land on the card's task link",
+      // Keyboard order follows the screen: after the toolbar's last control,
+      // View options, come the shortcuts to columns past the board's edge, in
+      // order, then the card's task link, with no extra stop on the card.
+      // Each shortcut shows its focus ring inside the pill, where the row
+      // cannot clip it.
+      const shortcutButtons = page
+        .getByRole("navigation", { name: "Columns past the edge" })
+        .getByRole("button")
+        .filter({ visible: true });
+      const tabToCard = async () => {
+        await page
+          .getByRole("button", { name: "View options" })
+          .filter({ visible: true })
+          .focus();
+        const shortcuts = await shortcutButtons.evaluateAll((buttons) =>
+          buttons.map((button) => button.textContent),
+        );
+        for (const shortcut of shortcuts) {
+          await page.keyboard.press("Tab");
+          const focused = await page.evaluate(() => {
+            const el = document.activeElement;
+            const box = el?.getBoundingClientRect();
+            const row = el
+              ?.closest("nav")
+              ?.parentElement?.getBoundingClientRect();
+            return {
+              text: el?.textContent,
+              visible: !!el?.matches(":focus-visible"),
+              shadow: el ? getComputedStyle(el).boxShadow : "",
+              // The row scrolls sideways; the focused pill must sit inside it.
+              inRow:
+                !!box &&
+                !!row &&
+                box.left >= row.left - 1 &&
+                box.right <= row.right + 1,
+            };
+          });
+          assert.ok(
+            focused.inRow,
+            `the focused shortcut "${shortcut}" sits past the row's edge`,
+          );
+          assert.equal(focused.text, shortcut, "Tab skips a column shortcut");
+          assert.ok(
+            focused.visible && /inset/.test(focused.shadow),
+            `the shortcut "${shortcut}" shows no inset focus ring (${focused.shadow})`,
+          );
+        }
+        await page.keyboard.press("Tab");
+        assert.equal(
+          await page.evaluate(() => document.activeElement?.textContent),
+          LONG_NAME,
+          "Tab after the column shortcuts does not land on the card's task link",
+        );
+        return shortcuts.length;
+      };
+      await shortcutButtons.first().waitFor();
+      assert.ok(
+        (await tabToCard()) > 0,
+        "no column shortcuts on a board wider than the screen",
       );
+      // A screen wide enough for every column has no shortcuts: View options
+      // leads straight to the card.
+      if (size === "desktop") {
+        await page.setViewportSize({ width: 2560, height: viewport.height });
+        await shortcutButtons.first().waitFor({ state: "detached" });
+        assert.equal(await tabToCard(), 0, "shortcuts on a board that fits");
+        await page.setViewportSize(viewport);
+        await shortcutButtons.first().waitFor();
+        await tabToCard();
+      }
       // Enter opens the task and moves focus to its heading, visibly, so a
       // screen reader reads the name even when the streamed tab title is late.
       await page.keyboard.press("Enter");
@@ -679,8 +790,13 @@ for (const { name: size, ...viewport } of PROJECTS) {
       const search = page.getByRole("searchbox", {
         name: "Search archived tasks",
       });
+      // Archived's own line: the task page visited earlier stays mounted,
+      // hidden, with its "Checking tags" status line.
       const status = await page
-        .locator('main p[role="status"]')
+        .getByRole("heading", { level: 1, name: "Archived tasks" })
+        .locator(
+          'xpath=ancestor::*[.//p[@role="status"]][1]//p[@role="status"]',
+        )
         .elementHandle();
       assert.ok(status, "no status line before the first search");
       assert.equal(await status.textContent(), "");
@@ -746,6 +862,65 @@ for (const { name: size, ...viewport } of PROJECTS) {
         "/tasks?status=DRAFT&sort=priority",
         "Status: Draft",
       );
+      // The filtered board fits the document width too.
+      const filteredOverflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      assert.equal(
+        filteredOverflow,
+        0,
+        `the filtered board overflows by ${filteredOverflow}px`,
+      );
+
+      // Done sits past the board's right edge at every size. Once the only
+      // Task is Completed, the edge names Done with its count, and a click
+      // scrolls the board there and moves focus to the column.
+      // It starts on the Draft-filtered board above.
+      await page.getByRole("link", { name: LONG_NAME }).click();
+      await page.getByRole("combobox", { name: /^Status:/ }).click();
+      await page.getByRole("option", { name: /^Completed/ }).click();
+      await page.getByRole("combobox", { name: "Status: Completed" }).waitFor();
+      // The combobox updates at once; wait until the save lands before leaving.
+      await page.getByText("Task status updated").waitFor();
+      // Back returns to the Draft filter, which hides a Completed Task: open
+      // the whole board.
+      await page.goto(`${BASE_URL}/tasks`);
+      const edge = page.getByRole("navigation", {
+        name: "Columns past the edge",
+      });
+      // Named with its count for screen readers: "Done, 1 task".
+      const donePill = edge.getByRole("button", { name: /^Done\W*1 task$/ });
+      await donePill.waitFor();
+      // The shortcuts own a row above the columns: they never cover a card or
+      // take its taps, at any size.
+      const navBox = await edge.boundingBox();
+      const boardBox = await page
+        .locator("main [data-board-scroller]")
+        .filter({ visible: true })
+        .boundingBox();
+      assert.ok(navBox && boardBox, "no board or shortcut row");
+      assert.ok(
+        navBox.y + navBox.height <= boardBox.y,
+        `the shortcuts overlap the board (${navBox.y + navBox.height} > ${boardBox.y})`,
+      );
+      await shot(page, size, "5-board-edge");
+      await donePill.click();
+      const doneColumn = page.getByRole("region", { name: "Done" });
+      await page.waitForFunction(() => {
+        const done = document.querySelector('main [data-column-id="done"]');
+        const box = done?.getBoundingClientRect();
+        return !!box && box.left >= 0 && box.right <= window.innerWidth + 1;
+      });
+      assert.equal(
+        await doneColumn.evaluate((el) => el === document.activeElement),
+        true,
+        "focus does not move to Done",
+      );
+      await doneColumn.getByRole("link", { name: LONG_NAME }).waitFor();
+      await edge.waitFor({ state: "hidden" });
+      await shot(page, size, "6-board-done");
 
       const overflow = await page.evaluate(
         () =>

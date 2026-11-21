@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
   TASK_CARD_DENSITY_CLASS,
+  TASKS_BOARD_EDGE_ROW_CLASS,
   TASKS_BOARD_MIN_HEIGHT_CLASS,
   TASKS_TOOLBAR_ROW_CLASS,
 } from "@/app/tasks/constants";
@@ -86,43 +87,47 @@ function TasksBoardLoading({
   return (
     <div
       className={cn(
-        "-mx-2 flex size-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar",
+        "flex min-w-0 flex-1 flex-col gap-2",
         TASKS_BOARD_MIN_HEIGHT_CLASS,
       )}
     >
-      {KANBAN_COLUMNS.map((column, index) => {
-        const cardCount = BOARD_SKELETON_CARD_COUNTS[index] ?? 1;
+      {/* The loaded board's edge-shortcut row: the columns open in place. */}
+      <div className={TASKS_BOARD_EDGE_ROW_CLASS} aria-hidden />
+      <div className="-mx-2 flex min-h-0 min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
+        {KANBAN_COLUMNS.map((column, index) => {
+          const cardCount = BOARD_SKELETON_CARD_COUNTS[index] ?? 1;
 
-        return (
-          <section
-            key={column.id}
-            className="bg-card-background flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px] lg:min-w-[350px]"
-          >
-            <div className="sticky top-0 z-10">
-              <ColumnHeader
-                title={labels.columns[column.id]}
-                statusColorClass={COLUMN_STATUS_COLORS[column.id]}
-              />
-            </div>
-
-            <div
-              aria-hidden
-              className={cn(
-                "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] app-scrollbar",
-                LIST_MOBILE_CREATE_FAB_CLEARANCE,
-                "md:pb-2",
-              )}
+          return (
+            <section
+              key={column.id}
+              className="bg-card-background flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px] lg:min-w-[350px]"
             >
-              {Array.from({ length: cardCount }, (_, cardIndex) => (
-                <TaskCardSkeleton
-                  key={`${column.id}-${cardIndex}`}
-                  compact={compact}
+              <div className="sticky top-0 z-10">
+                <ColumnHeader
+                  title={labels.columns[column.id]}
+                  statusColorClass={COLUMN_STATUS_COLORS[column.id]}
                 />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+              </div>
+
+              <div
+                aria-hidden
+                className={cn(
+                  "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] app-scrollbar",
+                  LIST_MOBILE_CREATE_FAB_CLEARANCE,
+                  "md:pb-2",
+                )}
+              >
+                {Array.from({ length: cardCount }, (_, cardIndex) => (
+                  <TaskCardSkeleton
+                    key={`${column.id}-${cardIndex}`}
+                    compact={compact}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }

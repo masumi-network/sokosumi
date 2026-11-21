@@ -33,6 +33,7 @@ export function DragScrollContainer({
   return (
     <div
       ref={scrollRef}
+      data-board-scroller
       className={cn(
         "cursor-grab data-[drag-scrolling=true]:cursor-grabbing data-[drag-scrolling=true]:select-none",
         className,

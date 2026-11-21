@@ -36,13 +36,19 @@ export const taskTagsSchema = z
     automatic: z.array(taskTagIdSchema),
     manual: z.array(taskTagIdSchema),
     rejected: z.array(taskTagIdSchema),
+    checking: z.boolean().optional().openapi({
+      description:
+        "True while the automatic tags are from before the last name or description edit and new ones are being chosen.",
+    }),
   })
   .openapi("TaskTags");
 
 interface StoredTaskTags {
   automaticTags?: string[];
+  previousAutomaticTags?: string[];
   manualTags?: string[];
   rejectedTags?: string[];
+  tagClassificationState?: string;
 }
 
 export function dismissTaskTopics(
@@ -66,12 +72,21 @@ function knownTags(ids: string[] = []) {
 export function mapTaskTags(task: StoredTaskTags) {
   const manual = knownTags(task.manualTags);
   const rejected = knownTags(task.rejectedTags);
+  // After an edit, the tags it cleared stand in until the new ones arrive.
+  const checking =
+    !task.automaticTags?.length &&
+    (task.tagClassificationState === "pending" ||
+      task.tagClassificationState === "running");
+  const automatic = knownTags(
+    checking ? task.previousAutomaticTags : task.automaticTags,
+  )
+    .filter((id) => !manual.includes(id) && !rejected.includes(id))
+    .slice(0, Math.max(0, MAX_TASK_TAGS - manual.length));
   return {
-    automatic: knownTags(task.automaticTags)
-      .filter((id) => !manual.includes(id) && !rejected.includes(id))
-      .slice(0, Math.max(0, MAX_TASK_TAGS - manual.length)),
+    automatic,
     manual,
     rejected,
+    ...(checking && automatic.length > 0 && { checking: true }),
   };
 }
 

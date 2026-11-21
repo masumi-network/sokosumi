@@ -24,6 +24,8 @@ model Task {
 
   /// Controlled vocabulary IDs. Manual additions and rejections survive content edits.
   automaticTags                String[] @default([])
+  /// The automatic tags a content edit cleared; shown as checking until the new revision is classified.
+  previousAutomaticTags        String[] @default([])
   manualTags                   String[] @default([])
   rejectedTags                 String[] @default([])
   /// Maintained by task_tag_revision trigger for all writers, including schedules.

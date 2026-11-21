@@ -188,6 +188,56 @@ describe("TaskTagSection", () => {
     expect(removeButton("vocabulary.research")).toBeEnabled();
   });
 
+  it.each([
+    ["read-only", undefined],
+    ["editable", { taskId: "task-1", activeOrganizationId: null }],
+  ])(
+    "keeps the last automatic tags, muted, while new ones are checked (%s)",
+    (_, edit) => {
+      render(
+        <TaskTagSection
+          tags={{ ...initialTags, checking: true }}
+          workspaceTags={[]}
+          edit={edit}
+        />,
+      );
+      const region = screen.getByRole("region", { name: "label" });
+      expect(within(region).getByRole("status")).toHaveTextContent("checking");
+      // Only the automatic topic is being rechecked; a manual one stays as is.
+      expect(within(region).getByText("vocabulary.research")).toHaveClass(
+        "text-muted-foreground",
+      );
+      expect(within(region).getByText("vocabulary.design")).not.toHaveClass(
+        "text-muted-foreground",
+      );
+      // Not by colour alone: the kept tag carries a named clock icon, so
+      // sight and screen readers both tell it apart; the manual tag has none.
+      const badge = (name: string) =>
+        within(region)
+          .getByText(name)
+          .closest<HTMLElement>("[data-slot=badge]")!;
+      const icon = within(badge("vocabulary.research")).getByRole("img", {
+        name: "checkingTag",
+      });
+      // Hover shows the same words, as on Jev's indicator.
+      expect(icon.parentElement).toHaveAttribute("title", "checkingTag");
+      expect(
+        within(badge("vocabulary.design")).queryByRole("img"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("shows no checking status once the automatic tags are current", () => {
+    render(<TaskTagSection tags={initialTags} workspaceTags={[]} />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByText("vocabulary.research")).not.toHaveClass(
+      "text-muted-foreground",
+    );
+    expect(
+      screen.queryByRole("img", { name: "checkingTag" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("removes a saved topic immediately and restores it when the save fails", async () => {
     const pending =
       Promise.withResolvers<Awaited<ReturnType<typeof setTaskWorkspaceTags>>>();

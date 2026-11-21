@@ -36,8 +36,11 @@ export function KanbanColumn({
   return (
     <section
       data-column-id={id}
+      aria-label={title}
+      // The board's edge shortcuts move focus here.
+      tabIndex={-1}
       className={cn(
-        "flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px] lg:min-w-[350px]",
+        "flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-w-[280px] lg:min-w-[350px]",
         "bg-card-background",
       )}
     >
