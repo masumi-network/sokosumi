@@ -59,6 +59,8 @@ interface SidebarProps {
   onSelect: (view: View) => void;
   name: string;
   email: string;
+  /** The account's picture; without one the avatar shows the initial. */
+  image?: string | null;
   signOut?: () => Promise<void>;
   /** The person has another Cuso, so "Your Cusos" leads somewhere. */
   manyCusos?: boolean;
@@ -76,6 +78,7 @@ export function Sidebar({
   onSelect,
   name,
   email,
+  image = null,
   signOut,
   manyCusos = false,
   now,
@@ -112,13 +115,29 @@ export function Sidebar({
           signOut={signOut}
           cusoPicker={manyCusos}
           trigger={
+            // The picked page's fill marks Settings as open.
             <span
               className={
-                view === "settings" ? "avatar avatar-active" : "avatar"
+                view === "settings"
+                  ? "avatar-ring avatar-ring-active"
+                  : "avatar-ring"
               }
               aria-hidden="true"
             >
-              {initial(name || email)}
+              {image ? (
+                <img
+                  className="avatar avatar-photo"
+                  src={image}
+                  alt=""
+                  width={36}
+                  height={36}
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span className="avatar avatar-initial">
+                  {initial(name || email)}
+                </span>
+              )}
             </span>
           }
         >

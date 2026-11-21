@@ -141,6 +141,8 @@ interface CmoAppProps {
   work?: ChatWork[];
   name: string;
   email: string;
+  /** The account's picture, when it has one. */
+  image?: string | null;
   /** Where a redirect (a channel connection) returns to. */
   initialView?: View;
   /** Why the channel connection that sent the founder back did not finish. */
@@ -237,6 +239,7 @@ export function CmoApp({
   work: initialWork = [],
   name,
   email,
+  image = null,
   initialView = "today",
   connectError = null,
   adsError = null,
@@ -431,6 +434,7 @@ export function CmoApp({
         onSelect={go}
         name={name}
         email={email}
+        image={image}
         signOut={actions.signOut}
       />
 
