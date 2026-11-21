@@ -652,6 +652,25 @@ describe("pages", () => {
     expect(html).not.toContain("No ads");
   });
 
+  it("counts the month as planned and in the plan when the plan makes fewer", () => {
+    const base = overview(cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")));
+    const [first] = strategy.calendar;
+    if (!first) throw new Error("fixture has an entry");
+    const calendar = [first, { ...first, id: "beyond" }];
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={{
+          ...base,
+          strategy: { ...strategy, calendar },
+          production: { ...base.production, beyondPlan: ["beyond"] },
+        }}
+        onOpenCalendar={() => {}}
+        connectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).toContain("2 planned, 1 in your plan");
+  });
+
   it("lists only answered questions as approved", () => {
     const html = renderToStaticMarkup(
       <StrategyPage

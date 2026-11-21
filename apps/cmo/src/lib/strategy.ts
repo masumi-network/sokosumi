@@ -34,6 +34,30 @@ export function monthPostCount(calendar: readonly CalendarEntry[]): number {
   );
 }
 
+/**
+ * The month's posts as the Strategy page counts them: "171 posts", or "171
+ * planned, 169 in your plan" when the plan bought makes fewer (Core's
+ * beyondPlan), so the number matches what goes out on Today and the Calendar.
+ */
+export function planCount(
+  calendar: readonly CalendarEntry[],
+  beyondPlan: readonly string[],
+): { label: string; planned: number; inPlan: number } {
+  const beyond = new Set(beyondPlan);
+  const planned = monthPostCount(calendar);
+  const inPlan = monthPostCount(
+    calendar.filter((entry) => !beyond.has(entry.id)),
+  );
+  return {
+    label:
+      inPlan < planned
+        ? `${planned} planned, ${inPlan} in your plan`
+        : monthLabel(calendar),
+    planned,
+    inPlan,
+  };
+}
+
 /** The ads in the month, not skipped. */
 export function monthAdCount(calendar: readonly CalendarEntry[]): number {
   return calendar.filter((entry) => entry.status !== "skipped" && isAd(entry))

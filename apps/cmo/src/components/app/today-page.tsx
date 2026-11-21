@@ -8,6 +8,7 @@ import {
   dayIn,
   greeting,
   monthEntries,
+  monthMade,
   monthProgress,
   type NeedsYou,
   needsYou,
@@ -104,7 +105,8 @@ function saying(overview: CmoOverview, needs: number): string {
     return `I'm on it: ${overview.activity?.step ?? "working"}.`;
   }
   if (overview.production.state === "running") {
-    return `I'm making your month: ${overview.production.ready} of ${overview.production.total} ready.`;
+    const { ready, total } = monthMade(overview);
+    return `I'm making your month: ${ready} of ${total} ready.`;
   }
   if (overview.production.state === "blocked") {
     return "I couldn't start your month yet. I keep trying every ten minutes.";
