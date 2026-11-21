@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
@@ -44,6 +44,15 @@ import {
 } from "./zernio-tiktok-connection.service";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
+
+/** Post statuses where a stale connection blocks the next publish. */
+export const RECONNECT_SENSITIVE_POST_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
 
 export type { ProjectSocialConnectionSummary };
 
@@ -156,16 +165,25 @@ function activeExternalAccountKeys(
   provider: string,
   externalAccountId: string,
 ): string[] {
-  if (provider !== "linkedin") {
-    return [activeExternalAccountKey(provider, externalAccountId)];
-  }
-  return [
-    activeExternalAccountKey(provider, linkedInPersonId(externalAccountId)),
-    activeExternalAccountKey(provider, linkedInPersonUrn(externalAccountId)),
-  ];
+  return externalAccountIdVariants(provider, externalAccountId).map((id) =>
+    activeExternalAccountKey(provider, id),
+  );
 }
 
 /** LinkedIn rows saved before the bare id hold the full person URN. */
+/** Every stored form of one account's id: LinkedIn rows may hold the URN. */
+function externalAccountIdVariants(
+  provider: string,
+  externalAccountId: string,
+): string[] {
+  return provider === "linkedin"
+    ? [
+        linkedInPersonId(externalAccountId),
+        linkedInPersonUrn(externalAccountId),
+      ]
+    : [externalAccountId];
+}
+
 function isSameExternalAccount(
   provider: string,
   stored: string,
@@ -661,6 +679,20 @@ export async function finalizeProjectSocialConnection(
         }
       }
 
+      if (
+        await isHeldByPendingReplace(tx, {
+          projectId: input.projectId,
+          provider: currentIntent.provider,
+          externalAccountId: identity.id,
+          exceptConnectionId: target?.id,
+          now,
+        })
+      ) {
+        throw conflict(
+          "This account is being replaced in this Project. Finish that replacement or try again in 15 minutes.",
+        );
+      }
+
       let connection: ProjectSocialConnectionRecord;
       let retiredConnection: RetiredProjectSocialConnection | undefined;
       if (currentIntent.action === "reconnect" && target) {
@@ -728,12 +760,41 @@ export async function finalizeProjectSocialConnection(
             where: {
               projectId: input.projectId,
               socialConnectionId: target.id,
-              status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
+              status: { in: REPLACE_HANDOVER_POST_STATUSES },
             },
-            data: { socialConnectionId: connection.id },
+            data: {
+              socialConnectionId: connection.id,
+              revision: { increment: 1 },
+            },
           });
         }
       }
+
+      // Disconnecting retires a row for good, so the same account comes back
+      // on a new row, or on another row that a reconnect just activated.
+      // Unsent posts follow the account there, or they stay flagged for a
+      // reconnect that cannot happen. The revision bump makes a publisher
+      // that read the retired connection lose its claim.
+      await tx.socialPost.updateMany({
+        where: {
+          projectId: input.projectId,
+          status: { in: [...RECONNECT_SENSITIVE_POST_STATUSES] },
+          socialConnection: {
+            status: "disconnected",
+            provider: currentIntent.provider,
+            externalAccountId: {
+              in: externalAccountIdVariants(
+                currentIntent.provider,
+                identity.id,
+              ),
+            },
+          },
+        },
+        data: {
+          socialConnectionId: connection.id,
+          revision: { increment: 1 },
+        },
+      });
 
       await tx.projectSocialConnectionAudit.create({
         data: {
@@ -778,6 +839,69 @@ export async function finalizeProjectSocialConnection(
   await deleteSocialAccountAvatarIfOwned(replacedAvatarUrl, input.projectId);
 
   return summary;
+}
+
+/** The post statuses a finished replace hands over to the new account. */
+const REPLACE_HANDOVER_POST_STATUSES: SocialPostStatus[] = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+];
+
+/**
+ * Whether a replace that has not finished still holds this account's posts.
+ * A replace retires its row, then signs in to the new account, and moves the
+ * posts only when that sign-in finishes. Connecting the old account in
+ * between would take those posts back, so the connect waits. The retirement
+ * audit marks the replace from the moment the row is retired, before its
+ * intent exists. The intent keeps the mark until it expires. Once the replace
+ * finishes, the row holds no posts to hand over, so nothing waits.
+ */
+async function isHeldByPendingReplace(
+  tx: Prisma.TransactionClient,
+  input: {
+    projectId: string;
+    provider: ProjectSocialProvider;
+    externalAccountId: string;
+    exceptConnectionId: string | undefined;
+    now: Date;
+  },
+): Promise<boolean> {
+  const heldRow: Prisma.ProjectSocialConnectionWhereInput = {
+    projectId: input.projectId,
+    provider: input.provider,
+    status: "disconnected",
+    externalAccountId: {
+      in: externalAccountIdVariants(input.provider, input.externalAccountId),
+    },
+    ...(input.exceptConnectionId
+      ? { id: { not: input.exceptConnectionId } }
+      : {}),
+    socialPosts: {
+      some: { status: { in: REPLACE_HANDOVER_POST_STATUSES } },
+    },
+  };
+  const retirement = await tx.projectSocialConnectionAudit.findFirst({
+    where: {
+      action: "replace_retire",
+      createdAt: { gt: new Date(input.now.getTime() - INTENT_TTL_MS) },
+      projectSocialConnection: heldRow,
+    },
+    select: { id: true },
+  });
+  if (retirement) return true;
+  const intent = await tx.projectSocialConnectionIntent.findFirst({
+    where: {
+      projectId: input.projectId,
+      action: "replace",
+      expiresAt: { gt: input.now },
+      // Expired-intent cleanup marks a claim it is deleting this way.
+      authConfigId: { not: "expired" },
+      socialConnection: heldRow,
+    },
+    select: { connectionId: true },
+  });
+  return Boolean(intent);
 }
 
 async function revokeRetiredProjectSocialConnection(

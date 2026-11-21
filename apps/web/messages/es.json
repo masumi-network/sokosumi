@@ -3008,6 +3008,7 @@
         "title": "Publicaciones sociales",
         "newPost": "Nueva publicación",
         "moreActionsNamed": "Acciones de la publicación para {handle}",
+        "editNamed": "Editar {handle}",
         "thisDraft": "este borrador",
         "noAccount": "Sin cuenta",
         "outcomes": {
