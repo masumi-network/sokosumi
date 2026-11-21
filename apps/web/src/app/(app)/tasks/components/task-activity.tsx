@@ -45,6 +45,7 @@ import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useTaskActivityRowEnter } from "@/hooks/effects/use-task-activity-row-enter";
 import {
   createTaskComment,
   loadOlderTaskActivityEvents,
@@ -128,15 +129,7 @@ function isNewOptimisticEventId(id: string): boolean {
 }
 
 function AnimatedNewRow({ children }: { children: ReactNode }) {
-  const [isEntered, setIsEntered] = useState(false);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setIsEntered(true);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+  const isEntered = useTaskActivityRowEnter();
 
   return (
     <div

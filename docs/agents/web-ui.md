@@ -64,7 +64,7 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-animation-frame` (`useAnimationFrame`) — `requestAnimationFrame` loop with elapsed seconds per frame
 - `use-animation-frame-batch` (`useAnimationFrameBatch`) — batches handler-pushed items into a single `requestAnimationFrame` callback with unmount cancel
 - `use-event-listener` (`useEventListener`) — typed window, document, or element DOM event listener using the latest handler (CMO has `useEventListener` under `apps/cmo/src/hooks/effects/use-event-listener.ts`)
-- `use-interval` (`useInterval`) — repeating timer paused on `null` delay (CMO has `useInterval` under `apps/cmo/src/hooks/effects/use-interval.ts`)
+- `use-interval` (`useInterval`) — repeating timer paused on `null` delay with optional `immediate` and `resetKey` (CMO has `useInterval` under `apps/cmo/src/hooks/effects/use-interval.ts`)
 - `use-timeout` (`useTimeout`) — one-shot timer paused on `null` delay with optional `resetKey` (CMO has `useTimeout` under `apps/cmo/src/hooks/effects/use-timeout.ts`)
 - `use-scheduled-timeout` (`useScheduledTimeout`, `useScheduledTimeoutMap`) — imperative handler-started timeout(s) with synchronous cancel and unmount cleanup
 - `use-abort-controller` (`useAbortController`, `useAbortControllers`) — imperative handler-started `AbortController`(s) aborted on unmount or `resetKey` change
@@ -161,6 +161,12 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-email-step-pending-request` (`useEmailStepPendingRequest`) — tracks mounted state and aborts any in-flight `AbortController` on unmount or `<Activity>` hide for `EmailStep`
 - `use-email-step-hint-and-focus` (`useEmailStepHintAndFocus`) — consumes a one-shot auth email hint and applies initial email field focus for `EmailStep`
 - `use-header-mobile-search` (`useHeaderMobileSearch`) — coordinates mobile header search `/history` navigation, debounced `?q=` updates, and route-exit cleanup
+- `use-task-activity-row-enter` (`useTaskActivityRowEnter`) — next-animation-frame enter transition state for newly mounted task activity rows
+- `use-room-panel-slide-out` (`useRoomPanelSlideOut`) — Web Animations API exit slide for closing chat room side panels under `AnimatePresence`
+- `use-refresh-prefetched-page` (`useRefreshPrefetchedPage`) — refreshes stale prefetched pages while waiting for hovered or focused controls to settle
+- `use-warm-likely-pages` (`useWarmLikelyPages`) — idle and periodic route-content warming for the user's most visited pages while the tab is active
+- `use-live-soko-bot-poll` (`useLiveSokoBotPoll`) — sidebar Soko Bot status and last-activity polling while the tab is visible
+- `use-soko-bot-activity-probe` (`useSokoBotActivityProbe`) — Personal Assistant activity probe interval and visibility listener triggering state refreshes on signature changes or active turns
 
 ### React Query in migrations
 

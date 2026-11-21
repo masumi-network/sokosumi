@@ -20,7 +20,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 async function loadAt(now: number) {
   vi.setSystemTime(now);
   vi.resetModules();
-  return await import("./refresh-prefetched-page.client");
+  const [componentModule, hookModule] = await Promise.all([
+    import("./refresh-prefetched-page.client"),
+    import("@/hooks/effects/use-refresh-prefetched-page"),
+  ]);
+  return { ...hookModule, ...componentModule };
 }
 
 function hydrate(ui: React.ReactElement) {

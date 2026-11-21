@@ -19,6 +19,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
+import { useInterval } from "@/hooks/effects/use-interval";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -132,12 +133,10 @@ async function watchTurn(
 /** Ticks once a second so an elapsed time is not frozen at its first render. */
 function useElapsed(since: number | null): number {
   const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (since === null) return;
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1_000);
-    return () => clearInterval(id);
-  }, [since]);
+  useInterval(() => setNow(Date.now()), since === null ? null : 1_000, {
+    immediate: true,
+    resetKey: since,
+  });
   return since === null ? 0 : Math.max(0, Math.round((now - since) / 1000));
 }
 
