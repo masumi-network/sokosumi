@@ -1,5 +1,3 @@
-"use client";
-
 import { SokoBotStatus } from "@sokosumi/core-client";
 import { useEffect, useState } from "react";
 import { z } from "zod";
