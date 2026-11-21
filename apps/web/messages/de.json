@@ -7147,7 +7147,17 @@
               "judgment": "Urteilsvermögen",
               "honesty": "Ehrlichkeit"
             }
-          }
+          },
+          "modelReason": "Warum dieses Modell",
+          "modelCalls": "Modellaufrufe",
+          "modelCallsEmpty": "Für diesen Turn sind keine Modellaufrufe erfasst.",
+          "spendByModel": "Kosten nach Modell",
+          "callRole": "Rolle",
+          "callRequested": "Angefragt",
+          "callAnswered": "Geantwortet",
+          "callProvider": "Anbieter",
+          "callTokens": "Tokens ein / Cache gelesen / Cache geschrieben / aus",
+          "callCost": "Kosten"
         },
         "Decisions": {
           "title": "Entscheidungen",

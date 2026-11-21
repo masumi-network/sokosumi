@@ -150,7 +150,7 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v34");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).toContain("enabledProviders");
@@ -195,10 +195,20 @@ describe("versions", () => {
     );
   });
 
+  it("gives v34 v33's prompt and skills with a stronger model for hard work", () => {
+    const v33 = getSokoBotVersion("v33");
+    const v34 = getSokoBotVersion("v34");
+    expect(v34.model).toBe(v33.model);
+    expect(v34.systemPrompt).toBe(v33.systemPrompt);
+    expect(v34.skills).toEqual(v33.skills);
+    expect(v34.strongModel).toBe("openai/gpt-6.1-terra");
+    expect(v33.strongModel).toBeUndefined();
+  });
+
   it("lets v33 read and follow a Project's posting instructions before drafting", () => {
     const v32 = getSokoBotVersion("v32");
     const v33 = getSokoBotVersion("v33");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v34");
     expect(v33.model).toBe(v32.model);
     expect(v33.systemPrompt).toBe(v32.systemPrompt);
     expect(v33.skills).toEqual(

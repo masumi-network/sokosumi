@@ -728,6 +728,22 @@ export interface TurnClassification {
   unsureRoute?: SokoBotRoute;
   /** Jev's soft reads of a typed message: hints for context, never gates. */
   signals?: SokoBotTurnSignals;
+  /** How much work Jev reads in a typed message; picks the turn's model. */
+  complexity?: SokoBotTurnComplexity;
+}
+
+export const SOKO_BOT_TURN_COMPLEXITIES = [
+  "SIMPLE",
+  "NORMAL",
+  "COMPLEX",
+] as const;
+
+/** Jev's label and the probability it gave each option. */
+export interface SokoBotTurnComplexity {
+  label: (typeof SOKO_BOT_TURN_COMPLEXITIES)[number];
+  probabilities: Partial<
+    Record<(typeof SOKO_BOT_TURN_COMPLEXITIES)[number], number>
+  >;
 }
 
 /** Probabilities, 0–1, that a typed message does each of these. */

@@ -363,6 +363,11 @@ const sokoBotTurnSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const sokoBotModelCallSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    return data;
+};
+
 const sokoBotContextSnapshotSchemaResponseTransformer = (data: any) => {
     data.generatedAt = new Date(data.generatedAt);
     data.createdAt = new Date(data.createdAt);
@@ -371,6 +376,7 @@ const sokoBotContextSnapshotSchemaResponseTransformer = (data: any) => {
 
 const adminSokoBotTurnSchemaResponseTransformer = (data: any) => {
     data = sokoBotTurnSchemaResponseTransformer(data);
+    data.modelCalls = data.modelCalls.map((item: any) => sokoBotModelCallSchemaResponseTransformer(item));
     if (data.contextSnapshot) {
         data.contextSnapshot = sokoBotContextSnapshotSchemaResponseTransformer(data.contextSnapshot);
     }

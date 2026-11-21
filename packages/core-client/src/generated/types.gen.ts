@@ -1023,6 +1023,8 @@ export type SokoBotSchedule = {
 };
 
 export type AdminSokoBotTurn = SokoBotTurn & {
+    modelReason: string | null;
+    modelCalls: Array<SokoBotModelCall>;
     eveSessionId: string | null;
     eveTurnId: string | null;
     contextSnapshot: SokoBotContextSnapshot | null;
@@ -1126,6 +1128,24 @@ export type SokoBotContextSummary = {
     memoryVersion: number;
     bytes: number;
 } | null;
+
+export type SokoBotModelCall = {
+    id: string;
+    createdAt: Date;
+    role: string;
+    label: string | null;
+    requestedModel: string;
+    answeredModel: string | null;
+    provider: string | null;
+    region: string | null;
+    zeroDataRetention: boolean | null;
+    inputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    outputTokens: number;
+    costUsd: number;
+    failed: boolean;
+};
 
 export type SokoBotContextSnapshot = {
     id: string;

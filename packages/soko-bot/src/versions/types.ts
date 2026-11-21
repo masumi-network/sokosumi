@@ -22,6 +22,12 @@ export interface SokoBotVersion {
   createdAt: string;
   summary: string;
   model: string;
+  /**
+   * A stronger model for the turns that need it: strategy, background runs,
+   * orchestration and chat Jev reads as complex (`turn-model.ts` in Core).
+   * Omit to run every turn on `model`.
+   */
+  strongModel?: string;
   systemPrompt: string;
   skills: readonly string[];
   /**

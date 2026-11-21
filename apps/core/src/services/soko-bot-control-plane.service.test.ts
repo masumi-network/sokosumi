@@ -251,6 +251,7 @@ vi.mock("@/lib/db/database-now", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    sokoBotModelCall: { create: vi.fn().mockResolvedValue({}) },
     sokoBotIntent: { findMany: intentFindManyMock },
     chatRoomMention: {
       findUnique: vi.fn().mockResolvedValue({ message: { roomId: "room-1" } }),

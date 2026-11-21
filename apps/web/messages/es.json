@@ -7147,7 +7147,17 @@
               "judgment": "Criterio",
               "honesty": "Honestidad"
             }
-          }
+          },
+          "modelReason": "Por qué este modelo",
+          "modelCalls": "Llamadas al modelo",
+          "modelCallsEmpty": "No hay llamadas al modelo registradas para este turno.",
+          "spendByModel": "Gasto por modelo",
+          "callRole": "Rol",
+          "callRequested": "Solicitado",
+          "callAnswered": "Respondió",
+          "callProvider": "Proveedor",
+          "callTokens": "Tokens entrada / caché leída / caché escrita / salida",
+          "callCost": "Coste"
         },
         "Decisions": {
           "title": "Decisiones",
