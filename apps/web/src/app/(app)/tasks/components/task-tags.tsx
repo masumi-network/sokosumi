@@ -56,6 +56,17 @@ function useTopicTags(
   }));
 }
 
+/** Marks a kept automatic tag as being checked, by icon and by name, not colour alone. */
+function CheckingTagIndicator() {
+  const t = useTranslations("App.Tasks.Tags");
+  const label = t("checkingTag");
+  return (
+    <span title={label} className="inline-flex shrink-0">
+      <Clock role="img" aria-label={label} className="size-3" />
+    </span>
+  );
+}
+
 function TagsChecking({ className }: { className?: string }) {
   const t = useTranslations("App.Tasks.Tags");
   return (
@@ -183,7 +194,12 @@ function TopicBadges({
   disabled?: boolean;
 }) {
   return useTopicTags(tags, workspaceTags).map((topic) => (
-    <TaskTagBadge key={topic.id} id={topic.id}>
+    <TaskTagBadge
+      key={topic.id}
+      id={topic.id}
+      className={topic.checking ? "gap-1" : undefined}
+    >
+      {topic.checking && <CheckingTagIndicator />}
       <span
         className={cn("truncate", topic.checking && "text-muted-foreground")}
       >

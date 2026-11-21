@@ -210,6 +210,20 @@ describe("TaskTagSection", () => {
       expect(within(region).getByText("vocabulary.design")).not.toHaveClass(
         "text-muted-foreground",
       );
+      // Not by colour alone: the kept tag carries a named clock icon, so
+      // sight and screen readers both tell it apart; the manual tag has none.
+      const badge = (name: string) =>
+        within(region)
+          .getByText(name)
+          .closest<HTMLElement>("[data-slot=badge]")!;
+      const icon = within(badge("vocabulary.research")).getByRole("img", {
+        name: "checkingTag",
+      });
+      // Hover shows the same words, as on Jev's indicator.
+      expect(icon.parentElement).toHaveAttribute("title", "checkingTag");
+      expect(
+        within(badge("vocabulary.design")).queryByRole("img"),
+      ).not.toBeInTheDocument();
     },
   );
 
@@ -219,6 +233,9 @@ describe("TaskTagSection", () => {
     expect(screen.getByText("vocabulary.research")).not.toHaveClass(
       "text-muted-foreground",
     );
+    expect(
+      screen.queryByRole("img", { name: "checkingTag" }),
+    ).not.toBeInTheDocument();
   });
 
   it("removes a saved topic immediately and restores it when the save fails", async () => {
