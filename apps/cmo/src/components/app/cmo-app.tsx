@@ -438,7 +438,7 @@ export function CmoApp({
         signOut={actions.signOut}
       />
 
-      <main className="main">
+      <main className={view === "chat" ? "main main-chat" : "main"}>
         {pause ? (
           <PausedBanner
             pause={pause}

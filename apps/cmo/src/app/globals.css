@@ -791,14 +791,15 @@ textarea {
 
 /* ── Shell ── */
 /*
- * The app: the sidebar, then the page. The page keeps a gutter on its left
- * (`--gutter`) where the sidebar's Cuso leans in, so he never covers it.
+ * The app: the sidebar, then the page. The page's column is centred in the
+ * main area, with the same space on both sides. Cuso's hand reaches at most
+ * a few pixels past the sidebar into the page's own side space (`--gutter`
+ * adds nothing now), so he never covers it; a design guard holds this.
  */
 .app {
   --side-width: 280px;
-  --gutter: 80px;
+  --gutter: 0px;
   --page-x: 48px;
-  --page-left: calc(var(--gutter) + var(--page-x));
 
   display: grid;
   grid-template-columns: var(--side-width) minmax(0, 1fr);
@@ -1069,7 +1070,6 @@ textarea {
   max-height: 440px;
   border-top: var(--line-width) solid var(--line);
   background: var(--primary);
-  container: stage / size;
 }
 
 /*
@@ -1130,20 +1130,20 @@ a.cuso-says:focus-visible {
 }
 
 /*
- * The porthole: a light circle (--cuso-size, up to 240px) centred on the
- * stage under the pill. Cuso stands whole in it, his feet and their shadow
- * inside its foot; only his pointing hand reaches over the rim and a little
- * past the sidebar's edge into the page's gutter, never further.
+ * The porthole: a light circle, up to 240px, centred on the stage under the
+ * pill. Cuso stands whole in it, his feet and their shadow inside its foot;
+ * pointing, only his hand reaches over the rim and a little past the
+ * sidebar's edge. Sizes are percentages of the stage, not a container query:
+ * Chrome re-runs a size query on every page change and restarts his motion.
  */
 .cuso-figure {
-  --cuso-size: min(240px, calc(100cqh - 88px));
-
   position: absolute;
-  bottom: max(10px, calc((100cqh - 60px - var(--cuso-size)) / 2));
-  left: calc(50% - var(--cuso-size) / 2);
-  width: var(--cuso-size);
-  height: var(--cuso-size);
+  bottom: max(10px, calc((100% - 60px - min(240px, 100% - 88px)) / 2));
+  left: 50%;
+  height: min(240px, calc(100% - 88px));
+  aspect-ratio: 1;
   pointer-events: none;
+  translate: -50% 0;
   transition:
     opacity 200ms,
     transform 200ms;
@@ -1158,15 +1158,36 @@ a.cuso-says:focus-visible {
   background: var(--stage);
 }
 
-.cuso-figure img {
+.cuso-poses {
   position: absolute;
-  bottom: calc(var(--cuso-size) * 0.07);
-  left: calc(var(--cuso-size) * 0.245);
-  width: auto;
-  height: calc(var(--cuso-size) * 0.92);
+  inset: 0;
+  transform-origin: 50% 90%;
 }
 
-@container stage (height < 200px) {
+/* Every pose is on the stage; the one he is in shows. */
+.cuso-pose {
+  position: absolute;
+  bottom: 7%;
+  left: 50%;
+  width: auto;
+  height: 88%;
+  opacity: 0;
+  translate: -50% 0;
+}
+
+.cuso-pose[data-on] {
+  opacity: 1;
+}
+
+/* Pointing, his hand reaches out of the circle toward the page. */
+.cuso-pose-pointing {
+  left: 24.5%;
+  height: 92%;
+  translate: 0 0;
+}
+
+/* A short window has no room for him: the pill stays. */
+@media (max-height: 690px) {
   .cuso-figure {
     display: none;
   }
@@ -1201,26 +1222,75 @@ a.cuso-says:focus-visible {
   }
 }
 
-/* He arrives in each new pose, then breathes. */
+/*
+ * Alive, one thing at a time: a new pose fades in with a small spring; now
+ * and then he sways; a pointer on his stage makes him hop. A passing pose
+ * (walking to another page, a thumbs-up when work finished) holds the idle.
+ */
 @media (prefers-reduced-motion: no-preference) {
-  .cuso-figure img {
-    animation:
-      cuso-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
-      cuso-bob 3.2s ease-in-out 520ms infinite alternate;
+  .cuso-pose {
+    scale: 0.94;
+    transition:
+      opacity 240ms ease-out,
+      scale 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .cuso-pose[data-on] {
+    scale: 1;
+  }
+
+  .cuso-poses {
+    animation: cuso-idle 7s ease-in-out 2s infinite;
+  }
+
+  .cuso-figure[data-moving] .cuso-poses {
+    animation: none;
+  }
+
+  .cuso-status:hover .cuso-poses {
+    animation: cuso-hop 480ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 }
 
-@keyframes cuso-bob {
-  to {
-    transform: translateY(-5px);
+@keyframes cuso-idle {
+  0%,
+  82%,
+  100% {
+    transform: none;
+  }
+
+  86% {
+    transform: translateY(-4px) rotate(-2deg);
+  }
+
+  91% {
+    transform: translateY(0) rotate(1.5deg);
+  }
+
+  95% {
+    transform: rotate(0);
+  }
+}
+
+@keyframes cuso-hop {
+  40% {
+    transform: translateY(-8px) rotate(-3deg);
   }
 }
 
 .main {
+  /* The column every page lines up in; the chat's is narrower. */
+  --column: 1040px;
+  --page-pad: max(var(--page-x), calc((100% - var(--column)) / 2));
+
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+
+.main-chat {
+  --column: 880px;
 }
 
 .status {
@@ -1234,7 +1304,7 @@ a.cuso-says:focus-visible {
 .scroll {
   flex: 1;
   min-height: 0;
-  padding: 40px var(--page-x) 48px var(--page-left);
+  padding: 40px var(--page-pad) 48px;
   overflow-y: auto;
 }
 
@@ -1243,7 +1313,7 @@ a.cuso-says:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding: 12px var(--page-x) 12px var(--page-left);
+  padding: 12px var(--page-pad);
   background: var(--strip);
   color: var(--strip-foreground);
   font-size: 0.875rem;
@@ -1260,7 +1330,7 @@ a.cuso-says:focus-visible {
 /* ── Chat: rows like Sokosumi's chat rooms, no bubbles ── */
 /* The chat scrolls right down to the composer: no empty band above it. */
 .scroll.chat {
-  padding: 24px var(--page-x) 12px var(--page-left);
+  padding: 24px var(--page-pad) 12px;
 }
 
 .thread {
@@ -1273,7 +1343,7 @@ a.cuso-says:focus-visible {
 /* The chat's lead stays put over the thread, on its line. */
 .main > .page-lead {
   flex: none;
-  padding: 32px var(--page-x) 20px var(--page-left);
+  padding: 32px var(--page-pad) 20px;
   border-bottom: var(--line-width) solid var(--line);
 }
 
@@ -1826,7 +1896,7 @@ video.draft-media {
 
 .composer-wrap {
   flex: none;
-  padding: 4px var(--page-x) 24px var(--page-left);
+  padding: 4px var(--page-pad) 24px;
 }
 
 .suggest {
