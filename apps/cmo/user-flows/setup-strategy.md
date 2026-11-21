@@ -16,6 +16,7 @@
 - The month they approve holds as many posts as its own pace and channel cadences say, and every video its funnel promises.
 - Changes reflected without starting over.
 - A "No" or a correction reaches the whole strategy: the goal, the funnel, the questions, the ads line and every post title that rested on it, and the Brand Brain's summary, audience and offers say the corrected thing too. Nothing still names what they said no to (cmo-v8).
+- Each network gets what suits it (cmo-v14): several X posts a day, at most one a day on LinkedIn, mostly pictures, TikToks, Reels and YouTube Shorts every day, every format by its platform's name; the funnel names the busiest networks at Awareness, proof at Desire and Cuso's offer posts at Action; a connected network is never left out.
 - Every post makes its own point: no two posts in a week argue the same thing, and no point comes back more than three times in the month (cmo-v8).
 - To understand what they will have to do themselves.
 - No ads, no ad budget and no question about ads unless they said yes.

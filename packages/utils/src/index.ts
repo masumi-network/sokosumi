@@ -178,6 +178,7 @@ export {
 } from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
+  CMO_VOLUME_BELOW_TOP,
   CMO_VOLUME_LEVELS,
   type CmoMonthVolume,
   type CmoVolumeLevel,

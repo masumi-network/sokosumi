@@ -1240,28 +1240,25 @@ describe("the month the plan bought", () => {
     });
   };
 
-  it("makes one X post a day on Starter, and the rest waits for a bigger plan", async () => {
+  it("makes two X posts a day on Starter, and the rest waits for a bigger plan", async () => {
     const { status, pieces } = await read("starter");
     expect(status.level).toBe("steady");
     expect(pieces.map((piece) => piece.id)).toEqual([
       "x-2026-11-10-a",
+      "x-2026-11-10-b",
       "x-2026-11-11-a",
+      "x-2026-11-11-b",
       "v1",
       "v1@youtube",
     ]);
-    expect(status.total).toBe(4);
-    expect(status.beyondPlan).toEqual([
-      "x-2026-11-10-b",
-      "x-2026-11-10-c",
-      "x-2026-11-11-b",
-      "x-2026-11-11-c",
-    ]);
+    expect(status.total).toBe(6);
+    expect(status.beyondPlan).toEqual(["x-2026-11-10-c", "x-2026-11-11-c"]);
   });
 
   it("makes more of the same month on Growth, and all of it on Scale", async () => {
     expect((await read("growth")).status).toMatchObject({
       level: "active",
-      total: 6,
+      total: 8,
     });
     expect((await read("scale")).status).toMatchObject({
       level: "all_in",

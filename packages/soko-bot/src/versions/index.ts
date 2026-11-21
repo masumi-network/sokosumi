@@ -27,6 +27,7 @@ import { cmoV10 } from "./cmo-v10.js";
 import { cmoV11 } from "./cmo-v11.js";
 import { cmoV12 } from "./cmo-v12.js";
 import { cmoV13 } from "./cmo-v13.js";
+import { cmoV14 } from "./cmo-v14.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -130,10 +131,11 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV11,
   cmoV12,
   cmoV13,
+  cmoV14,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
-export const CMO_SOKO_BOT_VERSION_ID = cmoV13.id;
+export const CMO_SOKO_BOT_VERSION_ID = cmoV14.id;
 /**
  * Every Cuso version. A Cuso stays on the version he was hired on until he is
  * moved, so finding one means any of these, never only the newest.

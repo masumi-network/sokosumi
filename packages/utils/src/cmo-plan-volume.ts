@@ -9,23 +9,34 @@ import { CMO_CHANNELS } from "./cmo-channels.js";
 export const CMO_VOLUME_LEVELS = ["steady", "active", "all_in"] as const;
 export type CmoVolumeLevel = (typeof CMO_VOLUME_LEVELS)[number];
 
-/** Posts a day on a main network; X's feed moves fastest. */
-const MAIN_PER_DAY: Record<CmoVolumeLevel, { x: number; other: number }> = {
-  steady: { x: 1, other: 1 },
-  active: { x: 2, other: 2 },
-  all_in: { x: 3, other: 2 },
-};
-/** Posts a week on a side network, or one the business has no account on yet. */
-const SIDE_PER_WEEK: Record<CmoVolumeLevel, number> = {
-  steady: 1,
-  active: 2,
-  all_in: 3,
-};
-/** Videos a month, talking or moving: each costs as much as many pictures. */
-const VIDEOS_PER_MONTH: Record<CmoVolumeLevel, number> = {
-  steady: 1,
-  active: 2,
-  all_in: 4,
+/**
+ * What a plan below the top makes, per network. The top plan (all_in)
+ * makes the whole month as Cuso wrote it, so it is not in the table. X's
+ * feed moves fastest, so it counts a day; every other main network a week;
+ * a side network (another buyer) a week; and short videos (Reels, YouTube
+ * Shorts, TikToks, talking videos) a week on each network they start on.
+ */
+export const CMO_VOLUME_BELOW_TOP: Record<
+  Exclude<CmoVolumeLevel, "all_in">,
+  {
+    xPerDay: number;
+    mainPerWeek: number;
+    sidePerWeek: number;
+    videosPerNetworkWeek: number;
+  }
+> = {
+  steady: {
+    xPerDay: 2,
+    mainPerWeek: 5,
+    sidePerWeek: 2,
+    videosPerNetworkWeek: 3,
+  },
+  active: {
+    xPerDay: 3,
+    mainPerWeek: 7,
+    sidePerWeek: 3,
+    videosPerNetworkWeek: 7,
+  },
 };
 
 interface VolumeEntry {
@@ -65,11 +76,10 @@ function channelOf(key: string) {
 const DAY_MS = 86_400_000;
 
 /**
- * The part of a month a level makes. A piece that is not a social post (an
- * ad, a newsletter issue) is always made: ads follow the owner's budget and
- * a newsletter its list. Videos are counted across the month, whatever
- * network they start on; the earliest ones are kept, so a bigger plan adds
- * to the month and never swaps a piece.
+ * The part of a month a level makes. The top level makes all of it. A piece
+ * that is not a social post (an ad, a newsletter issue) is always made: ads
+ * follow the owner's budget and a newsletter its list. The earliest pieces
+ * are kept, so a bigger plan adds to the month and never swaps a piece.
  */
 export function cmoMonthAtLevel(
   calendar: readonly VolumeEntry[],
@@ -83,6 +93,7 @@ export function cmoMonthAtLevel(
   const roles = new Map(
     channels.map((channel) => [channel.channel.toLowerCase(), channel.role]),
   );
+  const limits = level === "all_in" ? null : CMO_VOLUME_BELOW_TOP[level];
   const made = new Set<string>();
   const taken = new Map<string, number>();
   const take = (slot: string, most: number, entry: VolumeEntry) => {
@@ -98,20 +109,17 @@ export function cmoMonthAtLevel(
     const key = entry.channel.toLowerCase();
     const channel = channelOf(key);
     const format = channel?.formats[entry.format];
-    if (channel?.owner !== "connect") {
+    const week = Math.floor((Date.parse(entry.date) - start) / DAY_MS / 7);
+    if (!limits || channel?.owner !== "connect") {
       made.add(entry.id);
     } else if (format?.video) {
-      take("video", VIDEOS_PER_MONTH[level], entry);
+      take(`${key}:video:${week}`, limits.videosPerNetworkWeek, entry);
     } else if (roles.get(key) === "side") {
-      const week = Math.floor((Date.parse(entry.date) - start) / DAY_MS / 7);
-      take(`${key}:week:${week}`, SIDE_PER_WEEK[level], entry);
+      take(`${key}:week:${week}`, limits.sidePerWeek, entry);
+    } else if (key === "x") {
+      take(`${key}:${entry.date}`, limits.xPerDay, entry);
     } else {
-      const perDay = MAIN_PER_DAY[level];
-      take(
-        `${key}:${entry.date}`,
-        key === "x" ? perDay.x : perDay.other,
-        entry,
-      );
+      take(`${key}:week:${week}`, limits.mainPerWeek, entry);
     }
     if (!made.has(entry.id)) continue;
     if (channel?.owner === "connect") posts += 1;
@@ -127,9 +135,9 @@ export function cmoMonthAtLevel(
 }
 
 /**
- * The level a CMO plan makes, by its tier: Starter one post a day on a main
- * network, Growth two, Scale up to three. Tester credits and a tier this
- * build does not know make the whole month.
+ * The level a CMO plan makes, by its tier: Starter and Growth the limits in
+ * `CMO_VOLUME_BELOW_TOP`, Scale the whole month. Tester credits and a tier
+ * this build does not know make the whole month.
  */
 export function cmoVolumeLevelForTier(tier: string | null): CmoVolumeLevel {
   const level = TIER_LEVELS[tier?.trim().toLowerCase() ?? ""];

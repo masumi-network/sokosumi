@@ -1,6 +1,7 @@
 import {
   type BrandBrain,
   CMO_AIDA_STAGES,
+  CMO_CHANNEL_FIT_STRATEGY_SKILL,
   CMO_CLAIMS_STRATEGY_SKILL,
   CMO_PART_PATCH_STRATEGY_SKILL,
   type MarketingStrategyPlan,
@@ -51,6 +52,14 @@ export const CMO_SHARE_TOLERANCE = 7;
  * once asked for eight.
  */
 export const CMO_MAX_VIDEOS_PER_MONTH = 4;
+/**
+ * cmo-v14 plans short video every day (owner, 2026-11-21: "multiple tiktoks
+ * a day"): a five-second video costs about 30 credits, so the cap moves to
+ * the month's top volume, and the talking videos (120 to 250 credits each)
+ * keep the old four.
+ */
+export const CMO_CHANNEL_FIT_MAX_VIDEOS = 150;
+export const CMO_MAX_TALKING_VIDEOS_PER_MONTH = 4;
 
 function isVideoFormat(entry: { channel: string; format: string }): boolean {
   const channel = (
@@ -166,12 +175,13 @@ export function cmoPlanProblems(
   if (options.everyNetwork)
     problems.push(
       ...networkProblems(strategy),
-      ...cmoLeftOutProblems(strategy),
-      ...cmoTopVolumeProblems(strategy),
-      ...cmoFunnelPlanProblems(strategy),
+      ...cmoLeftOutProblems(strategy, options),
+      ...cmoTopVolumeProblems(strategy, options),
+      ...cmoFunnelPlanProblems(strategy, options),
       ...unaskedAdProblems(strategy),
       ...askedForNothingProblems(strategy),
     );
+  if (options.channelFit) problems.push(...cmoChannelFitProblems(strategy));
   if (!strategy.idea)
     problems.push(
       "idea is missing: who you target, how the business is positioned, how people are attracted, the offer, and the sentence that joins them.",
@@ -239,17 +249,29 @@ export function cmoPlanProblems(
         `${hedged.length} calendar titles only tell people to check details ("${hedged[0]?.title}"); make each title say the point itself.`,
       );
     const weeks = options.weekly ? calendarWeeks(pieces) : 4;
-    problems.push(...volumeShortfalls(strategy, pieces, weeks));
+    problems.push(
+      ...volumeShortfalls(strategy, pieces, weeks, options.channelFit === true),
+    );
     if (weeks >= 4)
       problems.push(...cadenceProblems(strategy.channels, pieces, "over"));
     if (options.weekly)
       problems.push(...roleProblems(strategy.channels, pieces, weeks));
-    problems.push(...crowdedNetworks(pieces));
+    problems.push(...crowdedNetworks(pieces, options.channelFit === true));
     problems.push(...storyProblems(pieces, options.claims === true));
     if (options.claims) problems.push(...claimProblems(pieces));
     problems.push(...repeatedTitles(pieces));
     const videos = pieces.filter(isVideoFormat).length;
-    if (videos > CMO_MAX_VIDEOS_PER_MONTH)
+    const talking = pieces.filter(isTalkingVideo).length;
+    if (options.channelFit) {
+      if (videos > CMO_CHANNEL_FIT_MAX_VIDEOS)
+        problems.push(
+          `calendar has ${videos} videos; plan at most ${CMO_CHANNEL_FIT_MAX_VIDEOS} a month, at each video network's cadence.`,
+        );
+      if (talking > CMO_MAX_TALKING_VIDEOS_PER_MONTH)
+        problems.push(
+          `calendar has ${talking} talking videos; plan at most ${CMO_MAX_TALKING_VIDEOS_PER_MONTH} a month, each with every video network in its alsoOn. A talking video costs about eight short videos: make the daily ones short videos (a TikTok, a Reel, a YouTube Short).`,
+        );
+    } else if (videos > CMO_MAX_VIDEOS_PER_MONTH)
       problems.push(
         `calendar has ${videos} videos; plan at most ${CMO_MAX_VIDEOS_PER_MONTH} a month. Each costs at least as much as four pictures: keep video for what moves.`,
       );
@@ -307,6 +329,10 @@ export interface PlanReviewOptions {
   everyNetwork?: boolean;
   /** An owner's change to part of the plan is saved as a part patch (cmo-v13's strategy skill). */
   partPatch?: boolean;
+  /** Each network at its own rate, short video daily and real format names (cmo-v14's strategy skill). */
+  channelFit?: boolean;
+  /** The social networks the Project has connected, which are never left out. */
+  connectedNetworks?: readonly string[];
 }
 
 /**
@@ -317,8 +343,11 @@ export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
 
 /** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
 export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
+  // cmo-v14's strategy skill is cmo-v13's with each network at its own rate.
+  const channelFit = skills.includes(CMO_CHANNEL_FIT_STRATEGY_SKILL);
   // cmo-v13's strategy skill is cmo-v8's with every part change a patch.
-  const partPatch = skills.includes(CMO_PART_PATCH_STRATEGY_SKILL);
+  const partPatch =
+    channelFit || skills.includes(CMO_PART_PATCH_STRATEGY_SKILL);
   // cmo-v8's strategy skill is cmo-v5's with claims and corrections.
   const claims = partPatch || skills.includes(CMO_CLAIMS_STRATEGY_SKILL);
   const everyNetwork = claims || skills.includes(EVERY_NETWORK_STRATEGY_SKILL);
@@ -328,6 +357,7 @@ export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
     everyNetwork,
     claims,
     partPatch,
+    channelFit,
   };
 }
 
@@ -494,9 +524,20 @@ const WEAK_VIDEO_NETWORK_REASON =
 /** The networks a talking video goes out on with no extra cost (alsoOn). */
 const VIDEO_ONLY_NETWORKS = ["youtube", "tiktok"];
 
-export function cmoLeftOutProblems(strategy: MarketingStrategyPlan): string[] {
+export function cmoLeftOutProblems(
+  strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
+): string[] {
+  const connected = new Set(
+    (options.connectedNetworks ?? []).map((network) => network.toLowerCase()),
+  );
   return (strategy.leftOut ?? []).flatMap(({ channel, why }) => {
     const key = channel.toLowerCase();
+    // NMKR's connected Facebook Page was once left out as "not local event communities".
+    if (options.channelFit && connected.has(key))
+      return [
+        `leftOut leaves ${key} out, but the business has connected its ${key} account: its audience is already there. Plan ${key}.`,
+      ];
     if (ACCOUNT_STATE_REASON.test(why))
       return [
         `leftOut leaves ${key} out for its account ("${why}"); a quiet or missing account is never a reason, you make it active. Plan ${key}.`,
@@ -506,14 +547,16 @@ export function cmoLeftOutProblems(strategy: MarketingStrategyPlan): string[] {
       WEAK_VIDEO_NETWORK_REASON.test(why)
     )
       return [
-        `leftOut leaves ${key} out for its audience ("${why}"); short how-to videos fit company buyers and builders too. Plan ${key} with the cadence "1 a week" and list it in every talking video's alsoOn.`,
+        options.channelFit
+          ? `leftOut leaves ${key} out for its audience ("${why}"); short how-to videos fit company buyers and builders too. Plan ${key} at ${CHANNEL_FIT_TOP[key]?.cadence ?? "its top cadence"}.`
+          : `leftOut leaves ${key} out for its audience ("${why}"); short how-to videos fit company buyers and builders too. Plan ${key} with the cadence "1 a week" and list it in every talking video's alsoOn.`,
       ];
     return [];
   });
 }
 
 /** The top volume per network, a month's pieces (cmo-v3's all_in pace). */
-const TOP_VOLUME = {
+const TOP_VOLUME: Record<"x" | "main" | "side", Volume> = {
   x: { pieces: 3 * 28, cadence: "3 a day" },
   main: { pieces: 2 * 28, cadence: "2 a day" },
   side: { pieces: 3 * 4, cadence: "3 a week" },
@@ -526,7 +569,9 @@ const TOP_VOLUME = {
  */
 export function cmoTopVolumeProblems(
   strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
 ): string[] {
+  const channelFit = options.channelFit === true;
   const problems: string[] = [];
   if (
     strategy.pace &&
@@ -537,29 +582,59 @@ export function cmoTopVolumeProblems(
       `pace is ${strategy.pace.level}; write every strategy all_in: the plan the owner buys decides how much of it is made. Only the owner lowers the pace or a cadence; never lower one on your own, also not to clear another problem.`,
     );
   for (const channel of strategy.channels) {
-    if (channel.setByOwner || !belowTopVolume(channel)) continue;
+    if (channel.setByOwner || !belowTopVolume(channel, channelFit)) continue;
     const key = channel.channel.toLowerCase();
     problems.push(
-      `${key} has the cadence "${channel.cadence}"; at the top volume a ${channel.role === "side" ? "side" : "main"} ${key} takes ${topVolume(channel).cadence}. Set it and plan its pieces, unless the owner asked for less.`,
+      `${key} has the cadence "${channel.cadence}"; at the top volume a ${channel.role === "side" ? "side" : "main"} ${key} takes ${topVolume(channel, channelFit).cadence}. Set it and plan its pieces, unless the owner asked for less.`,
     );
   }
   return problems;
 }
 
-function topVolume(channel: MarketingStrategyPlan["channels"][number]) {
+interface Volume {
+  pieces: number;
+  cadence: string;
+}
+
+/**
+ * The top volume per main network on cmo-v14 (owner, 2026-11-21: "too few
+ * on X, too many on LinkedIn, not enough tiktoks, not enough instagram
+ * reels"): X several a day, LinkedIn at most one, Instagram a picture and a
+ * Reel a day, and short video every day on TikTok and YouTube Shorts. A side
+ * network keeps three a week.
+ */
+export const CHANNEL_FIT_TOP: Record<string, Volume> = {
+  x: { pieces: 4 * 28, cadence: "4 a day" },
+  linkedin: { pieces: 28, cadence: "1 a day" },
+  instagram: { pieces: 2 * 28, cadence: "2 a day" },
+  facebook: { pieces: 28, cadence: "1 a day" },
+  youtube: { pieces: 28, cadence: "1 a day" },
+  tiktok: { pieces: 2 * 28, cadence: "2 a day" },
+};
+
+function topVolume(
+  channel: MarketingStrategyPlan["channels"][number],
+  channelFit = false,
+): Volume {
+  const key = channel.channel.toLowerCase();
   if (channel.role === "side") return TOP_VOLUME.side;
-  return channel.channel.toLowerCase() === "x" ? TOP_VOLUME.x : TOP_VOLUME.main;
+  if (channelFit) return CHANNEL_FIT_TOP[key] ?? TOP_VOLUME.main;
+  return key === "x" ? TOP_VOLUME.x : TOP_VOLUME.main;
 }
 
 /** A posting network whose cadence is under the top volume's rate. */
 function belowTopVolume(
   channel: MarketingStrategyPlan["channels"][number],
+  channelFit = false,
 ): boolean {
   const key = channel.channel.toLowerCase();
-  if (!CMO_LIVE_NETWORKS.includes(key) || VIDEO_ONLY_NETWORKS.includes(key))
+  if (
+    !CMO_LIVE_NETWORKS.includes(key) ||
+    (!channelFit && VIDEO_ONLY_NETWORKS.includes(key))
+  )
     return false;
   const range = cadenceRange(channel.cadence);
-  return range !== null && range[1] < topVolume(channel).pieces;
+  return range !== null && range[1] < topVolume(channel, channelFit).pieces;
 }
 
 /**
@@ -571,6 +646,7 @@ function volumeShortfalls(
   strategy: MarketingStrategyPlan,
   pieces: MarketingStrategyPlan["calendar"],
   weeks: number,
+  channelFit = false,
 ): string[] {
   const problems: string[] = [];
   if (weeks < 4)
@@ -584,7 +660,9 @@ function volumeShortfalls(
       `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
     );
   if (weeks >= 4)
-    problems.push(...cadenceProblems(strategy.channels, pieces, "under"));
+    problems.push(
+      ...cadenceProblems(strategy.channels, pieces, "under", channelFit),
+    );
   return problems;
 }
 
@@ -603,12 +681,16 @@ export function cmoPromiseGaps(
   );
   return [
     ...(options.everyNetwork
-      ? [...cmoTopVolumeProblems(strategy), ...funnelVideoGaps(strategy)]
+      ? [
+          ...cmoTopVolumeProblems(strategy, options),
+          ...funnelVideoGaps(strategy, options),
+        ]
       : []),
     ...volumeShortfalls(
       strategy,
       pieces,
       options.weekly ? cmoCalendarWeeks(pieces) : pieces.length > 0 ? 4 : 0,
+      options.channelFit === true,
     ),
   ];
 }
@@ -684,7 +766,7 @@ export function cmoWithOwnerPace(
     const key = channel.channel.toLowerCase();
     const earlier = was.get(key);
     const owners =
-      belowTopVolume(channel) &&
+      (belowTopVolume(channel) || belowTopVolume(channel, true)) &&
       (lowered(key) ||
         (earlier?.setByOwner === true && earlier.cadence === channel.cadence));
     return owners ? { ...channel, setByOwner: true } : channel;
@@ -723,6 +805,7 @@ function isTalkingVideo(entry: { channel: string; format: string }): boolean {
  */
 export function cmoFunnelPlanProblems(
   strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
 ): string[] {
   const channels = new Map(
     strategy.channels.map((channel) => [
@@ -772,7 +855,110 @@ export function cmoFunnelPlanProblems(
     problems.push(
       `${unnamed.join(", ")} ${unnamed.length === 1 ? "is" : "are"} in channels but in no funnel stage; name ${unnamed.length === 1 ? "it" : "each"} with a play at the stage it serves.`,
     );
-  problems.push(...funnelVideoGaps(strategy));
+  problems.push(...funnelVideoGaps(strategy, options));
+  return problems;
+}
+
+/** Formats each network calls its pictures by: words-only posts are the rest. */
+function carriesPicture(entry: { channel: string; format: string }): boolean {
+  const channel = (
+    CMO_CHANNELS as Record<
+      string,
+      { formats: Record<string, { image?: boolean; video?: boolean }> }
+    >
+  )[entry.channel.toLowerCase()];
+  const format = channel?.formats[entry.format];
+  return Boolean(format?.image || format?.video);
+}
+
+/** X posts with a picture, at least: the owner wants one in two (cmo-v14). */
+const X_PICTURE_SHARE = 0.4;
+/** Words-only posts on LinkedIn, Facebook and Instagram, at most. */
+const WORDS_ONLY_SHARE = 0.25;
+/** A network's own pieces before its picture share is read. */
+const PICTURE_SHARE_FROM = 8;
+
+/** Names the platforms do not use: the owner reads Reels, YouTube Shorts and TikToks. */
+const GENERIC_VIDEO_NAME = /\b(talking|short)[ -]videos?\b/i;
+
+/**
+ * cmo-v14's channel fit (owner, 2026-11-21, on NMKR's month): more
+ * pictures, the funnel where the posts really are, a Desire stage that does
+ * not rest on a newsletter CMO cannot send, an Action stage with Cuso's own
+ * offer posts, and every format by the platform's own name.
+ */
+export function cmoChannelFitProblems(
+  strategy: MarketingStrategyPlan,
+): string[] {
+  const problems: string[] = [];
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped" && !entry.videoOf,
+  );
+  const own = (key: string) =>
+    pieces.filter((entry) => entry.channel.toLowerCase() === key);
+  const x = own("x");
+  const xPictures = x.filter(carriesPicture).length;
+  if (x.length >= PICTURE_SHARE_FROM && xPictures < x.length * X_PICTURE_SHARE)
+    problems.push(
+      `x has ${xPictures} of ${x.length} posts with a picture; give at least one X post in two a picture you make (format image). People stop for pictures.`,
+    );
+  for (const key of ["linkedin", "facebook", "instagram"]) {
+    const posts = own(key);
+    const words = posts.filter((entry) => !carriesPicture(entry)).length;
+    if (
+      posts.length >= PICTURE_SHARE_FROM &&
+      words > posts.length * WORDS_ONLY_SHARE
+    )
+      problems.push(
+        `${key} has ${words} of ${posts.length} posts without a picture or video; give most of them a picture, several pictures or a video, at most one in four words only.`,
+      );
+  }
+  const channels = new Set(
+    strategy.channels.map((channel) => channel.channel.toLowerCase()),
+  );
+  const social = (key: string) =>
+    channels.has(key) && CMO_LIVE_NETWORKS.includes(key);
+  const stage = (name: string) =>
+    strategy.funnel.find((item) => item.stage === name);
+  const playsOn = (item: MarketingStrategyPlan["funnel"][number] | undefined) =>
+    (item?.plays ?? []).map((play) => play.channel.toLowerCase());
+  const awareness = new Set(playsOn(stage("awareness")));
+  const unseen = strategy.channels
+    .filter(
+      (channel) =>
+        channel.role !== "side" &&
+        social(channel.channel.toLowerCase()) &&
+        !awareness.has(channel.channel.toLowerCase()),
+    )
+    .map((channel) => channel.channel.toLowerCase());
+  if (stage("awareness") && unseen.length > 0)
+    problems.push(
+      `${unseen.join(", ")} ${unseen.length === 1 ? "is a main network" : "are main networks"} but not at awareness; most of the month's posts are there, so name ${unseen.length === 1 ? "it" : "each"} with a play at awareness (it may serve a later stage too).`,
+    );
+  const desire = stage("desire");
+  if (desire && !playsOn(desire).some(social))
+    problems.push(
+      `the desire stage rests on ${playsOn(desire).join(", ") || "nothing"}; give it a play on a social network in the strategy (proof, comparisons, customer results). CMO cannot send a newsletter, so it never carries a stage alone.`,
+    );
+  const action = stage("action");
+  if (
+    action &&
+    (!playsOn(action).some(social) || /^nothing\b/i.test(action.cusoDoes ?? ""))
+  )
+    problems.push(
+      `the action stage has no work of yours; plan offer posts that send people to ${strategy.offer?.action ? `"${strategy.offer.action}"` : "the offer"} with the link, name their network in a play there, and say it in cusoDoes.`,
+    );
+  const generic = [
+    ...strategy.funnel.flatMap((item) => [
+      item.cusoDoes ?? "",
+      ...item.plays.map((play) => play.what),
+    ]),
+    ...strategy.channels.map((channel) => channel.why ?? ""),
+  ].find((text) => GENERIC_VIDEO_NAME.test(text));
+  if (generic)
+    problems.push(
+      `"${generic}" names a format by a word the platforms do not use; say Reel on Instagram and Facebook, YouTube Short, TikTok, carousel or thread, as the owner sees them in each app.`,
+    );
   return problems;
 }
 
@@ -781,7 +967,10 @@ export function cmoFunnelPlanProblems(
  * that promises it on a network, or a video-only network, with no talking
  * video going out there. Checked once the month's four weeks are in.
  */
-function funnelVideoGaps(strategy: MarketingStrategyPlan): string[] {
+function funnelVideoGaps(
+  strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
+): string[] {
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
   );
@@ -789,8 +978,10 @@ function funnelVideoGaps(strategy: MarketingStrategyPlan): string[] {
   const planned = new Set(
     strategy.channels.map((channel) => channel.channel.toLowerCase()),
   );
+  // On cmo-v14 a short video (a Reel, a YouTube Short, a TikTok) counts too.
+  const isVideo = options.channelFit ? isVideoFormat : isTalkingVideo;
   const videoOn = (key: string) =>
-    pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key));
+    pieces.some((entry) => isVideo(entry) && goesOutOn(entry, key));
   const problems: string[] = [];
   for (const stage of strategy.funnel)
     for (const play of stage.plays) {
@@ -1035,16 +1226,24 @@ const MAX_PER_DAY_OTHER = 2;
  * A pace is kept on every network, not reached by piling one: a plan once
  * met its all_in count with 99 Instagram posts and 7 on LinkedIn.
  */
-function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
+function crowdedNetworks(
+  pieces: MarketingStrategyPlan["calendar"],
+  channelFit = false,
+): string[] {
   const counts = new Map<string, number>();
+  // On cmo-v14 a talking video's copies come on top of a network's rate.
   for (const entry of pieces)
-    for (const network of [entry.channel, ...(entry.alsoOn ?? [])])
+    for (const network of channelFit
+      ? [entry.channel]
+      : [entry.channel, ...(entry.alsoOn ?? [])])
       counts.set(network, (counts.get(network) ?? 0) + 1);
   return [...counts].flatMap(([channel, count]) => {
     const social =
       (CMO_CHANNELS as Record<string, { owner: string }>)[channel]?.owner ===
       "connect";
-    const most = (MAX_PER_DAY[channel] ?? MAX_PER_DAY_OTHER) * 28;
+    const most = channelFit
+      ? (CHANNEL_FIT_TOP[channel]?.pieces ?? MAX_PER_DAY_OTHER * 28)
+      : (MAX_PER_DAY[channel] ?? MAX_PER_DAY_OTHER) * 28;
     if (!social || count <= Math.ceil(most * 1.1)) return [];
     return [
       `${channel} has ${count} pieces, more than ${most / 28} a day; spread the pace over every network in the strategy instead.`,
@@ -1195,6 +1394,7 @@ function cadenceProblems(
   channels: MarketingStrategyPlan["channels"],
   pieces: MarketingStrategyPlan["calendar"],
   side: "under" | "over",
+  channelFit = false,
 ): string[] {
   return channels.flatMap((channel) => {
     const range = cadenceRange(channel.cadence);
@@ -1212,7 +1412,7 @@ function cadenceProblems(
     const key = channel.channel.toLowerCase();
     // A video network's pieces are the month's talking videos, capped.
     const fix =
-      side === "under" && VIDEO_ONLY_NETWORKS.includes(key)
+      side === "under" && VIDEO_ONLY_NETWORKS.includes(key) && !channelFit
         ? `List ${key} in the alsoOn of more of the month's talking videos (at most ${CMO_MAX_VIDEOS_PER_MONTH} videos a month), or set its cadence to what they hold.`
         : "Save part calendar so they match.";
     return [

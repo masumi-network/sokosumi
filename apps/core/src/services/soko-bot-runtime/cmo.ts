@@ -317,7 +317,20 @@ export async function reviewCmoPlan(
     turn?.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) === true &&
     cmoChangeKind(turn.clientTurnId) === null &&
     !turn.userMessage.includes("The owner asked: ");
-  const problems = cmoPlanProblemsSince(strategy, earlier, { ...rules, fresh });
+  // cmo-v14: a network the business connected is never left out.
+  const connectedNetworks = rules.channelFit
+    ? (
+        await prisma.projectSocialConnection.findMany({
+          where: { projectId: plan.projectId, status: "active" },
+          select: { provider: true },
+        })
+      ).map((connection) => connection.provider)
+    : [];
+  const problems = cmoPlanProblemsSince(strategy, earlier, {
+    ...rules,
+    fresh,
+    connectedNetworks,
+  });
   // cmo-v8: what the owner's correction rejected is gone from every field.
   if (
     rules.claims &&

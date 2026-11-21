@@ -3,6 +3,7 @@ import type {
   MarketingStrategyPlan,
   ScenarioCheck,
 } from "@sokosumi/soko-bot";
+import { CMO_CHANNELS } from "@sokosumi/utils";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   CMO_LIVE_NETWORKS,
@@ -143,7 +144,7 @@ export function strategyChecks(
   if (brand.websiteOnly) checks.push(...websiteOnlyChecks(strategy));
   // cmo-v8's claims are compared by meaning: the runner checks them.
   if (brand.focus && brand.focus !== "claims")
-    checks.push(focusCheck(brand.focus, strategy));
+    checks.push(focusCheck(brand.focus, strategy, options));
   if (options.everyNetwork) checks.push(firstStrategyAdsCheck(strategy));
   // The claims case is scored on its claims; every other strategy case
   // holds the plan to the skill's rules.
@@ -208,9 +209,10 @@ function websiteOnlyChecks(strategy: MarketingStrategyPlan): ScenarioCheck[] {
 function focusCheck(
   focus: Exclude<CmoEvalBrand["focus"], "claims" | undefined>,
   strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
 ): ScenarioCheck {
   if (focus === "top-volume") {
-    const problems = cmoTopVolumeProblems(strategy);
+    const problems = cmoTopVolumeProblems(strategy, options);
     return {
       label: "Writes the month at the top volume",
       pass: problems.length === 0,
@@ -220,26 +222,40 @@ function focusCheck(
     };
   }
   if (focus === "funnel-plan") {
-    const problems = cmoFunnelPlanProblems(strategy);
+    const problems = cmoFunnelPlanProblems(strategy, options);
     return {
       label: "The funnel says what the channels and calendar hold",
       pass: strategy.funnel.length > 0 && problems.length === 0,
       actual: problems.join(" · ") || "matches",
     };
   }
+  // cmo-v14 feeds them with TikToks and YouTube Shorts of their own too.
+  const video = (entry: MarketingStrategyPlan["calendar"][number]) =>
+    options.channelFit
+      ? Boolean(
+          (
+            CMO_CHANNELS as Record<
+              string,
+              { formats: Record<string, { video?: boolean }> }
+            >
+          )[entry.channel]?.formats[entry.format]?.video,
+        )
+      : entry.format === "talking_video";
   const missing = ["youtube", "tiktok"].filter(
     (network) =>
       !strategy.channels.some((channel) => channel.channel === network) ||
       !strategy.calendar.some(
         (entry) =>
-          entry.format === "talking_video" &&
+          video(entry) &&
           entry.status !== "skipped" &&
           (entry.channel === network || entry.alsoOn?.includes(network)),
       ),
   );
   return {
-    label: "Plans YouTube and TikTok with the month's talking videos",
-    pass: missing.length === 0 && cmoLeftOutProblems(strategy).length === 0,
+    label: "Plans YouTube and TikTok with the month's videos",
+    pass:
+      missing.length === 0 &&
+      cmoLeftOutProblems(strategy, options).length === 0,
     actual: missing.length
       ? `missing ${missing.join(", ")}; left out: ${(strategy.leftOut ?? []).map((item) => `${item.channel} (${item.why})`).join(", ") || "none"}`
       : "both planned",

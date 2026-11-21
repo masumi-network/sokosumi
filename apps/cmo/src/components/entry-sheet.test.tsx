@@ -42,7 +42,7 @@ describe("EntrySheet", () => {
       />,
     );
     expect(html).toContain(
-      "Instagram · Talking video · video by Cuso · also on YouTube, Facebook",
+      "Instagram · Talking Reel · video by Cuso · also on YouTube, Facebook",
     );
   });
 

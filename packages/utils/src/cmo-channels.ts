@@ -34,7 +34,7 @@ export const CMO_CHANNELS = {
         slides: [2, 4],
       },
       video: {
-        name: "Short video",
+        name: "Video",
         what: "A five-second vertical video made from a brand picture, with a caption",
         image: false,
         video: true,
@@ -53,7 +53,7 @@ export const CMO_CHANNELS = {
         image: false,
       },
       reply: {
-        name: "Post with a reply",
+        name: "Thread",
         what: "A post plus a first reply with the link or the next point",
         image: false,
       },
@@ -71,7 +71,7 @@ export const CMO_CHANNELS = {
     owner: "connect",
     formats: {
       talking_video: {
-        name: "Talking video",
+        name: "Talking Reel",
         what: "A presenter speaks a short script to camera, with captions",
         image: false,
         video: true,
@@ -102,7 +102,7 @@ export const CMO_CHANNELS = {
     owner: "connect",
     formats: {
       talking_video: {
-        name: "Talking video",
+        name: "Talking Reel",
         what: "A presenter speaks a short script to camera, with captions",
         image: false,
         video: true,
@@ -139,7 +139,7 @@ export const CMO_CHANNELS = {
     owner: "connect",
     formats: {
       talking_video: {
-        name: "Talking video",
+        name: "Talking YouTube Short",
         what: "A presenter speaks a short script to camera, with captions",
         image: false,
         video: true,
@@ -160,14 +160,14 @@ export const CMO_CHANNELS = {
     owner: "connect",
     formats: {
       talking_video: {
-        name: "Talking video",
+        name: "Talking TikTok",
         what: "A presenter speaks a short script to camera, with captions",
         image: false,
         video: true,
         talking: true,
       },
       video: {
-        name: "Short video",
+        name: "TikTok",
         what: "A five-second vertical video made from a brand picture, with a caption",
         image: false,
         video: true,

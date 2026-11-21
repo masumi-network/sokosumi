@@ -51,34 +51,58 @@ const channels = [
 ];
 
 describe("cmoMonthAtLevel", () => {
-  it("makes one, two or three posts a day on X, and one to three a week on a side network", () => {
+  it("makes two or three posts a day on X below the top, two or three a week on a side network", () => {
     const count = (level: (typeof CMO_VOLUME_LEVELS)[number], prefix: string) =>
       [...cmoMonthAtLevel(calendar, channels, level).made].filter((id) =>
         id.startsWith(prefix),
       ).length;
     expect(CMO_VOLUME_LEVELS.map((level) => count(level, "x-"))).toEqual([
-      28, 56, 84,
+      56, 84, 84,
     ]);
     expect(CMO_VOLUME_LEVELS.map((level) => count(level, "ig-"))).toEqual([
-      4, 8, 12,
+      8, 12, 12,
     ]);
     expect(CMO_VOLUME_LEVELS.map((level) => count(level, "li-"))).toEqual([
-      4, 8, 12,
+      8, 12, 12,
     ]);
   });
 
-  it("makes one, two or four videos a month, the earliest first", () => {
+  it("makes three short videos a week or one a day on each network below the top, and every one at the top", () => {
+    const tiktoks = Array.from({ length: 28 }, (_, index) =>
+      ["a", "b"].map((slot) => ({
+        id: `tt-${index}-${slot}`,
+        date: day(index),
+        channel: "tiktok",
+        format: "video",
+      })),
+    ).flat();
+    const count = (level: (typeof CMO_VOLUME_LEVELS)[number]) =>
+      cmoMonthAtLevel(
+        [...calendar, ...tiktoks],
+        [...channels, { channel: "tiktok", role: "main" as const }],
+        level,
+      ).videos;
+    // Each level also makes the four weekly talking videos on Instagram.
+    expect(CMO_VOLUME_LEVELS.map(count)).toEqual([4 + 12, 4 + 28, 4 + 56]);
+  });
+
+  it("makes five a week or one a day on a main network other than X below the top", () => {
+    const linkedin = Array.from({ length: 28 }, (_, index) => ({
+      id: `lim-${index}`,
+      date: day(index),
+      channel: "linkedin",
+      format: "image",
+    }));
     expect(
-      CMO_VOLUME_LEVELS.map((level) =>
-        [...cmoMonthAtLevel(calendar, channels, level).made].filter((id) =>
-          id.startsWith("video-"),
-        ),
+      CMO_VOLUME_LEVELS.map(
+        (level) =>
+          cmoMonthAtLevel(
+            linkedin,
+            [{ channel: "linkedin", role: "main" }],
+            level,
+          ).posts,
       ),
-    ).toEqual([
-      ["video-0"],
-      ["video-0", "video-1"],
-      ["video-0", "video-1", "video-2", "video-3"],
-    ]);
+    ).toEqual([20, 28, 28]);
   });
 
   it("always makes what is not a social post", () => {
@@ -99,9 +123,10 @@ describe("cmoMonthAtLevel", () => {
         return { posts, pictures, videos };
       }),
     ).toEqual([
-      // 28 X + 4 Instagram + 4 LinkedIn + 1 video.
-      { posts: 37, pictures: 4, videos: 1 },
-      { posts: 74, pictures: 8, videos: 2 },
+      // 56 X (the first two of each day, words only) + 8 Instagram + 8
+      // LinkedIn + the 4 weekly videos.
+      { posts: 76, pictures: 8, videos: 4 },
+      { posts: 112, pictures: 40, videos: 4 },
       // Every third X post has a picture, and all twelve on Instagram.
       { posts: 112, pictures: 40, videos: 4 },
     ]);
@@ -146,11 +171,8 @@ describe("a talking video shown on several networks", () => {
 
   it("counts as one video, and its posts go with it", () => {
     const steady = cmoMonthAtLevel(shared, channels, "steady");
-    expect(steady.videos).toBe(1);
-    expect([...steady.made].filter((id) => id.includes("@"))).toEqual([
-      "video-0@youtube",
-      "video-0@facebook",
-    ]);
+    expect(steady.videos).toBe(4);
+    expect([...steady.made].filter((id) => id.includes("@"))).toHaveLength(8);
     const allIn = cmoMonthAtLevel(shared, channels, "all_in");
     expect(allIn.videos).toBe(4);
     expect(allIn.posts).toBe(112 + 8);

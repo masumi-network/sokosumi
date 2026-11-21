@@ -4,7 +4,7 @@ What Cuso does without being asked, per channel, and what the owner should see c
 
 | Flow                                            | Channel                           | State (2026-11-18)                                                           |
 | ----------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------- |
-| [Making the month](making-the-month.md)         | All networks                      | Works; every network on cmo-v5, connected or not                             |
+| [Making the month](making-the-month.md)         | All networks                      | Works; each network at its own rate on cmo-v14, connected or not             |
 | [LinkedIn](linkedin.md)                         | LinkedIn                          | Works; Page or profile; no comment reading                                   |
 | [X](x.md)                                       | X                                 | Works; no replies or mentions                                                |
 | [Instagram](instagram.md)                       | Instagram                         | Works                                                                        |
@@ -25,7 +25,7 @@ What Cuso does without being asked, per channel, and what the owner should see c
 
 Count and grade the output per channel, not only whether a flow ran. Track it over days and weeks.
 
-- **Volume against the strategy:** pieces planned vs made vs published per network and week (for example X about 3 a day, LinkedIn 2 to 3 a week, at most 4 videos a month); missed days; posts that failed to publish and why.
+- **Volume against the strategy:** pieces planned vs made vs published per network and week (for example, on cmo-v14 at the top plan: X 4 a day, LinkedIn 1 a day, Instagram a picture and a Reel a day, 2 TikToks and 1 YouTube Short a day, at most 4 talking videos a month); missed days; posts that failed to publish and why.
 - **Quality per piece:** fits the network (length, format, hook in the first line or second), sounds like the Brand Brain, says something specific and true about the business, no repeats of another post, no reused picture, links tagged, no hashtag walls or markdown.
 - **Pictures and videos:** on brand and not obviously AI, readable text, right size for the network; videos with a hook in the first second, captions inside the safe area, music and B-roll where planned, the AI label where the network has one, and the video plays.
 - **Replies and reactions:** how many comments answered, how many left for the owner and whether that was right, reaction posts the same day as the news, competitor moves sourced.
