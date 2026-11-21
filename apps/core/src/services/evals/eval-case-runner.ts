@@ -11,7 +11,10 @@ import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
-import { judgeEvalScenarioTurn } from "@/services/soko-bot-lab-judge.service";
+import {
+  judgeEvalChain,
+  judgeEvalScenarioTurn,
+} from "@/services/soko-bot-lab-judge.service";
 import {
   loadLabScenarioTurn,
   SETTLED_TURN_STATUSES,
@@ -22,6 +25,16 @@ import {
   followUpCapabilities,
   followUpMessage,
 } from "@/services/soko-bot-watches.service";
+import {
+  a2aChecks,
+  a2aRoomLog,
+  closeA2aWorld,
+  isA2aScenario,
+  loadA2aChain,
+  otherAgentTurnIds,
+  pollA2aChain,
+  prepareA2aCase,
+} from "./eval-a2a";
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
@@ -224,6 +237,8 @@ async function startScenario(
     });
   if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID)
     await prepareSokoBotCompetitorCase(lane);
+  if (bot === "soko-bot" && isA2aScenario(scenario))
+    state = { ...state, ...(await prepareA2aCase(lane, scenario)) };
   if (seoCase) {
     const prepared = await prepareSeoEvalCase(lane, scenario, context.resultId);
     scenario = prepared.scenario;
@@ -254,7 +269,12 @@ async function startScenario(
 }
 
 /** What the admin page shows of a scenario turn: the answer and the tools in order. */
-function scenarioOutput(turn: Awaited<ReturnType<typeof loadLabScenarioTurn>>) {
+function scenarioOutput(
+  turn: Pick<
+    Awaited<ReturnType<typeof loadLabScenarioTurn>>,
+    "finalAnswer" | "route" | "status" | "errorKind" | "toolCalls"
+  >,
+) {
   return {
     answer: turn.finalAnswer,
     route: turn.route,
@@ -275,6 +295,8 @@ async function pollScenario(
   context: CaseContext,
   state: unknown,
 ): Promise<CasePoll> {
+  if (isA2aScenario(scenario))
+    return pollA2aScenario(scenario, turnId, lane, context);
   const turn = await loadLabScenarioTurn(turnId);
   if (!SETTLED_TURN_STATUSES.includes(turn.status)) {
     if (
@@ -399,6 +421,88 @@ async function pollScenario(
       judgeModel: judged?.model ?? null,
       output: scenarioOutput(turn),
       turnIds: [turnId],
+    },
+  };
+}
+
+/** An agent-to-agent case: the whole chain of turns, checked and judged as one. */
+async function pollA2aScenario(
+  scenario: SokoBotScenario,
+  turnId: string,
+  lane: EvalLaneRecord,
+  context: CaseContext,
+): Promise<CasePoll> {
+  const step = await pollA2aChain({
+    scenario,
+    firstTurnId: turnId,
+    lane,
+    startedAt: context.startedAt,
+  });
+  if (step.kind === "waiting") return step;
+  const { turnIds, timedOut } = step;
+  if (timedOut)
+    await Promise.all(
+      turnIds.map((id) =>
+        sokoBotControlPlane.cancelTurn(lane.userId, id).catch(() => undefined),
+      ),
+    );
+  const { turns, merged } = await loadA2aChain(turnIds);
+  const output = {
+    ...scenarioOutput(merged),
+    chain: turns.map((turn, index) => ({
+      turnId: turnIds[index],
+      status: turn.status,
+      answer: turn.finalAnswer,
+      tools: turn.toolCalls.map((call) => call.capability),
+    })),
+  };
+  const infrastructure = infrastructureCaseOutcome(turnIds[0]!, merged, output);
+  if (infrastructure) return { kind: "done", outcome: infrastructure };
+  const result = evaluateScenario(scenario, merged);
+  const extra = await a2aChecks({
+    scenario,
+    lane,
+    startedAt: context.startedAt,
+    turnIds,
+    timedOut,
+  });
+  result.checks.push(...extra);
+  result.total += extra.length;
+  result.passed += extra.filter((check) => check.pass).length;
+  const roomLog = await a2aRoomLog(lane, context.startedAt);
+  await closeA2aWorld(lane);
+  const judged = await judgeEvalChain(turnIds, scenario, roomLog).catch(
+    (error: unknown) => {
+      recordCoreWarning(
+        { operation: "eval_tick" },
+        {
+          message:
+            "Could not judge an eval chain, so it is scored by its checks alone",
+          why: "Judging the chain threw",
+        },
+        {
+          evalJudgeFailures: [
+            { turnId: turnIds.at(-1), ...messageSafeErrorFields(error) },
+          ],
+        },
+      );
+      return null;
+    },
+  );
+  const passed =
+    result.passed === result.total && judged?.verdict.verdict !== "fail";
+  return {
+    kind: "done",
+    outcome: {
+      status: passed ? "PASSED" : "FAILED",
+      checks: result.checks,
+      judge: judged?.verdict ?? null,
+      judgeModel: judged?.model ?? null,
+      output: { ...output, roomLog },
+      turnIds: [
+        ...turnIds,
+        ...(await otherAgentTurnIds(lane, context.startedAt)),
+      ],
     },
   };
 }

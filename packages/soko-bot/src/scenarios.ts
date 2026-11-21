@@ -10,6 +10,7 @@
  * the scenarios before it happened to leave behind.
  */
 import { cmoCompetitorWatchBrief } from "./competitors.js";
+import { A2A_SCENARIOS } from "./scenario-a2a.js";
 import { MUTATING_TOOLS } from "./scenario-mutating-tools.js";
 import { SUBTASK_SCENARIOS } from "./scenario-subtasks.js";
 
@@ -65,6 +66,34 @@ export type SokoBotScenarioTrigger =
       then: string;
     };
 
+/**
+ * The other side of an agent-to-agent case. The owner's turn asks someone;
+ * Core plays them (a scripted Coworker or teammate) or runs them (Hannah's
+ * own Soko Bot), and the case follows every follow-up the bot's waits start
+ * until the chain ends. Checks and the judge read the whole chain; the
+ * answer checked is the last turn's.
+ */
+export interface SokoBotScenarioExchange {
+  /**
+   * `coworker`: Mira, the lane's research Coworker, answers each question
+   * with the next of `replies` (null: no answer at all).
+   * `teammate`: Hannah posts `messages` in the room the bot wrote to her in,
+   * `gapSeconds` apart, after the bot's first message lands.
+   * `assistant`: Juno, Hannah's own Soko Bot in the Launch team room, answers
+   * for real from Hannah's Tasks.
+   */
+  with: "coworker" | "teammate" | "assistant";
+  replies?: (string | null)[];
+  messages?: string[];
+  gapSeconds?: number;
+  /** The bot's wait runs out instead: Core ends it once the first turn settles. */
+  expireWait?: boolean;
+  /** More follow-ups than this is a loop that did not stop. */
+  maxFollowUps: number;
+  /** Assistant messages the bot may post in rooms over the whole chain. */
+  maxBotMessages?: number;
+}
+
 export interface SokoBotScenario {
   id: string;
   title: string;
@@ -73,6 +102,7 @@ export interface SokoBotScenario {
   /** Owner message that starts the turn; empty when a trigger starts it. */
   prompt: string;
   trigger?: SokoBotScenarioTrigger;
+  exchange?: SokoBotScenarioExchange;
   /**
    * CLI lab: clear what earlier lab turns made (Tasks, schedules, files) and
    * the bot's memory, then seed these schedules (Europe/Berlin).
@@ -1106,6 +1136,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   ...SUBTASK_SCENARIOS,
+  ...A2A_SCENARIOS,
   {
     id: "competitor-week",
     title: "Writes a Project's competitor week from stored signals only",

@@ -167,6 +167,7 @@ export type {
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
 export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
+export { A2A_SCENARIOS } from "./scenario-a2a.js";
 export { SEO_EVAL_CAPABILITIES, SEO_SCENARIOS } from "./scenario-seo.js";
 export {
   CMO_PLACEHOLDER_PATTERN,
@@ -177,6 +178,7 @@ export {
   type ScenarioResult,
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
+  type SokoBotScenarioExchange,
 } from "./scenarios.js";
 export {
   isSokoBotSeoCapability,
