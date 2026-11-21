@@ -128,6 +128,8 @@ export function HistorySearchDialogProvider({
           tagTasksGroup: (tag) => tSearch("tagTasksGroup", { tag }),
           tagsError: tSearch("tagsError"),
           tagTasksError: tSearch("tagTasksError"),
+          projectsGroup: tSearch("projectsGroup"),
+          channelsGroup: tSearch("channelsGroup"),
         }}
       />
     </HistorySearchContext.Provider>

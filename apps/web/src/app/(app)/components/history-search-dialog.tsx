@@ -17,6 +17,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
+  GoToSearchList,
+  type GoToSearchState,
+} from "@/app/components/go-to-search-groups";
+import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
   HistorySearchItemTime,
@@ -35,11 +39,9 @@ import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import {
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList,
 } from "@/components/ui/command";
 import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
 import {
@@ -69,6 +71,8 @@ interface HistorySearchDialogLabels {
   tagTasksGroup: (tag: string) => string;
   tagsError: string;
   tagTasksError: string;
+  projectsGroup: string;
+  channelsGroup: string;
 }
 
 interface HistorySearchDialogProps {
@@ -225,23 +229,23 @@ export function HistorySearchDialog({
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList ref={listRef} style={{ maxHeight: listMaxHeight }}>
-        {searching && history.length === 0 ? (
-          <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {labels.loading}
-          </div>
-        ) : null}
-
-        {nothingFound && error ? (
-          <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-            {error}
-          </div>
-        ) : null}
-
-        {nothingFound && !error ? (
-          <CommandEmpty>{labels.empty}</CommandEmpty>
-        ) : null}
-
+      <GoToSearchList
+        query={query}
+        labels={labels}
+        onSelect={closeAndGo}
+        listRef={listRef}
+        listStyle={{ maxHeight: listMaxHeight }}
+        renderStatus={(goTo) => (
+          <SearchStatus
+            searching={searching}
+            nothingFound={nothingFound}
+            hasHistory={history.length > 0}
+            error={error}
+            goTo={goTo}
+            labels={labels}
+          />
+        )}
+      >
         <TagSearchGroups
           tags={tags}
           tagsState={tagsState}
@@ -321,8 +325,46 @@ export function HistorySearchDialog({
             </CommandItem>
           </CommandGroup>
         ) : null}
-      </CommandList>
+      </GoToSearchList>
     </CommandDialog>
+  );
+}
+
+/**
+ * Loading, failed or empty, across every group, in one status region that
+ * stays mounted while Search is open so each change is announced. "No
+ * results found" waits for every source, and a failed read says so.
+ */
+function SearchStatus({
+  searching,
+  nothingFound,
+  hasHistory,
+  error,
+  goTo,
+  labels,
+}: {
+  searching: boolean;
+  nothingFound: boolean;
+  hasHistory: boolean;
+  error: string | null;
+  goTo: GoToSearchState;
+  labels: Pick<HistorySearchDialogLabels, "loading" | "empty" | "error">;
+}) {
+  let message: string | null = null;
+  if ((searching || goTo.pending) && !hasHistory && goTo.count === 0) {
+    message = labels.loading;
+  } else if (nothingFound && goTo.count === 0) {
+    message = error ?? (goTo.failed ? labels.error : labels.empty);
+  }
+  return (
+    <div
+      role="status"
+      className={
+        message ? "text-muted-foreground px-2 py-6 text-center text-sm" : ""
+      }
+    >
+      {message}
+    </div>
   );
 }
 
