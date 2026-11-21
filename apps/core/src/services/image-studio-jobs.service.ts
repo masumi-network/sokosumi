@@ -841,11 +841,18 @@ async function buildReferenceUrls(
   }
   for (const fileId of providerFileIds) {
     urls.push(
-      await uploadFileReference(job.workspaceId, fileId, {
-        userId: job.requestedByUserId,
-        organizationId,
-        kind: automatedRequestKind(job.idempotencyKey),
-      }),
+      await uploadFileReference(
+        job.workspaceId,
+        fileId,
+        {
+          userId: job.requestedByUserId,
+          organizationId,
+          kind: automatedRequestKind(job.idempotencyKey),
+        },
+        // A styled picture's logo is often a transparent PNG, which a model
+        // can read as a black square.
+        libraryIds.length > 0,
+      ),
     );
   }
   return urls;
@@ -856,12 +863,22 @@ async function uploadFileReference(
   workspaceId: string,
   fileId: string,
   actor: FileActor,
+  onPaper = false,
 ): Promise<string> {
   const { bytes, mimeType } = await downloadStudioFileReference(
     workspaceId,
     fileId,
     actor,
   );
+  if (onPaper && mimeType === "image/png")
+    return await uploadReference({
+      bytes: await sharp(bytes)
+        .flatten({ background: "#ffffff" })
+        .png()
+        .toBuffer(),
+      contentType: "image/png",
+      fileName: `${fileId}.png`,
+    });
   return await uploadReference({
     bytes,
     contentType: mimeType,
@@ -1715,21 +1732,27 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       job.exportHeadline || job.useProductCutout
         ? { ...brand, approvedLines: undefined }
         : brand;
+    // A picture in a reference library style is Cuso's brief alone: the
+    // brand block (ad copy, Brand Brain, DESIGN.md, Memory) made its prompt
+    // 4,300 characters and was lettered into it (2026-11-20).
+    const styled = (job.referenceLibraryIds?.length ?? 0) > 0;
     const prompt =
       letteringEdit && job.exportHeadline
         ? buildStudioLetteringPrompt(
             job.exportHeadline,
             await readStudioBrandKit(job.projectId),
           )
-        : applyStudioBrandPrompt(
-            job.useProductCutout
-              ? backdropInstruction +
-                  " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
-                  job.prompt
-              : job.prompt,
-            promptBrand,
-            job.model === RECRAFT_VECTOR_ENDPOINT,
-          );
+        : styled
+          ? job.prompt
+          : applyStudioBrandPrompt(
+              job.useProductCutout
+                ? backdropInstruction +
+                    " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
+                    job.prompt
+                : job.prompt,
+              promptBrand,
+              job.model === RECRAFT_VECTOR_ENDPOINT,
+            );
     let finalPrompt = prompt;
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
@@ -1741,7 +1764,8 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       });
     } else {
       const settings = readSettings(job.settings);
-      const photoCount = job.useProductCutout ? 0 : job.referenceFileIds.length;
+      const photoCount =
+        job.useProductCutout || styled ? 0 : job.referenceFileIds.length;
       const productPhotoGuidance = photoCount
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";

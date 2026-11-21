@@ -19,6 +19,7 @@ import {
 import {
   CMO_BRAND_MEDIA_FOLDER,
   captureCmoHomepage,
+  readCmoBrandLogo,
 } from "@/services/cmo-brand-media.service";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
@@ -866,9 +867,12 @@ async function monthPictureChecks(
   const placed = showsPage.filter(
     (post) => Array.isArray(post.media) && post.media.length > 0,
   );
+  // The brand's logo is a styled picture's second image; a page is not.
+  const { fileId: logoFileId } = await readCmoBrandLogo(lane.cusoProjectId);
   const sentPage = jobs.filter(
     (job) =>
-      job.referenceLibraryIds.length > 0 && job.referenceFileIds.length > 0,
+      job.referenceLibraryIds.length > 0 &&
+      job.referenceFileIds.some((fileId) => fileId !== logoFileId),
   );
   const carousels = posts.flatMap((post) => {
     const planning = parseSocialPostPlanning(post.planning);

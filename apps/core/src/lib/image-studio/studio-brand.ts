@@ -30,7 +30,7 @@ import { parseBrandBrain } from "@/services/brand-brain.service";
 const BRAND_BLOCK_MAX_CHARS = 1600;
 
 /** Bump when brand wrapping or the job's provider prompt guidance changes. */
-export const STUDIO_PROMPT_ASSEMBLY_VERSION = "2026-11-20.1";
+export const STUDIO_PROMPT_ASSEMBLY_VERSION = "2026-11-21.1";
 
 export interface StudioBrand {
   designMd: string | null;

@@ -31,6 +31,7 @@ import {
 } from "@/services/image-studio-jobs.service";
 import { isMarketingFilePiece } from "@/services/marketing-strategy.service";
 import { writeMarketingStrategyFiles } from "@/services/marketing-strategy-files.service";
+import { readStyleTraits } from "@/services/reference-library.service";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotImageRefusedError,
@@ -109,6 +110,7 @@ export async function generateImage(
   const cuso = style ? await findCusoForBot(authorized.turn.sokoBotId) : null;
   if (style && !cuso)
     throw new SokoBotImageRefusedError("This bot has no CMO Project.");
+  const brand = style && cuso ? await loadStyleBrand(cuso.projectId) : null;
   const job = await startStudioImage({
     projectId: input.projectId,
     workspaceId: authorized.turn.workspaceId,
@@ -126,14 +128,19 @@ export async function generateImage(
             },
             slot: 0,
             businessName: cuso.businessName,
-            colours: (await loadStyleBrand(cuso.projectId)).colours,
+            colours: brand?.colours ?? [],
             brandPictures: referenceFileIds.length,
+            traits: await readStyleTraits(style.referenceId),
+            logo: Boolean(brand?.logoFileId),
           })
         : input.prompt,
     modelId: model.id,
     settings,
     referenceAssetIds: [],
-    referenceFileIds,
+    // A styled picture's second image is the brand's logo, drawn in.
+    referenceFileIds: brand?.logoFileId
+      ? [brand.logoFileId, ...referenceFileIds]
+      : referenceFileIds,
     referenceLibraryIds: style ? [style.referenceId] : [],
     parentAssetId: null,
     idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,

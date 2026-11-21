@@ -36,6 +36,7 @@ import {
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
 import { checkStyledPicture } from "@/lib/reference-library/style-check";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import type { StudioLogoPosition } from "@/schemas/project-image-studio.schema";
 import {
   listCmoBrandPictures,
   readCmoBrandLogo,
@@ -63,7 +64,9 @@ import {
 import {
   type ReferenceKind,
   readReferenceImage,
+  readStyleTraits,
   referenceLibraryAvailable,
+  type StyleTraits,
 } from "@/services/reference-library.service";
 import {
   scheduleSocialPost,
@@ -105,8 +108,44 @@ export const REFERENCE_STYLE_MODELS = [
  * was paid for) and says so in the job's error, which this starts.
  */
 export const CMO_STYLE_REJECTED = "Style check: ";
-/** A chat picture that passed keeps that on its job, so it is judged once. */
+/**
+ * A picture that passed keeps that on its job, so it is judged once, with
+ * where its logo goes: ": logo drawn" when the model drew it in, else the
+ * plain corner Core places it on. Plain "Style passed" (before 2026-11-21)
+ * is the lower-right corner.
+ */
 export const CMO_STYLE_PASSED = "Style passed";
+
+const LOGO_DRAWN = "logo drawn";
+
+/** Whether a job's stored verdict is a pass. */
+export function cmoStylePassed(error: string | null | undefined): boolean {
+  return error?.startsWith(CMO_STYLE_PASSED) ?? false;
+}
+
+/** The stored pass, naming where the logo goes. */
+export function cmoStylePassVerdict(
+  logo: StudioLogoPosition | "drawn",
+): string {
+  return `${CMO_STYLE_PASSED}: ${logo === "drawn" ? LOGO_DRAWN : `logo ${logo}`}`;
+}
+
+/** Where a passed picture's logo goes: drawn in, or the corner Core places it on. */
+export function cmoPassedLogo(error: string): StudioLogoPosition | "drawn" {
+  const placed = error.slice(CMO_STYLE_PASSED.length).replace(/^: /, "");
+  if (placed === LOGO_DRAWN) return "drawn";
+  const corner = placed.replace(/^logo /, "");
+  return (STUDIO_LOGO_CORNERS as readonly string[]).includes(corner)
+    ? (corner as StudioLogoPosition)
+    : "bottom-right";
+}
+
+const STUDIO_LOGO_CORNERS = [
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+] as const;
 
 const LIVE = new Set<ProjectImageJobStatus>([
   ProjectImageJobStatus.PENDING,
@@ -673,13 +712,104 @@ export function cmoStyleHeadline(
 const STEPS_WITHOUT_WORDS =
   "Show any steps, stages or panels with pictures alone: no numbers, step labels, captions, sub-titles, or letters on signs, screens, maps, compasses, tokens or objects.";
 
+/** Reference kinds whose prints carry a headline, a second line and an address. */
+const LETTERED_KINDS = new Set([
+  "poster",
+  "magazine-cover",
+  "book-cover",
+  "record-cover",
+  "playbill",
+  "ad",
+  "trade-card",
+  "label",
+]);
+
+/** A colour's lightness, 0 to 1. */
+function lightness(hex: string): number {
+  const value = Number.parseInt(hex.replace("#", "").padEnd(6, "0"), 16);
+  const [r, g, b] = [value >> 16, (value >> 8) & 255, value & 255];
+  return (Math.max(r, g, b) + Math.min(r, g, b)) / 510;
+}
+
+/** A colour's saturation, 0 to 1. */
+function saturation(hex: string): number {
+  const value = Number.parseInt(hex.replace("#", "").padEnd(6, "0"), 16);
+  const [r, g, b] = [value >> 16, (value >> 8) & 255, value & 255];
+  const max = Math.max(r, g, b);
+  return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+}
+
 /**
- * A picture in the look of an old print from the reference library: the
- * reference (the first image fal gets) lends only its style, the brand gives
- * the colours and, through the studio's brand block, its DESIGN.md. A piece
- * that shows the brand's site or product gets that picture after the
- * reference, set into the style unchanged. Core places the real logo
- * afterwards, so the model leaves its corner plain.
+ * Three inks by role, as the 16 Nov test printed them: the brand's colour as
+ * the accent, its darkest as the ink, its lightest as the paper. Five
+ * colours (NMKR's blue and grey-green too) gave cream with a little green.
+ */
+export function cmoStyleInks(colours: readonly string[]): {
+  accent: string | null;
+  ink: string | null;
+  paper: string | null;
+} {
+  const ink = colours.find(
+    (hex) =>
+      lightness(hex) < 0.2 &&
+      lightness(hex) === Math.min(...colours.map(lightness)),
+  );
+  const paper = colours.find(
+    (hex) =>
+      lightness(hex) > 0.85 &&
+      lightness(hex) === Math.max(...colours.map(lightness)),
+  );
+  const accent =
+    colours.find(
+      (hex) => hex !== ink && hex !== paper && saturation(hex) > 0.35,
+    ) ??
+    colours.find((hex) => hex !== ink && hex !== paper) ??
+    null;
+  return { accent, ink: ink ?? null, paper: paper ?? null };
+}
+
+/**
+ * The second line a lettered print carries: the piece's title, when it says
+ * more than the headline does (a title that repeats it would print twice).
+ */
+export function cmoStyleSecondLine(
+  piece: Pick<CmoMediaPiece, "title" | "headline">,
+): string | null {
+  const title = piece.title?.trim();
+  const headline = piece.headline?.trim();
+  if (!title || !headline || title.split(/\s+/).length > 8) return null;
+  const words = (text: string) =>
+    new Set(text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+  const [a, b] = [words(title), words(headline)];
+  const shared = [...a].filter((word) => b.has(word)).length;
+  return shared / new Set([...a, ...b]).size < 0.4 ? title : null;
+}
+
+/** Words a styled picture may letter besides its headline. */
+export function cmoStyleLines(
+  piece: Pick<CmoMediaPiece, "title" | "headline" | "slides">,
+  businessName: string,
+): string[] {
+  const second = piece.slides?.length ? null : cmoStyleSecondLine(piece);
+  return [...(second ? [second] : []), businessName];
+}
+
+/** "a 1930s poster": what the reference is, from its catalogue entry. */
+function referenceName(traits: StyleTraits): string {
+  const era = traits.era && traits.era !== "unknown" ? `${traits.era} ` : "";
+  const kind =
+    traits.kind === "other" ? "print" : traits.kind.replace("-", " ");
+  return `${/^[aeiou]/i.test(era || kind) ? "an" : "a"} ${era}${kind}`;
+}
+
+/**
+ * A picture in the look of an old print from the reference library, the way
+ * the 16 Nov test that Patrick picked made them: image 1 is the reference,
+ * named by its own catalogue traits; image 2 is the brand's logo, drawn into
+ * the design; one concrete scene; three inks; a lettered print carries its
+ * headline, a second line and the site's address. Without the logo image,
+ * Core places the logo afterwards on a plain corner. A piece that shows the
+ * brand's site gets that picture next, set into the style unchanged.
  */
 export function cmoStylePrompt(input: {
   piece: Pick<
@@ -689,35 +819,59 @@ export function cmoStylePrompt(input: {
   slot: number;
   businessName: string;
   colours: readonly string[];
-  /** The brand's own pictures sent after the reference. */
+  /** The brand's own pictures sent after the reference (and the logo). */
   brandPictures?: number;
   /** Core places the brand's real screen on a plain panel afterwards. */
   screen?: boolean;
+  /** The reference's catalogue entry. */
+  traits?: StyleTraits | null;
+  /** The brand's logo is the second image, to be drawn into the design. */
+  logo?: boolean;
 }): string {
-  const { piece } = input;
+  const { piece, traits } = input;
   const slides = piece.slides?.length ?? 0;
   const slide = piece.slides?.[input.slot]?.trim();
   const headline = cmoStyleHeadline(piece, input.slot);
   const own = input.brandPictures ?? 0;
+  const firstOwn = input.logo ? 3 : 2;
+  const lettered =
+    slides === 0 && Boolean(traits && LETTERED_KINDS.has(traits.kind));
+  const second = lettered ? cmoStyleSecondLine(piece) : null;
+  const { accent, ink, paper } = cmoStyleInks(input.colours);
+  const besides = [
+    own > 0 ? "what stands in the brand's own picture" : "",
+    input.logo ? "the logo" : "",
+  ]
+    .filter(Boolean)
+    .join(" and ");
+  const words = headline
+    ? lettered
+      ? `Letter "${headline}" large in the reference's lettering, spelled exactly${second ? `, the second line "${second}" smaller` : ""}, and "${input.businessName}" small at the foot. No other words${besides ? ` besides ${besides}` : ""}.`
+      : `The only words in the picture${besides ? ` besides ${besides}` : ""}: "${headline}", lettered large in the reference's style and spelled exactly. ${STEPS_WITHOUT_WORDS}`
+    : `No words, letters or numbers in the picture${besides ? ` besides ${besides}` : ""}.`;
   return [
-    "The first image is an old print, used ONLY as a style reference: borrow its illustration technique, layout, lettering and print texture.",
-    "Copy none of its words, names, mastheads, characters or illustrations; make an entirely new picture.",
+    traits
+      ? `Image 1 is ${referenceName(traits)}, used ONLY as a style reference. Copy its technique (${traits.technique})${traits.lettering && traits.lettering !== "none" ? ` and its lettering (${traits.lettering})` : ""}, and keep its paper and print texture. Follow its layout (${traits.layout}) as an arrangement only: new subjects in its places, none of its own.`
+      : "The first image is an old print, used ONLY as a style reference: borrow its illustration technique, layout, lettering and print texture.",
+    "Copy none of its words, names, mastheads, characters or drawings; make an entirely new picture.",
+    input.logo
+      ? `Image 2 is ${input.businessName}'s logo. Place it exactly as drawn, exactly once, as part of the design (in a masthead, a footer or a sign); never redraw, restyle or recolour it, and never repeat it on signs or objects in the scene.`
+      : "",
     own > 0
-      ? `${own > 1 ? "The other images are" : "The second image is"} ${input.businessName}'s own picture${own > 1 ? "s" : ""} of its site or product. Set what the scene shows of it into the composition as it is, like a plate printed into the page: its layout, words and colours unchanged and readable. Invent no price, number, plan, label or interface detail it does not show.`
+      ? `${own > 1 ? `Images ${firstOwn} and on are` : `Image ${firstOwn} is`} ${input.businessName}'s own picture${own > 1 ? "s" : ""} of its site or product. Set what the scene shows of it into the composition as it is, like a plate printed into the page: its layout, words and colours unchanged and readable. Invent no price, number, plan, label or interface detail it does not show.`
       : "",
     `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slides > 1 ? " One picture of a series: the others share this same style and colours. Draw no slide number, page number or counter." : ""}${slide ? ` This slide: ${slide}.` : ""}`,
     input.screen
       ? `Leave one plain, light, empty panel ${SCREEN_PANEL_WORDS}, with nothing drawn in it and no frame of your own: the brand's real screen is placed there afterwards. Draw no other screen, browser, phone, laptop, monitor or web page anywhere in the picture. Keep the headline in the top quarter, above the panel.`
       : "",
-    headline
-      ? `${own > 0 ? "Besides what stands in the brand's own picture, the" : "The"} only words in the picture: "${headline}", lettered large in the reference's style and spelled exactly. ${STEPS_WITHOUT_WORDS}`
-      : own > 0
-        ? "Besides what stands in the brand's own picture, no words, letters or numbers in the picture."
-        : "No words, letters or numbers in the picture.",
-    input.colours.length > 0
-      ? `Recolour everything around the brand colours ${input.colours.join(", ")}; a few neutral tones are fine.`
+    words,
+    "Signs, papers, screens, labels and objects in the scene carry no words.",
+    accent || ink || paper
+      ? `Recolour it in the brand's inks instead of the reference's own colours: ${[accent && `${accent} as the accent`, ink && `${ink} as the ink`, paper && `on ${paper} paper`].filter(Boolean).join(", ")}.`
       : "",
-    `Draw no ${own > 0 ? "other " : ""}logo, brand mark, emblem, coin, currency symbol, signature or watermark. Keep the lower-right corner plain and every word clear of it: the brand's logo is placed there afterwards.`,
+    input.logo
+      ? "Draw no other logo, brand mark, emblem, coin, currency symbol, signature or watermark."
+      : "Draw no logo, brand mark, emblem, coin, currency symbol, signature or watermark. Keep one corner plain and every word clear of it: the brand's logo is placed there afterwards.",
     "Never a real, named person.",
   ]
     .filter(Boolean)
@@ -790,6 +944,11 @@ interface StyleBrand {
   logo: Uint8Array | null;
   /** The full logo for a dark background, when the site has one. */
   darkLogo: Uint8Array | null;
+  /**
+   * The saved logo's Project file: sent as a styled picture's second image,
+   * drawn into the design. Null when only the Project's icon is known.
+   */
+  logoFileId: string | null;
 }
 
 /** The brand's colours (DESIGN.md) and logo bytes, read once per run. */
@@ -807,7 +966,12 @@ export async function loadStyleBrand(projectId: string): Promise<StyleBrand> {
     }).catch(() => null);
     if (response?.ok) logo = new Uint8Array(await response.arrayBuffer());
   }
-  return { colours: visual?.colors ?? [], logo, darkLogo: saved.dark };
+  return {
+    colours: visual?.colors ?? [],
+    logo,
+    darkLogo: saved.dark,
+    logoFileId: saved.fileId,
+  };
 }
 
 /** Below this average brightness (0 to 255) a corner takes the light logo. */
@@ -820,19 +984,20 @@ const DARK_CORNER = 110;
 export async function logoForPicture(
   picture: Uint8Array,
   style: Pick<StyleBrand, "logo" | "darkLogo">,
+  corner: StudioLogoPosition = "bottom-right",
 ): Promise<Uint8Array | null> {
   if (!style.logo || !style.darkLogo) return style.logo;
   try {
     const { width = 0, height = 0 } = await sharp(picture).metadata();
-    const corner = {
+    const area = {
       width: Math.max(1, Math.round(width * 0.26)),
       height: Math.max(1, Math.round(height * 0.19)),
     };
     const { channels } = await sharp(picture)
       .extract({
-        left: width - corner.width,
-        top: height - corner.height,
-        ...corner,
+        left: corner.endsWith("right") ? width - area.width : 0,
+        top: corner.startsWith("bottom") ? height - area.height : 0,
+        ...area,
       })
       .greyscale()
       .stats();
@@ -941,6 +1106,10 @@ export async function advanceCmoMedia(
           styled(piece) && action.step !== "video" && action.step !== "talking"
             ? (await brandFor()).colours
             : [],
+        logoFileId:
+          styled(piece) && action.step !== "video" && action.step !== "talking"
+            ? (await brandFor()).logoFileId
+            : null,
       });
       // A refusal (credits, the hourly limit) stops starting, never
       // attaching: finished pictures further down still go on their posts.
@@ -1066,6 +1235,8 @@ async function start(
     references: string[];
     /** The brand's colours, for a picture in a reference library style. */
     colours: string[];
+    /** The brand's logo file, a styled picture's second image. */
+    logoFileId?: string | null;
     /** A styled picture leaves a panel for the brand's real screen. */
     screen?: boolean;
   },
@@ -1124,6 +1295,7 @@ async function start(
           ]
         : undefined,
     );
+    const logoFileId = style ? (input.logoFileId ?? null) : null;
     await createImageJob({
       ...scope,
       prompt: style
@@ -1133,6 +1305,8 @@ async function start(
             businessName: context.cuso.businessName,
             colours: input.colours,
             screen: input.screen ?? false,
+            traits: await readStyleTraits(style),
+            logo: Boolean(logoFileId),
           })
         : cmoImagePrompt({
             piece,
@@ -1149,7 +1323,9 @@ async function start(
         aspectRatio: aspectRatio(piece),
       },
       referenceAssetIds: [],
-      referenceFileIds: input.references,
+      referenceFileIds: logoFileId
+        ? [logoFileId, ...input.references]
+        : input.references,
       referenceLibraryIds: style ? [style] : [],
       parentAssetId: null,
     });
@@ -1194,6 +1370,7 @@ async function attach(
           styleReferenceId: piece.styleReferenceId,
           headline: cmoStyleHeadline(piece, job.slot) ?? undefined,
           visual: piece.slides?.[job.slot]?.trim() || piece.visual,
+          lines: cmoStyleLines(piece, context.cuso.businessName),
         },
         job,
         style,
@@ -1289,12 +1466,17 @@ async function attach(
  */
 async function checkAndBrand(
   context: { cuso: Pick<Cuso, "sokoBotId"> },
-  piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline" | "visual">,
+  piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline" | "visual"> & {
+    /** Words it may letter besides the headline. */
+    lines?: readonly string[];
+  },
   job: Pick<CmoMediaJob, "id" | "assetId">,
   style: StyleBrand,
   /** The brand's real screen, placed on the picture's panel before the check. */
   screen: Uint8Array | null = null,
-): Promise<"rejected" | { bytes: Buffer; contentType: string }> {
+): Promise<
+  "rejected" | { bytes: Buffer; contentType: string; verdict: string }
+> {
   const asset = await prisma.projectImageAsset.findUnique({
     where: { id: job.assetId ?? "" },
     select: { blobPathname: true, contentType: true },
@@ -1304,7 +1486,7 @@ async function checkAndBrand(
     : null;
   if (!asset || !reference) return "rejected";
   // One verdict per job: a pass that already judged it is followed.
-  const judged = await jobVerdict(job.id);
+  let judged = await jobVerdict(job.id);
   if (judged === "rejected") return "rejected";
   const made = await readAssetBytes(asset.blobPathname);
   const picture = screen
@@ -1314,16 +1496,22 @@ async function checkAndBrand(
           .jpeg({ quality: 92 })
           .toBuffer()
     : made;
-  if (judged !== "passed") {
+  // Sent as the second image only when it is the saved logo file.
+  const logoSent = style.logoFileId ? style.logo : null;
+  if (judged === null) {
     const check = await checkStyledPicture({
       picture,
       reference: reference.bytes,
       headline: piece.headline ?? null,
+      lines: piece.lines ?? [],
+      logo: logoSent,
       scene: screen
         ? `${piece.visual ?? ""} ${PLACED_SCREEN_NOTE}`.trim()
         : (piece.visual ?? null),
       colours: style.colours,
-      brandPictures: screen ? [screen] : await jobBrandPictures(job.id),
+      brandPictures: screen
+        ? [screen]
+        : await jobBrandPictures(job.id, style.logoFileId),
     });
     await recordSokoBotCheckUsage({
       sokoBotId: context.cuso.sokoBotId,
@@ -1334,32 +1522,43 @@ async function checkAndBrand(
     // put the picture on its post, the second refused and marked the job.
     // The first verdict stored wins, and a later one follows it.
     const verdict = check.passes
-      ? CMO_STYLE_PASSED
+      ? cmoStylePassVerdict(
+          check.verdict.logo === "correct" && logoSent
+            ? "drawn"
+            : (check.verdict.plainCorner ?? "bottom-right"),
+        )
       : `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`;
-    const { count } = await prisma.projectImageJob.updateMany({
+    await prisma.projectImageJob.updateMany({
       where: { id: job.id, error: null },
       data: { error: verdict },
     });
-    const outcome =
-      count > 0
-        ? check.passes
-          ? "passed"
-          : "rejected"
-        : await jobVerdict(job.id);
-    if (outcome !== "passed") return "rejected";
+    judged = (await jobVerdict(job.id)) ?? {
+      passed: check.passes,
+      error: verdict,
+    };
   }
-  const logo = await logoForPicture(picture, style);
+  if (judged === "rejected" || !judged.passed) return "rejected";
+  const placement = cmoPassedLogo(judged.error);
+  const logo =
+    placement === "drawn"
+      ? null
+      : await logoForPicture(picture, style, placement);
   if (!logo) {
-    return { bytes: Buffer.from(picture), contentType: asset.contentType };
+    return {
+      bytes: Buffer.from(picture),
+      contentType: asset.contentType,
+      verdict: judged.error,
+    };
   }
   const png = await renderStudioPng(picture, {
-    logo: { bytes: logo, position: "bottom-right" },
+    logo: { bytes: logo, position: placement as StudioLogoPosition },
   });
   return asset.contentType === "image/png"
-    ? { bytes: png, contentType: "image/png" }
+    ? { bytes: png, contentType: "image/png", verdict: judged.error }
     : {
         bytes: await sharp(png).jpeg({ quality: 90 }).toBuffer(),
         contentType: "image/jpeg",
+        verdict: judged.error,
       };
 }
 
@@ -1374,12 +1573,13 @@ export const PLACED_SCREEN_NOTE =
 /** The style verdict stored on a job, if a check already judged it. */
 async function jobVerdict(
   jobId: string,
-): Promise<"passed" | "rejected" | null> {
+): Promise<"rejected" | { passed: boolean; error: string } | null> {
   const row = await prisma.projectImageJob.findUnique({
     where: { id: jobId },
     select: { error: true },
   });
-  if (row?.error === CMO_STYLE_PASSED) return "passed";
+  if (row?.error && cmoStylePassed(row.error))
+    return { passed: true, error: row.error };
   if (row?.error?.startsWith(CMO_STYLE_REJECTED)) return "rejected";
   return null;
 }
@@ -1404,8 +1604,11 @@ async function pieceScreen(
     .catch(() => null);
 }
 
-/** The brand's own pictures a styled job was made from, for its check. */
-async function jobBrandPictures(jobId: string): Promise<Uint8Array[]> {
+/** The brand's own pictures a styled job was made from (not its logo), for its check. */
+async function jobBrandPictures(
+  jobId: string,
+  logoFileId: string | null,
+): Promise<Uint8Array[]> {
   const job = await prisma.projectImageJob.findUnique({
     where: { id: jobId },
     select: {
@@ -1417,17 +1620,19 @@ async function jobBrandPictures(jobId: string): Promise<Uint8Array[]> {
   });
   if (!job) return [];
   const pictures = await Promise.all(
-    job.referenceFileIds.map((fileId) =>
-      downloadStudioFileReference(job.workspaceId, fileId, {
-        userId: job.requestedByUserId,
-        organizationId: job.workspace.organizationId,
-        kind: "soko_bot",
-      })
-        .then((file) => file.bytes)
-        // A picture deleted since is not shown to the check, which is then
-        // the stricter one: words from it count as extra.
-        .catch(() => null),
-    ),
+    job.referenceFileIds
+      .filter((fileId) => fileId !== logoFileId)
+      .map((fileId) =>
+        downloadStudioFileReference(job.workspaceId, fileId, {
+          userId: job.requestedByUserId,
+          organizationId: job.workspace.organizationId,
+          kind: "soko_bot",
+        })
+          .then((file) => file.bytes)
+          // A picture deleted since is not shown to the check, which is then
+          // the stricter one: words from it count as extra.
+          .catch(() => null),
+      ),
   );
   return pictures.filter((bytes) => bytes !== null);
 }
@@ -1440,7 +1645,7 @@ async function jobBrandPictures(jobId: string): Promise<Uint8Array[]> {
  * again returns the same answer.
  */
 export async function finishCmoChatPicture(input: {
-  cuso: Pick<Cuso, "sokoBotId" | "projectId">;
+  cuso: Pick<Cuso, "sokoBotId" | "projectId" | "businessName">;
   drive: { workspaceId: string; organizationId: string | null; userId: string };
   job: { id: string; assetId: string; prompt: string; error: string | null };
   styleReferenceId: string;
@@ -1457,19 +1662,19 @@ export async function finishCmoChatPicture(input: {
       passed: false,
       problems: job.error.slice(CMO_STYLE_REJECTED.length),
     };
-  const finished =
-    job.error === CMO_STYLE_PASSED
-      ? null
-      : await checkAndBrand(
-          input,
-          {
-            styleReferenceId: input.styleReferenceId,
-            headline: input.headline ?? undefined,
-            visual: input.scene ?? undefined,
-          },
-          job,
-          await loadStyleBrand(input.cuso.projectId),
-        );
+  const finished = cmoStylePassed(job.error)
+    ? null
+    : await checkAndBrand(
+        input,
+        {
+          styleReferenceId: input.styleReferenceId,
+          headline: input.headline ?? undefined,
+          visual: input.scene ?? undefined,
+          lines: [input.cuso.businessName],
+        },
+        job,
+        await loadStyleBrand(input.cuso.projectId),
+      );
   if (finished === "rejected") {
     const row = await prisma.projectImageJob.findUnique({
       where: { id: job.id },
@@ -1503,7 +1708,7 @@ export async function finishCmoChatPicture(input: {
       return { passed: false, problems: "its file could not be saved" };
     await prisma.projectImageJob.update({
       where: { id: job.id },
-      data: { error: CMO_STYLE_PASSED },
+      data: { error: finished.verdict },
       select: { id: true },
     });
   }
