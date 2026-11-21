@@ -150,14 +150,18 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
 
       const task = await createOwnTask(page);
       const key = await createApiKey(page);
-      const finished = await page.request.post(
-        `${CORE.url}/v1/tasks/${task.id}/events`,
-        {
-          headers: { authorization: `Bearer ${key}` },
-          data: { status: "COMPLETED", comment: RESULT },
+      // Native fetch, not page.request: Playwright's DEBUG=pw:api prints request headers.
+      // No redirects, so the key goes only to the paired Core; failures report status only.
+      const finished = await fetch(`${CORE.url}/v1/tasks/${task.id}/events`, {
+        method: "POST",
+        redirect: "manual",
+        headers: {
+          authorization: `Bearer ${key}`,
+          "content-type": "application/json",
         },
-      );
-      assert.equal(finished.status(), 201, "finishing the Task failed");
+        body: JSON.stringify({ status: "COMPLETED", comment: RESULT }),
+      });
+      assert.equal(finished.status, 201, "finishing the Task failed");
 
       // The board's Done column, then the Task.
       await page.goto(`${BASE_URL}/tasks`);
