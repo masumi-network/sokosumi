@@ -389,6 +389,29 @@ describe("durable delivery", () => {
     );
   });
 
+  it("keeps a Cuso's month production run out of the chat: the progress card tells it", async () => {
+    mocks.turn.mockResolvedValue(
+      turn({
+        source: "EVENT",
+        status: "COMPLETED",
+        finalAnswer:
+          "Updated social post (28×).\n\nThe production run timed out twice.",
+        parentTurnId: "parent",
+        backgroundTitle: "Make nmkr.io's month",
+        clientTurnId: "cmo:production:bot:1795249520088:1:0",
+      }),
+    );
+    await enqueueSokoBotDelivery(prisma, "turn");
+    expect(mocks.upsertDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          status: "SUPPRESSED",
+          reason: "CMO_PRODUCTION",
+        }),
+      }),
+    );
+  });
+
   it("creates one stable keyed message and records PERSISTED before transport", async () => {
     mocks.publish.mockImplementation(async () => {
       expect(mocks.update).toHaveBeenCalledWith(
